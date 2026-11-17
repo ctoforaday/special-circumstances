@@ -3,7 +3,6 @@ package setup
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -244,24 +243,6 @@ func TestSetupRemovesItsStagedConfigurationWhenItCannotPutItInPlace(t *testing.T
 		t.Fatalf("setup over an occupied run-config path: exit %d\n%s", code, errb.String())
 	}
 	requireNoStagedConfig(t, runDir, "a setup that could not put its configuration in place")
-}
-
-// A CONFIGURATION THAT CANNOT BE ENCODED IS SAID TO BE ONE, with a remedy that fixes it: making the
-// directory writable would not. JSON holds no infinite number, which --convergence-fraction parses
-// from "inf".
-func TestSetupSaysAConfigurationItCannotEncode(t *testing.T) {
-	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	cfg.ConvergenceFraction = math.Inf(1)
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code == 0 {
-		t.Fatalf("setup exited 0 over a configuration JSON cannot hold:\n%s", errb.String())
-	}
-	if msg := errb.String(); !strings.Contains(msg, "could not encode the run's configuration") || strings.Contains(msg, "writable") {
-		t.Errorf("the failure does not say the configuration could not be encoded, or gives the directory's remedy:\n%s", msg)
-	}
-	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
-		t.Error("setup wrote the cast for a run whose configuration it could not encode")
-	}
 }
 
 // A LANE COUNT THAT IS NOT A COUNT IS REFUSED BEFORE THE RUN EXISTS. Stored as typed, "two" would

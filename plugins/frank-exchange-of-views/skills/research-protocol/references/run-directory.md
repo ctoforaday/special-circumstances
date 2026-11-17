@@ -76,7 +76,7 @@ the chair sittings the run gets (max-epochs, default 12). One stop is the engine
 plan the same for three chair sittings in a row — the same parties readied against the same
 head, with the same docket, exchange counts and standing blockers — is a loop nothing on the board
 is moving, and the engine ends the run
-UNVERIFIED naming the stuck parties and the head. Red owns PASS/FAIL — *is it defensible*. **The bench
+UNVERIFIED naming the stuck parties and the head. The chair owns the PASS — *is it defensible* — and withholds a permitted one only by a position the bench rules on, whose ruling binds. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
 reads the telemetry projection — the series, never a snapshot — and files a reasoned,

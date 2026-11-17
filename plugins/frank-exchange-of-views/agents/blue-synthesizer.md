@@ -183,7 +183,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.
@@ -199,7 +199,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -573,7 +573,7 @@ Enumerated values:
     underway   you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached
     confirmed  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
     refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this
-    deferred   left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
+    deferred   left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
     declined   you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
     abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========

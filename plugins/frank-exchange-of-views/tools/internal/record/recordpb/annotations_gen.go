@@ -11,8 +11,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsEventType[:]
 	case "feov.record.v1.Grade":
 		return annotationsGrade[:]
-	case "feov.record.v1.Verdict":
-		return annotationsVerdict[:]
 	case "feov.record.v1.RunOutcome":
 		return annotationsRunOutcome[:]
 	case "feov.record.v1.CheckKind":
@@ -95,7 +93,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_REPRODUCE", Means: "red checking a recorded computation against its bundle's re-run, and whether what it computes is sound"},
 	{Name: "EVENT_TYPE_RETIRE", Means: "a claim retired from the report, with the reason and what supersedes it"},
 	{Name: "EVENT_TYPE_SPOT_CHECK", Means: "red re-checking a sample of prior work, or stating that it checked none and why"},
-	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's verdict for its epoch: PASS or FAIL against the open board"},
+	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's PASS, checked against the open board"},
 	{Name: "EVENT_TYPE_VERIFY", Means: "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"},
 	{Name: "EVENT_TYPE_REPORT_PART", Means: "a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them"},
 	{Name: "EVENT_TYPE_SITTING_OPEN", Means: "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"},
@@ -119,12 +117,6 @@ var annotationsGrade = [...]ValueAnnotations{
 	{Name: "GRADE_HIGH", Means: "serious", Mass: DeclaredNumber{Declared: true, Value: 3}},
 	{Name: "GRADE_CERTAIN", Means: "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists", Mass: DeclaredNumber{Declared: true, Value: 3.5}},
 	{Name: "GRADE_REALIZED", Means: "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", Mass: DeclaredNumber{Declared: true, Value: 0}},
-}
-
-var annotationsVerdict = [...]ValueAnnotations{
-	{Name: "VERDICT_UNSPECIFIED"},
-	{Name: "VERDICT_PASS", Means: "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"},
-	{Name: "VERDICT_FAIL", Means: "the board, as it stands, still stops you — refused over a converged board"},
 }
 
 var annotationsRunOutcome = [...]ValueAnnotations{
@@ -240,7 +232,7 @@ var annotationsInquiryStatus = [...]ValueAnnotations{
 	{Name: "INQUIRY_STATUS_UNDERWAY", Means: "you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached"},
 	{Name: "INQUIRY_STATUS_CONFIRMED", Means: "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"},
 	{Name: "INQUIRY_STATUS_REFUTED", Means: "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"},
-	{Name: "INQUIRY_STATUS_DEFERRED", Means: "left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it"},
+	{Name: "INQUIRY_STATUS_DEFERRED", Means: "left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it"},
 	{Name: "INQUIRY_STATUS_DECLINED", Means: "you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"},
 	{Name: "INQUIRY_STATUS_ABANDONED", Means: "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this"},
 }
@@ -268,7 +260,7 @@ var annotationsPetitionRuling = [...]ValueAnnotations{
 var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
 	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
-	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
+	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
 }
 
 var annotationsAboutKind = [...]ValueAnnotations{

@@ -115,30 +115,13 @@ type gateTable struct {
 
 func (t *gateTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Gate{}
-	{
-		var id int64
-		var c0 sql.NullString
-		if err := scanRows(q, "gate", `SELECT t."event_id", t."verdict" FROM "gate" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
-			m := &recordpb.Gate{}
-			if c0.Valid {
-				if v, err := wordOf[recordpb.Verdict]("gate.verdict", c0.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Verdict = ref(v)
-				}
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (t *gateTable) attach(ev *recordpb.Event, id int64) error {
 	m := t.rows[id]
 	if m == nil {
-		return noBody(id, "gate")
+		m = &recordpb.Gate{}
 	}
 	if err := t.bad[id]; err != nil {
 		return err

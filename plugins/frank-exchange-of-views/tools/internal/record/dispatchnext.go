@@ -27,13 +27,13 @@ import (
 // Each act is written through writeIn with the write path's validation, asked of this transaction.
 func DispatchNext(id Identity) (plan Plan, standing bool, err error) { return dispatchNext(id, nil) }
 
-// RecordVerdict is the verdict verb's whole act, in ONE write transaction: the chair's verdict, then
-// `dispatch next`'s act on the record it leaves. The plan carries the verdict its sitting recorded
-// (Plan.Verdict) and the chair's envelope is that plan, so the act that records the verdict prints
-// it. One transaction, because a verdict stored with no plan carrying it is a verdict the workflow
-// never reads: a plan the record refuses to fold or store refuses the verdict with it.
-func RecordVerdict(id Identity, v recordpb.Verdict) (plan Plan, standing bool, err error) {
-	return dispatchNext(id, &recordpb.Gate{Verdict: &v})
+// RecordPass is the verdict verb's whole act, in ONE write transaction: the chair's PASS, then
+// `dispatch next`'s act on the record it leaves. The plan carries the PASS its sitting recorded
+// (Plan.Passed) and the chair's envelope is that plan, so the act that records the PASS prints
+// it. One transaction, because a PASS stored with no plan carrying it is a PASS the workflow
+// never reads: a plan the record refuses to fold or store refuses the PASS with it.
+func RecordPass(id Identity) (plan Plan, standing bool, err error) {
+	return dispatchNext(id, &recordpb.Gate{})
 }
 
 // dispatchNext is DispatchNext with first, when not nil, written ahead of everything else in the

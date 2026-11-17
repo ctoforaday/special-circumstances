@@ -91,15 +91,16 @@ func TestTheStandingIsTheSameInBothForms(t *testing.T) {
 // seat handed "1 item blocks you" has to ask which, which is the call this feature exists to remove.
 func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 	runDir := seatRun(t)
-	// The chair's terminal act is missing until it records a verdict, which is a blocking item with
-	// text of its own — so this drives the blocked arm without inventing a board state.
+	// A grade motion blue filed is the chair's to rule, a blocking item with text of its own — so
+	// this drives the blocked arm on a board state a real sitting reaches.
+	contestSeverity(t, runDir, mintGap(t, runDir, "a-gap", "spec_underspecification"))
 	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "red's account of this epoch")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out, "STILL TO CLEAR") {
-		t.Fatalf("the chair owes its terminal act and was not told it is held:\n%s", out)
+		t.Fatalf("the chair owes a ruling and was not told it is held:\n%s", out)
 	}
 	// THE TERMINAL AND THE HELD STATE MUST NOT BOTH READ AS PERMISSION. "ALL CLEAR" is the one
 	// sentence that grants it, and a held seat must not see it anywhere in the block.
@@ -120,6 +121,7 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "a-material-gap", "spec_underspecification")
 	gapLine := "gap " + id + " is open and material"
+	contestSeverity(t, runDir, id)
 
 	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", "red's account of this epoch")
 	if err != nil {
@@ -132,7 +134,7 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	if strings.Contains(head, gapLine) || !strings.Contains(board, gapLine) {
 		t.Errorf("a gap its minter closes is counted in the chair's own debt, want it under the board's state:\n%s", out)
 	}
-	if !strings.Contains(head, "your terminal act is missing") {
+	if !strings.Contains(head, "was filed and never ruled") {
 		t.Errorf("the chair's own item is not in its own count:\n%s", out)
 	}
 	if strings.Contains(out, "before you may end your turn") {
@@ -192,4 +194,13 @@ func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 // what the block is, and a test spelling them separately drifts from the renderer one leg at a time.
 func saysWhereYouStand(s string) bool {
 	return strings.Contains(s, "ALL CLEAR") || strings.Contains(s, "STILL TO CLEAR") || strings.Contains(s, "NOTHING HERE IS YOURS TO CLEAR")
+}
+
+// contestSeverity is blue contesting gap id's severity: a motion the chair rules.
+func contestSeverity(t *testing.T, runDir, id string) {
+	t.Helper()
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", id,
+		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is smaller"); err != nil {
+		t.Fatal(err)
+	}
 }

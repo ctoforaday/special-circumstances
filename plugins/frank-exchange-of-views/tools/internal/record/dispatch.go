@@ -66,7 +66,7 @@ type Plan struct {
 	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
-	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed"`
 	// Head is the events.id of the latest blue_edit or report_part — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -133,39 +133,34 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
-	// Verdict is the verdict the chair recorded in the sitting that asked, absent while it has
-	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
-	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
-	// chair's restatement of it. It says what the asking sitting did, not what the board decides,
-	// so the key leaves it out — a FAIL recorded in one sitting and not the next is no movement on
-	// the board.
-	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
+	// Passed is true when the chair recorded the PASS in the sitting that asked, absent while it has
+	// not (chairPassedOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's envelope is
+	// this plan: the PASS reaches the engine as the record's fact, never as the chair's restatement
+	// of it. It says what the asking sitting did, not what the board decides, so the key leaves it
+	// out.
+	Passed bool `json:"passed,omitempty" key:"-" desc:"true when the chair recorded the PASS in this sitting; absent while it has not"`
 }
 
-// ChairVerdictAt is the verdict the chair recorded in its latest sitting on the record q reads: the
-// plan's `verdict` as `dispatch next` prints it there. migrate carries it onto a stored plan written
-// before the plan held the field.
-func ChairVerdictAt(q recordsql.Querier) (PlanVerdict, error) {
+// ChairPassedAt says whether the chair recorded the PASS in its latest sitting on the record q
+// reads: the plan's `passed` as `dispatch next` prints it there. migrate carries it onto a stored
+// plan written before the plan held the field.
+func ChairPassedAt(q recordsql.Querier) (bool, error) {
 	evs, win, err := eventsAt(q)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	return chairVerdictOf(evs, win), nil
+	return chairPassedOf(evs, win), nil
 }
 
-// PlanVerdict is a chair's recorded verdict as the plan prints it: the verdict verb's word.
-type PlanVerdict string
-
-// chairVerdictOf is the verdict the chair recorded in its latest sitting — the one asking for the
-// plan — and "" where it recorded none. A sitting holds one verdict.
-func chairVerdictOf(evs []*Event, win WindowIndex) PlanVerdict {
-	var v PlanVerdict
+// chairPassedOf says whether the chair recorded the PASS in its latest sitting — the one asking for
+// the plan.
+func chairPassedOf(evs []*Event, win WindowIndex) bool {
 	for _, e := range thisSitting(evs, win, chairSeat) {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
-			v = PlanVerdict(strings.ToUpper(recordpb.Word(g.GetVerdict())))
+		if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+			return true
 		}
 	}
-	return v
+	return false
 }
 
 // closingsAwaitedWhy is the plan's reason for a docketed gap whose parties' closings are awaited:
@@ -303,7 +298,7 @@ func foldPlan(params Params, r planReads) Plan {
 	plan := emptyPlan()
 	plan.Head = r.head
 	evs, win, fresh := r.evs, r.win, r.fresh
-	plan.Verdict = chairVerdictOf(evs, win)
+	plan.Passed = chairPassedOf(evs, win)
 
 	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
 	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
@@ -777,7 +772,7 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 		word := recordpb.Word(subj)
 		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
 			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
-			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
+			"At the final sitting the chair records the PASS where the plan permits one, or no verdict, and the run's outcome is derived from the record as it stands. "+
 			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
 	})
 }

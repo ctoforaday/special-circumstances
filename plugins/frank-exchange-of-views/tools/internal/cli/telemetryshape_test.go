@@ -165,7 +165,7 @@ func TestTelemetryHelpTreeMatchesAnEmittedLine(t *testing.T) {
 	if _, err := mintClass(t, runDir, "k2", "unclassified", "medium", "nearest is false_universal, which needs a quantifier; this claim has none"); err != nil {
 		t.Fatalf("mint unclassified: %v", err)
 	}
-	for _, args := range [][]string{{"register"}, {"verdict", "--as", "FAIL"}} {
+	for _, args := range [][]string{{"register"}, {"log", "--type", "defect", "--reason", "the chair's sitting minted nothing"}} {
 		if _, err := run(t, append(args, "--run", runDir, "--seat-id", "red-chair")...); err != nil {
 			t.Fatalf("chair %v: %v", args, err)
 		}

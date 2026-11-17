@@ -2243,7 +2243,7 @@ func (r *runner) staleAreas() []string {
 // chairEnvelope is what the chair returns: the plan it relayed — whose blockers are what the
 // terminal bench sitting fires on — and the verdict it recorded this sitting, if any. Gaps,
 // closures, dispute responses and petitions are the record's.
-func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[string]any) map[string]any {
+func (r *runner) chairEnvelope(seatID string, passed bool, printed string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
 	r.mu.Lock()
 	filed := len(r.petitionsFiled)
@@ -2257,29 +2257,29 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	r.mu.Lock()
 	petitioned := len(r.petitionsFiled) > filed
 	r.mu.Unlock()
-	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A verdict prints the plan carrying it, and the
+	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A PASS prints the plan carrying it, and the
 	// chair relays that; a petition or a heard position filed after it, or a sitting that recorded
-	// no verdict, asks the dispatch again — the workflow reads what still stands at the end of the
+	// no PASS, asks the dispatch again — the workflow reads what still stands at the end of the
 	// sitting off the relayed plan, and capture holds every relayed plan to the record there.
 	r.mu.Lock()
 	positioned := r.positionFiled
 	r.positionFiled = false
 	r.mu.Unlock()
-	if verdict == "" || petitioned || positioned {
+	if !passed || petitioned || positioned {
 		r.planThisSitting = r.dispatchNext(seatID)
 	} else {
 		var plan map[string]any
 		if err := json.Unmarshal([]byte(printed), &plan); err != nil || plan == nil {
-			r.noteActErr(fmt.Sprintf("the %s verdict's machine form is not the plan: %q", verdict, firstLine(printed)))
+			r.noteActErr(fmt.Sprintf("the PASS's machine form is not the plan: %q", firstLine(printed)))
 			plan = map[string]any{}
 		}
 		r.planThisSitting = plan
 	}
-	// THE ENVELOPE IS THE PLAN, AND THE VERDICT IS ITS FIELD: the engine ends the debate on it. A
-	// relayed plan that does not carry the verdict this sitting recorded is the record losing it on
+	// THE ENVELOPE IS THE PLAN, AND THE PASS IS ITS FIELD: the engine ends the debate on it. A
+	// relayed plan that does not carry the PASS this sitting recorded is the record losing it on
 	// the way to the engine.
-	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
-		r.noteActErr(fmt.Sprintf("the plan relayed after a %q verdict carries verdict %q — the plan carries the verdict its sitting recorded", verdict, got))
+	if got, _ := r.planThisSitting["passed"].(bool); got != passed {
+		r.noteActErr(fmt.Sprintf("the plan relayed after a sitting that recorded passed=%v carries passed=%v — the plan carries the PASS its sitting recorded", passed, got))
 	}
 	return r.chairCall(seatID)
 }
@@ -5814,14 +5814,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// is forced to a position and its ruling's route fits the epoch limit (withholds).
 		if epoch, maxEpochs := planEpochs(plan); permitted && overruled == "" && r.withholds(epoch, maxEpochs) {
 			r.chairPosition(seatID, true)
-			return r.chairEnvelope(seatID, "", "", responses)
+			return r.chairEnvelope(seatID, false, "", responses)
 		}
 		// A PASS A LENS'S READING DEBT HOLDS IS REFUSED NAMING THE READING (passRefusedOnReadingDebt).
 		r.passRefusedOnReadingDebt(seatID, plan)
 		if permitted {
-			if out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+			if out, err := r.exec("--json", "verdict", "--seat-id", seatID); err == nil {
 				r.chairPosition(seatID, false)
-				return r.chairEnvelope(seatID, "PASS", out, responses)
+				return r.chairEnvelope(seatID, true, out, responses)
 			} else {
 				// A PASS THE BOARD PERMITS AND THE GATE REFUSES is the chair's own duty undone —
 				// an unruled motion, a spot-check owed — and
@@ -5852,16 +5852,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.mu.Unlock()
 			}
 		}
-		// A FAIL names what stops the chair, and a FAIL over a converged board is refused — so
-		// the chair records one only while something material is open, and otherwise records no
-		// verdict this sitting, which is what the prompt tells it to do. The FAIL half of the
-		// verdict enum is still driven here, as it was: a FAIL is the ordinary mid-run sitting.
-		verdict, printed := "", ""
-		if len(r.openGaps()) > 0 {
-			verdict, printed = r.chairFail(seatID)
-		}
+		// THE VERDICT IS THE PASS ALONE: a sitting that records none relays no verdict. Where its
+		// plan permitted the PASS and the gate refused it, the position is still owed.
 		r.chairPosition(seatID, permitted)
-		return r.chairEnvelope(seatID, verdict, printed, responses)
+		return r.chairEnvelope(seatID, false, "", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.remandHeldBeforeRegister()
@@ -6813,7 +6807,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	}()
 	// The fuzz builds its run directly rather than through `setup`, so it must lay down the
 	// same inputs/run-config.json setup writes — the run's TERMS (plans/roundless.md §III.B.2:
-	// k, kMax, convergenceFraction, maxEpochs) are what `dispatch next` reads impasse from, and what
+	// k, kMax, maxEpochs) are what `dispatch next` reads impasse from, and what
 	// the CEILING verdict is DERIVED against (#308).
 	//
 	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
@@ -8551,7 +8545,7 @@ var reportExemptions = map[string]string{
 	// (view.go); a shortfall reaches the reader as an ordinary gap about the inquiry.
 	"inquiry_check": "read by record.InquiryJudgements as the unchecked_inquiry PASS gate; the standing check prints on the inquiry's row, a stale one nowhere, and a shortfall the lens finds is minted as an ordinary gap about the inquiry, which is what reaches the reader",
 	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":       "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	"verdict":       "the chair's PASS, consumed by DeriveVerdict into the terminal outcome and printed as each epoch's recorded verdict in the debate transcript's heading",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -9855,8 +9849,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	}()
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the lanes'
 	// parts a lens finding has no anchor quote to attach to and is refused, so red mints nothing
-	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
-	// which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
+	// and the run takes the engine's degenerate-merge refusal, which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
 	r := newRunner(bin, runDir, newLockedRand(1))
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,

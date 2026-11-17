@@ -284,6 +284,10 @@ var runConfigDrops = map[string]struct{}{
 	// served model other than the configured tier, which went at epoch 75: nothing read it, and
 	// capture's tier audit fails a substitution in either direction.
 	"allowModelSubstitution": {},
+	// A SOURCE BEFORE EPOCH 78 MAY STATE `convergenceFraction`, the board-mass fraction below which
+	// the chair's FAIL over a converged board was refused, which went with the FAIL at epoch 78: the
+	// verdict is the PASS alone.
+	"convergenceFraction": {},
 }
 
 // translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops

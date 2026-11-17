@@ -72,7 +72,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
   - The operator is the person running the research, and the seat id their own commands run under.
@@ -86,7 +86,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.

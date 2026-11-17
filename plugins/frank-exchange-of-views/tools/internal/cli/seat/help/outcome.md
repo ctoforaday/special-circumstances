@@ -1,6 +1,6 @@
 ## menu
 
-stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+stamp how the run ENDED, as a fact — a different question from the chair's PASS
 
 ## detail
 

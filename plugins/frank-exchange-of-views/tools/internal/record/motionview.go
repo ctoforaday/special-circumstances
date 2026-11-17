@@ -8,7 +8,7 @@ import (
 
 // THE MOTIONS VIEW, AND WHY IT HAD TO EXIST.
 //
-// A motion BLOCKS the terminal verb: `chair verdict --as PASS` is refused while one is unruled,
+// A motion BLOCKS the terminal verb: `chair verdict` is refused while one is unruled,
 // and the refusal names its id. Until this view, that id was all a seat could ever learn — there
 // was no read verb (`motion` offers a subject's file and rule, no show) and
 // no projection carried one. The ask was on the record and unreadable.

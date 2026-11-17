@@ -413,6 +413,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
 			// and TranslateReadingBlockers carries an archived reading blocker to its reading debt.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanVerdict(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
@@ -431,7 +435,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
+				if err := CarryPlanPass(pl, batch.Querier()); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}

@@ -85,8 +85,8 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	}
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "rulings": []any{},
+			"citations_checked": 0,
+			"gaps":              []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"dispositions": []any{},
 			"open_gaps":    []any{},

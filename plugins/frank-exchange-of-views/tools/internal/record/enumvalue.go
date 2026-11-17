@@ -143,8 +143,8 @@ func Identifiers(vs []EnumValue) enumflag.EnumIdentifiers[string] {
 
 // Refuse builds the sentence a seat gets for a value outside the set, with the set under it.
 //
-// IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'FAIL', 'PASS'`, which is
-// correct and teaches nothing. Ours names the NEAR-MISS — "it differs from \"PASS\" only in
+// IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'PASS'`, which is correct
+// and teaches nothing. Ours names the NEAR-MISS — "it differs from \"PASS\" only in
 // case" — and then says what the mistype WOULD have done, because the refusal is where a seat
 // actually meets the design and a seat that is merely told it is wrong guesses again.
 //
@@ -254,9 +254,9 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 	return out
 }
 
-// loud spells a generated set in capitals, for the two verbs whose seat-facing word is the
-// schema's in upper case: `chair verdict --as PASS` and `bench outcome --as VERIFIED`. VerdictOf
-// and RunOutcomeOf admit only that spelling and lowercase it to resolve, so the capitals are a
+// loud spells a generated set in capitals, for the verb whose seat-facing word is the schema's in
+// upper case: `bench outcome --as VERIFIED`. RunOutcomeOf admits only that spelling and lowercases
+// it to resolve, so the capitals are a
 // rendering rule applied once to the descriptor's set, not a second table that spells the same
 // words its own way.
 func loud(vs []EnumValue) []EnumValue {

@@ -399,7 +399,7 @@ const PLAN = {
   required: ['key', 'head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'stale_areas', 'ceiling', 'max_epochs', 'epoch', 'final_sitting', 'epoch_limit_reached', 'blockers', 'why'],
   additionalProperties: false,
   properties: {
-    key: { type: 'string', pattern: '^[0-9a-f]{16}$', description: "the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict" },
+    key: { type: 'string', pattern: '^[0-9a-f]{16}$', description: "the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed" },
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
@@ -414,7 +414,7 @@ const PLAN = {
     epoch_limit_reached: { type: 'boolean', description: "the run's epoch limit leaves undispatched a party the board readies — any, at the sitting that opens the run's last epoch; blue, the only one, at the sitting before it — so nobody is dispatched, and ceiling is set for that reason" },
     blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['material_gap', 'remand_owed', 'unchecked', 'failed_check', 'reading_debt', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'upheld_position', 'open_inquiry', 'unchecked_inquiry'] }, subject: { type: 'string', description: 'the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds' }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
-    verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
+    passed: { type: 'boolean', description: 'true when the chair recorded the PASS in this sitting; absent while it has not' },
   },
   if: { required: ['pass_permitted'], properties: { pass_permitted: { type: 'boolean', enum: [true] } } },
   else: { required: ['blockers'], properties: { blockers: { type: 'array', minItems: 1 } } },
@@ -553,7 +553,7 @@ const BLUE_ENVELOPE = {
 // hook writes it into the chair's call, because this script has no other surface the record can reach
 // (record.ChairEnvelope). The chair copies none of it. Capture's dispatch-parity audit compares each
 // plan with the plan the record stored, whole, and requirePlan below type-checks every field read. The
-// verdict is the plan's own field — what the chair RECORDED in the sitting that asked — so the engine
+// PASS is the plan's own field — what the chair RECORDED in the sitting that asked — so the engine
 // ends the debate on a record fact. Beside the plan's fields is one more, `notes`, the chair's line to the operator. Nothing
 // else is here: the record holds it and every seat reads it through the tool.
 //
@@ -599,9 +599,9 @@ const requirePlan = (plan, epoch) => {
   for (const [list, flag] of Object.entries(PLAN_EMPTY_ONLY_WITH)) {
     if (!plan[list].length && plan[flag] !== true) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${list}\` is empty and whose \`${flag}\` is false — the record states \`${list}\` empty only when \`${flag}\` is true, so the relay emptied it; the plan is \`dispatch next\`'s JSON, as the record stored it`)
   }
-  // THE VERDICT ENDS THE DEBATE, so it is read only as one of the record's words, or absent: the
-  // verb prints it only once the sitting has recorded one.
-  if (plan.verdict !== undefined && !PLAN.properties.verdict.enum.includes(plan.verdict)) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`verdict\` is ${JSON.stringify(plan.verdict)}, not one of ${PLAN.properties.verdict.enum.join(' | ')} or absent — the plan is \`dispatch next\`'s JSON, as the record stored it`)
+  // THE PASS ENDS THE DEBATE, so it is read only as a boolean, or absent: the verb prints it only
+  // once the sitting has recorded the PASS, and the debate ends on `true` alone.
+  if (plan.passed !== undefined && typeof plan.passed !== 'boolean') throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`passed\` is ${JSON.stringify(plan.passed)}, not a boolean or absent — the plan is \`dispatch next\`'s JSON, as the record stored it`)
 }
 // THE ENVELOPE IS THE PLAN, CLOSED: PLAN's own fields at the top level, with its required keys,
 // its closure and its if/else, and `notes` beside them. A `plan` slot holding the relay drew the whole
@@ -763,7 +763,7 @@ async function hearPositions() {
   const seatID = 'judge'
   log(`epoch ${epoch}: the bench hears the chair's position on the PASS it withheld, which the record's read says is owed`)
   return sit((o) => agent(
-    `Position sitting, topic "${topic}". The chair held back a PASS its plan permitted, and its position argues why: your work list names each such position whose gavel is yours, and the motions projection carries the position's text. Read the report, the board and the position, and rule EACH position upheld | overruled, with your opinion — the reasoning, the principle applied, why the objection does or does not hold. EITHER WAY THE OBJECTION IS DECIDED, NOT DROPPED. UPHELD: the objection holds, and your ruling NAMES THE WORK the debate continues on, one way: a lens — any lens of the cast, a retired one included — to audit its area, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a gap sent back this way is its one remand at impasse, as a docket remand is — and in either case the DIRECTION that work owes, written as a directive a seat can act on. OVERRULED: the objection does not hold; you name no work, and the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict on it. A position whose class is always material is upheld, never overruled: its class has decided materiality, and whether the defect stands is the named lens's to find. Read the transcript for context. ${haltClause(HALT_STOPS, 'position')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.position)} Return your envelope.`, o),
+    `Position sitting, topic "${topic}". The chair held back a PASS its plan permitted, and its position argues why: your work list names each such position whose gavel is yours, and the motions projection carries the position's text. Read the report, the board and the position, and rule EACH position upheld | overruled, with your opinion — the reasoning, the principle applied, why the objection does or does not hold. EITHER WAY THE OBJECTION IS DECIDED, NOT DROPPED. UPHELD: the objection holds, and your ruling NAMES THE WORK the debate continues on, one way: a lens — any lens of the cast, a retired one included — to audit its area, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a gap sent back this way is its one remand at impasse, as a docket remand is — and in either case the DIRECTION that work owes, written as a directive a seat can act on. OVERRULED: the objection does not hold; you name no work, and your ruling binds: the chair's next sitting owes the PASS. A position whose class is always material is upheld, never overruled: its class has decided materiality, and whether the defect stands is the named lens's to find. Read the transcript for context. ${haltClause(HALT_STOPS, 'position')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.position)} Return your envelope.`, o),
     { ...dispatchAs(seatID), label: `judge · ${OCCASION.position} · ${slug}`, phase: 'Debate', schema: EMPTY_ENVELOPE })
 }
 
@@ -914,7 +914,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // grade motions are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${lawClause}
 FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose pin the report head has moved past, blue on every open material gap below its limits — never in the epoch before the last, so a lens sits after every act of blue's — and its lens once blue has acted since the lens did, the lens alone ahead of any docket, the bench for every gap at impasse (it dockets those itself) once the closings its parties can still file are in, and the seat that owes a blocker another seat must clear — the lens whose check failed until its gap is minted, and blue to remedy it. The tool writes the plan the record stores into your envelope: COPY NONE OF IT. Return your envelope empty or holding only notes, whatever its schema requires; one carrying a field of the plan is refused. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked: the plan stored last is the one that goes. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
-THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
+THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or withhold it with your position, which argues why. Otherwise record no verdict this sitting.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is.
 RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason. Accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.
 NEVER RE-DERIVE THE BOARD IN YOUR HEAD: the board, work and motions projections are the reads, and the plan is the record's, not yours.`
@@ -961,9 +961,9 @@ while (!stopped() && !seatStop) {
   const plan = chairEnv
   requirePlan(plan, epoch)
   lastPlan = plan
-  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${plan.verdict ? `, chair recorded ${plan.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
+  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${plan.passed === true ? ', chair recorded PASS' : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
   if (halted) break
-  if (plan.verdict === 'PASS') break
+  if (plan.passed === true) break
   // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
   // nobody. A relayed plan that says the limit is reached ends the debate whatever parties it lists.
   // A HEARING OWED AT THE LAST EPOCH IS THE TERMINAL SITTING'S: no hearing is convened there, and the
@@ -1084,7 +1084,7 @@ const outcomeWord = (w) => {
 // The outcome is read twice: at the end of the debate, and again if the terminal sitting halts.
 const verdictNow = () => halted ? outcomeWord('HALTED')
   : readStop ? outcomeWord('UNVERIFIED')
-  : (lastPlan && lastPlan.verdict === 'PASS') ? outcomeWord('VERIFIED')
+  : (lastPlan && lastPlan.passed === true) ? outcomeWord('VERIFIED')
   : (noProgress || seatStop) ? outcomeWord('UNVERIFIED')
   : (lastPlan && (lastPlan.ceiling || limitHeldTheHearing)) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')

@@ -132,7 +132,6 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			t.Errorf("blocker kind %s has no fixture row — add one, so every surface is held to it", k.kind)
 		}
 	}
-	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
 	for _, c := range rows {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge")
@@ -145,7 +144,6 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			}
 			c.build(b)
 			openChairSitting(b)
-			b.add("red-chair", fail) // the terminal act, so its duty does not hold the list open
 			run := b.seed()
 
 			blockers, err := PassBlockers(run)
@@ -163,10 +161,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 
 			// The gate.
 			passErr := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
-			failErr := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, fail)
 			if c.kind == "" {
-				if passErr != nil || failErr != nil {
-					t.Fatalf("nothing holds, yet PASS = %v, FAIL = %v", passErr, failErr)
+				if passErr != nil {
+					t.Fatalf("nothing holds, yet PASS = %v", passErr)
 				}
 			} else {
 				if passErr == nil {
@@ -177,17 +174,10 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 						t.Errorf("the PASS refusal does not name %q: %v", bl.Subject, passErr)
 					}
 				}
-				// NO KIND HOLDS A FAIL: another seat clears each of these, so the convergence rule does
-				// not stand and the FAIL is the chair's to record.
-				if failErr != nil {
-					t.Errorf("FAIL refused over %s: %v — no blocker kind holds a FAIL", c.kind, failErr)
-				}
 				// THE REFUSAL IS A CONFLICT WITH THE BOARD, by its code: a caller reading the envelope
 				// tells a blocked verdict from a tool failure without reading the sentence.
-				for verdict, err := range map[string]error{"PASS": passErr, "FAIL": failErr} {
-					if err != nil && feov.CodeOf(err) != string(feov.Conflict) {
-						t.Errorf("the %s refusal is coded %q, want %q: %v", verdict, feov.CodeOf(err), feov.Conflict, err)
-					}
+				if feov.CodeOf(passErr) != string(feov.Conflict) {
+					t.Errorf("the PASS refusal is coded %q, want %q: %v", feov.CodeOf(passErr), feov.Conflict, passErr)
 				}
 			}
 
@@ -304,7 +294,7 @@ func passRefusalOver(t *testing.T, run Run, kinds ...BlockerKind) error {
 			}
 		}
 	}
-	return requireNoBlockers(viewOf(t, run), recordpb.Verdict_VERDICT_PASS, of)
+	return requireNoBlockers(of)
 }
 
 func petitionMotion(id string) *recordpb.Motion {
@@ -363,9 +353,8 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	}
 }
 
-// convergedBoard is a board the convergence rule holds on: the lens minted a high gap, red failed
-// at that peak, the gap closed, and only a low gap is open — nothing material, mass below the
-// fraction of the peak, nothing fresh and material this epoch.
+// convergedBoard is a board with nothing material open: the lens minted a high gap, the gap closed,
+// and only a low gap is open, minted in a later epoch.
 func convergedBoard(t *testing.T) *stage {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens)
@@ -373,7 +362,6 @@ func convergedBoard(t *testing.T) *stage {
 	st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &sev,
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-	st.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
 	st.register("red-chair").register(evLens).
 		add(evLens, &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")})
@@ -384,53 +372,6 @@ func convergedBoard(t *testing.T) *stage {
 	// Two barren sittings at the head retire the lens, so no lens is ready and the board itself is
 	// all that holds PASS.
 	return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
-}
-
-// A CONVERGED BOARD WITH ANOTHER SEAT'S BLOCKER ON IT ADMITS A FAIL (#1202). PASS was refused
-// ("issue `--as FAIL`") and FAIL was refused ("or issue `--as PASS`"), so the chair could record
-// no verdict at all. The convergence refusal stands only where its "or issue `--as PASS`" is true,
-// apart from the chair's own items.
-func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
-	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
-
-	t.Run("converged, nothing else", func(t *testing.T) {
-		run := convergedBoard(t).seed()
-		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") {
-			t.Fatalf("FAIL over a converged board = %v, want the convergence refusal", err)
-		}
-	})
-	for _, c := range []struct {
-		name  string
-		build func(b *stage)
-	}{
-		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }},
-		{"citation found against", func(b *stage) { b.cite("C-1").foundAgainst(evLens, "C-1", "") }},
-	} {
-		t.Run("converged, "+c.name, func(t *testing.T) {
-			b := convergedBoard(t)
-			c.build(b)
-			run := b.seed()
-			chair := Identity{Run: run, SeatID: "red-chair"}
-			if _, err := Append(chair, passGate); err == nil {
-				t.Fatalf("fixture: PASS is admitted, so %s does not hold it", c.name)
-			}
-			if _, err := Append(chair, fail); err != nil {
-				t.Errorf("neither PASS nor FAIL can be recorded: FAIL = %v", err)
-			}
-		})
-	}
-	t.Run("converged, the chair's own item", func(t *testing.T) {
-		b := convergedBoard(t)
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M9"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.seed()
-		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "M9") {
-			t.Fatalf("FAIL over a converged board holding only the chair's ruling of grade motion M9 = %v, want the convergence refusal naming it", err)
-		}
-	})
 }
 
 // THE OUTCOME IS REFUSED WHILE A MOTION WHOSE GAVEL IS THE BENCH'S STANDS UNRULED (#1202). The
