@@ -74,8 +74,8 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 	}
 	minters := map[string]string{}
 	for _, g := range open {
-		if g.mintedBy != composedSourceAuditor && !docketed[g.id] {
-			minters[g.id] = g.mintedBy
+		if g.assignee != composedSourceAuditor && !docketed[g.id] {
+			minters[g.id] = g.assignee
 		}
 	}
 	for i, e := range evs {

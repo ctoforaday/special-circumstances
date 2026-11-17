@@ -337,7 +337,7 @@ type fuzzArm struct {
 	name   string
 	weight int
 	seats  []string
-	verb   []string // the verb path, first word first: {"motion", "grade", "file"}
+	verb   []string // the verb path, first word first: {"motion", "docket", "file"}
 	flags  func(rng *rand.Rand) []string
 	// steps, when set, builds SEVERAL commands for the arm's seat — a tour arm's prerequisites,
 	// its act and the repeat of it. Only the step labelled with the arm's own name is what "every
@@ -421,11 +421,10 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "contested, and not red's to close"}
 		}},
-	// Was `blue dispute`, a verb the motion collapse retired: a grade dispute is a grade motion.
-	{name: "blue motion grade file", weight: 1, seats: blueSeats, verb: []string{"motion", "grade", "file"},
+	// A blue seat puts a gap before the bench: a dispute of a gap is a docket motion.
+	{name: "blue motion docket file", weight: 1, seats: blueSeats, verb: []string{"motion", "docket", "file"},
 		flags: func(rng *rand.Rand) []string {
-			return []string{"--id", pick(rng, fuzzGapIDs), "--dimension", "likelihood",
-				"--proposed", pick(rng, fuzzGrades), "--reason", "why"}
+			return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "the gap is graded " + pick(rng, fuzzGrades) + " and should not be"}
 		}},
 	// Was `bench reason`: the bench's disposition of a gap is its ruling on a docket motion.
 	{name: "bench motion docket rule", weight: 2, seats: []string{"judge"}, verb: []string{"motion", "docket", "rule"},
@@ -472,9 +471,6 @@ var tourArms = []fuzzArm{
 	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--reason", t} }, nil),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
-	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},
-		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
-		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
@@ -512,11 +508,6 @@ var tourArms = []fuzzArm{
 }
 
 func reasonOnly(t string) []string { return []string{"--reason", t} }
-
-func fileGradeMotion(name string) cmd {
-	return fuzzStep(name+" · setup", []string{"motion", "grade", "file"}, "blue-respond",
-		"--id", "GAP001", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
-}
 
 // fuzzStep is one command, spelled as its seat types it.
 func fuzzStep(arm string, verb []string, seat string, flags ...string) cmd {

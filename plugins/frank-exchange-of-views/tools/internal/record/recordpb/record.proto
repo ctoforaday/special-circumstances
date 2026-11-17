@@ -275,7 +275,7 @@ enum EventType {
   reserved 15;
   reserved "EVENT_TYPE_MANIFEST_ROW";
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
-  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"];
+  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a petition to the bench, or a gap docketed with the act the filer proposes"];
   // 7 was EVENT_TYPE_CLASS_NEW, 18 EVENT_TYPE_MOTION_APPEAL, 28 EVENT_TYPE_REVISION and 39
   // EVENT_TYPE_CORRECTION: a gap's class is a value of the closed GapClass set, a ruling stands as
   // made, a report's change is its edits, and a wrong act is answered by a new act.
@@ -315,6 +315,7 @@ enum EventType {
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
   EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
   EVENT_TYPE_ENVELOPE_ADMITTED = 44 [(means) = "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"];
+  EVENT_TYPE_TOMBSTONE = 46 [(means) = "the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb"];
   EVENT_TYPE_INQUIRY_CHECK = 45 [(means) = "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"];
 }
 
@@ -626,13 +627,16 @@ enum InquiryStatus {
 // the rulings are separate enums below rather than one flat set.
 enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
-  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
+  // 1 was the grade subject: a dispute of a gap's grade is a docket motion proposing the regrade.
+  // Reserved: a stored motion carries the number.
+  reserved 1;
+  reserved "MOTION_SUBJECT_GRADE";
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
   // 3 was the inquiry subject: an inquiry's quality is its owning lens's check, and a shortfall is a
   // gap about it. Reserved: a stored motion carries the number.
   reserved 3;
   reserved "MOTION_SUBJECT_INQUIRY";
-  MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
+  MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put to its assignee and then the bench, with the act the filer proposes: the assignee may accept it at its next sitting, else the bench accepts or rejects it, or rules a motion with no act by its word", (ruled_by) = "bench"];
   // A WITHHELD PASS IS HEARD (gblock, 2026-10-30). The chair's position at a sitting that withheld a
   // PASS its plan permitted readies the bench on it, and the bench rules it: upheld names the work,
   // overruled sends the PASS back to the chair's next sitting. The id is the POSITION's own, because
@@ -641,23 +645,12 @@ enum MotionSubject {
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
-// event carries granted|denied for a petition and accepted|rejected for a grade, and a ruling
+// event carries granted|denied for a petition and upheld|overruled for a position, and a ruling
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
 //
 // Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
 // in record/motion.go is built from these values (evsOf), so an edit here is the edit the chair
 // and the bench see.
-enum GradeRuling {
-  GRADE_RULING_UNSPECIFIED = 0;
-  // ACCEPTING MOVES NOTHING. This value read "the proposed grade stands" while no code applied a
-  // proposed grade: the originating lens moves it with `regrade`, MotionVerdicts tells the chair
-  // so, and the lens's own work list carries the owed regrade until it is filed. On the b9 run the
-  // chair ruled M1 accepted and wrote that the minting lens owns applying it; the record holds no
-  // regrade after the ruling, which is the duty the old sentence would have called satisfied.
-  GRADE_RULING_ACCEPTED = 1 [(means) = "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"];
-  GRADE_RULING_REJECTED = 2 [(means) = "the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion"];
-}
-
 enum PetitionRuling {
   PETITION_RULING_UNSPECIFIED = 0;
   PETITION_RULING_GRANTED = 1 [(means) = "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"];
@@ -783,6 +776,7 @@ message Event {
     ReportRead report_read = 62;
     EnvelopeAdmitted envelope_admitted = 63;
     InquiryCheck inquiry_check = 64;
+    Tombstone tombstone = 65;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
@@ -790,8 +784,9 @@ message Event {
   // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
   // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, 64 for the
-  // inquiry check, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 65 to 80;
+  // inquiry check, 65 for the tombstone, which is what the reserve is for — the block shrinks and
+  // nothing is renumbered.
+  reserved 66 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -900,7 +895,7 @@ message Mint {
   // THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
   //
   // Every other gap_id in the schema now references this column, which is only possible because it
-  // is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
+  // is unique and present. Before, a close, an opinion, a regrade or a motion could name a
   // gap that had never been minted, and the file-backed record met that case with an
   // ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
   // discoverable at all: the row cannot be written.
@@ -983,12 +978,13 @@ message Mint {
   }];
   optional Grade complexity_cost = 19;
 
-  // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
-  // key would read as "lineage unknown" where the truth is "lineage none". Each names a gap already
-  // minted: the gap's demand lineage is written at its mint, so an ancestor minted later could never join it.
-  repeated string supersedes = 20 [(sql) = { references: "mint.gap_id" }];
-  // 21 and 26 are reserved: a stored mint may carry their bytes.
-  reserved 21, 26;
+  // THE ONE GAP THIS GAP REPLACES, or none. A chain of successors is a line: merging defects is a
+  // supersede of one and a close of the rest. It names a gap already minted: the gap's demand
+  // lineage is written at its mint, so an ancestor minted later could never join it.
+  optional string supersedes = 27 [(sql) = { references: "mint.gap_id" }];
+  // 20, 21 and 26 are reserved: a stored mint may carry their bytes. 20 held the ancestors as a
+  // list, and a list decoded into a singular field of the same number keeps its last entry silently.
+  reserved 20, 21, 26;
   reserved "found_by";
 
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
@@ -1813,14 +1809,14 @@ message Log {
 // with a comment calling that "the one place the (subject, key) keying can live", because the
 // flat EnumFields table could not express it.
 //
-// A single flat Motion message reproduces exactly that defect in a new syntax: `dimension`
-// belongs to a grade motion and `class` to a petition, and a flat message would accept either on
-// either, leaving the pairing to a runtime check nothing generates. So the subject IS a oneof,
-// and the fields that belong to a subject live inside its own message. A grade motion carrying
-// a petition's `class` is then not a validation failure — it is unrepresentable.
+// A single flat Motion message reproduces exactly that defect in a new syntax: `gap_id` belongs
+// to a docket motion and `class` to a petition, and a flat message would accept either on either,
+// leaving the pairing to a runtime check nothing generates. So the subject IS a oneof, and the
+// fields that belong to a subject live inside its own message. A docket motion carrying a
+// petition's `class` is then not a validation failure — it is unrepresentable.
 //
-// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A grade motion is one whose filing is a
-// GradeMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
+// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A docket motion is one whose filing is a
+// DocketMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
 // A second field holding the same word could only agree with the arm or contradict it.
 message Motion {
   optional string motion_id = 1 [(sql) = {
@@ -1838,31 +1834,31 @@ message Motion {
   optional string relief = 4;
 
   oneof filing {
-    GradeMotion grade = 10;
     PetitionMotion petition = 11;
     DocketMotion docket = 13;
     PositionMotion position = 14;
   }
-  // 12 held the inquiry subject's arm. Reserved: a stored motion carries the bytes.
-  reserved 12;
-  reserved "inquiry";
-}
+  // 10 held the grade subject's arm and 12 the inquiry subject's. Reserved: a stored motion carries
+  // the bytes.
+  reserved 10, 12;
+  reserved "grade", "inquiry";
 
-// GradeMotion contests a gap's grade on one dimension. Both of its checks belonged to the
-// retired `blue dispute` verb and did not come across with it: a motion against a gap that does
-// not exist is dropped at replay, and one against a gap already disposed of asks for a
-// disposition that has already been made.
-message GradeMotion {
-  // A grade motion contests a REAL gap's grade. This is the arm whose foreign keys the generator
-  // dropped entirely until the golden was read; the referent is now enforced with the vocabulary.
-  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
-  optional GradeDimension dimension = 2;
-  optional Grade proposed = 3;
+  // THE ACT A DOCKET MOTION PROPOSES, in that act's own body. It sits beside `filing` rather than
+  // inside the docket arm because the record stores a body's oneof arms as tables keyed on the
+  // body's event, and has no table shape for a message nested inside an arm.
+  option (check) = {
+    expr: "\"act_case\" IS NULL OR \"filing_case\" = 'docket'"
+    why: "only a docket motion proposes an act on a gap: a petition or a position asks the bench for something no act of a gap's assignee answers"
+  };
+  oneof act {
+    Regrade regrade = 15;
+    Close close = 16;
+    Mint supersede = 17;
+  }
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
-// flag that sets an axis (`mint`, `regrade`) and the menu of the axis a grade motion
-// contests both print the `(means)` here.
+// flags that set an axis (`mint`, `regrade`) print the `(means)` here.
 //
 // Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
 //
@@ -1905,8 +1901,10 @@ enum PetitionClass {
   PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
-// DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
-// it cannot settle — and the ruling is the bench's disposition of it.
+// DocketMotion puts a GAP to its assignee and then the bench. The filing is the DOCKETING — a seat
+// proposing an act on a gap it cannot take itself, or the dispatch escalating a gap at impasse —
+// and the act it proposes rides the motion's `act` oneof. The answer is a DocketRuling: the
+// assignee's accept, or the bench's accept, reject, remand or closing word.
 //
 // THE GAP RIDES THE FILING AND NOT THE RULING, which is the whole join. `bench opinion` carried a
 // gap_id on the DISPOSITION and no motion id, so a bench ruling joined to nothing and nothing could
@@ -1920,14 +1918,10 @@ message DocketMotion {
     why: "which gap is being put before the bench — a docket motion that names no gap is an escalation of nothing"
   }];
 
-  // THE NEW GROUNDS A RECONSIDERATION RESTS ON, located the way every act locates what it is about:
-  // an anchor or record id the seats already read (a gap's, a citation's or a computation's),
-  // or a quote of the report's current text. Required, exactly one of the two, when the bench has
-  // already ruled the gap closed, and refused otherwise (record.requireNewGrounds): the act it names
-  // is recorded after that ruling and is about this gap, or the motion relitigates what the ruling
-  // settled. A remand closes nothing, so a gap back before the bench after one needs none.
-  optional string grounds = 2;
-  optional string grounds_quote = 3 [(prose) = false, (sql) = { flag: "quote" }];
+  // 2 and 3 held the reconsideration grounds: a bench ruling is final for its gap's text, and a
+  // tombstone row says so until a reword ends it. Reserved: a stored motion may carry the bytes.
+  reserved 2, 3;
+  reserved "grounds", "grounds_quote";
 }
 
 // DocketRuling is the bench's disposition of a docketed gap: the word that decides its fate, and
@@ -1947,7 +1941,7 @@ message DocketRuling {
   // `--none` made the empty case sayable. The question is a closing ruling's: a remand closes
   // nothing, so it owes a direction instead (below).
   option (check) = {
-    expr: "\"disposition\" = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    expr: "\"accepted\" IS NOT NULL OR \"disposition\" = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
     why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
   };
 
@@ -1966,15 +1960,28 @@ message DocketRuling {
   // trims what the write path's strings.TrimSpace trims in ASCII (space, tab, newline, carriage
   // return), and a NULL direction fails it, where a bare `trim(NULL) <> ''` would be NULL and pass.
   option (check) = {
-    expr: "\"disposition\" <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
+    expr: "coalesce(\"disposition\", '') <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
     why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
   };
 
   // A DIRECTION IS A REMAND'S. A ruling that closes the gap sends no exchange anywhere, so a
   // direction on it would be research nobody is dispatched to do.
   option (check) = {
-    expr: "\"disposition\" = 'remanded' OR \"direction\" IS NULL"
+    expr: "coalesce(\"disposition\", '') = 'remanded' OR \"direction\" IS NULL"
     why: "--direction is the research a remand's one more exchange owes; a ruling that closes the gap sends no exchange, and what would reopen it is --reopens-on"
+  };
+
+  // AN ANSWER IS A WORD OR AN ACCEPTANCE, NEVER BOTH. A motion proposing an act is answered by
+  // `accepted` (true: the act is applied; false: the bench rejects it), and one with no act by the
+  // bench's word; the write checks refuse the wrong one per motion. A NULL on either side is stated
+  // here explicitly, so no check below passes a row by a NULL comparison.
+  option (check) = {
+    expr: "(\"accepted\" IS NULL) <> (\"disposition\" IS NULL)"
+    why: "an answer to a docket motion is either --accept/--reject on the act it proposes or a disposition (--as) on one with no act — exactly one of the two"
+  };
+  option (check) = {
+    expr: "\"accepted\" IS NULL OR (\"reopens_on\" IS NULL AND \"final\" IS NULL AND \"direction\" IS NULL)"
+    why: "an accept or a reject answers the act the motion proposes: --reopens-on and --final belong to a closing word, and --direction to a remand"
   };
 
   // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
@@ -1984,33 +1991,29 @@ message DocketRuling {
   // a gap back to the debate is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
   // by the gap view to decide the FATE rather than by the column to decide legality.
   optional Disposition disposition = 1 [(sql) = {
-    required: true
     flag: "as"
     why: "the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends it"
   }];
 
   optional string principle = 2 [(sql) = {
-    required: true
     why: "the rule the bench applied, stated so a later sitting can apply the same one"
   }, (prose) = true];
 
-  // STATED, NEVER BLANK. An empty tension or review flag cannot be told from a bench that skipped
-  // the question, so each `why` names what is true to write when the bench has no conflict, or
-  // nothing for a human, to report.
+  // THE BENCH'S OPINION: principle, tension, review_flag and settled. Required of a ruling the bench
+  // writes and refused on the assignee's accept (record.requireBenchOpinion): a column cannot see
+  // the writer. STATED, NEVER BLANK: an empty tension or review flag cannot be told from a bench that
+  // skipped the question, so each `why` names what is true to write when the bench has no conflict,
+  // or nothing for a human, to report; `settled` alone may be empty.
   optional string tension = 3 [(sql) = {
-    required: true
     why: "the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied"
   }, (prose) = true];
 
   optional string review_flag = 4 [(sql) = {
-    required: true
     flag: "review-flag"
     why: "what a human should look at again — or, where nothing needs a human, what on the record already settles it"
   }, (prose) = true];
 
   optional string settled = 5 [(sql) = {
-    required: true
-    allow_empty: true
     why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
   }, (prose) = true];
 
@@ -2030,6 +2033,10 @@ message DocketRuling {
     flag: "direction"
     why: "on a remand: the research direction its one more exchange owes blue and the minting lens"
   }, (prose) = true];
+
+  // THE ANSWER TO A PROPOSED ACT. true: the ruling applies the act the motion proposes, through the
+  // ruler's own act; false: the bench rejects the act, and the gap stands as it is.
+  optional bool accepted = 9;
 }
 
 // PositionMotion is the position subject's filing arm, and nothing writes it: the chair's position
@@ -2076,7 +2083,7 @@ message PositionHearing {
 }
 
 // MotionRule is the ruling, and its verdict set is keyed on the subject in the same way — one
-// motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
+// motion-rule event carries granted|denied for a petition and upheld|overruled for a position.
 // An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
 message MotionRule {
   // THE CONSTRAINT THE SHARDED LOG COULD NOT HAVE. Filing and ruling are written by different seats
@@ -2128,14 +2135,14 @@ message MotionRule {
   }, (prose) = true];
 
   oneof ruling {
-    GradeRuling grade = 10;
     PetitionRuling petition = 11;
     DocketRuling docket = 13;
     PositionHearing position = 14;
   }
-  // 12 held the inquiry subject's ruling. Reserved: a stored ruling carries the bytes.
-  reserved 12;
-  reserved "inquiry";
+  // 10 held the grade subject's ruling and 12 the inquiry subject's. Reserved: a stored ruling
+  // carries the bytes.
+  reserved 10, 12;
+  reserved "grade", "inquiry";
 
   // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
   // the old table could not police: the filing's copy of the enum loop had always existed and
@@ -2472,6 +2479,45 @@ message Stale {
   // THROUGH IS THE LAST ACT THE REFUSAL SHOWED, not this event's own id: an act on the gap recorded
   // between the check and this write was never shown, and a read point at this event would pass it.
   optional int64 through = 2 [(sql) = { references: "events.id" }];
+}
+
+// Tombstone is a gap's text marked final, written by the tool in the transaction of the act that owes
+// it (record.writeTombstones) and by no verb. A bench ruling but a remand places a RULING row on the
+// ruled gap; blue's verbatim application of a gap's prescription places an ESTOPPEL row on that gap;
+// a later act that rewords the gap's text writes an end row on the same (gap_id, kind). A tombstone
+// stands while the latest row on its pair places it (the `tombstone_standing` view).
+//
+// NO ROW CARRIES AN events.id: readers key on the stable ids, so a replay that moves ids moves nothing
+// a row names.
+message Tombstone {
+  option (check) = {
+    expr: "(\"kind\" = 'ruling' AND \"ends\" IS NULL) = (\"motion_id\" IS NOT NULL)"
+    why: "a ruling tombstone names the motion whose ruling placed it; an estoppel row and an end row name none"
+  };
+  option (check) = {
+    expr: "\"ends\" IS NULL OR \"ends\" = 1"
+    why: "an end row says so; a placing row carries no ends"
+  };
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    why: "the gap the tombstone stands on: the ruled gap for a ruling, the prescribing gap for estoppel"
+  }];
+  optional TombstoneKind kind = 2 [(sql) = {
+    required: true
+    why: "which finality the row marks: a bench ruling's, or estoppel's"
+  }];
+  // The ruling's motion, on a ruling placement and on nothing else.
+  optional string motion_id = 3 [(sql) = { references: "motion.motion_id" }];
+  // Recorded only when TRUE: this row ends the tombstone standing on (gap_id, kind).
+  optional bool ends = 4;
+}
+
+// TombstoneKind is what a tombstone marks final.
+enum TombstoneKind {
+  TOMBSTONE_KIND_UNSPECIFIED = 0;
+  TOMBSTONE_KIND_RULING = 1 [(means) = "a bench ruling but a remand is final for the ruled gap's text"];
+  TOMBSTONE_KIND_ESTOPPEL = 2 [(means) = "blue applied the gap's prescription verbatim, so red may not re-raise the text it prescribed"];
 }
 
 // ReportRead is the tool serving a lens the whole report: the bare and the --json form of the

@@ -64,7 +64,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"G1", "G2"},
+		Supersedes:      proto.String("G2"),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -88,22 +88,13 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		t.Error("the grade joins to an empty meaning")
 	}
 
-	// A repeated field is rows, in order, so lineage is queryable rather than a string to split.
-	rows, err := db.Query(`SELECT value FROM mint_supersedes WHERE event_id = ? ORDER BY ord`, id)
-	if err != nil {
+	// The one ancestor is a column, so lineage is queryable rather than a string to split.
+	var ancestor string
+	if err := db.QueryRow(`SELECT "supersedes" FROM "mint" WHERE "event_id" = ?`, id).Scan(&ancestor); err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
-	var got []string
-	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			t.Fatal(err)
-		}
-		got = append(got, v)
-	}
-	if len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
-		t.Errorf("supersedes = %v, want [G1 G2]", got)
+	if ancestor != "G2" {
+		t.Errorf("supersedes = %q, want G2", ancestor)
 	}
 }
 
@@ -218,7 +209,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"G1", "G2"},
+		Supersedes:      proto.String("G2"),
 		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
 		// graded on, which must come back ungraded.
 	}
@@ -364,7 +355,7 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String(id),
-			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
 		})); err != nil {
 			t.Fatal(err)
 		}
@@ -373,11 +364,14 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	file(1, "M2", "G2")
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
+			Final:       proto.Bool(true),
+		}},
 		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
 		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
 		// this fixture wrote through the SQL path, which had no such rule until the annotation.
-		Opinion: proto.String("the proposed grade stands"),
+		Opinion: proto.String("the gap is not a defect"),
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -387,9 +381,8 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	// refusal that actually names unruled motions goes through motion_answers, and the gap comes from
 	// the filing arm that carries one, so the test asks what the product asks.
 	var id, gap string
-	if err := db.QueryRow(`SELECT m."motion_id", COALESCE(g."gap_id", gd."gap_id")
+	if err := db.QueryRow(`SELECT m."motion_id", gd."gap_id"
 	  FROM "motion" m
-	  LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
 	  LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
 	  LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id"
 	  WHERE a."ruled_by" IS NULL`).Scan(&id, &gap); err != nil {
@@ -459,6 +452,84 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 				t.Errorf("the database refused a remand stating its direction: %v", err)
 			}
 		})
+	}
+}
+
+// AN ANSWER TO A DOCKET MOTION IS A WORD OR AN ACCEPTANCE, AND THE DATABASE SAYS SO ON ITS OWN. The
+// write path refuses the wrong one per motion; the DocketRuling CHECKs hold when anything else
+// inserts. Each refused case is refused by one CHECK alone, so deleting any one of them turns its
+// case green: neither and both (the exclusivity check), and an accept carrying what belongs to a
+// closing word or a remand (the accept's own check, which the rewritten NULL-explicit checks above
+// it no longer pass by a NULL comparison).
+func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
+	notADefect := recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
+	for _, c := range []struct {
+		name        string
+		accepted    *bool
+		disposition *recordpb.Disposition
+		reopensOn   *string
+		final       *bool
+		direction   *string
+		refused     bool
+	}{
+		{"neither an acceptance nor a word", nil, nil, nil, nil, nil, true},
+		{"both an acceptance and a word", proto.Bool(true), notADefect, nil, nil, nil, true},
+		{"an accept that reopens on", proto.Bool(true), nil, proto.String("new evidence"), nil, nil, true},
+		{"an accept ruled final", proto.Bool(true), nil, nil, proto.Bool(true), nil, true},
+		{"a reject with a direction", proto.Bool(false), nil, nil, nil, proto.String("research more"), true},
+		{"an accept", proto.Bool(true), nil, nil, nil, nil, false},
+		{"a reject", proto.Bool(false), nil, nil, nil, nil, false},
+		{"a closing word", nil, notADefect, nil, proto.Bool(true), nil, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			db := store(t)
+			mintGap(t, db, 0, "G1")
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Basis:    proto.String("the gap is moot"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			})); err != nil {
+				t.Fatalf("the record refused a docket motion: %v", err)
+			}
+			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Opinion:  proto.String("stated"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					Accepted: c.accepted, Disposition: c.disposition,
+					ReopensOn: c.reopensOn, Final: c.final, Direction: c.direction,
+				}},
+			}))
+			switch {
+			case c.refused && err == nil:
+				t.Fatal("the database stored the answer")
+			case c.refused && !strings.Contains(err.Error(), "CHECK constraint failed"):
+				t.Errorf("refused, but not by the table's CHECK: %v", err)
+			case !c.refused && err != nil:
+				t.Errorf("the database refused it: %v", err)
+			}
+		})
+	}
+}
+
+// A PROPOSED ACT IS A DOCKET MOTION'S. The CHECK on the motion refuses an act on a petition, so
+// a filing no assignee can answer carries no act.
+func TestOnlyADocketMotionProposesAnAct(t *testing.T) {
+	db := store(t)
+	mintGap(t, db, 0, "G1")
+	regrade := &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}
+	_, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		MotionId: proto.String("M1"), Basis: proto.String("b"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}, Act: regrade,
+	}))
+	if err == nil || !strings.Contains(err.Error(), "CHECK constraint failed") {
+		t.Errorf("a petition proposing an act = %v, want refused by the motion's CHECK", err)
+	}
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		MotionId: proto.String("M2"), Basis: proto.String("b"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regrade,
+	})); err != nil {
+		t.Errorf("a docket motion proposing a regrade was refused: %v", err)
 	}
 }
 
@@ -662,10 +733,6 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 			Basis:    proto.String("escalating a gap nobody minted"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
-		{"contested by a grade motion", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
-		}, recordpb.EventType_EVENT_TYPE_MOTION},
 	} {
 		t.Run(c.what, func(t *testing.T) {
 			db := store(t)
@@ -794,21 +861,10 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 		"suite stays green", sql.Drivers())
 }
 
-// A GAP'S LINEAGE IS COUNTED FROM ITS LIST TABLE, NOT DECLARED ON THE PARENT.
-//
-// A gap's lineage lives in a child table, so "does this gap supersede anything" is a join. The gap
-// view answers it once (supersedes_count, folded into gap_state at the mint), which is the point:
-// several readers were writing that join themselves.
-//
-// It does NOT recover the distinction that actually bit us — an explicitly-empty list from an
-// absent one. That is lost ABOVE SQL: protoreflect reports `Has=false` for both, and the two
-// marshal to identical bytes, so by the time a writer reaches the storage there is nothing left to
-// tell apart. No amount of SQL can recover a fact the value no longer carries.
-//
-// Where the fact is a CLAIM rather than a consequence — a seat saying "I checked nothing,
-// deliberately" — the schema already has the right shape, and it is a field the WRITER sets:
-// SpotCheck.none, a bool with real presence. Derived where derivable, declared where claimed.
-func TestAGapsLineageIsCountedByTheView(t *testing.T) {
+// A GAP'S ANCESTOR IS ONE COLUMN, AND THE GAP VIEW CARRIES IT: "does this gap supersede anything"
+// is "supersedes IS NOT NULL", stored in gap_state at the mint, and NULL is the honest answer for a
+// gap with no ancestor.
+func TestAGapsAncestorIsAColumnOfTheView(t *testing.T) {
 	db := store(t)
 	mintGap(t, db, 0, "G1")
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
@@ -819,26 +875,23 @@ func TestAGapsLineageIsCountedByTheView(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes:      []string{"G1"},
+		Supersedes:      proto.String("G1"),
 	})); err != nil {
 		t.Fatal(err)
 	}
 
-	var lineage int
-	if err := db.QueryRow(`SELECT "supersedes_count" FROM "gap" WHERE "gap_id" = 'G2'`).Scan(&lineage); err != nil {
+	var ancestor sql.NullString
+	if err := db.QueryRow(`SELECT "supersedes" FROM "gap" WHERE "gap_id" = 'G2'`).Scan(&ancestor); err != nil {
 		t.Fatal(err)
 	}
-	if lineage != 1 {
-		t.Errorf("gap G2 supersedes_count = %d, want 1", lineage)
+	if ancestor.String != "G1" {
+		t.Errorf("gap G2 supersedes %v, want G1", ancestor)
 	}
-
-	// And a gap with none reads ZERO rather than NULL — the count is over rows that are simply not
-	// there, which is the honest answer and the one a reader can act on.
-	if err := db.QueryRow(`SELECT "supersedes_count" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&lineage); err != nil {
+	if err := db.QueryRow(`SELECT "supersedes" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&ancestor); err != nil {
 		t.Fatal(err)
 	}
-	if lineage != 0 {
-		t.Errorf("a gap with no lineage supersedes_count = %d, want 0", lineage)
+	if ancestor.Valid {
+		t.Errorf("a gap with no ancestor supersedes %q, want NULL", ancestor.String)
 	}
 }
 

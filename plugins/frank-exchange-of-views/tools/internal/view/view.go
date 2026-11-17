@@ -270,8 +270,8 @@ func ledgerMD(in Input) []byte {
 	}
 	for _, g := range open {
 		supersedes := ""
-		if s := g.Mint.GetSupersedes(); len(s) > 0 {
-			supersedes = " | supersedes " + strings.Join(s, " ")
+		if s := g.Mint.GetSupersedes(); s != "" {
+			supersedes = " | supersedes " + s
 		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
@@ -428,7 +428,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		}
 		var down, up float64
 		for _, g := range lineage {
-			for _, anc := range g.Mint.GetSupersedes() {
+			if anc := g.Mint.GetSupersedes(); anc != "" {
 				a := byID[anc]
 				if a == nil {
 					continue

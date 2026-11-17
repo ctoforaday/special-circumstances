@@ -83,7 +83,7 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 				"--new":        {"--new", "The measured latency is limited."},
 				"--supersedes": {"--supersedes", "{G2}"},
 			},
-			names: map[string]string{"--new": `--new "The measured latency is capped."`, "--supersedes": "--supersedes {G1}"}},
+			names: map[string]string{"--new": `--new "The measured latency is capped."`, "--supersedes": `--supersedes "{G1}"`}},
 		{verb: "mint", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_MINT, idField: "gap_id",
 			args: []string{"--key", "K3", "--about-kind", "section", "--about", "H", "--class", "spec_underspecification",
 				"--problem", "a case is missing", "--fix", "add it", "--check-kind", "document", "--check", "the case is there",

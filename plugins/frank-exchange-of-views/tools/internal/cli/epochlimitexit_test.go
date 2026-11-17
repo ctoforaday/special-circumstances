@@ -157,7 +157,7 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 
 // A MOTION FILED AT THE RUN'S FINAL SITTING IS REFUSED, AND NOTHING IS RECORDED, for each subject no
 // seat hears in time to change how the run ends. No seat is dispatched after the sitting that opens
-// the last epoch, so the chair rules no grade motion, and a docket motion the terminal bench rules
+// the last epoch, so a docket motion the terminal bench rules
 // ends the run CEILING however it is ruled. A petition is the exception and has its own test below. The plan says the sitting is
 // final whoever the board readies (record's TestAPassPermittedAtTheLastEpochIsNotTheEpochLimit holds
 // it where a PASS is permitted, which was m25's last sitting).
@@ -167,7 +167,6 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 		args        []string
 	}{
 		{"a docket motion", "red-chair", []string{"motion", "docket", "file", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}},
-		{"a grade motion", "blue-respond", []string{"motion", "grade", "file", "--id", limitGap, "--dimension", "severity", "--proposed", "low", "--reason", "the defect changes no reader decision"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)

@@ -119,8 +119,6 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `motion grade file` | you dispute a gap's severity, likelihood, impact or complexity | `blue dispute` | EXECUTED (#344). Filed by any seat but the chair, which rules it |
-| `motion grade rule` | red answering a grade motion | `merge dispute-respond` | EXECUTED (#344) |
 | ~~`motion grade appeal`~~ | CUT (2026-10-10) — pressing a rejected grade ruling | `motion docket file` | EXECUTED: 0 appeals against 64 rulings in 17 archived runs. A ruling stands, and a seat that disagrees with one puts the gap before the bench |
 | ~~`motion inquiry rule`~~ | CUT (2026-11-01) — red ruling on a proposed inquiry | `lens inquiry check`, or a gap about the inquiry | EXECUTED: a ruling bound no fate and held no PASS. A lens that finds an inquiry not worth this run's time mints a gap about it of class `out_of_scope`, which blue answers by declining or deferring it |
 | ~~`chair inquiry review`~~ | CUT (2026-11-01) — the chair's read of the report against every inquiry | `lens inquiry check` | EXECUTED: one prose read of the whole report judged no inquiry. Each settled inquiry now holds the PASS until the logic lens's check of its latest fate stands, and a shortfall is a gap about the inquiry |

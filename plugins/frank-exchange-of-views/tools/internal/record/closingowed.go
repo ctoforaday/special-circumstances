@@ -81,18 +81,18 @@ const (
 
 // closingPartiesOf is the parties a gap's docketing owes closings from: its minter where the cast
 // seats it as a lens, and blue's responding seat. ok is false for a minter that is not one.
-func closingPartiesOf(cast []string, mintedBy string) (lens string, ok bool) {
-	if seatclass.RoleOfSeat(mintedBy) == "lens" && slices.Contains(cast, mintedBy) {
-		return mintedBy, true
+func closingPartiesOf(cast []string, assignee string) (lens string, ok bool) {
+	if seatclass.RoleOfSeat(assignee) == "lens" && slices.Contains(cast, assignee) {
+		return assignee, true
 	}
 	return "", false
 }
 
-// IsClosingParty reports whether seatID is a party to the dispute on a gap its minter mintedBy
+// IsClosingParty reports whether seatID is a party to the dispute on a gap its minter assignee
 // minted: the minter itself, or blue's responding seat — the seats the write path admits a closing
 // from.
-func IsClosingParty(seatID, mintedBy string) bool {
-	return seatID == blueRespondSeat || (seatID == mintedBy && seatclass.RoleOfSeat(seatID) == "lens")
+func IsClosingParty(seatID, assignee string) bool {
+	return seatID == blueRespondSeat || (seatID == assignee && seatclass.RoleOfSeat(seatID) == "lens")
 }
 
 // ClosingDuties is one row per party per docket motion on the record, in the motions' order, read

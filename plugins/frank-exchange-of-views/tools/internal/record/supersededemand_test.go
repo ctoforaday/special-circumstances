@@ -17,7 +17,7 @@ func demandMint(id string, kind recordpb.CheckKind, ancestors ...string) *record
 		GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), CheckKind: kind.Enum(),
 		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Supersedes: ancestors}
+		Supersedes: firstAncestor(ancestors)}
 }
 
 // supersededBy is the successor the board names as having closed gap id, and whether id reads open.

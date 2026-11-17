@@ -32,7 +32,7 @@ import (
 // subject can use those words too.
 func newMint() *cobra.Command {
 	var gf gapFlags
-	supersedes := flags.IDList(flags.GapID)
+	supersedes := flags.AncestorID()
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -94,7 +94,9 @@ func newMint() *cobra.Command {
 				return verifiedFix(p, report, gapID, quotePlace(seat.Str(cmd, flags.Quote)), fixNew)
 			}))
 		}
-		p.Supersedes = supersedes.Value()
+		if a := supersedes.String(); a != "" {
+			p.Supersedes = proto.String(a)
+		}
 
 		// Crash-retry idempotency: --key (the stable local label) makes
 		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
@@ -153,7 +155,7 @@ func newMint() *cobra.Command {
 		// (a)): red mints --supersedes the prescribing gap, as the refusal says. A reword of the applied
 		// text by blue ends the estoppel (record.estoppingPrescriptions).
 		guards = append(guards, record.Check(func(l *record.Landing) error {
-			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
+			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.String())
 		}))
 
 		var est estopped
@@ -216,7 +218,7 @@ func newMint() *cobra.Command {
 	enumhelp.FlagRefusing(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a computation whose sentence you judged unsound; use instead of --quote", aboutGapRefusal)
 	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap, and an open one whose check kind is source or computation and that nothing answers yet passes its live-answer demand too: this gap carries its --check-kind, and another is refused (ancestors of different check kinds are superseded in separate mints), and what would have met the ancestor's demand after this mint meets this gap's")
+	c.Flags().Var(supersedes, flags.Supersedes, "the one gap this gap replaces — "+flags.OneAncestorRule+". What naming it does — an open one closes in this act — is A MINT NAMING AN OPEN GAP AS ITS ANCESTOR, above")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -493,17 +495,6 @@ func mintBaredRefusal(at gapPlace, evidence, leftOut []string) string {
 	return strings.Join(refusals, " ")
 }
 
-// contains reports membership, so an --supersedes that already names the estopping gap
-// lets the mint through: declaring the lineage IS the amendment the guard asks for.
-func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
-}
-
 // mintAsserted is what a gap states, and so what a retry under its key must state again: everything
 // the seat says of the defect and where, and its argument for it.
 var mintAsserted = []seat.Asserted{
@@ -534,12 +525,14 @@ type familyReader interface {
 // read to ask: a gap opened because the estoppel question could not be asked is one the tool
 // admitted on nothing. Every `--quote` mint meets it, a found source's claim_contradicts_source
 // included (gblock, 2026-11-06, F4 (a)).
-func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
+func requireNotEstopped(l familyReader, quote, supersedes string) error {
 	fam, err := l.Family()
 	if err != nil {
 		return unreadableRefusal("whether this location is text red prescribed", err)
 	}
-	if est, ok := record.EstoppelConflict(fam, quote); ok && !contains(supersedes, est.Gap) {
+	// An --supersedes that already names the estopping gap lets the mint through: declaring the
+	// lineage IS the amendment the guard asks for.
+	if est, ok := record.EstoppelConflict(fam, quote); ok && supersedes != est.Gap {
 		return estopped{est}
 	}
 	return nil

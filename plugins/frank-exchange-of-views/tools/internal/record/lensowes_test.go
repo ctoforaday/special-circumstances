@@ -296,8 +296,8 @@ func TestALensHoldingOnlyItsOwnUnansweredGapRetires(t *testing.T) {
 }
 
 // WHAT IS NEW ON A GAP OF ITS OWN IS OWED UNTIL IT SITS. Each row stages, after the lens's third
-// barren sitting, one thing its work list names about the gap it minted — blue's answer, an accepted
-// grade motion awaiting its regrade, the bench's remand — and then a head
+// barren sitting, one thing its work list names about the gap it minted — blue's answer or the
+// bench's remand — and then a head
 // move. The lens is not retired and the moved head readies it, the reason naming the debt; it is
 // kept, and not ready, at an unmoved head (blue's answer moves the head itself); and once it has sat at the moved head it owes nothing and
 // is retired again, whether or not that sitting acted on the item, which stays on its list.
@@ -313,10 +313,6 @@ func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
 	}{
 		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
 		{"blue retired a citation answering it", never, func(b *stage) { blueRetiresCitationFor(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
-		{"a grade motion on it was accepted", never, func(b *stage) {
-			b.add("blue-respond", gradeMotionFiled(b.t, "M1", "G1").GetMotion())
-			b.add("red-chair", gradeMotionRuled(b.t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule())
-		}, "the accepted grade motion on G1", regradeOwed},
 		// At impasse, as the dispatch dockets a gap: two stalled exchanges under the default terms. Blue's
 		// silence in the second is an answer it owes too.
 		{"the bench remanded it", always, func(b *stage) {

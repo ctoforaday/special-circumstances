@@ -15,8 +15,7 @@ import (
 //
 // THE ACT IS `regrade`, and the record already reads it this way. A regrade that names no grade —
 // or names only the grades the gap already has — moves nothing: the exchange fold counts it as an
-// act and not as movement, so it stalls the gap toward impasse exactly as silence would, and an
-// accepted grade motion it follows is answered on the record, in its basis (regradesAfforded).
+// act and not as movement, so it stalls the gap toward impasse exactly as silence would.
 // What it adds is the reason, where the two seats that act on it read:
 //
 //   - blue, on its work list beside the gap, until blue answers the gap again (keptGradeItems);

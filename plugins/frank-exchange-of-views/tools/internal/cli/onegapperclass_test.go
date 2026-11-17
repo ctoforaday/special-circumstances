@@ -173,7 +173,7 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 		Location: proto.String(oneGapSentence), Problem: proto.String("the concurrent problem"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: []string{}}
+		Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 	acts := []*recordpb.Event{
 		recordtest.At(t, other, other+":mint:1", mint),
 		recordtest.At(t, other, other+":anchor:"+otherID, &recordpb.Anchor{Id: proto.String(otherID), Location: proto.String(oneGapSentence)}),

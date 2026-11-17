@@ -113,21 +113,11 @@ var enforcedElsewhere = map[string]string{
 	// the table would be the two-readers-of-one-rule mistake required.go warns about.
 	"mint --severity":    gradeParseTime,
 	"regrade --severity": gradeParseTime,
-	"motion --proposed":  gradeParseTime,
 
-	// The two filing sets, keyed on (SUBJECT, key) exactly as the verdicts are: one `motion` event
-	// carries a grade `dimension` or a petition `class` depending on what it is about, and
-	// record.EnumFields keys by event TYPE. record.validate checks them and the help here is
-	// generated from record.MotionFieldEnum — the SAME table, so the two cannot drift.
-	//
-	// These arrived LATE, and the reason is worth keeping: the additive stage registered all three
-	// of this verb's flags as bare strings, so `motion grade file` accepted any dimension and any
-	// grade while the `blue dispute` it replaces refused both. Nothing noticed until the old verb
-	// was deleted and this gate had a flag to compare against — the new verb had been shipped with
-	// a weaker contract than the one it retires, which is complete-the-concept one layer below
-	// where that rule usually gets applied.
-	"motion --dimension": "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
-	"motion --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
+	// The filing set, keyed on (SUBJECT, key) exactly as the verdicts are: a petition `motion` event
+	// carries a `class`, and record.EnumFields keys by event TYPE. record.validate checks it and the
+	// help here is generated from record.MotionFieldEnum — the SAME table, so the two cannot drift.
+	"motion --class": "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
 	// `show --view` IS A MENU, NOT A SET: one line per view with its description and the verb
 	// that fills it, because a seat navigates by what the tool prints and a bare pipe list of

@@ -28,10 +28,11 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String(basis),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("G1"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
-			Proposed:  recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{
+			GapId:    proto.String("G1"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Basis:    proto.String(basis),
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -57,16 +58,12 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	if j.Counts.Outstanding != 1 {
 		t.Errorf("outstanding = %d, want 1 — this is the count that blocks a PASS", j.Counts.Outstanding)
 	}
-	if m.Fields["gap_id"] != "G1" || m.Fields["dimension"] != "severity" || m.Fields["proposed"] != "medium" {
+	if m.Fields["gap_id"] != "G1" {
 		t.Errorf("subject-specific fields lost: %v", m.Fields)
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("the grades stand"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-	}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, actRule("M1", false, "judge")); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
@@ -95,17 +92,6 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("b"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("G1"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
-			Proposed:  recordtest.P(recordpb.Grade_GRADE_LOW),
-		}},
-	}); err != nil {
-		t.Fatal(err)
-	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
@@ -114,6 +100,14 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 		Prose:        proto.String("verified at the leaf"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The docket motion is filed after the close: a close is refused while one stands on the gap.
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
+		MotionId: proto.String("M1"),
+		Basis:    proto.String("b"),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -95,8 +95,7 @@ type Plan struct {
 	basis map[string]string
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its
-	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
-	// (grade). Its work list marks those blocking until they are done.
+	// spot-check of the stale areas. Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
 	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
@@ -184,7 +183,7 @@ func impasseBasis(gapID string) string {
 }
 
 type openGap struct {
-	id, mintedBy, severity string
+	id, assignee, severity string
 	// material is the gap view's column — the one definition — and classMaterial the class's
 	// default, which the reason names when the class alone makes the gap not material.
 	material      bool
@@ -354,8 +353,8 @@ func foldPlan(params Params, r planReads) Plan {
 	// in an epoch, so readied sooner it audits an answer that does not exist yet. It reports which.
 	debate := func(g openGap, route gapRoute, x *GapExchanges) (lens, blue bool) {
 		lens, blue = partiesOnRoute(route, x)
-		if lens && g.mintedBy != "" {
-			engage(g.mintedBy, g.id)
+		if lens && g.assignee != "" {
+			engage(g.assignee, g.id)
 		}
 		if blue {
 			engage(blueRespondSeat, g.id)
@@ -365,13 +364,13 @@ func foldPlan(params Params, r planReads) Plan {
 	// waiting is the reason's clause for a gap whose minting lens debate did not ready. A gap whose
 	// minter is no lens has no re-audit to wait on.
 	waiting := func(g openGap, lens bool) string {
-		if lens || seatclass.RoleOfSeat(g.mintedBy) != "lens" {
+		if lens || seatclass.RoleOfSeat(g.assignee) != "lens" {
 			return ""
 		}
 		if heldOut {
-			return fmt.Sprintf("; %s, and %s is not ready until blue has acted on it since the lens's last act there", blueHeldOutClause, g.mintedBy)
+			return fmt.Sprintf("; %s, and %s is not ready until blue has acted on it since the lens's last act there", blueHeldOutClause, g.assignee)
 		}
-		return fmt.Sprintf("; blue is ready on it, and %s is not until blue has acted on it since the lens's last act there", g.mintedBy)
+		return fmt.Sprintf("; blue is ready on it, and %s is not until blue has acted on it since the lens's last act there", g.assignee)
 	}
 	// THE BENCH WAITS ONLY ON A CLOSING A DISPATCHED PARTY CAN FILE. A party the run dispatches no more —
 	// anyone at the final sitting, blue in the epoch that holds it out — files none, so the bench does
@@ -427,7 +426,7 @@ func foldPlan(params Params, r planReads) Plan {
 		plan.basis[g.id] = basis
 		plan.Why = append(plan.Why, why)
 		var awaited []string
-		if lens, ok := closingPartiesOf(r.cast, g.mintedBy); ok {
+		if lens, ok := closingPartiesOf(r.cast, g.assignee); ok {
 			awaited = append(awaited, lens)
 		}
 		awaited = append(awaited, blueRespondSeat)
@@ -490,7 +489,7 @@ func foldPlan(params Params, r planReads) Plan {
 		// sits after the lens, and its answer would be one nobody read before the bench was asked.
 		case routeLensFirst:
 			debate(g, route, x)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: %s — this audit by %s comes before any docket, so it alone is ready on it; if the gap stands after it, the gap is docketed for the bench", g.id, x.Counted(), g.mintedBy))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: %s — this audit by %s comes before any docket, so it alone is ready on it; if the gap stands after it, the gap is docketed for the bench", g.id, x.Counted(), g.assignee))
 		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE. A gap the bench has not
 		// remanded at impasse goes to the bench; one it remanded goes back to the debate for one
 		// exchange that begins with blue's act, carrying the ruling's direction, and back to the
@@ -653,8 +652,8 @@ func foldPlan(params Params, r planReads) Plan {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
-	// blocker left is the chair's to clear in this sitting (its spot-check of the stale areas, its
-	// ruling on a grade motion). A blocker another seat must clear —
+	// blocker left is the chair's to clear in this sitting (its spot-check of the stale areas). A
+	// blocker another seat must clear —
 	// an unruled petition, a docket motion on a gap that has since closed, a citation or computation
 	// with no check of its sentence as it stands, an inquiry open or unchecked — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
@@ -744,8 +743,7 @@ const blueHeldOutClause = "blue is held out of this epoch, the last that dispatc
 // seat that can change how the run ends. A petition does: the terminal bench hears a petition standing
 // at the exit, and it may halt the run there — a petition is the channel for an objection that the run
 // must not go on, and the last sitting is no exception. A docket motion does not: the terminal bench
-// rules it, and the run ends CEILING however it rules (epochLimitHeldTheBench). A grade motion does
-// not: the chair rules it, and the chair does not sit again.
+// rules it, and the run ends CEILING however it rules (epochLimitHeldTheBench).
 func HeardAtTheExit(subj recordpb.MotionSubject) bool {
 	return subj == recordpb.MotionSubject_MOTION_SUBJECT_PETITION
 }
@@ -1514,7 +1512,7 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 // TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled holds the two level:
 // the bench is readied for a gap exactly when the gap's motion is among the plan's unruled ones.
 func openGaps(db recordsql.Querier) ([]openGap, error) {
-	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
+	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."assignee", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE(g."unruled_docket_motion", ''),
@@ -1529,7 +1527,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	for rows.Next() {
 		var g openGap
 		var aboutKind, aboutRef string
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.unruledFiled, &g.unruledMotion,
+		if err := rows.Scan(&g.id, &g.assignee, &g.severity, &g.material, &g.classMaterial, &g.unruledFiled, &g.unruledMotion,
 			&g.direction, &aboutKind, &aboutRef); err != nil {
 			return nil, err
 		}

@@ -17,33 +17,34 @@ import (
 //
 // That pair was still a composed key, and #312 is where it ran out: two petitions from one seat
 // in one round could not be told apart at all, because their pair had no third component to
-// reach for. A motion has an id. `motion grade rule --id M1` answers M1 and nothing else, so
+// reach for. A motion has an id. `motion docket rule --id M1` answers M1 and nothing else, so
 // both failures below stop being checks against a validator and become unrepresentable.
 //
 // These tests survive the collapse asserting the SAME property against the new mechanism: an
 // answer joins to exactly one ask, and an answer to an ask nobody filed is refused.
 
-// TWO MOTIONS ON THE SAME GAP AND THE SAME DIMENSION ARE STILL DISTINCT.
+// TWO MOTIONS ON THE SAME GAP ARE STILL DISTINCT.
 //
-// This is the case the old pair key could not represent at all, and it is why the id exists. Blue
-// contests G1's severity, is refused, and contests it again on new grounds; the two filings are
-// separate motions with separate ids, and a ruling on one leaves the other open.
-func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
+// This is the case a pair key could not represent at all, and it is why the id exists. Blue puts
+// G1 before the bench twice; the two filings are separate motions with separate ids, and a ruling
+// on one leaves the other open.
+func TestTwoMotionsOnOneGapAreTellableApart(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "spec_underspecification")
 
 	for _, why := range []string{"the harm needs two failures", "and the second failure is gated upstream"} {
-		if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-			"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", why); err != nil {
+		if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
+			"--id", "G1", "--reason", why); err != nil {
 			t.Fatalf("file refused: %v", err)
 		}
 	}
 
-	// Rule only M1. Under the old pair key this ruling would have matched BOTH filings — same
-	// gap, same dimension — and the record would have shown one answer to two questions.
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "rejected", "--reason", "the grade stands"); err != nil {
+	// Rule only M1. Keyed on the gap, this ruling would have matched BOTH filings, and the record
+	// would have shown one answer to two questions.
+	args := benchRuleArgs("M1", "remanded", "the gap needs one more exchange")
+	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
+	if _, err := runAt(t, args...); err != nil {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
 	}
 
@@ -51,8 +52,8 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 	if got := ev.GetMotionId(); got != handleText(t, runDir, "M1") {
 		t.Errorf("motion_id = %q, want M1 — the record must carry the join, not leave it to be inferred", got)
 	}
-	if got := ev.GetGrade(); got != recordpb.GradeRuling_GRADE_RULING_REJECTED {
-		t.Errorf("ruling = %q, want rejected", recordpb.Word(got))
+	if got := ev.GetDocket().GetDisposition(); got != recordpb.Disposition_DISPOSITION_REMANDED {
+		t.Errorf("ruling = %q, want remanded", recordpb.Word(got))
 	}
 }
 
@@ -62,15 +63,15 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "spec_underspecification")
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
+	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
+		"--id", "G1", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)
 	}
 
-	_, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M7", "--as", "accepted", "--reason", "sure")
+	args := benchRuleArgs("M7", "remanded", "sure")
+	_, err := runAt(t, append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)...)
 	if err == nil {
-		t.Fatal("red ruled a motion blue never filed — a reply with no question, joining to nothing")
+		t.Fatal("the bench ruled a motion nobody filed — a reply with no question, joining to nothing")
 	}
 	if !strings.Contains(err.Error(), "which no filing created") {
 		t.Errorf("the refusal must say the reference resolves to nothing: %v", err)

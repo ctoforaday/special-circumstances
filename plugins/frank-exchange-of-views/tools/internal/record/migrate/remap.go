@@ -115,9 +115,9 @@ var (
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids
 		Anchor.id Anchor.sentence_of Cite.label Verify.anchor Computation.computation_id
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers Cite.answers
-		Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		DocketMotion.grounds InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Declare.gap_ids Close.anchors Stale.gap_id
+		Motion.motion_id DocketMotion.gap_id
+		InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
+		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.motion_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
@@ -132,7 +132,7 @@ var (
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_captured_at Cite.copy_url Cite.fetched_at
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
-		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
+		Close.anchor_seat Close.carried_from
 		Dispatch.seat_id PositionHearing.lens Plan.printed Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256

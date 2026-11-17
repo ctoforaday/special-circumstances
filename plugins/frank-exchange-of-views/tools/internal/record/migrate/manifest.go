@@ -48,6 +48,7 @@ func NewManifest(sourcePath string, files []migration.SourceFile, unclassified [
 		DroppedPlanBlockers: res.DroppedPlanBlockers,
 		QuotelessReadings:   res.QuotelessReadings,
 		SettledEdits:        res.SettledEdits,
+		UnowedEngagements:   res.UnowedEngagements,
 		Unclassified:        unclassified,
 	}
 }

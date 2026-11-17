@@ -233,19 +233,6 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 			t.Errorf("retired this sitting, blue's envelope is refused: %q", r)
 		}
 	})
-	t.Run("a motion blue files on it this sitting admits it, and the item stays listed", func(t *testing.T) {
-		run := computation(t, "G1", func(b *stage) {
-			b.add(blueSeatID, &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
-				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-					Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		})
-		if r := refusalOf(t, run, blueSeatID); r != "" {
-			t.Errorf("a motion filed on it, blue's envelope is refused: %q", r)
-		}
-		if _, open := itemsOn(t, run, "blue", blueSeatID, "gap G1 was minted"); len(open) != 1 {
-			t.Errorf("the moved gap's debt is not listed: %+v", open)
-		}
-	})
 }
 
 // A LENS'S ENVELOPE IS HELD BY ITS CLOSING ON A DOCKETED GAP OF ITS OWN, AND BY A REOPENED CITATION

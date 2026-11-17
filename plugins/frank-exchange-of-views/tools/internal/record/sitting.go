@@ -730,15 +730,13 @@ func benchRegisteredSince(evs []*Event, win WindowIndex, d dispatchRow) bool {
 }
 
 // answeredByActThisSitting is the gaps the seat filed a motion on in its current sitting (a docket
-// or grade motion names its gap), and whether it recorded a retire there.
+// motion names its gap), and whether it recorded a retire there.
 func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved map[string]bool, retired bool) {
 	moved = map[string]bool{}
 	for _, e := range thisSitting(evs, win, seatID) {
 		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
-				if g != "" {
-					moved[g] = true
-				}
+			if g := m.GetDocket().GetGapId(); g != "" {
+				moved[g] = true
 			}
 		}
 		if _, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {

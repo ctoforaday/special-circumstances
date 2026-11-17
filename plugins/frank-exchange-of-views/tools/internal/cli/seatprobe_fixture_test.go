@@ -156,8 +156,8 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		args := []string{"motion", m.Subject, "file", "--run", runDir, "--seat-id", m.Filer,
 			"--reason", m.Basis}
 		switch m.Subject {
-		case "grade":
-			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
+		case "docket":
+			args = append(args, "--id", m.GapID)
 		case "petition":
 			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
@@ -167,7 +167,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-chair", "petition": "judge"}[m.Subject]
+		ruler := map[string]string{"petition": "judge", "docket": "judge"}[m.Subject]
 		if _, err := run(t, "motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", "ruled "+m.Ruled+" on the filing as it stands"); err != nil {

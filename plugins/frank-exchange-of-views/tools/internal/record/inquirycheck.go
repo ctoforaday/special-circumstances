@@ -117,7 +117,7 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 		switch t := body.(type) {
 		case *recordpb.Mint:
-			for _, anc := range t.GetSupersedes() {
+			if anc := t.GetSupersedes(); anc != "" {
 				moved(anc, ids[k])
 			}
 			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY {

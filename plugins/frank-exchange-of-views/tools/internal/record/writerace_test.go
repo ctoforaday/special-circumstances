@@ -61,12 +61,6 @@ func raceStage(t *testing.T) Run {
 	return b.seed()
 }
 
-func gradeMotion(id, gap string, proposed recordpb.Grade) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id),
-		Basis: proto.String("the likelihood is overstated"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap),
-			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: proposed.Enum()}}}
-}
-
 func highMint(gap string) *recordpb.Mint {
 	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("a material defect " + gap),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -162,25 +156,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 				return &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}
 			},
 			want: "a grade only decides what happens NEXT",
-		},
-		{
-			name:  "a grade motion while the bench's ruling closes the gap",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
-			},
-			seat: "blue-respond", body: func() proto.Message { return gradeMotion("M8", "G1", recordpb.Grade_GRADE_LOW) },
-			want: "a grade motion asks for a DIFFERENT disposition",
-		},
-		{
-			name:  "a grade motion while the lens regrades to what it proposes",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, evLens, "race:regrade:G2", &recordpb.Regrade{GapId: proto.String("G2"),
-					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("rarer than it read")})}
-			},
-			seat: "blue-respond", body: func() proto.Message { return gradeMotion("M8", "G2", recordpb.Grade_GRADE_LOW) },
-			want: "so this motion asks for no change",
 		},
 		{
 			name:  "the cast while setup's cast lands",

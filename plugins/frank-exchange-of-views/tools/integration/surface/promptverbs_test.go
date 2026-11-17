@@ -78,14 +78,14 @@ func promptPath(m []string, real map[string]bool) string {
 
 // AND THE MOTION PATHS, WHICH THIS GATE DID NOT COVER AT ALL.
 //
-// A motion's path has no role in it — `motion grade file` — so promptVerb cannot match one, and the
+// A motion's path has no role in it — `motion docket file` — so promptVerb cannot match one, and the
 // orphan check below skipped them through its `switch role` default. Seven live commands sat
 // outside the question the gate exists to ask, and the exclusion was never stated: the comment
 // there explains why `show` is skipped and is silent about these.
 //
 // THE BOUNDARY IS LOOSER HERE ON PURPOSE, and the looseness is the honest trade. Prompts write
-// motions both with the binary in front (`"${binDir}/feov-record" motion grade rule --id …`) and
-// without it (`"motion grade rule --id <M1>"`), so anchoring on the binary would have covered
+// motions both with the binary in front (`"${binDir}/feov-record" motion docket rule --id …`) and
+// without it (`"motion docket rule --id <M1>"`), so anchoring on the binary would have covered
 // 3 of 7 while reporting on all seven — a gate silently measuring less than it claims, which is the
 // defect this file keeps finding. `motion <subject> <verb>` is specific enough that ordinary prose
 // does not hit it.
@@ -104,7 +104,7 @@ var promptMotion = regexp.MustCompile(
 //
 // promptVerb requires the role — `feov-record blue show board`, `'feov-record'} lens mint`. That shape is what
 // a prompt writes when it hands a seat something to TYPE, so the gate was built around it, and the
-// motion matcher above was added when the same hole showed up for `motion grade file`. The note
+// motion matcher above was added when the same hole showed up for `motion docket file`. The note
 // there says seven live commands sat outside the question the gate exists to ask. This is the
 // third instance of one class, so the fix is derived rather than enumerated.
 //
@@ -142,7 +142,7 @@ func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 		case "lens", "chair", "blue", "bench":
 			tail = strings.Join(f[1:], " ")
 		default:
-			// Root-level paths (`motion grade file`) already carry no role; promptMotion covers
+			// Root-level paths (`motion docket file`) already carry no role; promptMotion covers
 			// the motion subtree, and including the rest here costs nothing and closes it too.
 			tail = p
 		}
@@ -331,7 +331,7 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 		text := jsComment.ReplaceAllString(string(b), "")
 		// THE SAME BLIND SPOT, IN THE FORWARD DIRECTION. This gate asked whether a named verb
 		// exists and could not see a motion at all, so a prompt telling a seat to run
-		// `motion grade retract` would have passed it. Symmetric with the orphan gate below.
+		// `motion docket retract` would have passed it. Symmetric with the orphan gate below.
 		for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
 			if p := "motion " + m[1] + " " + m[2]; !real[p] {
 				bad = append(bad, site{filepath.Base(path), p})
@@ -970,7 +970,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 	}
 	// Grades are validated by flags.GradeValue rather than the enum table, so their flags are
 	// checked against that vocabulary instead of being skipped.
-	for _, f := range []string{flags.Severity, flags.Likelihood, flags.Impact, flags.Complexity, flags.Proposed} {
+	for _, f := range []string{flags.Severity, flags.Likelihood, flags.Impact, flags.Complexity} {
 		byFlag[f] = map[string]bool{}
 		for _, g := range recordpb.GradeWords() {
 			byFlag[f][g] = true

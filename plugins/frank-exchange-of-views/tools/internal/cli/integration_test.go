@@ -143,38 +143,6 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	}
 }
 
-// Blue disputes a grade, red answers, and BOTH sides' records must show the exchange.
-// A dispute answered into the void is the same defect one channel over.
-func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
-	runDir := seatRun(t)
-	id := mintGap(t, runDir, "disputed-grade", "policy_without_mechanism")
-
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("motion grade file: %v", err)
-	}
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "accepted",
-		"--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("motion grade rule: %v", err)
-	}
-
-	evs := events(t, runDir)
-	var sawFiling, sawRuling bool
-	for _, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_MOTION:
-			sawFiling = true
-		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
-			sawRuling = true
-		}
-	}
-	if !sawFiling || !sawRuling {
-		t.Fatalf("the exchange must survive in one shared record: filing=%v ruling=%v", sawFiling, sawRuling)
-	}
-}
-
 // The lens that minted a gap closes it with its verification anchor; the closure and its anchor
 // must both be readable afterwards. An anchored closure whose anchor is not recoverable is exactly the
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.

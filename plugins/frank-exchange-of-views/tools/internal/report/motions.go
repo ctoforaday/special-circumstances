@@ -23,7 +23,7 @@ func motions(fam record.Family) string {
 	for _, m := range ms {
 		rows = append(rows, motionRow(m, &unruled))
 	}
-	out := "Every contested question and how it was answered: grade motions, petitions, rulings on proposed inquiries, and the chair's positions on a PASS it withheld. One mechanism, one id — an ask and its answer are one row.\n\n" +
+	out := "Every contested question and how it was answered: docket motions, petitions, rulings on proposed inquiries, and the chair's positions on a PASS it withheld. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
 	if unruled > 0 {
 		out += fmt.Sprintf("\n\n**%d motion(s) received no ruling.** A motion is answered before the debate moves on; a filing with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)
@@ -91,8 +91,6 @@ func motionRow(m *record.Motion, unruled *int) string {
 // motionHead names what the motion is ABOUT, from the subject's own fields.
 func motionHead(m *record.Motion) string {
 	switch m.Subject {
-	case "grade":
-		return fmt.Sprintf("grade of %s (%s to %s)", m.Fields["gap_id"], m.Fields["dimension"], m.Fields["proposed"])
 	case "petition":
 		return "petition (" + m.Fields["class"] + ")"
 	case "inquiry":

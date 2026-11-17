@@ -15,7 +15,7 @@ func sampleVocabulary() vocabulary {
 	zero := 0
 	party := reflect.TypeFor[sampleParty]()
 	return vocabulary{
-		grades: []string{"low", "high"}, dimensions: []string{"severity"},
+		grades:    []string{"low", "high"},
 		outcomes:  []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
 		party:         party,
@@ -50,7 +50,6 @@ func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `const GRADE = { type: 'string', enum: ['low', 'high'] }
-const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_HEARINGS = ['petition']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }

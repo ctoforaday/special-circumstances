@@ -24,7 +24,7 @@ func judMint(t *testing.T, seat, id string, l, i recordpb.Grade, supersedes ...s
 		Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood:      recordtest.P(l),
 		Impact:          recordtest.P(i),
-		Supersedes:      supersedes,
+		Supersedes:      firstAncestor(supersedes),
 	})
 }
 
@@ -52,26 +52,8 @@ func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle,
 	})
 }
 
-func gradeFiled(t *testing.T, motion, gap string) *recordpb.Event {
-	t.Helper()
-	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
-		MotionId: proto.String(motion),
-		Basis:    proto.String("over-graded"),
-		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
-	})
-}
-
-func gradeRuled(t *testing.T, motion string, r recordpb.GradeRuling) *recordpb.Event {
-	t.Helper()
-	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
-		MotionId: proto.String(motion),
-		Opinion:  proto.String("heard"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: r},
-	})
-}
-
 // judiciaryRun is a record holding every fact the Judiciary table shows: a docket sitting with
-// two rulings, two grade motions answered both ways, a FAIL gate in epochs 1 and 2 and an epoch
+// two rulings, a FAIL gate in epochs 1 and 2 and an epoch
 // 3 the chair has opened and nothing has happened in, and a chain — G2 supersedes G1, which was
 // minted HIGH/HIGH and regraded LOW/LOW and is still open — beside a gap the bench closed in the
 // epoch it was minted. A PASS would make the run terminal and put the final verdict in the tile,
@@ -93,10 +75,6 @@ func judiciaryRun(t *testing.T) string {
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 		docketRuled(t, "M1", recordpb.Disposition_DISPOSITION_REMANDED, "a deferral names its reporter", "remanded to the lane that owns it"),
 		docketRuled(t, "M2", recordpb.Disposition_DISPOSITION_REPAIRED, "a repair is read at the leaf", "the repair holds"),
-		gradeFiled(t, "M3", "G2"),
-		gradeRuled(t, "M3", recordpb.GradeRuling_GRADE_RULING_ACCEPTED),
-		gradeFiled(t, "M4", "G3"),
-		gradeRuled(t, "M4", recordpb.GradeRuling_GRADE_RULING_REJECTED),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		registered(t, "red-chair", "C3"), // opens epoch 3: the chair sits, no verdict yet
 	)
@@ -121,11 +99,6 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 			t.Errorf("Rulings = %v, want %v", j.Rulings, want)
 		}
 	})
-	t.Run("grade motions", func(t *testing.T) {
-		if d := j.Disputes; d.Raised != 2 || d.Accepted != 1 || d.Rejected != 1 {
-			t.Errorf("Disputes = %+v, want raised 2 · accepted 1 · rejected 1", d)
-		}
-	})
 	t.Run("latest verdict", func(t *testing.T) {
 		if j.LatestVerdict != "FAIL" || j.VerdictEpoch != 2 {
 			t.Errorf("verdict = %q at epoch %d, want FAIL at epoch 2", j.LatestVerdict, j.VerdictEpoch)
@@ -145,7 +118,7 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 	})
 	t.Run("the page shows them", func(t *testing.T) {
 		h := RenderHTML(m)
-		for _, want := range []string{"latest verdict (epoch 2)", "remanded: 1", "raised 2 · accepted 1 · rejected 1", "2 chains"} {
+		for _, want := range []string{"latest verdict (epoch 2)", "remanded: 1", "2 chains"} {
 			if !strings.Contains(h, want) {
 				t.Errorf("the rendered page lacks %q", want)
 			}
@@ -196,22 +169,6 @@ func TestEveryBenchSittingIsCounted(t *testing.T) {
 	}
 }
 
-// A GAP SUPERSEDING SEVERAL ANCESTORS JOINS THEM ALL: G3 supersedes G1 and G2, so the three are one
-// argument, not G1 alone beside G2 and G3.
-func TestASupersedingGapJoinsEveryAncestorsChain(t *testing.T) {
-	hi := recordpb.Grade_GRADE_HIGH
-	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir,
-		registered(t, "red-chair", "C1"),
-		judMint(t, "red-lens-evidence", "G1", hi, hi),
-		judMint(t, "red-lens-logic", "G2", hi, hi),
-		judMint(t, "red-lens-logic", "G3", hi, hi, "G1", "G2"),
-	)
-	if j := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0).Judiciary; j.Chains != 1 {
-		t.Errorf("Chains = %d (spans %v), want 1: G3 supersedes both G1 and G2", j.Chains, j.ChainSpans)
-	}
-}
-
 // AN UNREAD RECORD IS NOT A BENCH THAT NEVER SAT. The scorecards on the same page say "not
 // measured" for a record they cannot read; the Judiciary block and the verdict tile say the same,
 // not "no judge sittings yet" and "—".
@@ -229,4 +186,12 @@ func TestTheJudiciaryOnAnUnreadRecordIsNotMeasured(t *testing.T) {
 	if strings.Contains(h, "no judge sittings") {
 		t.Error("the page reports a bench that never sat over a record it could not read")
 	}
+}
+
+// firstAncestor is the one gap a fixture mint supersedes: the first of ancestors, or none.
+func firstAncestor(ancestors []string) *string {
+	if len(ancestors) == 0 {
+		return nil
+	}
+	return proto.String(ancestors[0])
 }

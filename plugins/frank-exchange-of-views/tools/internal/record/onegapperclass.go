@@ -69,7 +69,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 	if err != nil {
 		return fmt.Errorf("the board's open gaps could not be read, so whether one of class %s already stands on this subject cannot be told: %w", recordpb.Word(m.GetClass()), err)
 	}
-	held = slices.DeleteFunc(held, func(g heldGap) bool { return slices.Contains(m.GetSupersedes(), g.id) })
+	held = slices.DeleteFunc(held, func(g heldGap) bool { return g.id == m.GetSupersedes() })
 	if len(held) == 0 {
 		return nil
 	}
@@ -160,7 +160,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 // heldGap is an open gap as the one-gap rule names it: its id, who minted it, what it says is wrong,
 // and its subject columns — what it is about, and the quote it was placed by.
 type heldGap struct {
-	id, mintedBy, problem string
+	id, assignee, problem string
 	aboutKind, aboutRef   string
 	location              string
 }
@@ -176,7 +176,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''),
+	rows, err := q.Query(`SELECT "gap_id", COALESCE("assignee", ''), COALESCE("problem", ''),
 	           COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '')
 	           FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"`, recordpb.Word(class))
 	if err != nil {
@@ -186,7 +186,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	var out []heldGap
 	for rows.Next() {
 		var g heldGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.problem, &g.aboutKind, &g.aboutRef, &g.location); err != nil {
+		if err := rows.Scan(&g.id, &g.assignee, &g.problem, &g.aboutKind, &g.aboutRef, &g.location); err != nil {
 			return nil, err
 		}
 		out = append(out, g)
@@ -200,7 +200,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 // is the act the seat proposes on it, which g's assignee may accept and the bench otherwise rules.
 // While g has had no exchange, the refusal says so, since a proposal is admitted only once it has.
 func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subject string) error {
-	if g.mintedBy == seatID {
+	if g.assignee == seatID {
 		return feov.Errorf(feov.Conflict,
 			"gap %s is yours and is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 				"To restate its defect, supersede it (`--supersedes %s`); to reweigh it, regrade it (`regrade --id %s`). Nothing was written",
@@ -214,7 +214,7 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 		"gap %s, assigned to %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
 			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede|regrade|close --id %s`), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
-		g.id, g.mintedBy, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.mintedBy, exchanged)
+		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, exchanged)
 }
 
 // exchangesSentence is the sentence a road to a proposed act on gap id carries while id has had no

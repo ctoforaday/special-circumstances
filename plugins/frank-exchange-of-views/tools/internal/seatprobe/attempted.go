@@ -107,7 +107,7 @@ func ShowViewIn(command, binName string) (string, bool) {
 
 // verbIn finds the verb a shell command invokes, or "".
 //
-// THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion grade file` and `motion`
+// THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion docket file` and `motion`
 // are both real, and taking the first token would file every motion under a verb no expectation
 // is written against. The same shortcut in the fuzzer's trajectory reader once reported all seven
 // motion verbs as never invoked while 35 motion events sat in the record.

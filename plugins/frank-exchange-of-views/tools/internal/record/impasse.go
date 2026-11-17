@@ -291,7 +291,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
 			}
-			for _, s := range b.GetSupersedes() {
+			if s := b.GetSupersedes(); s != "" {
 				movement[s] = append(movement[s], id)
 			}
 		case *recordpb.Regrade:

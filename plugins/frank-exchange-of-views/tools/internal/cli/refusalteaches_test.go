@@ -161,7 +161,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 			}
 			// The refusal must carry the surface, or it teaches nothing: this is the moment a
 			// seat is definitively looking for what exists.
-			if !strings.Contains(err.Error(), "blue") || !strings.Contains(err.Error(), "chair") {
+			if !strings.Contains(err.Error(), "blue seats") || !strings.Contains(err.Error(), "Available Commands") {
 				t.Errorf("the refusal does not list the commands that DO exist:\n%v", err)
 			}
 		})

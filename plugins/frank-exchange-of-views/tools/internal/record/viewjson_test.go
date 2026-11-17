@@ -227,8 +227,8 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	if !strings.HasPrefix(g.Problem, "word word") || len([]rune(g.Problem)) <= synopsisLimit {
 		t.Errorf("the open gap has no UNTRUNCATED problem (%d runes) — the full statement is what the originator answers", len([]rune(g.Problem)))
 	}
-	if g.MintedBy != "red-chair" {
-		t.Errorf("the open gap does not name its minter as a seat id, so ownership is not decodable: %q", g.MintedBy)
+	if g.Assignee != "red-chair" {
+		t.Errorf("the open gap does not name its minter as a seat id, so ownership is not decodable: %q", g.Assignee)
 	}
 	// The lean open gap keeps its grades, class and location.
 	if w.Open[0].Severity != "high" || w.Open[0].Class != "risk_coverage_omission" || w.Open[0].Location != "§open" {
@@ -309,7 +309,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes:      []string{"G1"},
+			Supersedes:      proto.String("G1"),
 		}),
 	})
 	b, err := BoardJSONBytes(mustRun(t, runDir))

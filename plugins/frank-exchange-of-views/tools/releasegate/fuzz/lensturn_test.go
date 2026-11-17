@@ -86,7 +86,7 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 					reach[m.GetGapId()] = append(reach[m.GetGapId()], m.GetAboutRef())
 				}
 			}
-			for _, s := range m.GetSupersedes() {
+			if s := m.GetSupersedes(); s != "" {
 				if !named[s] && kindOf[s] == m.GetCheckKind() && (kindOf[s] == recordpb.CheckKind_CHECK_KIND_SOURCE || kindOf[s] == recordpb.CheckKind_CHECK_KIND_COMPUTATION) {
 					for _, a := range reach[s] {
 						reach[m.GetGapId()] = append(reach[m.GetGapId()], a)
@@ -107,7 +107,7 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 				about[m.GetAboutRef()] = append(about[m.GetAboutRef()], m.GetGapId())
 			}
-			add(seat, i, m.GetSupersedes()...)
+			add(seat, i, m.GetSupersedes())
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Regrade](e); ok {
 			add(seat, i, b.GetGapId())
@@ -173,7 +173,7 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			}
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			add(seat, i, b.GetDocket().GetGapId(), b.GetGrade().GetGapId())
+			add(seat, i, b.GetDocket().GetGapId())
 		}
 	}
 	return acts, minted

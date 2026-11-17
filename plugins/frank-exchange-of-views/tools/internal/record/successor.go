@@ -38,7 +38,7 @@ func successorsOf(evs []*Event) map[string][]string {
 		case *recordpb.Close:
 			add(b.GetGapId(), b.GetSuccessor())
 		case *recordpb.Mint:
-			for _, anc := range b.GetSupersedes() {
+			if anc := b.GetSupersedes(); anc != "" {
 				add(anc, b.GetGapId())
 			}
 		}
@@ -137,6 +137,35 @@ func blueEngagedThisEpoch(evs []*Event, win WindowIndex) map[string]bool {
 	return out
 }
 
+// successorsOwedAt is successorsOwed read off the record through q, with the stream it read.
+func successorsOwedAt(q recordsql.Querier) ([]OwedSuccessor, bool, []*Event, WindowIndex, error) {
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return nil, false, nil, win, err
+	}
+	var openErr error
+	open := func(id string) bool {
+		closed, err := gapState(q, id)
+		if err != nil && openErr == nil {
+			openErr = err
+		}
+		return !closed
+	}
+	owed, sitting := successorsOwed(evs, win, open)
+	return owed, sitting, evs, win, openErr
+}
+
+// EngagementOwesNone reports whether b, written by writer, is blue's engagement in a sitting that
+// owes no successor: requireEngage's "owes none" refusal, and that refusal alone. Migrate writes no
+// event for an archived engagement it reports, whose successors a dropped lineage link left unnamed.
+func EngagementOwesNone(q recordsql.Querier, writer string, b *recordpb.Dispatch) (bool, error) {
+	if writer != blueRespondSeat || b.GetSeatId() != blueRespondSeat {
+		return false, nil
+	}
+	owed, sitting, _, _, err := successorsOwedAt(q)
+	return sitting && len(owed) == 0, err
+}
+
 // isEngageRow reports whether e is a dispatch row blue-respond wrote — an `engage`, which engages
 // blue's next sitting in the epoch the chair's dispatch opened rather than opening a dispatch of its
 // own.
@@ -156,21 +185,9 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 	if b.GetSeatId() != blueRespondSeat {
 		return feov.Errorf(feov.Validation, "blue engages its own next sitting and no other seat's: this row names %q", b.GetSeatId())
 	}
-	evs, win, err := eventsAt(q)
+	owed, sitting, evs, win, err := successorsOwedAt(q)
 	if err != nil {
 		return err
-	}
-	var openErr error
-	open := func(id string) bool {
-		closed, err := gapState(q, id)
-		if err != nil && openErr == nil {
-			openErr = err
-		}
-		return !closed
-	}
-	owed, sitting := successorsOwed(evs, win, open)
-	if openErr != nil {
-		return openErr
 	}
 	if !sitting {
 		return feov.Errorf(feov.Validation, "you are not sitting a sitting for a dispatch in this epoch — an engagement follows a gap the sitting you are in found closed to the successor the record names")
@@ -213,21 +230,9 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 // an archived blue engaged the successors its sitting owed under the rule of its day, when a mint
 // superseding a gap left that gap open and blue found it closed only at its lens's close.
 func requireEngageNamesEveryOwed(q recordsql.Querier, b *recordpb.Dispatch) error {
-	evs, win, err := eventsAt(q)
+	owed, _, _, _, err := successorsOwedAt(q)
 	if err != nil {
 		return err
-	}
-	var openErr error
-	open := func(id string) bool {
-		closed, err := gapState(q, id)
-		if err != nil && openErr == nil {
-			openErr = err
-		}
-		return !closed
-	}
-	owed, _ := successorsOwed(evs, win, open)
-	if openErr != nil {
-		return openErr
 	}
 	var missing, want []string
 	for _, o := range owed {

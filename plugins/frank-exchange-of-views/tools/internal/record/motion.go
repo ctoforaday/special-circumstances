@@ -16,7 +16,7 @@ import (
 
 // ONE ADJUDICATION MECHANISM, WITH AN ID (#344).
 //
-// A governance petition, a grade dispute, a docket question and a withheld PASS are ONE
+// A governance petition, a docket question and a withheld PASS are ONE
 // propose→rule exchange. A motion has an ID: the ask and its answer join on it, once, and one renderer serves
 // every subject.
 //
@@ -28,10 +28,10 @@ import (
 
 // MotionSubjects are what a motion can be ABOUT. Each carries its own required payload and its
 // own ruler, which is why the CLI subgroups them rather than taking a --on flag: cobra cannot
-// express "required only when --on=grade", so a flag-discerned subject would put three divergent
+// express "required only when --on=petition", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "docket", "position"}
+var MotionSubjects = []string{"petition", "docket", "position"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -40,7 +40,6 @@ var MotionSubjects = []string{"grade", "petition", "docket", "position"}
 var MotionVerdicts = map[string][]EnumValue{
 	// FROM THE SCHEMA, not typed here: each ruling word and its sentence is the `(means)` on the
 	// subject's ruling enum, in declaration order.
-	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
 	"position": evsOf(recordpb.PositionRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
@@ -55,17 +54,9 @@ var MotionVerdicts = map[string][]EnumValue{
 //
 // They live here for the reason MotionVerdicts does: the set is keyed on (subject, key) and
 // EnumFields cannot express that — it is keyed by event TYPE, and one `motion` event carries a
-// grade `dimension` or a petition `class` depending on what it is about.
-//
-// THIS TABLE EXISTS BECAUSE DELETING THE OLD VERBS EXPOSED THAT THE NEW ONES HAD LOST THEIR
-// CONTRACT. `blue dispute --dimension` was enum-validated and `--proposed` was a pflag.Value that
-// refused a non-grade at parse; `motion grade file` registered both as plain strings and accepted
-// anything. The additive stage added the verb and nobody diffed its flag contract against the one
-// it replaces — which is the half-state that reads as done, one layer below where that rule is
-// usually applied.
+// petition `class` or a ruling's `binds` depending on what it is about. The CLI's help and the write
+// check both read this table, so a flag's enumerated contract cannot drift from the value it stores.
 var MotionFields = map[string]map[string][]EnumValue{
-	// FROM THE SCHEMA, not typed here: the four axes and what each means are GradeDimension's.
-	"grade": {"dimension": gradeMotionAxes()},
 	"petition": {
 		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
 		// carried a different four, and the write path resolves against the enum — so `ethical`
@@ -87,30 +78,8 @@ var MotionFields = map[string]map[string][]EnumValue{
 	},
 }
 
-// complexityContest is what a grade MOTION adds to the complexity axis, and it is declared here,
-// where the motion's menu is built, because it is a fact about contesting a grade and not about
-// the axis: the lens setting the grade reads what the axis means and nothing more, and the seat
-// choosing which axis to contest reads why this one is the lever.
-const complexityContest = "the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"
-
-// gradeMotionAxes is the dimension menu of a grade motion: GradeDimension's four axes with each
-// one's meaning, and on complexity the contest clause after it. An enum with no complexity axis
-// is a schema this table no longer describes, and it says so when the table is built.
-func gradeMotionAxes() []EnumValue {
-	axes := evsOf(recordpb.GradeDimension(0).Descriptor())
-	complexity := recordpb.Word(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)
-	for i := range axes {
-		if axes[i].Name == complexity {
-			axes[i].Means += " — " + complexityContest
-			return axes
-		}
-	}
-	panic("record: GradeDimension has no " + complexity + " axis for the grade motion's menu to describe")
-}
-
 // AxisMeans is what one grade axis means: the `(means)` on its GradeDimension value, which is the
-// sentence the dimension menu above opens each axis with. A flag that sets the axis prints it too,
-// so the seat grading a gap and the seat contesting the grade read one definition.
+// sentence every flag that sets the axis prints.
 //
 // It panics on an axis with no meaning — a schema defect, met when a verb's flags are built.
 func AxisMeans(d recordpb.GradeDimension) string {
@@ -134,8 +103,7 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 		return EnumField{}, false
 	}
 	why := map[string]string{
-		"dimension": "the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing",
-		"class":     "the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine",
+		"class": "the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine",
 	}[key]
 	return EnumField{Key: key, Flag: flag, Values: values, Why: why}, true
 }
@@ -149,7 +117,7 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 // whole limb of the exchange silently. And the id it must reach for is
 // `motion_id`: a ruling carries NO gap id, so attributing a ruling to a gap from the ruling event
 // alone buckets every one of them under the empty key and reports zero forever. The gap lives on
-// the FILING (`Motion.grade.gap_id`); the answer knows only the ask's id, and `Motions` is where
+// the FILING (`Motion.docket.gap_id`); the answer knows only the ask's id, and `Motions` is where
 // the two are put together.
 //
 // ok=false means "not a motion event" — distinct from a motion event whose id is empty, which is a
@@ -325,7 +293,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.Subject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
-			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
+			// `filing` oneof buys: a docket motion cannot carry a petition's `class`, so the loop
 			// over five payload keys that used to stand in for that guarantee is gone. The KEYS
 			// stay as they were — report/motions.go and motionview.go read `gap_id`, `dimension`,
 			// `proposed` and `class` by name.
@@ -334,17 +302,6 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			// would otherwise render as its UNSPECIFIED spelling and put a word on the report where
 			// the seat wrote nothing.
 			switch fil := f.GetFiling().(type) {
-			case *recordpb.Motion_Grade:
-				if fil.Grade.GapId != nil {
-					m.Fields["gap_id"] = fil.Grade.GetGapId()
-					m.GapID = fil.Grade.GetGapId()
-				}
-				if fil.Grade.Dimension != nil {
-					m.Fields["dimension"] = enumWord(fil.Grade.GetDimension())
-				}
-				if fil.Grade.Proposed != nil {
-					m.Fields["proposed"] = enumWord(fil.Grade.GetProposed())
-				}
 			case *recordpb.Motion_Petition:
 				if fil.Petition.Class != nil {
 					m.Fields["class"] = enumWord(fil.Petition.GetClass())
@@ -353,13 +310,6 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				if fil.Docket.GapId != nil {
 					m.Fields["gap_id"] = fil.Docket.GetGapId()
 					m.GapID = fil.Docket.GetGapId()
-				}
-				// A RECONSIDERATION'S NEW GROUNDS, as the filer located them (requireNewGrounds).
-				if fil.Docket.Grounds != nil {
-					m.Fields["grounds"] = fil.Docket.GetGrounds()
-				}
-				if fil.Docket.GroundsQuote != nil {
-					m.Fields["grounds_quote"] = fil.Docket.GetGroundsQuote()
 				}
 			case *recordpb.Motion_Position:
 				// NOTHING WRITES THIS ARM: the position is the filing (the Position case above). An
@@ -442,7 +392,7 @@ func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err
 // discipline every other cross-reference gets, for the same reason: a dangling reference is
 // accepted at write time and dropped at replay, where nobody sees it go.
 //
-// It takes the SUBJECT because the subjects do not share a filing verb. `grade` and `petition` are
+// It takes the SUBJECT because the subjects do not share a filing verb. `docket` and `petition` are
 // filed by `motion <subject> file` and join on the M-id it mints; `position` has no file verb —
 // the chair's position is the filing — so it joins on the position's own id, and the thing that
 // must exist is the position, not a motion event. Passing the subject keeps that difference in one
@@ -492,13 +442,9 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 
 // RequireSubjectMatches refuses a ruling whose SUBGROUP disagrees with the motion's own subject.
 //
-// MEASURED BY PROBING, and it is the defect the collapse was supposed to remove, reintroduced one
-// level down. `motion <subject> rule` takes its subject from its POSITION IN THE TREE — which
-// subgroup you typed — and validated the verdict against that, never against the subject the
-// motion was actually filed under. So `motion grade rule --id M1` on a PETITION motion was
-// accepted: it bypassed the gavel (the chair ruling what only the bench may rule) AND the verdict
-// vocabulary (`accepted`, which is not a petition ruling at all). The report then rendered
-// "petition (safety) … ruled accepted".
+// `motion <subject> rule` takes its subject from its POSITION IN THE TREE — which subgroup you
+// typed — and the motion's own subject is on the record. A ruling under the wrong subgroup would
+// answer with a gavel and a verdict vocabulary the motion does not have.
 //
 // A fact recovered from tree position rather than read from the record is exactly what
 // facts-are-fields is about. The record carries the subject; this reads it, once.
@@ -525,8 +471,8 @@ func requireSubjectMatches(q recordsql.Querier, subject recordpb.MotionSubject, 
 		return nil
 	}
 	// THE NEXT ACT IS NAMED AS THE FILED SUBJECT'S, because it is often not the reader's verb: a
-	// chair ruling a petition as a grade is told the bench's `motion petition rule`, which no
-	// chair can type.
+	// seat ruling a petition as a docket motion is told `motion petition rule`, the petition's
+	// ruler's verb.
 	ruler := "its ruler"
 	if subj, ok := MotionSubjectEnum(filed); ok {
 		if r, err := recordpb.SubjectRuler(subj); err == nil {

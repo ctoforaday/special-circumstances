@@ -671,7 +671,7 @@ func PassBlockerGlosses() []string {
 // blockerGap is an open gap as the list reads it: the gap view's columns, off whichever reader
 // the caller already holds (the work path's states, the plan's open gaps).
 type blockerGap struct {
-	id, mintedBy string
+	id, assignee string
 	material     bool
 	// latestRemandOwed is the gap's latest remand with no exchange since its ruling in which blue
 	// acted on the gap (latestRemandOwed).
@@ -695,7 +695,7 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 		if !g.Open {
 			continue
 		}
-		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, material: g.Material, latestRemandOwed: g.latestRemandOwed,
+		out = append(out, blockerGap{id: g.ID, assignee: g.Assignee, material: g.Material, latestRemandOwed: g.latestRemandOwed,
 			inquiry: inquiryAbout(g.AboutKind, g.AboutRef)})
 	}
 	return out
@@ -707,7 +707,7 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 	out := make([]blockerGap, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, material: g.material, latestRemandOwed: owed[g.id], inquiry: g.inquiry})
+		out = append(out, blockerGap{id: g.id, assignee: g.assignee, material: g.material, latestRemandOwed: owed[g.id], inquiry: g.inquiry})
 	}
 	return out
 }
@@ -721,12 +721,12 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	var out []Blocker
 	for _, g := range gaps {
 		if g.material {
-			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
+			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.assignee})
 		}
 	}
 	for _, g := range gaps {
 		if !g.material && g.latestRemandOwed {
-			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
+			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.assignee})
 		}
 	}
 	events := owedBlockersOf(evs, ids, win, gaps, found)

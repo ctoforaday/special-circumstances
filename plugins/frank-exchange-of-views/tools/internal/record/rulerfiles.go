@@ -61,7 +61,6 @@ func RefuseRulerFiling(subj recordpb.MotionSubject, seatID string) error {
 // holds an act for it. No entry is a statement too: the bench originates nothing on a docket, and
 // rules the gaps another seat puts before it.
 var rulerTurnsTo = map[recordpb.MotionSubject]string{
-	recordpb.MotionSubject_MOTION_SUBJECT_GRADE:    "To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.",
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: "Where the run itself must stop, `halt` is yours.",
 }
 

@@ -58,7 +58,7 @@ func ConfidenceOf(word string) (recordpb.Confidence, bool) {
 	return enumOf[recordpb.Confidence](recordpb.Confidence(0).Descriptor(), word)
 }
 
-// GradeDimensionOf resolves the axis a grade motion contests. Each axis is spelled as the flag
+// GradeDimensionOf resolves a grade axis by its word. Each axis is spelled as the flag
 // that sets it; `complexity_cost` is the payload key the complexity grade is stored under, which no
 // seat types and this does not resolve.
 func GradeDimensionOf(word string) (recordpb.GradeDimension, bool) {

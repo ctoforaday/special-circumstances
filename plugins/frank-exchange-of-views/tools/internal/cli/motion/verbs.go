@@ -1,14 +1,12 @@
 package motion
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -21,40 +19,25 @@ import (
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
 // `position` has none: the chair's position is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
-	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.",
-	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nON A GAP THE BENCH HAS RULED CLOSED IT IS A RECONSIDERATION, ADMITTED ON NEW GROUNDS ONLY: give --grounds or --quote, and the tool checks that what they locate was recorded after that ruling and is about this gap, refusing the filing and saying which failed. The gap's row in your work list's `estopped` states the ruling — what it settled, and what would reopen it or that it is final; a final ruling still admits new grounds. A gap the bench remanded is back in the debate and needs none.\n\nA GAP A SUCCESSOR SUPERSEDED IS NOT DOCKETED: the successor's mint closed it and holds its purpose, and the filing is refused, naming the successor — docket the successor.",
+	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nA GAP A SUCCESSOR SUPERSEDED IS NOT DOCKETED: the successor's mint closed it and holds its purpose, and the filing is refused, naming the successor — docket the successor.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
 // construction, so a new subject that forgot to say what filing it does fails at startup rather
 // than shipping a page that is silent about its own purpose.
-func fileSays(actingRole, subject string) string {
+func fileSays(subject string) string {
 	s, ok := fileSubjectSays[subject]
 	if !ok {
 		panic("motion: subject " + subject + " has a file verb and no fileSubjectSays sentence")
 	}
-	if strings.Contains(s, "%s") {
-		return fmt.Sprintf(s, docketRoute(actingRole))
-	}
 	return s
-}
-
-// docketRoute says where a seat that disagrees with a ruling on a grade goes, IN THE READER'S OWN
-// TERMS: the gap goes before the bench in a docket motion, which every seat but the bench files.
-// The bench reads the same pages — it files grade motions — and a page that handed it the filing
-// verb would name a command its surface does not carry.
-func docketRoute(actingRole string) string {
-	if record.HoldsGavel(actingRole, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET) {
-		return "a seat that disagrees with it puts the gap before you in a docket motion"
-	}
-	return "a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that"
 }
 
 // fileStale is seat.StaleRule on the page of a subject whose filing names a gap, and "" on any other.
 func fileStale(subject string) string {
 	switch subj, _ := record.MotionSubjectEnum(subject); subj {
-	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 		return seat.StaleRule + "\n\n"
 	}
 	return ""
@@ -87,7 +70,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// had already chosen this one.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
-			fileSays(actingRole, subject) + "\n\n" + fileStale(subject) +
+			fileSays(subject) + "\n\n" + fileStale(subject) +
 			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.\n\n" +
 			finalSittingSays(subject),
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
@@ -111,7 +94,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			// wrote whatever the flags happened to hold under whatever key payloadKey returned —
 			// which is how `--petition-class` landed under the key `petition-class` while every
 			// reader looked for `class`, and nothing could see the two disagree. The filing is now
-			// a oneof, so a grade's fields cannot be written onto a petition at all.
+			// a oneof, so a docket's fields cannot be written onto a petition at all.
 			subj, ok := record.MotionSubjectEnum(subject)
 			if !ok {
 				return nil, feov.Errorf(feov.Validation, "%q is not a motion subject", subject)
@@ -121,20 +104,6 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 				Basis:    proto.String(basis),
 			}
 			switch subj {
-			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
-				dim, known := record.GradeDimensionOf(seat.Str(cmd, flags.Dimension))
-				if !known {
-					return nil, feov.Errorf(feov.Validation, "%q is not a grade dimension", seat.Str(cmd, flags.Dimension))
-				}
-				prop, known := record.GradeOf(seat.Str(cmd, flags.Proposed))
-				if !known {
-					return nil, feov.Errorf(feov.Validation, "%q is not a grade", seat.Str(cmd, flags.Proposed))
-				}
-				body.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-					GapId:     proto.String(seat.Str(cmd, flags.ID)),
-					Dimension: &dim,
-					Proposed:  &prop,
-				}}
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				cls, known := record.PetitionClassOf(seat.Str(cmd, flags.Class))
 				if !known {
@@ -142,13 +111,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 				}
 				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-				// THE NEW GROUNDS, AS GIVEN: the record decides whether the gap needs them and
-				// whether these are new and about it (record.requireNewGrounds).
-				d := &recordpb.DocketMotion{GapId: proto.String(seat.Str(cmd, flags.ID)), Grounds: seat.OptStr(cmd, flags.Grounds)}
-				if seat.Given(cmd, flags.Quote) {
-					d.GroundsQuote = proto.String(seat.Location(cmd))
-				}
-				body.Filing = &recordpb.Motion_Docket{Docket: d}
+				body.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(seat.Str(cmd, flags.ID))}}
 			default:
 				// A SUBJECT WITH NO ARM WROTE A MOTION WITH NO SUBSTANCE, SILENTLY. `validate`
 				// checks a filing that is PRESENT; it cannot check one that was never set. So a
@@ -164,16 +127,11 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			}
 			write := func(guards ...record.Guard) error {
 				guards = append([]record.Guard{record.HeardInTime(subj)}, guards...)
-				// A QUOTE OF NEW GROUNDS IS THE REPORT'S CURRENT TEXT, held to the report the motion
-				// lands on as every quote is.
-				if q := body.GetDocket().GetGroundsQuote(); q != "" {
-					guards = append(guards, seat.Places("", q, groundsQuoteRefusal))
-				}
 				_, err := record.Append(s.Identity(), body, guards...)
 				return err
 			}
 			switch subj {
-			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				// A MOTION ON A GAP THAT MOVED SINCE THIS SITTING OPENED argues with what the gap was
 				// (gblock ruling B): the refusal shows what changed, and the same filing lands once read.
 				err = seat.AppendFresh(s, seat.Str(cmd, flags.ID), write)
@@ -193,16 +151,9 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		if fileFlagHelp[f] == "" {
 			panic("motion: the " + subject + " filing requires --" + f + " and fileFlagHelp has no line for it — its page would say REQUIRED and nothing about what to supply")
 		}
-		// THE FLAG'S TYPE IS THE FIRST REFUSAL, and the first draft threw it away. `--proposed`
-		// takes a GRADE and is a pflag.Value that refuses a non-grade at parse — before any RunE
-		// runs, with the help and the refusal generated from one list. `--dimension` and
-		// `--petition-class` take enumerated sets. Registering all three as bare strings, as this
-		// loop originally did, accepted anything and deferred the error to a reader that would
-		// never look.
+		// THE FLAG'S TYPE IS THE FIRST REFUSAL: a petition's `--class` takes an enumerated set,
+		// registered with its menu so a value outside it is refused at parse.
 		switch {
-		case f == flags.Proposed:
-			p := new(flags.GradeValue)
-			c.Flags().Var(p, f, flags.GradeUsage(fileFlagHelp[f]))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
 				enumhelp.Flag(c, f, e, fileFlagHelp[f])
@@ -223,12 +174,6 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// The handler's check above refuses the subject's flags too, in the subject's words; the
 		// marker and cobra's refusal are written here so the page says it before the call is spent.
 		seat.Require(c, f)
-	}
-	// A RECONSIDERATION'S NEW GROUNDS: the two ways to locate them, neither required by the flag —
-	// the record requires one exactly where the bench has ruled the gap closed.
-	if subject == "docket" {
-		c.Flags().Var(flags.AnchorID(), flags.Grounds, "on a gap the bench has ruled closed, and required there unless --quote is given: the id of the new grounds — "+record.GroundsKinds+", recorded after the ruling")
-		flags.Text(c, flags.Quote, "on a gap the bench has ruled closed, the other way to give the new grounds — report text an edit answering the gap wrote after the ruling, given as "+flags.DescQuoteAlone)
 	}
 	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
 	// seat.New, so they carried no `records` annotation — and the contract gate joins commands to
@@ -277,7 +222,7 @@ func payloadKey(flag string) string {
 // anything but the verdict and the reason, so the mechanism did not exist — `--binds` is gated by
 // MotionFieldEnum, which is an ENUM table and cannot express free text.
 //
-// THEY DO NOT APPEAR ON THE OTHER SUBJECTS. A grade ruling offering `--principle` is the surface
+// THEY DO NOT APPEAR ON THE OTHER SUBJECTS. A petition ruling offering `--principle` is the surface
 // lying about what it accepts, and the help IS the contract a seat reads.
 // ruleDetail is what a subject's ruling page says of that subject alone.
 var ruleDetail = map[string]string{
@@ -286,7 +231,6 @@ var ruleDetail = map[string]string{
 		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
 		"`overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.",
 	"docket": "\n\nWHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE: `regrade` the gap while this motion stands unruled, then rule — your ruling rules on the grade you set, and the minting lens may not move an axis you moved. " +
-		"A MOTION THAT NAMES NEW GROUNDS reconsiders a gap you ruled closed: its `grounds` on `inquest motions` locate what was recorded since that ruling, and the tool admitted it because that is new and about the gap — whether it changes your ruling is yours to decide." +
 		"\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
 		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
 		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. " +
@@ -322,9 +266,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			}
 			id := seat.Str(cmd, flags.ID)
 			// ORDER IS THE MESSAGE. The motion's own subject is established FIRST, because every
-			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
-			// petition should be told it named the wrong subgroup, not that grade motions belong
-			// to the chair — which is true, irrelevant, and sends it to the wrong fix. This verb
+			// later refusal is phrased in terms of it: a bench typing `motion docket rule` at a
+			// petition should be told it named the wrong subgroup, not that its ruling words are
+			// wrong — which is true, irrelevant, and sends it to the wrong fix. This verb
 			// refuses an unreasoned ruling and an unknown --as itself, so the subject is asked
 			// here, before either; record.Append asks it again for every writer, and owns the
 			// motion's state (#1205) — still unruled — under its write lock.
@@ -339,7 +283,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				return nil, err
 			}
 			// THE VERDICT SET IS KEYED ON (SUBJECT, RULING) and the schema says so with a oneof:
-			// granted|denied can only reach the petition arm, accepted|rejected the grade arm. The
+			// granted|denied can only reach the petition arm, upheld|overruled the position arm. The
 			// old payload carried `subject` and `ruling` as two independent strings that a writer
 			// could set inconsistently, and record.go's validate existed to catch exactly that.
 			subj := mustSubject(subject)
@@ -349,12 +293,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			}
 			word := seat.Str(cmd, flags.As)
 			switch subj {
-			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
-				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
-				if !ok {
-					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a grade motion", word)
-				}
-				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
 				if !ok {
@@ -456,13 +394,16 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	if subject == "position" {
 		seat.RequiredUnless(c, flags.Direction, "unless --as overruled")
 	}
+	if subject == "docket" {
+		// The bench's opinion: validate refuses a bench ruling without any of the four.
+		seat.SaysRequired(c, flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled)
+	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "on a grant, and required there: whom --relief binds")
 	}
 	// The record type, for the contract gate — see newFile. AND THE ARM: the ruling this verb
-	// writes fills the oneof arm named for its subject, so what that arm's message requires — a
-	// docket ruling's principle, tension, review flag and what it settles — is marked REQUIRED on
-	// this page from the schema, and on no other subject's `rule`.
+	// writes fills the oneof arm named for its subject, so what that arm's message requires is
+	// marked REQUIRED on this page from the schema, and on no other subject's `rule`.
 	seat.Records(c, "motion_rule")
 	seat.FillsArm(c, subject)
 	return c
@@ -534,11 +475,9 @@ func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
 // newFile refuses, at construction, a required flag with no line here: its page would read a bare
 // "REQUIRED — " and nothing about what to supply.
 var fileFlagHelp = map[string]string{
-	flags.ID:        "the gap this motion is about",
-	flags.Dimension: "the grade axis you contest",
-	flags.Proposed:  "the grade you say it should be",
-	flags.Class:     "the class of objection",
-	flags.Relief:    "what you ask the bench to do about it",
+	flags.ID:     "the gap this motion is about",
+	flags.Class:  "the class of objection",
+	flags.Relief: "what you ask the bench to do about it",
 }
 
 // ruleFlagHelp is what each subject-specific ruling flag asks for. Written here rather than at the
@@ -585,9 +524,4 @@ func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 		return flags.GapID()
 	}
 	return flags.MotionID()
-}
-
-// groundsQuoteRefusal is the refusal for a grounds quote the report does not carry as given.
-func groundsQuoteRefusal(err error) error {
-	return feov.Errorf(feov.Validation, "--quote, the new grounds, is not the report's current text as given: %v", anchortext.Refusal(err))
 }

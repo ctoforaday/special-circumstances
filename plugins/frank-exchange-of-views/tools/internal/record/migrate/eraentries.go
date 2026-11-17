@@ -158,45 +158,24 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 		if _, ok := old.Arms["inquiry"]; ok {
 			return nil, nil
 		}
+		// A GRADE MOTION TRANSLATES TO NO EVENT (EventSchema 79): the subject is gone, and a dispute
+		// of a gap's grade is a docket motion proposing the regrade, which the grade motion — a
+		// dimension and a word, no regrade body — is no equivalent of. None ever moved a grade.
+		if _, ok := old.Arms["grade"]; ok {
+			return nil, nil
+		}
 		return (Registry{}).Translate(withoutSubject(old))
 	}
+	// THE FLAT SHARD ERA HELD GRADE MOTIONS ONLY, which translate to no event, as above.
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
 	}
-	m := &recordpb.Motion{}
-	g := &recordpb.GradeMotion{}
-	m.Filing = &recordpb.Motion_Grade{Grade: g}
-	for col, v := range old.Fields {
-		switch col {
-		case "subject":
-		case "motion_id":
-			m.MotionId = proto.String(v.(string))
-		case "reason":
-			m.Basis = proto.String(v.(string))
-		case "gap_id":
-			g.GapId = proto.String(v.(string))
-		case "dimension":
-			num, err := enumNumberOf(recordpb.GradeDimension(0).Descriptor(), v.(string))
-			if err != nil {
-				return nil, fmt.Errorf("motion.dimension: %w", err)
-			}
-			g.Dimension = recordpb.GradeDimension(num).Enum()
-		case "proposed":
-			num, err := enumNumberOf(recordpb.Grade(0).Descriptor(), v.(string))
-			if err != nil {
-				return nil, fmt.Errorf("motion.proposed: %w", err)
-			}
-			g.Proposed = recordpb.Grade(num).Enum()
-		default:
-			return nil, fmt.Errorf("old column motion.%s has no place on the grade filing — extend the era motion entry", col)
-		}
-	}
-	return []proto.Message{m}, nil
+	return nil, nil
 }
 
 // eraMotionRuleEntry: the era's ruling was a WORD beside a subject; the schema keyed the
-// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject was the
-// ruling on an inquiry, which translates to no event.
+// verdict set on the subject as one oneof arm per subject. The era's two subjects, a grade motion's
+// ruling and the ruling on an inquiry, each translate to no event.
 func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
@@ -208,6 +187,10 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 		if v, ok := old.Fields["inquiry"]; ok && v != nil {
 			return nil, nil
 		}
+		// A RULING ON A GRADE MOTION TRANSLATES TO NO EVENT, as its motion does.
+		if v, ok := old.Fields["grade"]; ok && v != nil {
+			return nil, nil
+		}
 		bodies, err := (Registry{}).Translate(withoutSubject(old))
 		for _, b := range bodies {
 			if r, ok := b.(*recordpb.MotionRule); ok {
@@ -216,34 +199,13 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 		}
 		return bodies, err
 	}
-	r := &recordpb.MotionRule{}
+	// THE FLAT ERA HELD GRADE AND INQUIRY RULINGS ONLY, and each translates to no event, as above.
 	subject, _ := old.Fields["subject"].(string)
 	ruling, _ := old.Fields["ruling"].(string)
-	if subject == "inquiry" {
-		return nil, nil // a ruling on an inquiry, as above: no equivalent
+	if subject == "inquiry" || subject == "grade" {
+		return nil, nil
 	}
-	for col, v := range old.Fields {
-		switch col {
-		case "subject", "ruling":
-		case "motion_id":
-			r.MotionId = proto.String(v.(string))
-		case "reason":
-			r.Opinion = proto.String(v.(string))
-		default:
-			return nil, fmt.Errorf("old column motion_rule.%s has no place on the ruling — extend the era motion-rule entry", col)
-		}
-	}
-	switch subject {
-	case "grade":
-		num, err := enumNumberOf(recordpb.GradeRuling(0).Descriptor(), ruling)
-		if err != nil {
-			return nil, fmt.Errorf("motion_rule.ruling (grade): %w", err)
-		}
-		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
-	default:
-		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
-	}
-	return []proto.Message{r}, nil
+	return nil, fmt.Errorf("era motion-rule subject %q (ruled %q) has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject, ruling)
 }
 
 // withoutSubject drops a motion's or a ruling's `subject` column, which a source at epoch 26 or

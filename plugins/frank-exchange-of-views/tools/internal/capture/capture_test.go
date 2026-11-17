@@ -549,12 +549,12 @@ func TestHarvestPrecedents(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.Declare{
 			Holding: proto.String("verified means an act of looking"),
 		}),
-		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
+		// An answer to a proposed act is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
-			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+			Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(false)}},
 		}),
 	}})
 

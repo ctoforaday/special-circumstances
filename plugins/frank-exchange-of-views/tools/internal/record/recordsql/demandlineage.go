@@ -13,7 +13,7 @@ import "strings"
 //
 // A STORED PROJECTION, MAINTAINED BY TRIGGER, because a gap's demand lineage is fixed at its mint. Its rows
 // are the mint's and its supersedes' rows, and the ancestors' demand lineages were complete before it (each
-// supersedes names a gap already minted: mint_supersedes.value references mint.gap_id), so no later
+// supersedes names a gap already minted: mint.supersedes references mint.gap_id), so no later
 // event adds to a gap's demand lineage, and an insert's trigger writes the whole of it. demand_reach reads
 // it with no recursion. The rules are DDL, so the event-schema epoch's DDL hash covers them, and a
 // migration replays every mint through them. The table holds no fact of its own — events is the log
@@ -48,16 +48,14 @@ END;
 -- lineage. It is not asked whether the ancestor was open, or its demand unmet, when the mint named
 -- it: an ancestor whose demand was met, or disposed of by the bench, before the heir's mint passes
 -- its reach on all the same, and what would have met it after the heir's mint meets the heir.
--- OR IGNORE: two ancestors sharing an ancestor of their own (a diamond) carry it in twice.
-CREATE TRIGGER "demand_lineage_supersedes" AFTER INSERT ON "mint_supersedes" BEGIN
-  INSERT OR IGNORE INTO "demand_lineage" ("gap_id", "from_gap")
-  SELECT h."gap_id", l."from_gap"
-  FROM "mint" h
-  JOIN "mint" a ON a."gap_id" = NEW."value" AND a."check_kind" = h."check_kind"
+CREATE TRIGGER "demand_lineage_supersedes" AFTER INSERT ON "mint" WHEN NEW."supersedes" IS NOT NULL BEGIN
+  INSERT INTO "demand_lineage" ("gap_id", "from_gap")
+  SELECT NEW."gap_id", l."from_gap"
+  FROM "mint" a
   JOIN "demand_lineage" l ON l."gap_id" = a."gap_id"
-  WHERE h."event_id" = NEW."event_id"
+  WHERE a."gap_id" = NEW."supersedes" AND a."check_kind" = NEW."check_kind"
     AND a."check_kind" IN (` + evidenceChecksSQL() + `)
-    AND NOT EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."value" = NEW."value" AND s."event_id" < NEW."event_id");
+    AND NOT EXISTS (SELECT 1 FROM "mint" s WHERE s."supersedes" = NEW."supersedes" AND s."event_id" < NEW."event_id");
 END;
 ` + evidenceCheckIndexesSQL()
 

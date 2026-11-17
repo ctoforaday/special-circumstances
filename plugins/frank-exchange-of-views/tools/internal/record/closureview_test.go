@@ -98,9 +98,7 @@ func (s *closureStage) reconsidered() string {
 		Sha256: proto.String("abc"), Answers: proto.String("G1")}); err != nil {
 		s.t.Fatal(err)
 	}
-	m := docketMotion(id, "G1")
-	m.GetDocket().Grounds = proto.String(label)
-	mustAppend(s.t, s.lens, m)
+	mustAppend(s.t, s.lens, docketMotion(id, "G1"))
 	return id
 }
 
@@ -312,7 +310,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	})
 	// G1 awaits its live answer, so its successor carries its check kind (requireSuccessorCarriesDemand).
 	mint("G2", func(m *recordpb.Mint) {
-		m.Supersedes = []string{"G1"}
+		m.Supersedes = proto.String("G1")
 		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	})
 	mint("G3", nil)

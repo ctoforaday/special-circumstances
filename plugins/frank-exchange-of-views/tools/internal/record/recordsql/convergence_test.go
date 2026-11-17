@@ -31,7 +31,9 @@ func TestTheFailRefusalReadsTheBoardOnTheRecord(t *testing.T) {
 			Severity:   gradeP(t, sev),
 			Likelihood: &lik, Impact: &imp,
 		}
-		m.Supersedes = supersedes
+		if len(supersedes) > 0 {
+			m.Supersedes = &supersedes[0]
+		}
 		return m
 	}
 

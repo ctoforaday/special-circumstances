@@ -145,7 +145,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// is pinned where it can be reached, in the difftest scenario of that name.
 		{"docket rule without the gavel", []string{"motion", "docket", "rule", "--id", noSuchMotion, "--as", "remanded", "--reason", "r"}},
 		// THE OTHER HALF OF THE GAVEL: the seat that rules a subject files nothing on it.
-		{"grade motion filed by the chair, which rules it", []string{"motion", "grade", "file", "--id", "GAP001", "--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 		{"docket motion filed by the bench, which rules it", []string{"motion", "docket", "file", "--seat-id", "judge", "--id", "GAP001", "--reason", "r"}},
 		{"petition filed by the bench, which rules it", []string{"motion", "petition", "file", "--seat-id", "judge", "--class", "safety", "--relief", "x", "--reason", "r"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
@@ -162,11 +161,10 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--seat-id", "judge", "--id", noSuchMotion, "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"close", "--id", "GAP001", "--as", "closed-with-regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
 		{"a lens closing as the bench's remand", []string{"close", "--id", "GAP001", "--as", "remanded", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
-		// The class sweep found five more set-shaped flags past --as. Each is here for
+		// The class sweep found more set-shaped flags past --as. Each is here for
 		// the same reason as the rest of this catalogue: the refusal is the seat's
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
-		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
 		{"verification outcome outside the set", []string{"verify", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb

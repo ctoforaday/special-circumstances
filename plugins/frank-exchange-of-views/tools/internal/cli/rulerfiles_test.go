@@ -71,7 +71,6 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		}
 		return drive{t: t, run: runDir}
 	}
-	grade := []string{"motion", "grade", "file", "--id", "G1", "--dimension", "severity", "--proposed", "high", "--reason", "the consequence is larger"}
 	docket := []string{"motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide"}
 	petition := []string{"motion", "petition", "file", "--class", "safety", "--relief", "halt", "--reason", "a consent gate is missing"}
 	docketRule := func(m string) []string {
@@ -84,9 +83,6 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		act          []string
 		wants        []string
 	}{
-		{"the chair files a grade motion", "red-chair", grade,
-			[]string{"a grade motion is ruled by the chair seat", "`file` is not on your surface", "you are red-chair (chair)",
-				"The bench, blue, lane and lens seats file one", "file `motion docket file` on the gap, which the bench rules"}},
 		{"the bench files a docket motion", "judge", docket,
 			[]string{"a docket motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
 				"The blue, chair, lane and lens seats file one"}},
@@ -113,13 +109,6 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		m := docketFile(t, d.run, "red-chair", "G1", "red cannot settle G1")
 		d.admitted("the bench's ruling", "judge", docketRule(m)...)
 	})
-	for _, filer := range []string{"blue-respond", lensSeat, "judge"} {
-		t.Run("a grade motion filed by "+filer+" is ruled by the chair", func(t *testing.T) {
-			d := fresh(t)
-			m := motionID(t, d.run, append(append([]string{}, grade...), "--seat-id", filer)...)
-			d.admitted("the chair's ruling", "red-chair", "motion", "grade", "rule", "--id", m, "--as", "rejected", "--reason", "the evidence does not reach it")
-		})
-	}
 	for _, filer := range []string{"blue-respond", lensSeat, "red-chair"} {
 		t.Run("a petition filed by "+filer+" is ruled by the bench", func(t *testing.T) {
 			d := fresh(t)

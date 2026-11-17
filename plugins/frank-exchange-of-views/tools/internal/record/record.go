@@ -118,8 +118,8 @@ type Event = recordpb.Event
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. The PARTY that wrote an event is the role of its seat
 // (PartyOf), and seat.Context.Role answers a different question — which command group the verb is
-// mounted under. They disagree: `motion grade file` run by
-// `blue-respond` is party `blue` and command-group `grade`. Passing the wrong one would
+// mounted under. They disagree: `motion docket file` run by
+// `blue-respond` is party `blue` and command-group `docket`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
 	// Run, not a path. RunDir was a string, and the empty string reached Append as a legitimate
@@ -446,9 +446,11 @@ var defines = map[recordpb.EventType]bool{
 // key on the per-seat ordinal. A stale refusal names its gap, and a seat refused twice on one gap in
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
-// stop at the first.
+// stop at the first. A tombstone names its gap too, and a place, an end and a place again on one gap
+// in one sitting are three acts.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE: true,
+	recordpb.EventType_EVENT_TYPE_STALE:     true,
+	recordpb.EventType_EVENT_TYPE_TOMBSTONE: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -468,35 +470,6 @@ var numbered = map[recordpb.EventType]bool{
 // requireNotARetriedReading holds it to one reading per (url, sentence) per sitting and names the
 // stored reading when it refuses.
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "anchor"}
-
-// requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
-func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMotion) error {
-	proposed := g.GetProposed()
-	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
-		return nil // an absent proposal is the required-field sweep's refusal, not this one's
-	}
-	col := gradeAtColumn(g.GetDimension())
-	if col == "" {
-		return fmt.Errorf("%q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
-			recordpb.Word(g.GetDimension()))
-	}
-	// The CURRENT grade is the gap view's, the result stored on the gap's latest regrade, else the
-	// mint's — asked of the record (queries.go).
-	current, found, err := gradeAt(q, g.GetGapId(), col)
-	if err != nil {
-		return fmt.Errorf("the record could not be read to tell whether this motion asks for a change, so nothing is filed — retry the call: %w", err)
-	}
-	if !found {
-		return nil // requireGap answered this already
-	}
-	if current != recordpb.Word(proposed) {
-		return nil
-	}
-	return fmt.Errorf("%s is already %s at %s, so this motion asks for no change — "+
-		"a motion is a request to MOVE a grade, and a ruling on one that moves nothing reads exactly like a ruling on the merits. "+
-		"Propose the grade you think it should be, or if you mean to argue the current grade is right, that belongs in your closing rather than on the docket",
-		g.GetGapId(), recordpb.Word(proposed), recordpb.Word(g.GetDimension()))
-}
 
 // deriveKey builds the idempotency key, and its ordinal arm COUNTS INSIDE THE WRITING
 // TRANSACTION.
@@ -828,11 +801,6 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean one stored-sitting count, so
 		// both acts are attributed to one sitting and the duty above has already refused the
 		// second.
-		//
-		// regradesAfforded (available.go) holds back a regrade this branch would refuse (the seat's
-		// current sitting already holds one on that gap); a change to the label key's sitting scope
-		// (deriveKey) changes what it must hold back, and the current-sitting row of
-		// TestARegradeOnTheListIsOneTheWritePathAdmits is the one that notices.
 		if isDuplicateKey(err) {
 			// THE TAIL NAMES THE ACT THAT ANSWERS THE FIRST, read from the one table that holds it
 			// (supersede.go). A generic "say so in the act that supersedes it" names an act that, for
@@ -906,7 +874,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	}
 	// ORDER IS THE MESSAGE. A ruling's motion is established FIRST — that it exists and was filed
 	// under the subject this act names — because every later refusal is phrased in terms of it: a
-	// bench typing `motion docket rule` at a grade motion should be told it named the wrong subject,
+	// bench typing `motion docket rule` at a petition should be told it named the wrong subject,
 	// not that a docket ruling needs --settled, which is true, irrelevant, and sends it to the wrong
 	// fix. With no id there is no motion to establish, and the required-field walk below names the
 	// missing --id in the annotation's words.
@@ -995,10 +963,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err != nil {
 			return err
 		}
-		for _, anc := range b.GetSupersedes() {
-			if !ids[anc] {
-				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
-			}
+		if anc := b.GetSupersedes(); anc != "" && !ids[anc] {
+			return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 		}
 		if err := requireSupersedable(q, seatID, b); err != nil {
 			return err
@@ -1246,10 +1212,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Regrade:
-		// regradesAfforded (available.go) lists a regrade only where these three admit it and
-		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
-		// the two together through Append, and a precondition added here needs a row there.
-		//
 		// THE ORIGINATOR REGRADES, AND SO DOES THE BENCH WHILE IT HEARS THE GAP (benchgrade.go): the
 		// bench's regrade sets the grade its ruling rules on.
 		if seatclass.RoleOfSeat(seatID) != "bench" {
@@ -1279,34 +1241,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireFilerHoldsNoGavel(seatID, b.Subject()); err != nil {
 			return err
 		}
-		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
-		// at replay; one against a gap already disposed of asks for a different disposition than
-		// the one that has been made.
-		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-			if err := requireGap(q, b.GetGrade().GetGapId(), "--id"); err != nil {
-				return err
-			}
-			if err := requireOpenGap(q, b.GetGrade().GetGapId(), "--id",
-				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
-				return err
-			}
-			// AND IT MUST ASK FOR A CHANGE. Proposing the grade already on the board contests
-			// nothing, and the ruling it produces is unreadable: `rejected` on a no-op and
-			// `rejected` on the merits are the same word, in the one exchange built to make that
-			// distinction legible. Measured 2026-08-22 — with severity already `high`,
-			// `--dimension severity --proposed high` filed cleanly.
-			//
-			// Read from the BOARD, not from the filer's claim about it, and a dimension this
-			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
-			// differ from every real proposal and quietly accept everything on a new axis.
-			if err := requireGradeMotionAsksForAChange(q, b.GetGrade()); err != nil {
-				return err
-			}
-			if err := requireGradeMotionOffBenchLock(w, b.GetGrade()); err != nil {
-				return err
-			}
-		}
-		// A DOCKET MOTION IS ABOUT A GAP TOO, and this check came across with the verb.
+		// A DOCKET MOTION IS ABOUT A GAP, and this check came across with the verb.
 		//
 		// `bench opinion` carried `requireGap(run, b.GetGapId(), "opinion", "--id")` because the
 		// 2026-07-18 damage was exactly this: eight judicial acts naming gaps nothing had minted,
@@ -1369,7 +1304,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
-			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+			if err := requireBenchOpinion(seatID, d.Docket); err != nil {
+				return err
+			}
+			// AN ACCEPT OR A REJECT ANSWERS THE ACT THE MOTION PROPOSES, and states nothing a closing
+			// word or a remand states.
+			if d.Docket.Accepted != nil {
+				if d.Docket.Disposition != nil || d.Docket.ReopensOn != nil || d.Docket.Final != nil || d.Docket.Direction != nil {
+					return fmt.Errorf("an accept or a reject answers the act the motion proposes and states nothing else: --as, --reopens-on and --final belong to a closing word, and --direction to a remand")
+				}
+			} else if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
 					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
 				}
@@ -1397,10 +1341,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// requireUnanswered, after the key is derived, in the same writing transaction as this.
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
-		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
-		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
-		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
-		// enums.go exists to keep.
+		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and a
+		// disposition, or an accept or a reject, for a docket. So the check lives here, and the
+		// CLI's help is generated from the SAME table (MotionVerdictEnum) — one source, two
+		// readers, which is the rule enums.go exists to keep.
+		//
+		// A DOCKET RULING STATES ITS WORD: a disposition, or the answer to the proposed act. The
+		// columns hold the pair as exactly one of the two; the refusal names the flag.
+		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok && d.Docket.Accepted == nil && d.Docket.Disposition == nil {
+			return feov.Errorf(feov.MissingField, "requires --as: the ruling's word — one of %s", strings.Join(Names(MotionVerdicts["docket"]), " | "))
+		}
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
 		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a
@@ -1482,6 +1432,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Plan:
 		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
+			return err
+		}
+	case *recordpb.Tombstone:
+		if err := requireTombstoneShape(q, b); err != nil {
 			return err
 		}
 	case *recordpb.ReportRead:
@@ -1731,8 +1685,6 @@ func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string)
 // refuses both, and refuses an arm that is not the ruling's own subject's.
 func rulingWord(r *recordpb.MotionRule) string {
 	switch v := r.GetRuling().(type) {
-	case *recordpb.MotionRule_Grade:
-		return recordpb.Word(v.Grade)
 	case *recordpb.MotionRule_Petition:
 		return recordpb.Word(v.Petition)
 	case *recordpb.MotionRule_Docket:
@@ -1743,6 +1695,14 @@ func rulingWord(r *recordpb.MotionRule) string {
 		// view reports the whole docket as filed-and-unanswered, and Compute's
 		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
 		// broken read are the same number.
+		//
+		// AN ANSWER TO A PROPOSED ACT is its acceptance, read as its word.
+		if v.Docket.Accepted != nil {
+			if v.Docket.GetAccepted() {
+				return "accepted"
+			}
+			return "rejected"
+		}
 		return recordpb.Word(v.Docket.GetDisposition())
 	case *recordpb.MotionRule_Position:
 		// A message arm too, for the work an upheld ruling names: the word is on the message.
@@ -1775,15 +1735,15 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 	if gapID == "" {
 		return nil // the missing-id refusal is the verb's own
 	}
-	var mintedBy string
-	found, err := queryRowAt(q, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found || mintedBy == "" || mintedBy == seatID {
+	var assignee string
+	found, err := queryRowAt(q, []any{&assignee}, `SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || assignee == "" || assignee == seatID {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
 	return feov.Errorf(feov.Validation,
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
-		gapID, mintedBy, act, seatID)
+		gapID, assignee, act, seatID)
 }
 
 // requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
@@ -1841,17 +1801,17 @@ func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
 	if gapID == "" {
 		return nil
 	}
-	var mintedBy string
+	var assignee string
 	var docketed int64
-	found, err := queryRowAt(q, []any{&mintedBy, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("assignee", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
-	if !IsClosingParty(seatID, mintedBy) {
+	if !IsClosingParty(seatID, assignee) {
 		return feov.Errorf(feov.RoleViolation,
 			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
 				"An argument about no one gap is the chair's position",
-			mintedBy, gapID, blueRespondSeat, seatID)
+			assignee, gapID, blueRespondSeat, seatID)
 	}
 	if docketed == 0 {
 		return feov.Errorf(feov.Validation,

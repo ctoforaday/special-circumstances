@@ -19,10 +19,6 @@ import (
 // the SQL view must name the same answer. Both read the ruling that stands;
 // TestEveryMotionReaderStatesTheRulingThatStands holds them to it beside a remand.
 func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
-	gradeRule := func(r recordpb.GradeRuling) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"),
-			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
-	}
 	finalDocketRule := func() *recordpb.MotionRule {
 		r := docketRule("M2", "the bench rules again")
 		r.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
@@ -33,8 +29,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2)
-		// and petition M3, all unruled; its LAST write is the one under test.
+		// act runs on a record holding docket motion M1 (gap G1, proposing a regrade), docket motion
+		// M2 (gap G2) and petition M3, all unruled; its LAST write is the one under test.
 		act func(t *testing.T, run Run) error
 		// wants is what the refusal must say; nil means the last write is admitted.
 		wants []string
@@ -44,13 +40,13 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		{
 			name: "a second ruling is refused",
 			act: func(t *testing.T, run Run) error {
-				chair := sit(t, run, "red-chair")
-				mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED))
-				_, err := Append(chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
+				judge := sit(t, run, "judge")
+				mustAppend(t, judge, actRule("M1", false, "judge"))
+				_, err := Append(judge, actRule("M1", true, "judge"))
 				return err
 			},
 			// The ruler is told the act that answers its ruling.
-			wants:  []string{`motion M1 is already ruled "rejected" by red-chair`, "The first stands. If it was wrong, say so in a docket motion on the gap; the record"},
+			wants:  []string{`motion M1 is already ruled "rejected" by judge`, "a declaration, which moves no gap"},
 			motion: "M1", ruling: "rejected",
 		},
 		{
@@ -71,21 +67,21 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 					Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_GRANTED}})
 				return err
 			},
-			wants:  []string{"motion M1 was filed as a grade motion and you are ruling it as a petition", "the chair's `motion grade rule`"},
+			wants:  []string{"motion M1 was filed as a docket motion and you are ruling it as a petition", "the bench's `motion docket rule`"},
 			motion: "M1",
 		},
 		{
-			name: "a docket ruling on a grade motion is refused for the subject before its fields",
+			name: "a docket ruling on a petition is refused for the subject before its fields",
 			act: func(t *testing.T, run Run) error {
-				r := docketRule("M1", "the bench rules a grade")
+				r := docketRule("M3", "the bench rules a petition")
 				r.GetDocket().Settled = nil
 				_, err := Append(sit(t, run, "judge"), r)
 				return err
 			},
 			// ORDER IS THE MESSAGE: --settled is missing too, and naming it would send the bench
 			// to supply a field for a ruling it cannot make.
-			wants:  []string{"motion M1 was filed as a grade motion and you are ruling it as a docket", "the chair's `motion grade rule`"},
-			motion: "M1",
+			wants:  []string{"motion M3 was filed as a petition motion and you are ruling it as a docket", "the bench's `motion petition rule`"},
+			motion: "M3",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -112,16 +108,14 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	}
 }
 
-// motionGuardRun is a record with three unruled motions: grade M1 on G1 (filed by the lens),
-// docket M2 on G2 (filed by blue) and petition M3 (filed by the lens).
+// motionGuardRun is a record with three unruled motions: docket M1 on G1 proposing a regrade (filed
+// by the lens), docket M2 on G2 (filed by blue) and petition M3 (filed by the lens).
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).
 		mint(evLens, "G1", "high").mint(evLens, "G2", "high").seed()
-	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("severity is overstated"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
+	mustAppend(t, sit(t, run, evLens), regradeMotion("M1", "G1", "severity is overstated"))
 	blue := sit(t, run, "blue-respond")
 	mustAppend(t, blue, docketMotion("M2", "G2"))
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"), Basis: proto.String("the run is proceeding past a safety objection"),
@@ -181,27 +175,21 @@ func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 // motionAnswer is one motion's answer as a reader states it.
 type motionAnswer struct{ ruling, by string }
 
-// EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — a grade
-// ruling, a docket remand — went through Append. A motion holds one ruling: the
+// EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — an
+// answer to a proposed act, a docket remand — went through Append. A motion holds one ruling: the
 // write refuses a second, migrate's replay included, so no record holds two.
 func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
-	gradeRule := func(r recordpb.GradeRuling, opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"),
-			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
-	}
-	// A second grade motion, left unruled by the write.
-	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M4"), Basis: proto.String("likelihood is overstated"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
+	// A second motion proposing a regrade, left unruled by the write.
+	mustAppend(t, sit(t, run, evLens), regradeMotion("M4", "G2", "likelihood is overstated"))
 
 	// The legal acts, through Append.
-	chair := sit(t, run, "red-chair")
-	mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why"))
-	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
+	judge := sit(t, run, "judge")
+	mustAppend(t, judge, actRule("M1", false, "judge"))
+	mustAppend(t, judge, docketRule("M2", "the bench remands"))
 
 	motions := motionReadersAgree(t, run)
-	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "red-chair"}); got != want {
+	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "judge"}); got != want {
 		t.Errorf("motion M1 reads %+v; the ruling that stands is %+v", got, want)
 	}
 	if got, ok := motions["M4"]; ok {
@@ -229,8 +217,9 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 		{
 			name: "rulings",
 			act: func(i int) proto.Message {
-				return &recordpb.MotionRule{MotionId: proto.String("M1"),
-					Opinion: proto.String(fmt.Sprintf("ruling %d", i)), Ruling: &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED}}
+				r := actRule("M1", false, seats[i])
+				r.Opinion = proto.String(fmt.Sprintf("ruling %d", i))
+				return r
 			},
 			refusal: "motion M1 is already ruled",
 		},
@@ -243,9 +232,7 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 				}
 			}
 			run := st.register(evLens).mint(evLens, "G1", "high").seed()
-			mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("severity is overstated"),
-				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-					Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
+			mustAppend(t, sit(t, run, evLens), regradeMotion("M1", "G1", "severity is overstated"))
 			// Every seat sits BEFORE the race: a register is a write too, and the race under test
 			// is the answers', not the sittings'.
 			ids := make([]Identity, len(seats))
@@ -283,4 +270,23 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 			}
 		})
 	}
+}
+
+// regradeMotion is a docket motion on gap proposing its severity low, argued by basis.
+func regradeMotion(id, gap, basis string) *recordpb.Motion {
+	return &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String(basis),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String(gap),
+			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String(basis)}}}
+}
+
+// actRule answers a docket motion's proposed act: accepted or rejected, by seat. The bench's answer
+// carries its opinion; another seat's carries none (requireBenchOpinion).
+func actRule(id string, accepted bool, seat string) *recordpb.MotionRule {
+	d := &recordpb.DocketRuling{Accepted: proto.Bool(accepted)}
+	if seat == "judge" {
+		d.Principle, d.Tension, d.ReviewFlag, d.Settled = proto.String("pr"), proto.String("tn"), proto.String("rf"), proto.String("st")
+	}
+	return &recordpb.MotionRule{MotionId: proto.String(id), Opinion: proto.String("ruled"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: d}}
 }

@@ -24,7 +24,7 @@ func withRenderer(t *testing.T, fn func(string, bool, []reportproj.ReportOp) (st
 func sectionMint(id string, supersedes ...string) *recordpb.Mint {
 	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: supersedes}
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: firstAncestor(supersedes)}
 }
 
 // A seat id the engine never dispatches is refused a mint by name: it has no role and no area. The
@@ -50,4 +50,12 @@ func TestAMintFromASeatOffTheRosterIsRefused(t *testing.T) {
 			t.Errorf("%s is on the roster and was refused: %v", seat, err)
 		}
 	}
+}
+
+// firstAncestor is the one gap a fixture mint supersedes: the first of ancestors, or none.
+func firstAncestor(ancestors []string) *string {
+	if len(ancestors) == 0 {
+		return nil
+	}
+	return proto.String(ancestors[0])
 }

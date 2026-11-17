@@ -119,8 +119,6 @@ func requiredProbes() map[string]requiredProbe {
 		"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r")}
 	probes["blue retire"] = requiredProbe{seat: "blue-respond", args: fixed("retire",
 		"--quote", "a claim that is no longer in the report.", "--reason", "r")}
-	probes["motion grade file"] = requiredProbe{seat: "blue-respond", args: fixed("motion", "grade", "file",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "r")}
 	probes["motion petition file"] = requiredProbe{seat: lensSeat, args: fixed("motion", "petition", "file",
 		"--class", "safety", "--relief", "stop", "--reason", "r")}
 	probes["motion docket file"] = requiredProbe{seat: "red-chair", args: fixed("motion", "docket", "file",

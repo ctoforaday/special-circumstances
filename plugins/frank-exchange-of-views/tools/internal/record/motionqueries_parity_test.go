@@ -35,19 +35,20 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if _, err := Append(blue, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String("severity is understated"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("G1"),
-			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
-			Proposed:  recordtest.P(recordpb.Grade_GRADE_HIGH),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{
+			GapId:    proto.String("G1"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Basis:    proto.String("severity is understated"),
 		}},
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil || got != "grade" {
-		t.Errorf("RequireMotionSubjectRef on a filed motion = (%q, %v), want it resolved as filed: grade", got, err)
+	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET, "M1"); err != nil || got != "docket" {
+		t.Errorf("RequireMotionSubjectRef on a filed motion = (%q, %v), want it resolved as filed: docket", got, err)
 	}
-	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M9"); err == nil {
+	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET, "M9"); err == nil {
 		t.Error("RequireMotionSubjectRef accepted a motion no filing created")
 	}
 	// The first-wins guards read through the handle they are given — the writing transaction, on a
@@ -62,16 +63,12 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
 
-	if _, err := Append(red, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("the grade stands"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-	}); err != nil {
+	if _, err := Append(Identity{Run: run, SeatID: "judge"}, actRule("M1", false, "judge")); err != nil {
 		t.Fatal(err)
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
 	err = RequireUnruledMotion(db, "M1", "")
-	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair`) {
+	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by judge`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 }

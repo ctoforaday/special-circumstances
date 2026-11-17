@@ -131,7 +131,6 @@ const (
 	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
 	rowFoundSource  = "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now"
 	rowClose        = "a docket motion on the gap"
-	rowGradeRule    = "a docket motion on the gap"
 	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition     = "a declaration"
 	rowPositionRule = "a declaration"
@@ -166,15 +165,6 @@ func (d drive) benchClosesG1() {
 		}
 	}
 	d.t.Fatal("no docket motion stands on G1 for the bench to rule")
-}
-
-func (d drive) gradeMotion(what, seatID, dimension string, admit bool) string {
-	d.t.Helper()
-	args := []string{"motion", "grade", "file", "--id", "G1", "--dimension", dimension, "--proposed", "high", "--reason", "the consequence is larger"}
-	if admit {
-		return d.admitted(what, seatID, args...)
-	}
-	return d.refused(what, seatID, args...)
 }
 
 func (d drive) docketMotion(what, seatID string) {
@@ -306,8 +296,6 @@ func answerDrives() []answerDrive {
 			}
 			d.docketMotion("a docket motion on the closed gap, by the lens", lensSeat)
 			d.docketMotion("a docket motion on the closed gap, by blue", "blue-respond")
-			// The row may not say "a motion": a GRADE motion on a closed gap is refused.
-			d.gradeMotion("a grade motion on the closed gap, by the lens", lensSeat, "impact", false)
 		}},
 		{name: "close, the chair's carry", row: rowClose, helps: []string{"chair carry"}, drive: func(d drive) {
 			d.closeG1(lensSeat)
@@ -323,35 +311,6 @@ func answerDrives() []answerDrive {
 			d.admitted("the carry", "red-chair", carry("repaired")...)
 			d.endsWithRow(d.refused("a second carry in the sitting", "red-chair", carry("not_a_defect")...), rowClose)
 			d.docketMotion("a docket motion on the closed gap, by the chair", "red-chair")
-		}},
-		{name: "a ruling on a grade motion", row: rowGradeRule, helps: []string{"chair motion grade rule"}, drive: func(d drive) {
-			m := fileGradeMotion(d.t, d.run)
-			rule := func(as string) []string {
-				return []string{"motion", "grade", "rule", "--id", m, "--as", as, "--reason", "the evidence does not reach it"}
-			}
-			d.admitted("the ruling", "red-chair", rule("rejected")...)
-			d.endsWithRow(d.refused("a second ruling", "red-chair", rule("accepted")...), rowGradeRule)
-			d.docketMotion("the ruler's docket motion", "red-chair")
-			// THE RULER FILES NO GRADE MOTION, so its row names the docket motion alone.
-			if r := d.gradeMotion("the ruler's new grade motion, the gap open", "red-chair", "impact", false); !strings.Contains(r, "is ruled by the chair seat") {
-				d.t.Fatalf("the ruler's grade motion is refused for another reason than its gavel:\n%s", r)
-			}
-			// THE ROW IS THE RULER'S. A seat that DISAGREES with the ruling files a new grade motion
-			// on another axis, and — the bench apart, which rules docket motions and files none —
-			// puts the gap before the bench; the record refuses it neither.
-			for i, seatID := range []string{"blue-respond", lensSeat, "judge"} {
-				if seatID != "judge" {
-					d.docketMotion("a docket motion on the gap, by "+seatID+", which disagrees with the ruling", seatID)
-				}
-				d.gradeMotion("a new grade motion, the gap open, by "+seatID, seatID, []string{"likelihood", "complexity", "severity"}[i], true)
-			}
-			// A grade motion is refused on a closed gap; a gap the lens closed takes a docket motion
-			// ("close, the lens"), and one the bench closed takes it on new grounds alone.
-			d.benchClosesG1()
-			d.gradeMotion("a new grade motion, the gap closed", "blue-respond", "impact", false)
-			if r := d.refused("a docket motion on what the bench ruled", "red-chair", "motion", "docket", "file", "--id", "G1", "--reason", "again"); !strings.Contains(r, "NEW GROUNDS") {
-				d.t.Fatalf("the docket motion on what the bench ruled is refused for another reason:\n%s", r)
-			}
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")

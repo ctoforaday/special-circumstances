@@ -44,12 +44,12 @@ var censusExcluded = map[string]string{
 	`SELECT x." … " AS "anchor", ce."seat_id" AS "seat", ' … ' AS "check_kind", x."event_id" AS "event_id", ( … ) AS "holds" FROM " … " x JOIN "events" ce ON ce."id" = x."event_id" WHERE x." … " IN (SELECT "anchor" FROM "reach") AND …`: "an arm of gap_refresh's checks, planned as that view",
 	// demand_reach's body (recordsql.demandReachSQL), rendered into the view and into gap_refresh:
 	// planned as those views.
-	`SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached" FROM … JOIN "mint" h ON h."gap_id" = l."gap_id" JOIN "mint" a ON a."gap_id" = l."from_gap" JOIN "events" e ON e."id" = a."event_id" WHERE a."about_kind" = 'anchor'`: "demand_reach's body, planned as view demand_reach and view gap_refresh",
+	`SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted", a."about_ref" AS "anchor", … AS "seat", h."event_id" AS "reached" FROM … JOIN "mint" h ON h."gap_id" = l."gap_id" JOIN "mint" a ON a."gap_id" = l."from_gap" JOIN "events" e ON e."id" = a."event_id" WHERE a."about_kind" = 'anchor'`: "demand_reach's body, planned as view demand_reach and view gap_refresh",
 	// The gap-state marker triggers' bodies (recordsql.gapMarkers): each reads NEW, the row its
 	// trigger fires on, and runs only inside that trigger, so it has no plan of its own.
 	`SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = …`: "a gap-state marker trigger's body, over NEW",
-	`SELECT NEW."gap_id"`: "a gap-state marker trigger's body, over NEW",
-	`SELECT NEW."value" UNION SELECT "gap_id" FROM "mint" WHERE "event_id" = NEW."event_id"`:                                              "a gap-state marker trigger's body, over NEW",
+	`SELECT NEW."gap_id"`:                               "a gap-state marker trigger's body, over NEW",
+	`SELECT NEW."gap_id" UNION SELECT NEW."supersedes"`: "a gap-state marker trigger's body, over NEW",
 	`SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = NEW."motion_id"`: "a gap-state marker trigger's body, over NEW",
 	`SELECT NEW."value"`: "a gap-state marker trigger's body, over NEW",
 	`SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL UNION …`: "a gap-state marker trigger's body, over NEW",

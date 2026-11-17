@@ -49,8 +49,7 @@ type QueueEntry struct {
 //  2. every item the seat's own act clears (SittingJSON.Owed), in list order;
 //  3. each open gap the dispatch readies the seat on (your_turn) — material first, then by mass, then
 //     in mint order — with the non-blocking items about it folded in;
-//  4. each accepted grade motion owed a regrade, not already folded into a readied gap;
-//  5. the composed sources the voice lens has not had (composedItemsOf), all of them as one entry,
+//  4. the composed sources the voice lens has not had (composedItemsOf), all of them as one entry,
 //     while nothing above is queued.
 //
 // Everything else on the list is not queued: the log channel, the statement that nothing
@@ -128,11 +127,6 @@ func QueueOf(w WorkJSON) []QueueEntry {
 			e.Items = append(e.Items, it)
 		}
 		add(e)
-	}
-	for i, it := range w.Sitting.Open {
-		if !used[i] && it.Kind == ItemRegradeOwed {
-			single(i)
-		}
 	}
 	// THE COMPOSED SOURCES ARE ONE ENTRY, QUEUED ONLY WHEN NOTHING ELSE IS. Each stays on the list until
 	// the sitting is sat through (composedItemsOf), so no act discharges one, and a current item stays

@@ -358,33 +358,6 @@ func partStandingAt(q recordsql.Querier, seat string) (recorded, changed bool, e
 // ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
 // arise, and the adoption (and these) are gone.
 
-// gradeAtColumn names the regrade/mint column for a contested dimension; "" is a dimension this
-// binary cannot read a grade at — the same refusal Gap.GradeAt returns false for.
-func gradeAtColumn(d recordpb.GradeDimension) string {
-	switch d {
-	case recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY:
-		return "severity"
-	case recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD:
-		return "likelihood"
-	case recordpb.GradeDimension_GRADE_DIMENSION_IMPACT:
-		return "impact"
-	case recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY:
-		return "complexity_cost"
-	}
-	return ""
-}
-
-// gradeAt is a gap's CURRENT grade at one dimension — the gap view's, read off gap_grade's standing
-// row: the result grades the gap's latest regrade stored (recordsql.stampRegradeResult), else the mint's.
-// found=false is a gap that is not on the record.
-func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, err error) {
-	var v sql.NullString
-	// The column name is drawn from gradeAtColumn's closed set, never from input.
-	found, err = queryRowAt(q, []any{&v},
-		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
-	return v.String, found, err
-}
-
 // latestSittingAt is recordsql.LatestSitting asked of q: the opening of seatID's latest sitting and
 // its rank. A db that is no record (noRecord) holds no sitting.
 func latestSittingAt(q recordsql.Querier, seatID string) (open sql.NullInt64, rank int64, err error) {

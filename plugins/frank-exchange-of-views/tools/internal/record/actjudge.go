@@ -88,10 +88,6 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
 			return requireEngageNamesEveryOwed(q, b)
 		}
-	case *recordpb.Motion:
-		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-			return requireNewGrounds(q, b.GetDocket())
-		}
 	case *recordpb.MotionRule:
 		return requirePetitionRelief(b)
 	case *recordpb.Reproduce:

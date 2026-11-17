@@ -45,6 +45,8 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredReproduce
 	case "retire":
 		return requiredRetire
+	case "tombstone":
+		return requiredTombstone
 	case "verify":
 		return requiredVerify
 	}
@@ -98,15 +100,21 @@ var (
 	requiredMotion = []RequiredField{
 		{Key: "motion_id", Flag: "motion-id"},
 		{Key: "gap_id", Flag: "id", Arm: "docket"},
+		{Key: "basis", Flag: "reason", Arm: "regrade"},
+		{Key: "gap_id", Flag: "id", Arm: "close"},
+		{Key: "gap_id", Flag: "gap-id", Arm: "supersede"},
+		{Key: "class", Flag: "class", Arm: "supersede"},
+		{Key: "problem", Flag: "problem", Arm: "supersede"},
+		{Key: "acceptance_check", Flag: "check", Arm: "supersede"},
+		{Key: "check_kind", Flag: "check-kind", Arm: "supersede"},
+		{Key: "severity", Flag: "severity", Arm: "supersede"},
+		{Key: "likelihood", Flag: "likelihood", Arm: "supersede"},
+		{Key: "impact", Flag: "impact", Arm: "supersede"},
+		{Key: "class_material", Flag: "class-material", Arm: "supersede"},
 	}
 	requiredMotionRule = []RequiredField{
 		{Key: "motion_id", Flag: "id"},
 		{Key: "opinion", Flag: "reason"},
-		{Key: "disposition", Flag: "as", Arm: "docket"},
-		{Key: "principle", Flag: "principle", Arm: "docket"},
-		{Key: "tension", Flag: "tension", Arm: "docket"},
-		{Key: "review_flag", Flag: "review-flag", Arm: "docket"},
-		{Key: "settled", Flag: "settled", Arm: "docket"},
 		{Key: "ruling", Flag: "as", Arm: "position"},
 	}
 	requiredOutcome = []RequiredField{
@@ -132,6 +140,10 @@ var (
 	requiredRetire = []RequiredField{
 		{Key: "claim", Flag: "quote"},
 		{Key: "reason", Flag: "reason"},
+	}
+	requiredTombstone = []RequiredField{
+		{Key: "gap_id", Flag: "gap-id"},
+		{Key: "kind", Flag: "kind"},
 	}
 	requiredVerify = []RequiredField{
 		{Key: "claim", Flag: "quote"},

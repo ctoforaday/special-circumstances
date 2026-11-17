@@ -1,14 +1,14 @@
 // Package motion is the ONE adjudication mechanism (#344).
 //
-// One mechanism covers a grade dispute, a petition, a gap put before the bench and a withheld
-// PASS: an ask and its answer join on the motion id.
+// One mechanism covers a petition, a gap put before the bench and a withheld PASS: an ask and its
+// answer join on the motion id.
 //
 // # Why this is a top-level group and not a role's verb set
 //
 // The other groups hang off a role node, and `seat.Of` reads the role from the command's
-// POSITION — a verb's parent IS its role. That cannot work here: under `motion grade file` the
-// parent is `grade`. And it should not work here, because a motion is not one seat's act: the
-// chair and the bench each rule two subjects, and every seat files on the subjects it does not rule.
+// POSITION — a verb's parent IS its role. That cannot work here: under `motion docket file` the
+// parent is `docket`. And it should not work here, because a motion is not one seat's act: the
+// bench rules its subjects, and every seat files on the subjects it does not rule.
 //
 // So these verbs take the acting role from the SEAT'S IDENTITY rather than from tree position,
 // which is the model plans/command-groups.md stage 6 moves the whole tree to. It arrives early
@@ -16,10 +16,9 @@
 //
 // # Why the subjects are SUBGROUPS and not a --on flag
 //
-// Their contracts diverge: a grade motion needs --dimension and --proposed and is ruled by the
-// merge; a petition needs --class and --relief and is ruled by the BENCH; a position needs
-// neither and has no filing verb at all (the chair's position IS the filing). Cobra cannot express
-// "required only when --on=grade", so a flag-discerned subject would put three contracts into
+// Their contracts diverge: a docket motion needs --id; a petition needs --class and --relief; a
+// position needs neither and has no filing verb at all (the chair's position IS the filing). Cobra
+// cannot express "required only when --on=petition", so a flag-discerned subject would put three contracts into
 // hand-written RunE validation — a flag combination policed by prose, which is the shape this
 // suite exists to remove. As subgroups, cobra refuses the nonsense at parse.
 package motion
@@ -41,7 +40,7 @@ import (
 // THE GAVEL IS A FACT ABOUT WHICH TREE YOU ARE IN, not a check the verb runs. `rule` is added
 // only to the gavel-holder's surface, and newRule compares no role: this constructor's scoping is
 // the whole of the gavel. A `rule` added to every seat's tree is no gavel at all — blue rules its
-// own grade motion and is told it succeeded. TestAHostileSeatIsRefused holds the scoping, which is
+// own petition and is told it succeeded. TestAHostileSeatIsRefused holds the scoping, which is
 // why a verb's absence is constructed rather than asserted.
 func NewCommandFor(actingRole string) *cobra.Command {
 	c := &cobra.Command{
@@ -63,12 +62,6 @@ func NewCommandFor(actingRole string) *cobra.Command {
 			c.AddCommand(s)
 		}
 	}
-	mount(subject(actingRole, "grade",
-		// THE CHAIR'S RULING IS THE LAST WORD ON THE MOTION, and the line says where a seat that
-		// disagrees goes: `rule` is the chair's verb and a second ruling is refused, so the forum
-		// left is the bench, which is reached by putting the GAP before it (docketRoute).
-		"contest a gap's grade: the chair rules, and its ruling stands — "+docketRoute(actingRole),
-		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	mount(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
@@ -157,7 +150,7 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		// bought back the failure that check's own comment named: under a scoped surface "not
 		// yours" reads as "does not exist", and a seat that believes a verb is missing works
 		// around it and loses the capability for the run. The verb IS missing here — and saying
-		// only that would tell a blue seat grade motions cannot be ruled at all.
+		// only that would tell a blue seat petitions cannot be ruled at all.
 		if len(args) > 0 && args[0] == "rule" && !holds {
 			// NAMES BOTH PARTIES: the seat that holds the gavel, and the one that asked. Either
 			// alone sends a seat to the wrong fix — "the bench rules this" without saying who you

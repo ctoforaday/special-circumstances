@@ -197,16 +197,15 @@ func requireSuccessorCarriesDemand(q recordsql.Querier, m *recordpb.Mint) error 
 	kind := recordpb.Word(m.GetCheckKind())
 	var awaiting []awaitingAncestor
 	dropped := false
-	for _, anc := range m.GetSupersedes() {
+	if anc := m.GetSupersedes(); anc != "" {
 		d, err := evidenceDemandAt(q, anc)
 		if err != nil {
 			return err
 		}
-		if !d.Awaiting {
-			continue
+		if d.Awaiting {
+			awaiting = append(awaiting, awaitingAncestor{anc, d})
+			dropped = d.CheckKind != kind
 		}
-		awaiting = append(awaiting, awaitingAncestor{anc, d})
-		dropped = dropped || d.CheckKind != kind
 	}
 	if !dropped {
 		return nil

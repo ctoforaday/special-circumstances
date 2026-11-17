@@ -17,7 +17,7 @@ import (
 // A test that seeded one through the store would be testing a state the store refuses;
 // this one tests the thing the rule is actually for.
 func TestTheCycleDetectorDisagreesWhenItShould(t *testing.T) {
-	gap := func(supersedes ...string) *gtGap { return &gtGap{supersedes: supersedes} }
+	gap := func(supersedes string) *gtGap { return &gtGap{supersedes: supersedes} }
 
 	t.Run("a two-gap loop is reported", func(t *testing.T) {
 		gt := &groundTruth{gaps: map[string]*gtGap{
@@ -49,17 +49,17 @@ func TestTheCycleDetectorDisagreesWhenItShould(t *testing.T) {
 		}
 	})
 
-	// And the other direction, which is what keeps the rule usable: a DAG — including a
-	// diamond, where one gap is reached twice by different paths — is not a cycle.
-	t.Run("a diamond is not a cycle", func(t *testing.T) {
+	// And the other direction, which is what keeps the rule usable: lines that meet — one gap
+	// reached by two different paths — are not a cycle.
+	t.Run("two lines meeting is not a cycle", func(t *testing.T) {
 		gt := &groundTruth{gaps: map[string]*gtGap{
-			"D-1": gap("B-1", "C-1"),
+			"D-1": gap("B-1"),
 			"B-1": gap("A-1"),
 			"C-1": gap("A-1"),
-			"A-1": gap(),
+			"A-1": gap(""),
 		}}
 		if cyc := findCycle(gt); cyc != "" {
-			t.Errorf("a diamond was reported as a cycle (%q); every re-merged lineage would be a violation", cyc)
+			t.Errorf("two lines meeting were reported as a cycle (%q); every shared ancestor would be a violation", cyc)
 		}
 	})
 }

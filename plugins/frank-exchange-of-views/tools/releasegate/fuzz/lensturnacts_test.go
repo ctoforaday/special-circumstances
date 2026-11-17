@@ -26,7 +26,7 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		return m
 	}
 	supersedes := func(m *recordpb.Mint, ancestor string) *recordpb.Mint {
-		m.Supersedes = []string{ancestor}
+		m.Supersedes = proto.String(ancestor)
 		return m
 	}
 	evs := []*record.Event{

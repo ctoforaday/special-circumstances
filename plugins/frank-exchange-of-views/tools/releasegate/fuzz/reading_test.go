@@ -488,7 +488,7 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 		gs := perClassSentence[k]
 		superseded := map[string]bool{}
 		for _, g := range gs {
-			for _, a := range g.Mint.GetSupersedes() {
+			if a := g.Mint.GetSupersedes(); a != "" {
 				superseded[a] = true
 			}
 		}

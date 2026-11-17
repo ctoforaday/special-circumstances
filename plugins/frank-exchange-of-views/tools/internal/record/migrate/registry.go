@@ -76,20 +76,6 @@ func identityBody(old OldEvent) (proto.Message, error) {
 	if err := fillFields(m, old.Fields, old.Word); err != nil {
 		return nil, err
 	}
-	for name, vals := range old.Lists {
-		lf := m.Descriptor().Fields().ByName(protoreflect.Name(name))
-		if lf == nil || !lf.IsList() {
-			return nil, fmt.Errorf("old table %s_%s holds a list the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, name, old.Word)
-		}
-		list := m.Mutable(lf).List()
-		for _, v := range vals {
-			pv, err := scalarValue(lf, v)
-			if err != nil {
-				return nil, fmt.Errorf("%s_%s: %w", old.Word, name, err)
-			}
-			list.Append(pv)
-		}
-	}
 	for arm, cols := range old.Arms {
 		af := m.Descriptor().Fields().ByName(protoreflect.Name(arm))
 		if af == nil || af.Message() == nil {
@@ -101,7 +87,44 @@ func identityBody(old OldEvent) (proto.Message, error) {
 		}
 		m.Set(af, protoreflect.ValueOfMessage(sub))
 	}
+	for name, vals := range old.Lists {
+		owner, lf := m, m.Descriptor().Fields().ByName(protoreflect.Name(name))
+		if lf == nil {
+			// AN ARM'S LIST is `<arm>_<field>` (a proposed close's anchors, motion_close_anchors): the
+			// list of a message arm the body set above, whose row the list's foreign key requires.
+			owner, lf = armList(m, name)
+		}
+		if lf == nil || !lf.IsList() {
+			return nil, fmt.Errorf("old table %s_%s holds a list the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, name, old.Word)
+		}
+		list := owner.Mutable(lf).List()
+		for _, v := range vals {
+			pv, err := scalarValue(lf, v)
+			if err != nil {
+				return nil, fmt.Errorf("%s_%s: %w", old.Word, name, err)
+			}
+			list.Append(pv)
+		}
+	}
 	return body, nil
+}
+
+// armList resolves a list table's field name `<arm>_<field>` to the arm message m holds and that
+// arm's list field, or a nil field where no set arm of m carries one by that name.
+func armList(m protoreflect.Message, name string) (protoreflect.Message, protoreflect.FieldDescriptor) {
+	fields := m.Descriptor().Fields()
+	for i := 0; i < fields.Len(); i++ {
+		af := fields.Get(i)
+		rest, ok := strings.CutPrefix(name, string(af.Name())+"_")
+		if !ok || af.Message() == nil || !m.Has(af) {
+			continue
+		}
+		sub := m.Mutable(af).Message()
+		if lf := sub.Descriptor().Fields().ByName(protoreflect.Name(rest)); lf != nil {
+			return sub, lf
+		}
+	}
+	return nil, nil
 }
 
 // fillFields writes loose columns onto a message, refusing any column the message has no

@@ -153,9 +153,8 @@ func scenarios() []scenario {
 		{
 			// oracle: an act stands as filed, and a repeat the record refuses names the act that
 			// answers the first — each followed here by that act, at the time its row states. The
-			// named cases: a ruling (the ruler's docket
-			// motion, and beside it the docket motion of the seat that disagrees with the ruling), a closure (a docket motion on the closed
-			// gap) and a position (the next sitting's).
+			// named cases: a closure (a docket motion on the closed gap) and a position (the next
+			// sitting's).
 			name: "a_repeated_act_names_its_answer",
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
@@ -165,12 +164,7 @@ func scenarios() []scenario {
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is  going in"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "severity",
-					"--proposed", "low", "--reason", "the consequence is bounded"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not  it"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not reach it"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "my ruling lost a word: the evidence does not reach it"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the ruling reads past the evidence: the bench should decide the gap"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide the gap"),
 				// A docketed gap's close is refused; a closure takes a gap nothing is before the bench on.
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the leaf"),
@@ -221,8 +215,6 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "red's round position"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
-					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/paper", "--trust", "high"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
@@ -235,7 +227,7 @@ func scenarios() []scenario {
 				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "remanded",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),
@@ -358,10 +350,8 @@ func scenarios() []scenario {
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
 				base("spot-check", "--run", "{RUN}", "--seat-id", "red-chair", "--ids", "GAP001, GAP002", "--reason", "both re-read"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
-					"--dimension", "likelihood", "--proposed", "high", "--reason", "the second failure is not required"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected",
-					"--reason", "the consequence stands"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
+					"--reason", "the second failure is not required"),
 			},
 		},
 		{

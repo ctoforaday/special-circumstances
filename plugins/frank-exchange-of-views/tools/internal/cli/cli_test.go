@@ -557,16 +557,10 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 // THE CSV FIELDS ARE ALWAYS RENDERED, even empty, because an absent key reads as "lineage
 // unknown" where the truth is "lineage none".
 //
-// THE QUESTION MOVED FROM THE BODY TO THE PROJECTION, and it had to. This asserted that the mint
-// EVENT carried `supersedes` as a present-but-empty key — a distinction a payload
-// map could hold and a proto message cannot: a repeated field has no presence, so an empty list
-// and an unset one are the same bytes. There is nothing on the body left to assert.
-//
-// What a reader actually sees is the projection, and there the distinction is real and preserved:
-// viewjson seeds it as `[]string{}` so it renders as `[]` rather than being omitted. That is
-// the guarantee this test was always about, asked where it can still be answered — and where it
-// would fail if someone dropped the seeding.
-func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
+// THE LINEAGE KEY IS ALWAYS RENDERED. What a reader sees is the projection: a gap that supersedes
+// nothing renders `"supersedes": ""` rather than omitting the key, because an absent key reads as
+// lineage UNKNOWN where the truth is lineage NONE.
+func TestTheLineageKeyIsAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
 	// with no registry is refused rather than waved through.
 	runDir := newRun(t)
@@ -582,7 +576,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	for _, want := range []string{`"supersedes": []`} {
+	for _, want := range []string{`"supersedes": ""`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
 				"where the truth is \"lineage none\":\n%s", want, s)
@@ -1788,8 +1782,8 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 	m := body.ProtoReflect()
 	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
 	if fd == nil {
-		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A motion's `proposed` grade lives on GradeMotion
-		// and a ruling's verdict on the MotionRule_Grade arm — that separation is what makes a
+		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A petition's `class` lives on PetitionMotion
+		// and a ruling's verdict on the MotionRule_Petition arm — that separation is what makes a
 		// ruling from the wrong subject's vocabulary unrepresentable. A seat thinks of them as
 		// fields of the act, so the lookup descends into whichever arm is set.
 		if arm, af := setArmField(m, name); af != nil {
@@ -1813,7 +1807,7 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 // setArmField finds a field on whichever message-typed oneof arm is set.
 //
 // The record models a motion's substance on its subject's arm rather than flat on the message, so
-// "the motion proposed `low`" is GradeMotion.proposed. A test table states the fact the way a seat
+// "the petition's class is `safety`" is PetitionMotion.class. A test table states the fact the way a seat
 // would, and this is the one join between the two.
 func setArmField(m protoreflect.Message, name string) (protoreflect.Message, protoreflect.FieldDescriptor) {
 	md := m.Descriptor()

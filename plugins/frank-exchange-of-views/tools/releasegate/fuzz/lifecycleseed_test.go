@@ -886,7 +886,7 @@ func (r *runner) limitDebtDischarge() string {
 	}
 	if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(sentence)); len(open) > 0 {
 		for _, g := range open {
-			found = append(found, fmt.Sprintf("open %s gap %s (minted by %s) is on the sentence: about %s %s, at %q", classContradicts, g.ID, g.MintedBy, g.AboutKind, g.AboutRef, g.Location))
+			found = append(found, fmt.Sprintf("open %s gap %s (minted by %s) is on the sentence: about %s %s, at %q", classContradicts, g.ID, g.Assignee, g.AboutKind, g.AboutRef, g.Location))
 		}
 	}
 	if len(found) == 0 {

@@ -31,7 +31,7 @@ func mint(t *testing.T, seat string, id string, supersedes ...string) *recordpb.
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Supersedes: supersedes,
+		Supersedes: firstAncestor(supersedes),
 	})
 }
 
@@ -373,4 +373,12 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 			}
 		}
 	})
+}
+
+// firstAncestor is the one gap a fixture mint supersedes: the first of ancestors, or none.
+func firstAncestor(ancestors []string) *string {
+	if len(ancestors) == 0 {
+		return nil
+	}
+	return proto.String(ancestors[0])
 }

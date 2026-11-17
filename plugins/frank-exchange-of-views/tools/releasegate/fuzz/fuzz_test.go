@@ -7784,7 +7784,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					answered[t.GetAnswers()] = true
 				}
 			case *recordpb.Motion:
-				if g := t.GetGrade(); g != nil && g.GetGapId() != "" {
+				if g := t.GetRegrade(); g != nil && g.GetGapId() != "" {
 					disputed[g.GetGapId()] = true
 				}
 			}
@@ -8381,6 +8381,9 @@ var verbsWithEvents = []string{
 	// The whole report served to a lens: its pin. A lens sitting reads the report whole most of the
 	// time (the red-lens arm of the dispatch), so every seed reaches it.
 	"report_read",
+	// The tool's record of what ends a gap's standing — a ruling or an estoppel — written beside
+	// that act and never by a seat. Exempted below while no act the sweep drives writes one.
+	"tombstone",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -8395,6 +8398,9 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
+	// NO ACT THE SWEEP DRIVES WRITES A TOMBSTONE YET: the tool writes it beside the act that ends a
+	// gap's standing, and no verb carries that act. The exemption goes when one does.
+	"tombstone": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -8536,6 +8542,7 @@ var reportExemptions = map[string]string{
 	"plan":        "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
 	"stale":       "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
+	"tombstone":   "the tool's record of what ends a gap's standing — read by the tombstone_standing view, carrying no prose; the act it stands beside carries the seat's",
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
 	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics), record.TranscriptsOf (capture's transcript list), and migrate's replay (migrate/replay.go) and admissionBefore (migrate/admission.go: the sitting an older source's close ends, which it admits), carrying no prose, never rendered",

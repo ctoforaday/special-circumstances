@@ -28,12 +28,12 @@ func TestEverySeatHasTheMotionGroupInItsOwnTree(t *testing.T) {
 			if err != nil || c.Name() != "motion" {
 				t.Fatalf("the %s seat has no motion group in its own tree: %v", role, err)
 			}
-			// AND EVERY SEAT FILES: a petition where it does not rule them, a grade motion where it
-			// does. TestNoGavelHolderFilesItsOwnSubject holds the other half — never its own subject.
-			path := []string{"motion", "petition", "file"}
+			// AND EVERY PARTY FILES a petition; the bench rules every subject and files none.
+			// TestNoGavelHolderFilesItsOwnSubject holds the other half — never its own subject.
 			if role == "bench" {
-				path = []string{"motion", "grade", "file"}
+				return
 			}
+			path := []string{"motion", "petition", "file"}
 			g, _, err := root.Find(path)
 			if err != nil || g.Name() != "file" {
 				t.Errorf("the %s seat cannot file %v: %v", role, path, err)

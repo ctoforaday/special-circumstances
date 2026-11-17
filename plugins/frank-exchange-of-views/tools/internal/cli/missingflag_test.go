@@ -122,9 +122,9 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 	}
 }
 
-// AN ARM'S REQUIREMENTS ARE MARKED FROM THE SCHEMA, ON THE VERB THAT FILLS THE ARM. A docket
-// ruling's four reasoning fields are required of the `docket` arm of a ruling; the page that
-// writes that arm says REQUIRED on each, and another subject's `rule` does not have the flags.
+// A DOCKET RULING'S OPINION IS MARKED ON ITS OWN PAGE. The bench's four reasoning fields are
+// refused when absent from its ruling; the page that writes it says REQUIRED on each, and another
+// subject's `rule` does not have the flags.
 func TestADocketRulingsRequirementsAreMarkedOnItsOwnPage(t *testing.T) {
 	docket := cmdAt(NewRootFor("judge"), []string{"motion", "docket", "rule"})
 	for _, name := range []string{"principle", "tension", "review-flag", "settled"} {
@@ -136,11 +136,11 @@ func TestADocketRulingsRequirementsAreMarkedOnItsOwnPage(t *testing.T) {
 			t.Errorf("motion docket rule --%s is required by the docket ruling's schema and its line does not say so:\n%s", name, f.Usage)
 		}
 	}
-	grade := cmdAt(NewRootFor("red-chair"), []string{"motion", "grade", "rule"})
-	if grade == nil {
-		t.Fatal("the chair has no `motion grade rule`")
+	petition := cmdAt(NewRootFor("judge"), []string{"motion", "petition", "rule"})
+	if petition == nil {
+		t.Fatal("the bench has no `motion petition rule`")
 	}
-	if f := grade.Flags().Lookup("principle"); f != nil {
-		t.Errorf("motion grade rule carries --principle, a docket ruling's field: %s", f.Usage)
+	if f := petition.Flags().Lookup("principle"); f != nil {
+		t.Errorf("motion petition rule carries --principle, a docket ruling's field: %s", f.Usage)
 	}
 }

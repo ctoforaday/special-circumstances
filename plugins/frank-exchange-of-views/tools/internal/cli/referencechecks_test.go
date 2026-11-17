@@ -64,8 +64,6 @@ var referenceChecks = []struct {
 		extra: []string{"--anchor", "C-00000001", "--reason", "r"}},
 	{verb: []string{"inquiry", "record"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
-	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
 	// which deliberately carries no checker because each of these verbs already resolves its id and the
 	// two rulings resolve it more strictly than existence would. They are here because the behaviour

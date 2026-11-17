@@ -153,7 +153,7 @@ func dialecticRefsResolve(f record.Family) Check {
 		}
 	}
 	return result("dialectic-refs-resolve",
-		"every closing/grade motion/docket motion names a gap that exists",
+		"every closing/docket motion names a gap that exists",
 		"a dialectic act argues about a gap that is not on the record", bad)
 }
 
@@ -177,11 +177,8 @@ func dialecticGapID(e *record.Event) (string, bool) {
 	case *recordpb.Closing:
 		return f.GetGapId(), true
 	case *recordpb.Motion:
-		switch fil := f.GetFiling().(type) {
-		case *recordpb.Motion_Grade:
-			return fil.Grade.GetGapId(), true
-		case *recordpb.Motion_Docket:
-			return fil.Docket.GetGapId(), true
+		if d := f.GetDocket(); d != nil {
+			return d.GetGapId(), true
 		}
 		return "", true
 	}
@@ -197,10 +194,8 @@ func supersedesResolve(f record.Family) Check {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.GetSupersedes() {
-			if f.Gap(anc) == nil {
-				bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
-			}
+		if anc := g.Mint.GetSupersedes(); anc != "" && f.Gap(anc) == nil {
+			bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
 		}
 	}
 	return result("supersedes-resolve",
@@ -356,7 +351,7 @@ type Stats struct {
 	GapsWithClosing int `json:"gaps_with_closing"`
 	GapsWithDispute int `json:"gaps_with_dispute"`
 	// GapsWithDisposition counts gaps the BENCH has settled: a `docket` motion, RULED. Only that
-	// subject settles a gap — a grade or a petition ruling answers a different question — so it
+	// subject settles a gap — a petition or a position ruling answers a different question — so it
 	// is the subject, not the ruling event, that qualifies the count.
 	GapsWithDisposition int `json:"gaps_with_disposition"`
 }
@@ -396,20 +391,11 @@ func Compute(f record.Family) Stats {
 				withClosing[gid] = true
 			}
 		case *recordpb.Motion:
-			// The grade-challenge stat. It counted `dispute` events until the motion collapse
-			// retired the type, after which it reported 0 for every run — indistinguishable
-			// from a run where nobody challenged a grade.
-			//
-			// The subject is read from the ENUM and the gap from the grade filing's own
-			// message, which is the pair the schema keeps in step: a petition motion has no
-			// gap_id to find, and could not carry one.
-			if f.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-				continue
-			}
-			if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {
-				if gid := g.Grade.GetGapId(); gid != "" {
-					withDispute[gid] = true
-				}
+			// The dispute stat: a docket motion proposing an act on the gap — a regrade, a close
+			// or a supersede. The gap is the docket filing's own; a motion with no act (the
+			// dispatch's impasse filing) disputes nothing.
+			if gid := f.GetDocket().GetGapId(); gid != "" && f.GetAct() != nil {
+				withDispute[gid] = true
 			}
 		}
 	}

@@ -46,7 +46,7 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 			}
 		}
 	}
-	// A motion About a gap is a docket or a grade motion, and a grade motion's gavel is the chair's.
+	// A motion About a gap is a docket motion.
 	for _, b := range unruledMotionBlockers(evs, ids, win) {
 		if b.Owner == benchSeat && slices.Contains(gaps, b.About) {
 			motions = append(motions, b)

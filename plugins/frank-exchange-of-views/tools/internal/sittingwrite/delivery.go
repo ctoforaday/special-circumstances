@@ -453,7 +453,7 @@ func indexOf(w record.WorkJSON, q []record.QueueEntry, from int, skip ...int) []
 			state = "readied"
 		}
 		if e.Gap != nil {
-			out = append(out, fmt.Sprintf("%s · %s/%s · %s · %s", e.Gap.ID, e.Kind, e.Gap.Class, e.Gap.MintedBy, state))
+			out = append(out, fmt.Sprintf("%s · %s/%s · %s · %s", e.Gap.ID, e.Kind, e.Gap.Class, e.Gap.Assignee, state))
 			continue
 		}
 		out = append(out, fmt.Sprintf("%s · %s", e.Key, state))
@@ -462,7 +462,7 @@ func indexOf(w record.WorkJSON, q []record.QueueEntry, from int, skip ...int) []
 		for _, g := range list {
 			if !about[g.ID] {
 				about[g.ID] = true
-				out = append(out, fmt.Sprintf("%s · %s · %s · open", g.ID, g.Class, g.MintedBy))
+				out = append(out, fmt.Sprintf("%s · %s · %s · open", g.ID, g.Class, g.Assignee))
 			}
 		}
 	}

@@ -50,7 +50,6 @@ type supersederKey struct {
 }
 
 const (
-	subjectGrade    = recordpb.MotionSubject_MOTION_SUBJECT_GRADE
 	subjectDocket   = recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	subjectPetition = recordpb.MotionSubject_MOTION_SUBJECT_PETITION
 	subjectPosition = recordpb.MotionSubject_MOTION_SUBJECT_POSITION
@@ -65,24 +64,19 @@ const (
 // is refused by its own rule (requireInquiryCheck), which names what makes it owed again.
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
-// the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The
-// chair answers its own ruling on a grade by putting the gap before the bench. Nothing sits above
-// the bench, so it answers its own ruling on a docket motion as it answers one on a petition, in a
-// declaration: a holding every seat is given, which moves no gap — the gap is before the bench
-// again when another seat files a docket motion on it, and the row says so. What a seat that
-// DISAGREES with a grade ruling does — a docket motion on the gap, or a new grade motion while the
-// gap is open — reaches that seat through its prompt and the `motion` pages, since the record
-// refuses it neither.
+// the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. Nothing
+// sits above the bench, so it answers its own ruling on a docket motion as it answers one on a
+// petition, in a declaration: a holding every seat is given, which moves no gap — the gap is before
+// the bench again when another seat files a docket motion on it, and the row says so.
 var superseders = map[supersederKey]superseder{
-	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a new record of the inquiry's fate"},
-	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}:                            {act: "a new certification", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CITE}:                               {act: "a new citation", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:                              {act: "a docket motion on the gap"},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}:                            {act: "a new closing on the gap", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}:                            {act: "a new declaration", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                               {act: "a new halt", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                                {act: "a new log entry", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectGrade}: {act: "a docket motion on the gap"},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}: {act: "a new record of the inquiry's fate"},
+	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}: {act: "a new certification", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CITE}:    {act: "a new citation", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:   {act: "a docket motion on the gap"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}: {act: "a new closing on the gap", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}: {act: "a new declaration", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_HALT}:    {act: "a new halt", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_LOG}:     {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
 		"the gap comes before you again only in a docket motion another seat files"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},

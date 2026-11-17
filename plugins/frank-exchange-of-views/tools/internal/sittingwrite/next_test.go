@@ -66,7 +66,7 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 	long := strings.Repeat("Filler sentence about nothing in particular. ", 300)
 	loc := "the sentence the gap is about"
 	g := record.WorkGapJSON{ID: "G-1", Problem: "the problem", ProblemSynopsis: "the problem", YourTurn: true,
-		Location: loc, Passage: long + loc + ". " + long, MintedBy: "red-lens-logic", Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
+		Location: loc, Passage: long + loc + ". " + long, Assignee: "red-lens-logic", Backing: []record.GapBackingJSON{}}
 	w := record.WorkJSON{Open: []record.WorkGapJSON{g}, Sitting: record.SittingJSON{Seat: "red-lens-logic", Role: "lens", Open: []record.Item{}}}
 	text := RenderLensDelivery(w)
 	if len(text) > DeliveryBudget {
@@ -138,9 +138,9 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 	long := strings.Repeat("Ünïcödé prose — every rune here is more than one byte. ", 40)
 	row := func(id, by string, turn bool) record.WorkGapJSON {
-		return record.WorkGapJSON{ID: id, MintedBy: by, YourTurn: turn, Class: "false_universal", Material: turn,
+		return record.WorkGapJSON{ID: id, Assignee: by, YourTurn: turn, Class: "false_universal", Material: turn,
 			Location: "the sentence " + id, Passage: long + "the sentence " + id + ". " + long, Problem: "problem of " + id,
-			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backingOf(60), EditedSince: editsOf(10), RegradesOwed: []record.OwedRegradeJSON{}}
+			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backingOf(60), EditedSince: editsOf(10)}
 	}
 	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: []record.Item{}}}
 	for i := 0; i < 40; i++ {
@@ -224,10 +224,10 @@ func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
 		{"huge edits, short prose", 0, 300, "short"},
 		{"long prose, huge lists", 1000, 500, long},
 	} {
-		g := record.WorkGapJSON{ID: "G-1", MintedBy: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
+		g := record.WorkGapJSON{ID: "G-1", Assignee: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
 			Location: "the sentence", Passage: long + "the sentence. " + long, Problem: "problem " + tc.prose, RequiredFix: "fix " + tc.prose,
 			AcceptanceCheck: "check " + tc.prose, FixBasis: "quoted", FixOld: "old " + tc.prose, FixNew: "new " + tc.prose,
-			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits), RegradesOwed: []record.OwedRegradeJSON{}}
+			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits)}
 		w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-architecture", Role: "lens",
 			Open: []record.Item{{Kind: record.ItemReaudit, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: "G-1"}, What: "gap G-1 was answered"}}},
 			Open: []record.WorkGapJSON{g}}

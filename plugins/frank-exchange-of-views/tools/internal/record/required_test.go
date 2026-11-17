@@ -144,7 +144,7 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 // guarantee.
 //
 // The rule is subject-aware, so it is enforced where the subject is known (requireMotionSubjectRef).
-// This pins the arm a key would also hold: a grade ruling resolves against the MOTIONS and says which
+// This pins the arm a key would also hold: a docket ruling resolves against the MOTIONS and says which
 // it could not find.
 func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -153,14 +153,10 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A GRADE ruling names a motion, and resolves against a different table entirely.
-	grade := &recordpb.MotionRule{
-		MotionId: proto.String("M9"),
-		Opinion:  proto.String("the grade stands"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-	}
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
-		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
+	// A DOCKET ruling names a motion, and resolves against a different table entirely.
+	docket := actRule("M9", false, "judge")
+	if err := validateRun(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, docket); err == nil {
+		t.Error("a docket ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
 	}
 }
 

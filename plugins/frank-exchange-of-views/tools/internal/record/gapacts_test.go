@@ -17,7 +17,7 @@ import (
 func TestEveryActOnAGapIsRead(t *testing.T) {
 	const lens, blue = evLens, "blue-respond"
 	mint := func(gap string, about recordpb.AboutKind, ref string, supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref), Supersedes: supersedes}
+		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref), Supersedes: firstAncestor(supersedes)}
 	}
 	proposal := func(q string) *recordpb.Inquiry {
 		return &recordpb.Inquiry{InquiryId: proto.String(q), Question: proto.String("q"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
@@ -56,7 +56,8 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"a fate moving its inquiry out of the section it is anchored on", blue, "G4", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED, "d")},
 		{"a reason changed that the section it is anchored on prints", blue, "G5", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED, "d, narrowed")},
 		{"a docket motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M1"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}},
-		{"a grade motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M2"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}}},
+		{"a docket motion proposing a regrade", blue, "G1", &recordpb.Motion{MotionId: proto.String("M2"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("b")}}}},
 	}
 	var evs []*Event
 	var ids []int64

@@ -25,8 +25,6 @@ import (
 //
 //   - a lens's regrade that MOVES it is refused; one that keeps it is the lens saying its gap stands,
 //     and is admitted;
-//   - a grade motion on it is refused at filing: the chair could accept it, and the lens would then
-//     owe a regrade it cannot file;
 //   - a mint superseding the gap whose grade differs on it is refused: the lock follows the lineage,
 //     so a successor carries the bench's grade and the lens cannot escape it by re-minting.
 //
@@ -41,16 +39,6 @@ var gradeAxes = [4]recordpb.GradeDimension{
 	recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD,
 	recordpb.GradeDimension_GRADE_DIMENSION_IMPACT,
 	recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY,
-}
-
-// axisOf is gradeAxes' index of d, -1 for none.
-func axisOf(d recordpb.GradeDimension) int {
-	for k, a := range gradeAxes {
-		if a == d {
-			return k
-		}
-	}
-	return -1
 }
 
 // regradeAxes is r's grades in gradeAxes' order, nil where it names none.
@@ -93,7 +81,7 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 			}
 			// THE LOCK FOLLOWS THE LINEAGE: an axis the bench holds locked on an ancestor is locked on its
 			// successor, which the write admits only at the ancestor's grade.
-			for _, a := range b.GetSupersedes() {
+			if a := b.GetSupersedes(); a != "" {
 				for k, ax := range out[a] {
 					if ax.benchAt != 0 && cur[k].benchAt == 0 {
 						cur[k].benchAt = ax.benchAt
@@ -185,30 +173,11 @@ func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regra
 	return nil
 }
 
-// requireGradeMotionOffBenchLock refuses a grade motion on an axis the bench holds locked: the chair could
-// accept it, and the minting lens would owe a regrade the lock refuses.
-func requireGradeMotionOffBenchLock(w writeView, m *recordpb.GradeMotion) error {
-	k := axisOf(m.GetDimension())
-	if k < 0 || m.GetGapId() == "" {
-		return nil
-	}
-	axes, err := benchSetAxesAt(w)
-	if err != nil {
-		return err
-	}
-	ax := axes[m.GetGapId()][k]
-	if ax.benchAt == 0 {
-		return nil
-	}
-	return feov.Errorf(feov.Conflict,
-		"%s, and a grade motion on it asks the chair for a grade no lens may then file. A seat that disputes it files `motion docket file` on the gap, which puts it before the bench — on new grounds, where the bench has ruled the gap closed. Nothing was recorded",
-		benchLockWords(m.GetGapId(), k, ax))
-}
-
 // requireSuccessorKeepsBenchGrades refuses a mint superseding a gap whose grade differs from the
 // ancestor's on an axis the bench holds locked: the successor carries the bench's grade.
 func requireSuccessorKeepsBenchGrades(w writeView, m *recordpb.Mint) error {
-	if len(m.GetSupersedes()) == 0 {
+	a := m.GetSupersedes()
+	if a == "" {
 		return nil
 	}
 	axes, err := benchSetAxesAt(w)
@@ -216,15 +185,13 @@ func requireSuccessorKeepsBenchGrades(w writeView, m *recordpb.Mint) error {
 		return err
 	}
 	mine := mintAxes(m)
-	for _, a := range m.GetSupersedes() {
-		for k, ax := range axes[a] {
-			if ax.benchAt == 0 || mine[k] == ax.grade {
-				continue
-			}
-			return feov.Errorf(feov.Conflict,
-				"--supersedes names %s: %s, and a successor carries the bench's grade, so mint it at --%s %s. Nothing was recorded",
-				a, benchLockWords(a, k, ax), recordpb.Word(gradeAxes[k]), recordpb.Word(ax.grade))
+	for k, ax := range axes[a] {
+		if ax.benchAt == 0 || mine[k] == ax.grade {
+			continue
 		}
+		return feov.Errorf(feov.Conflict,
+			"--supersedes names %s: %s, and a successor carries the bench's grade, so mint it at --%s %s. Nothing was recorded",
+			a, benchLockWords(a, k, ax), recordpb.Word(gradeAxes[k]), recordpb.Word(ax.grade))
 	}
 	return nil
 }

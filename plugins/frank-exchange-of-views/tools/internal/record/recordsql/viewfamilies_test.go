@@ -25,7 +25,13 @@ func mintRow(t *testing.T, db *sql.DB, ord int32, id string, kind recordpb.Check
 		CheckKind:       kind.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes:      supersedes,
+	}
+	switch len(supersedes) {
+	case 0:
+	case 1:
+		m.Supersedes = proto.String(supersedes[0])
+	default:
+		t.Fatalf("a mint supersedes one gap; %s names %d", id, len(supersedes))
 	}
 	if _, err := Insert(db, event(t, ord, recordpb.EventType_EVENT_TYPE_MINT, m)); err != nil {
 		t.Fatal(err)
@@ -111,14 +117,17 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 		MotionId: proto.String("M-1"),
-		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}})); err != nil {
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+			Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}})); err != nil {
 		t.Fatal(err)
 	}
-	// TWO rulings — the state the write guard refuses, seeded by raw insert.
-	for i, r := range []recordpb.GradeRuling{recordpb.GradeRuling_GRADE_RULING_REJECTED, recordpb.GradeRuling_GRADE_RULING_ACCEPTED} {
+	// TWO rulings — the state the write guard refuses, seeded by raw insert. The answer to a proposed
+	// act reads as its word: the first, a reject, is "rejected".
+	for i, accepted := range []bool{false, true} {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"),
-			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}})
+			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(accepted)}}})
 		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)

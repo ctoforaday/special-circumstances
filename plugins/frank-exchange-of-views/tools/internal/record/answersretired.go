@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -27,7 +26,7 @@ import (
 func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	var held []WorkGapState
 	for _, g := range gaps {
-		if !g.Open && g.AnswersRetiredEvent != 0 && g.MintedBy == seatID {
+		if !g.Open && g.AnswersRetiredEvent != 0 && g.Assignee == seatID {
 			held = append(held, g)
 		}
 	}
@@ -58,7 +57,7 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 // supersededBySeatAfter is whether seatID minted a gap naming gap in `supersedes` after the place at.
 func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int64) bool {
 	for i, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && e.GetSeatId() == seatID && slices.Contains(m.GetSupersedes(), gap) {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && e.GetSeatId() == seatID && m.GetSupersedes() == gap {
 			return true
 		}
 	}

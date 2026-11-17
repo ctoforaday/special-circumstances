@@ -161,10 +161,12 @@ type GapJSON struct {
 	FixBasis string `json:"fix_basis"`
 	FixOld   string `json:"fix_old"`
 	FixNew   string `json:"fix_new"`
-	// MintedBy is the seat that minted the gap, as a seat id — the one seat that may close or regrade
-	// it, and the same column the work list's row reads.
-	MintedBy   string   `json:"minted_by"`
-	Supersedes []string `json:"supersedes"`
+	// Assignee is whose gap it is, as a seat id — its chain's origin, the one seat that may close or
+	// regrade it, and the same column the work list's row reads.
+	Assignee string `json:"assignee"`
+	// Supersedes is the one gap this gap replaces, "" for none — always written, because an absent
+	// key would read as lineage UNKNOWN where the truth is lineage NONE.
+	Supersedes string `json:"supersedes"`
 	// SupersededBy is the successor whose mint closed this gap by naming it in its `supersedes`, ""
 	// where no supersession closed it. A gap it closed has no closing body: its `closure` is null,
 	// and this field is how it closed.
@@ -317,8 +319,8 @@ func gradeVal(g recordpb.Grade) any {
 func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 
 // BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
-// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the evidence debt), the
-// list table answers supersedes, and only the acts this projection EMBEDS — closures and
+// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the evidence debt, the
+// ancestor), and only the acts this projection EMBEDS — closures and
 // regrades — come through the typed loader, because their bodies render whole and the
 // schema machinery is the one statement of body shape.
 //
@@ -372,15 +374,11 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 	}
 
-	supersedes, err := listValuesByEvent(q, "mint_supersedes")
-	if err != nil {
-		return out, err
-	}
-
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "minted_by", "minted_event",
+	    "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "assignee", "minted_event",
+	    COALESCE("supersedes", ''),
 	    ` + gapClosureColumns + `,
 	    "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -393,22 +391,23 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var id string
 		var round int
 		var open, awaiting bool
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew, mintedBy sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew, assignee sql.NullString
 		var mintedEvent int64
+		var ancestor string
 		var cl gapClosure
 		var material, remanded bool
 		var direction sql.NullString
 		var answered bool
 		var answersRetired sql.NullInt64
 		dest := []any{&id, &round, &open, &sev, &lik, &imp, &cx,
-			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent}
+			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &assignee, &mintedEvent, &ancestor}
 		dest = append(append(dest, cl.dest()...), &material, &remanded, &direction, &answered, &answersRetired)
 		if err := rows.Scan(dest...); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
 			ID: id, Epoch: round, Open: open,
-			MintedBy: mintedBy.String, Supersedes: strs(supersedes[mintedEvent]),
+			Assignee: assignee.String, Supersedes: ancestor,
 			Material: material, Remanded: remanded, DocketDirection: direction.String,
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
@@ -553,7 +552,7 @@ func closeStateOf(gapID string, cl gapClosure, byID map[int64]*Event, win Window
 	if cl.supersedeEvent.Valid {
 		e := byID[cl.supersedeEvent.Int64]
 		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
-		if e == nil || !ok || m.GetGapId() != cl.supersededBy.String || !slices.Contains(m.GetSupersedes(), gapID) {
+		if e == nil || !ok || m.GetGapId() != cl.supersededBy.String || m.GetSupersedes() != gapID {
 			return nil, miss("supersede_event", cl.supersedeEvent.Int64)
 		}
 		c.supersededBy = m.GetGapId()
@@ -597,25 +596,6 @@ func nullWord(v sql.NullString) any {
 		return v.String
 	}
 	return nil
-}
-
-// listValuesByEvent reads one list table whole: event_id -> values in ord order.
-func listValuesByEvent(db recordsql.Querier, table string) (map[int64][]string, error) {
-	rows, err := db.Query(fmt.Sprintf(`SELECT "event_id", "value" FROM %q ORDER BY "event_id", "ord"`, table))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[int64][]string{}
-	for rows.Next() {
-		var id int64
-		var v string
-		if err := rows.Scan(&id, &v); err != nil {
-			return nil, err
-		}
-		out[id] = append(out[id], v)
-	}
-	return out, rows.Err()
 }
 
 // WorkJSON is the chair's SHRINKING working set: OPEN gaps only, in the lean shape a
@@ -812,11 +792,11 @@ type WorkGapJSON struct {
 	FixBasis string `json:"fix_basis"`
 	FixOld   string `json:"fix_old,omitempty"`
 	FixNew   string `json:"fix_new,omitempty"`
-	// MintedBy is the seat that minted this gap, AS A SEAT ID: the seat the rule that only the
-	// originator may close reads, stated where a seat reads its work rather than at the moment of
+	// Assignee is whose gap this is, AS A SEAT ID — its chain's origin: the seat the rule that only the
+	// assignee may close reads, stated where a seat reads its work rather than at the moment of
 	// acting. Measured on universe-m10: every one of the run's 8 refusals was a seat acting on another
 	// seat's gap.
-	MintedBy string `json:"minted_by"`
+	Assignee string `json:"assignee"`
 	// YoursToClose is the CONCLUSION rather than the premises: whether THIS reader may close or
 	// regrade this gap. requireOriginator refuses any other seat, so a reader that has to derive
 	// this is deriving a refusal it could have been handed.
@@ -824,14 +804,6 @@ type WorkGapJSON struct {
 	// YourTurn is whether the dispatch engages THIS reader on this gap (partiesOnRoute), the plan's own
 	// predicate: a row beside a dispatch naming another gap says nothing is asked of its reader here.
 	YourTurn bool `json:"your_turn"`
-	// RegradesOwed is every grade motion on this gap that was ACCEPTED and that no regrade has
-	// followed, on the list of the seat whose regrade the write path admits — the gap's minting
-	// lens: the motion, the axis it contested and the grade the ruling accepted. It is the
-	// structured twin of the list's "had a grade motion ACCEPTED and no regrade followed it" item,
-	// from the same reader (regradesAfforded), so the sentence and the fields cannot name different
-	// motions. Never omitted: an empty list is "no accepted grade waits on you here", on every
-	// other seat's list as on a gap nobody contested.
-	RegradesOwed []OwedRegradeJSON `json:"regrades_owed"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
@@ -957,9 +929,9 @@ func synopsis(s string) string {
 // availableOf read instead of a folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
-	// RequiredFix, AcceptanceCheck and MintedBy come off the gap view's own columns. The work list
+	// RequiredFix, AcceptanceCheck and Assignee come off the gap view's own columns. The work list
 	// withheld all three, and in universe-m10 a board read was how a seat went to fetch one.
-	RequiredFix, AcceptanceCheck, MintedBy string
+	RequiredFix, AcceptanceCheck, Assignee string
 	// FixBasis is the mint's own word for what its fix rests on, and FixOld/FixNew the pair it
 	// prescribes as an edit of the report applies it. FixNew comes off the gap view as recorded and
 	// locateGap reads the pair over the render — for the board and the work item alike.
@@ -1017,7 +989,7 @@ type WorkGapState struct {
 	benchRuling                      *recordpb.DocketRuling
 	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
-	Supersedes                       []string
+	Supersedes                       string // the one gap this gap replaces, "" for none
 	// Material and ClassMaterial are the view's columns the PASS gate reads, so the chair's work
 	// list states the gate from the same facts the gate refuses on: an open material gap holds PASS
 	// (passBlockersOf). Material is the class's answer whether or not the gap is open; a reader of
@@ -1031,13 +1003,12 @@ type WorkGapState struct {
 // tables, the gaps' edits, the report's rows and the bench's remands. absent is a run with no record
 // yet, which has no work.
 type workReads struct {
-	absent     bool
-	evs        []*Event
-	win        WindowIndex
-	supersedes map[int64][]string
-	edits      map[string][]GapEdit
-	report     *reportRender
-	gaps       []workGapRow
+	absent bool
+	evs    []*Event
+	win    WindowIndex
+	edits  map[string][]GapEdit
+	report *reportRender
+	gaps   []workGapRow
 	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
 	found   []locatedReading
 	remands map[string][]remandRow
@@ -1082,9 +1053,6 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		r.absent = noRecord(q)
 		return r, err
 	}
-	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
-		return r, err
-	}
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
@@ -1108,8 +1076,8 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material",
-	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
-	    "fix_basis", "fix_new", ` + gapClosureColumns + `,
+	    "required_fix", "acceptance_check", "assignee", "unruled_docket_filed" IS NOT NULL,
+	    "fix_basis", "fix_new", COALESCE("supersedes", ''), ` + gapClosureColumns + `,
 	    "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
@@ -1119,7 +1087,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	for rows.Next() {
 		var g WorkGapState
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial sql.NullString
-		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
+		var requiredFix, acceptanceCheck, assignee, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
 		var cl gapClosure
 		var answersRetired sql.NullInt64
@@ -1131,8 +1099,8 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial,
-			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
-			&fixBasis, &fixNew}
+			&requiredFix, &acceptanceCheck, &assignee, &g.unruledDocket,
+			&fixBasis, &fixNew, &g.Supersedes}
 		if err := rows.Scan(append(append(dest, cl.dest()...), &answersRetired)...); err != nil {
 			return r, err
 		}
@@ -1143,7 +1111,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
-		g.RequiredFix, g.AcceptanceCheck, g.MintedBy = requiredFix.String, acceptanceCheck.String, mintedBy.String
+		g.RequiredFix, g.AcceptanceCheck, g.Assignee = requiredFix.String, acceptanceCheck.String, assignee.String
 		g.FixBasis, g.FixNew = fixBasis.String, fixNew.String
 		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent, closure: cl})
 	}
@@ -1170,7 +1138,6 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
 		locateGap(located, &g)
-		g.Supersedes = r.supersedes[row.mintedEvent]
 		c, err := closeStateOf(g.ID, row.closure, byID, r.win)
 		if err != nil {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
@@ -1306,14 +1273,13 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				RequiredFix:     g.RequiredFix,
 				AcceptanceCheck: g.AcceptanceCheck,
 				FixBasis:        g.FixBasis,
-				MintedBy:        g.MintedBy,
+				Assignee:        g.Assignee,
 				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
-				// from any other seat; a reader deriving this from MintedBy is deriving a refusal
+				// from any other seat; a reader deriving this from Assignee is deriving a refusal
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false. The
 				// close is refused while a docket motion stands on the gap (requireNoStandingDocket).
-				YoursToClose: reader != "" && g.MintedBy == reader && !g.unruledDocket,
-				YourTurn:     (reader != "" && g.MintedBy == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
-				RegradesOwed: []OwedRegradeJSON{},
+				YoursToClose: reader != "" && g.Assignee == reader && !g.unruledDocket,
+				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
 				Material: g.Material,
@@ -1336,7 +1302,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
 			ci.ArtifactState = string(s)
 		} else {
-			ci.ArtifactState = "inherits:" + strings.Join(g.Supersedes, ",")
+			ci.ArtifactState = "inherits:" + g.Supersedes
 		}
 		out.Estopped = append(out.Estopped, ci)
 	}
@@ -1488,17 +1454,6 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
-	if role == "lens" {
-		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
-		// are the same reader's rows, joined to the gap they are about.
-		for _, o := range regradesAfforded(evs, win, gaps, mintedBy(evs), seatID) {
-			for i := range w.Open {
-				if w.Open[i].ID == o.GapID {
-					w.Open[i].RegradesOwed = o.Motions
-				}
-			}
-		}
-	}
 	if role == "bench" || role == "chair" {
 		// LAST, AND NEVER BLOCKING: a fact about the run, not work. The two seats that rule are the
 		// two whose prompts send them to the law.

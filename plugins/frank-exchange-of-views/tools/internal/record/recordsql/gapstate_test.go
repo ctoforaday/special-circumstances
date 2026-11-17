@@ -113,6 +113,25 @@ func (r *demandRecord) ruleDocket(id string, as recordpb.Disposition) int64 {
 		MotionId: proto.String(id), Opinion: proto.String("stated"), Ruling: &recordpb.MotionRule_Docket{Docket: dr}})
 }
 
+// proposeSupersede files docket motion id on gap, proposing the supersede by successor.
+func (r *demandRecord) proposeSupersede(id, gap, successor string) int64 {
+	return r.add(other, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		MotionId: proto.String(id), Basis: proto.String("the gap misstates its defect"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		Act:    &recordpb.Motion_Supersede{Supersede: r.mintBody(successor, recordpb.CheckKind_CHECK_KIND_DOCUMENT, "", gap)}})
+}
+
+// answerAct answers docket motion id's proposed act as seat: accepted, or rejected. The bench's
+// answer carries its opinion; an assignee's carries none.
+func (r *demandRecord) answerAct(seat, id string, accepted bool) int64 {
+	dr := &recordpb.DocketRuling{Accepted: proto.Bool(accepted)}
+	if seat == "lead-judge" {
+		dr.Principle, dr.Tension, dr.ReviewFlag, dr.Settled = proto.String("p"), proto.String("t"), proto.String("no"), proto.String("")
+	}
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+		MotionId: proto.String(id), Opinion: proto.String("stated"), Ruling: &recordpb.MotionRule_Docket{Docket: dr}})
+}
+
 // upholdPosition rules position motion id upheld, remanding gaps.
 func (r *demandRecord) upholdPosition(id string, gaps ...string) int64 {
 	return r.add("lead-judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
@@ -145,13 +164,13 @@ func gapIs(gap, cond string) string {
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose int64
+	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose, xMint, yRule int64
 	at := func(v *int64) string { return fmt.Sprint(*v) }
 	none := func() []string { return nil }
 	return []gapStep{
 		// A check made before its anchor is placed meets nothing until the anchor is placed.
 		{func() { r.mintOf("A", src, "C1") }, func() []string {
-			return []string{gapIs("A", `"open" AND NOT "evidence_answered" AND "awaiting_evidence" AND "supersedes_count" = 0
+			return []string{gapIs("A", `"open" AND NOT "evidence_answered" AND "awaiting_evidence" AND "supersedes" IS NULL AND "assignee" = '`+reader+`'
 			  AND "close_event" IS NULL AND "closed_by_bench" = 0 AND "material"`)}
 		}},
 		{func() { r.verify(reader, "C1", "", supports) }, func() []string { return []string{gapIs("A", `NOT "evidence_answered"`)} }},
@@ -163,7 +182,7 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { hMint = r.mintOf("H", src, "", "A") }, func() []string {
 			return []string{
 				gapIs("A", `NOT "open" AND "superseded_by" = 'H' AND "supersede_event" = `+at(&hMint)+` AND NOT "closed_by_bench" AND NOT "bench_closed_last" AND NOT "awaiting_evidence"`),
-				gapIs("H", `"open" AND "supersedes_count" = 1 AND NOT "evidence_answered" AND "awaiting_evidence"`),
+				gapIs("H", `"open" AND "supersedes" = 'A' AND NOT "evidence_answered" AND "awaiting_evidence"`),
 			}
 		}},
 		// Another seat's reading of the ancestor's anchor meets nothing: the demand is the minter's.
@@ -205,7 +224,7 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.close("R", "") }, func() []string { return []string{gapIs("R", `"answers_retired_event" IS NULL`)} }},
 		// A mint naming a closed gap closes nothing.
 		{func() { r.mintOf("V", doc, "", "R") }, func() []string {
-			return []string{gapIs("R", `"supersede_event" IS NULL AND "superseded_by" IS NULL`), gapIs("V", `"open" AND "supersedes_count" = 1 AND NOT "awaiting_evidence"`)}
+			return []string{gapIs("R", `"supersede_event" IS NULL AND "superseded_by" IS NULL`), gapIs("V", `"open" AND "supersedes" = 'R' AND NOT "awaiting_evidence"`)}
 		}},
 		// The docket: two filings, the newer remanded (the older stands unruled again), then the
 		// older ruled closing; a regrade moves the gap's grades and materiality.
@@ -239,6 +258,42 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.mintOf("U", doc, "") }, func() []string { return []string{gapIs("U", `NOT "remanded"`)} }},
 		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
 			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
+		}},
+		// A SUCCESSOR IS ITS CHAIN'S ORIGIN'S, whoever writes it. Another lens's lineage mint of R
+		// (closed, reader's) is reader's, and so is that successor's own successor.
+		{func() { r.add(other, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("W", doc, "", "R")) }, func() []string {
+			return []string{gapIs("W", `"open" AND "supersedes" = 'R' AND "assignee" = '`+reader+`'`)}
+		}},
+		{func() { r.add(other, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("W2", doc, "")) }, func() []string {
+			return []string{gapIs("W2", `"supersedes" IS NULL AND "assignee" = '`+other+`'`)}
+		}},
+		// The assignee accepts a proposed supersede: the accept closes nothing, and its own mint of the
+		// successor closes X as red's.
+		{func() { r.mintOf("X", doc, "") }, none},
+		{func() { r.proposeSupersede("M4", "X", "X2") }, func() []string { return []string{gapIs("X", `"open" AND "unruled_docket_motion" = 'M4'`)} }},
+		{func() { r.answerAct(reader, "M4", true) }, func() []string {
+			return []string{gapIs("X", `"open" AND "unruled_docket_motion" IS NULL AND "bench_close_event" IS NULL AND NOT "closed_by_bench"`)}
+		}},
+		{func() { xMint = r.mintOf("X2", doc, "", "X") }, func() []string {
+			return []string{gapIs("X", `NOT "open" AND "supersede_event" = `+at(&xMint)+` AND NOT "closed_by_bench"`),
+				gapIs("X2", `"open" AND "assignee" = '`+reader+`'`)}
+		}},
+		// The bench accepts one: its ruling is the bench's close of Y, and the successor it writes after
+		// names a closed gap — lineage, closing nothing — and is Y's assignee's.
+		{func() { r.mintOf("Y", doc, "") }, none},
+		{func() { r.proposeSupersede("M5", "Y", "Y2") }, none},
+		{func() { yRule = r.answerAct("lead-judge", "M5", true) }, func() []string {
+			return []string{gapIs("Y", `NOT "open" AND "closed_by_bench" AND "bench_closed_last" AND "bench_close_event" = `+at(&yRule))}
+		}},
+		{func() { r.add("lead-judge", recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("Y2", doc, "", "Y")) }, func() []string {
+			return []string{gapIs("Y", `"supersede_event" IS NULL AND "superseded_by" IS NULL AND "bench_close_event" = `+at(&yRule)),
+				gapIs("Y2", `"open" AND "supersedes" = 'Y' AND "assignee" = '`+reader+`'`)}
+		}},
+		// The bench rejects one: the gap stands as it was.
+		{func() { r.mintOf("Z", doc, "") }, none},
+		{func() { r.proposeSupersede("M6", "Z", "Z2") }, none},
+		{func() { r.answerAct("lead-judge", "M6", false) }, func() []string {
+			return []string{gapIs("Z", `"open" AND NOT "closed_by_bench" AND "bench_close_event" IS NULL AND "unruled_docket_motion" IS NULL`)}
 		}},
 	}
 }
@@ -282,7 +337,8 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	}
 	// THE FIRST CLOSING ACT, of each arm: A's by the mint superseding it, R's by red's first close
 	// (two closes follow it), D's by the bench (red's close follows it), the rest open.
-	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open"}
+	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open",
+		"W": "open", "W2": "open", "X": "mint", "X2": "open", "Y": "motion_rule", "Y2": "open", "Z": "open"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -298,7 +354,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 12 {
+	if len(markers) != 11 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {

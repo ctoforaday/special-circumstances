@@ -10,17 +10,30 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// mintOf mints gap of kind about anchor (or a section when about is ""), naming supersedes.
+// mintOf mints gap of kind about anchor (or a section when about is ""), superseding the one gap
+// supersedes names, if any.
 func (r *demandRecord) mintOf(gap string, kind recordpb.CheckKind, about string, supersedes ...string) int64 {
+	return r.add(reader, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody(gap, kind, about, supersedes...))
+}
+
+// mintBody is the mint mintOf writes, for a writer other than reader or for a proposed supersede.
+func (r *demandRecord) mintBody(gap string, kind recordpb.CheckKind, about string, supersedes ...string) *recordpb.Mint {
 	m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), AcceptanceCheck: proto.String("a"), CheckKind: kind.Enum(),
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
-		AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Supersedes: supersedes}
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings")}
+	switch len(supersedes) {
+	case 0:
+	case 1:
+		m.Supersedes = proto.String(supersedes[0])
+	default:
+		r.t.Fatalf("a mint supersedes one gap; %s names %d", gap, len(supersedes))
+	}
 	if about != "" {
 		m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(about)
 	}
-	return r.add(reader, recordpb.EventType_EVENT_TYPE_MINT, m)
+	return m
 }
 
 // lineageOf is the ancestors gap carries the demand from, itself included, sorted.
@@ -46,7 +59,7 @@ func (r *demandRecord) demandLineageOf(gap string) string {
 // THE STORED DEMAND LINEAGE IS EACH GAP'S ANCESTORS BY ITS DEMAND, ON THE SHAPES NO ARCHIVED RUN HOLDS.
 // No archived run carries a demand from an ancestor; these fixtures do: a chain of same-kind
 // supersessions, a second mint naming an ancestor already named, a supersession across check kinds, a
-// non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and readings of
+// non-evidence chain, a mint naming itself, and readings of
 // the anchor an ancestor is about before and after its heir's mint.
 func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 	r := newDemandRecord(t)
@@ -62,9 +75,9 @@ func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 		func() { r.mintOf("E", comp, "", "C") },
 		func() { r.mintOf("H", doc, "") },
 		func() { r.mintOf("I", doc, "", "H") },
-		func() { r.mintOf("J", src, "", "D", "D") },
+		func() { r.mintOf("J", src, "", "D") },
 		func() { r.mintOf("K", comp, "K1") },
-		func() { r.mintOf("L", comp, "", "L", "K") },
+		func() { r.mintOf("L", comp, "", "K") },
 	}
 	for _, step := range steps {
 		step()
@@ -75,11 +88,11 @@ func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 		"C": "A,B,C",
 		"D": "D", // A was named first by B: D's naming passes nothing on
 		"H": "H",
-		"E": "E",   // computation carries no source demand, and E names C first, so no later mint carries C's
-		"I": "I",   // document demands no live answer
-		"J": "D,J", // D named twice by one mint is carried once
+		"E": "E", // computation carries no source demand, and E names C first, so no later mint carries C's
+		"I": "I", // document demands no live answer
+		"J": "D,J",
 		"K": "K",
-		"L": "K,L", // a mint naming itself carries itself once
+		"L": "K,L",
 	} {
 		if got := r.demandLineageOf(gap); got != want {
 			t.Errorf("gap %s carries the demand from %q, want %q", gap, got, want)
@@ -135,7 +148,7 @@ func TestADemandLineageNamesOnlyMintedGaps(t *testing.T) {
 		GapId: proto.String("B"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), AcceptanceCheck: proto.String("a"), CheckKind: recordpb.CheckKind_CHECK_KIND_SOURCE.Enum(),
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes: []string{"A", "Z"}})
+		Supersedes: proto.String("Z")})
 	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
 		t.Errorf("a mint superseding unminted gap Z = %v, want refused by the foreign key", err)
 	}

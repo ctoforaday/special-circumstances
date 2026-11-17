@@ -63,11 +63,6 @@ func closeG1(t *testing.T, runDir, text string) {
 		"--verified-with", "read", "--verified-against", "blue/report.md", "--reason", text)
 }
 
-func fileGradeMotion(t *testing.T, runDir string) string {
-	return motionID(t, runDir, "motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1",
-		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded")
-}
-
 func proposeQ1(t *testing.T, runDir string) {
 	t.Helper()
 	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded question")
@@ -166,11 +161,6 @@ func actRows() map[string]actRow {
 			},
 			act: func(_ actVars, text string) []string {
 				return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
-			}},
-		"motion grade rule": {seat: "red-chair",
-			setup: func(t *testing.T, runDir string) actVars { return actVars{"m": fileGradeMotion(t, runDir)} },
-			act: func(v actVars, text string) []string {
-				return []string{"motion", "grade", "rule", "--id", v["m"], "--as", "rejected", "--reason", text}
 			}},
 		"motion petition rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {

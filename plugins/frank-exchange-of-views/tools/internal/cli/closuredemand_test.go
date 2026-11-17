@@ -443,30 +443,6 @@ func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
 	}
 }
 
-// ANCESTORS OF DIFFERENT CHECK KINDS CANNOT SHARE ONE SUCCESSOR: the refusal names every ancestor that
-// awaits a live answer, with its check kind, and says to supersede them in separate mints.
-func TestASuccessorOfAncestorsOwingDifferentKindsNamesThemAll(t *testing.T) {
-	runDir := citedRun(t)
-	src := demandGap(t, runDir, "S", "source")
-	cmp := demandGap(t, runDir, "C", "computation")
-	_, err := runMint(t, "--run", runDir, "--seat-id", lensSeat, "--class", "spec_underspecification", "--problem", "p", "--fix", "f",
-		"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--check-kind", "source",
-		"--about-kind", "section", "--about", "Findings", "--supersedes", src+","+cmp)
-	if err == nil {
-		t.Fatalf("a source successor of %s and computation %s was admitted", src, cmp)
-	}
-	for _, w := range []string{src + ", an open gap minted --check-kind source", cmp + ", an open gap minted --check-kind computation", "separate mints", "Nothing was recorded"} {
-		if !strings.Contains(err.Error(), w) {
-			t.Errorf("the refusal does not say %q:\n%v", w, err)
-		}
-	}
-	for _, g := range []string{src, cmp} {
-		if open, _, _ := gapRow(t, runDir, g); !open {
-			t.Errorf("the refused mint closed %s", g)
-		}
-	}
-}
-
 // ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, and a seat that may not is told that before what a
 // successor would owe.
 func TestANonMinterIsToldTheMinterRuleBeforeTheDemand(t *testing.T) {

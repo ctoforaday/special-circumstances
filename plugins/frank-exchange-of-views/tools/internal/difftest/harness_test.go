@@ -42,7 +42,7 @@ import (
 // VERB, NOT ROLE. This field was `role`, from when the tree was grouped by role and the first
 // word was `merge`, `lens`, `blue` or `bench`. The tree went flat and seat-scoped — `--seat-id`
 // selects the surface, and the first word is the verb (or the first word of a group's path,
-// `motion grade file`) — but the field kept its name, and the name kept teaching the old shape:
+// `motion docket file`) — but the field kept its name, and the name kept teaching the old shape:
 // the determinism fuzz went on composing `feov-record merge mint …`, every command it generated
 // exited 2 with `no command named "chair" exists`, and the test passed because both replays
 // failed identically.

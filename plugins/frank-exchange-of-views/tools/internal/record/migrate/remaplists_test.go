@@ -85,11 +85,11 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("mints names %s, which is not in the id list", field)
 		}
 	}
-	if motionArms != 10 {
-		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 10 — the walk stopped at the top-level bodies", motionArms)
+	if motionArms != 7 {
+		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 7 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "35 41 65" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 35 41 65", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "35 41 64" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 35 41 64", got)
 	}
 }
 
@@ -223,7 +223,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		}
 		l := &recordpb.Log{Text: proto.String("closes G2, not G20 or G2x")}
 		d := &recordpb.Dispatch{GapIds: []string{"G2", "G9"}}
-		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: []string{"G2"}}
+		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: proto.String("G2")}
 		mo := &recordpb.MotionRule{Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Principle: proto.String("G2 stands")}}}
 		p := &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
 		for _, b := range []proto.Message{l, d, m, mo, p} {
@@ -233,7 +233,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			"Log.text":                   l.GetText(),
 			"Dispatch.gap_ids":           strings.Join(d.GetGapIds(), ","),
 			"Mint.problem":               m.GetProblem(),
-			"Mint.supersedes":            m.GetSupersedes()[0],
+			"Mint.supersedes":            m.GetSupersedes(),
 			"DocketRuling.principle":     mo.GetDocket().GetPrinciple(),
 			"Computation.drift":          p.GetDrift(),
 			"Computation.computation_id": p.GetComputationId(),

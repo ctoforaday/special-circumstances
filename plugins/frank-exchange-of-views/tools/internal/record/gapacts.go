@@ -31,7 +31,7 @@ import (
 //   - the lens whose check it is: a check (`verify` or `reproduce`) of an anchor placed as its answer.
 //     A reading reaches a gap only through its citation's answer, never through the gap that carries
 //     it: a reading that names its gap moves no turn;
-//   - either: a docket or grade motion on it.
+//   - either: a docket motion on it.
 //
 // Each is validated at its write against the gap the record holds, or read off the record's rows
 // (a reaching retire), so a gap named here is one the record names, never one recovered from prose.
@@ -52,7 +52,7 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 		var on []string
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
-			on = b.GetSupersedes()
+			on = []string{b.GetSupersedes()}
 		case *recordpb.Regrade:
 			on = []string{b.GetGapId()}
 		case *recordpb.Close:
@@ -79,7 +79,7 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 		case *recordpb.Inquiry:
 			on = fates[e]
 		case *recordpb.Motion:
-			on = []string{b.GetDocket().GetGapId(), b.GetGrade().GetGapId()}
+			on = []string{b.GetDocket().GetGapId()}
 		}
 		for k, g := range on {
 			if g != "" && !slices.Contains(on[:k], g) {
@@ -229,7 +229,7 @@ func lensTurnActsOf(evs []*Event, ids []int64, acts map[string][]gapAct, sitting
 	return out
 }
 
-// mintPlaces is the place of each gap's mint — its first, as mintedBy reads the minter. ids are
+// mintPlaces is the place of each gap's mint — its first, as assignee reads the minter. ids are
 // evs's places.
 func mintPlaces(evs []*Event, ids []int64) map[string]int64 {
 	out := map[string]int64{}

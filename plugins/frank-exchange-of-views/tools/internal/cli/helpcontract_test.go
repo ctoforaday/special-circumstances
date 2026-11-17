@@ -359,8 +359,8 @@ func seatRunForContracts(t *testing.T) string {
 		"--question", "a seeded question", "--hypothesis", "it would settle something"); err != nil {
 		t.Fatalf("seed inquiry: %v", err)
 	}
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low",
+	if _, err := runAt(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "the motion a probe's --id names"); err != nil {
 		t.Fatalf("seed motion: %v", err)
 	}

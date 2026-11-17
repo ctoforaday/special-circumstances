@@ -396,7 +396,7 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 	switch {
 	case form != standingForm:
 		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
-	case standing.MintedBy != seatID:
+	case standing.Assignee != seatID:
 		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
 	}
 }

@@ -68,8 +68,8 @@ func ReadPayload(c *cobra.Command) (string, error) {
 //
 // `GetString` returns ("", err) for any flag that is not a string flag, and every caller here
 // discarded the error — so an enum flag, a grade flag, or anything else backed by a pflag.Value
-// read back as UNSET. It cost this the same bug twice in one afternoon: `motion grade file`
-// reported "--proposed is required" against a grade the seat had passed, and `bench opinion`
+// read back as UNSET. It cost this the same bug twice in one afternoon: a grade flag read as
+// required against a grade the seat had passed, and `bench opinion`
 // reported "opinion requires --as (opinions, not dispositions)" against a disposition it had.
 // Both times the flag was set, parsed and validated; only the READ was blind.
 //

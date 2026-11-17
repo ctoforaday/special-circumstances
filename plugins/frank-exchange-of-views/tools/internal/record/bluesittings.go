@@ -79,10 +79,8 @@ func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
 		case *recordpb.Close:
 			closedFirst[b.GetGapId()] = e
 		case *recordpb.Mint:
-			for _, anc := range b.GetSupersedes() {
-				if superseded[anc] == int(d.at)+1+i {
-					closedFirst[anc] = e
-				}
+			if anc := b.GetSupersedes(); anc != "" && superseded[anc] == int(d.at)+1+i {
+				closedFirst[anc] = e
 			}
 		}
 	}

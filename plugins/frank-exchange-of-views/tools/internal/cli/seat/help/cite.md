@@ -16,7 +16,7 @@ A CITATION HOLDS THE SOURCE'S WORDS. Where the tool holds the source's text — 
 
 THE BOUNDARY RULE: {{.SpanBoundary}}.
 
-THE TEXT PRINTS ITS MARKUP, AND THE SPAN QUOTES IT: {{.TextMarkup}}.
+{{.TextMarkupRule}}
 
 THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography entry; the tool adds the PDF page to the note of a quote from OCR text. Give the source's own name — author, work, section — for a reader of the SUBJECT, not an account of how you found or read it: no "this sitting" or "this run", no "re-read at the leaf". How much of the source you read is not the title's to say. Where that reading matters to a claim, say it in the report's prose, in the subject's terms: "the source, read in full, states…", "the abstract claims, and the body does not show, …". The tool flags a title that sounds like the run talking about itself; it refuses nothing, because a real source's own title can.
 

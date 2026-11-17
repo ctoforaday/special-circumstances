@@ -93,7 +93,7 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 				t.Fatal(err)
 			}
 			ids := fam.At.IDs(fam.Events)
-			owes := lensOwesOf(fam.Events, ids, fam.At, []blockerGap{{id: "G1", mintedBy: evLens}}, nil)
+			owes := lensOwesOf(fam.Events, ids, fam.At, []blockerGap{{id: "G1", assignee: evLens}}, nil)
 			if !slices.Contains(owes[evLens], "blue's retire of "+c.anchor+", "+c.how) {
 				t.Errorf("the lens does not owe the retire: %q", owes[evLens])
 			}
@@ -326,7 +326,7 @@ func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	owes := lensOwesOf(fam.Events, fam.At.IDs(fam.Events), fam.At, []blockerGap{{id: "G1", mintedBy: evLens}}, nil)
+	owes := lensOwesOf(fam.Events, fam.At.IDs(fam.Events), fam.At, []blockerGap{{id: "G1", assignee: evLens}}, nil)
 	if want := []string{"blue's retire of K-x, which G1 is about"}; !slices.Equal(owes[evLens], want) {
 		t.Errorf("the lens owes %q for one retire, want %q", owes[evLens], want)
 	}

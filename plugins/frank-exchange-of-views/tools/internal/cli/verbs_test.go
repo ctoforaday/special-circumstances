@@ -45,9 +45,8 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low",
-		"--reason", "the seeded grade motion this fixture answers"); err != nil {
+	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
+		"--id", "G1", "--reason", "the seeded docket motion this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
@@ -118,26 +117,27 @@ func TestVerbPayloads(t *testing.T) {
 			says: "source Example B (https://example.test/b) REFUTES the claim",
 		},
 		{
-			name: "motion grade rule records the chair's answer",
-			path: []string{"motion", "grade", "rule"}, seatID: "red-chair",
-			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
-			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
+			name: "motion docket rule records the bench's ruling",
+			path: []string{"motion", "docket", "rule"}, seatID: "judge",
+			args: []string{"--id", "M1", "--as", "remanded", "--principle", "correctness", "--tension", "thoroughness against ceremony",
+				"--review-flag", "no — the ruling is mechanical", "--settled", "the proposition this ruling bars",
+				"--direction", "a reproduction on the shipped binary", "--reason", "the evidence does not reach it"},
+			typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+			// THE RULING IS A ONEOF ARM, not a `ruling` field: `docket` carries DocketRuling,
 			// `petition` PetitionRuling, each subject its own. That separation is what
-			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
-			// the old key could never match. The ruler's argument is `opinion`.
-			want: map[string]string{"motion_id": "M1", "grade": "rejected",
+			// makes a ruling from the wrong subject's vocabulary unrepresentable. The ruler's
+			// argument is `opinion`.
+			want: map[string]string{"motion_id": "M1", "disposition": "remanded",
 				"opinion": "the evidence does not reach it"},
-			says: "motion M1 ruled rejected",
+			says: "motion M1 ruled remanded",
 		},
 		{
-			name: "motion grade file contests a grade through the accounted channel",
-			path: []string{"motion", "grade", "file"}, seatID: "blue-lane-1",
-			args: []string{"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
+			name: "motion docket file puts a gap before the bench",
+			path: []string{"motion", "docket", "file"}, seatID: "blue-lane-1",
+			args: []string{"--id", "G2", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
-			want: map[string]string{"gap_id": "G1", "dimension": "severity",
-				"proposed": "low", "basis": "§4 says otherwise"},
-			says: "filed (grade)",
+			want: map[string]string{"gap_id": "G2", "basis": "§4 says otherwise"},
+			says: "filed (docket)",
 		},
 		{
 			name: "blue retire records what left and why",

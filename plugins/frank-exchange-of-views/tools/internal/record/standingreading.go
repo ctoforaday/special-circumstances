@@ -1042,7 +1042,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 			switch {
 			case m.aboutKind == recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 				if st := ledger.at(m.aboutRef); st != nil && !st.retired {
-					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: m.aboutRef, Why: fmt.Sprintf("citation %s: open material %s gap %s by %s", m.aboutRef, class, g.id, g.mintedBy)})
+					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: m.aboutRef, Why: fmt.Sprintf("citation %s: open material %s gap %s by %s", m.aboutRef, class, g.id, g.assignee)})
 				}
 			case m.location != "":
 				report, err := render()
@@ -1050,7 +1050,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 					return err
 				}
 				if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), g.id); ok {
-					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.mintedBy)})
+					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.assignee)})
 				}
 			}
 		}

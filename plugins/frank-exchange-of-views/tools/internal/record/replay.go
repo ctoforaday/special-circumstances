@@ -178,9 +178,8 @@ type Gap struct {
 // GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.
 //
 // THE SECOND RETURN IS LOAD-BEARING. A dimension added to the enum and not added here would
-// otherwise yield the zero Grade, which differs from any real proposal — so the no-op-motion
-// check below would silently start accepting everything on the new axis. That is the
-// plausible-zero shape: the miss and the healthy answer are the same value. Callers must treat
+// otherwise yield the zero Grade, which differs from every real grade — so a reader comparing
+// against it would silently misread everything on the new axis. That is the plausible-zero shape: the miss and the healthy answer are the same value. Callers must treat
 // !ok as "cannot answer", never as "no grade".
 func (g *Gap) GradeAt(d recordpb.GradeDimension) (recordpb.Grade, bool) {
 	switch d {

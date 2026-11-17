@@ -53,7 +53,7 @@
           SEARCH v USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         MATERIALIZE board
           MATERIALIZE minted
-            SCAN m USING COVERING INDEX mint_key
+            SCAN m USING COVERING INDEX mint_ancestor
             SEARCH st USING INTEGER PRIMARY KEY (rowid=?)
             SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
           MATERIALIZE held
@@ -88,6 +88,8 @@
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH st USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
 
 == view evidence_anchor
   COMPOUND QUERY
@@ -135,19 +137,31 @@
         SEARCH c USING INDEX close_gap (gap_id=?)
       CORRELATED SCALAR SUBQUERY
         MATERIALIZE bench
-          SCAN d
-          SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
-          SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
-          SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH x USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN d
+              SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
+              SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+              SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH x USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+            UNION ALL
+              SCAN d
+              SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
+              SEARCH ms USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+              SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH re USING INTEGER PRIMARY KEY (rowid=?)
+              CORRELATED SCALAR SUBQUERY
+                SEARCH a USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
         BLOOM FILTER ON b (gap_id=?)
         SEARCH b USING AUTOMATIC COVERING INDEX (gap_id=?)
       CORRELATED SCALAR SUBQUERY
         BLOOM FILTER ON b (gap_id=?)
         SEARCH b USING AUTOMATIC COVERING INDEX (gap_id=?)
       CORRELATED SCALAR SUBQUERY
-        SEARCH s USING COVERING INDEX mint_supersedes_value (value=?)
+        SEARCH s USING COVERING INDEX mint_ancestor (supersedes=?)
         CORRELATED SCALAR SUBQUERY
           SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
         CORRELATED SCALAR SUBQUERY
@@ -193,6 +207,8 @@
               SEARCH l USING PRIMARY KEY (gap_id=?)
               SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
               SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              CORRELATED SCALAR SUBQUERY
+                SEARCH st USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
             SEARCH x USING COVERING INDEX cite_label (label>?)
             BLOOM FILTER ON r (anchor=?)
             SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
@@ -258,6 +274,8 @@
     SCAN (subquery)
   SCAN k
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH mg USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH me USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH rg USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH r2 USING COVERING INDEX regrade_gap (gap_id=?)
@@ -268,7 +286,7 @@
   BLOOM FILTER ON an (gap_id=?)
   SEARCH an USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH s USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+    SEARCH st USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
   CORRELATED SCALAR SUBQUERY
@@ -394,6 +412,11 @@
 == view sittings
   SCAN e USING INDEX events_opening
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+
+== view tombstone_standing
+  SCAN t
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
 
 == stmt f082d7ed827d
 -- INSERT INTO "anchor" ("event_id", "id", "location") VALUES (?, ?, ?)
@@ -743,422 +766,650 @@
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 814ec21a0c62
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt 807a70ed312b
+-- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt c7b3b3324fa0
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 2ba81040bbe2
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "required_fix", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt bedc88ef386f
+-- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "required_fix", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt d6ed712f40f6
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "about_kind", "about_ref", "problem", "fix_new", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt f7e47efeac35
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "about_kind", "about_ref", "problem", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 6d6a4fdbd027
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 579fdbe84683
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 38df451b6c85
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt 08f1f5c65501
+-- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt adb6edc10b80
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "fix_new", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 15a994fcf893
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "required_fix", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt cd98de95bd5b
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 6f514a363639
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "required_fix", "fix_new", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 11cf1b55fb29
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt cc62e5cc45d5
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 16370de9f725
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "about_kind", "about_ref", "problem", "required_fix", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 3abbc6722d49
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 527fa3e7601a
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt 74fe28485076
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "supersedes", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt 8430c17bdcdb
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt 40e2172d3dc5
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt b3ba9b2d93b7
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 5bee95b750c4
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 0864c102c7eb
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt 3e297b11eb6a
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
 == stmt db83619897a7
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt 4d341cb9de82
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
+
+== stmt cba8d031f346
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "supersedes", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt 90f270807562
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
+
+== stmt eba0e3e76827
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt e16102613a09
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
   SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
-  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
   SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SCAN motion_grade
 
-== stmt 53d82aaf208a
--- INSERT INTO "mint_supersedes" ("event_id", "ord", "value") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
+== stmt 5a8defb099b4
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "problem", "required_fix", "fix_new", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "supersedes", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN tombstone USING COVERING INDEX tombstone_kind_gap
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint USING COVERING INDEX mint_ancestor (supersedes=?)
+  SCAN motion_rule_position_gap_ids
+  SCAN motion_supersede
+  SCAN motion_close
+  SCAN motion_close
+  SCAN motion_regrade
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
 
 == stmt 95da3f9b0320
 -- INSERT INTO "motion" ("event_id", "motion_id", "basis", "filing_case") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 7a1b4264cb94
+-- INSERT INTO "motion" ("event_id", "motion_id", "basis", "filing_case", "act_case") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 13e4b2381f0d
 -- INSERT INTO "motion" ("event_id", "motion_id", "basis", "relief", "filing_case") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt ed946aab83ac
--- INSERT INTO "motion" ("event_id", "motion_id", "filing_case") VALUES (?, ?, ?)
+== stmt ebaeef2cfe56
+-- INSERT INTO "motion_close" ("event_id", "gap_id", "closure_class", "prose") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt f77a7466f32b
 -- INSERT INTO "motion_docket" ("event_id", "gap_id") VALUES (?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 35f606fe583a
--- INSERT INTO "motion_docket" ("event_id", "gap_id", "grounds") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 55585b0cf127
--- INSERT INTO "motion_grade" ("event_id", "gap_id") VALUES (?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 9d89a29410e6
--- INSERT INTO "motion_grade" ("event_id", "gap_id", "dimension", "proposed") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 9f961a6d4b1d
@@ -1169,10 +1420,9 @@
 -- INSERT INTO "motion_position" ("event_id", "position_id") VALUES (?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt fac6ca430c56
--- INSERT INTO "motion_rule" ("event_id", "motion_id", "opinion", "grade") VALUES (?, ?, ?, ?)
-  SEARCH motion_rule_position USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH motion_rule_docket USING INTEGER PRIMARY KEY (rowid=?)
+== stmt 51941ac8db17
+-- INSERT INTO "motion_regrade" ("event_id", "gap_id", "severity", "basis") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
 
 == stmt 6cd066c1165a
 -- INSERT INTO "motion_rule" ("event_id", "motion_id", "opinion", "petition") VALUES (?, ?, ?, ?)
@@ -1206,6 +1456,10 @@
 -- INSERT INTO "motion_rule_docket" ("event_id", "disposition", "principle", "tension", "review_flag", "settled", "reopens_on") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 8daf514525bf
+-- INSERT INTO "motion_rule_docket" ("event_id", "principle", "tension", "review_flag", "settled", "accepted") VALUES (?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 9a5cbcd0def1
 -- INSERT INTO "motion_rule_position" ("event_id", "ruling") VALUES (?, ?)
   (no plan rows: the statement reads no table)
@@ -1220,6 +1474,10 @@
 
 == stmt d9850bf67615
 -- INSERT INTO "motion_rule_position_gap_ids" ("event_id", "ord", "value") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt c14c033cd5f3
+-- INSERT INTO "motion_supersede" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 3c0af4979333
@@ -1506,6 +1764,18 @@
 -- INSERT INTO "stale" ("event_id", "gap_id", "through") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt b5a2f45a44c7
+-- INSERT INTO "tombstone" ("event_id", "gap_id", "kind") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt c5acd27b88e5
+-- INSERT INTO "tombstone" ("event_id", "gap_id", "kind", "ends") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 690afeed8fa7
+-- INSERT INTO "tombstone" ("event_id", "gap_id", "kind", "motion_id") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt f20f0f91bddb
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1666,6 +1936,8 @@
   SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
   SEARCH l USING PRIMARY KEY (gap_id=? AND from_gap=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH st USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 8dba93e02a86
@@ -1675,30 +1947,6 @@
 == stmt 59a3e1e11433
 -- SELECT "class" FROM "position" WHERE "position_id" = ?
   SEARCH position USING INDEX sqlite_autoindex_position_1 (position_id=?)
-
-== stmt b3cbd1fb249f
--- SELECT "current_complexity_cost" FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt 33a3c31ecc0d
--- SELECT "current_impact" FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt a9ee89157651
--- SELECT "current_likelihood" FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt 2da1ab83b42d
--- SELECT "current_severity" FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt f82df4d27e93
 -- SELECT "epoch" FROM "events" WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events") ORDER BY "id"
@@ -1746,24 +1994,16 @@
 -- SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "event_id" <= ? ORDER BY "event_id" DESC LIMIT 1
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid<?)
 
-== stmt e714aa88c407
--- SELECT "event_id", "value" FROM "mint_supersedes" ORDER BY "event_id", "ord"
-  SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
-
 == stmt 1b9d404875bf
 -- SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"
   SCAN retire_anchors USING INDEX sqlite_autoindex_retire_anchors_1
-
-== stmt 996d263b6b6a
--- SELECT "event_id", COALESCE("new", '') FROM "blue_edit" WHERE "answers" = ? AND "event_id" > ? ORDER BY "event_id" DESC
-  SEARCH blue_edit USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 381b9b5bfc4f
 -- SELECT "filing_case" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1
   SEARCH motion USING INDEX sqlite_autoindex_motion_1 (motion_id=?)
 
-== stmt d8f359712b4d
--- SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes_count" = 0
+== stmt 3eaf7eac862b
+-- SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes" IS NULL
   SCAN s
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -1809,8 +2049,8 @@
   SCAN remand
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt fdb2f48a3424
--- SELECT "gap_id", "minted_epoch", "open", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix", "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "minted_by", "minted_event", "close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last", "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event" FROM "gap" ORDER BY "minted_event"
+== stmt e27f635680a3
+-- SELECT "gap_id", "minted_epoch", "open", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix", "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "assignee", "minted_event", COALESCE("supersedes", ''), "close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last", "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event" FROM "gap" ORDER BY "minted_event"
   SCAN s
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -1821,14 +2061,14 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt c8cc0dd5e50a
--- SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event", "material", "class_material", "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL, "fix_basis", "fix_new", "close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last", "answers_retired_event" FROM "gap" ORDER BY "minted_event"
+== stmt 7f1455ad30cc
+-- SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event", "material", "class_material", "required_fix", "acceptance_check", "assignee", "unruled_docket_filed" IS NOT NULL, "fix_basis", "fix_new", COALESCE("supersedes", ''), "close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last", "answers_retired_event" FROM "gap" ORDER BY "minted_event"
   SCAN s
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 0cd405f346b6
--- SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''), COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"
+== stmt fc41072caea5
+-- SELECT "gap_id", COALESCE("assignee", ''), COALESCE("problem", ''), COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"
   SCAN m
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -1864,7 +2104,7 @@
           SEARCH v USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         MATERIALIZE board
           MATERIALIZE minted
-            SCAN m USING COVERING INDEX mint_key
+            SCAN m USING COVERING INDEX mint_ancestor
             SEARCH st USING INTEGER PRIMARY KEY (rowid=?)
             SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
           MATERIALIZE held
@@ -2039,14 +2279,14 @@
         UNION ALL
           SEARCH x USING COVERING INDEX sqlite_autoindex_computation_1 (computation_id=?)
 
-== stmt 5092371cdcdd
--- SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?
+== stmt 786d2d1df45c
+-- SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt d9743db704d9
--- SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?
+== stmt 13e993676b6d
+-- SELECT COALESCE("assignee", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -2235,25 +2475,6 @@
 -- SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'
   SCAN sqlite_master
 
-== stmt e62e3e02fd11
--- SELECT e, kind, about, loc FROM ( SELECT m."event_id" e, 'gap' kind, EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2) about, '' loc FROM "mint" m WHERE m."gap_id" = ?1 UNION ALL SELECT ea."placed_event", ea."kind", COALESCE(ea."answers" = ?2, 0), COALESCE(c."location", '') FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1) ORDER BY e LIMIT 1
-  CO-ROUTINE (subquery)
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH s USING COVERING INDEX mint_supersedes_value (value=? AND event_id=?)
-      UNION ALL
-        COMPOUND QUERY
-          LEFT-MOST SUBQUERY
-            SEARCH x USING INDEX sqlite_autoindex_cite_1 (label=?)
-            SEARCH c USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-          UNION ALL
-            SEARCH x USING INDEX sqlite_autoindex_computation_1 (computation_id=?)
-            SEARCH c USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SCAN (subquery)
-  USE TEMP B-TREE FOR ORDER BY
-
 == stmt a8a6c806e2ea
 -- SELECT e."epoch" FROM "close" c JOIN "events" e ON e."id" = c."event_id" WHERE c."gap_id" = ? ORDER BY c."event_id"
   SEARCH c USING COVERING INDEX close_gap (gap_id=?)
@@ -2349,8 +2570,8 @@
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt d1e7bd5ef2f7
--- SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''), g."material", COALESCE(g."class_material", ''), COALESCE(g."unruled_docket_filed", 0), COALESCE(g."unruled_docket_motion", ''), COALESCE(g."docket_direction", ''), COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '') FROM "gap" g WHERE g."open" ORDER BY g."minted_event"
+== stmt dbc395abe594
+-- SELECT g."gap_id", COALESCE(g."assignee", ''), COALESCE(g."current_severity", ''), g."material", COALESCE(g."class_material", ''), COALESCE(g."unruled_docket_filed", 0), COALESCE(g."unruled_docket_motion", ''), COALESCE(g."docket_direction", ''), COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '') FROM "gap" g WHERE g."open" ORDER BY g."minted_event"
   SCAN s USING INDEX gap_state_open
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -2387,9 +2608,9 @@
 -- SELECT l."event_id", l."value" FROM "dispatch_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_dispatch_gap_ids_1 (event_id>?)
 
-== stmt dfd2a5dfacc1
--- SELECT l."event_id", l."value" FROM "mint_supersedes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
-  SEARCH l USING INDEX sqlite_autoindex_mint_supersedes_1 (event_id>?)
+== stmt a9d446003899
+-- SELECT l."event_id", l."value" FROM "motion_close_anchors" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_motion_close_anchors_1 (event_id>?)
 
 == stmt 4cfe5f32488a
 -- SELECT l."event_id", l."value" FROM "motion_rule_position_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
@@ -2475,14 +2696,6 @@
   SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 3f0bd7aae06f
--- SELECT r."event_id", mr."motion_id", r."disposition", r."settled", COALESCE(r."reopens_on", ''), COALESCE(r."final", 0) FROM "motion_rule_docket" r JOIN "motion_rule" mr ON mr."event_id" = r."event_id" JOIN "motion" mo ON mo."motion_id" = mr."motion_id" JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE md."gap_id" = ? ORDER BY r."event_id" DESC LIMIT 1
-  SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
-  SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
-  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
-
 == stmt d25a76648285
 -- SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id" WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1
   SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
@@ -2536,28 +2749,40 @@
 -- SELECT t."event_id", t."computation_id", t."key", t."bundle_sha", t."answers", t."cites", t."drift", t."text", t."exit", t."location", t."toolchain_path", t."toolchain_sha256", t."basis", t."invariant" FROM "computation" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 5558ee191a9d
--- SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction" FROM "motion_rule_docket" t WHERE t."event_id" > ?
+== stmt 28fec2da59ff
+-- SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction", t."accepted" FROM "motion_rule_docket" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt e070c3e64ba5
 -- SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span" FROM "blue_edit" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
+== stmt 19b7db4d9f98
+-- SELECT t."event_id", t."gap_id" FROM "motion_docket" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
 == stmt 6402399ea6a7
 -- SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "close" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt a8336e9a8fe4
--- SELECT t."event_id", t."gap_id", t."dimension", t."proposed" FROM "motion_grade" t WHERE t."event_id" > ?
+== stmt 1aea60ec4eff
+-- SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "motion_close" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 703fe4cf67b7
--- SELECT t."event_id", t."gap_id", t."grounds", t."grounds_quote" FROM "motion_docket" t WHERE t."event_id" > ?
+== stmt fe1ccd103351
+-- SELECT t."event_id", t."gap_id", t."kind", t."motion_id", t."ends" FROM "tombstone" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 6140ddb450fa
--- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?
+== stmt 746d6cb66f4d
+-- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."supersedes", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
+== stmt 64e522d0954c
+-- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."supersedes", t."mint_reason", t."class_material" FROM "motion_supersede" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
+== stmt cfaa46c80be0
+-- SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost" FROM "motion_regrade" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 5ef11a3df8bd
@@ -2596,12 +2821,12 @@
 -- SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."copy_captured_at", t."answers" FROM "cite" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 8da850344d9a
--- SELECT t."event_id", t."motion_id", t."basis", t."relief", t."filing_case" FROM "motion" t WHERE t."event_id" > ?
+== stmt 1104a1e3966e
+-- SELECT t."event_id", t."motion_id", t."basis", t."relief", t."filing_case", t."act_case" FROM "motion" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 1a90fdc3f8e6
--- SELECT t."event_id", t."motion_id", t."opinion", t."grade", t."petition", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t WHERE t."event_id" > ?
+== stmt 04302565e488
+-- SELECT t."event_id", t."motion_id", t."opinion", t."petition", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 3c76fc357542

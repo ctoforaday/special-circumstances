@@ -62,7 +62,7 @@ func TestAnotherSeatsActSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain(t *
 		t.Fatal(err)
 	}
 	regradedAt := lastRegradeID(t, runDir)
-	err := gradeMotion(t, runDir, gap)
+	err := docketMotion(t, runDir, gap)
 	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("event %d, %s: regraded %s", regradedAt, lensSeat, gap)) {
 		t.Fatalf("a motion on a gap another seat regraded after this sitting opened was not refused naming that regrade: %v", err)
 	}
@@ -77,10 +77,10 @@ func TestAnotherSeatsActSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain(t *
 	if err := regrade(t, runDir, lensSeat, gap, "medium"); err != nil {
 		t.Fatalf("the minting lens's second regrade: %v", err)
 	}
-	if err := gradeMotion(t, runDir, gap); err == nil || !strings.Contains(err.Error(), "regraded "+gap) {
+	if err := docketMotion(t, runDir, gap); err == nil || !strings.Contains(err.Error(), "regraded "+gap) {
 		t.Fatalf("a regrade after the first refusal did not refuse the re-filed motion: %v", err)
 	}
-	if err := gradeMotion(t, runDir, gap); err != nil {
+	if err := docketMotion(t, runDir, gap); err != nil {
 		t.Fatalf("the motion filed a third time, with nothing new since the second refusal, was refused: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_STALE); n != 2 {
@@ -88,24 +88,24 @@ func TestAnotherSeatsActSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain(t *
 	}
 }
 
-// gradeMotion is blue's grade motion on gap: an act that names a gap, from a seat that did not mint it.
-func gradeMotion(t *testing.T, runDir, gap string) error {
+// docketMotion is blue's docket motion on gap: an act that names a gap, from a seat that did not mint it.
+func docketMotion(t *testing.T, runDir, gap string) error {
 	t.Helper()
-	_, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
-		"--dimension", "severity", "--proposed", "low", "--reason", "the defect is cosmetic")
+	_, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
+		"--reason", "the defect is cosmetic")
 	return err
 }
 
 // A seat's own acts are never news to it: the minting lens regrades its gap, which is a change to it,
-// and then files a grade motion on it in the same sitting.
+// and then files a docket motion on it in the same sitting.
 func TestASeatsOwnActsOnAGapNeverRefuseIt(t *testing.T) {
 	runDir := seatRun(t)
 	gap := mintGap(t, runDir, "own", "false_universal")
 	if err := regrade(t, runDir, lensSeat, gap, "high"); err != nil {
 		t.Fatalf("the minting lens's regrade: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", lensSeat, "--id", gap,
-		"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"); err != nil {
+	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", lensSeat, "--id", gap,
+		"--reason", "the harm needs two failures"); err != nil {
 		t.Fatalf("the lens's motion after its own regrade: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_STALE); n != 0 {
@@ -121,7 +121,7 @@ func TestAnActOnAGapUnchangedSinceTheSittingOpenedLands(t *testing.T) {
 		t.Fatal(err)
 	}
 	sit(t, runDir, "blue-respond")
-	if err := gradeMotion(t, runDir, gap); err != nil {
+	if err := docketMotion(t, runDir, gap); err != nil {
 		t.Fatalf("a motion on a gap that has not changed since the sitting opened was refused: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_STALE); n != 0 {
@@ -139,8 +139,8 @@ func lastRegradeID(t *testing.T, runDir string) int64 {
 	return win.Of(evs[len(evs)-1]).ID
 }
 
-// Every act that names a gap and asserts something about it carries the refusal: the regrade, the
-// grade motion and the docket motion, each refused after another seat moved the gap and each recorded
+// Every act that names a gap and asserts something about it carries the refusal: the regrade and
+// the docket motion, from blue and from the chair, each refused after another seat moved the gap and each recorded
 // on the second call.
 func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 	for _, c := range []struct {
@@ -150,9 +150,9 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 		{"regrade", lensSeat, func(runDir, gap string) []string {
 			return []string{"regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap, "--severity", "high", "--reason", "re-audited"}
 		}},
-		{"motion grade file", "blue-respond", func(runDir, gap string) []string {
-			return []string{"motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
-				"--dimension", "severity", "--proposed", "low", "--reason", "the defect is cosmetic"}
+		{"motion docket file by blue", "blue-respond", func(runDir, gap string) []string {
+			return []string{"motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
+				"--reason", "the defect is cosmetic"}
 		}},
 		{"motion docket file", "red-chair", func(runDir, gap string) []string {
 			return []string{"motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair", "--id", gap,
@@ -194,7 +194,7 @@ func TestARegradeLandingAsTheMotionWritesIsSeen(t *testing.T) {
 	regradeAct := recordtest.At(t, lensSeat, "", &recordpb.Regrade{GapId: proto.String(gap),
 		Severity: recordpb.Grade_GRADE_HIGH.Enum(), Basis: proto.String("re-audited")})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{regradeAct}, func() error {
-		return gradeMotion(t, runDir, gap)
+		return docketMotion(t, runDir, gap)
 	})
 	if err == nil || !strings.Contains(err.Error(), "regraded "+gap) {
 		t.Fatalf("a regrade that landed as the motion wrote was not seen: %v", err)
@@ -202,8 +202,8 @@ func TestARegradeLandingAsTheMotionWritesIsSeen(t *testing.T) {
 }
 
 // CONCURRENT SEATS, FUZZED. Seats open sittings, the minting lens closes and regrades, other seats
-// file grade motions on the gaps, in a seeded random interleaving. The oracle is independent of the
-// tool's fold: for every recorded grade motion, no close or regrade on that gap by another seat lies
+// file docket motions on the gaps, in a seeded random interleaving. The oracle is independent of the
+// tool's fold: for every recorded docket motion, no close or regrade on that gap by another seat lies
 // between the filer's read point (its sitting's opening, or the last stale refusal on that gap in the
 // sitting) and the motion. And no refusal loops: a refused motion filed again with nothing new in
 // between is recorded.
@@ -217,7 +217,9 @@ func TestConcurrentSeatsFileNoMotionAgainstAGapThatMovedUnderThem(t *testing.T) 
 			for i := 0; i < 3; i++ {
 				gaps = append(gaps, mintGap(t, runDir, fmt.Sprintf("fz%d", i), "false_universal"))
 			}
-			closed := map[string]bool{}
+			// A docketed gap is the bench's to dispose of until it rules, so the lens closes only
+			// a gap no motion stands on.
+			closed, docketed := map[string]bool{}, map[string]bool{}
 			for _, f := range filers {
 				sit(t, runDir, f)
 			}
@@ -227,7 +229,7 @@ func TestConcurrentSeatsFileNoMotionAgainstAGapThatMovedUnderThem(t *testing.T) 
 				switch r := rng.Intn(10); {
 				case r < 2:
 					sit(t, runDir, filers[rng.Intn(len(filers))])
-				case r < 3 && !closed[gap]:
+				case r < 3 && !closed[gap] && !docketed[gap]:
 					closeRepaired(t, runDir, gap)
 					closed[gap] = true
 				case r < 4 && !closed[gap]:
@@ -239,22 +241,23 @@ func TestConcurrentSeatsFileNoMotionAgainstAGapThatMovedUnderThem(t *testing.T) 
 				case !closed[gap]:
 					f := filers[rng.Intn(len(filers))]
 					file := func() error {
-						_, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", f, "--id", gap,
-							"--dimension", "severity", "--proposed", "low", "--reason", fmt.Sprintf("step %d", step))
+						_, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", f, "--id", gap,
+							"--reason", fmt.Sprintf("step %d", step))
 						return err
 					}
 					err := file()
-					// A motion proposing the grade the gap already holds is refused for that, whatever moved.
-					if err == nil || strings.Contains(err.Error(), "asks for no change") {
+					if err == nil {
+						docketed[gap] = true
 						continue
 					}
 					if !strings.Contains(err.Error(), "changed after your sitting opened") {
-						t.Fatalf("motion grade file: %v", err)
+						t.Fatalf("motion docket file: %v", err)
 					}
 					refusals++
 					if err := file(); err != nil {
 						t.Fatalf("a refused motion filed again with nothing new since was refused — a refusal loop: %v", err)
 					}
+					docketed[gap] = true
 				}
 			}
 			if bad := staleMotionsOn(t, runDir); len(bad) > 0 {
@@ -265,7 +268,7 @@ func TestConcurrentSeatsFileNoMotionAgainstAGapThatMovedUnderThem(t *testing.T) 
 	}
 }
 
-// staleMotionsOn is the oracle: every grade motion with another seat's close or regrade on its gap
+// staleMotionsOn is the oracle: every docket motion with another seat's close or regrade on its gap
 // after the filer's read point.
 func staleMotionsOn(t *testing.T, runDir string) []string {
 	t.Helper()
@@ -289,8 +292,8 @@ func staleMotionsOn(t *testing.T, runDir string) []string {
 			gap = e.GetClose().GetGapId()
 		case e.GetRegrade() != nil:
 			gap = e.GetRegrade().GetGapId()
-		case e.GetMotion().GetGrade() != nil:
-			gap = e.GetMotion().GetGrade().GetGapId()
+		case e.GetMotion().GetDocket() != nil:
+			gap = e.GetMotion().GetDocket().GetGapId()
 			motions++
 			sitting := win.Of(e).SittingID
 			read := sitting
@@ -311,7 +314,7 @@ func staleMotionsOn(t *testing.T, runDir string) []string {
 		}
 	}
 	if motions == 0 {
-		t.Fatal("the oracle read no grade motion — it measured nothing")
+		t.Fatal("the oracle read no docket motion — it measured nothing")
 	}
 	return bad
 }

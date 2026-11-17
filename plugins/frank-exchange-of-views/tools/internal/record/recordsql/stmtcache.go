@@ -24,7 +24,7 @@ import (
 // kept by the connection serves both, because both reach the one connection.
 //
 // KEYED BY THE SQL TEXT, AND BOUNDED BY THE CODE. Every read the record issues is a constant, or a
-// constant with a table or column name the code chose spliced in (listValuesByEvent, eventsWhere's
+// constant with a table or column name the code chose spliced in (eventsWhere's
 // type list), so the distinct texts a process can issue are fixed by the binary — about a hundred.
 // A text carrying a value would make the set grow with the data, so the cache also stops taking
 // statements at maxCachedStatements and runs any further text as an uncached query; a cache that

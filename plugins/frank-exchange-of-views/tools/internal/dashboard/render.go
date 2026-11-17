@@ -375,13 +375,13 @@ func RenderHTML(m Model) string {
 	}
 
 	// Judiciary.
-	w("\n<h2>Judiciary (rulings, grade motions, and how long arguments actually run)</h2>\n")
-	// Gated on any judiciary figure the record holds: grade motions and argument chains exist
-	// before the bench first sits. An unread record is not a bench that never sat.
+	w("\n<h2>Judiciary (rulings, and how long arguments actually run)</h2>\n")
+	// Gated on any judiciary figure the record holds: argument chains exist before the bench first
+	// sits. An unread record is not a bench that never sat.
 	switch {
 	case !m.Judiciary.Measured:
 		w(`<p class="muted">not measured — the record could not be read</p>`)
-	case m.Judiciary.JudgeSittings != 0 || m.Judiciary.Disputes.Raised != 0 || m.Judiciary.Chains != 0:
+	case m.Judiciary.JudgeSittings != 0 || m.Judiciary.Chains != 0:
 		rulingsStr := "—"
 		if len(m.Judiciary.Rulings) > 0 {
 			keys := sortedKeys(m.Judiciary.Rulings)
@@ -401,16 +401,14 @@ func RenderHTML(m Model) string {
 			spanParts = append(spanParts, esc(itoa(m.Judiciary.ChainSpans[k]))+"×"+esc(itoa(k)))
 		}
 		sittingsStr := itoa(m.Judiciary.JudgeSittings)
-		motionsStr := fmt.Sprintf("raised %d · accepted %d · rejected %d", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected)
 		w("<table>\n")
 		w(`<tr><td>judge sittings</td><td>` + sittingsStr + `</td></tr>` + "\n")
 		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a remand-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
-		w(`<tr><td>grade motions</td><td>` + motionsStr + `</td></tr>` + "\n")
 		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s <span class="muted">(epochs from mint to close, or to now while open)</span></td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
 		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
 		w("</table>")
 	default:
-		w(`<p class="muted">no judge sittings, grade motions or gaps on the record yet</p>`)
+		w(`<p class="muted">no judge sittings or gaps on the record yet</p>`)
 	}
 
 	// The log, off the record: every entry of every type.

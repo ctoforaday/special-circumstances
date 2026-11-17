@@ -30,7 +30,8 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				t.Fatal(err)
 			}
 			byID := map[int64]OldEvent{}
-			var want []OldEvent // the event each source dispatch pins, in dispatch order
+			var want []OldEvent      // the event each source dispatch pins, in dispatch order
+			var wantDispatch []int64 // each source dispatch's own id, in the same order
 			for _, old := range evs {
 				byID[old.ID] = old
 				if old.Word != "dispatch" {
@@ -41,7 +42,7 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				if !ok {
 					t.Fatalf("source dispatch %d pins %d, which is no earlier event of the source", old.ID, pin)
 				}
-				want = append(want, head)
+				want, wantDispatch = append(want, head), append(wantDispatch, old.ID)
 			}
 			if len(want) == 0 {
 				return
@@ -67,11 +68,20 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			for i, e := range m.Events {
 				at[ids[i]] = e
 			}
-			n := 0
+			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT (UnowedEngagements), so its place
+			// in the source's order is passed over.
+			n, dropped := 0, 0
 			for _, e := range m.Events {
 				d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
 				if !ok {
 					continue
+				}
+				if n >= len(want) {
+					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
+				}
+				for n < len(want) && slices.Contains(man.UnowedEngagements, wantDispatch[n]) {
+					n++
+					dropped++
 				}
 				if n >= len(want) {
 					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
@@ -109,8 +119,15 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				n++
 				checked++
 			}
+			for n < len(want) && slices.Contains(man.UnowedEngagements, wantDispatch[n]) {
+				n++
+				dropped++
+			}
 			if n != len(want) {
-				t.Errorf("the migrated record holds %d dispatches, the source %d", n, len(want))
+				t.Errorf("the migrated record holds %d dispatches, the source %d", n-dropped, len(want))
+			}
+			if dropped != len(man.UnowedEngagements) {
+				t.Errorf("%d source dispatches were passed over as unowed engagements, the manifest states %d", dropped, len(man.UnowedEngagements))
 			}
 		})
 	}

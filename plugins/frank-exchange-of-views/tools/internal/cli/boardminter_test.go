@@ -18,7 +18,7 @@ func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 	var board struct {
 		Open []struct {
 			ID       string `json:"id"`
-			MintedBy string `json:"minted_by"`
+			Assignee string `json:"assignee"`
 		} `json:"open"`
 	}
 	if err := json.Unmarshal([]byte(out), &board); err != nil {
@@ -31,16 +31,16 @@ func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 	var list struct {
 		Open []struct {
 			ID       string `json:"id"`
-			MintedBy string `json:"minted_by"`
+			Assignee string `json:"assignee"`
 		} `json:"open"`
 	}
 	if err := json.Unmarshal([]byte(work), &list); err != nil {
 		t.Fatalf("show work: %v\n%s", err, work)
 	}
-	if len(board.Open) != 1 || board.Open[0].ID != id || board.Open[0].MintedBy != lensSeat {
+	if len(board.Open) != 1 || board.Open[0].ID != id || board.Open[0].Assignee != lensSeat {
 		t.Fatalf("the board does not name %s's minter %s: %+v", id, lensSeat, board.Open)
 	}
-	if len(list.Open) != 1 || list.Open[0].MintedBy != board.Open[0].MintedBy {
+	if len(list.Open) != 1 || list.Open[0].Assignee != board.Open[0].Assignee {
 		t.Errorf("the board and the work list name different minters: board %+v, work %+v", board.Open, list.Open)
 	}
 }
@@ -68,7 +68,7 @@ func TestTheBoardStatesTheGapFactsTheWorkListStates(t *testing.T) {
 	if string(board["id"]) != `"`+id+`"` || string(board["material"]) != "true" {
 		t.Fatalf("the board's row for %s, graded medium, is not material: %s", id, board["material"])
 	}
-	for _, k := range []string{"minted_by", "material", "remanded", "docket_direction"} {
+	for _, k := range []string{"assignee", "material", "remanded", "docket_direction"} {
 		b, ok := board[k]
 		if !ok {
 			t.Errorf("the board's row has no %q", k)

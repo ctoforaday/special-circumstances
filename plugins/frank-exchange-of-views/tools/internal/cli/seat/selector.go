@@ -287,7 +287,7 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 // these is about X" is the same question whichever view asked it.
 //
 // IT MATCHES EVERY VALUE OF THE ENTRY, deliberately: a seat hunting a class, a phrase in a problem, a
-// seat id in minted_by or a word in an acceptance check is asking one question — "which of these is
+// seat id in assignee or a word in an acceptance check is asking one question — "which of these is
 // about this?" — and a per-field selector would make it ask once per field, which is the round-trip
 // tax this exists to remove.
 //

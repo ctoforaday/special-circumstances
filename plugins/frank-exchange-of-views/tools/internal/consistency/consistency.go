@@ -61,8 +61,8 @@ type gtGap struct {
 	lastCloseEpoch int
 	sev, lik, imp  recordpb.Grade
 	cx             recordpb.Grade
-	supersedes     []string
-	carriedCount   int // opinions whose disposition defers rather than closes
+	supersedes     string // the one gap this gap supersedes, "" for none
+	carriedCount   int    // opinions whose disposition defers rather than closes
 }
 
 type groundTruth struct {
@@ -158,18 +158,14 @@ func walk(events []*record.Event) *groundTruth {
 			gt.gaps[id] = &gtGap{
 				open: true,
 				sev:  m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
-				supersedes: append([]string{}, m.GetSupersedes()...),
+				supersedes: m.GetSupersedes(),
 			}
 			if m.GetLocation() != "" {
 				gt.placedIDs[id] = true
 			}
 			// A MINT SUPERSEDING AN OPEN GAP CLOSES IT, as its lens's closing act: the first such
 			// mint, where no closing act of either arm came before it.
-			for _, anc := range m.GetSupersedes() {
-				a := gt.gaps[anc]
-				if a == nil || a.everClosed {
-					continue
-				}
+			if a := gt.gaps[m.GetSupersedes()]; a != nil && !a.everClosed {
 				a.firstCloser = "red"
 				a.open, a.everClosed = false, true
 				a.lastCloser = "red"
@@ -507,10 +503,8 @@ func Check(run record.Run) (Result, error) {
 		if !strings.Contains(mmd, `["`+id) && !strings.Contains(mmd, id) {
 			add("graph", "gap %s has no node in the mermaid graph", id)
 		}
-		for _, anc := range g.supersedes {
-			if gt.gaps[anc] == nil {
-				add("lineage", "gap %s supersedes %s, which no mint created", id, anc)
-			}
+		if anc := g.supersedes; anc != "" && gt.gaps[anc] == nil {
+			add("lineage", "gap %s supersedes %s, which no mint created", id, anc)
 		}
 	}
 	if cyc := findCycle(gt); cyc != "" {
@@ -673,7 +667,7 @@ func findCycle(gt *groundTruth) string {
 		path = append(path, id)
 		g := gt.gaps[id]
 		if g != nil {
-			for _, anc := range g.supersedes {
+			if anc := g.supersedes; anc != "" {
 				switch color[anc] {
 				case grey:
 					return strings.Join(append(path, anc), " -> ")

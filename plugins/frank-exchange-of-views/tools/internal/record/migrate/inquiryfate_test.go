@@ -280,16 +280,18 @@ func TestAnArchivedReviewTranslatesToNoEvent(t *testing.T) {
 // quadratic-formula and m20 spell the ruling's column with two different earlier words, the shard
 // era's run2 ruled on subject `inquiry` with a flat ruling word, and m36 wrote the `inquiry` column
 // itself. The chair's word on an inquiry has no equivalent: exactly the archive's rulings on an
-// inquiry translate to none, and no migrated ruling is on an inquiry.
+// inquiry translate to none, beside its rulings on a grade motion (EventSchema 79), and no migrated
+// ruling is on an inquiry.
 func TestAnArchivedInquiryRulingTranslatesToNoEvent(t *testing.T) {
 	for _, c := range []struct {
 		archive string
-		n       int
+		n       int // rulings on an inquiry
+		grade   int // rulings on a grade motion
 	}{
-		{"2026-09-02_quadratic-formula.tar.gz", 5},
-		{"2026-10-11_is-91-prime-m20.tar.gz", 10},
-		{"2026-08-22_is-7-prime-run2.tar.gz", 4},
-		{"2026-10-29_is-91-prime-m36.tar.gz", 5},
+		{"2026-09-02_quadratic-formula.tar.gz", 5, 4},
+		{"2026-10-11_is-91-prime-m20.tar.gz", 10, 0},
+		{"2026-08-22_is-7-prime-run2.tar.gz", 4, 0},
+		{"2026-10-29_is-91-prime-m36.tar.gz", 5, 0},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
 			// The registry's own ruling entry, noting each archived ruling it writes as none. Migrate
@@ -315,8 +317,8 @@ func TestAnArchivedInquiryRulingTranslatesToNoEvent(t *testing.T) {
 			if len(res.Refusals) != 0 {
 				t.Fatalf("refusals: %+v", res.Refusals)
 			}
-			if got := len(none); got != c.n {
-				t.Errorf("%d archived ruling(s) translated to none, want the %d on an inquiry", got, c.n)
+			if got := len(none); got != c.n+c.grade {
+				t.Errorf("%d archived ruling(s) translated to none, want the %d on an inquiry and the %d on a grade motion", got, c.n, c.grade)
 			}
 			fam, err := record.FamilyOf(runtest.Open(t, toDir))
 			if err != nil {

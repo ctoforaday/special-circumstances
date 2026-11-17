@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -43,7 +42,7 @@ import (
 // cite something" is not an affordance, it is advice; "claim c-3 is cited and nobody has verified
 // it" is a fact about this board with one act attached to it.
 //
-// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion grade file` and `retire` turn on a judgement
+// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion docket file` and `retire` turn on a judgement
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
@@ -140,21 +139,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			add(gapItem(ItemDocket, g.ID, "gap "+g.ID+" is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself"))
 		}
 	case "lens":
-		// Accepting a grade motion does not move the grade. Saying so is not doing it.
-		//
-		// ON THE ORIGINATOR'S LIST, AND ONLY WHERE THE WRITE PATH ADMITS THE REGRADE: requireOriginator
-		// refuses it from any other seat, requireOpenGap refuses it on a closed gap, and
-		// writeIn refuses a second regrade of one gap in one sitting. regradesAfforded holds
-		// all three, so no line here offers a seat an act its own write path refuses.
-		minted := mintedBy(evs)
-		//
-		// IT NAMES THE AXIS AND THE GRADE EACH RULING ACCEPTED, off the same reader the gap's
-		// `regrades_owed` field is filled from (WorkOfSeat). Without them the item said a regrade
-		// was owed and not which way: universe-wave-b's architecture lens found the motion's
-		// dimension and proposed grade on no surface it holds, and regraded another axis upward.
-		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
-			add(gapItem(ItemRegradeOwed, o.GapID, "gap "+o.GapID+" had a grade motion ACCEPTED and no regrade followed it: "+o.accepted()+" — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence"))
-		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
 		// A lens dispatched on its own open gap has one question before it re-reads anything: did
@@ -163,14 +147,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// ("the report was at N and is at M"), which is not the same question: the report can move a
 		// great deal without a single edit answering this gap.
 		//
-		// ON THE ORIGINATOR'S LIST, by the same rule as the regrade line above: only the minting seat
-		// re-audits and closes its gap, so this is news for that seat and noise for any other.
+		// ON THE ORIGINATOR'S LIST: only the minting seat re-audits and closes its gap, so this is news for that seat and noise for any other.
 		out = append(out, blueAnswers(evs, win, gaps, seatID)...)
 	}
 	return out
 }
 
-// mintedBy maps each gap to the seat that minted it — the same fact requireOriginator reads off
+// assignee maps each gap to the seat that minted it — the same fact requireOriginator reads off
 // the gap table, read here off the events this derivation already holds.
 func mintedBy(evs []*Event) map[string]string {
 	out := map[string]string{}
@@ -180,140 +163,6 @@ func mintedBy(evs []*Event) map[string]string {
 				out[m.GetGapId()] = e.GetSeatId()
 			}
 		}
-	}
-	return out
-}
-
-// OwedRegradeJSON is one accepted grade motion that still waits for its regrade, as the gap's work
-// item carries it (WorkGapJSON.RegradesOwed): the motion, the axis it contested and the grade the
-// ruling accepted for that axis — the GradeDimension and Grade words, as the filing holds them.
-type OwedRegradeJSON struct {
-	MotionID  string `json:"motion_id"`
-	Dimension string `json:"dimension"`
-	Proposed  string `json:"proposed"`
-}
-
-// owedRegrade is one gap's owed regrade: every accepted grade motion on it that no regrade has
-// followed, in ruling order. One row per gap, because a sitting records one regrade of a gap and
-// that one act carries every axis.
-type owedRegrade struct {
-	GapID   string
-	Motions []OwedRegradeJSON
-	ruled   int64 // the events.id of the latest of their rulings
-}
-
-// accepted states each waiting motion's axis and grade for the work item's sentence. A filing that
-// states no axis or no grade says so in its place: an empty word would read as an axis named "".
-func (o owedRegrade) accepted() string {
-	word := func(w, missing string) string {
-		if w == "" {
-			return missing
-		}
-		return w
-	}
-	parts := make([]string, 0, len(o.Motions))
-	for _, m := range o.Motions {
-		parts = append(parts, fmt.Sprintf("%s to %s (motion %s)", word(m.Dimension, "an axis the motion does not state"), word(m.Proposed, "a grade the motion does not state"), m.MotionID))
-	}
-	return strings.Join(parts, ", ")
-}
-
-// regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose
-// regrade record.Append admits from seatID now, with every such motion's axis and accepted grade.
-// It reads "which regrade does a ruling still wait for" off regradesAwaitedOf and adds the write
-// path's filters: the work item's sentence (availableOf) and the gap's `regrades_owed` field
-// (WorkOfSeat) both come from here.
-//
-// THE DEBT IS THE REGRADE AFTER THE RULING. An accepted grade motion asks the minting lens to move
-// the grade, and a regrade recorded before the ruling answers nothing the ruling said. Any regrade
-// of the gap after the ruling discharges it, whichever way it moves the grade: the item does not
-// block, and a lens that regrades and keeps the grade has answered the ruling on the record, in
-// its basis.
-//
-// IT IS LISTED ONLY WHERE THE WRITE PATH ADMITS IT. Append is validate, then writeIn, and
-// each refusal a regrade can meet on that path has its filter here:
-//
-//   - requireOriginator (the gap is another seat's)    → minted[gap] == seatID
-//   - requireGap (no such gap)                         → the gap is a row of gaps
-//   - requireOpenGap (the gap is CLOSED)               → that row's Open
-//   - writeIn's duplicate key (the seat's              → the seat's current sitting holds no
-//     current sitting already holds a regrade of it)     regrade of the gap
-//
-// The once-per-sitting duty does not reach a regrade (it is no singleton), and the required-field
-// walk refuses the seat's own input, never a state of the gap.
-// TestARegradeOnTheListIsOneTheWritePathAdmits holds the list to Append itself, row by row.
-//
-// THE SAME-SITTING HOLD IS EXACT. A regrade's key carries the count of its seat's sittings
-// (deriveKey) and its stored sitting is the seat's newest at the write; both read the `sittings`
-// view. So an earlier regrade's key is the one a regrade now would derive exactly when its stored
-// sitting is still the seat's latest. Nothing stands in for it this sitting: the first regrade
-// stands, and the duplicate-key refusal names the next sitting's regrade as the act that answers
-// it (supersede.go). The item appears at the seat's next sitting, which is the first that can
-// record the regrade.
-//
-// evs is one read of the whole record in id order. The reader is the work list's whole-record
-// snapshot (WorkOfSeat), so win knows every seat's latest sitting.
-//
-// THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
-// RULING, and motion.go's projection is the one that pairs them and says WHICH ruling a motion
-// carries and WHERE it sits — the first, in the place it was made. regradesAwaitedOf asks it for the
-// verdict and the place together, so the regrade is weighed against the ruling whose verdict is read.
-func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
-	latest := win.LatestSittingOf(seatID)
-	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
-	for _, e := range evs {
-		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" && e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
-			heldThisSitting[r.GetGapId()] = true
-		}
-	}
-	open := map[string]bool{}
-	for _, g := range gaps {
-		if g.Open {
-			open[g.ID] = true
-		}
-	}
-	var out []owedRegrade
-	for _, o := range regradesAwaitedOf(evs, win, open) {
-		if minted[o.GapID] == seatID && !heldThisSitting[o.GapID] {
-			out = append(out, o)
-		}
-	}
-	return out
-}
-
-// regradesAwaitedOf is each open gap of open whose accepted grade motion no regrade has followed,
-// with every such motion's axis and accepted grade and the events.id of the latest ruling among
-// them. It is the one reading of "which regrade does a ruling still wait for" before the write
-// path's filters: the minting lens is offered it (regradesAfforded), and owes it while it has not
-// sat since the ruling (lensOwesOf).
-func regradesAwaitedOf(evs []*Event, win WindowIndex, open map[string]bool) []owedRegrade {
-	ids := win.IDs(evs)
-	lastRegrade := map[string]int64{} // gap → events.id of its last regrade, by any seat
-	for i, e := range evs {
-		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
-			lastRegrade[r.GetGapId()] = ids[i]
-		}
-	}
-	var out []owedRegrade
-	row := map[string]int{} // gap → its row of out
-	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject != "grade" || m.Ruling != "accepted" {
-			continue
-		}
-		id := m.GapID
-		if id == "" || !open[id] {
-			continue
-		}
-		if at, regraded := lastRegrade[id]; regraded && at > m.ruled {
-			continue
-		}
-		k, listed := row[id]
-		if !listed {
-			k, row[id] = len(out), len(out)
-			out = append(out, owedRegrade{GapID: id})
-		}
-		out[k].Motions = append(out[k].Motions, OwedRegradeJSON{MotionID: m.ID, Dimension: m.Fields["dimension"], Proposed: m.Fields["proposed"]})
-		out[k].ruled = max(out[k].ruled, m.ruled)
 	}
 	return out
 }

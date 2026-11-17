@@ -222,10 +222,10 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 			t.Fatalf("want both gaps on the list (a lens sees the open set): %+v", w.Open)
 		}
 		for _, g := range w.Open {
-			mine := g.MintedBy == reader
+			mine := g.Assignee == reader
 			if g.YoursToClose != mine {
 				t.Errorf("%s reading %s: yours_to_close=%v but minted_by=%q — the field must answer for THIS reader",
-					reader, g.ID, g.YoursToClose, g.MintedBy)
+					reader, g.ID, g.YoursToClose, g.Assignee)
 			}
 			// The prose that made a seat leave this list for the board.
 			if g.AcceptanceCheck == "" || g.RequiredFix == "" || g.Problem == "" {

@@ -371,7 +371,6 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue
 // `enginegen -check`.
 // BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums, record.Plan and record.LensEnvelope. DO NOT EDIT BY HAND.
 const GRADE = { type: 'string', enum: ['trivial', 'low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized'] }
-const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
 const BENCH_HEARINGS = ['petition', 'position']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }

@@ -91,13 +91,14 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// mints had closed (epoch 62) — LESS the 26 repair receipts, whose repair is its edit, written as
 	// none (epoch 65) — LESS the 40 findings and the 40 Anchors that placed their tokens, which a
 	// lens's defect no longer writes, and the 1 reading whose quote was only a finding's token and a
-	// dropped label's (source event 758), written as none (epoch 78).
-	if outTotal != 697 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
+	// dropped label's (source event 758), written as none (epoch 78) — LESS the 4 grade motions and
+	// their 4 rulings, written as none (epoch 79).
+	if outTotal != 689 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
 		res.In["verify"] != 111 || res.Out["verify"] != 110 || !slices.Equal(res.QuotelessReadings, []int64{758}) || res.In["manifest_row"] != 26 || res.Out["manifest_row"] != 0 || res.In["close"] != 10 || res.Out["close"] != 3 || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || len(res.GapAnchors.Shapes) != 1 {
-		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading = 697 out; got %d (in %v, out %v), anchors added %v, quoteless %v", outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
+		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading - 4 grade motions - 4 grade rulings = 689 out; got %d (in %v, out %v), anchors added %v, quoteless %v", outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
 	}
-	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]+17 || res.Out["motion_rule"] != res.In["motion_rule"]+17-5 {
+	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]+17-4 || res.Out["motion_rule"] != res.In["motion_rule"]+17-5-4 {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)
 	}
 

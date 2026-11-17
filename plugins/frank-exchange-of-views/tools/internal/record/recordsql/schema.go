@@ -283,7 +283,10 @@ CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
 -- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
-CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
+CREATE INDEX "mint_ancestor" ON "mint" ("supersedes", "event_id");
+-- A gap's tombstones of one kind, in order (tombstone_standing; the readers by gap, every standing
+-- ruling row, every standing estoppel row): each read knows its kind.
+CREATE INDEX "tombstone_kind_gap" ON "tombstone" ("kind", "gap_id", "event_id");
 `
 
 func Schema() (string, error) {
@@ -773,7 +776,7 @@ CREATE TABLE %q (
 // oneofColumns models a real oneof.
 //
 // Scalar and enum arms become nullable columns with a CHECK that at most one is present — the
-// schema saying, structurally, that a grade motion cannot carry a petition's verdict.
+// schema saying, structurally, that a docket motion cannot carry a petition's verdict.
 //
 // Message arms cannot be columns, so each becomes its own table and the parent carries a `_case`
 // discriminator. The exactly-one rule then spans tables and is enforced on the write instead; that

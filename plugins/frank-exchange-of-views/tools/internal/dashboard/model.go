@@ -69,7 +69,6 @@ type Judiciary struct {
 	Measured      bool
 	JudgeSittings int
 	Rulings       map[string]int
-	Disputes      struct{ Raised, Accepted, Rejected int }
 	ChainSpans    map[int]int
 	Chains        int
 	MigDown       int
@@ -456,11 +455,11 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 }
 
 // buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
-// grade-motion traffic, the latest recorded verdict, and how long arguments live over supersedes
+// the latest recorded verdict, and how long arguments live over supersedes
 // chains (union-find), with grade migration.
 //
 // THE RECORD, NOT THE JOURNAL. The record holds every input as a field a writer can refuse —
-// docket and grade motions with their rulings, the chair's gate, each gap's mint and close epoch,
+// docket motions with their rulings, the chair's gate, each gap's mint and close epoch,
 // its grades then and now, and what it supersedes. A journal envelope carries only what its
 // seat's schema declares, and a key no schema declares reads as an empty list on every run: the
 // page for a bench that never sat.
@@ -476,19 +475,8 @@ func buildJudiciary(fam record.Family) Judiciary {
 		}
 	}
 	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		switch m.Subject {
-		case "docket":
-			if m.Ruled() {
-				j.Rulings[m.Ruling]++
-			}
-		case "grade":
-			j.Disputes.Raised++
-			switch m.Ruling {
-			case "accepted":
-				j.Disputes.Accepted++
-			case "rejected":
-				j.Disputes.Rejected++
-			}
+		if m.Subject == "docket" && m.Ruled() {
+			j.Rulings[m.Ruling]++
 		}
 	}
 	// The epoch an open gap has lived to is the record's current one: the last with work in it.
@@ -535,8 +523,8 @@ func buildJudiciary(fam record.Family) Judiciary {
 			lastMass:  record.GapMass(recordpb.Word(g.Likelihood), recordpb.Word(g.Impact)),
 		}
 		gapOrder = append(gapOrder, g.ID)
-		// UNION THE ROOTS: a gap superseding several ancestors joins all their chains into one.
-		for _, anc := range mint.GetSupersedes() {
+		// UNION THE ROOTS: a gap superseding its ancestor joins the ancestor's chain.
+		if anc := mint.GetSupersedes(); anc != "" {
 			if ra, rg := find(anc), find(g.ID); ra != rg {
 				parent[ra] = rg
 			}

@@ -478,19 +478,23 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 			Class:     recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes: supersedes,
+			Supersedes: firstAncestor(supersedes),
 		}
 	}
 
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
 	}
-	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1", "G3"))
+	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G3"))
 	if err == nil {
 		t.Fatal("a dangling ancestor was accepted")
 	}
 	if !strings.Contains(err.Error(), "G3") || !strings.Contains(err.Error(), "dangling lineage refused") {
 		t.Errorf("error must name the dangling id: %v", err)
+	}
+	// A mint naming itself names a gap the record does not hold before it.
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G2")); err == nil || !strings.Contains(err.Error(), "dangling lineage refused") {
+		t.Errorf("a mint naming itself was not refused as dangling: %v", err)
 	}
 	// An empty lineage is not a dangling one.
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
@@ -852,61 +856,10 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	})
 }
 
-// A GRADE MOTION MUST ASK FOR A CHANGE.
+// EVERY GRADE AXIS IS READABLE, or a reader of the one that is not silently misreads it.
 //
-// Proposing the grade already on the board contests nothing, and the ruling it produces is
-// unreadable: `rejected` on a no-op and `rejected` on the merits are the same word, in the one
-// exchange built to make that distinction legible. Measured 2026-08-22 — with severity already
-// `high`, `--dimension severity --proposed high` filed cleanly.
-func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
-	runDir := newRun(t)
-	for _, s := range []string{"red-chair", "blue-respond"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
-		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
-		Class: recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
-		return validateRun(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("the grade overstates it"),
-			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId: proto.String("G1"), Dimension: &dim, Proposed: &proposed,
-			}},
-		})
-	}
-
-	// The no-op: severity is already high.
-	err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_HIGH)
-	if err == nil {
-		t.Error("a motion proposing the grade already on the board was accepted — the ruling on it cannot be told from a ruling on the merits")
-	} else if !strings.Contains(err.Error(), "already") {
-		t.Errorf("the refusal does not say the grade is already that value, so a seat cannot see what is wrong: %v", err)
-	}
-
-	// A REAL ask on the same axis still files.
-	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_LOW); err != nil {
-		t.Errorf("a motion asking for an actual change was refused: %v", err)
-	}
-	// And the check is PER AXIS: `high` is a real move on an axis that is `medium`.
-	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT, recordpb.Grade_GRADE_HIGH); err != nil {
-		t.Errorf("the no-op check is reading the wrong axis — impact is medium, so proposing high is a change: %v", err)
-	}
-}
-
-// EVERY GRADE AXIS IS READABLE, or the no-op check silently stops working on the one that is not.
-//
-// GradeAt's zero differs from any real proposal, so an unhandled dimension would accept every
-// motion on that axis while reporting nothing. The second return exists to make that loud; this
+// GradeAt's zero differs from every real grade, so an unhandled dimension would misread every
+// grade on that axis while reporting nothing. The second return exists to make that loud; this
 // asserts the enum and the switch have not drifted apart.
 func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 	g := &Gap{}
@@ -918,7 +871,7 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 			continue
 		}
 		if _, ok := g.GradeAt(d); !ok {
-			t.Errorf("Gap.GradeAt cannot read %q — the no-op-motion check would accept every motion on that axis and say nothing", recordpb.Word(d))
+			t.Errorf("Gap.GradeAt cannot read %q — a reader of that axis would misread every grade on it and say nothing", recordpb.Word(d))
 		}
 		checked++
 	}

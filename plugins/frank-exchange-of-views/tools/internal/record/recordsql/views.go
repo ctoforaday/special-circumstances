@@ -379,6 +379,17 @@ SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "chec
        (SELECT MIN(ra."event_id") FROM "retire_anchors" ra WHERE ra."value" = p."anchor_id") AS "retired_event"
 FROM "placed" p;
 
+-- THE TOMBSTONES THAT STAND: per (gap_id, kind), the latest row, where it places one. A tombstone is
+-- written by the tool in the transaction of the act that owes it (record.writeTombstones); an end
+-- row on the same pair ends it, and a later placement stands again. One lookup per row on
+-- tombstone_kind_gap.
+CREATE VIEW "tombstone_standing" AS
+SELECT t."event_id" AS "event_id", t."gap_id" AS "gap_id", t."kind" AS "kind", t."motion_id" AS "motion_id"
+FROM "tombstone" t
+WHERE t."ends" IS NULL
+  AND NOT EXISTS (SELECT 1 FROM "tombstone" l
+                  WHERE l."kind" = t."kind" AND l."gap_id" = t."gap_id" AND l."event_id" > t."event_id");
+
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
 -- is about, checked by its minter — a cited source's claim_contradicts_source or
 -- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
@@ -434,7 +445,9 @@ CREATE VIEW "demand_reach" AS
 --   bench_closed_last   whose word stands: a bench ruling after red's close overrules red's word, and
 --                       the closure's epoch is that act's.
 --   supersede_event, superseded_by  the mint that closed the gap by superseding it, and its gap.
---   supersedes_count    the gaps the mint names in its supersedes.
+--   supersedes          the one gap the mint names in its supersedes, NULL for none.
+--   assignee            whose gap it is: its chain's origin (recordsql.assigneeSQL) — who owes its
+--                       closing, hears proposals on it first and may regrade or close it.
 --   current_*, material the grades that stand now and the materiality rule over them: gap_grade's
 --                       standing row. The plain severity columns are MINT-TIME grades.
 --   evidence_answered, awaiting_evidence  the live-answer demand, met, and an open gap whose check
@@ -472,14 +485,14 @@ SELECT
   m."complexity_cost"          AS "complexity_cost",
   e."id"                       AS "minted_seq",
   e."epoch"                    AS "minted_epoch",
-  e."seat_id"                  AS "minted_by",
+  s."assignee"                 AS "assignee",
   s."close_event"              AS "close_event",
   s."bench_close_event"        AS "bench_close_event",
   s."closed_by_bench"          AS "closed_by_bench",
   s."bench_closed_last"        AS "bench_closed_last",
   s."supersede_event"          AS "supersede_event",
   s."open"                     AS "open",
-  s."supersedes_count"         AS "supersedes_count",
+  s."supersedes"               AS "supersedes",
   s."current_severity"         AS "current_severity",
   s."current_likelihood"       AS "current_likelihood",
   s."current_impact"           AS "current_impact",
@@ -536,7 +549,7 @@ WITH "point" AS MATERIALIZED (
 ),
 "minted" AS MATERIALIZED (
   SELECT m."event_id" AS "minted_event", e."epoch" AS "minted_epoch",
-         st."supersedes_count" = 0 AS "fresh", st."closed_event" AS "closed_event"
+         st."supersedes" IS NULL AS "fresh", st."closed_event" AS "closed_event"
   FROM "mint" m
   JOIN "gap_state" st ON st."minted_event" = m."event_id"
   JOIN "events" e ON e."id" = m."event_id"
@@ -599,15 +612,15 @@ FROM "gap_state";
 CREATE VIEW "motion_answers" AS
 SELECT
   ids."motion_id"                                        AS "motion_id",
-  fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
   -- Its two siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
-  rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", rd."disposition") AS "ruling",
+  -- AN ANSWER TO A PROPOSED ACT reads as its word: accepted or rejected.
+  ` + docketWordSQL(`rd`) + `                             AS "docket",
+  COALESCE(fr."petition", ` + docketWordSQL(`rd`) + `)   AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
 FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
@@ -707,6 +720,7 @@ var NotActs = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_REPORT_READ,
 	recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED,
 	recordpb.EventType_EVENT_TYPE_PLAN,
+	recordpb.EventType_EVENT_TYPE_TOMBSTONE,
 }
 
 // evidenceAnchorArmsSQL is the evidence_anchor view's placing arms: one per EvidenceTables row,
@@ -729,7 +743,7 @@ func evidenceAnchorArmsSQL() string {
 // walks every mint about an anchor).
 func demandReachSQL(lineage string) string {
 	return `SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+       a."about_ref" AS "anchor", ` + assigneeSQL(`a`, `e`) + ` AS "seat", h."event_id" AS "reached"
 FROM ` + lineage + `
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "mint" a ON a."gap_id" = l."from_gap"
@@ -745,6 +759,12 @@ func evidenceChecksSQL() string {
 		words[i] = "'" + t.Check + "'"
 	}
 	return strings.Join(words, ", ")
+}
+
+// docketWordSQL is a docket ruling's word over its row r (an SQL alias): accepted or rejected where it
+// answers a proposed act, else its disposition.
+func docketWordSQL(r string) string {
+	return `(CASE ` + r + `."accepted" WHEN 1 THEN 'accepted' WHEN 0 THEN 'rejected' ELSE ` + r + `."disposition" END)`
 }
 
 // notActsSQL is NotActs as the quoted words of events.type, comma-separated.

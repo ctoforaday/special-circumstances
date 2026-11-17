@@ -69,7 +69,7 @@ func Fresh(seatID, gapID string) Guard {
 // staleOf is StaleOn over a loaded stream.
 //
 // WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, a
-// reaching retire, an accepted grade motion awaiting its regrade, the bench's remand — and the acts that
+// reaching retire, the bench's remand — and the acts that
 // move the gap's state, which that fold leaves out because they are its minting lens's own or end
 // the gap: a close, a regrade, the bench's ruling on a docket motion on it, and its upholding of a
 // position naming it, which remands it. A seat's own acts are
@@ -103,7 +103,7 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 			out = append(out, StaleChange{ID: at, SeatID: seatAt[at], What: what})
 		}
 	}
-	for _, n := range gapNewsOf(evs, ids, win, []blockerGap{{id: gapID, mintedBy: minter}}) {
+	for _, n := range gapNewsOf(evs, ids, win, []blockerGap{{id: gapID, assignee: minter}}) {
 		add(n.at, n.item)
 	}
 	for i, e := range evs {

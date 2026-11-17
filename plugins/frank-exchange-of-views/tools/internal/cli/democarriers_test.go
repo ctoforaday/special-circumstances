@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
@@ -230,7 +231,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"EVIDENCE NEVER STANDS BARE. A replacement that would leave a citation's or computation's anchor with no prose before it in its sentence is refused, whether your quote holds it or not",
 		}},
 		{"reproduce --help", page(lensSeat, "reproduce"), []string{
-			"A COMPUTATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, and nothing is recorded",
+			seat.UnplacedEvidenceRule,
 		}},
 		{"close --help", page(lensSeat, "close"), []string{
 			"under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included",

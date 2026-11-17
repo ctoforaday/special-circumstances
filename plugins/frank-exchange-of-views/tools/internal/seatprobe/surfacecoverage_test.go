@@ -178,7 +178,6 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		what string
 		has  func(Board) bool
 	}{
-		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"inquiry check":        {"a settled inquiry", func(b Board) bool { return slices.ContainsFunc(b.Inquiries, settled) }},

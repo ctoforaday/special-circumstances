@@ -81,40 +81,6 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	}
 }
 
-// The full grade dispute: blue contests, the chair accepts, the originating lens regrades. The regrade is a
-// SEPARATE act from the acceptance, and the board must end up showing the moved grade —
-// an accepted dispute that never moves the grade is agreement with no consequence.
-func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
-	runDir := seatRun(t)
-	id := mintGap(t, runDir, "grade-moves", "doctrine_vs_implementation")
-
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("motion grade file: %v", err)
-	}
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("motion grade rule: %v", err)
-	}
-	// The lens answers the ruling at a sitting opened after it, as the engine dispatches it: a lens
-	// whose sitting opened before the ruling has not read it, and its regrade is refused until it has.
-	sit(t, runDir, lensSeat)
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat,
-		"--id", id, "--severity", "low",
-		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
-		t.Fatalf("lens regrade: %v", err)
-	}
-
-	ev := lastBody(t, runDir, &recordpb.Regrade{})
-	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_LOW {
-		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", recordpb.Word(got))
-	}
-	if !setFields(ev)["basis"] {
-		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
-	}
-}
-
 // A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
 // one record, or the relief the bench grants binds nobody.

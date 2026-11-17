@@ -95,10 +95,6 @@ Run `feov-record regrade --help` for what it takes, flag by flag.
 exit 2
 feov-record: motion docket: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle
 
-── grade motion filed by the chair, which rules it
-exit 2
-feov-record: motion grade: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue, lane and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
-
 ── docket motion filed by the bench, which rules it
 exit 2
 feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair, lane and lens seats file one.
@@ -172,17 +168,6 @@ feov-record: close: --as takes one of repaired|repaired_with_regression|amends_p
     moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 
 Run `feov-record close --help` for what it takes, flag by flag.
-
-── grade motion dimension outside the set
-exit 2
-feov-record: motion grade file: --dimension takes one of severity|likelihood|impact|complexity, not "banana". The ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing
-
-    severity    how bad the defect is in itself
-    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
-    impact      how bad the consequence is if it lands
-    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable
-
-Run `feov-record motion grade file --help` for what it takes, flag by flag.
 
 ── verification outcome outside the set
 exit 2
@@ -301,7 +286,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     judge an inquiry blue settled — `check` records that its latest fate stands as the report's account of it
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -344,7 +329,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -390,7 +375,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -433,7 +418,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -475,7 +460,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -516,7 +501,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -656,7 +641,7 @@ feov-record: closing: GAP001 is not before the bench: no docket motion on it sta
 ── blue puts GAP001 before the bench, so its closing argues a docketing
 exit 2
 feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
-  event 46, red-lens-evidence: regraded GAP001
+  event 45, red-lens-evidence: regraded GAP001
 
 Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
 
@@ -695,7 +680,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

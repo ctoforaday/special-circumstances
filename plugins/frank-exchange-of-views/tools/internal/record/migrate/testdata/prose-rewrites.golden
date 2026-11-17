@@ -1026,7 +1026,6 @@
 2026-08-23_research-loop-counterparts	BlueEdit.text	Q10 -> Q-5b0c50e4	the recommendation contingent, with the Q10 prototype as its acceptance test.
 2026-08-23_research-loop-counterparts	BlueEdit.text	R2-4 -> G-378f49ff	R2-4 (L6-F6), propagation to Filable finding
 2026-08-23_research-loop-counterparts	BlueEdit.text	Q10 -> Q-5b0c50e4	t-now cleanly. Marked contingent on the Q10 prototype confirming the kernel degrade
-2026-08-23_research-loop-counterparts	Motion.basis	R2-2 -> G-a78e0c3b	R2-2 likelihood: I contest medium, propose l
 2026-08-23_research-loop-counterparts	Inquiry.reason	R1-4 -> G-cb34ef9a	the differentiator. The BSL leaf-check (R1-4) remains the specific grounding; the co
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q2 -> Q-f42ac4fa	Reaffirmed. Red voted Q2 unsupported because the report's kernel
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q10 -> Q-5b0c50e4	-extraction recommendation contradicted Q10's own prototype caveat. R2-4 (edits E8/
@@ -1047,7 +1046,6 @@
 2026-08-23_research-loop-counterparts	Position.text	R2-1 -> G-1ab70c8e	airs rather than verbatim settlements. R2-1 (OKF re-pin over-generalized): conceded
 2026-08-23_research-loop-counterparts	Position.text	Q3 -> Q-309f1dd6	ped both recommendation sites (Analysis Q3, finding #3) to the genuinely-duplicate
 2026-08-23_research-loop-counterparts	Position.text	R2-2 -> G-a78e0c3b	at validates exactly those two fields. R2-2 (held-out detector unqualified): conced
-2026-08-23_research-loop-counterparts	Position.text	M1 -> M-e3eb567b	gap's likelihood grade: I filed motion M1 disputing medium -> low-medium, because
 2026-08-23_research-loop-counterparts	Position.text	R2-3 -> G-9127efcc	ipped the fix regardless of the grade. R2-3 (injection modeled on proposal path onl
 2026-08-23_research-loop-counterparts	Position.text	R2-4 -> G-378f49ff	ontrol bounds it at the pinned commit. R2-4 (kernel-extraction stated validated-now
 2026-08-23_research-loop-counterparts	Position.text	Q10 -> Q-5b0c50e4	e recommendation's own originating line Q10 already records that extraction risks a
@@ -1065,7 +1063,6 @@
 2026-08-23_research-loop-counterparts	Position.text	R2-2 -> G-a78e0c3b	— Q3 refined by R2-1, Q21 expanded by R2-2/R2-3, the rest unchanged because R2's g
 2026-08-23_research-loop-counterparts	Position.text	R2-3 -> G-9127efcc	3 refined by R2-1, Q21 expanded by R2-2/R2-3, the rest unchanged because R2's gaps w
 2026-08-23_research-loop-counterparts	Log.text	Q24 -> Q-62d62b55	vent would be manufactured theater (the Q24-decline reasoning, and capture.go's own
-2026-08-23_research-loop-counterparts	Log.text	M1 -> M-e3eb567b	ng on a docketed gap this round; motion M1 is freshly filed and owes red a ruling
 2026-08-23_research-loop-counterparts	Verify.text	c-c98aca6b -> C-c98aca6b	ical foundations B, OKF permissiveness (c-c98aca6b). Round-3 spot-check re-read of blue's
 2026-08-23_research-loop-counterparts	Verify.text	c-08b0b6e5 -> C-08b0b6e5	oundations B, OKF Attested Computation (c-08b0b6e5). Round-3 spot-check re-read of blue's
 2026-08-23_research-loop-counterparts	Verify.text	R2-2 -> G-a78e0c3b	e-reliability finding that round-2 edit R2-2 restated into the Analysis residual par
@@ -1099,9 +1096,7 @@
 2026-08-23_research-loop-counterparts	Mint.mint_reason	R2-3 -> G-9127efcc	which blue's text does, literally -- so R2-3 closes clean on its own check; this is
 2026-08-23_research-loop-counterparts	Mint.mint_reason	R2-3 -> G-9127efcc	d under one label), the same pattern as R2-3 itself being a fresh incident against R
 2026-08-23_research-loop-counterparts	Mint.mint_reason	R1-5 -> G-343e743c	3 itself being a fresh incident against R1-5's clean closure rather than a reopen of
-2026-08-23_research-loop-counterparts	Regrade.basis	M1 -> M-e3eb567b	Per accepted motion M1: likelihood measures the consequence (f
 2026-08-23_research-loop-counterparts	Close.prose	Q3 -> Q-309f1dd6	Repaired. Blue's edits (Analysis Q3, Filable finding #3) exempt confidence/
-2026-08-23_research-loop-counterparts	Close.prose	M1 -> M-e3eb567b	raded to low-medium per accepted motion M1; severity/impact/complexity unchanged.
 2026-08-23_research-loop-counterparts	Close.prose	R3-3 -> G-4be03018	ses under one label) -- minted fresh as R3-3 rather than reopening this gap, since m
 2026-08-23_research-loop-counterparts	Close.anchor_target	Q2 -> Q-f42ac4fa	blue/report.md Analysis Q2; Filable finding #1
 2026-08-23_research-loop-counterparts	Close.prose	Q10 -> Q-5b0c50e4	ntingent, not validated-now, naming the Q10 prototype (against all three payloads)
@@ -1114,14 +1109,12 @@
 2026-08-23_research-loop-counterparts	SpotCheck.reason	R1-4 -> G-cb34ef9a	Answers exactly as described; no drift. R1-4/R1-5/R1-6 not re-sampled this round; no
 2026-08-23_research-loop-counterparts	SpotCheck.reason	R1-5 -> G-343e743c	rs exactly as described; no drift. R1-4/R1-5/R1-6 not re-sampled this round; no roun
 2026-08-23_research-loop-counterparts	SpotCheck.reason	R1-6 -> G-0e62e322	actly as described; no drift. R1-4/R1-5/R1-6 not re-sampled this round; no round-3 f
-2026-08-23_research-loop-counterparts	Log.text	M1 -> M-e3eb567b	raised, appealed, or a rejected motion; M1 I ACCEPTED, and the three fresh mints c
 2026-08-23_research-loop-counterparts	Position.text	R2-1 -> G-1ab70c8e	lens's own claim to have checked them. R2-1 through R2-4 all close as repaired this
 2026-08-23_research-loop-counterparts	Position.text	R2-4 -> G-378f49ff	aim to have checked them. R2-1 through R2-4 all close as repaired this round, each
 2026-08-23_research-loop-counterparts	Position.text	R2-1 -> G-1ab70c8e	lue's actual edits rather than assumed: R2-1's numeric-field exemption I independent
 2026-08-23_research-loop-counterparts	Position.text	R2-2 -> G-a78e0c3b	ount, credibility inferred not stored); R2-2, R2-3, R2-4 I checked against my own st
 2026-08-23_research-loop-counterparts	Position.text	R2-3 -> G-9127efcc	credibility inferred not stored); R2-2, R2-3, R2-4 I checked against my own stated a
 2026-08-23_research-loop-counterparts	Position.text	R2-4 -> G-378f49ff	ility inferred not stored); R2-2, R2-3, R2-4 I checked against my own stated accepta
-2026-08-23_research-loop-counterparts	Position.text	M1 -> M-e3eb567b	ruction of blue's counter-edit. Motion M1: accepted. Blue's v2-likelihood argumen
 2026-08-23_research-loop-counterparts	Position.text	R3-1 -> G-617ad72a	rong axis. Regraded. Three fresh gaps: R3-1 (Catechism items 2/5 restate the combin
 2026-08-23_research-loop-counterparts	Position.text	Q1 -> Q-18ab4298	ence claim as flat fact where items 3/4/Q1 grade the identical claim as search-bou
 2026-08-23_research-loop-counterparts	Position.text	R3-2 -> G-c027af8a	the identical claim as search-bounded); R3-2 (Filable finding #2's write-time valida
@@ -1264,14 +1257,6 @@
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-3 -> G-0a908b3c	R4-3 (risk-coverage-omission), Catechism ite
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-2 -> G-52fb6a62	R4-2 (risk-coverage-omission on the stop-con
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-3 -> G-0a908b3c	input-trust controls. Composition with R4-3: the same stop-condition also reference
-2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	R4-3 complexity, medium → low. The complex
-2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	is worth more than the defect." Fixing R4-3 is textual: name the egress axis in ite
-2026-08-23_research-loop-counterparts	Motion.basis	R4-1 -> G-2bd25793	ntrol coverage — exactly the shape of R4-1 and R4-2, both of which red graded comp
-2026-08-23_research-loop-counterparts	Motion.basis	R4-2 -> G-52fb6a62	erage — exactly the shape of R4-1 and R4-2, both of which red graded complexity LO
-2026-08-23_research-loop-counterparts	Motion.basis	R4-1 -> G-2bd25793	o the board is internally inconsistent: R4-1/R4-2 complexity=low prices the textual
-2026-08-23_research-loop-counterparts	Motion.basis	R4-2 -> G-52fb6a62	board is internally inconsistent: R4-1/R4-2 complexity=low prices the textual repai
-2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	mplexity=low prices the textual repair, R4-3 complexity=medium prices the mitigation
-2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	t change the disposition — I repaired R4-3 this round regardless — it corrects t
 2026-08-23_research-loop-counterparts	Inquiry.reason	R4-1 -> G-2bd25793	Reaffirmed. R4-1 (cross-section-contradiction) bore on t
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q1 -> Q-18ab4298	Reaffirmed, same bearing as Q1 (its round-0 twin). R4-1 aligned Catech
 2026-08-23_research-loop-counterparts	Inquiry.reason	R4-1 -> G-2bd25793	same bearing as Q1 (its round-0 twin). R4-1 aligned Catechism item 2 verification-l
@@ -1306,7 +1291,6 @@
 2026-08-23_research-loop-counterparts	Position.text	R4-3 -> G-0a908b3c	condition anchored to item 4 bullet 7. R4-3 (egress axis unmodeled). Verified red's
 2026-08-23_research-loop-counterparts	Position.text	R4-2 -> G-52fb6a62	n, not claimed contained. Composition (R4-2 x R4-3): both edits speak the item-4 /
 2026-08-23_research-loop-counterparts	Position.text	R4-3 -> G-0a908b3c	claimed contained. Composition (R4-2 x R4-3): both edits speak the item-4 / item-7
-2026-08-23_research-loop-counterparts	Position.text	M2 -> M-7da1a8bc	ree") reads coherently. Grade dispute (M2): R4-3 complexity medium -> low. The co
 2026-08-23_research-loop-counterparts	Position.text	R4-3 -> G-0a908b3c	reads coherently. Grade dispute (M2): R4-3 complexity medium -> low. The complexit
 2026-08-23_research-loop-counterparts	Position.text	R4-1 -> G-2bd25793	state coverage — exactly the shape of R4-1 and R4-2, both graded complexity LOW. R
 2026-08-23_research-loop-counterparts	Position.text	R4-2 -> G-52fb6a62	erage — exactly the shape of R4-1 and R4-2, both graded complexity LOW. Red's mint
@@ -1322,7 +1306,6 @@
 2026-08-23_research-loop-counterparts	Position.text	R1-4 -> G-cb34ef9a	red flagged (the same wrong-axis error R1-4 fixed for Boundless Socratic Learning):
 2026-08-23_research-loop-counterparts	Position.text	Q13 -> Q-55e1d0ab	audit to reach, which is what separated Q13/Q25's honest deferral of DGM/FunSearch.
 2026-08-23_research-loop-counterparts	Position.text	Q25 -> Q-dcbb234b	t to reach, which is what separated Q13/Q25's honest deferral of DGM/FunSearch. The
-2026-08-23_research-loop-counterparts	Position.text	M2 -> M-7da1a8bc	n. The engagement red can answer is the M2 complexity dispute and the R4-1 counter
 2026-08-23_research-loop-counterparts	Position.text	R4-1 -> G-2bd25793	er is the M2 complexity dispute and the R4-1 counter-edit, both on the record with t
 2026-08-23_research-loop-counterparts	Inquiry.question	R4-3 -> G-0a908b3c	Surfaced this round by R4-3: network egress is a third threat-model
 2026-08-23_research-loop-counterparts	Inquiry.question	Q12 -> Q-db83a87b	s not re-derive the need. Distinct from Q12/Q32 (write-time OKF validator on the me
@@ -1330,48 +1313,30 @@
 2026-08-23_research-loop-counterparts	Inquiry.hypothesis	R4-3 -> G-0a908b3c	it holds, the third threat-model axis (R4-3) gets a named control and item 7's egre
 2026-08-23_research-loop-counterparts	Inquiry.reason	R4-3 -> G-0a908b3c	he egress axis is this run's job (done, R4-3); building and measuring an egress cont
 2026-08-23_research-loop-counterparts	Log.text	Q24 -> Q-62d62b55	chor would be theater (the report's own Q24 decline already establishes that for do
-2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	— no gap is docketed before the bench (M2 is a freshly filed grade motion, not ye
 2026-08-23_research-loop-counterparts	Log.text	R4-1 -> G-2bd25793	the served report instead, because the R4-1 count correction is an UNFOOTNOTED-rest
-2026-08-23_research-loop-counterparts	MotionRule.opinion	M2 -> M-7da1a8bc	the fix sufficient; blue's own motion (M2) explicitly concedes "this does not cha
 2026-08-23_research-loop-counterparts	MotionRule.opinion	R4-3 -> G-0a908b3c	ot change the disposition -- I repaired R4-3 this round regardless," disputing only
-2026-08-23_research-loop-counterparts	DocketRuling.principle	M2 -> M-7da1a8bc	(see the accompanying holding on motion M2).
-2026-08-23_research-loop-counterparts	DocketRuling.review_flag	M2 -> M-7da1a8bc	ention is the unresolved grade dispute (M2), addressed separately, not this fate.
-2026-08-23_research-loop-counterparts	Declare.holding	M2 -> M-7da1a8bc	grading axis is read, addressing motion M2 (R4-3, complexity: medium -> low, filed
 2026-08-23_research-loop-counterparts	Declare.holding	R4-3 -> G-0a908b3c	ing axis is read, addressing motion M2 (R4-3, complexity: medium -> low, filed by bl
 2026-08-23_research-loop-counterparts	Declare.holding	R4-3 -> G-0a908b3c	st of the repair actually required (per R4-3's own required_fix: name the axis, stat
 2026-08-23_research-loop-counterparts	Declare.holding	R2-2 -> G-a78e0c3b	n, which is the same category error the R2-2 correction (motion M1, accepted round 3
-2026-08-23_research-loop-counterparts	Declare.holding	M1 -> M-e3eb567b	egory error the R2-2 correction (motion M1, accepted round 3) already fixed once t
 2026-08-23_research-loop-counterparts	Declare.holding	R4-1 -> G-2bd25793	what the actual required_fix DID cost. R4-1 and R4-2 are the same defect class (Cat
 2026-08-23_research-loop-counterparts	Declare.holding	R4-2 -> G-52fb6a62	actual required_fix DID cost. R4-1 and R4-2 are the same defect class (Catechism th
 2026-08-23_research-loop-counterparts	Declare.holding	R4-3 -> G-0a908b3c	both are graded complexity=low; grading R4-3's textual fix as medium while its two s
 2026-08-23_research-loop-counterparts	Declare.holding	R4-3 -> G-0a908b3c	t correct on the merits and would grade R4-3 complexity as low. I record this as a P
-2026-08-23_research-loop-counterparts	Declare.holding	M2 -> M-7da1a8bc	(motion grade appeal) refuses to act on M2 because no merge ruling exists for it t
-2026-08-23_research-loop-counterparts	Declare.holding	M2 -> M-7da1a8bc	for it to press against ("grade motion M2 has no ruling to appeal", confirmed by
-2026-08-23_research-loop-counterparts	Declare.holding	M2 -> M-7da1a8bc	mechanically changed by this call, and M2 ships on the record as unruled/conteste
 2026-08-23_research-loop-counterparts	Declare.holding	R4-3 -> G-0a908b3c	e mechanism available. It does not move R4-3's fate -- disposed separately, this sit
-2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	ive dry-run call returned "grade motion M2 has no ruling to appeal", confirmed at
-2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	t there is no round 5 for merge to rule M2 first, so no verb on this seat's regist
-2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	lding instead (PERSUASIVE, addressed to M2 and R4-3 by id in its own text), and th
 2026-08-23_research-loop-counterparts	Log.text	R4-3 -> G-0a908b3c	nstead (PERSUASIVE, addressed to M2 and R4-3 by id in its own text), and the motion
-2026-08-23_research-loop-counterparts	Certify.statement	M2 -> M-7da1a8bc	human should re-examine. First, motion M2 (R4-3 complexity: medium vs low). I fin
 2026-08-23_research-loop-counterparts	Certify.statement	R4-3 -> G-0a908b3c	n should re-examine. First, motion M2 (R4-3 complexity: medium vs low). I find blue
 2026-08-23_research-loop-counterparts	Certify.statement	R4-1 -> G-2bd25793	_fix was textual, matching its siblings R4-1/R4-2 which are graded low; red's medium
 2026-08-23_research-loop-counterparts	Certify.statement	R4-2 -> G-52fb6a62	was textual, matching its siblings R4-1/R4-2 which are graded low; red's medium pric
-2026-08-23_research-loop-counterparts	Certify.statement	M2 -> M-7da1a8bc	a terminal ceiling, so the record ships M2 unruled/contested and my holding (recor
 2026-08-23_research-loop-counterparts	Certify.statement	R4-1 -> G-2bd25793	exactly, and I have disposed all three (R4-1/2/3) as repaired this sitting -- but th
 2026-08-23_research-loop-counterparts	Outcome.prose	R4-1 -> G-2bd25793	sitting closed all three round-4 gaps (R4-1, R4-2, R4-3) as repaired by direct leaf
 2026-08-23_research-loop-counterparts	Outcome.prose	R4-2 -> G-52fb6a62	ng closed all three round-4 gaps (R4-1, R4-2, R4-3) as repaired by direct leaf-verif
 2026-08-23_research-loop-counterparts	Outcome.prose	R4-3 -> G-0a908b3c	sed all three round-4 gaps (R4-1, R4-2, R4-3) as repaired by direct leaf-verificatio
-2026-08-23_research-loop-counterparts	Outcome.prose	M2 -> M-7da1a8bc	eclosed, and recorded one grade motion (M2, R4-3 complexity) as an unruled, persua
 2026-08-23_research-loop-counterparts	Outcome.prose	R4-3 -> G-0a908b3c	sed, and recorded one grade motion (M2, R4-3 complexity) as an unruled, persuasive-o
 2026-08-23_research-loop-counterparts	Certify.statement	R4-1 -> G-2bd25793	own PASS/FAIL on them; the bench closed R4-1/R4-2/R4-3 by direct leaf-verification i
 2026-08-23_research-loop-counterparts	Certify.statement	R4-2 -> G-52fb6a62	ASS/FAIL on them; the bench closed R4-1/R4-2/R4-3 by direct leaf-verification in red
 2026-08-23_research-loop-counterparts	Certify.statement	R4-3 -> G-0a908b3c	AIL on them; the bench closed R4-1/R4-2/R4-3 by direct leaf-verification in red's pl
-2026-08-23_research-loop-counterparts	Certify.statement	M2 -> M-7da1a8bc	ceiling denied it. Second: grade motion M2 (R4-3 complexity, medium to low, filed
 2026-08-23_research-loop-counterparts	Certify.statement	R4-3 -> G-0a908b3c	ing denied it. Second: grade motion M2 (R4-3 complexity, medium to low, filed round
 2026-08-23_research-loop-counterparts	Certify.statement	R4-3 -> G-0a908b3c	irm that holding as the run's answer on R4-3's complexity axis or route M2 to an act
-2026-08-23_research-loop-counterparts	Certify.statement	M2 -> M-7da1a8bc	swer on R4-3's complexity axis or route M2 to an actual ruling in a future sitting
-2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	wrong here. motion grade file/appeal -- M2 has no existing ruling for appeal to pr
 2026-08-23_sleeper-service-plan	Inquiry.question	Q1 -> Q-3c57a05e	HDRAW regardless of how good hypotheses Q1-Q4 make the design look. Conversely a c
 2026-08-23_sleeper-service-plan	Inquiry.question	Q4 -> Q-67640d66	AW regardless of how good hypotheses Q1-Q4 make the design look. Conversely a clea
 2026-08-23_sleeper-service-plan	Inquiry.question	Q1 -> Q-3c57a05e	is the one that actually answers #429; Q1-Q4 tell you what to FIX, this tells you
@@ -1518,9 +1483,6 @@
 2026-08-23_sleeper-service-plan	Inquiry.reason	R1-8 -> G-5dadf602	Auer/Cesa-Bianchi/Fischer 2002 — the R1-8 defect. No other same-similar-title tra
 2026-08-23_sleeper-service-plan	Log.text	c-8eb27e2f -> C-8eb27e2f	te has no amend/re-title verb. Citation c-8eb27e2f was fetched in round 0 with title 'Auer
 2026-08-23_sleeper-service-plan	Log.text	c-8eb27e2f -> C-8eb27e2f	have done with an amend verb: re-title c-8eb27e2f to Maillard/Munos/Stoltz 2011 (COLT 201
-2026-08-23_sleeper-service-plan	Motion.basis	R1-7 -> G-07397e44	R1-7's complexity_cost is graded medium; I s
-2026-08-23_sleeper-service-plan	Motion.basis	R1-2 -> G-d0deded4	a medium-complexity mitigation such as R1-2's true fix (an OS-level sandbox or live
-2026-08-23_sleeper-service-plan	Motion.basis	R1-7 -> G-07397e44	OS-level sandbox or liveness infra) or R1-7 would need if the raw material were abs
 2026-08-23_sleeper-service-plan	Position.text	R1-8 -> G-5dadf602	elocate: eight I fixed at the text, and R1-8 I fixed as far as blue's surface reache
 2026-08-23_sleeper-service-plan	Position.text	R1-1 -> G-3b0c7922	on. Conceded and repaired at the leaf. R1-1 (the keystone): write-confinement bound
 2026-08-23_sleeper-service-plan	Position.text	R1-2 -> G-d0deded4	provenance review it must actually be. R1-2: I read hooks.json myself. The suite's
@@ -1533,7 +1495,6 @@
 2026-08-23_sleeper-service-plan	Position.text	Q8 -> Q-69ffbfdb	load-bearing gate into a rubber stamp); Q8's obituary is reconciled with the shipp
 2026-08-23_sleeper-service-plan	Position.text	R1-8 -> G-5dadf602	exercises. Where blue's surface stops (R1-8): the cited bytes are Maillard/Munos/St
 2026-08-23_sleeper-service-plan	Position.text	c-8eb27e2f -> C-8eb27e2f	rces; ten titles match their bytes, and c-8eb27e2f is the only mismatch. One grade I disp
-2026-08-23_sleeper-service-plan	Position.text	M1 -> M-e6f7de83	he only mismatch. One grade I dispute (M1): R1-7 complexity is graded medium; I s
 2026-08-23_sleeper-service-plan	Position.text	R1-7 -> G-07397e44	ly mismatch. One grade I dispute (M1): R1-7 complexity is graded medium; I say low.
 2026-08-23_sleeper-service-plan	Verify.text	R1-8 -> G-5dadf602	Section "Topic selection" (R1-8 rewording, edit #10). Re-read the cache
 2026-08-23_sleeper-service-plan	Verify.text	R1-8 -> G-5dadf602	floor -> supports-with-bridge. RESIDUAL R1-8 (still open, not closable by me): the b
@@ -1587,8 +1548,6 @@
 2026-08-23_sleeper-service-plan	Close.anchor_target	c-c6032c0e -> C-c6032c0e	cached bytes of c-c6032c0e (Sigman, Notes on Little's Law) and blu
 2026-08-23_sleeper-service-plan	Close.anchor_tool	c-8eb27e2f -> C-8eb27e2f	show evidence citation c-8eb27e2f (round-2 re-verification by red-lens-r2
 2026-08-23_sleeper-service-plan	Close.anchor_target	c-8eb27e2f -> C-8eb27e2f	cached bytes at c-8eb27e2f (Maillard/Munos/Stoltz COLT 2011) vs bi
-2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	R1-7's complexity_cost stands at medium. Blu
-2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	nontrivial, supporting medium over low. R1-7 remains open on this ground regardless
 2026-08-23_sleeper-service-plan	Mint.problem	R1-1 -> G-3b0c7922	paragraph (added this round as part of R1-1's repair) carries a graded medium/high
 2026-08-23_sleeper-service-plan	Mint.problem	Q1 -> Q-3c57a05e	inquiry, citation, or proof -- none of Q1-Q17 propose an adversarial contributor-
 2026-08-23_sleeper-service-plan	Mint.problem	Q17 -> Q-5dca29e6	quiry, citation, or proof -- none of Q1-Q17 propose an adversarial contributor-seed
@@ -1613,7 +1572,6 @@
 2026-08-23_sleeper-service-plan	Position.text	R1-9 -> G-2f8393ae	an trusting memory of the required_fix. R1-9 closes on red-lens-r2-L1's leaf re-read
 2026-08-23_sleeper-service-plan	Position.text	R1-8 -> G-5dadf602	eat since I did not re-fetch it myself. R1-8 closes defect_owed_elsewhere: the body
 2026-08-23_sleeper-service-plan	Position.text	R1-7 -> G-07397e44	ASS on a capability nobody here holds. R1-7 stays open. Blue's fix delivered a real
-2026-08-23_sleeper-service-plan	Position.text	M1 -> M-e6f7de83	case-against items." I rejected blue's M1 dispute (complexity medium->low) on the
 2026-08-23_sleeper-service-plan	Position.text	R2-2 -> G-8e0cb26b	ically-adjacent rather than duplicate). R2-2 and R2-3 are the sharpest: R2-2 finds t
 2026-08-23_sleeper-service-plan	Position.text	R2-3 -> G-0f5ce8c3	jacent rather than duplicate). R2-2 and R2-3 are the sharpest: R2-2 finds the untrus
 2026-08-23_sleeper-service-plan	Position.text	R2-2 -> G-8e0cb26b	icate). R2-2 and R2-3 are the sharpest: R2-2 finds the untrusted-input paragraph R1-
@@ -1635,7 +1593,6 @@
 2026-08-23_sleeper-service-plan	BlueEdit.text	Q4 -> Q-67640d66	the lines-of-inquiry record attributes Q4 to lane 2 (line: "lane 2 Q4"), corrobor
 2026-08-23_sleeper-service-plan	BlueEdit.text	Q4 -> Q-67640d66	attributes Q4 to lane 2 (line: "lane 2 Q4"), corroborated by repo doctrine (prior
 2026-08-23_sleeper-service-plan	BlueEdit.text	R1-7 -> G-07397e44	Risk matrix. R1-7 residual (L5-F8): the matrix intro clai
-2026-08-23_sleeper-service-plan	BlueEdit.text	M1 -> M-e6f7de83	nale. This is the trivial completion my M1 complexity dispute rests on.
 2026-08-23_sleeper-service-plan	BlueEdit.text	R2-1 -> G-b9555e94	on, "two independent models" paragraph. R2-1: separate the distribution-free QUALITA
 2026-08-23_sleeper-service-plan	BlueEdit.text	R2-1 -> G-b9555e94	1/2 of M/M/1 at every rho. Applies red R2-1 required_fix; the sharper "exactly half
 2026-08-23_sleeper-service-plan	Computation.text	R2-1 -> G-b9555e94	R2-1 magnitude claim. Method: Kingman G/G/1
@@ -1655,7 +1612,6 @@
 2026-08-23_sleeper-service-plan	Inquiry.reason	c-8eb27e2f -> C-8eb27e2f	dit: 10 of 11 agree; the sole mismatch (c-8eb27e2f, the R1-8 bibliography title) cannot be
 2026-08-23_sleeper-service-plan	Inquiry.reason	R1-8 -> G-5dadf602	ree; the sole mismatch (c-8eb27e2f, the R1-8 bibliography title) cannot be corrected
 2026-08-23_sleeper-service-plan	Closing.text	R1-7 -> G-07397e44	Docketed: R1-7 complexity, I say low, red says medium.
-2026-08-23_sleeper-service-plan	Closing.text	M1 -> M-e6f7de83	say low, red says medium. Red rejected M1 because the tabulation "missed a member
 2026-08-23_sleeper-service-plan	Closing.text	R1-7 -> G-07397e44	ecuted it flawlessly on the first pass. R1-7 fix is "tabulate risks the report alrea
 2026-08-23_sleeper-service-plan	Log.text	R1-2 -> G-d0deded4	report analyzes as Issue C class (ii) / R1-2 (a PreToolUse hook that never fires has
 2026-08-23_sleeper-service-plan	Log.text	R1-8 -> G-5dadf602	work; the standing cite-amend-verb gap (R1-8 bibliography title, filed round 1) rema
@@ -1670,14 +1626,11 @@
 2026-08-23_sleeper-service-plan	Position.text	Q4 -> Q-67640d66	g finding. The record itself attributes Q4 to lane 2, so I narrowed to "four of fi
 2026-08-23_sleeper-service-plan	Position.text	R1-7 -> G-07397e44	ird carrier cannot repeat the pattern. R1-7: I added the one case-against row the m
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	cket carried forward. Red-merge-r2 kept R1-7 open and rejected motion M1 (blue's com
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M1 -> M-e6f7de83	e-r2 kept R1-7 open and rejected motion M1 (blue's complexity dispute, medium->low
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	: blue's SAME-round repair post states "R1-7: I added the one case-against row the m
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	g the acceptance check's second clause. R1-7's required_fix is therefore fully met a
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	d reason to keep the gap open is cured. R1-7 closes REPAIRED. On the complexity gra
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M1 -> M-e6f7de83	AIRED. On the complexity grade (motion M1, blue: low, red: medium, now routed to
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	sed with an unverified claim. Lineage: R1-7 carries no supersedes/superseded-by cha
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-7 -> G-07397e44	ancestor-record read is owed beyond the R1-7 record itself and motion M1's ruling, b
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M1 -> M-e6f7de83	eyond the R1-7 record itself and motion M1's ruling, both of which I read in full,
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R1-7 -> G-07397e44	Blue may not claim R1-7's risk-matrix fix was low-complexity wo
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R1-7 -> G-07397e44	ate grade of the judgment involved, and R1-7 itself is closed: the artifact now meet
 2026-08-23_sleeper-service-plan	Reproduce.note	p-58598369 -> K-58598369	at matched rho". Round-3 first audit of p-58598369 (kingman_ratio.py) -- verified:null bef
@@ -1780,7 +1733,6 @@
 2026-08-23_sleeper-service-plan	Position.text	R3-5 -> G-d6cd1fc5	t corroboration rather than inference). R3-5 is a fresh carrier of R1-7's completene
 2026-08-23_sleeper-service-plan	Position.text	R1-7 -> G-07397e44	inference). R3-5 is a fresh carrier of R1-7's completeness class -- a soundness ris
 2026-08-23_sleeper-service-plan	Position.text	R2-4 -> G-d340a3a8	ames in prose has no matrix row, on the R2-4 precedent of not superseding a correctl
-2026-08-23_sleeper-service-plan	Position.text	M1 -> M-e6f7de83	isting gap's grade needed moving -- the M1 dispute is bench-final and answered as
 2026-08-23_sleeper-service-plan	Position.text	Q11 -> Q-f6bb112d	ines voted (seventeen supported, one -- Q11, confinement-as-mechanism -- newly unsu
 2026-08-23_sleeper-service-plan	BlueEdit.text	R3-1 -> G-533c46a5	R3-1 (Analysis lead, keystone justification
 2026-08-23_sleeper-service-plan	BlueEdit.text	R3-4 -> G-2d489672	s" and are preserved. Composes with the R3-4 narrowing of the separate "bounded blas
@@ -1806,7 +1758,6 @@
 2026-08-23_sleeper-service-plan	BlueEdit.text	R3-5 -> G-d6cd1fc5	R3-5 propagation / preempt the R1-7 complete
 2026-08-23_sleeper-service-plan	BlueEdit.text	R1-7 -> G-07397e44	R3-5 propagation / preempt the R1-7 completeness class. The matrix intro cl
 2026-08-23_sleeper-service-plan	BlueEdit.text	R1-7 -> G-07397e44	e same intro-vs-contents mismatch class R1-7 was minted for, in the reverse directio
-2026-08-23_sleeper-service-plan	Motion.basis	R3-2 -> G-29cee5ad	R3-2 impact is graded medium-high; I say med
 2026-08-23_sleeper-service-plan	Inquiry.reason	R3-5 -> G-d6cd1fc5	ound it gains a graded risk-matrix row (R3-5, e9b): the plausible-zero starvation it
 2026-08-23_sleeper-service-plan	Inquiry.reason	R3-2 -> G-29cee5ad	ace-hazardous verdict is unchanged, but R3-2 (e2/e3) relabels the model-collapse tra
 2026-08-23_sleeper-service-plan	Inquiry.reason	R1-5 -> G-6a965a42	M/1-specific — settled in rounds 1-2 (R1-5, R2-1). No round-3 gap touched cadence
@@ -1829,7 +1780,6 @@
 2026-08-23_sleeper-service-plan	Closing.text	R2-4 -> G-d340a3a8	s same-origin body. Its class successor R2-4 corrected the wider Analysis-lead carri
 2026-08-23_sleeper-service-plan	Closing.text	Q8 -> Q-69ffbfdb	red (round 2). Declined line-of-inquiry Q8's stated rationale ("over-precision, in
 2026-08-23_sleeper-service-plan	Closing.text	Q8 -> Q-69ffbfdb	w states the calendar cadence violates; Q8's obituary was moved to pursued acknowl
-2026-08-23_sleeper-service-plan	Closing.text	M1 -> M-e6f7de83	ept the gap open. On complexity (motion M1: I argued low, red medium), the bench a
 2026-08-23_sleeper-service-plan	Closing.text	R1-7 -> G-07397e44	rd consistency step, not a reopening of R1-7.
 2026-08-23_sleeper-service-plan	Closing.text	p-58598369 -> K-58598369	s backed by my own re-derivation, proof p-58598369 (exact Fractions). A reader can no long
 2026-08-23_sleeper-service-plan	Closing.text	Q18 -> Q-b8bc84bf	sis recorded as pursued line of inquiry Q18, grounded on the already-cited knowledg
@@ -1840,7 +1790,6 @@
 2026-08-23_sleeper-service-plan	Closing.text	R2-3 -> G-0f5ce8c3	e OS user, or a container/seccomp jail. R2-3's temporal-coverage close is a distinct
 2026-08-23_sleeper-service-plan	Position.text	R3-1 -> G-533c46a5	elihood x impact. Eleven edits landed. R3-1 (keystone residual): the Analysis-lead
 2026-08-23_sleeper-service-plan	Position.text	R3-2 -> G-29cee5ad	nfinement (topic-selection + cadence). R3-2 (hedging discipline): the model-collaps
-2026-08-23_sleeper-service-plan	Position.text	M2 -> M-c642ec4f	ct grade (medium-high -> medium, motion M2): the transferred conclusion is directi
 2026-08-23_sleeper-service-plan	Position.text	R3-3 -> G-6adc3557	ng error, not a wrong design decision. R3-3 (the load-bearing mechanism; supersedes
 2026-08-23_sleeper-service-plan	Position.text	R1-2 -> G-d0deded4	(the load-bearing mechanism; supersedes R1-2/R2-3): I concede without reservation. A
 2026-08-23_sleeper-service-plan	Position.text	R2-3 -> G-0f5ce8c3	load-bearing mechanism; supersedes R1-2/R2-3): I concede without reservation. A thro
@@ -1859,9 +1808,7 @@
 2026-08-23_sleeper-service-plan	Log.text	Q13 -> Q-49b688b2	rounded in already-cited or leaf facts (Q13 on the record; standard git-worktree se
 2026-08-23_sleeper-service-plan	Log.text	R3-4 -> G-2d489672	line on outward-write threat-modeling (R3-4), but Q18 already carries the untrusted
 2026-08-23_sleeper-service-plan	Log.text	Q18 -> Q-b8bc84bf	tward-write threat-modeling (R3-4), but Q18 already carries the untrusted-input thr
-2026-08-23_sleeper-service-plan	Log.text	M1 -> M-e6f7de83	grade appeal: the one rejected dispute (M1, R1-7 complexity) was bench-ruled mediu
 2026-08-23_sleeper-service-plan	Log.text	R1-7 -> G-07397e44	e appeal: the one rejected dispute (M1, R1-7 complexity) was bench-ruled medium in r
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	h ruling is relitigation, so I did not. M2 (R3-2 impact) is a first file, not an a
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	ling is relitigation, so I did not. M2 (R3-2 impact) is a first file, not an appeal.
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-1 -> G-3b0c7922	Ancestor read: R1-1's full closure record (closed round 2 b
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-1 -> G-533c46a5	at all three remain present verbatim -- R3-1 does not reopen or disturb any of them,
@@ -1874,15 +1821,10 @@
 2026-08-23_sleeper-service-plan	MotionRule.opinion	c-d79a8478 -> C-d79a8478	he same inference hedge their siblings (c-d79a8478, c-150b5b18) already carried, and a bri
 2026-08-23_sleeper-service-plan	MotionRule.opinion	c-150b5b18 -> C-150b5b18	rence hedge their siblings (c-d79a8478, c-150b5b18) already carried, and a bridging argume
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	ext repair is accepted as delivered and R3-2 closes repaired. On motion M2 (blue's
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	ed and R3-2 closes repaired. On motion M2 (blue's impact-grade dispute, medium-hi
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	endent review, not by default. The harm R3-2 identifies is a hedging-discipline inco
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	have no verb on my own surface to alter R3-2's persisted impact field or to formally
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	impact field or to formally rule motion M2 itself (motion grade exposes only file
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	at's)"). This ruling's determination on M2 is therefore a PERSUASIVE finding for t
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	an apply the impact-grade correction to R3-2's board entry, and mark M2 resolved con
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	rection to R3-2's board entry, and mark M2 resolved consistent with this opinion.
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R3-2 -> G-29cee5ad	e correction (medium-high to medium) to R3-2's board entry and mark motion M2 resolv
-2026-08-23_sleeper-service-plan	DocketRuling.review_flag	M2 -> M-c642ec4f	) to R3-2's board entry and mark motion M2 resolved consistent with this opinion,
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R3-2 -> G-29cee5ad	uncaveated medium-high impact label for R3-2: the transferred conclusion's direction
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R3-2 -> G-29cee5ad	us a bridging argument) is accepted and R3-2 closes repaired.
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R1-2 -> G-d0deded4	Ancestor reads: R1-2 (closed round 2 by red-merge-r2, repair
@@ -1928,13 +1870,9 @@
 2026-08-23_sleeper-service-plan	DocketRuling.tension	R1-7 -> G-07397e44	seline) vs economy (declining to reopen R1-7 itself, which would relitigate an alrea
 2026-08-23_sleeper-service-plan	DocketRuling.reopens_on	R1-7 -> G-07397e44	uld mint fresh again rather than reopen R1-7 or R3-5
 2026-08-23_sleeper-service-plan	DocketRuling.reopens_on	R3-5 -> G-d6cd1fc5	fresh again rather than reopen R1-7 or R3-5
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	Motion M2 (blue's round-3 grade dispute on R3-2's
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	ion M2 (blue's round-3 grade dispute on R3-2's impact) reached this sitting unruled:
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	eat's)'. I had no verb to formally rule M2 or to regrade R3-2's persisted impact f
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	verb to formally rule M2 or to regrade R3-2's persisted impact field (no regrade ve
-2026-08-23_sleeper-service-plan	Log.text	M1 -> M-e6f7de83	nd (not by an explicit red hand-off, as M1 got) has a proper disposal instead of b
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	field. I did not engineer around this: R3-2's opinion states my finding on M2 as a
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	is: R3-2's opinion states my finding on M2 as a persuasive recommendation and flag
 2026-08-23_sleeper-service-plan	Reproduce.note	p-abd56845 -> K-abd56845	R4 re-run of lane3_buildstate.sh (p-abd56845), Technical foundations, anchored to 'N
 2026-08-23_sleeper-service-plan	Reproduce.note	p-bcdb35eb -> K-bcdb35eb	R4 re-run of lane2_queue.py (p-bcdb35eb), Cadence (under Technical foundations)
 2026-08-23_sleeper-service-plan	Reproduce.note	p-58598369 -> K-58598369	R4 re-run of kingman_ratio.py (p-58598369), Cadence, anchored to 'Kingman (Ca2+Cs
@@ -1957,9 +1895,6 @@
 2026-08-23_sleeper-service-plan	Mint.mint_reason	Q14 -> Q-3a636f4c	n.py, so deferring the whole concern to Q14 conflates 'not sizeable' with 'not grad
 2026-08-23_sleeper-service-plan	Mint.acceptance_check	p-bcdb35eb -> K-bcdb35eb	re-running the queueing proof/script (p-bcdb35eb or the lane2 queue proof) that produced
 2026-08-23_sleeper-service-plan	Mint.mint_reason	R1-5 -> G-6a965a42	uses 'rho>=1' to mean. This is not the R1-5 'shape not magnitude' qualifier (which
-2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	The bench's own holding on R3-2, handed to this sitting, already found:
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	ersisted field.' That is dispositive of M2's substance -- blue's argument (the har
-2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	annel with no consequence, so I regrade R3-2's impact to medium in the same act.
 2026-08-23_sleeper-service-plan	SpotCheck.reason	R3-3 -> G-6adc3557	is sitting did of the living document). R3-3: the Write-confinement recommendation s
 2026-08-23_sleeper-service-plan	SpotCheck.reason	R3-4 -> G-2d489672	ng to worktree-as-enforcement -- holds. R3-4: the Analysis keystone still narrows bl
 2026-08-23_sleeper-service-plan	SpotCheck.reason	R4-1 -> G-c730ca6a	lds, though this round's own new mints (R4-1, R4-2) find the outward-row's mitigatio
@@ -1970,7 +1905,6 @@
 2026-08-23_sleeper-service-plan	SpotCheck.reason	R3-5 -> G-d6cd1fc5	three; again new material, not decay of R3-5's own claim. R1-8: the citation hedge (
 2026-08-23_sleeper-service-plan	SpotCheck.reason	R1-8 -> G-5dadf602	aterial, not decay of R3-5's own claim. R1-8: the citation hedge ('the sharper UCB1.
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	quence on a CLOSED gap: regrade refused R3-2 ('already CLOSED -- a grade only decide
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	at on the persisted field'). I accepted M2 on the record with full reasoning, but
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	full reasoning, but the impact grade on R3-2's closed record cannot actually move --
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	R3-1's ruling is not being relitigated: it f
 2026-08-23_sleeper-service-plan	Closing.text	R4-3 -> G-813b2245	inement overclaim, and that fix stands. R4-3 is new evidence the ruling could not ha
@@ -1978,7 +1912,6 @@
 2026-08-23_sleeper-service-plan	Closing.text	R3-5 -> G-d6cd1fc5	side by side this round. It also leaves R3-5's 'two soundness risks' count one short
 2026-08-23_sleeper-service-plan	Position.text	R1-1 -> G-3b0c7922	d entered this round at zero open gaps (R1-1..R3-5 all closed, five of them by the b
 2026-08-23_sleeper-service-plan	Position.text	R3-5 -> G-d6cd1fc5	red this round at zero open gaps (R1-1..R3-5 all closed, five of them by the bench t
-2026-08-23_sleeper-service-plan	Position.text	M2 -> M-c642ec4f	aps -- no per-finding flooding. MOTION M2 (R3-2 impact, medium-high vs medium): A
 2026-08-23_sleeper-service-plan	Position.text	R3-2 -> G-29cee5ad	-- no per-finding flooding. MOTION M2 (R3-2 impact, medium-high vs medium): ACCEPTE
 2026-08-23_sleeper-service-plan	Position.text	R3-2 -> G-29cee5ad	): ACCEPTED. The bench's own holding on R3-2 already found impact reads medium; I ho
 2026-08-23_sleeper-service-plan	Position.text	R3-2 -> G-29cee5ad	d moved to enact it -- refused, because R3-2 is closed and regrade will not move a n
@@ -2009,10 +1942,6 @@
 2026-08-23_sleeper-service-plan	Computation.text	R4-5 -> G-4f937d98	R4-5 (cross-section-contradiction, check_kin
 2026-08-23_sleeper-service-plan	Computation.text	c-c6032c0e -> C-c6032c0e	ho) with Little's law L=lambda*W (cited c-c6032c0e); instance computed in exact Fractions.
 2026-08-23_sleeper-service-plan	Computation.text	R4-4 -> G-6b9916cf	R4-4 grounding: the pool(t) figure the new r
-2026-08-23_sleeper-service-plan	Motion.basis	R4-4 -> G-6b9916cf	R4-4 impact: red grades medium-high; I say m
-2026-08-23_sleeper-service-plan	Motion.basis	p-1e35a567 -> K-1e35a567	ane3_accumulation/r4_pool_growth (proof p-1e35a567) shows manual at runs=mu holds the pool
-2026-08-23_sleeper-service-plan	Motion.basis	R4-2 -> G-d33cbccd	R4-2 impact: red grades medium-high; I say m
-2026-08-23_sleeper-service-plan	Motion.basis	R4-1 -> G-c730ca6a	um magnitude, not medium-high. Contrast R4-1 (the confidentiality axis), which is a
 2026-08-23_sleeper-service-plan	Closing.text	R4-3 -> G-813b2245	R4-3 (guardrail-scope-overclaim, supersedes
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	(guardrail-scope-overclaim, supersedes R3-1) is resolved by this round's keystone r
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	tch was correct and I concede it fully: R3-1's own repair, in narrowing "all four sa
@@ -2021,8 +1950,6 @@
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	ouched rows — is met on both clauses. R3-1's ruling is not relitigated: its all-fo
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	r operates only on the replacement text R3-1's repair produced. Grades (medium/mediu
 2026-08-23_sleeper-service-plan	Closing.text	R3-2 -> G-29cee5ad	R3-2 impact (medium-high -> medium) is alrea
-2026-08-23_sleeper-service-plan	Closing.text	M2 -> M-c642ec4f	-3 bench opinion (LEAD) ruled on motion M2 on independent review — not by defere
-2026-08-23_sleeper-service-plan	Closing.text	M2 -> M-c642ec4f	red's round-4 merge explicitly ACCEPTED M2 ("R3-2 impact medium-high -> medium"),
 2026-08-23_sleeper-service-plan	Closing.text	R3-2 -> G-29cee5ad	round-4 merge explicitly ACCEPTED M2 ("R3-2 impact medium-high -> medium"), noting
 2026-08-23_sleeper-service-plan	Inquiry.reason	R4-3 -> G-813b2245	rmed pursued, and sharpened this round. R4-3 corrected the keystone to credit recomm
 2026-08-23_sleeper-service-plan	Inquiry.reason	R4-5 -> G-4f937d98	an illustrative-label precision defect (R4-5: the finite 749/250 pair sits at rho=74
@@ -2061,7 +1988,6 @@
 2026-08-23_sleeper-service-plan	Position.text	R4-4 -> G-6b9916cf	gue the harm is softer than red set it: R4-4 impact medium-high -> medium (manual th
 2026-08-23_sleeper-service-plan	Position.text	R4-2 -> G-d33cbccd	horizon harm over a ~30-file pool), and R4-2 impact medium-high -> medium (a documen
 2026-08-23_sleeper-service-plan	Position.text	R3-2 -> G-29cee5ad	rather than a verbatim application. The R3-2 impact dispute the docket carries is, o
-2026-08-23_sleeper-service-plan	Position.text	M2 -> M-c642ec4f	h ruled medium in round 3; red accepted M2 in round 4) — my closing asks it be r
 2026-08-23_sleeper-service-plan	Log.text	R1-8 -> G-5dadf602	s the absence of a cite-amend verb (the R1-8 bibliography title misattribution, c-8e
 2026-08-23_sleeper-service-plan	Log.text	c-8eb27e2f -> C-8eb27e2f	R1-8 bibliography title misattribution, c-8eb27e2f, still uncorrectable from blue's surfac
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-3 -> G-813b2245	sks confinement does not touch" numeral R4-3 caught (which R3-5's count implicitly r
@@ -2079,21 +2005,16 @@
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R3-1 -> G-533c46a5	now been narrowed three times (R1-1 -> R3-1 -> R4-3).
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R4-3 -> G-813b2245	n narrowed three times (R1-1 -> R3-1 -> R4-3).
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	Read before ruling: R3-2's own closure record (closed round 3 by
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	ule verb to enact it directly"); motion M2's full filed text (blue, round 3: impac
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	rge post, which states in full: "MOTION M2 (R3-2 impact, medium-high vs medium): A
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	post, which states in full: "MOTION M2 (R3-2 impact, medium-high vs medium): ACCEPTE
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	): ACCEPTED. The bench's own holding on R3-2 already found impact reads medium; I ho
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	d moved to enact it -- refused, because R3-2 is closed and regrade will not move a n
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	mber on a finished gap. Accepted delta: R3-2 impact medium-high -> medium (argued, n
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	ction)."; and blue's round-4 closing on R3-2, which asks the item be recorded resolv
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	confirms the persisted state directly: R3-2's impact field still reads medium-high
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	consistency in red's own record: motion M2's own ruling-opinion text reads, in iso
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	on text reads, in isolation, "I regrade R3-2's impact to medium in the same act," wh
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M2 -> M-c642ec4f	-3 opinion, red's round-4 acceptance of M2, and blue's round-4 closing -- now agre
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R3-2 -> G-29cee5ad	Medium: a human should patch R3-2's persisted impact field to medium dire
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R3-2 -> G-29cee5ad	uncaveated medium-high impact label for R3-2; medium is the settled figure by unanim
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	accepted grade motion on a closed gap (R3-2 / M2) is now demonstrated to be permane
-2026-08-23_sleeper-service-plan	Log.text	M2 -> M-c642ec4f	ed grade motion on a closed gap (R3-2 / M2) is now demonstrated to be permanently
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	olved, moot, grade_adjusted). Ruling on R3-2's grade dispute, I had to substitute de
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	, the --as enum gap) turned out to move R3-2's fate directly, so they belong in that
 2026-08-23_sleeper-service-plan	Log.text	R4-1 -> G-c730ca6a	the board still carries four open gaps (R4-1, R4-2, R4-4, R4-5) outside this docket,
@@ -2103,37 +2024,25 @@
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	Read before ruling: R4-2's own record (found_by L6-F10, no super
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-3 -> G-813b2245	ue's round-4 repair post and closing on R4-3 (adjacent) plus its own R4-2 paragraph;
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	closing on R4-3 (adjacent) plus its own R4-2 paragraph; motion M4's filed text; and
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M4 -> M-3bbdd647	nt) plus its own R4-2 paragraph; motion M4's filed text; and the current report te
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	ernative horn with its cost. Nothing in R4-2's acceptance_check is left unaddressed.
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	s acceptance_check is left unaddressed. R4-2 closes REPAIRED. MOTION M4 (impact: re
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M4 -> M-3bbdd647	ddressed. R4-2 closes REPAIRED. MOTION M4 (impact: red medium-high, blue medium):
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	asive on independent review. The defect R4-2 names is a self-contradiction IN THE TE
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-1 -> G-c730ca6a	ested overriding it. Contrast this with R4-1 (impact high, undisputed): that gap is
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	ly larger and more open-ended exposure. R4-2's worst realistic case is narrower and
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M4 -> M-3bbdd647	edium, not medium-high; I accept motion M4 on the merits, not by deference to eith
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	ace to persist this corrected number to R4-2's board field: motion grade exposes onl
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R3-2 -> G-29cee5ad	round-4 LEAD opinion already named for R3-2's impact field. This determination is t
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-2 -> G-d33cbccd	finding for red or a human to apply to R4-2's persisted impact field; I flag it as
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R4-2 -> G-d33cbccd	t correction (medium-high to medium) to R4-2's persisted board field directly, since
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-4 -> G-6b9916cf	Read before ruling: R4-4's own record (found_by L6-F11, no super
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-4 -> G-6b9916cf	ext; blue's round-4 repair paragraph on R4-4 and motion M3's filed text; the current
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M3 -> M-49fa8df3	d-4 repair paragraph on R4-4 and motion M3's filed text; the current risk-matrix r
 2026-08-23_sleeper-service-plan	MotionRule.opinion	p-1e35a567 -> K-1e35a567	the current risk-matrix row; and proof p-1e35a567 as cited in that row (the pool(t) figur
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-4 -> G-6b9916cf	ures, with a named deferred mitigation. R4-4 closes REPAIRED. MOTION M3 (impact: re
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M3 -> M-49fa8df3	tigation. R4-4 closes REPAIRED. MOTION M3 (impact: red medium-high, blue medium):
 2026-08-23_sleeper-service-plan	MotionRule.opinion	R4-4 -> G-6b9916cf	ready read medium; it does not. Grading R4-4's impact lower than its sibling, for th
-2026-08-23_sleeper-service-plan	MotionRule.opinion	M3 -> M-49fa8df3	l. Impact stands at medium-high; motion M3 is rejected. Values in tension: correc
 2026-08-23_sleeper-service-plan	DocketRuling.review_flag	R4-4 -> G-6b9916cf	check of the current matrix row against R4-4's acceptance check; the axis-conflation
-2026-08-23_sleeper-service-plan	DocketRuling.review_flag	M3 -> M-49fa8df3	ce check; the axis-conflation in motion M3 is a definitional point, not a conteste
 2026-08-23_sleeper-service-plan	DocketRuling.settled	R4-4 -> G-6b9916cf	That R4-4's impact should be reduced to medium on
 2026-08-23_sleeper-service-plan	Declare.holding	R1-7 -> G-07397e44	: the exit-boundary docket's listing of R1-7 (complexity, motion M1, blue proposed l
-2026-08-23_sleeper-service-plan	Declare.holding	M1 -> M-e6f7de83	t's listing of R1-7 (complexity, motion M1, blue proposed low) as an undisposed gr
-2026-08-23_sleeper-service-plan	Declare.holding	M1 -> M-e6f7de83	Read before this holding: show motions (M1: filed round 1 by blue; ruled "rejected
 2026-08-23_sleeper-service-plan	Declare.holding	R1-7 -> G-07397e44	pealed: false); show board / show work (R1-7: closed, fate repaired, closed_by bench
-2026-08-23_sleeper-service-plan	Declare.holding	M1 -> M-e6f7de83	te transcript's round-2 LEAD opinion on M1 ("On the complexity grade... I affirm m
 2026-08-23_sleeper-service-plan	Declare.holding	R1-7 -> G-07397e44	red); and blue's own round-3 closing on R1-7 ("On complexity (motion M1: I argued lo
-2026-08-23_sleeper-service-plan	Declare.holding	M1 -> M-e6f7de83	closing on R1-7 ("On complexity (motion M1: I argued low, red medium), the bench a
-2026-08-23_sleeper-service-plan	Declare.holding	M1 -> M-e6f7de83	ndependent facts converge: red rejected M1 at the merge level (round 2); the bench
 2026-08-23_sleeper-service-plan	Declare.holding	R1-7 -> G-07397e44	ly this situation, and it went unused). R1-7 itself closed repaired at that same rou
 2026-08-23_sleeper-service-plan	Log.text	R2-3 -> G-0f5ce8c3	ss-level non-registration failure mode, R2-3/R3-3 in the debate). I take no remedial
 2026-08-23_sleeper-service-plan	Log.text	R3-3 -> G-6adc3557	vel non-registration failure mode, R2-3/R3-3 in the debate). I take no remedial acti
@@ -2142,8 +2051,6 @@
 2026-08-23_sleeper-service-plan	Log.text	R3-2 -> G-29cee5ad	ry the grade correction with it. Unlike R3-2 (already closed when its motion was dec
 2026-08-23_sleeper-service-plan	Log.text	R4-2 -> G-d33cbccd	a persistence-on-a-closed-gap problem), R4-2's gap was still open when I ruled — t
 2026-08-23_sleeper-service-plan	Log.text	R4-2 -> G-d33cbccd	e corrected impact (medium) directly on R4-2's board field in the same act as the re
-2026-08-23_sleeper-service-plan	Log.text	M3 -> M-49fa8df3	bench's; I ruled the two live motions (M3, M4) via opinion on their underlying ga
-2026-08-23_sleeper-service-plan	Log.text	M4 -> M-3bbdd647	ch's; I ruled the two live motions (M3, M4) via opinion on their underlying gaps i
 2026-08-23_sleeper-service-plan	Log.text	p-1e35a567 -> K-1e35a567	text, the proof already on the record (p-1e35a567), or the transcript, none of which requ
 2026-08-23_sleeper-service-plan	Log.text	R4-2 -> G-d33cbccd	ed) on any of the three docketed items: R4-2 and R4-4 both had their required_fix al
 2026-08-23_sleeper-service-plan	Log.text	R4-4 -> G-6b9916cf	y of the three docketed items: R4-2 and R4-4 both had their required_fix already dis
@@ -2159,7 +2066,6 @@
 2026-08-23_sleeper-service-plan	Certify.statement	R4-2 -> G-d33cbccd	aced twice in one run (R3-2 at round 4, R4-2 at this sitting) with the same shape bo
 2026-08-23_sleeper-service-plan	Certify.statement	R4-4 -> G-6b9916cf	only until a human hand-applies it. 3. R4-4's disposition turned on a distinction (
 2026-08-23_sleeper-service-plan	Certify.statement	R4-4 -> G-6b9916cf	hood-shaped fact I held could not lower R4-4's impact. I used that row as the consis
-2026-08-23_sleeper-service-plan	Certify.statement	M3 -> M-49fa8df3	consistency anchor for rejecting motion M3; a human revisiting either row should t
 2026-08-23_sleeper-service-plan	Certify.statement	R1-7 -> G-07397e44	, not adjust one without the other. 4. R1-7's stale docket entry (declared, not rul
 2026-08-23_sleeper-service-plan	Declare.holding	R4-1 -> G-c730ca6a	how the record is read; moves no gap): R4-1's and R4-5's "open" status at this run'
 2026-08-23_sleeper-service-plan	Declare.holding	R4-5 -> G-4f937d98	cord is read; moves no gap): R4-1's and R4-5's "open" status at this run's CEILING s
@@ -2185,17 +2091,11 @@
 2026-08-23_sleeper-service-plan	Certify.statement	R4-5 -> G-4f937d98	anges --id R4-1` and `show changes --id R4-5` directly: both edits read, on my own i
 2026-08-23_sleeper-service-plan	Certify.statement	R4-1 -> G-c730ca6a	without spending another round on them; R4-1 is the one I would weigh most heavily,
 2026-08-23_sleeper-service-plan	Certify.statement	R3-2 -> G-29cee5ad	verb to move a grade field once minted: R3-2's impact field still reads medium-high
-2026-08-23_sleeper-service-plan	Certify.statement	M2 -> M-c642ec4f	e bench (round 3), red (round 4, motion M2 accepted) and blue all now say medium;
-2026-08-23_sleeper-service-plan	Certify.statement	M3 -> M-49fa8df3	epted) and blue all now say medium; and M3/M4 (R4-4, R4-2 impact) were argued to a
-2026-08-23_sleeper-service-plan	Certify.statement	M4 -> M-3bbdd647	ed) and blue all now say medium; and M3/M4 (R4-4, R4-2 impact) were argued to a co
 2026-08-23_sleeper-service-plan	Certify.statement	R4-4 -> G-6b9916cf	and blue all now say medium; and M3/M4 (R4-4, R4-2 impact) were argued to a conclusi
 2026-08-23_sleeper-service-plan	Certify.statement	R4-2 -> G-d33cbccd	ue all now say medium; and M3/M4 (R4-4, R4-2 impact) were argued to a conclusion in
-2026-08-23_sleeper-service-plan	Certify.statement	M3 -> M-49fa8df3	in the round-4 LEAD opinion's own text (M3 rejected -- medium-high stands; M4 acce
-2026-08-23_sleeper-service-plan	Certify.statement	M4 -> M-3bbdd647	ext (M3 rejected -- medium-high stands; M4 accepted -- medium-high to medium) but
 2026-08-23_sleeper-service-plan	Certify.statement	R3-2 -> G-29cee5ad	-facing rule verb. A human should patch R3-2 and R4-2's impact fields to medium dire
 2026-08-23_sleeper-service-plan	Certify.statement	R4-2 -> G-d33cbccd	ule verb. A human should patch R3-2 and R4-2's impact fields to medium directly (R4-
 2026-08-23_sleeper-service-plan	Certify.statement	R4-4 -> G-6b9916cf	4-2's impact fields to medium directly (R4-4 stays medium-high; M3 was rejected on t
-2026-08-23_sleeper-service-plan	Certify.statement	M3 -> M-49fa8df3	edium directly (R4-4 stays medium-high; M3 was rejected on the merits) so the pers
 2026-08-23_sleeper-service-plan	Certify.statement	R1-8 -> G-5dadf602	dix of argued-not-persisted deltas. 3. R1-8's bibliography entry (c-8eb27e2f) still
 2026-08-23_sleeper-service-plan	Certify.statement	c-8eb27e2f -> C-8eb27e2f	deltas. 3. R1-8's bibliography entry (c-8eb27e2f) still names the wrong paper -- it read
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	ith two gaps still open on the board -- R4-1 (network-egress confidentiality/exfiltr
@@ -2206,7 +2106,6 @@
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-2 -> G-d33cbccd	three of them this run (R4-3 repaired, R4-2 repaired, R4-4 repaired) plus mechanica
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-4 -> G-6b9916cf	this run (R4-3 repaired, R4-2 repaired, R4-4 repaired) plus mechanically resolved R3
 2026-08-23_sleeper-service-plan	Outcome.prose	R3-2 -> G-29cee5ad	-4 repaired) plus mechanically resolved R3-2's outstanding grade dispute (motion M2,
-2026-08-23_sleeper-service-plan	Outcome.prose	M2 -> M-c642ec4f	3-2's outstanding grade dispute (motion M2, accepted -- argued medium, not persist
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	with edits in the same round, including R4-1 and R4-5. What stopped the run was the
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-5 -> G-4f937d98	s in the same round, including R4-1 and R4-5. What stopped the run was the round cei
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	red's next merge could re-audit blue's R4-1/R4-5 edits and file the closings a benc
@@ -2215,15 +2114,11 @@
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-5 -> G-4f937d98	d-4 edits (show changes --id R4-1, --id R4-5) finds both appear to satisfy red's own
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	on for what a human should do next with R4-1, R4-5, and the standing motion-grade pe
 2026-08-23_sleeper-service-plan	Outcome.prose	R4-5 -> G-4f937d98	what a human should do next with R4-1, R4-5, and the standing motion-grade persiste
-2026-08-23_sleeper-service-plan	Log.text	M3 -> M-49fa8df3	bench-rule verb gap (surfaced again at M3/M4 on R4-4/R4-2 -- argued to a conclusi
-2026-08-23_sleeper-service-plan	Log.text	M4 -> M-3bbdd647	nch-rule verb gap (surfaced again at M3/M4 on R4-4/R4-2 -- argued to a conclusion
 2026-08-23_sleeper-service-plan	Log.text	R4-4 -> G-6b9916cf	le verb gap (surfaced again at M3/M4 on R4-4/R4-2 -- argued to a conclusion in the r
 2026-08-23_sleeper-service-plan	Log.text	R4-2 -> G-d33cbccd	rb gap (surfaced again at M3/M4 on R4-4/R4-2 -- argued to a conclusion in the round-
 2026-08-23_sleeper-service-plan	Log.text	R1-8 -> G-5dadf602	st verb exists) and the cite-amend gap (R1-8) -- both already carried on the record
 2026-08-23_sleeper-service-plan	Log.text	R4-1 -> G-c730ca6a	itting, not used, and why: - `opinion`: R4-1 and R4-5 have no filed RED CLOSING/BLUE
 2026-08-23_sleeper-service-plan	Log.text	R4-5 -> G-4f937d98	ot used, and why: - `opinion`: R4-1 and R4-5 have no filed RED CLOSING/BLUE CLOSING
-2026-08-23_sleeper-service-plan	Log.text	M3 -> M-49fa8df3	ing; the two outstanding grade motions (M3, M4) were already argued to a conclusio
-2026-08-23_sleeper-service-plan	Log.text	M4 -> M-3bbdd647	the two outstanding grade motions (M3, M4) were already argued to a conclusion in
 2026-08-23_sleeper-service-plan	Log.text	R4-1 -> G-c730ca6a	ng itself the harm; the two open items (R4-1, R4-5) are document-level design gaps r
 2026-08-23_sleeper-service-plan	Log.text	R4-5 -> G-4f937d98	elf the harm; the two open items (R4-1, R4-5) are document-level design gaps recorde
 2026-09-02_quadratic-formula	Log.text	Q4 -> Q-0e853e45	e for the floating-point error sweep in Q4. What I will do instead, stated so the
@@ -2330,8 +2225,6 @@
 2026-09-02_quadratic-formula	Inquiry.question	R1-8 -> G-ffa5c5b8	This is the branch of R1-8 I did NOT take, and it deserves a filed
 2026-09-02_quadratic-formula	Inquiry.question	Q22 -> Q-803503e3	ure step - the first was formalisation (Q22, declined and ruled too_thin), the seco
 2026-09-02_quadratic-formula	Inquiry.reason	Q22 -> Q-803503e3	needed, which is what separates it from Q22 - and it would convert the report's one
-2026-09-02_quadratic-formula	Motion.basis	R1-6 -> G-d304bbb2	I am contesting IMPACT on R1-6, at medium, and proposing low_medium. I
-2026-09-02_quadratic-formula	Motion.basis	p-4649aa47 -> K-4649aa47	s ignored. WHAT THE PROBE FOUND (proof p-4649aa47, run this sitting, reproducible). There
 2026-09-02_quadratic-formula	BlueEdit.text	R1-6 -> G-d304bbb2	R1-6, a fourth site found by sweeping rather
 2026-09-02_quadratic-formula	BlueEdit.text	R1-4 -> G-5eb9699e	R1-4's class sweep, the last two sites: Anal
 2026-09-02_quadratic-formula	BlueEdit.text	R1-4 -> G-5eb9699e	R1-4's class sweep, the last two sites: Anal
@@ -2341,7 +2234,6 @@
 2026-09-02_quadratic-formula	Position.text	Q24 -> Q-a9f84f8a	a line of inquiry with its cost argued (Q24, declined: hand-attributing every claim
 2026-09-02_quadratic-formula	Position.text	Q26 -> Q-a1aee2a1	asurement does not answer is filed too (Q26, deferred: whether the untagged 56% is
 2026-09-02_quadratic-formula	Position.text	R1-6 -> G-d304bbb2	RE I DISPUTE A GRADE, ON ONE AXIS ONLY. R1-6 impact, medium, proposed low_medium, fi
-2026-09-02_quadratic-formula	Position.text	M1 -> M-a05b55d0	m, proposed low_medium, filed as motion M1. I concede severity, likelihood and com
 2026-09-02_quadratic-formula	Position.text	R1-9 -> G-5d4bad75	he container. WHERE I PART FROM RED ON R1-9, AND IT IS A CONSTRAINT, NOT A REFUSAL.
 2026-09-02_quadratic-formula	Log.text	Q22 -> Q-803503e3	Red also contested one sentence of the Q22 decline's reason — that writing the a
 2026-09-02_quadratic-formula	Log.text	Q6 -> Q-585fa4aa	tion; so there is nothing to appeal. On Q6 red left the appeal open if I thought t
@@ -2369,9 +2261,7 @@
 2026-09-02_quadratic-formula	Verify.text	R1-7 -> G-4f2e3ef7	's own full stop, which is the standard R1-7 set for quoted material and is met. The
 2026-09-02_quadratic-formula	Reproduce.note	R1-6 -> G-d304bbb2	persistence.py, the program backing the R1-6 repair sentence in Technical foundation
 2026-09-02_quadratic-formula	Log.text	R1-8 -> G-ffa5c5b8	ce --id db8ee37b797d8be3...` re-ran the R1-8 tag-coverage proof from the proof store
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	a check. `motion grade file` — blue's M1 already contests the only grade I would
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	ests the only grade I would have moved (R1-6 impact), the merge rules it, and a riva
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	her than inform it; my evidence against M1's premise belongs in L5-F9 where it is
 2026-09-02_quadratic-formula	Reproduce.note	R1-3 -> G-2dbf2d55	R1-3(b)'s evidence, re-run because the repai
 2026-09-02_quadratic-formula	Reproduce.note	R1-1 -> G-c499fff8	bridge.py, the acceptance check for gap R1-1 - the gap this lens minted in round 1 b
 2026-09-02_quadratic-formula	Log.text	p-4649aa47 -> K-4649aa47	n-re-run proofs by their anchor ("proof p-4649aa47 is recorded and nobody has re-run it")
@@ -2466,27 +2356,20 @@
 2026-09-02_quadratic-formula	Close.prose	Q6 -> Q-585fa4aa	all carry the qualifier. I re-read the Q6 obituary in the projection myself and t
 2026-09-02_quadratic-formula	Close.prose	R2-3 -> G-d3a14093	o documented cost channels) — that is R2-3. And Catechism 5's qualifier does not n
 2026-09-02_quadratic-formula	Close.prose	R2-7 -> G-7c6c6aa3	carry it in the same terms — that is R2-7, merged with the other one-site-short s
-2026-09-02_quadratic-formula	MotionRule.opinion	R2-1 -> G-970250ea	cribes. The grade stands, the successor R2-1 carries the mechanism defect forward at
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	against its stored output — it closed R1-6, defeated motion M1, and produced R2-1.
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	put — it closed R1-6, defeated motion M1, and produced R2-1. The lens seats have
 2026-09-02_quadratic-formula	Log.text	R2-1 -> G-970250ea	R1-6, defeated motion M1, and produced R2-1. The lens seats have a verb for exactly
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	`reproduce --id b8851493c6d5…` in the R1-6 closure and in the M1 ruling, instead o
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	c6d5…` in the R1-6 closure and in the M1 ruling, instead of citing my own loop a
 2026-09-02_quadratic-formula	Log.text	R1-5 -> G-6722bfb9	AINST THE EVENT LOG. `show changes --id R1-5` renders two edits, neither at the gap'
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	se it. I have raised the discrepancy as R2-8 and graded it down after finding blue's
 2026-09-02_quadratic-formula	Log.text	R1-9 -> G-5d4bad75	ION NEITHER DEBATING SEAT CAN WRITE. My R1-9 required the analytical core to carry g
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	every candidate and stopped me minting R2-8 as a fresh gap when it is a successor t
 2026-09-02_quadratic-formula	Log.text	R1-5 -> G-6722bfb9	s a fresh gap when it is a successor to R1-5; `class new` twice, and the neighbour/d
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	d are one round old and unanswered, and M1 was a motion I hold the gavel on rather
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	that rules. `regrade` — used once, on R2-8, and deliberately NOT used anywhere els
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	ately NOT used anywhere else: rejecting M1 means R1-6's impact stands, and moving
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	used anywhere else: rejecting M1 means R1-6's impact stands, and moving a grade aft
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	ulings is incoherent, and the appeal on M1 is blue's to file, which I have said in
 2026-09-02_quadratic-formula	Log.text	Q19 -> Q-4813dcd4	ing — the 403'd critical essay behind Q19 — is refused to this container, which
 2026-09-02_quadratic-formula	Log.text	R2-5 -> G-0a58f64b	this container, which is the subject of R2-5 rather than a reason to spend on the sa
 2026-09-02_quadratic-formula	Position.text	R1-6 -> G-d304bbb2	MOST WORK WAS RUNNING THE PROOF STORE. R1-6's repair replaced a false word — "com
 2026-09-02_quadratic-formula	Position.text	R2-1 -> G-970250ea	ill leaves them without inputs. That is R2-1, and I have deliberately kept the mitig
-2026-09-02_quadratic-formula	Position.text	M1 -> M-a05b55d0	inversion left undisclosed. I REJECTED M1 ON MEASUREMENT, NOT ON POSTURE, AND NO
 2026-09-02_quadratic-formula	Position.text	R1-6 -> G-d304bbb2	THIS ROUND ON A DISPUTE. Blue contested R1-6's impact, medium to low_medium, on the
 2026-09-02_quadratic-formula	Position.text	R2-8 -> G-5a1d57a9	as an oversight. One grade did move — R2-8, mine, minted and then regraded down by
 2026-09-02_quadratic-formula	Position.text	R2-1 -> G-970250ea	-F9 and L6-F5 both ran the proof store (R2-1); L1-F4 and L5-F15 both found the punct
@@ -2583,8 +2466,6 @@
 2026-09-02_quadratic-formula	Computation.text	R2-2 -> G-e684016d	e species of unreproducible figure that R2-2 is about, and one red did not raise. Le
 2026-09-02_quadratic-formula	Computation.text	R2-5 -> G-0a58f64b	R2-5's check_kind is document, so this proof
 2026-09-02_quadratic-formula	Computation.text	R2-6 -> G-47de120c	R2-6's check_kind is computation and red spe
-2026-09-02_quadratic-formula	Motion.basis	R2-8 -> G-5a1d57a9	R2-8, LIKELIHOOD, HIGH -> MEDIUM, ON THE v2
-2026-09-02_quadratic-formula	Motion.basis	R2-4 -> G-396865bd	R2-4, LIKELIHOOD, MEDIUM_HIGH -> MEDIUM, USI
 2026-09-02_quadratic-formula	Closing.text	R2-1 -> G-970250ea	R2-1 is the gap red called the reason certif
 2026-09-02_quadratic-formula	Closing.text	p-75c8a55a -> K-75c8a55a	— I ran it. r2_store_replay.py (proof p-75c8a55a, reproducible) executes all fourteen st
 2026-09-02_quadratic-formula	Closing.text	Q28 -> Q-88ccee18	asured, not economised: line of inquiry Q28 records that I BUILT the marker-walk re
@@ -2596,7 +2477,6 @@
 2026-09-02_quadratic-formula	Closing.text	p-a31f8c81 -> K-a31f8c81	tions over the shipped text and passes (p-a31f8c81).
 2026-09-02_quadratic-formula	Closing.text	R2-4 -> G-396865bd	R2-4 identifies a real asymmetry I left behi
 2026-09-02_quadratic-formula	Closing.text	Q24 -> Q-a9f84f8a	e and it is what the evidence supports. Q24 is not reopened; red's too_thin ruling
-2026-09-02_quadratic-formula	Closing.text	M3 -> M-15adda71	t LIKELIHOOD only, at medium, in motion M3, using red's own disconfirmation and it
 2026-09-02_quadratic-formula	Closing.text	R2-6 -> G-47de120c	R2-6 is two characters of substance and it p
 2026-09-02_quadratic-formula	Closing.text	p-a31f8c81 -> K-a31f8c81	ubled terminators and zero empty pairs (p-a31f8c81, reproducible). At site 1 I counter-edi
 2026-09-02_quadratic-formula	Closing.text	c-c8d9a6bf -> C-c8d9a6bf	the specimen with a tool-placed anchor (c-c8d9a6bf, verified at cache sha cd726808 — Rus
@@ -2605,7 +2485,6 @@
 2026-09-02_quadratic-formula	Closing.text	R2-8 -> G-5a1d57a9	R2-8 is right and I could not take red's sec
 2026-09-02_quadratic-formula	Closing.text	R1-5 -> G-6722bfb9	ranch: I re-rendered `show changes --id R1-5` this sitting and it carries two edits,
 2026-09-02_quadratic-formula	Closing.text	R1-5 -> G-6722bfb9	tie at 25. The multiset half red closed R1-5 on is untouched. I contest LIKELIHOOD o
-2026-09-02_quadratic-formula	Closing.text	M2 -> M-e5a4782f	t LIKELIHOOD only, at medium, in motion M2: what was realized is the defect, not t
 2026-09-02_quadratic-formula	Log.text	R2-6 -> G-47de120c	nd it is not my mis-quoting: red minted R2-6 with fix_basis "verified" and an exact
 2026-09-02_quadratic-formula	Log.text	R2-1 -> G-970250ea	NTO THE RECORD, AND THAT IS THE ROOT OF R2-1. The run archive carries `proofs/` and
 2026-09-02_quadratic-formula	Log.text	Q30 -> Q-ec1cc219	refuses. Filed also as line of inquiry Q30, deferred. (3) THERE IS NO WAY TO ATTE
@@ -2642,9 +2521,6 @@
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-8 -> G-ffa5c5b8	RIGHT. ANCESTOR READ. R2-4 supersedes R1-8, and I read R1-8's closure record befor
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-8 -> G-ffa5c5b8	READ. R2-4 supersedes R1-8, and I read R1-8's closure record before ruling. That cl
 2026-09-02_quadratic-formula	MotionRule.opinion	Q24 -> Q-a9f84f8a	to the run's own provenance apparatus. Q24 IS NOT REOPENED. Red ruled the hand re-
-2026-09-02_quadratic-formula	MotionRule.opinion	M3 -> M-15adda71	use as red said it should cost. MOTION M3, RECORDED RATHER THAN LEFT TO ROT. Blue
-2026-09-02_quadratic-formula	MotionRule.opinion	M3 -> M-15adda71	DED RATHER THAN LEFT TO ROT. Blue filed M3 in round 2 contesting this gap's LIKELI
-2026-09-02_quadratic-formula	DocketRuling.review_flag	M3 -> M-15adda71	ne line of process: blue's grade motion M3 on this gap was filed after the merge t
 2026-09-02_quadratic-formula	DocketRuling.settled	Q24 -> Q-a9f84f8a	s flatly as before round 2, or that the Q24 decline is being used to cover the mis-
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-5 -> G-0a58f64b	BECAUSE IT IS THE MORE IMPORTANT HALF. R2-5 WAS WITHHELD FROM MY DOCKET AND SHOULD
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-5 -> G-0a58f64b	with what the record holds: red argued R2-5 in its round-2 closing narrative in ter
@@ -2667,9 +2543,6 @@
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-8 -> G-5a1d57a9	ive edit at the span (edit #23, against R2-8, adding the unit-cost convention the TL
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-5 -> G-6722bfb9	on -- correctly. But `show changes --id R1-5` still renders two edits, neither at th
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-5 -> G-6722bfb9	e TL;DR. The instrument is not fixed at R1-5 and cannot be: there is no verb to attr
-2026-09-02_quadratic-formula	MotionRule.opinion	M2 -> M-e5a4782f	er than a finding against blue. MOTION M2, RECORDED. Blue filed M2 in round 2 con
-2026-09-02_quadratic-formula	MotionRule.opinion	M2 -> M-e5a4782f	blue. MOTION M2, RECORDED. Blue filed M2 in round 2 contesting this gap's LIKELI
-2026-09-02_quadratic-formula	MotionRule.opinion	M1 -> M-a05b55d0	essly did NOT appeal red's rejection of M1, calling an appeal on a premise red had
 2026-09-02_quadratic-formula	Declare.holding	R2-2 -> G-e684016d	h is why it is here and not folded into R2-2's rationale where neither party would f
 2026-09-02_quadratic-formula	Declare.holding	R2-2 -> G-e684016d	was wrong at the moment it was written; R2-2's four instances were all of that kind
 2026-09-02_quadratic-formula	Certify.statement	R2-8 -> G-5a1d57a9	whole of it. READ FIRST, IN ORDER. 1. R2-8, AND ITS TOOLING DEBT — the one item
@@ -2680,20 +2553,15 @@
 2026-09-02_quadratic-formula	Certify.statement	R2-2 -> G-e684016d	ght (R2-3, R2-4, R2-5, R2-7 and half of R2-2 are document probes, not computations).
 2026-09-02_quadratic-formula	Certify.statement	R2-3 -> G-d3a14093	ired" calls is wrong, it is most likely R2-3, where the judgement is whether "unquan
 2026-09-02_quadratic-formula	Certify.statement	R2-5 -> G-0a58f64b	D CORRECTED, WHICH NEEDS A RULE CHANGE. R2-5 was WITHHELD from my docket as "minted
-2026-09-02_quadratic-formula	Certify.statement	M2 -> M-e5a4782f	THE SEQUENCING IS THE CAUSE. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likeliho
 2026-09-02_quadratic-formula	Certify.statement	R2-8 -> G-5a1d57a9	SEQUENCING IS THE CAUSE. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in
-2026-09-02_quadratic-formula	Certify.statement	M3 -> M-15adda71	SE. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in round 2. The grade
 2026-09-02_quadratic-formula	Certify.statement	R2-4 -> G-396865bd	Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in round 2. The grade gavel
 2026-09-02_quadratic-formula	Certify.statement	R2-1 -> G-970250ea	ing. - THE REPRODUCIBILITY HOLE FROM R2-1: five of the stored programs cannot be
 2026-09-02_quadratic-formula	Certify.statement	Q30 -> Q-ec1cc219	on no seat's surface. Filed by blue as Q30 and as friction. 7. LAW. inputs/law/pr
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	MOTION THAT CANNOT BE RULED. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likeliho
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	ON THAT CANNOT BE RULED. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	ED. Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in round 2. The grade
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	Blue filed M2 (R2-8 likelihood) and M3 (R2-4 likelihood) in round 2. The grade gavel
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	re is the owed fix and who owns it". So R2-8's three candidate fixes are prose insid
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	ECTION ANSWERS "DOES THIS EVENT EXIST". R2-8 turned entirely on whether a round-1 ed
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	the record. That is the substance of my R2-8 ruling and I name it here too so it lan
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	y declined to appeal red's rejection of M1, calling it closure-shopping on a premi
 2026-09-02_quadratic-formula	Log.text	R2-5 -> G-0a58f64b	g the 403 caveat that is itself part of R2-5's substance. Rejected deliberately: fet
 2026-09-02_quadratic-formula	Verify.text	R2-6 -> G-47de120c	HY THIS MATTERS MORE THAN ITS SIZE. The R2-6 opinion records that this quotation was
 2026-09-02_quadratic-formula	Verify.text	R1-7 -> G-4f2e3ef7	words in critics' mouths, which is what R1-7 was about. The fix is only safe if the
@@ -2723,7 +2591,6 @@
 2026-09-02_quadratic-formula	Log.text	Q23 -> Q-3d6fc4ce	ard is red's own (too_thin on Q20, Q22, Q23, Q24; out_of_scope on Q6; M1 rejected)
 2026-09-02_quadratic-formula	Log.text	Q24 -> Q-a9f84f8a	s red's own (too_thin on Q20, Q22, Q23, Q24; out_of_scope on Q6; M1 rejected) — I
 2026-09-02_quadratic-formula	Log.text	Q6 -> Q-585fa4aa	on Q20, Q22, Q23, Q24; out_of_scope on Q6; M1 rejected) — I am not the losing s
-2026-09-02_quadratic-formula	Log.text	M1 -> M-a05b55d0	Q20, Q22, Q23, Q24; out_of_scope on Q6; M1 rejected) — I am not the losing side
 2026-09-02_quadratic-formula	Mint.mint_reason	p-941e30b3 -> K-941e30b3	t a byte count — the anchored program p-941e30b3 prints len() of a decoded string under
 2026-09-02_quadratic-formula	Mint.mint_reason	Q27 -> Q-f03bd724	egress path was needed. Line-of-inquiry Q27 was filed to test exactly this, named "
 2026-09-02_quadratic-formula	Mint.mint_reason	R1-6 -> G-d304bbb2	tely. LINEAGE, DECLARED. Descends from R1-6, whose repair moved this figure from el
@@ -2752,8 +2619,6 @@
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-2 -> G-e684016d	e list by the wrong measurement. I name R2-2 as ancestor for that descent and for no
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-2 -> G-e684016d	r nothing else. I am not asserting that R2-2's four recount failures stand — they
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-2 -> G-e684016d	23 + 19 + 39 = 81). The bench's bar on R2-2 concerns figures wrong when written; th
-2026-09-02_quadratic-formula	MotionRule.opinion	R2-8 -> G-5a1d57a9	ACCEPTED. Likelihood on R2-8 moves HIGH -> MEDIUM, and I am moving i
-2026-09-02_quadratic-formula	MotionRule.opinion	R2-4 -> G-396865bd	REFUTED BY THE DOCUMENT. Likelihood on R2-4 moves MEDIUM_HIGH -> MEDIUM, and I am m
 2026-09-02_quadratic-formula	SpotCheck.reason	R2-2 -> G-e684016d	ogram is exactly the kind that decays. R2-2 (figure-recount-fails, bench, repaired)
 2026-09-02_quadratic-formula	SpotCheck.reason	R3-2 -> G-99effe8a	two figure defects, the program count (R3-2) and the byte/character figure folded i
 2026-09-02_quadratic-formula	SpotCheck.reason	R3-1 -> G-66889c07	d the byte/character figure folded into R3-1, are filed as new instances under that
@@ -2770,7 +2635,6 @@
 2026-09-02_quadratic-formula	Position.text	Q27 -> Q-f03bd724	bounded, which is what line of inquiry Q27 said a successful outcome would look li
 2026-09-02_quadratic-formula	Position.text	Q31 -> Q-ccd53337	ads as exhaustion where line of inquiry Q31 records a weighed decline the document
 2026-09-02_quadratic-formula	Position.text	R3-5 -> G-48310782	-hit cushion nobody stated; recorded in R3-5's reasoning, not minted. Leg (d)'s posi
-2026-09-02_quadratic-formula	Position.text	M3 -> M-15adda71	document; I rejected that leg of motion M3 in the ruling and did not make a gap of
 2026-09-02_quadratic-formula	Position.text	R2-8 -> G-5a1d57a9	se regrade will not touch a closed gap: R2-8 likelihood high -> medium and R2-4 like
 2026-09-02_quadratic-formula	Position.text	R2-4 -> G-396865bd	gap: R2-8 likelihood high -> medium and R2-4 likelihood medium_high -> medium are ru
 2026-09-02_quadratic-formula	Position.text	R3-2 -> G-99effe8a	are the contract I will audit against. R3-2: from the run directory run find over b
@@ -2778,8 +2642,6 @@
 2026-09-02_quadratic-formula	Position.text	Q31 -> Q-ccd53337	ool's show lines-of-inquiry and require Q31 to have MOVED this round — re-decline
 2026-09-02_quadratic-formula	Position.text	Q31 -> Q-ccd53337	unts for the index route, or pursued; a Q31 still resting on the round-2 reason fai
 2026-09-02_quadratic-formula	Position.text	R3-1 -> G-66889c07	ontainer with the budget already spent. R3-1 in particular is cheap to close and exp
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	ove it, on the axis that moved. I ruled M2 and M3 accepted and then ran regrade --
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	on the axis that moved. I ruled M2 and M3 accepted and then ran regrade --id R2-8
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	d M3 accepted and then ran regrade --id R2-8 --likelihood medium and regrade --id R2
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	-8 --likelihood medium and regrade --id R2-4 --likelihood medium. Both were refused:
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	d medium. Both were refused: "names gap R2-8, which is already CLOSED — a grade on
@@ -2789,7 +2651,6 @@
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	on survives without the splice. This is R3-4, and its acceptance check explicitly al
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	ising to run. Bash substituted them, so R3-2's check reached the record reading "Fro
 2026-09-02_quadratic-formula	Log.text	R3-3 -> G-c58ddc4e	— the outputs, not the commands — and R3-3 lost its projection name entirely. The
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	ted to blue as evidence when I accepted M2. show debate, show telemetry, show moti
 2026-09-02_quadratic-formula	BlueEdit.text	R3-1 -> G-66889c07	R3-1, PRIMARY SITE. SECTION: Analysis B, "Th
 2026-09-02_quadratic-formula	BlueEdit.text	R3-1 -> G-66889c07	R3-1, SIBLING SITE 2 of 5, and the place whe
 2026-09-02_quadratic-formula	BlueEdit.text	R3-1 -> G-66889c07	R3-1, SIBLING SITE 3 of 5, and the unit erro
@@ -2857,8 +2718,6 @@
 2026-09-02_quadratic-formula	Closing.text	Q31 -> Q-ccd53337	the report, not only on the record, and Q31 is moved to pursued with its falsified
 2026-09-02_quadratic-formula	Closing.text	p-50c744cc -> K-50c744cc	TED, six, and legs failing, zero (proof p-50c744cc). Red's other uncharged observation is
 2026-09-02_quadratic-formula	Closing.text	R3-3 -> G-c58ddc4e	oute that answered for Savage, which is R3-3's lesson applied here. Checking all six
-2026-09-02_quadratic-formula	Motion.basis	R3-2 -> G-99effe8a	R3-2, IMPACT, MEDIUM -> LOW_MEDIUM. One axis
-2026-09-02_quadratic-formula	Motion.basis	R1-6 -> G-d304bbb2	pact medium was defended in this run at R1-6 on a measured consequence: a record-hol
 2026-09-02_quadratic-formula	Position.text	Q15 -> Q-b3557ff1	ot catch that. I have written that into Q15, the line whose whole subject is what r
 2026-09-02_quadratic-formula	Position.text	R3-7 -> G-b5b003ce	35-36 rather than the whole column. On R3-7 the sweep found three unidentifiable li
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	Y DOING IT TO MYSELF IN THE SAME ROUND. R3-4 is a citation anchor stranded in the re
@@ -2895,18 +2754,7 @@
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-6 -> G-d304bbb2	E LOOP. ANCESTOR READ. R3-2 supersedes R1-6, and I read R1-6's closure record befor
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-6 -> G-d304bbb2	READ. R3-2 supersedes R1-6, and I read R1-6's closure record before ruling. That cl
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-1 -> G-970250ea	then naming the regression that became R2-1. I read it because this is a three-roun
-2026-09-02_quadratic-formula	MotionRule.opinion	M4 -> M-2061da56	omy's case was real and blue made it in M4: no analysis, verdict, band or recommen
-2026-09-02_quadratic-formula	MotionRule.opinion	M4 -> M-2061da56	hat the integer is now derived. MOTION M4, RECORDED RATHER THAN LEFT TO ROT. Blue
-2026-09-02_quadratic-formula	MotionRule.opinion	M4 -> M-2061da56	DED RATHER THAN LEFT TO ROT. Blue filed M4 this round contesting this gap's IMPACT
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-6 -> G-d304bbb2	ment that impact medium was defended at R1-6 on a record-holder unable to reproduce
-2026-09-02_quadratic-formula	MotionRule.opinion	M2 -> M-e5a4782f	nstance of that sequencing in this run (M2 and M3 in round 2, M4 now), and it is a
-2026-09-02_quadratic-formula	MotionRule.opinion	M3 -> M-15adda71	of that sequencing in this run (M2 and M3 in round 2, M4 now), and it is a protoc
-2026-09-02_quadratic-formula	MotionRule.opinion	M4 -> M-2061da56	cing in this run (M2 and M3 in round 2, M4 now), and it is a protocol defect rathe
-2026-09-02_quadratic-formula	DocketRuling.tension	M4 -> M-2061da56	y's case was real and blue argued it in M4 (no analysis, verdict, band or recommen
-2026-09-02_quadratic-formula	DocketRuling.review_flag	M4 -> M-2061da56	G, not the finding. Blue's grade motion M4 contesting this gap's impact was filed
-2026-09-02_quadratic-formula	DocketRuling.review_flag	M2 -> M-e5a4782f	That is the third instance in this run (M2, M3, M4) of a grade motion filed into a
-2026-09-02_quadratic-formula	DocketRuling.review_flag	M3 -> M-15adda71	is the third instance in this run (M2, M3, M4) of a grade motion filed into a clo
-2026-09-02_quadratic-formula	DocketRuling.review_flag	M4 -> M-2061da56	the third instance in this run (M2, M3, M4) of a grade motion filed into a closed
 2026-09-02_quadratic-formula	MotionRule.opinion	R3-3 -> G-c58ddc4e	COULD NOT HAVE BOUGHT. ANCESTOR READ. R3-3 supersedes R2-5, and I read R2-5's clos
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-5 -> G-0a58f64b	BOUGHT. ANCESTOR READ. R3-3 supersedes R2-5, and I read R2-5's closure record befor
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-5 -> G-0a58f64b	READ. R3-3 supersedes R2-5, and I read R2-5's closure record before ruling. That cl
@@ -2974,12 +2822,6 @@
 2026-09-02_quadratic-formula	Certify.statement	R3-6 -> G-f956e7bd	ts on ERIC and on Loh. 4. CATECHISM 6 (R3-6, and its ancestors R2-3 and R1-9). The
 2026-09-02_quadratic-formula	Certify.statement	R2-3 -> G-d3a14093	4. CATECHISM 6 (R3-6, and its ancestors R2-3 and R1-9). The single curriculum-facing
 2026-09-02_quadratic-formula	Certify.statement	R1-9 -> G-5d4bad75	ISM 6 (R3-6, and its ancestors R2-3 and R1-9). The single curriculum-facing recommen
-2026-09-02_quadratic-formula	Certify.statement	M2 -> M-e5a4782f	CING DEFECT. Three motions in this run (M2, M3, M4) were filed into a gavel window
-2026-09-02_quadratic-formula	Certify.statement	M3 -> M-15adda71	DEFECT. Three motions in this run (M2, M3, M4) were filed into a gavel window tha
-2026-09-02_quadratic-formula	Certify.statement	M4 -> M-2061da56	ECT. Three motions in this run (M2, M3, M4) were filed into a gavel window that ha
-2026-09-02_quadratic-formula	Certify.statement	M2 -> M-e5a4782f	a gavel window that had already closed. M2 and M3 were eventually ruled by the rou
-2026-09-02_quadratic-formula	Certify.statement	M3 -> M-15adda71	window that had already closed. M2 and M3 were eventually ruled by the round-3 me
-2026-09-02_quadratic-formula	Certify.statement	M4 -> M-2061da56	the board still shows the old numbers. M4 was never ruled at all and my dispositi
 2026-09-02_quadratic-formula	Certify.statement	R3-2 -> G-99effe8a	ever ruled at all and my disposition of R3-2 moots it. A grade dispute that cannot b
 2026-09-02_quadratic-formula	Certify.statement	R1-2 -> G-7fc21236	TE IS STILL 'defect_live' ON THE BOARD (R1-2, R1-5, R1-6, R1-7, R1-8, R1-9, closed r
 2026-09-02_quadratic-formula	Certify.statement	R1-5 -> G-6722bfb9	STILL 'defect_live' ON THE BOARD (R1-2, R1-5, R1-6, R1-7, R1-8, R1-9, closed repaire
@@ -2996,20 +2838,12 @@
 2026-09-02_quadratic-formula	Log.text	R3-1 -> G-66889c07	d, so not a persisting dispute" — and R3-1 was the headline of red's round-3 filin
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	and the headline of blue's answer, and R3-4 was argued by red at its own seat's exp
 2026-09-02_quadratic-formula	Log.text	R3-1 -> G-66889c07	with a controlled experiment attached. R3-1 was the round's most consequential find
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	predecessor logged this at round 2 for M2 and M3. This sitting it is M4: blue fil
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	essor logged this at round 2 for M2 and M3. This sitting it is M4: blue filed a gr
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	und 2 for M2 and M3. This sitting it is M4: blue filed a grade motion on R3-2's IM
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	it is M4: blue filed a grade motion on R3-2's IMPACT in round 3, after the merge th
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	gavel is the merge's. My disposition of R3-2 moots M4 and I have said so in that opi
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	e merge's. My disposition of R3-2 moots M4 and I have said so in that opinion, but
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	ached. WHAT I WOULD HAVE DONE: recorded M4 as MOOTED on its own id, with my reason
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	eported by red this round: red ACCEPTED M2 and M3 and the tool refused to move eit
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	by red this round: red ACCEPTED M2 and M3 and the tool refused to move either gra
 2026-09-02_quadratic-formula	Log.text	R2-7 -> G-7c6c6aa3	fused a winning rebuttal red handed it (R2-7), red discarded its own lens's finding
 2026-09-02_quadratic-formula	Log.text	R3-3 -> G-c58ddc4e	, red discarded its own lens's finding (R3-3) and raised a defect its own seat cause
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	nd raised a defect its own seat caused (R3-4). A bench that reaches for `halt` over
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	have filed a grade motion of my own on R3-2's impact, where blue's M4 argument (tha
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	f my own on R3-2's impact, where blue's M4 argument (that if a failed recount and
 2026-09-02_quadratic-formula	Log.text	Q20 -> Q-a8dbf2f1	appealed none of the four such rulings (Q20, Q22, Q23, Q6) and accepted red's Q24 t
 2026-09-02_quadratic-formula	Log.text	Q22 -> Q-803503e3	led none of the four such rulings (Q20, Q22, Q23, Q6) and accepted red's Q24 too_th
 2026-09-02_quadratic-formula	Log.text	Q23 -> Q-3d6fc4ce	one of the four such rulings (Q20, Q22, Q23, Q6) and accepted red's Q24 too_thin on
@@ -3071,13 +2905,10 @@
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	via `show report`: expect exactly two, c-e606dcbe and c-95969800 (their presence is not a
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	0 to a red auditing seat in round 2 and c-e606dcbe to blue in round 3, and is consistent w
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	A paragraph left singular, or silent on c-e606dcbe or on its round-3 blue origin, FAILS.
-2026-09-02_quadratic-formula	MotionRule.opinion	R1-6 -> G-d304bbb2	the program count. The scale is set by R1-6, where impact medium was a record-holde
 2026-09-02_quadratic-formula	SpotCheck.reason	R3-2 -> G-99effe8a	unts rather than on a static assertion. R3-2 (apparatus census): I re-ran blue/candi
 2026-09-02_quadratic-formula	SpotCheck.reason	R2-2 -> G-e684016d	rectly excluded from the matched count. R2-2 (v1/v2 prose survival): I recomputed th
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	own open list flags exactly this: "gap R2-4 had a grade motion ACCEPTED and no regr
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	tes on my desk are against closed gaps: M4 (R3-2 impact medium->low_medium), which
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	on my desk are against closed gaps: M4 (R3-2 impact medium->low_medium), which I rul
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	d accepted this round, and the standing M3 (R2-4 likelihood medium_high->medium),
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	cepted this round, and the standing M3 (R2-4 likelihood medium_high->medium), accept
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	t, and red-merge-r3's inability to move R2-4 was this same wall, not an oversight. W
 2026-09-02_quadratic-formula	Log.text	R4-1 -> G-dd976878	gap of mine was resolvable this round (R4-1 is newly minted and unrepaired, and I r
@@ -3093,12 +2924,10 @@
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	citation anchor" is literally true and R3-4 bars attributing anchors to the other p
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	ing, and the fix asks blue to attribute c-e606dcbe to its OWN round-3 conduct, which the R
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	e to its OWN round-3 conduct, which the R3-4 bar does not touch and the bench's own
-2026-09-02_quadratic-formula	Position.text	M4 -> M-2061da56	ne site built to prevent exactly that. M4 accepted. Blue is right that R3-2's imp
 2026-09-02_quadratic-formula	Position.text	R3-2 -> G-99effe8a	that. M4 accepted. Blue is right that R3-2's impact overstates the consequence. I
 2026-09-02_quadratic-formula	Position.text	R1-6 -> G-d304bbb2	count and nothing more — smaller than R1-6's reader-cannot-reproduce, which is als
 2026-09-02_quadratic-formula	Position.text	R3-2 -> G-99effe8a	lding both at medium flattens the axis. R3-2 impact medium -> low_medium. The moveme
 2026-09-02_quadratic-formula	Position.text	R2-4 -> G-396865bd	gaps; the same wall blocks the standing R2-4/M3 movement, and I have logged both as
-2026-09-02_quadratic-formula	Position.text	M3 -> M-15adda71	the same wall blocks the standing R2-4/M3 movement, and I have logged both as fri
 2026-09-02_quadratic-formula	Position.text	R3-2 -> G-99effe8a	tances reading as silence. Spot-check: R3-2 (census reconciliation) and R2-2 (64/12
 2026-09-02_quadratic-formula	Position.text	R2-2 -> G-e684016d	check: R3-2 (census reconciliation) and R2-2 (64/126 = 50.8%, 64/127 = 50.4%) both r
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	moves on anything raised this round — R4-1 is self-consistency, not a world-facing
@@ -3174,16 +3003,12 @@
 2026-09-02_quadratic-formula	SpotCheck.reason	R2-2 -> G-e684016d	ors, both seats, both rounds. No drift. R2-2 (v1->v2 prose survival): re-derived the
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	verified a sampled closure at the leaf (R4-1: the title line carries exactly two cit
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	line carries exactly two cite anchors, c-e606dcbe and c-95969800, and Technical foundatio
-2026-09-02_quadratic-formula	Position.text	M3 -> M-15adda71	charge is a bookkeeping desync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact)
 2026-09-02_quadratic-formula	Position.text	R2-4 -> G-396865bd	ge is a bookkeeping desync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were r
-2026-09-02_quadratic-formula	Position.text	M4 -> M-2061da56	esync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were ruled ACCEPTED by pr
 2026-09-02_quadratic-formula	Position.text	R3-2 -> G-99effe8a	c: motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were ruled ACCEPTED by prior me
-2026-09-02_quadratic-formula	Position.text	M2 -> M-e5a4782f	adjudicated ones (medium, low_medium); M2 leaves R2-8 likelihood in the same stat
 2026-09-02_quadratic-formula	Position.text	R2-8 -> G-5a1d57a9	ed ones (medium, low_medium); M2 leaves R2-8 likelihood in the same state. The regra
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	two non-blocking pending items — 'gap R2-4 had a grade motion ACCEPTED and no regr
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	o regrade followed it' and the same for R3-2 — telling me a grade moved on the rec
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	atomically. Same latent desync affects R2-8 likelihood (M2 accepted high->medium; b
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	latent desync affects R2-8 likelihood (M2 accepted high->medium; board still high
 2026-09-02_quadratic-formula	Mint.problem	c-4e4c92af -> C-4e4c92af	futes at high confidence against anchor c-4e4c92af, refuting the round-2 report clause tha
 2026-09-02_quadratic-formula	Mint.problem	R3-1 -> G-66889c07	unanswered. The substance was raised as R3-1 (found_by L2-F1/L6-F10/L1-F8) and repai
 2026-09-02_quadratic-formula	Mint.problem	c-4e4c92af -> C-4e4c92af	d repaired in round 3, but the specific c-4e4c92af reading has no gap of its own on the bo
@@ -3247,8 +3072,6 @@
 2026-09-02_quadratic-formula	Position.text	c-4e4c92af -> C-4e4c92af	zero, and the resolving clause carrying c-4e4c92af ("fourteen Paragraph records ... 3,773
 2026-09-02_quadratic-formula	Position.text	R2-6 -> G-47de120c	n the fix requires, and the bench's own R2-6 holding warns that a needless edit diff
 2026-09-02_quadratic-formula	Position.text	R5-1 -> G-3da22b21	worse in the name of activity. I accept R5-1's grade rather than manufacture a dispu
-2026-09-02_quadratic-formula	Position.text	M3 -> M-15adda71	ed gap the grade drives nothing (as the M3/M4 acceptances already showed), and its
-2026-09-02_quadratic-formula	Position.text	M4 -> M-2061da56	gap the grade drives nothing (as the M3/M4 acceptances already showed), and its va
 2026-09-02_quadratic-formula	Position.text	R3-1 -> G-66889c07	d as an unrevisited intention. I invoke R3-1's ruling where it went my way: recoveri
 2026-09-02_quadratic-formula	Log.text	R5-1 -> G-3da22b21	ive repair work. The sole docketed gap, R5-1, had already been minted AND closed DIS
 2026-09-02_quadratic-formula	Log.text	R5-1 -> G-3da22b21	ng here: - edit: no correction to make; R5-1's fix is already shipped and repair min
@@ -3257,8 +3080,6 @@
 2026-09-02_quadratic-formula	Log.text	p-941e30b3 -> K-941e30b3	lving figures already carry c-4e4c92af, p-941e30b3 and p-1f443272. - retire: no claim fail
 2026-09-02_quadratic-formula	Log.text	p-1f443272 -> K-1f443272	lready carry c-4e4c92af, p-941e30b3 and p-1f443272. - retire: no claim failed; nothing to
 2026-09-02_quadratic-formula	Log.text	R5-1 -> G-3da22b21	tion grade file: I considered disputing R5-1 likelihood (medium) under the v2 semant
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	a closed gap the grade is inert (as the M3/M4 acceptances showed) and the value is
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	losed gap the grade is inert (as the M3/M4 acceptances showed) and the value is a
 2026-09-02_quadratic-formula	MotionRule.opinion	R5-1 -> G-3da22b21	ADING THE BOARD. ANCESTORS READ FIRST. R5-1 supersedes R3-1; R3-1 supersedes nothin
 2026-09-02_quadratic-formula	MotionRule.opinion	R3-1 -> G-66889c07	ANCESTORS READ FIRST. R5-1 supersedes R3-1; R3-1 supersedes nothing. I read R3-1's
 2026-09-02_quadratic-formula	MotionRule.opinion	R3-1 -> G-66889c07	STORS READ FIRST. R5-1 supersedes R3-1; R3-1 supersedes nothing. I read R3-1's closu
@@ -3285,11 +3106,8 @@
 2026-09-02_quadratic-formula	Declare.holding	M5 -> M-63b375bb	es argued is not withheld) and with the M5 integrity ruling that cleared the gate
 2026-09-02_quadratic-formula	Log.text	R5-1 -> G-3da22b21	mint-and-close a lineage-successor gap (R5-1) by hand to give the reading a board ho
 2026-09-02_quadratic-formula	Log.text	M5 -> M-63b375bb	a holding this sitting; flagged in the M5 petition ruling). CAPABILITY GAP 2 (su
-2026-09-02_quadratic-formula	Log.text	M3 -> M-15adda71	und 5, confirmed from my seat). Motions M3 (R2-4 likelihood) and M4 (R3-2 impact)
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	5, confirmed from my seat). Motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were r
-2026-09-02_quadratic-formula	Log.text	M4 -> M-2061da56	seat). Motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were ruled ACCEPTED with
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	). Motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were ruled ACCEPTED with opinio
-2026-09-02_quadratic-formula	Log.text	M2 -> M-e5a4782f	h opinions stating the grade moved, and M2 leaves R2-8 likelihood likewise, but no
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	stating the grade moved, and M2 leaves R2-8 likelihood likewise, but no regrade eve
 2026-09-02_quadratic-formula	Log.text	M5 -> M-63b375bb	coerced into asserting a falsehood — M5 was granted RELIEF, the correct instrum
 2026-09-02_quadratic-formula	Log.text	M5 -> M-63b375bb	othing to file; the run's one petition (M5) was already ruled by the petition benc
@@ -3300,7 +3118,6 @@
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	nion: disposes a GAP by a closure fate. R1-6 is already closed repaired_with_regress
 2026-09-02_quadratic-formula	Log.text	R2-1 -> G-970250ea	d_with_regression by red with successor R2-1; re-stamping would double-record a fate
 2026-09-02_quadratic-formula	Certify.statement	R1-6 -> G-d304bbb2	re-examine after this CEILING run. 1. R1-6 GRADE DISPUTE (M1, blue: impact medium
-2026-09-02_quadratic-formula	Certify.statement	M1 -> M-a05b55d0	is CEILING run. 1. R1-6 GRADE DISPUTE (M1, blue: impact medium -> low_medium): DE
 2026-09-02_quadratic-formula	Certify.statement	R1-6 -> G-d304bbb2	ries proofs/ and records/ only, and the R1-6-cited broken scripts read cache/index (
 2026-09-02_quadratic-formula	Certify.statement	R1-6 -> G-d304bbb2	COHERENCE (independent second ground): R1-6 impact medium is the explicit anchor bo
 2026-09-02_quadratic-formula	Certify.statement	R3-2 -> G-99effe8a	both parties and the merge used to move R3-2 DOWN to low_medium — "the scale is se
@@ -4336,14 +4153,8 @@
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	he WORKING anchor at this exact clause (c-4aa1edf3) finds a real, leaf-verified source; th
 2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	less-precise defect log on the same gap G4): `edit` and `retire` each name the OTH
 2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	s no sources[] entry to strike, per gap G4) to be removable through the documented
-2026-09-11_is-91-prime-b9	MotionRule.opinion	G4 -> G-ddb5c38b	blue's account alone. show changes --id G4 confirms exactly the pattern blue descr
-2026-09-11_is-91-prime-b9	MotionRule.opinion	c-4aa1edf3 -> C-4aa1edf3	blue's other work this run (the genuine c-4aa1edf3 citation, the clean G1/G2 repairs) show
-2026-09-11_is-91-prime-b9	MotionRule.opinion	G1 -> G-8bd21b5d	genuine c-4aa1edf3 citation, the clean G1/G2 repairs) shows no pattern of giving
-2026-09-11_is-91-prime-b9	MotionRule.opinion	G2 -> G-3b07168d	nuine c-4aa1edf3 citation, the clean G1/G2 repairs) shows no pattern of giving up
-2026-09-11_is-91-prime-b9	MotionRule.opinion	G4 -> G-ddb5c38b	m. This does not itself close or reopen G4 -- red-lens-evidence, as the minting le
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G1 -> G-8bd21b5d	nst the live report again this sitting. G1: show report --anchor f-353551d2 --wind
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G2 -> G-3b07168d	s project"/"this codebase"/"a fixture". G2: Catechism item 3 unchanged -- still on
-2026-09-11_is-91-prime-b9	Position.text	M1 -> M-5e7563e3	Ruled M1 accepted: complexity_cost on G4 moves t
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	Ruled M1 accepted: complexity_cost on G4 moves to medium, reflecting that the sp
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	real, independently-verified citation (c-4aa1edf3); what remains is one stray dangling to
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	-evidence's own regrade already dropped G4's severity to low_medium, and G3 has sa
@@ -4985,11 +4796,6 @@
 2026-10-12_is-91-prime-wave-b	SpotCheck.reason	P-c53c6b2c -> K-c53c6b2c	i)(3-2i)" has no anchor of its own, and P-c53c6b2c still types the norms as literals at th
 2026-10-12_is-91-prime-wave-b	SpotCheck.reason	P-e6619b43 -> K-e6619b43	archive re-sampled: G-50b06caf's anchor P-e6619b43 read and reproduces as its closure stat
 2026-10-12_is-91-prime-wave-b	Log.text	P-156870b1 -> K-156870b1	eck on G-62beee97 omits a sixth anchor, P-156870b1, whose script also combines checks, so
-2026-10-12_is-91-prime-wave-b	Motion.basis	P-09bd049d -> K-09bd049d	256 843a2fb7, checked on the record for P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and
-2026-10-12_is-91-prime-wave-b	Motion.basis	P-0d706556 -> K-0d706556	, checked on the record for P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c)
-2026-10-12_is-91-prime-wave-b	Motion.basis	P-3713f092 -> K-3713f092	the record for P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c). A proof ca
-2026-10-12_is-91-prime-wave-b	Motion.basis	P-ede5a356 -> K-ede5a356	for P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c). A proof cannot be re-s
-2026-10-12_is-91-prime-wave-b	Motion.basis	P-c53c6b2c -> K-c53c6b2c	P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c). A proof cannot be re-scripted under i
 2026-10-12_is-91-prime-wave-b	Position.text	P-c53c6b2c -> K-c53c6b2c	s results rather than computing them is P-c53c6b2c, on the norm identity. The same sentenc
 2026-10-12_is-91-prime-wave-b	Position.text	P-e6619b43 -> K-e6619b43	orm identity. The same sentence carries P-e6619b43, which computes the norms from componen
 2026-10-12_is-91-prime-wave-b	Position.text	P-09bd049d -> K-09bd049d	ipt. 3. The acceptance check asks that P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and
@@ -4997,12 +4803,6 @@
 2026-10-12_is-91-prime-wave-b	Position.text	P-3713f092 -> K-3713f092	check asks that P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c show five di
 2026-10-12_is-91-prime-wave-b	Position.text	P-ede5a356 -> K-ede5a356	hat P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c show five distinct sha25
 2026-10-12_is-91-prime-wave-b	Position.text	P-c53c6b2c -> K-c53c6b2c	P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c show five distinct sha256 values. Their
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-09bd049d -> K-09bd049d	ect is not in dispute: the five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-0d706556 -> K-0d706556	n dispute: the five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-3713f092 -> K-3713f092	he five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c all carry sh
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-ede5a356 -> K-ede5a356	ors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c all carry sha256 843a2fb
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-c53c6b2c -> K-c53c6b2c	P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c all carry sha256 843a2fb7…, read on t
-2026-10-12_is-91-prime-wave-b	MotionRule.opinion	P-c53c6b2c -> K-c53c6b2c	is line 45, which holds G-50b06caf and P-c53c6b2c. Five new computations, five restatemen
 2026-10-12_is-91-prime-wave-b	Closing.text	P-09bd049d -> K-09bd049d	e does not dispute it. The five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and
 2026-10-12_is-91-prime-wave-b	Closing.text	P-0d706556 -> K-0d706556	ispute it. The five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c
 2026-10-12_is-91-prime-wave-b	Closing.text	P-3713f092 -> K-3713f092	he five anchors P-09bd049d, P-0d706556, P-3713f092, P-ede5a356 and P-c53c6b2c carry one sh

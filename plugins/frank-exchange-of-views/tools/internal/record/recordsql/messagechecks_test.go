@@ -118,6 +118,11 @@ func TestArmTableCarriesTheArmsOwnMessageChecks(t *testing.T) {
 	var want []string
 	for i := 0; i < body.Fields().Len(); i++ {
 		f := body.Fields().Get(i)
+		// armTable renders a flat message; a body holding a message field (Motion's arms) is
+		// written by the body's own path, which is not what this drives.
+		if hasMessageField(f.Message()) {
+			continue
+		}
 		if cs := MessageChecks(f.Message()); len(cs) > 0 {
 			withChecks = f
 			for _, c := range cs {
@@ -171,8 +176,8 @@ func TestAMixedOneofRefusesTwoArmsAtOnce(t *testing.T) {
 
 	// One scalar arm alone is legal — the anti-vacuity half. Without it a constraint that refused
 	// EVERYTHING would satisfy the assertion below.
-	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","grade")
-	  VALUES (1,'M1','because','accepted')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","petition")
+	  VALUES (1,'M1','because','granted')`); err != nil {
 		t.Fatalf("a single scalar arm must be accepted: %v", err)
 	}
 	// The message arm alone is legal too, and it is the arm this change added.
@@ -182,13 +187,23 @@ func TestAMixedOneofRefusesTwoArmsAtOnce(t *testing.T) {
 	}
 
 	// A scalar arm AND the message arm's discriminator, which is two arms of one oneof.
-	_, err = db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","grade","ruling_case")
-	  VALUES (3,'M3','because','accepted','docket')`)
+	_, err = db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","petition","ruling_case")
+	  VALUES (3,'M3','because','granted','docket')`)
 	if err == nil {
-		t.Fatal("a motion_rule row set BOTH a grade ruling and a docket ruling was accepted — " +
+		t.Fatal("a motion_rule row set BOTH a petition ruling and a docket ruling was accepted — " +
 			"the oneof's exclusivity check covers the scalar arms only, so the message arm is outside it")
 	}
 	if !strings.Contains(err.Error(), "CHECK") && !strings.Contains(err.Error(), "constraint") {
 		t.Errorf("refused, but not by the constraint under test: %v", err)
 	}
+}
+
+// hasMessageField reports whether md holds a field of message type.
+func hasMessageField(md protoreflect.MessageDescriptor) bool {
+	for i := 0; i < md.Fields().Len(); i++ {
+		if md.Fields().Get(i).Message() != nil {
+			return true
+		}
+	}
+	return false
 }

@@ -95,6 +95,10 @@ type Manifest struct {
 	// it, and without the token the earlier edit took it, so no stray stands for it to remove
 	// (EventSchema 78). A stated empty list where there is none.
 	SettledEdits []int64 `json:"settled_edits"`
+	// UnowedEngagements is the source id of each blue engagement written as no event because its
+	// sitting owes no successor: the successors it engaged were named by a cross-seat lineage link,
+	// which is dropped (EventSchema 79). A stated empty list where there is none.
+	UnowedEngagements []int64 `json:"unowed_engagements"`
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`

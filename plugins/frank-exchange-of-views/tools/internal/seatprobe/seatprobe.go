@@ -215,7 +215,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		}
 		// A MOTION'S VERB INCLUDES ITS SUBJECT, because that is the command a seat actually
 		// types and the expectations are written in those words. Reporting every filing as
-		// `motion file` would make `motion grade file` unmeetable BY CONSTRUCTION — an
+		// `motion file` would make `motion docket file` unmeetable BY CONSTRUCTION — an
 		// expectation that can never be met is the same plausible zero one layer up, and I
 		// wrote it into the first draft of this file.
 		if subject := motionSubject(e); subject != "" && strings.HasPrefix(verb, "motion ") {
@@ -389,7 +389,7 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 	// one expectation presumed a ruling the seat was free to make differently.
 	fmt.Fprintf(&b, "\n%d of %d expectations unmet. READ EACH AGAINST WHAT THE SEAT ACTUALLY DID.\n"+
 		"  · the board let the gap be satisfied WITHOUT the baited verb — a fixture bug, not a seat one\n"+
-		"  · the expectation presumed a judgement the seat could make differently (a REJECTED grade motion owes no regrade)\n"+
+		"  · the expectation presumed a judgement the seat could make differently (a REJECTED docket motion owes no act)\n"+
 		"  · the seat had the verb, had the situation, and did not reach for it\n"+
 		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))

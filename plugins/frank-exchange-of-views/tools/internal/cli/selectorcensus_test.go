@@ -309,7 +309,7 @@ func censusRun(t *testing.T) string {
 		{"position", "--seat-id", "red-chair", "--reason", "the chair's position on the open gap"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "does a second source give the same figure", "--hypothesis", "two sources agree within ten percent"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "is the trend seasonal", "--hypothesis", "the rise repeats every winter"},
-		{"motion", "grade", "file", "--seat-id", blueSeat, "--id", gap, "--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"},
+		{"motion", "docket", "file", "--seat-id", blueSeat, "--id", gap, "--reason", "the harm needs two failures; the bench should decide the gap"},
 		{"cite", "--seat-id", blueSeat, "--quote", "The cost is moderate and rising.", "--url", "https://census/1", "--title", "Census source"},
 	} {
 		if out, err := run(t, append(args, "--run", runDir)...); err != nil {

@@ -108,10 +108,8 @@ func assertRoundless(t *testing.T, fam record.Family) {
 			if !regexp.MustCompile(`^G-[0-9a-f]{8}$`).MatchString(m.GetGapId()) {
 				t.Errorf("mint %q is not a gap id", m.GetGapId())
 			}
-			for _, s := range m.GetSupersedes() {
-				if strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
-					t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
-				}
+			if s := m.GetSupersedes(); strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
+				t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
 			}
 		}
 	}

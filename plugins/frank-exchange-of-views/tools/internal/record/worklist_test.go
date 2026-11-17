@@ -29,7 +29,7 @@ func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes .
 	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordtest.ClassFor(cm).Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		ClassMaterial: cm.Enum(), Supersedes: supersedes}
+		ClassMaterial: cm.Enum(), Supersedes: firstAncestor(supersedes)}
 }
 
 // openChairSitting opens the chair's sitting after the parties sat and closes its log channel, so

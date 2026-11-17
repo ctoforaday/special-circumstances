@@ -80,7 +80,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 				break
 			}
 			// A mint of the lens's superseding the gap closes it in that act (G-584d152f's, at 556).
-			if mt := f.GetMint(); mt != nil && slices.Contains(mt.GetSupersedes(), g) {
+			if mt := f.GetMint(); mt != nil && mt.GetSupersedes() == g {
 				closed = true
 				break
 			}
@@ -452,7 +452,7 @@ func TestYourTurnIsThePlansEngagement(t *testing.T) {
 // successorMint is a lens's mint naming ancestor as the gap it supersedes.
 func successorMint(gap, ancestor string) *recordpb.Mint {
 	m := highMint(gap)
-	m.Supersedes = []string{ancestor}
+	m.Supersedes = proto.String(ancestor)
 	return m
 }
 

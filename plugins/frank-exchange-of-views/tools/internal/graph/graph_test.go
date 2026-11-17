@@ -30,13 +30,12 @@ func TestGapHoleHeuristic(t *testing.T) {
 			"OPEN":       {ID: "OPEN", Open: true, Mint: mint()},
 		},
 		Events: []*record.Event{
-			// A GRADE MOTION FILED AND NEVER RULED. This fixture used a `dispute` event until the
-			// motion collapse retired the type; the counters then read zero for every run and the
-			// hole detector could not fire at all, while this test went on passing against a
-			// vocabulary nothing wrote.
+			// A DOCKET MOTION FILED AND NEVER RULED. A fixture in a vocabulary nothing writes leaves
+			// the counters at zero for every run and the hole detector unable to fire, while the
+			// test goes on passing.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("UNANSWERED")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("UNANSWERED")}},
 			}),
 		},
 	}
@@ -50,9 +49,9 @@ func TestGapHoleHeuristic(t *testing.T) {
 	if lineClass(m, "g_TORN") != "hole" {
 		t.Errorf("a torn closure (no reason) must be a hole:\n%s", m)
 	}
-	// An open gap with a filed-but-unruled grade motion is a hole.
+	// An open gap with a filed-but-unruled docket motion is a hole.
 	if lineClass(m, "g_UNANSWERED") != "hole" {
-		t.Errorf("a grade motion with no ruling must be a hole:\n%s", m)
+		t.Errorf("a docket motion with no ruling must be a hole:\n%s", m)
 	}
 	// A plain open gap is open, not a hole.
 	if lineClass(m, "g_OPEN") != "open" {
@@ -90,28 +89,30 @@ func TestSeatFlowTalliesEvents(t *testing.T) {
 	}
 }
 
-// A RULED grade motion is not a hole — the counter must distinguish filed-and-answered from
+// A RULED docket motion is not a hole — the counter must distinguish filed-and-answered from
 // filed-and-ignored, which is the entire reason it counts two numbers rather than one.
-func TestRuledGradeMotionIsNotAHole(t *testing.T) {
+func TestRuledDocketMotionIsNotAHole(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"ANSWERED"},
 		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: mint()}},
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-respond", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("ANSWERED")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("ANSWERED")}},
+				Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("ANSWERED"),
+					Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the harm needs two failures")}},
 			}),
-			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the grade arm, so a fixture
-			// cannot pair a grade motion with a petition's verdict the way two loose strings could.
-			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
+			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the docket arm, so a fixture
+			// cannot pair a docket motion with a petition's verdict the way two loose strings could.
+			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("the grade was argued and holds"),
-				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(true)}},
 			}),
 		},
 	}
 	if got := lineClass(gapFlowMermaid(b.fam(t)), "g_ANSWERED"); got != "open" {
-		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b.fam(t)))
+		t.Errorf("a ruled docket motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b.fam(t)))
 	}
 }
 

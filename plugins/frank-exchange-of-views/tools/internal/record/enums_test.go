@@ -70,7 +70,6 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}{
 		{"petition", "class", recordpb.PetitionClass(0).Descriptor()},
 		{"petition", "binds", recordpb.RulingBinds(0).Descriptor()},
-		{"grade", "dimension", recordpb.GradeDimension(0).Descriptor()},
 	} {
 		for _, v := range MotionFields[tc.subject][tc.key] {
 			if _, ok := recordpb.BySpelling(tc.ed, v.Name); !ok {
@@ -95,32 +94,6 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}
 	if len(MotionVerdicts["petition"]) == 0 {
 		t.Error("MotionVerdicts lost the petition rulings")
-	}
-	// The four grade axes, likewise, and what each means: the menu a grade motion's filer reads is
-	// GradeDimension's own words and sentences, in its order.
-	dims := MotionFields["grade"]["dimension"]
-	if got := strings.Join(Names(dims), "|"); got != "severity|likelihood|impact|complexity" {
-		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
-	}
-	for _, v := range dims {
-		d, ok := GradeDimensionOf(v.Name)
-		if !ok {
-			t.Errorf("the dimension menu offers %q, which is not a GradeDimension", v.Name)
-			continue
-		}
-		// ONE DEFINITION OF EACH AXIS, and the menu opens with it. The complexity axis carries a
-		// second fact there and nowhere else — why it is the one to contest — which is a fact
-		// about a motion: the page a lens grades from prints the definition alone.
-		want := AxisMeans(d)
-		if d == recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY {
-			if strings.Contains(want, "contest") {
-				t.Errorf("the complexity axis's definition carries the motion's contest clause, so every page that grades on it prints it: %q", want)
-			}
-			want += " — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"
-		}
-		if v.Means != want {
-			t.Errorf("the dimension menu says %q means %q, want %q", v.Name, v.Means, want)
-		}
 	}
 }
 

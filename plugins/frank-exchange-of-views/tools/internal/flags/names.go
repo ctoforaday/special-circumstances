@@ -156,8 +156,6 @@ const (
 	Likelihood = "likelihood"
 	Impact     = "impact"
 	Complexity = "complexity"
-	Proposed   = "proposed"
-	Dimension  = "dimension"
 
 	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's class
 	// from the GapClass set, a petition's from a fixed four. Same arrangement as --as — one word,
@@ -255,9 +253,6 @@ const (
 	// so it answers neither ReopensOn nor Final.
 	Direction = "direction"
 	Relief    = "relief"
-	// Grounds is a reconsideration's: the act, by its id, that is new since the bench ruled the gap
-	// closed. Its quote form is --quote.
-	Grounds = "grounds"
 	// Lens is the lens an upheld ruling on the chair's withheld PASS names to audit its area.
 	Lens = "lens"
 
@@ -322,13 +317,13 @@ func All() []string {
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, Confidence, Bridge, Occasion,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
+		Severity, Likelihood, Impact, Complexity,
 		Class,
 		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
-		Settled, ReopensOn, Final, Direction, Grounds, Lens,
+		Settled, ReopensOn, Final, Direction, Lens,
 		Method,
 		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,
@@ -355,7 +350,7 @@ var closedForm = map[string]bool{
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true, SourceLines: true, TextSha: true,
 	Bulk: true, Judgment: true, Seat: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
-	Card: true, Occasion: true, Grounds: true, Lens: true,
+	Card: true, Occasion: true, Lens: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.

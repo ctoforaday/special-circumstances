@@ -38,10 +38,6 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
 			"--id", "M9", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
-		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond",
-			"--id", "G99", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
-		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-chair",
-			"--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "blue-respond",
@@ -127,11 +123,8 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"regrade",
 			"--seat-id", lensSeat, "--id", closed, "--severity", "low", "--reason", "b"}},
-		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
-			"--seat-id", "blue-respond", "--id", closed, "--dimension", "severity",
-			"--proposed", "low", "--reason", "b"}},
-		{"rule a motion nobody filed", "which no filing created", []string{"motion", "grade", "rule",
-			"--seat-id", "red-chair", "--id", "M9", "--as", "accepted", "--reason", "b"}},
+		{"rule a motion nobody filed", "which no filing created", []string{"motion", "petition", "rule",
+			"--seat-id", "judge", "--id", "M9", "--as", "denied", "--reason", "b"}},
 		{"spot-check an OPEN gap", "still OPEN", []string{"spot-check",
 			"--seat-id", "red-chair", "--ids", open}},
 		{"carry residue into a closed gap", "already finished", []string{"close",
@@ -213,8 +206,8 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 }
 
 // cmdPath is the leading run of non-flag words in an argv — the command path, however deep.
-// Taking args[0] and args[1] assumed a two-level tree and silently mangled `motion grade file`
-// into `motion grade --run … file`.
+// Taking args[0] and args[1] assumed a two-level tree and silently mangled `motion docket file`
+// into `motion docket --run … file`.
 func cmdPath(args []string) []string {
 	n := 0
 	for n < len(args) && !strings.HasPrefix(args[n], "-") {

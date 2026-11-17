@@ -37,8 +37,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsInquiryStatus[:]
 	case "feov.record.v1.MotionSubject":
 		return annotationsMotionSubject[:]
-	case "feov.record.v1.GradeRuling":
-		return annotationsGradeRuling[:]
 	case "feov.record.v1.PetitionRuling":
 		return annotationsPetitionRuling[:]
 	case "feov.record.v1.PositionRuling":
@@ -67,6 +65,8 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsRulingBinds[:]
 	case "feov.record.v1.Occasion":
 		return annotationsOccasion[:]
+	case "feov.record.v1.TombstoneKind":
+		return annotationsTombstoneKind[:]
 	}
 	return nil
 }
@@ -85,7 +85,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_LOG", Means: "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"},
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
 	{Name: "EVENT_TYPE_MINT", Means: "a gap put on the board — the act that creates the entity every other act refers to"},
-	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"},
+	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a petition to the bench, or a gap docketed with the act the filer proposes"},
 	{Name: "EVENT_TYPE_MOTION_RULE", Means: "the bench's ruling on a filed motion, and whom it binds"},
 	{Name: "EVENT_TYPE_OUTCOME", Means: "the run's terminal act: how it ended and whether the question was answered"},
 	{Name: "EVENT_TYPE_POSITION", Means: "the chair's argument to the bench on what is about no one gap"},
@@ -105,6 +105,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_STALE", Means: "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"},
 	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
+	{Name: "EVENT_TYPE_TOMBSTONE", Means: "the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb"},
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
 }
 
@@ -246,16 +247,9 @@ var annotationsInquiryStatus = [...]ValueAnnotations{
 
 var annotationsMotionSubject = [...]ValueAnnotations{
 	{Name: "MOTION_SUBJECT_UNSPECIFIED"},
-	{Name: "MOTION_SUBJECT_GRADE", Means: "you contest a gap's grade on one dimension", RuledBy: "chair"},
 	{Name: "MOTION_SUBJECT_PETITION", Means: "you ask the bench to intervene — the constitutional short-circuit available to any party seat", RuledBy: "bench"},
-	{Name: "MOTION_SUBJECT_DOCKET", Means: "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", RuledBy: "bench"},
+	{Name: "MOTION_SUBJECT_DOCKET", Means: "a gap put to its assignee and then the bench, with the act the filer proposes: the assignee may accept it at its next sitting, else the bench accepts or rejects it, or rules a motion with no act by its word", RuledBy: "bench"},
 	{Name: "MOTION_SUBJECT_POSITION", Means: "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", RuledBy: "bench"},
-}
-
-var annotationsGradeRuling = [...]ValueAnnotations{
-	{Name: "GRADE_RULING_UNSPECIFIED"},
-	{Name: "GRADE_RULING_ACCEPTED", Means: "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"},
-	{Name: "GRADE_RULING_REJECTED", Means: "the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion"},
 }
 
 var annotationsPetitionRuling = [...]ValueAnnotations{
@@ -366,4 +360,10 @@ var annotationsOccasion = [...]ValueAnnotations{
 	{Name: "OCCASION_TERMINAL", Means: "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"},
 	{Name: "OCCASION_ASSEMBLE", Means: "assembling the final report by union-copy. The last step of the run"},
 	{Name: "OCCASION_POSITION", Means: "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch"},
+}
+
+var annotationsTombstoneKind = [...]ValueAnnotations{
+	{Name: "TOMBSTONE_KIND_UNSPECIFIED"},
+	{Name: "TOMBSTONE_KIND_RULING", Means: "a bench ruling but a remand is final for the ruled gap's text"},
+	{Name: "TOMBSTONE_KIND_ESTOPPEL", Means: "blue applied the gap's prescription verbatim, so red may not re-raise the text it prescribed"},
 }

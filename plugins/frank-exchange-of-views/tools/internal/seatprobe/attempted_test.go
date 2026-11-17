@@ -60,18 +60,18 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 func TestAttemptedTakesTheLongestVerbNotTheFirstToken(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/x/fxr.exe" motion grade file --id G1 --dimension severity --proposed low --reason "r"`,
+		`"/x/fxr.exe" motion docket file --id G1 --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "blue")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Taking the first token files this under `motion`, and every expectation is written
-	// against `motion grade file` — so the verb becomes unmeetable BY CONSTRUCTION. The same
+	// against `motion docket file` — so the verb becomes unmeetable BY CONSTRUCTION. The same
 	// shortcut in the fuzzer's trajectory reader reported all seven motion verbs as never
 	// invoked while 35 motion events sat in the record.
-	if got["motion grade file"] != 1 {
-		t.Fatalf("counted %v, want motion grade file×1", got)
+	if got["motion docket file"] != 1 {
+		t.Fatalf("counted %v, want motion docket file×1", got)
 	}
 }
 

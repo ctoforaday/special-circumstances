@@ -2,8 +2,8 @@ package recordpb
 
 import "google.golang.org/protobuf/reflect/protoreflect"
 
-// Subject is the motion's subject: the arm its filing sets. The filing IS the subject — a grade
-// motion is one whose filing is a GradeMotion — so the record stores it once, in the arm, and every
+// Subject is the motion's subject: the arm its filing sets. The filing IS the subject — a docket
+// motion is one whose filing is a DocketMotion — so the record stores it once, in the arm, and every
 // reader asks here. UNSPECIFIED is a motion whose filing is unset.
 func (x *Motion) Subject() MotionSubject { return armSubject(x, "filing") }
 

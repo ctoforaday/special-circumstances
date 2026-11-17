@@ -18,9 +18,6 @@ import (
 // ready and every blocker is the chair's own. A kind added to blockerKinds with no row here fails
 // the coverage check below.
 func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
-	gradeMotion := &recordpb.Motion{MotionId: proto.String("M1"),
-		Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}
 	rows := []struct {
 		name          string
 		kind          BlockerKind // "" = nothing holds
@@ -97,10 +94,6 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.withhold("A-00000001").benchRegister(recordpb.Occasion_OCCASION_POSITION).
 				add(benchSeat, positionRuling("A-00000001", recordpb.PositionRuling_POSITION_RULING_UPHELD, evLens, nil, "the leaf"))
 		}, false},
-		{"unruled grade motion, the chair's gavel", BlockerUnruledMotion, true, true, func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.add("blue-respond", gradeMotion)
-		}, true},
 		// AN INQUIRY HOLDS THE PASS UNTIL IT IS SOUND (ruled by gblock 2026-11-01): open, for blue's
 		// fate; settled, for the logic lens's check. Neither is the chair's to clear.
 		{"open inquiry", BlockerOpenInquiry, true, true, func(b *stage) {
@@ -420,24 +413,12 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 			}
 		})
 	}
-	t.Run("converged, the chair's own item", func(t *testing.T) {
-		b := convergedBoard(t)
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M9"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.seed()
-		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "M9") {
-			t.Fatalf("FAIL over a converged board holding only the chair's ruling of grade motion M9 = %v, want the convergence refusal naming it", err)
-		}
-	})
 }
 
 // THE OUTCOME IS REFUSED WHILE A MOTION WHOSE GAVEL IS THE BENCH'S STANDS UNRULED (#1202). The
 // terminal bench sitting fires on the bench-owned blockers of the chair's last plan, and a motion
 // filed after that plan convenes no sitting: this refusal is what stops the outcome recording over
-// a petition nobody answered. A motion the chair rules does not hold it, a halt is exempt, and a
-// ruling clears it.
+// a petition nobody answered. A halt is exempt, and a ruling clears it.
 func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 	outcome := func() *recordpb.Outcome {
 		return &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("ended")}
@@ -461,26 +442,11 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			t.Errorf("outcome after the petition was ruled = %v, want it admitted", err)
 		}
 	})
-	t.Run("a motion the chair rules does not hold it", func(t *testing.T) {
-		b := board(t)
-		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		// The assembly sitting records the outcome, and is convened to rule every bench motion.
-		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
-		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
-			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
-		}
-	})
 	t.Run("the bench's work list names exactly what the refusal names", func(t *testing.T) {
 		b := board(t)
 		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		b.add("blue-respond", petitionMotion("M1"))
 		b.docketMotion("red-chair", "M2", "G1")
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
 		// The assembly sitting records the outcome, and is convened to rule every bench motion.
 		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
@@ -505,8 +471,8 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 				t.Errorf("the bench's work list does not name %q: %q", want, listed)
 			}
 		}
-		if len(listed) != 2 || strings.Contains(err.Error(), "M3") {
-			t.Errorf("the chair's grade motion M3 is the bench's on one surface: work list %q, refusal %v", listed, err)
+		if len(listed) != 2 {
+			t.Errorf("the bench's work list names %q, want exactly the two motions the refusal names", listed)
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {

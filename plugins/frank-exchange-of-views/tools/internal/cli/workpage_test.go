@@ -37,7 +37,6 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"ON THE CHAIR'S LIST a blocking item holds a PASS", []string{"chair"}},
 		{"FOR EACH GAP OF YOURS WHOSE TURN HAS COME", []string{"lens"}},
 		{"A DOCKETED GAP IS OFF YOUR LIST UNTIL THE BENCH RULES IT", []string{"lens", "blue"}},
-		{"AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE", []string{"lens"}},
 		{"WHERE THE LENS PRESCRIBED EXACT TEXT", []string{"lens", "blue"}},
 		{"`engaged` IS BLUE'S RESPONSE SITTING'S", []string{"blue"}},
 		// Every seat's but the lens's, whose work arrives one item at a time: what the list is. Every

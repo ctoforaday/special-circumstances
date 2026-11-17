@@ -48,6 +48,7 @@ type Result struct {
 	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
 	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 78)
 	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 78)
+	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 79)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -399,6 +400,25 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			} else if drop {
 				continue
 			}
+			if m, ok := body.(*recordpb.Mint); ok {
+				if err := dropCrossSeatLink(batch.Querier(), m, seatID); err != nil {
+					return nil, err
+				}
+			}
+			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT, and counted (UnowedEngagements):
+			// the successors it engaged were named by a cross-seat lineage link dropCrossSeatLink drops,
+			// so the record names none for it. A pin naming it names the record before it.
+			if d, ok := body.(*recordpb.Dispatch); ok {
+				if none, err := record.EngagementOwesNone(batch.Querier(), seatID, d); err != nil {
+					return nil, err
+				} else if none {
+					res.UnowedEngagements = append(res.UnowedEngagements, old.ID)
+					if err := pinBefore(old.ID); err != nil {
+						return nil, err
+					}
+					continue
+				}
+			}
 			if drop, err := actOnSupersededGap(batch.Querier(), body, supersededMotions); err != nil {
 				return nil, err
 			} else if drop {
@@ -650,6 +670,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		res.SupersededOutcomes = []migration.SupersededOutcome{}
 	}
 	res.QuotelessReadings, res.SettledEdits = statedIDs(res.QuotelessReadings), statedIDs(res.SettledEdits)
+	res.UnowedEngagements = statedIDs(res.UnowedEngagements)
 	return res, nil
 }
 
@@ -800,7 +821,7 @@ func archivedSha(src OldEvent) (string, bool) {
 // seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
 // event. A read that fails is returned, never taken for a refusal.
 // actOnSupersededGap reports whether body is an act on a gap a successor's mint closed by superseding
-// it, which the write refuses (EventSchema 62): a close, a regrade, a docket or grade motion on it, and
+// it, which the write refuses (EventSchema 62): a close, a regrade, a docket motion on it, and
 // the ruling of a motion so left out. An archive's lens superseded an open gap and went on acting on
 // it — closing it repaired, regrading it, docketing it — under the rule of its day, when superseding
 // closed nothing. Since the ruling of gblock 2026-11-04 the successor's mint closes the ancestor and
@@ -816,7 +837,7 @@ func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[str
 	case *recordpb.Regrade:
 		gap = b.GetGapId()
 	case *recordpb.Motion:
-		gap = b.GetDocket().GetGapId() + b.GetGrade().GetGapId()
+		gap = b.GetDocket().GetGapId()
 	case *recordpb.MotionRule:
 		return motions[b.GetMotionId()], nil
 	default:

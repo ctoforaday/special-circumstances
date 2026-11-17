@@ -36,7 +36,7 @@ import (
 // --key retry is idempotent and places the Anchor a crash between them left owed.
 func init() {
 	seat.HelpValues["SpanBoundary"] = fetchcache.SpanBoundary
-	seat.HelpValues["TextMarkup"] = fetchcache.TextMarkup
+	seat.HelpValues["TextMarkupRule"] = fetchcache.TextMarkupRule
 }
 
 func newCite() *cobra.Command {

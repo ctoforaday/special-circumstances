@@ -77,14 +77,13 @@ type Inquiry struct {
 // seat misses when the board had made them unreachable; TestEveryExpectationIsReachableOnItsBoard
 // is the gate, and this is the state it demands.
 type Motion struct {
-	Subject string // grade | petition
-	// Filer is who files it. A grade motion is blue's; a petition may come from any seat but the bench.
+	Subject string // docket | petition
+	// Filer is who files it; a petition may come from any seat but the bench.
 	Filer string
-	// GapID, Dimension and Proposed carry a grade motion; Class and Relief carry a petition.
-	GapID, Dimension, Proposed, Class, Relief string
-	Basis                                     string
-	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
-	// docket motion on the gap the seat's next move rather than a fresh grade motion.
+	// GapID carries a docket motion; Class and Relief carry a petition.
+	GapID, Class, Relief string
+	Basis                string
+	// Ruled, when set, is the verdict the ruler has already given.
 	Ruled string
 	// RuledWhy is the ruler's argument. See Inquiry.RuledWhy for why a board without one is not a
 	// board: a seat asked whether to answer a refusal it cannot read is being scored on a guess.
@@ -220,15 +219,15 @@ The remaining cases are out of scope.
 				Fix:      "Enumerate the excluded cases or state why the count cannot be had.",
 				Check:    "The excluded set has a stated size or a stated reason it cannot be counted.", CheckKind: "document",
 				Severity: "low", Likelihood: "low", Impact: "medium", Complexity: "high",
-				Baits: "motion grade file",
+				Baits: "motion docket file",
 				Why: "Graded low/low/medium against a HIGH complexity cost — the shape where the fix costs " +
-					"more than the defect, and the accounted answer is to contest the grade rather than to " +
-					"do the expensive work silently or quietly not do it.",
+					"more than the defect, and the accounted answer is to propose the regrade before the bench " +
+					"rather than to do the expensive work silently or quietly not do it.",
 			},
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and " + recordpb.DemandClause + ". A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
-			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
+			{Seat: "blue-respond", Verb: "motion docket file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Proposing its regrade in a docket motion is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
 			{Seat: "blue-respond", Verb: "inquiry propose", Because: "Answering the computation gaps opens an inquiry this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and an inquiry may be proposed AT ANY POINT in the run, not only at the start. An inquiry that occurs mid-repair is one a later run needs on the record."},
 		},
@@ -335,20 +334,11 @@ Reversibility under load was not tested.
 				Check:    "The limitation carries a stated risk.", CheckKind: "document",
 				Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
 				Baits: "motion docket file",
-				Why: "Graded `certain` on both axes for a limitation the report DISCLOSES. A seat that files " +
-					"a grade motion and is refused has one accounted move left, and it is the gap before the bench — " +
-					"not pursuing it anyway and not silently accepting it.",
+				Why: "Graded `certain` on both axes for a limitation the report DISCLOSES. A seat that disputes " +
+					"a grade it cannot move has one accounted move, and it is the gap before the bench with the regrade " +
+					"it proposes — not pursuing it anyway and not silently accepting it.",
 			},
 		},
-		Motions: []Motion{{
-			Subject: "grade", Filer: "blue-respond", GapID: "G2",
-			Dimension: "likelihood", Proposed: "low",
-			Basis: "the untested case is disclosed in the report's own Limits section, so the consequence is bounded by a reader who has been told",
-			Ruled: "rejected",
-			RuledWhy: "disclosure bounds what a reader is SURPRISED by, not what the system does under load. " +
-				"The likelihood axis grades the consequence landing, and nothing here has been run — so the " +
-				"grade stands until there is a measurement, not until there is a sentence in Limits.",
-		}},
 		Inquiries: []Inquiry{
 			{Question: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load"},
 			{Question: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring"},
@@ -429,14 +419,12 @@ Figures were read from the deployed configuration.
 	}
 }
 
-// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed an
-// inquiry; this board is about responding, not sweeping.
+// adjudicate: the chair's OTHER sitting. Blue has answered and proposed an inquiry; this board is
+// about responding, not sweeping.
 //
 // SPLIT OUT OF `audit`, and the coherence gate is what forced it: one board demanding eleven verbs
 // is a checklist, and a seat working through a checklist is not choosing. The split is the honest
-// shape anyway — the archive and blue's motions are two different sittings in a real epoch. The
-// `regrade` this board once demanded after an accepted grade motion is the ORIGINATING LENS's act
-// now (§III.B.3) and `lens-gaps` demands it there; the chair's half of that exchange is the ruling.
+// shape anyway — the archive and blue's answers are two different sittings in a real epoch.
 func adjudicate() Board {
 	return Board{
 		Name: "adjudicate", Seat: "red-chair",
@@ -458,18 +446,6 @@ Figures were read from the deployed configuration at the pinned revision.
 `,
 		Gaps: []Gap{
 			{
-				Key: "overgraded", Class: "metric_conflation",
-				Location: `Retention is 30 days for the audit log and 45 for the access log; the earlier universal was wrong.`,
-				Problem:  "Two different measurements are presented as one figure.",
-				Fix:      "Separate the two measurements.",
-				Check:    "Each figure names what it measures.", CheckKind: "document",
-				Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "motion grade rule",
-				Why: "Graded at the top of the scale for a presentational defect, so blue contests it. The " +
-					"ruling is answered on the motion's id, and an unanswered motion now REFUSES a PASS — " +
-					"so ignoring it stops the run rather than passing quietly.",
-			},
-			{
 				Key: "reraised", Class: "incomplete_repair_propagation",
 				Location: `The access log retains for 45 days.`,
 				Problem:  "The figure was corrected here and not at the two other sites that state it.",
@@ -484,13 +460,7 @@ Figures were read from the deployed configuration at the pinned revision.
 		Inquiries: []Inquiry{
 			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
-		Motions: []Motion{{
-			Subject: "grade", Filer: "blue-respond", GapID: "G1",
-			Dimension: "severity", Proposed: "medium",
-			Basis: "the defect is presentational: both figures are correct and only their framing conflates them, so `certain` severity prices a rewrite as though it were a data error",
-		}},
 		Expect: []Expectation{
-			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-chair", Verb: "motion docket file", Because: "THIS puts the gap on the record as one the bench owes an answer to, and its parties — the minting lens and blue — then argue it in their closings. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
@@ -560,10 +530,9 @@ Integrity levels follow consequence.
 
 // sitting: the bench. A docket to dispose of, a run to end, and a boundary to hold.
 // lensDispose is the lens sitting AFTER its gap was answered: the report now carries the
-// derivation G1 asked for and blue's grade motion on G1 was accepted by the chair. Two moves are
-// right and both are the originator's alone — regrade to the accepted grade, close with the
-// verification triple — because a gap belongs to the lens that minted it (plans/roundless.md
-// §III.B.3). Split from lens-audit so neither board is a checklist.
+// derivation G1 asked for, and what remains is presentation. Two moves are right and both are the
+// originator's alone — regrade to the weight that remains, close with the verification triple —
+// because a gap belongs to the lens that minted it (plans/roundless.md §III.B.3). Split from lens-audit so neither board is a checklist.
 func lensDispose() Board {
 	return Board{
 		Name: "lens-dispose", Seat: "red-lens-evidence",
@@ -584,9 +553,9 @@ Baseline: median latency 250 ms over 1,000 requests on release 1.4; measured: 15
 The methodology follows the standard published by the working group.
 `,
 		// THE LENS'S OWN GAP (plans/roundless.md §III.B.3): minted by this seat at staging, so its
-		// regrade and its close are this seat's to make. Blue contested the severity and the chair
-		// accepted the motion — an accepted grade motion is a grade the ORIGINATOR now owes a regrade
-		// for; and the report states the derivation the check asked for, so the close is legal.
+		// regrade and its close are this seat's to make. The report states the derivation the check
+		// asked for, so the severity set for a figure nobody could re-run overstates what remains, and
+		// the close is legal.
 		Gaps: []Gap{{
 			Key: "improvement", Class: "derivation_status_overclaim",
 			Location: `The improvement is 40% against the prior release.`,
@@ -598,15 +567,8 @@ The methodology follows the standard published by the working group.
 			Why: "The report now states the derivation the gap asked for, so the acceptance check is met on the " +
 				"page — and the lens that minted this gap is the one seat that may close it; the chair has no close verb.",
 		}},
-		Motions: []Motion{{
-			Subject: "grade", Filer: "blue-respond", GapID: "G1",
-			Dimension: "severity", Proposed: "medium",
-			Basis:    "the figure is reproducible from the computation now on the board; what remains is presentation, not correctness",
-			Ruled:    "accepted",
-			RuledWhy: "the computation answers the check; the residual defect is that the derivation is not IN the report, which is material but not serious",
-		}},
 		Expect: []Expectation{
-			{Seat: "red-lens-evidence", Verb: "regrade", Because: "Blue's grade motion on G1 was accepted by the chair, and accepting a motion does not move the grade — saying so is not doing it. The regrade is the ORIGINATOR's act; nobody else's regrade lands on this gap."},
+			{Seat: "red-lens-evidence", Verb: "regrade", Because: "G1's severity was set for a headline figure nobody could re-run, and the report now states its derivation: what remains is presentation, not correctness. The grade is the ORIGINATOR's to move, and a close over a grade that overstates the defect records the wrong weight; nobody else's regrade lands on this gap."},
 			{Seat: "red-lens-evidence", Verb: "close", Because: "The ordinary disposal, with its verification triple, by the one seat allowed to make it. The report states the derivation G1 asked for; a closure whose evidence is not recoverable is the attestation-format defect the scorecard measures."},
 		},
 	}
@@ -890,10 +852,9 @@ func Boards() map[string]Board {
 // NoSituation records a verb a role CAN reach and has no realistic sitting for, keyed "<role>
 // <verb>", with the argument for why not.
 //
-// THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
-// file` is offered to every seat but the chair, which rules it — but grades are blue's to
-// contest. A lens mints gaps; a bench disposes of gaps rather than arguing their axes. The
-// verb-slots below exist and no board here reaches them.
+// THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: a filing verb is
+// offered to seats whose sittings never reach it. The verb-slots below exist and no board here
+// reaches them.
 //
 // That is capability offered without purpose, and the choice report would otherwise show every
 // non-blue seat permanently "using 6 of 10". Two ways out, and neither is this map: scope the
@@ -906,15 +867,12 @@ var NoSituation = map[string]string{
 	"lane inquiry record":       laneSitsBeforeAnyBoard,
 	"lane log":                  laneSitsBeforeAnyBoard,
 	"lane motion docket file":   "a lane sits before any gap is minted, so it has no gap to put before the bench.",
-	"lane motion grade file":    "a lane sits before any gap is minted, so it has no grade to contest.",
 	"lane motion petition file": laneSitsBeforeAnyBoard,
 	"lens motion docket file":   "a lens mints its gaps. Its one road here is a proposed act on another lens's gap, which the one-gap-per-class refusal opens and no board here stages.",
-	"lens motion grade file":    "a lens mints its gaps and weighs them as it mints; a weight it disputes on another lens's gap is a proposed regrade, not a grade contest.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
 		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
 		"record-parity audit holds the duty instead.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
-	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
 	"bench motion position rule": "possible and real — the bench rules the chair's position on a PASS it withheld — but it answers the chair position above, " +
 		"which no board here stages for the same reason; record's withheldpass_test.go and cli's positionheard_test.go drive the ruling instead.",
 }

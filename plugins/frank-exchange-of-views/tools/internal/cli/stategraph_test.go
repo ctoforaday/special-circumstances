@@ -483,19 +483,6 @@ func motionOf(t *testing.T, runDir, id string) *record.Motion {
 	return nil
 }
 
-func gradeMotionProbe() entityProbe {
-	return motionProbe("grade", "M1", []probeAct{gapMint()}, []probeAct{
-		{"file", []string{"motion", "grade", "file", "--id", "G1", "--dimension", "severity",
-			"--proposed", "low", "--reason", "the consequence is bounded by the caller's own validation"}},
-		{"rule", []string{"motion", "grade", "rule", "--id", "M1", "--as", "rejected",
-			"--reason", "the evidence does not reach it"}},
-	}, []string{"unfiled", "filed", "ruled"},
-		map[string]string{"filed": "file", "ruled": "rule"},
-		map[string]string{
-			"ruled": "BY DESIGN: the chair's ruling is the motion's one answer and it stands — record.RequireUnruledMotion refuses a second in terms. A seat that disagrees files a docket motion on the gap, or a new grade motion while the gap is open: each is a NEW entity with its own graph, and this motion's answer does not reopen.",
-		})
-}
-
 func petitionMotionProbe() entityProbe {
 	return motionProbe("petition", "M1", nil, []probeAct{
 		{"file", []string{"motion", "petition", "file", "--class", "safety",
@@ -672,7 +659,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	}
 
 	probed := map[string]bool{}
-	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()} {
+	for _, p := range []entityProbe{gapProbe(t), petitionMotionProbe(), inquiryProbe()} {
 		for _, a := range p.acts {
 			var path []string
 			for _, w := range a.args {
@@ -736,7 +723,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 
-	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()}
+	probes := []entityProbe{gapProbe(t), petitionMotionProbe(), inquiryProbe()}
 
 	var edges []stateEdge
 	var deadEnds, overwrites []string

@@ -52,7 +52,7 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 	superseded := map[string]int64{} // gap → the place of the first mint that names it superseded, which closed it
 	for i, e := range evs {
 		if m := e.GetMint(); m != nil {
-			for _, s := range m.GetSupersedes() {
+			if s := m.GetSupersedes(); s != "" {
 				if _, seen := superseded[s]; !seen {
 					superseded[s] = ids[i]
 				}

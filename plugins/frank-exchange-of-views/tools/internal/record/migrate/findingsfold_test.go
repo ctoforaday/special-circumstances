@@ -152,8 +152,10 @@ func TestNoMigratedArchiveHoldsAFindingIDOrToken(t *testing.T) {
 			})
 		}
 	}
-	if prose != 446 {
-		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 446", prose)
+	// 444: the two in grade rulings' opinions (sleeper-service-plan, b9) leave with the rulings,
+	// which translate to no event (EventSchema 79).
+	if prose != 444 {
+		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 444", prose)
 	}
 }
 

@@ -124,11 +124,6 @@ func regradeOf(gap string, d recordpb.GradeDimension, g recordpb.Grade) *recordp
 	return r
 }
 
-func gradeMotionOn(id, gap string, d recordpb.GradeDimension, g recordpb.Grade) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String("the axis is graded wrong"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"), Dimension: d.Enum(), Proposed: g.Enum()}}}
-}
-
 const (
 	sev    = recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY
 	impact = recordpb.GradeDimension_GRADE_DIMENSION_IMPACT
@@ -193,19 +188,12 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 		mustAppend(t, lens, regradeOf("G1", sev, high))
 		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", impact, low))
 	})
-	t.Run("a grade motion on it is refused, and on another axis admitted", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		blue := sit(t, s.run, "blue-respond")
-		_, err := Append(blue, gradeMotionOn("M7", "G1", sev, low))
-		mustRefuse(t, err, "gap G1's severity is high, which the bench set at event", "a grade motion on it asks the chair for a grade no lens may then file")
-		mustAppend(t, blue, gradeMotionOn("M8", "G1", impact, low))
-	})
 	// A SUCCESSOR CLOSES ITS ANCESTOR, so it waits on the docket: the bench disposes of a docketed
 	// gap. Its remand leaves the gap open, and the bench's axis stands.
 	t.Run("a successor is refused while the docket stands", func(t *testing.T) {
 		s := benchSetSeverity(t)
 		m := corrMint("G2")
-		m.Supersedes, m.Severity = []string{"G1"}, high.Enum()
+		m.Supersedes, m.Severity = proto.String("G1"), high.Enum()
 		_, err := Append(sit(t, s.run, evLens), m)
 		mustRefuse(t, err, "--supersedes names G1, which is docketed for the bench: motion M1 stands unruled on it")
 	})
@@ -215,7 +203,7 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 		lens := sit(t, s.run, evLens)
 		successor := func(g recordpb.Grade) *recordpb.Mint {
 			m := corrMint("G2")
-			m.Supersedes, m.Severity = []string{"G1"}, g.Enum()
+			m.Supersedes, m.Severity = proto.String("G1"), g.Enum()
 			return m
 		}
 		_, err := Append(lens, successor(medium))
@@ -239,8 +227,6 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 				t.Errorf("G1's severity after the bench's second move is %q, want the bench's certain", g.Severity)
 			}
 		}
-		blue := sit(t, s.run, "blue-respond")
-		mustAppend(t, blue, gradeMotionOn("M7", "G1", sev, low))
 		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", sev, low))
 	})
 	t.Run("a third bench move locks it again", func(t *testing.T) {
@@ -250,15 +236,13 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, low))
 		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, medium))
 		mustRefuse(t, err, "gap G1's severity is low, which the bench set at event")
-		_, err = Append(sit(t, s.run, "blue-respond"), gradeMotionOn("M7", "G1", sev, high))
-		mustRefuse(t, err, "gap G1's severity is low, which the bench set at event")
 	})
 	t.Run("a successor of a released axis is minted at any grade", func(t *testing.T) {
 		s := benchSetSeverity(t)
 		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
 		s.rule("M1", recordpb.Disposition_DISPOSITION_REMANDED)
 		m := corrMint("G2")
-		m.Supersedes, m.Severity = []string{"G1"}, medium.Enum()
+		m.Supersedes, m.Severity = proto.String("G1"), medium.Enum()
 		mustAppend(t, sit(t, s.run, evLens), m)
 	})
 }
@@ -294,94 +278,4 @@ func TestABenchRegradeIsNoGradeMovement(t *testing.T) {
 			t.Fatalf("the bench's regrades hold a PASS as grade movement: %v", kindsOf(bs))
 		}
 	}
-}
-
-// groundsBoard is G1 minted, answered by a citation, docketed and ruled closed (final); more is
-// recorded after the ruling.
-func groundsBoard(t *testing.T, after func(*stage)) Run {
-	t.Helper()
-	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").mint(evLens, "G2", "high").
-		add("blue-respond", citeAnswering("C-0000b0b0", "G1")).
-		register("red-chair").docketMotion("red-chair", "M1", "G1").
-		dispatch(2, "judge", "G1").register("judge").add("judge", closingRuling("M1"))
-	if after != nil {
-		after(st)
-	}
-	return st.register("blue-respond").seed()
-}
-
-// citeAnswering is a citation labelled label, placed as gap's answer.
-func citeAnswering(label, gap string) *recordpb.Cite {
-	return &recordpb.Cite{Label: proto.String(label), Url: proto.String("https://x/" + label), Sha256: proto.String("abc"), Answers: proto.String(gap)}
-}
-
-func redocket(id string, grounds, quote *string) *recordpb.Motion {
-	m := docketMotion(id, "G1")
-	m.GetDocket().Grounds, m.GetDocket().GroundsQuote = grounds, quote
-	return m
-}
-
-func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
-	file := func(run Run, m *recordpb.Motion) error {
-		return validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, m)
-	}
-	newCite := func(st *stage) { st.add("blue-respond", citeAnswering("C-0000d0d0", "G1")) }
-	for _, c := range []struct {
-		name    string
-		after   func(*stage)
-		grounds *string
-		quote   *string
-		want    []string // nil: admitted
-	}{
-		{name: "no grounds", want: []string{"the bench ruled gap G1 defect_accepted on motion M1", "it is final", "admitted on NEW GROUNDS only"}},
-		{name: "grounds the ruling had", grounds: proto.String("C-0000b0b0"), want: []string{"--grounds names citation C-0000b0b0, recorded at event", "before the ruling it would reopen"}},
-		{name: "grounds about another gap", after: func(st *stage) { st.add("blue-respond", citeAnswering("C-0000c0c0", "G2")) },
-			grounds: proto.String("C-0000c0c0"), want: []string{"--grounds names citation C-0000c0c0, which is not about gap G1"}},
-		{name: "grounds no act placed", grounds: proto.String("C-99999999"), want: []string{"--grounds names C-99999999, which no act on this record placed"}},
-		{name: "both locators", after: newCite, grounds: proto.String("C-0000d0d0"), quote: proto.String("x"), want: []string{"--grounds and --quote each locate the new grounds; pass one"}},
-		{name: "a quote no edit since wrote", quote: proto.String("never written"), want: []string{`--quote "never written" is not new grounds on gap G1`}},
-		{name: "a gap superseding it since the ruling", after: func(st *stage) { st.mintSuperseding(evLens, "G3", "high", "G1") }, grounds: proto.String("G3")},
-		{name: "a computation answering the gap since the ruling", after: func(st *stage) { st.blueComputes("G1") }, grounds: proto.String("K-")},
-		{name: "a citation placed as its answer since the ruling", after: func(st *stage) {
-			st.add("blue-respond", &recordpb.Cite{Label: proto.String("C-0000a0a0"), Url: proto.String("https://x/a"), Sha256: proto.String("abc"), Answers: proto.String("G1")})
-		}, grounds: proto.String("C-0000a0a0")},
-		{name: "a quote of text an edit answering the gap wrote since", after: func(st *stage) { st.edit("G1", "the old sentence", "the sentence the search now backs") },
-			quote: proto.String("the search now backs")},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			var computationID string
-			after := c.after
-			if c.grounds != nil && *c.grounds == "K-" {
-				after = func(st *stage) { computationID = fmt.Sprintf("K-%d", st.n+1); st.blueComputes("G1") }
-			}
-			run := groundsBoard(t, after)
-			g := c.grounds
-			if computationID != "" {
-				g = proto.String(computationID)
-			}
-			err := file(run, redocket("M2", g, c.quote))
-			if c.want == nil {
-				if err != nil {
-					t.Fatalf("refused: %v", err)
-				}
-				return
-			}
-			mustRefuse(t, err, c.want...)
-		})
-	}
-
-	t.Run("grounds on a gap the bench has not ruled closed", func(t *testing.T) {
-		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").
-			add("blue-respond", citeAnswering("C-0000d0d0", "G1")).register("blue-respond")
-		err := file(st.seed(), redocket("M2", proto.String("C-0000d0d0"), nil))
-		mustRefuse(t, err, "the bench has not ruled gap G1 closed")
-	})
-	t.Run("a re-docket after a remand needs none", func(t *testing.T) {
-		run := remandedAtImpasse(t).register("blue-respond").seed()
-		if err := file(run, redocket("M2", nil, nil)); err != nil {
-			t.Fatalf("a docket motion on a remanded gap was refused: %v", err)
-		}
-	})
 }

@@ -328,7 +328,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 			Problem:         proto.String("p3"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Supersedes:      []string{"G1"},
+			Supersedes:      proto.String("G1"),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
 		}),

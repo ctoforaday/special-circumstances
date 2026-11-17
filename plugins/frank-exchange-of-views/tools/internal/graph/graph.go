@@ -54,7 +54,7 @@ func tallyByGap(f record.Family) map[string]*perGap {
 			get(f.GetGapId()).closings++
 		}
 	}
-	// A GRADE MOTION IS THIS GAP'S CHALLENGE, AND A DOCKET RULING IS ITS DISPOSITION. Both come
+	// A DOCKET MOTION IS THIS GAP'S CHALLENGE, AND A DOCKET RULING IS ITS DISPOSITION. Both come
 	// off the same join for the same reason: the gap rides the FILING, and neither the ruling
 	// event nor the raw stream can attribute one. These counters read `dispute`/`dispute-respond`
 	// until the motion collapse retired both types, after which the unanswered-challenge detector
@@ -63,8 +63,8 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	//
 	// TWO AXES, AND THEY ARE NOT THE SAME QUESTION. `motionsFiled`/`motionsRuled` ask WAS THIS
 	// CHALLENGE ANSWERED — the unanswered-challenge detector below reads them. `dispositions`
-	// asks DID THE BENCH SETTLE THE GAP, which only a docket ruling does: counting a grade or
-	// petition ruling there would give a gap a disposition nobody wrote.
+	// asks DID THE BENCH SETTLE THE GAP, which only a docket ruling does: counting a petition
+	// ruling there would give a gap a disposition nobody wrote.
 	//
 	// A DOCKET MOTION COUNTS ON BOTH, and it used to count on neither until ruled. That made the
 	// one shape this detector exists for invisible: a gap escalated to the bench and never
@@ -73,21 +73,16 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	// motion as what makes "a gap could reach the bench and get no ruling with nothing able to
 	// notice" noticeable — and the detector for exactly that shape could not see it.
 	//
-	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an inquiry carry no gap id, and `get("")`
+	// ONLY THE SUBJECT THAT NAMES A GAP. A petition and a position carry no gap id, and `get("")`
 	// would mint a phantom node keyed on the empty string.
 	for _, m := range record.MotionsOf(f.Events, f.At) {
-		switch m.Subject {
-		case "grade", "docket":
-			if m.GapID == "" {
-				continue
-			}
-			get(m.GapID).motionsFiled++
-			if m.Ruled() {
-				get(m.GapID).motionsRuled++
-				if m.Subject == "docket" {
-					get(m.GapID).dispositions++
-				}
-			}
+		if m.Subject != "docket" || m.GapID == "" {
+			continue
+		}
+		get(m.GapID).motionsFiled++
+		if m.Ruled() {
+			get(m.GapID).motionsRuled++
+			get(m.GapID).dispositions++
 		}
 	}
 	return m
@@ -229,7 +224,7 @@ func gapFlowMermaid(f record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.GetSupersedes() {
+		if anc := g.Mint.GetSupersedes(); anc != "" {
 			out.WriteString(fmt.Sprintf("  %s -.supersedes.-> %s\n", nodeID("g", id), nodeID("g", anc)))
 		}
 	}
@@ -277,7 +272,7 @@ func Dot(f record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.GetSupersedes() {
+		if anc := g.Mint.GetSupersedes(); anc != "" {
 			out.WriteString(fmt.Sprintf("  %q -> %q [style=dashed, label=\"supersedes\"];\n", id, anc))
 		}
 	}

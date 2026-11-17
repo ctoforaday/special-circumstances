@@ -22,7 +22,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	db := store(t)
 
 	mint := func(id string, supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+		m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("a problem for " + id),
@@ -30,22 +30,28 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 			CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 			Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-			Supersedes:      supersedes,
 		}
+		if len(supersedes) == 1 {
+			m.Supersedes = proto.String(supersedes[0])
+		}
+		return m
 	}
 	originals := []proto.Message{
 		mint("G1"),
 		mint("G2"),
-		mint("G3", "G1", "G2"),
+		mint("G3", "G1"),
 		&recordpb.Position{PositionId: proto.String("A-00000001"), Text: proto.String("red speaks")},
-		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
+		// A docket motion: the oneof arm WITH scalar columns, referencing the mint above, and the
+		// second oneof's arm holding a LIST of its own (the proposed close's anchors).
 		&recordpb.Motion{
 			MotionId: proto.String("M-1"),
-			Basis:    proto.String("severity is understated"),
-			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId:     proto.String("G3"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
-				Proposed:  recordpb.Grade_GRADE_HIGH.Enum(),
+			Basis:    proto.String("the gap is moot"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G3")}},
+			Act: &recordpb.Motion_Close{Close: &recordpb.Close{
+				GapId:        proto.String("G3"),
+				ClosureClass: recordpb.Disposition_DISPOSITION_MOOT.Enum(),
+				Anchors:      []string{"S-2", "S-1"},
+				Prose:        proto.String("the section it named is gone"),
 			}},
 		},
 		mint("G4"),
@@ -104,8 +110,8 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 	// Stated separately, because proto.Equal cannot say WHICH mechanism dropped the arm.
-	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[4]); !ok || m.GetGrade() == nil {
-		t.Error("the grade motion's filing arm did not come home")
+	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[4]); !ok || m.GetDocket() == nil || len(m.GetClose().GetAnchors()) != 2 {
+		t.Error("the docket motion's filing arm, or its proposed close and the close's anchors, did not come home")
 	}
 	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[6]); !ok || m.GetPetition() == nil {
 		t.Error("the empty petition arm came back unset — an empty row is still a filing")
@@ -146,10 +152,10 @@ func BenchmarkEvents(b *testing.B) {
 	b.Cleanup(func() { _ = Close(path) })
 	for i := 0; i < 400; i++ {
 		gap := fmt.Sprintf("R1-%d", i+1)
-		// The two gaps minted before this one: each names only a gap already minted.
-		var supersedes []string
-		for j := max(1, i-1); j <= i; j++ {
-			supersedes = append(supersedes, fmt.Sprintf("R1-%d", j))
+		// The gap minted before this one: it names only a gap already minted.
+		var supersedes *string
+		if i > 0 {
+			supersedes = proto.String(fmt.Sprintf("R1-%d", i))
 		}
 		bodies := []proto.Message{
 			&recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
@@ -165,10 +171,11 @@ func BenchmarkEvents(b *testing.B) {
 			&recordpb.Position{PositionId: proto.String("A-00000002"), Text: proto.String("a position")},
 			&recordpb.Motion{
 				MotionId: proto.String(fmt.Sprintf("M-%d", i+1)),
-				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-					GapId:     proto.String(gap),
-					Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
-					Proposed:  recordpb.Grade_GRADE_HIGH.Enum(),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+				Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{
+					GapId:    proto.String(gap),
+					Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
+					Basis:    proto.String("the severity is overstated"),
 				}},
 			},
 		}
