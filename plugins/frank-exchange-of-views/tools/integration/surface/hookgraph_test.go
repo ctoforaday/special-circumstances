@@ -1,16 +1,20 @@
 package surface
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // hookBinaries are the binaries the plugin manifest registers as hooks. EVERY ONE of them is
@@ -222,17 +226,16 @@ func TestEveryRegisteredHookBinaryIsGatedOrNamedUngated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot locate the repository root: %v", err)
 	}
-	manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", ".claude-plugin", "hooks.json")
-	raw, err := os.ReadFile(manifest)
-	if err != nil {
-		t.Fatalf("cannot read the hook manifest, which is what decides which binaries run: %v", err)
-	}
-
-	// The command is a shell line naming ${CLAUDE_PLUGIN_ROOT}/bin/<binary>; the binary name is
-	// what this needs and the rest is the bootstrap guard.
 	found := map[string]bool{}
-	for _, m := range regexp.MustCompile(`/bin/(feov-[a-z]+)`).FindAllStringSubmatch(string(raw), -1) {
-		found[m[1]] = true
+	for _, rel := range []string{filepath.Join(".claude-plugin", "hooks.json"), "hooks.json"} {
+		manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", rel)
+		raw, err := os.ReadFile(manifest)
+		if err != nil {
+			t.Fatalf("cannot read the hook manifest %s: %v", rel, err)
+		}
+		for _, m := range regexp.MustCompile(`/bin/(feov-[a-z]+)`).FindAllStringSubmatch(string(raw), -1) {
+			found[m[1]] = true
+		}
 	}
 	if len(found) == 0 {
 		t.Fatal("no hook binaries found in the manifest — this test is reading the wrong thing and would pass forever")
@@ -255,5 +258,153 @@ func TestEveryRegisteredHookBinaryIsGatedOrNamedUngated(t *testing.T) {
 			t.Errorf("hookBinaries lists %q and hooks.json registers no such binary — the gate is "+
 				"guarding something that does not run", b)
 		}
+	}
+}
+
+var agyBinFromCmd = regexp.MustCompile(`\$R/bin/(feov-[a-z]+)`)
+
+const agyEnsureCommand = `R="${PWD}"; F="$R/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" ensure SessionStart; fi`
+
+func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hooks.json invokes POSIX sh")
+	}
+	pluginRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(pluginRoot, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hooksPath, err := repotree.Plugin("hooks.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(hooksPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type agyEntry struct {
+		Command string `json:"command"`
+		Matcher string `json:"matcher"`
+		Hooks   []struct {
+			Command string `json:"command"`
+		} `json:"hooks"`
+	}
+	var top map[string]map[string][]agyEntry
+	if err := json.Unmarshal(raw, &top); err != nil {
+		t.Fatalf("root hooks.json does not parse: %v", err)
+	}
+
+	sandbox := t.TempDir()
+	pluginData := t.TempDir()
+	driven := 0
+	for _, events := range top {
+		for event, entries := range events {
+			var commands []string
+			for _, e := range entries {
+				if e.Command != "" {
+					commands = append(commands, e.Command)
+				}
+				for _, h := range e.Hooks {
+					if h.Command != "" {
+						commands = append(commands, h.Command)
+					}
+				}
+			}
+			for _, command := range commands {
+				driven++
+				if command != agyEnsureCommand {
+					m := agyBinFromCmd.FindStringSubmatch(command)
+					if m == nil {
+						t.Fatalf("%s command names no $R/bin/<binary>: %q", event, command)
+					}
+					name := m[1]
+					dest := filepath.Join(pluginRoot, "bin", name)
+					if _, err := os.Stat(dest); err != nil {
+						built, err := os.ReadFile(testbuild.Binary(t, name))
+						if err != nil {
+							t.Fatalf("reading built %s: %v", name, err)
+						}
+						if err := os.WriteFile(dest, built, 0o755); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+
+				payload := map[string]any{
+					"hookEventName":       event,
+					"conversationId":      "conv-feov-1873",
+					"cwd":                 sandbox,
+					"workspacePaths":      []string{sandbox},
+					"invocationNum":       0,
+					"continuation_active": false,
+					"toolCall": map[string]any{
+						"id":   "call_feov_1",
+						"name": "run_command",
+						"args": map[string]any{"CommandLine": "echo hi"},
+					},
+				}
+				pb, err := json.Marshal(payload)
+				if err != nil {
+					t.Fatal(err)
+				}
+				cmd := exec.Command("sh", "-c", command)
+				cmd.Dir = pluginRoot
+				cmd.Env = append(os.Environ(),
+					"ANTIGRAVITY_CONVERSATION_ID=conv-feov-1873",
+					"PLUGIN_ROOT="+pluginRoot,
+					"PLUGIN_DATA="+pluginData,
+					"XDG_STATE_HOME="+filepath.Join(sandbox, ".state"),
+				)
+				cmd.Stdin = strings.NewReader(string(pb))
+				var out, errb bytes.Buffer
+				cmd.Stdout, cmd.Stderr = &out, &errb
+				if err := cmd.Run(); err != nil {
+					t.Errorf("%s hook %q exited non-zero: %v\nstderr: %s", event, command, err, errb.String())
+					continue
+				}
+				s := strings.TrimSpace(out.String())
+				if s == "" {
+					continue
+				}
+				dec := json.NewDecoder(bytes.NewReader([]byte(s)))
+				dec.DisallowUnknownFields()
+				switch event {
+				case "PreInvocation":
+					var res struct {
+						InjectSteps []struct {
+							EphemeralMessage string `json:"ephemeralMessage"`
+							SystemMessage    *struct {
+								SystemMessage string `json:"systemMessage"`
+							} `json:"systemMessage"`
+							ErrorMessage *struct {
+								ModelMessage string `json:"modelMessage"`
+								UserMessage  string `json:"userMessage"`
+							} `json:"errorMessage"`
+						} `json:"injectSteps"`
+						TerminationBehavior string `json:"terminationBehavior"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict PreInvocationHookResult: %v\n%s", event, err, s)
+					}
+				case "PreToolUse":
+					var res struct {
+						Decision   string         `json:"decision"`
+						Reason     string         `json:"reason"`
+						DenyReason string         `json:"deny_reason"`
+						Overwrite  map[string]any `json:"overwrite"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict PreToolHookResult: %v\n%s", event, err, s)
+					}
+				case "PostToolUse":
+					var res struct{}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict PostToolHookResult: %v\n%s", event, err, s)
+					}
+				}
+			}
+		}
+	}
+	if driven == 0 {
+		t.Fatal("drove 0 Antigravity hooks from root hooks.json")
 	}
 }

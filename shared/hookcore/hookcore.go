@@ -909,8 +909,11 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		fmt.Fprintln(stdout, "{}")
 		return 0
 
-	case "PreInvocation", "SessionStart":
-		pending := flushPending(req.PluginDataDir, pendingQueueKey(req))
+	case "PreInvocation", "PostInvocation", "SessionStart":
+		var pending []pendingItem
+		if req.Event != "PostInvocation" {
+			pending = flushPending(req.PluginDataDir, pendingQueueKey(req))
+		}
 		var injectSteps []map[string]any
 
 		for _, p := range pending {
@@ -960,9 +963,8 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 			out["injectSteps"] = injectSteps
 		}
 		// PreInvocation accepts only "terminate" or an absent terminationBehavior;
-		// the CLI fails the whole turn on any other value ("force_continue" is
-		// PostInvocation's).
-		if req.Event == "PreInvocation" && resp.TerminateTurn {
+		// PostInvocation accepts "terminate" or "force_continue".
+		if (req.Event == "PreInvocation" || req.Event == "PostInvocation") && resp.TerminateTurn {
 			if resp.Reason != "" {
 				out["injectSteps"] = append(injectSteps, map[string]any{
 					"errorMessage": map[string]any{
@@ -978,7 +980,7 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		fmt.Fprintln(stdout, string(b))
 		return 0
 
-	case "PostInvocation", "Stop":
+	case "Stop":
 		if resp.AdditionalContext != "" {
 			out := map[string]any{
 				"decision": "continue",
