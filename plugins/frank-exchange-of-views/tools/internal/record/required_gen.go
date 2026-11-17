@@ -39,6 +39,8 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredPlan
 	case "position":
 		return requiredPosition
+	case "question_part_check":
+		return requiredQuestionPartCheck
 	case "regrade":
 		return requiredRegrade
 	case "report_read":
@@ -123,6 +125,9 @@ var (
 	}
 	requiredPosition = []RequiredField{
 		{Key: "position_id", Flag: "position-id"},
+	}
+	requiredQuestionPartCheck = []RequiredField{
+		{Key: "part_id", Flag: "id"},
 	}
 	requiredRegrade = []RequiredField{
 		{Key: "basis", Flag: "reason"},

@@ -109,8 +109,10 @@ type assembly struct {
 	fam     record.Family
 	bj      record.BoardJSON
 	outcome *recordpb.Outcome
-	blue    blueText
-	rd      readers // what the assembly parses with
+	// parts is the question parts on the record (record.QuestionParts), in proposal order.
+	parts []record.QuestionPartRow
+	blue  blueText
+	rd    readers // what the assembly parses with
 }
 
 const (
@@ -135,6 +137,12 @@ var layout = []Section{
 		From:    "the outcome on the record and its basis",
 		Path:    "No act of blue's or of red's reaches it. The bench records the run's outcome with `outcome`, and this line is that outcome. What the research found is the TL;DR's to say.",
 		compose: func(a *assembly, _ Section) string { return outcomeStamp(a.outcome) }},
+	// EACH PART OF THE QUESTION THE REPORT DOES NOT ANSWER, under the stamp: a QUALIFIED outcome's
+	// cause, in the subject's voice (coverage.go).
+	{File: FileReport, Heading: "Not answered here", Line: coverageLine, Composer: Tool,
+		From:    "each question part whose coverage on the record is not covered, one sentence each, composed from the coverage",
+		Path:    "No act of blue's writes the sentence. Blue's `question split` splits a part out with its text, and blue's `question cover` records its coverage; a part recorded not_obtained or excluded is stated here, and the reason is in run.md.",
+		compose: func(a *assembly, _ Section) string { return notAnsweredLine(a.parts) }},
 	{File: FileReport, Heading: "Question", Line: questionLine, Composer: Blue,
 		From:    fmt.Sprintf("the Title in full, when it runs past %d characters", titleLimit),
 		Path:    blueTextPath,
@@ -169,7 +177,7 @@ var layout = []Section{
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
 		Path:    "The chair's `position`, `verdict` and `spot-check`, the lens's and blue's `closing` on a docketed gap, a lens's `regrade` that keeps a gap's grade, and the bench's rulings and `certify`.",
-		compose: func(a *assembly, _ Section) string { return debate(a.fam) }},
+		compose: func(a *assembly, _ Section) string { return debate(a.fam, a.partsAt) }},
 	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the motions on the record, each with its ruling",
 		Path:    "A seat files one with `motion grade file`, `motion docket file` or `motion petition file`, and the seat that hears it answers with `motion grade rule`, `motion docket rule` or `motion petition rule`.",
@@ -195,6 +203,10 @@ var layout = []Section{
 		From:    "the outcome on the record",
 		Path:    noSeatPath + " It explains the outcome the bench records with `outcome`.",
 		compose: func(a *assembly, _ Section) string { return verdictGloss(a.outcome) }},
+	{File: FileRun, Heading: "The question's coverage", Composer: Tool,
+		From:    "the question parts on the record: each with its coverage, the reason recorded for it and whether the logic lens's check stands",
+		Path:    "Blue's `question split` and `question cover`, and the logic lens's `question check`.",
+		compose: func(a *assembly, _ Section) string { return coverageTable(a.parts) }},
 	{File: FileRun, Heading: "Log (what the run told the operator)", Composer: Tool,
 		From:    "the log entries on the record",
 		Path:    "Any seat's `log`: a fact about the run or its tooling goes there.",
@@ -212,7 +224,7 @@ var layout = []Section{
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
 		From:    "the bench's statements that a later one replaced",
 		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
-		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam) }},
+		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam, a.partsAt) }},
 	{File: FileChangelog, Heading: "Edits to the report", Composer: Tool,
 		From:    "the edits on the record, grouped by the sitting that made each: the gap it answers, blue's reason, and the span it replaced beside the text that replaced it",
 		Path:    "Blue's `edit`, which records the span it replaces, the new text and why.",

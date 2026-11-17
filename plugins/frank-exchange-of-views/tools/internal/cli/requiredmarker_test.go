@@ -95,6 +95,15 @@ func requiredProbes() map[string]requiredProbe {
 			args: func(v actVars) []string { return row.act(v, "the argument for this act") }}
 	}
 	fixed := func(args ...string) func(actVars) []string { return func(actVars) []string { return args } }
+	// THE LOGIC LENS CHECKS A COVERED PART, in a sitting opened after its coverage.
+	probes["lens question check"] = requiredProbe{seat: "red-lens-logic",
+		setup: func(t *testing.T, runDir string) actVars {
+			id := splitPart(t, runDir)
+			must(t, runDir, "question", "cover", "--seat-id", "blue-respond", "--id", id, "--as", "covered", "--reason", "the report answers it")
+			castTheLogicLens(t, runDir)
+			return actVars{"p": id}
+		},
+		args: func(v actVars) []string { return []string{"question", "check", "--id", v["p"]} }}
 	probes["lens finding"] = requiredProbe{seat: lensSeat, args: fixed("finding", "--key", "F1",
 		"--quote", "§1 first — a finding sits in sec 1 here.",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}

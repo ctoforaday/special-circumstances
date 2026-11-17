@@ -67,6 +67,7 @@ var referenceKinds = map[string]string{
 	"citation-anchor":    "a citation anchor id, checked with record.CitationExists",
 	"computation-anchor": "a computation anchor id, checked with record.ComputationExists",
 	"inquiry-id":         "an inquiry, checked with record.InquiryExists",
+	"question-part-id":   "a part of the question the run was asked, checked with record.QuestionPartExists",
 }
 
 // permittedReport renders the PERMITTED surface — what the tree allows — beside the observed one.

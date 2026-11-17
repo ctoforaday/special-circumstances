@@ -16,7 +16,7 @@ import (
 // restated version is what was wrong for every one of these flags.
 func TestHelpIsGeneratedFromTheSet(t *testing.T) {
 	e := MustEnum("outcome", "verdict")
-	if got, want := e.Spelling(), "VERIFIED|CEILING|HALTED|UNVERIFIED"; got != want {
+	if got, want := e.Spelling(), "VERIFIED|CEILING|HALTED|UNVERIFIED|QUALIFIED"; got != want {
 		t.Errorf("Spelling() = %q, want %q", got, want)
 	}
 }

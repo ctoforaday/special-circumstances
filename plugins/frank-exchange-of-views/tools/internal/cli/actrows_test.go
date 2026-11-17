@@ -73,6 +73,21 @@ func proposeQ1(t *testing.T, runDir string) {
 	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded question")
 }
 
+// splitPart splits one part of the question out as blue and reads its id off the envelope's field.
+func splitPart(t *testing.T, runDir string) string {
+	t.Helper()
+	out := must(t, runDir, "question", "split", "--seat-id", "blue-respond", "--text", "whether the parser accepts an empty body", "--json")
+	var env struct {
+		Result struct {
+			PartID string `json:"part_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.PartID == "" {
+		t.Fatalf("no part id on the split's envelope (%v): %s", err, out)
+	}
+	return env.Result.PartID
+}
+
 func actRows() map[string]actRow {
 	prose := func(verb ...string) func(actVars, string) []string {
 		return func(_ actVars, text string) []string { return append(append([]string{}, verb...), "--reason", text) }
@@ -117,6 +132,14 @@ func actRows() map[string]actRow {
 			setup: func(t *testing.T, runDir string) actVars { proposeQ1(t, runDir); return nil },
 			act: func(_ actVars, text string) []string {
 				return []string{"inquiry", "record", "--id", "Q1", "--as", "underway", "--reason", text, "--method", "a census of the sources"}
+			}},
+		"blue question split": {seat: "blue-respond", act: func(_ actVars, text string) []string {
+			return []string{"question", "split", "--text", text}
+		}},
+		"blue question cover": {seat: "blue-respond",
+			setup: func(t *testing.T, runDir string) actVars { return actVars{"p": splitPart(t, runDir)} },
+			act: func(v actVars, text string) []string {
+				return []string{"question", "cover", "--id", v["p"], "--as", "covered", "--reason", text}
 			}},
 		"blue log":       logRow("blue-respond"),
 		"lens log":       logRow(lensSeat),

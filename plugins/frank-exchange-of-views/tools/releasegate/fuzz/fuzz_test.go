@@ -436,6 +436,10 @@ type runner struct {
 	// with the code the class carries (inquiryCheckClasses). The sweep gates both at zero.
 	inquiryChecks       int
 	inquiryCheckRefused map[string]int
+	// questionParts guards the question's drive (questionparts_test.go): the refusal classes of
+	// `question check` driven this run, and the parts' read failure, which fails the run.
+	questionCheckRefused map[string]bool
+	questionReadErr      string
 	// inquiryUnseats counts the gaps below material minted about a checked inquiry after which the
 	// owner's check was owed again, its item naming the gap (unseatInquiryCheck). The sweep gates it
 	// at zero.
@@ -788,6 +792,11 @@ type runner struct {
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
 	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
 	forceVerified bool
+	// forceQualified is a forced-PASS run whose PASS derives QUALIFIED: blue covers its question part
+	// as not obtained (nextPartCoverage), and the chair's PASS over it is the one a PASS over a part not
+	// covered derives. Only the forced runs reach a PASS, so a drawn coverage never meets one
+	// (forcedPassSeeds names which forced run takes which outcome).
+	forceQualified bool
 	// forceReopenedComputation drives one computation through judgement and reopening on a reopenedComputationSeed
 	// run: blue computes on the sentence the edit drive rewrites, the owner judges the computation when its
 	// work list offers it, blue rewrites the sentence, and the next plan readies the owner for the
@@ -4197,6 +4206,17 @@ func (r *runner) mintWith(seatID, class string) string {
 		settleClassDrive(driven, false)
 		driven = ""
 	}
+	// COVERAGE MISSTATED IS A CLASS OF A GAP ABOUT THE QUESTION: about a part, or, one time in four,
+	// about the question as a whole for a part nobody split out.
+	part, whole := "", false
+	if driven == coverageMisstatedClass || class == coverageMisstatedClass {
+		part = r.someQuestionPart()
+		whole = r.coin(25)
+	}
+	if driven == coverageMisstatedClass && part == "" && !whole {
+		settleClassDrive(driven, false)
+		driven = ""
+	}
 	chosen := class
 	switch {
 	case class != "":
@@ -4212,6 +4232,12 @@ func (r *runner) mintWith(seatID, class string) string {
 	case chosen == outOfScopeClass:
 		proposing = false
 		args = append(args, "--about-kind", "inquiry", "--about", inquiry)
+	case chosen == coverageMisstatedClass && whole:
+		proposing = false
+		args = append(args, "--about-kind", "question")
+	case chosen == coverageMisstatedClass:
+		proposing = false
+		args = append(args, "--about-kind", "question", "--about", part)
 	case about:
 		args = append(args, "--about-kind", aboutKind, "--about", aboutRef)
 	case !proposing:
@@ -4424,7 +4450,7 @@ func argOf(args []string, flag string) string {
 }
 
 // sameClassAndSubject is the gaps on the board, open and closed, of class on the subject a mint's
-// args name, as the record's one-gap rule reads the subject: the inquiry it is about; the sentence
+// args name, as the record's one-gap rule reads the subject: the inquiry or question part it is about; the sentence
 // the board marks holding its quote, or — the cross-arm (F9) — a citation that sentence holds; the
 // citation it is about, or — the other cross-arm — the sentence holding that citation's token. A mint
 // about anything else names no such subject, and has none.
@@ -4454,6 +4480,8 @@ func (r *runner) sameClassAndSubject(class string, args []string) (open, all []r
 			return false
 		case kind == "inquiry":
 			return g.AboutKind == "inquiry" && g.AboutRef == ref
+		case kind == "question":
+			return g.AboutKind == "question" && g.AboutRef == ref
 		case kind == "anchor":
 			if g.AboutKind == "anchor" && g.AboutRef == ref {
 				return true
@@ -5757,6 +5785,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.synthesize(seatID)
+		// EVERY PART WITH NO COVERAGE IS COVERED: each is a blocking item on the synthesizer's work list.
+		// A question the frontier left unsplit is split first, so a chain that wants blue absent finds
+		// nothing of the question's to ready blue-respond on.
+		r.splitQuestion(seatID)
+		r.coverQuestionParts(seatID)
 		r.extras("blue", seatID, nil)
 		// A FORCED CHAIN THAT WANTS BLUE ABSENT HAS ITS FIRST PLAN WITHOUT BLUE: an inquiry the
 		// synthesis leaves open readies blue-respond on the first plan, and later plans ready it on the
@@ -5924,6 +5957,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.answerComposedGap(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
+		// SO DOES THE QUESTION: split where it has no part, and every part with no coverage covered.
+		r.splitQuestion(seatID)
+		r.coverQuestionParts(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
@@ -6052,6 +6088,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		verd := "UNVERIFIED"
 		if m := outcomeRe.FindStringSubmatch(prompt); m != nil {
 			verd = m[1]
+		}
+		// AFTER A PASS THE PROMPT NAMES BOTH OUTCOMES A PASS DERIVES, and the record says which.
+		if strings.Contains(prompt, "VERIFIED or QUALIFIED") {
+			verd = r.stampWord()
 		}
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
@@ -6211,6 +6251,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.lanePart(seatID)
 			case strings.HasPrefix(seatID, "frontier"):
 				r.frontierReadsNoPart(seatID)
+				// THE FRONTIER SPLITS THE QUESTION: the split is a blocking item on its work list.
+				r.splitQuestion(seatID)
 			}
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
 			// citation lens records cite events, and every red lens records finding events
@@ -6247,6 +6289,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY SETTLED INQUIRY NO CHECK STANDS ON IS CHECKED BY ITS OWNER: its item blocks the
 				// owner's envelope. Every other lens drives the owner's refusal.
 				r.checkInquiries(seatID)
+				// EVERY COVERED PART NO CHECK STANDS ON IS CHECKED BY ITS OWNER, as an inquiry is.
+				r.checkQuestionParts(seatID)
 				// A GAP BELOW MATERIAL ABOUT A CHECKED INQUIRY makes the owner's check owed again.
 				r.unseatInquiryCheck(seatID)
 				// FOUND-AGAINST SEED'S CHAIN, before the owed checks: its reading checks the citation it
@@ -6388,8 +6432,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				findArgs := []string{"finding", "--seat-id", seatID,
 					"--severity", severity, "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
 				aboutGap := ""
-				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
-					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
+				k, ref := r.aboutAnchor()
+				// A FINDING ABOUT THE QUESTION: about one of its parts, or, one time in four, about the
+				// question as a whole, which names no part. It is drawn here and not in aboutAnchor, which
+				// mintWith also draws from: a gap about a part moves the part's check, a finding does not.
+				if part := r.someQuestionPart(); part != "" && r.coin(20) {
+					k, ref = "question", part
+					if r.coin(25) {
+						ref = ""
+					}
+				}
+				if k != "" && r.coin(30) {
+					findArgs = append(findArgs, "--about-kind", k)
+					if ref != "" {
+						findArgs = append(findArgs, "--about", ref)
+					}
 					if k == "gap" {
 						aboutGap = ref
 					}
@@ -6974,6 +7031,10 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 //
 // The error names the value AND the keys that were present, because "no verdict" alone does
 // not separate a result that arrived empty from one that arrived with a different shape.
+// passOutcome is whether a run's outcome is one a PASS derives: VERIFIED, or QUALIFIED where a question
+// part is not covered (record.DeriveVerdict). Every oracle that holds a PASS to the board holds both.
+func passOutcome(word string) bool { return word == "VERIFIED" || word == "QUALIFIED" }
+
 func readVerdict(result map[string]any) (string, error) {
 	raw, present := result["verdict"]
 	if !present {
@@ -7175,6 +7236,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
+	r.forceQualified = forceVerified && forcedPassSeeds[seed] == "QUALIFIED"
 	r.forceReopenedComputation = seed == reopenedComputationSeed
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
@@ -7262,6 +7324,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "inquiry drive: the inquiries' judged states could not be read, so the drive could not tell an open or unchecked inquiry from a sound one: " + r.inquiryReadErr
 		return res
 	}
+	if r.questionReadErr != "" {
+		res.err = "question drive: the question parts could not be read, so the drive could not tell an unsplit question or an open or unchecked part from a sound one: " + r.questionReadErr
+		return res
+	}
 	if r.inquiryIDErr != "" {
 		res.err = "inquiry drive: " + r.inquiryIDErr
 		return res
@@ -7319,7 +7385,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = o
 		return res
 	}
-	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {
+	if r.lastPassRefusal != "" && !passOutcome(res.verdict) {
 		res.why = "PASS refused: " + r.lastPassRefusal
 		if r.lastRuleRefusal != "" {
 			res.why += " ‖ last ruling refused: " + r.lastRuleRefusal
@@ -7750,7 +7816,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	lastPlanWhy(&res, board)
 	// A RUN THAT ENDS WITH A READING DEBT STANDING IS COUNTED, and its reason names the debt.
 	r.tallyDebtsAtEnd(&res)
-	if res.verdict != "VERIFIED" {
+	if !passOutcome(res.verdict) {
 		res.why += r.positionRouteClause()
 	}
 	{
@@ -7942,13 +8008,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = fmt.Sprintf("outcome oracle: debate.js ended the run %s and the record's outcome is %q — the assembly's `bench outcome` was refused, or recorded another word", verdict, recorded)
 			return res
 		}
-		if recorded == "VERIFIED" && !permitted {
-			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", openCount)
+		if passOutcome(recorded) && !permitted {
+			res.err = fmt.Sprintf("verdict oracle: the run recorded %s over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", recorded, openCount)
 			return res
 		}
 		// NO PASS OVER AN ANCHOR NOBODY CHECKED, OR ONE WHOSE CHECK FAILED — the record's own answer,
 		// read at the run's end, not a hand copy of the rule.
-		if recorded == "VERIFIED" {
+		if passOutcome(recorded) {
 			bs, berr := record.PassBlockers(oracleRun)
 			if berr != nil {
 				res.err = "anchor oracle: the PASS blockers could not be read at the run's end: " + berr.Error()
@@ -7956,7 +8022,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 			for _, b := range bs {
 				if b.Kind == record.BlockerUnchecked || b.Kind == record.BlockerFailedCheck {
-					res.err = fmt.Sprintf("anchor oracle: the run recorded VERIFIED while %s stands %s — a pass over a citation or computation no check has read", b.Subject, b.Kind)
+					res.err = fmt.Sprintf("anchor oracle: the run recorded %s while %s stands %s — a pass over a citation or computation no check has read", recorded, b.Subject, b.Kind)
 					return res
 				}
 			}
@@ -8236,7 +8302,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 // Any other verdict holds no inquiry to anything — a run that could not get its inquiries sound ends
 // CEILING, which the verdict oracle reads.
 func inquirySoundOracle(run record.Run, verdict string) string {
-	if verdict != "VERIFIED" {
+	if !passOutcome(verdict) {
 		return ""
 	}
 	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
@@ -8361,6 +8427,8 @@ var verbsWithEvents = []string{
 	"envelope_admitted",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_check", "register",
+	// The question's parts and their checks (record/questionparts_test.go drives split, cover and check).
+	"question_part", "question_part_check",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep. `plan`
@@ -8544,8 +8612,13 @@ var reportExemptions = map[string]string{
 	// is on the record and printed nowhere. The standing check prints on the inquiry's row
 	// (view.go); a shortfall reaches the reader as an ordinary gap about the inquiry.
 	"inquiry_check": "read by record.InquiryJudgements as the unchecked_inquiry PASS gate; the standing check prints on the inquiry's row, a stale one nowhere, and a shortfall the lens finds is minted as an ordinary gap about the inquiry, which is what reaches the reader",
-	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":       "the chair's PASS, consumed by DeriveVerdict into the terminal outcome and printed as each epoch's recorded verdict in the debate transcript's heading",
+	// A question part's text reaches report.md only where the part is not covered, in the sentence the
+	// tool composes; its coverage reason is printed in run.md's coverage table.
+	"question_part": "text: composed into report.md's not-answered line for a part not covered (report.coverageSentence); reason: run.md's coverage table",
+	// The logic lens's check of a part's coverage, read as a gate as an inquiry's check is.
+	"question_part_check": "read by the question_part_state view as the unchecked_part PASS gate; the standing check prints on run.md's coverage table, a stale one nowhere",
+	"outcome":             "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":             "the chair's PASS, consumed by DeriveVerdict into the terminal outcome and printed as each epoch's recorded verdict in the debate transcript's heading",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -10010,11 +10083,11 @@ func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
 	}
 }
 
-// AND THE FOUR REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
+// AND THE FIVE REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
 // rejected one of them would turn a working sweep red and be indistinguishable, from the
 // outside, from the bug it replaced.
 func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
-	for _, want := range []string{"HALTED", "VERIFIED", "CEILING", "UNVERIFIED"} {
+	for _, want := range []string{"HALTED", "VERIFIED", "QUALIFIED", "CEILING", "UNVERIFIED"} {
 		got, err := readVerdict(map[string]any{"verdict": want, "epochs": int64(1)})
 		if err != nil {
 			t.Errorf("readVerdict rejected %q, which debate.js line 1166 can produce: %v", want, err)
@@ -10512,7 +10585,7 @@ func converseVerdictOracle(recorded string, board record.Family) string {
 // epoch 12 of 12 with every gap closed by red and one blocker, "lens red-lens-computation is ready":
 // it held eleven computations nobody had judged and the last edit had moved the head past its pin.
 func unfinishedOverRedsWork(recorded string, gaps, open, benchClosed int, blockers []record.PlanBlocker) bool {
-	if recorded == "" || recorded == "VERIFIED" || recorded == "HALTED" || gaps == 0 || open > 0 || benchClosed > 0 {
+	if recorded == "" || passOutcome(recorded) || recorded == "HALTED" || gaps == 0 || open > 0 || benchClosed > 0 {
 		return false
 	}
 	return !slices.ContainsFunc(blockers, func(b record.PlanBlocker) bool { return b.Owner != "red-chair" })
@@ -10540,6 +10613,7 @@ func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
 		{"a gap the bench closed", "CEILING", 3, 0, 1, nil, false},
 		{"no gaps", "CEILING", 0, 0, 0, nil, false},
 		{"VERIFIED", "VERIFIED", 3, 0, 0, nil, false},
+		{"QUALIFIED", "QUALIFIED", 3, 0, 0, nil, false},
 		{"HALTED", "HALTED", 3, 0, 0, nil, false},
 	} {
 		if got := unfinishedOverRedsWork(c.recorded, c.gaps, c.open, c.benchClosed, c.blockers); got != c.fires {
