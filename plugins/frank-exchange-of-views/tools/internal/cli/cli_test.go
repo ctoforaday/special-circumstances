@@ -1059,10 +1059,10 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
-		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
-	}
+	g := onlyID(t, runDir, "G")
+	exchangeOn(t, runDir, g)
+	proposeClose(t, runDir, "red-chair", g, "not_a_defect", "contested, and not mine to close")
+	conveneBench(t, runDir, g)
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
 	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
@@ -1186,7 +1186,10 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-		return runDir, docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+		g := onlyID(t, runDir, "G")
+		m := docketFile(t, runDir, "red-chair", g, "contested, and not mine to close")
+		conveneBench(t, runDir, g)
+		return runDir, m
 	}
 	// with is the stated set with f answered v; omitting is the stated set with f never passed.
 	with := func(f, v string) map[string]string {

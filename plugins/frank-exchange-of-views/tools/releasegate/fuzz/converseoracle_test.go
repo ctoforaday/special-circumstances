@@ -43,8 +43,11 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	const sentence = "A § fuzz sentence to anchor findings."
 	maxEpochs := 2
 	switch path {
-	case benchCloses, redClosesAndWithholdsEarly:
+	case redClosesAndWithholdsEarly:
 		maxEpochs = 3
+	case benchCloses:
+		// blue's exchange on the gap before its proposal, and the parties' closings before the bench.
+		maxEpochs = 6
 	case redClosesAndWithholdsWithRoom:
 		maxEpochs = 4
 	}
@@ -98,11 +101,12 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchReturns(converseLens, false)
 	case benchCloses:
 		r.dispatchReturns(converseLens, false)
-		r.register("blue", "blue-respond")
-		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
-		r.dispatchSits("chair", "red-chair")
-		must("--json", "dispatch", "next", "--seat-id", "red-chair")
-		r.dispatchReturns("red-chair", false)
+		// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue sits on it once before it proposes.
+		r.exchangeOn(t)
+		r.dispatchSits("blue", "blue-respond")
+		must(proposeCloseArgs("blue-respond", open[0], "not_a_defect", "fuzz: the bench's to settle")...)
+		r.dispatchReturns("blue-respond", false)
+		r.partiesClose(t, converseLens)
 		r.dispatchSits("bench", "judge", "docket")
 		r.benchDisposes("judge", open[0], "not_a_defect", "--reason", "fuzz: the argument held", "--final")
 		if r.actErr != "" {

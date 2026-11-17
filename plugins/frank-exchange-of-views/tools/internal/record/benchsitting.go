@@ -33,6 +33,7 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 	// A sitting that is not a docket sitting is no row's first docket sitting, so it holds no gaps.
 	docket := benchOccasionSittings(evs, seq, win)[recordpb.Occasion_OCCASION_DOCKET]
 	ds, _ := dispatchLedger(evs, seq, win)
+	convened := map[string]int64{} // each gap's latest row convening this sitting, by stream position
 	for _, d := range ds {
 		if d.seat != benchSeat {
 			continue
@@ -44,11 +45,21 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 			if !slices.Contains(gaps, g) {
 				gaps = append(gaps, g)
 			}
+			convened[g] = max(convened[g], d.at)
+		}
+	}
+	// A MOTION FILED AFTER THE ROW THAT CONVENED THE SITTING IS NOT HELD BY IT: its assignee has had
+	// no window to accept it, so the sitting neither rules it nor is held open by it, and the plan
+	// readies its parties and then the bench again (benchSatFor's same condition).
+	filed := map[string]int64{}
+	for _, m := range motionsAt(evs, seq, win) {
+		if m != nil {
+			filed[m.ID] = m.filed
 		}
 	}
 	// A motion About a gap is a docket motion.
 	for _, b := range unruledMotionBlockers(evs, ids, win) {
-		if b.Owner == benchSeat && slices.Contains(gaps, b.About) {
+		if b.Owner == benchSeat && slices.Contains(gaps, b.About) && filed[b.Subject] < convened[b.About] {
 			motions = append(motions, b)
 		}
 	}

@@ -34,6 +34,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
@@ -1275,7 +1276,8 @@ func debate(fam record.Family) string {
 				continue
 			}
 			d, isDocket := mr.GetRuling().(*recordpb.MotionRule_Docket)
-			if !isDocket {
+			// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act.
+			if !isDocket || seatclass.RoleOfSeat(l.GetSeatId()) != "bench" {
 				continue
 			}
 			// `--reason` LANDS ON `MotionRule.opinion` — the ruler's prose channel, declared in
@@ -1286,7 +1288,7 @@ func debate(fam record.Family) string {
 				// The vocabulary's word, not the generated constant name — see view.go's
 				// disposition renderer, where the same substitution was needed for the same
 				// reason.
-				docketGapOf[mr.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+				docketGapOf[mr.GetMotionId()], record.RulingWord(mr),
 				oneLine(d.Docket.GetPrinciple()), oneLine(d.Docket.GetTension()), oneLine(d.Docket.GetReviewFlag()))+"\n"+ownBlock(mr.GetOpinion()))
 		}
 		if len(lead) > 0 {

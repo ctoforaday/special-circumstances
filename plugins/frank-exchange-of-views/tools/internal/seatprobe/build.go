@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -210,7 +212,19 @@ func Build(run record.Run, b Board, exec Exec) error {
 			"--reason", m.Basis}
 		switch m.Subject {
 		case "docket":
-			args = append(args, "--id", m.GapID)
+			// A PROPOSAL STANDS ON A GAP THAT HAS HAD ITS EXCHANGE: the chair engages blue on it and
+			// blue sits on it, and the filer reads it as the exchange left it, in a sitting of its own.
+			if len(m.Act) == 0 {
+				return fmt.Errorf("motion %d (docket) names no act — a docket motion proposes one", i+1)
+			}
+			if err := exchangeOn(run, exec, staged[m.GapID]); err != nil {
+				return fmt.Errorf("motion %d (docket): %w", i+1, err)
+			}
+			if _, err := exec(append([]string{"register", "--run", run.Dir(), "--seat-id", m.Filer}, occasionOf(m.Filer)...)...); err != nil {
+				return fmt.Errorf("register %s: %w", m.Filer, err)
+			}
+			args = append(append([]string{"motion", "docket", "file"}, m.Act...),
+				"--run", run.Dir(), "--seat-id", m.Filer, "--reason", m.Basis, "--id", m.GapID)
 		case "petition":
 			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
@@ -233,8 +247,20 @@ func Build(run record.Run, b Board, exec Exec) error {
 			}
 			delete(closingsOf, m.GapID)
 		}
+		// THE BENCH SITS ON A DOCKET MOTION IN THE SITTING THE DISPATCH CONVENES FOR IT: a row naming
+		// it on the gap, filed after the motion, so the bench's next register opens that sitting.
+		if m.Subject == "docket" {
+			if err := appendDispatch(run, "judge", staged[m.GapID]); err != nil {
+				return fmt.Errorf("convening the bench on %s: %w", m.GapID, err)
+			}
+		}
 		if m.Ruled == "" {
 			continue
+		}
+		if m.Subject == "docket" {
+			if _, err := exec("register", "--run", run.Dir(), "--seat-id", "judge", "--occasion", "docket"); err != nil {
+				return fmt.Errorf("register judge: %w", err)
+			}
 		}
 		ruler := map[string]string{"petition": "judge", "docket": "judge"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
@@ -394,6 +420,40 @@ func minted(kind, out string) string {
 
 // handle is a board's positional name for a gap or a motion it stages.
 var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
+
+// appendDispatch is the chair's dispatch row naming seat on gap, as `dispatch next` writes it.
+func appendDispatch(run record.Run, seat, gap string) error {
+	at, err := record.OpenRun(run.Dir())
+	if err != nil {
+		return err
+	}
+	_, err = record.Append(record.Identity{Run: at, SeatID: "red-chair"},
+		&recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(seat), GapIds: []string{gap}})
+	_ = recordsql.Close(filepath.Join(at.Records(), "record.db"))
+	return err
+}
+
+// exchangeOn gives gap its one counted exchange: the chair engages blue on it, and blue sits and
+// sits again.
+func exchangeOn(run record.Run, exec Exec, gap string) error {
+	if err := appendDispatch(run, "blue-respond", gap); err != nil {
+		return fmt.Errorf("engaging blue on %s: %w", gap, err)
+	}
+	for range 2 {
+		if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-respond"); err != nil {
+			return fmt.Errorf("blue's sitting on %s: %w", gap, err)
+		}
+	}
+	return nil
+}
+
+// occasionOf is the occasion a seat's register names: the bench's docket sitting, else none.
+func occasionOf(seatID string) []string {
+	if record.SeatOwesOccasion(seatID) {
+		return []string{"--occasion", "docket"}
+	}
+	return nil
+}
 
 // stageReport puts the board's report on the record the way a run does: a lane records its part, and
 // the synthesizer writes the title and TL;DR before it with an edit. Every step after the cast goes

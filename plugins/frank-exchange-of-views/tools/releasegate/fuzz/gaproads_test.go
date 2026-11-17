@@ -54,8 +54,8 @@ func (r *runner) aboutGapRefusedDrive(seatID string) {
 	}
 }
 
-// disputeMovedGap is a lens's dispute of a gap another seat regraded while the lens sat: the docket
-// motion is filed on the gap as the lens read it when its sitting opened, so the record refuses it as
+// disputeMovedGap is a lens's dispute of a gap another seat regraded while the lens sat: the close it
+// proposes is filed on the gap as the lens read it when its sitting opened, so the record refuses it as
 // stale, naming the regrade, and admits it again once read (admitFresh). Lenses sit side by side, so
 // this is the race the stale refusal exists for; once per run, and never in a forced-verdict run, whose
 // bound a hand-filed docket motion would move. The gap's minter has returned from its dispatch: only it
@@ -95,7 +95,7 @@ func (r *runner) disputeMovedGap(seatID string) {
 		minter := r.minter[id]
 		own, sitting := minter == seatID, r.unreturned[minter] > 0
 		r.mu.Unlock()
-		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) {
+		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && len(r.unruledDocketMotions(id)) == 0 && r.exchanged(id) {
 			gap = id
 		}
 	}
@@ -110,8 +110,8 @@ func (r *runner) disputeMovedGap(seatID string) {
 	r.movedDisputed = true
 	r.mu.Unlock()
 	before := r.readPointOf(seatID, gap)
-	if _, ok := r.admitFresh(gap, "motion", "docket", "file", "--seat-id", seatID, "--id", gap,
-		"--reason", "fuzz: "+gap+" was regraded while this lens sat, and its weight is the bench's to settle"); !ok {
+	if _, ok := r.admitFresh(gap, proposeCloseArgs(seatID, gap, "not_a_defect",
+		"fuzz: "+gap+" was regraded while this lens sat, and its weight is the bench's to settle")...); !ok {
 		return
 	}
 	if r.readPointOf(seatID, gap) <= before {
@@ -132,6 +132,7 @@ func (r *runner) disputeMovedGap(seatID string) {
 // drive files nothing; once the motion lands, the filer's sitting owes nothing dischargeOwed leaves.
 func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
 	r, gap := staleRun(t)
+	r.exchangeOn(t) // a proposal waits for the gap's first exchange
 	r.dispatchSits("lens", staleFiler)
 	grades := []string{"low", "medium", "high", "low"}
 	regrade := func(i int) {

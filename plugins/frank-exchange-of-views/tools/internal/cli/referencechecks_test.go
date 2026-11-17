@@ -67,10 +67,17 @@ var referenceChecks = []struct {
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
 	// which deliberately carries no checker because each of these verbs already resolves its id and the
 	// two rulings resolve it more strictly than existence would. They are here because the behaviour
-	// was UNCOVERED: `motion docket file` had no test that a dangling gap id is refused, and a body
+	// was UNCOVERED: a docket motion's filing had no test that a dangling gap id is refused, and a body
 	// check no test drives is the hole this file exists to close. The derived gate does not demand
 	// them; nothing about a shape-only flag does.
-	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
+	{verb: []string{"motion", "docket", "file", "regrade"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--severity", "low", "--reason", "r"}},
+	{verb: []string{"motion", "docket", "file", "close"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--as", "not_a_defect", "--verified-by", "blue-respond", "--verified-with", "read", "--verified-against", "the report", "--reason", "r"}},
+	{verb: []string{"motion", "docket", "file", "supersede"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: append(supersedeFlags(), "--reason", "r")},
+	// The accept names the motion it answers, by its id.
+	{verb: []string{"motion", "docket", "accept"}, flag: "--id", against: "the motions on the record", bogus: "M-00000009",
 		extra: []string{"--reason", "r"}},
 	// THE LENS'S CHECK KEYS ON Q: it judges an inquiry blue proposed, and its flag is checked against
 	// the inquiries on the record before the write asks whose check it is.

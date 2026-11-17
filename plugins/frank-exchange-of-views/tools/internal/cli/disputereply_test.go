@@ -1,9 +1,12 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // A REPLY MUST NAME WHAT IT ANSWERS — and after #344 it names an ID, not a pair.
@@ -26,34 +29,49 @@ import (
 // TWO MOTIONS ON THE SAME GAP ARE STILL DISTINCT.
 //
 // This is the case a pair key could not represent at all, and it is why the id exists. Blue puts
-// G1 before the bench twice; the two filings are separate motions with separate ids, and a ruling
-// on one leaves the other open.
+// G1 before the bench twice — one at a time: a second proposal while the first stands is refused
+// naming it, and blue files again once the bench has answered the first. The two filings are
+// separate motions with separate ids, and the ruling on the first leaves the second open.
 func TestTwoMotionsOnOneGapAreTellableApart(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
-	mintGap(t, runDir, "G1", "spec_underspecification")
-
-	for _, why := range []string{"the harm needs two failures", "and the second failure is gated upstream"} {
-		if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
-			"--id", "G1", "--reason", why); err != nil {
-			t.Fatalf("file refused: %v", err)
-		}
+	g := mintGap(t, runDir, "G1", "spec_underspecification")
+	exchangeOn(t, runDir, g)
+	first := proposeClose(t, runDir, "blue-respond", g, "not_a_defect", "the harm needs two failures")
+	second := "and the second failure is gated upstream"
+	if out, err := runAt(t, closeProposalArgs(runDir, "blue-respond", g, "not_a_defect", second)...); err == nil ||
+		!strings.Contains(err.Error()+out, first+" stands unanswered") {
+		t.Fatalf("a second proposal while %s stands = %v %q, want refused naming it", first, err, out)
 	}
 
-	// Rule only M1. Keyed on the gap, this ruling would have matched BOTH filings, and the record
-	// would have shown one answer to two questions.
-	args := benchRuleArgs("M1", "remanded", "the gap needs one more exchange")
+	// Rule only the first. Keyed on the gap, this ruling would match BOTH filings, and the record
+	// would show one answer to two questions.
+	conveneBench(t, runDir, g)
+	args := benchRuleArgs(first, "remanded", "the gap needs one more exchange")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := runAt(t, args...); err != nil {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
 	}
+	later := proposeClose(t, runDir, "blue-respond", g, "not_a_defect", second)
+	if later == first {
+		t.Fatalf("the second filing reused the first's id %s", first)
+	}
 
 	ev := lastBody(t, runDir, &recordpb.MotionRule{})
-	if got := ev.GetMotionId(); got != handleText(t, runDir, "M1") {
-		t.Errorf("motion_id = %q, want M1 — the record must carry the join, not leave it to be inferred", got)
+	if got := ev.GetMotionId(); got != first {
+		t.Errorf("motion_id = %q, want %s — the record must carry the join, not leave it to be inferred", got, first)
 	}
 	if got := ev.GetDocket().GetDisposition(); got != recordpb.Disposition_DISPOSITION_REMANDED {
 		t.Errorf("ruling = %q, want remanded", recordpb.Word(got))
+	}
+	b, err := record.FamilyOf(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m.ID == later && m.Ruled() {
+			t.Errorf("the ruling on %s answered %s too", first, later)
+		}
 	}
 }
 
@@ -62,11 +80,8 @@ func TestTwoMotionsOnOneGapAreTellableApart(t *testing.T) {
 func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
-	mintGap(t, runDir, "G1", "spec_underspecification")
-	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--reason", "s"); err != nil {
-		t.Fatalf("file refused: %v", err)
-	}
+	g := mintGap(t, runDir, "G1", "spec_underspecification")
+	docketFile(t, runDir, "blue-respond", g, "s")
 
 	args := benchRuleArgs("M7", "remanded", "sure")
 	_, err := runAt(t, append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)...)

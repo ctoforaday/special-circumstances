@@ -608,26 +608,55 @@ func Append(id Identity, body proto.Message, guards ...Guard) (*Event, error) {
 // replay cannot place: every render of the report fails from that write on (#1252). The placement
 // guard a verb passes reads the report this Anchor lands on.
 func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards ...Guard) (*Event, error) {
-	bodies := []proto.Message{act}
-	if anchorID != "" && strings.TrimSpace(loc) != "" {
-		bodies = append(bodies, &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)})
-	}
-	return appendOwn(id, bodies, guards)
-}
-
-// appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
-// each body is one appendAct over the same transaction. It returns the first body's event.
-func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
-	evs, err := appendBodies(id, bodies, guards)
+	evs, err := appendBodies(id, PlacedActs(act, anchorID, loc, guards...))
 	if len(evs) == 0 {
 		return nil, err
 	}
 	return evs[0], err
 }
 
-// appendBodies is appendOwn returning every event it wrote, in order; on a refusal, the events
-// written before it (rolled back) and the refused body's.
-func appendBodies(id Identity, bodies []proto.Message, guards []Guard) ([]*Event, error) {
+// PlacedActs is AppendPlaced's write as acts: act with its guards, then the Anchor placing
+// anchorID's marker at loc where both are given.
+func PlacedActs(act proto.Message, anchorID, loc string, guards ...Guard) []Act {
+	acts := []Act{{Body: act, Guards: guards}}
+	if anchorID != "" && strings.TrimSpace(loc) != "" {
+		acts = append(acts, Act{Body: &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)}})
+	}
+	return acts
+}
+
+// appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
+// each body is one appendAct over the same transaction. It returns the first body's event.
+func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
+	acts := make([]Act, len(bodies))
+	for i, b := range bodies {
+		acts[i] = Act{Body: b}
+	}
+	if len(acts) > 0 {
+		acts[0].Guards = guards
+	}
+	evs, err := appendBodies(id, acts)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// Act is one body of a multi-act write and the guards asked with it, against the record that body
+// lands on.
+type Act struct {
+	Body   proto.Message
+	Guards []Guard
+}
+
+// AppendActs writes acts, in order, in ONE transaction of its own, each with its own guards: an
+// answer to a proposed act and the act it applies are one write, so a refusal of either leaves the
+// motion standing and nothing written. It returns every event written.
+func AppendActs(id Identity, acts ...Act) ([]*Event, error) { return appendBodies(id, acts) }
+
+// appendBodies is AppendActs; on a refusal it returns the events written before it (rolled back)
+// and the refused body's.
+func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
@@ -647,12 +676,8 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard) ([]*Event
 		return tx, err
 	}
 	var out []*Event
-	for i, body := range bodies {
-		g := guards
-		if i > 0 {
-			g = nil
-		}
-		ev, err := appendAct(id, body, begin, g, liveWrite)
+	for _, a := range acts {
+		ev, err := appendAct(id, a.Body, begin, a.Guards, liveWrite)
 		out = append(out, ev)
 		if err != nil {
 			return out, err
@@ -789,7 +814,7 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	}
 	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings
 	// racing each other resolve to one answer and one refusal (motion.go).
-	if err := requireUnanswered(tx, body); err != nil {
+	if err := requireUnanswered(tx, seatID, body); err != nil {
 		return err
 	}
 	envelope(ev, at(), seatID, key)
@@ -808,7 +833,7 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 			// what moved clean text into a log. Where the table holds no row — a key the tool
 			// minted, which only a retried write lands on twice — the refusal ends without one.
 			tail := ""
-			if a := SupersedingAnswer(typ, body); a != "" {
+			if a := SupersedingAnswer(seatID, typ, body); a != "" {
 				tail = " " + a
 			}
 			return feov.Errorf(feov.Validation,
@@ -872,6 +897,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	}
+	// A PROPOSED SUPERSEDE CARRIES ITS SUCCESSOR'S STATEMENT, stamped as the successor's mint will be.
+	if m, ok := body.(*recordpb.Motion); ok && m.GetSupersede() != nil {
+		if err := stampClassMaterial(m.GetSupersede()); err != nil {
+			return err
+		}
+	}
 	// ORDER IS THE MESSAGE. A ruling's motion is established FIRST — that it exists and was filed
 	// under the subject this act names — because every later refusal is phrased in terms of it: a
 	// bench typing `motion docket rule` at a petition should be told it named the wrong subject,
@@ -906,58 +937,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The one-gap-per-class rule, the report-voice refusal and a retired --about anchor judge
 		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
 		// place on the roster is asked of every writer.
-		if err := requireUnclassifiedReason(b); err != nil {
-			return err
-		}
-		if err := requireMintSubject(b); err != nil {
+		if err := mintShape(q, b); err != nil {
 			return err
 		}
 		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
-		}
-		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
-			return err
-		}
-		// REQUIRED, not optional, and that is the whole remedy (#277).
-		//
-		// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
-		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
-		// were document probes. An optional field would be answered the same way the
-		// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
-		// red state what would settle each check is the behaviour change; `document` stays a
-		// legitimate answer, but it now has to be chosen.
-		//
-		// UNSPECIFIED IS THE SCHEMA'S SPELLING OF ABSENT, and it is what the old
-		// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
-		// a seat that passed an empty one were both refused, and both land here.
-		if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-			return fmt.Errorf("requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
-		}
-		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
-		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
-		// A LEGITIMATE VALUE cannot be optional.
-		//
-		// GapMass is MASS[likelihood] * MASS[impact], and an absent grade contributes
-		// ZERO by design. So an ungraded gap has mass 0 and reads exactly like a harmless
-		// one: it sinks to the bottom of every telemetry line that ranks by mass, and
-		// nothing anywhere says a number is missing rather than small. That is the same
-		// silent-zero confusion that has produced several defects in this codebase.
-		//
-		// Severity and complexity_cost are reported, not multiplied. When they are absent
-		// the projection shows them absent, which a reader can see and act on, so the
-		// prompt can go on carrying them.
-		//
-		// Cost of requiring, measured: the 2026-07-18 run minted 18 gaps and ALL 18
-		// carried all four grades unprompted. No seat is inconvenienced today. This is
-		// insurance against the cheaper tier, where grading is exactly the step a seat
-		// under pressure would drop — and it drops silently, into a zero.
-		for _, g := range []struct {
-			flag  string
-			grade recordpb.Grade
-		}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
-			if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
-				return fmt.Errorf("requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
-			}
 		}
 		ids, err := allGapIDs(q)
 		if err != nil {
@@ -967,6 +951,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 		}
 		if err := requireSupersedable(q, seatID, b); err != nil {
+			return err
+		}
+		if err := requireBenchSuccessor(q, seatID, b); err != nil {
 			return err
 		}
 		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
@@ -1269,6 +1256,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
 			}
+			if err := requireProposedAct(q, b); err != nil {
+				return err
+			}
 		}
 	case *recordpb.MotionRule:
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
@@ -1304,6 +1294,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
+			// WHO ANSWERS, AND WHICH ANSWERS FIT THE MOTION: the bench, or the gap's assignee accepting
+			// the act the motion proposes (proposal.go).
+			if err := requireDocketAnswer(q, seatID, b); err != nil {
+				return err
+			}
 			if err := requireBenchOpinion(seatID, d.Docket); err != nil {
 				return err
 			}
@@ -1683,6 +1678,9 @@ func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string)
 // subject — so there is no single field to read, and it reads whichever arm is set. An unset arm
 // and an arm holding its enum's zero both read "", which is what Motion.Ruled() tests; the write
 // refuses both, and refuses an arm that is not the ruling's own subject's.
+// RulingWord is rulingWord, for a verb that prints the word it wrote.
+func RulingWord(r *recordpb.MotionRule) string { return rulingWord(r) }
+
 func rulingWord(r *recordpb.MotionRule) string {
 	switch v := r.GetRuling().(type) {
 	case *recordpb.MotionRule_Petition:
@@ -1873,4 +1871,62 @@ func joinInts(ns []int) string {
 		parts[i] = strconv.Itoa(n)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// mintShape is what a gap's statement must hold whoever writes it, and whether it is written now or
+// stored as a proposed supersede for its assignee or the bench to accept: its reason where it is
+// unclassified, one subject, an --about that resolves, a check kind, and the two grades its mass
+// multiplies. The seat-keyed checks (roster, supersession, the act judgements) are the write's.
+func mintShape(q recordsql.Querier, b *recordpb.Mint) error {
+	if err := requireUnclassifiedReason(b); err != nil {
+		return err
+	}
+	if err := requireMintSubject(b); err != nil {
+		return err
+	}
+	if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		return err
+	}
+	// REQUIRED, not optional, and that is the whole remedy (#277).
+	//
+	// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
+	// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
+	// were document probes. An optional field would be answered the same way the
+	// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
+	// red state what would settle each check is the behaviour change; `document` stays a
+	// legitimate answer, but it now has to be chosen.
+	//
+	// UNSPECIFIED IS THE SCHEMA'S SPELLING OF ABSENT, and it is what the old
+	// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
+	// a seat that passed an empty one were both refused, and both land here.
+	if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
+		return fmt.Errorf("requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
+	}
+	// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
+	// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
+	// A LEGITIMATE VALUE cannot be optional.
+	//
+	// GapMass is MASS[likelihood] * MASS[impact], and an absent grade contributes
+	// ZERO by design. So an ungraded gap has mass 0 and reads exactly like a harmless
+	// one: it sinks to the bottom of every telemetry line that ranks by mass, and
+	// nothing anywhere says a number is missing rather than small. That is the same
+	// silent-zero confusion that has produced several defects in this codebase.
+	//
+	// Severity and complexity_cost are reported, not multiplied. When they are absent
+	// the projection shows them absent, which a reader can see and act on, so the
+	// prompt can go on carrying them.
+	//
+	// Cost of requiring, measured: the 2026-07-18 run minted 18 gaps and ALL 18
+	// carried all four grades unprompted. No seat is inconvenienced today. This is
+	// insurance against the cheaper tier, where grading is exactly the step a seat
+	// under pressure would drop — and it drops silently, into a zero.
+	for _, g := range []struct {
+		flag  string
+		grade recordpb.Grade
+	}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
+		if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
+			return fmt.Errorf("requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
+		}
+	}
+	return nil
 }

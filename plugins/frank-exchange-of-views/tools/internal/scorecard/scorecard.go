@@ -32,6 +32,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -360,7 +361,8 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 func docketRulings(fam *record.Family) []*record.Motion {
 	var out []*record.Motion
 	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		if m.Subject == "docket" && m.Ruled() {
+		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act is its own act, not a ruling.
+		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) == "bench" {
 			out = append(out, m)
 		}
 	}

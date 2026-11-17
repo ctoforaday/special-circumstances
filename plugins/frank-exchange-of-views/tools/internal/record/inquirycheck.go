@@ -127,7 +127,7 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 				about[t.GetGapId()] = i
 				out[i].cause = max(out[i].cause, ids[k])
 				if ids[k] > out[i].LastCheck {
-					out[i].gaps = append(out[i].gaps, t.GetGapId()+" ("+e.GetSeatId()+")")
+					out[i].gaps = append(out[i].gaps, t.GetGapId()+" ("+actingSeatOf(evs, t.GetGapId())+")")
 				}
 			}
 		case *recordpb.Regrade:
@@ -137,7 +137,8 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 	}
 	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && m.Ruled() {
+		// A REJECT LEAVES THE GAP AS IT WAS, and moves nothing the inquiry's owner reads again.
+		if m.Subject == "docket" && m.Ruled() && m.Ruling != "rejected" {
 			moved(m.GapID, m.ruled)
 		}
 	}

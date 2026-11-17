@@ -42,14 +42,18 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	// every assertion below pass over the answer `0` being correct.
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Register{ToolVersion: proto.String("test")})
-	app(chair, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+	// The evidence lens mints the gap the dispatch dockets: the chair mints nothing.
+	minter := Identity{Run: run, SeatID: evLens}
+	app(minter, &recordpb.Register{ToolVersion: proto.String("test")})
+	app(minter, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	app(chair, &recordpb.Log{Text: proto.String("no verb renders a gap's lineage in one read"),
 		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
-	app(chair, &recordpb.Motion{MotionId: proto.String("M1"),
+	// The dispatch dockets R1-1, the lens's gap, as it files a docket at impasse.
+	mustFileByDispatch(t, run, &recordpb.Motion{MotionId: proto.String("M1"),
 		Basis:  proto.String("cannot settle R1-1"),
 		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}}})
 

@@ -66,13 +66,13 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
-		"put a GAP before the bench: any seat but the bench files, the BENCH rules, and its disposition decides the gap's fate",
+		"propose the act you want on a GAP — a regrade, a close or a supersede: any seat but the bench files, the gap's assignee may accept it, else the BENCH accepts, rejects or remands it",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final, flags.Direction}))
 	mount(subject(actingRole, "position",
 		"rule on the chair's position at a sitting that withheld a PASS its plan permitted: the BENCH rules — upheld names the work the debate continues on, overruled sends the PASS back to the chair. NO file verb — the chair's position is the filing",
 		nil, []string{flags.Lens, flags.IDs, flags.Direction}))
-	seat.MarkTree(c)
+	seat.MarkTree(c, actingRole)
 	return c
 }
 
@@ -181,6 +181,12 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	switch {
 	case holds:
 		c.AddCommand(newRule(name, ruler, ruleFlags))
+	case subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+		c.AddCommand(newDocketFile())
+		// A LENS IS A GAP'S ASSIGNEE, and accepts the act a docket motion proposes on its own gap.
+		if actingRole == "lens" {
+			c.AddCommand(newAccept())
+		}
 	case fileFlags != nil:
 		c.AddCommand(newFile(actingRole, name, fileFlags))
 	}

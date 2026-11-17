@@ -1189,7 +1189,7 @@ func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 		// Applied HERE rather than in each verb: a verb that had to remember to mark its own
 		// required flags is a verb that can forget, and the forgetting is silent — the help
 		// simply looks like everything is optional.
-		markTree(v)
+		markTree(v, role)
 		out = append(out, v)
 	}
 	out = append(out, Show(role))
@@ -1351,10 +1351,21 @@ func places(id, loc string, refuse func(error) error) func(*record.Landing) erro
 // act places an anchor at it; an act that names no id places nothing, and one with no quote is checked
 // by its guards alone. It returns the act's event as written, which carries the act's key.
 func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) (*record.Event, error) {
+	evs, err := record.AppendActs(s.Identity(), PlacedActs(act, id, loc, refuse, guards...)...)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// PlacedActs is AppendPlaced's write as acts, for a writer that puts another act ahead of it in the
+// same transaction (an accept's ruling): the act with the Places guard before its own, then the
+// Anchor that places id at loc (record.PlacedActs).
+func PlacedActs(act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) []record.Act {
 	if strings.TrimSpace(loc) != "" {
 		guards = append([]record.Guard{Places(id, loc, refuse)}, guards...)
 	}
-	return record.AppendPlaced(s.Identity(), act, id, loc, guards...)
+	return record.PlacedActs(act, id, loc, guards...)
 }
 
 // StaleRule is how a page whose act names a gap teaches AppendFresh's refusal: one sentence set for

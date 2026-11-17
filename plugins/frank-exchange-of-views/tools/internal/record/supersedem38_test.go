@@ -82,7 +82,7 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 		register("red-chair").register(evLens).register(logic).mint(evLens, "G1", "high").seed()
 	err := validateRun(run, logic, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1"))
 	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, which is open and assigned to "+evLens) ||
-		!strings.Contains(err.Error(), "`motion docket file supersede|regrade|close --id G1`") {
+		!strings.Contains(err.Error(), "(`motion docket file supersede --id G1`, or regrade or close in place of supersede)") {
 		t.Errorf("another lens superseding the open G1 = %v, want it refused naming its assignee and the proposal", err)
 	}
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1")); err != nil {

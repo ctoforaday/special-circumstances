@@ -602,19 +602,22 @@ var satisfiedByAnyOf = map[string][]string{
 // silent" — but `motion` is mounted separately at root.go, so its leaves got none of it. It looked
 // fine only because refHelp hand-wrote "REQUIRED — " into `--id`'s usage, which is the second copy
 // markRequired exists to be the sole writer of.
-func MarkTree(c *cobra.Command) { markTree(c) }
+//
+// The tree is marked before it is mounted, so the role whose surface it is named here: a verb's
+// answer row is read for the role that holds it (AnswersFor).
+func MarkTree(c *cobra.Command, role string) { markTree(c, role) }
 
-func markTree(c *cobra.Command) {
+func markTree(c *cobra.Command, role string) {
 	if c.HasSubCommands() {
 		for _, sub := range c.Commands() {
-			markTree(sub)
+			markTree(sub, role)
 		}
 		return
 	}
 	if t := RecordType(c); t != "" {
 		markRequired(c, t)
 	}
-	teachAnswer(c)
+	teachAnswer(c, role)
 }
 
 // RecordType is the event type a verb writes, or "" for a command that writes no record.

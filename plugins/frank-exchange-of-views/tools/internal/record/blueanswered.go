@@ -53,7 +53,7 @@ import (
 // ANSWERED clears once the lens has audited that answer. A gap that is not material readies nobody,
 // and its lens hears of blue's answer here all the same when it sits for anything else.
 func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
-	minted := mintedBy(evs)
+	minted := assigneeOf(evs)
 	var mine []string
 	open, gone, read, turn := map[string]bool{}, map[string]bool{}, map[string]int64{}, map[string]bool{}
 	demand := map[string]bool{} // the gap's check kind is one an evidence anchor answers

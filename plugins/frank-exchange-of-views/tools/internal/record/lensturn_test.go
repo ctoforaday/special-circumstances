@@ -114,7 +114,7 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 // are the dispatch's own (lensTurnActsOf): an edit that changed the gap's sentence is the lens's turn.
 func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]remandRow, plan Plan) []string {
 	ids := win.IDs(evs)
-	minted := mintedBy(evs)
+	minted := assigneeOf(evs)
 	acts, mintedAt := lensTurnActsOf(evs, ids, gapActsOf(evs, ids, win), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
 	var out []string
 	for _, p := range plan.Parties {

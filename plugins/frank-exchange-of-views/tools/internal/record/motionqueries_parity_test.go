@@ -18,6 +18,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	run := mustRun(t, runDir)
 	red := Identity{Run: run, SeatID: "red-chair"}
 	blue := Identity{Run: run, SeatID: "blue-respond"}
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 
 	if _, err := Append(red, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId:           proto.String("G1"),
@@ -32,6 +33,8 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Blue's proposal is admitted once G1 has had its one exchange.
+	exchangeOn(t, run, "G1")
 	if _, err := Append(blue, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String("severity is understated"),
@@ -63,7 +66,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
 
-	if _, err := Append(Identity{Run: run, SeatID: "judge"}, actRule("M1", false, "judge")); err != nil {
+	if _, err := Append(convene(t, run, "G1"), actRule("M1", false, "judge")); err != nil {
 		t.Fatal(err)
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.

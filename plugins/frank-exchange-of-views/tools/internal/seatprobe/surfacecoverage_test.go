@@ -180,6 +180,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 	}{
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
+		"motion docket accept": {"a docket motion standing on the seat's gap", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"inquiry check":        {"a settled inquiry", func(b Board) bool { return slices.ContainsFunc(b.Inquiries, settled) }},
 		"reproduce":            {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
 		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},

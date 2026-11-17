@@ -113,7 +113,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
 	// the filing, so the ruling alone would be a disposition of nothing.
-	add("red-chair", &recordpb.Motion{
+	archived(t, runDir, "red-chair", &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String("red cannot settle G1 without the model-check"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
@@ -434,7 +434,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	})
 	// And a computation anchored from the transcript, so debate.md must define K1 for itself too: blue's
 	// closing on the docketed gap.
-	add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
+	archived(t, runDir, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
 		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"),
 		Text: proto.String("the interleaving is model-checked<!--computation:K-00000001--> and G1 does not stand"),

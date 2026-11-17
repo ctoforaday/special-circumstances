@@ -745,25 +745,26 @@ func readingBehind(evs []*Event, win WindowIndex, report string, found []located
 		if !ok || m.GetGapId() != gapID {
 			continue
 		}
+		seat := mintActors(evs)[gapID] // the acting seat: the reading the mint was checked on is its
 		row, ok := readingMintedClassOf(m.GetClass())
 		if !ok {
 			return standingReading{}, false
 		}
 		if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-			r, has := standingReadingOf(evs, win, nil, e.GetSeatId(), standingSubject{anchor: m.GetAboutRef()})
+			r, has := standingReadingOf(evs, win, nil, seat, standingSubject{anchor: m.GetAboutRef()})
 			return r, has && r.stands && row.cited(r.v)
 		}
 		if row.found == nil {
 			return standingReading{}, false
 		}
 		if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), gapID); ok {
-			r, has := standingReadingOf(evs, win, found, e.GetSeatId(), standingSubject{sentence: at})
+			r, has := standingReadingOf(evs, win, found, seat, standingSubject{sentence: at})
 			return r, has && row.found(r.v)
 		}
 		var out standingReading
 		has := false
 		for _, l := range found {
-			if l.anchor == "" && !l.located && l.seat == e.GetSeatId() && slices.Contains(l.gapsIn, gapID) && row.found(l.v) {
+			if l.anchor == "" && !l.located && l.seat == seat && slices.Contains(l.gapsIn, gapID) && row.found(l.v) {
 				out, has = standingReading{ev: l.ev, v: l.v, id: l.id}, true
 			}
 		}
@@ -853,12 +854,13 @@ type mintRow struct {
 func mintRowsOf(evs []*Event, win WindowIndex) ([]mintRow, map[string]mintRow) {
 	var out []mintRow
 	byGap := map[string]mintRow{}
+	acting := mintActors(evs)
 	for _, e := range evs {
 		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
 		if !ok {
 			continue
 		}
-		r := mintRow{gap: m.GetGapId(), seat: e.GetSeatId(), class: m.GetClass(), aboutKind: m.GetAboutKind(), aboutRef: m.GetAboutRef(), location: m.GetLocation(), at: win.Of(e).ID}
+		r := mintRow{gap: m.GetGapId(), seat: acting[m.GetGapId()], class: m.GetClass(), aboutKind: m.GetAboutKind(), aboutRef: m.GetAboutRef(), location: m.GetLocation(), at: win.Of(e).ID}
 		out = append(out, r)
 		byGap[r.gap] = r
 	}

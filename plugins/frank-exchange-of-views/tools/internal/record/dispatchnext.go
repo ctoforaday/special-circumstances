@@ -60,16 +60,17 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		return emptyPlan(), false, err
 	}
 	defer tx.Rollback()
-	write := func(body proto.Message) error {
+	writeAs := func(body proto.Message, byDispatch bool) error {
 		ev := &Event{}
 		typ, err := recordpb.SetBody(ev, body)
 		if err != nil {
 			return err
 		}
 		return writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
-			return validateAct(writeView{q: tx, files: files}, id.SeatID, typ, body)
+			return validateAct(writeView{q: tx, files: files, byDispatch: byDispatch}, id.SeatID, typ, body)
 		}, stamp)
 	}
+	write := func(body proto.Message) error { return writeAs(body, false) }
 	if first != nil {
 		if err := write(first); err != nil {
 			return emptyPlan(), false, err
@@ -115,12 +116,19 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 	// AT IMPASSE, AND PAST THE GRADE-MOVEMENT THRESHOLD, THE VERB FILES THE DOCKET MOTION ITSELF, the
 	// moment either is first computed, so "docketed" and the condition are one fact and no seat's
 	// discretion sits between the gap and the bench.
+	// AT IMPASSE THE FILING STORES NO ACT; PAST THE GRADE-MOVEMENT THRESHOLD IT PROPOSES THE REGRADE
+	// RESTORING each axis whose grade differs from the grade the movement window measured from, and no
+	// act where none differs (plan.restore).
 	for _, g := range plan.ToFile {
-		if err := write(&recordpb.Motion{
+		m := &recordpb.Motion{
 			MotionId: proto.String(NewID("motion")),
 			Basis:    proto.String(plan.basis[g]),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
-		}); err != nil {
+		}
+		if r := plan.restore[g]; r != nil {
+			m.Act = &recordpb.Motion_Regrade{Regrade: r}
+		}
+		if err := writeAs(m, true); err != nil {
 			return emptyPlan(), false, fmt.Errorf("docketing %s: %w", g, err)
 		}
 	}

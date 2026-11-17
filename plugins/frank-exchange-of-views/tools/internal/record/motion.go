@@ -187,6 +187,9 @@ type Motion struct {
 	// the broken one the same. Typed, the fold that fills it is the only thing that can be wrong,
 	// and the compiler names the arm that was forgotten.
 	GapID string
+	// Act is the act a docket motion proposes — regrade, close or supersede — and "" for none: the
+	// dispatch's impasse filing, its no-net grade-movement filing, an archived docket, another subject.
+	Act string
 
 	Ruling        string
 	RulingBy      string
@@ -292,6 +295,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			w := win.Of(e)
 			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.Subject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
+			m.Act = ActWord(f)
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
 			// `filing` oneof buys: a docket motion cannot carry a petition's `class`, so the loop
 			// over five payload keys that used to stand in for that guarantee is gone. The KEYS
@@ -487,9 +491,9 @@ func requireSubjectMatches(q recordsql.Querier, subject recordpb.MotionSubject, 
 // the writing transaction (writeIn's), which takes the write lock at BEGIN. Read before the
 // transaction it is check-then-insert: every seat that reads "unanswered" before the first answer
 // commits lands its own, and the record holds two answers to one motion.
-func requireUnanswered(q rowQuerier, body proto.Message) error {
+func requireUnanswered(q rowQuerier, seatID string, body proto.Message) error {
 	if b, ok := body.(*recordpb.MotionRule); ok {
-		return RequireUnruledMotion(q, b.GetMotionId(), SupersedingAnswer(recordpb.EventType_EVENT_TYPE_MOTION_RULE, b))
+		return RequireUnruledMotion(q, b.GetMotionId(), SupersedingAnswer(seatID, recordpb.EventType_EVENT_TYPE_MOTION_RULE, b))
 	}
 	return nil
 }

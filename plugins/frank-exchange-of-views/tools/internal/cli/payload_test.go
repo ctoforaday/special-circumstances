@@ -49,6 +49,8 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		"--class", "safety", "--relief", "halt before the next round", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
+	// A proposal on a gap is admitted once it has had its one exchange.
+	exchangeOn(t, runDir, undisputed)
 
 	for _, c := range []struct {
 		name, field string
@@ -63,7 +65,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
 		{"lens regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", lensSeat, "--id", id, "--severity", "low"}},
 		{"motion petition rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied"}},
-		{"motion docket file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", undisputed}},
+		{"motion docket file regrade", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "docket", "file", "regrade", "--seat-id", "blue-respond", "--id", undisputed, "--severity", "low"}},
 		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-chair", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {

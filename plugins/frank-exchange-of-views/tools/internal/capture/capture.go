@@ -43,6 +43,7 @@ import (
 	// spellings would shadow each other at exactly the call site that needs the constant.
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -1460,13 +1461,18 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 			}
 			switch ruled := r.GetRuling().(type) {
 			case *recordpb.MotionRule_Docket:
+				// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act,
+				// and no precedent.
+				if seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+					continue
+				}
 				// The bench disposing of a docketed gap. Its argument is `MotionRule.opinion` —
 				// the prose channel every subject's ruling carries — and the gap comes from the
 				// join above, because the ruling does not hold it.
 				out = append(out, ruling{
 					kind:        "docket",
 					gapID:       docketGapOf[r.GetMotionId()],
-					disposition: recordpb.Word(ruled.Docket.GetDisposition()),
+					disposition: record.RulingWord(r),
 					rationale:   r.GetOpinion(),
 				})
 			case *recordpb.MotionRule_Petition:

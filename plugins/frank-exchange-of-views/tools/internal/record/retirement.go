@@ -229,17 +229,27 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 			out = append(out, gapNews{gap: g.id, at: a.metAt, item: "blue's retire of " + a.met.anchor + ", " + a.met.how(g.id)})
 		}
 	}
-	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
-	// gap that is material carries one back into the debate (routeOf); the bench's ruling on any
-	// other leaves it where it was, readying nobody.
+	// A BENCH RULING THAT LEAVES A MATERIAL GAP OPEN IS NEWS, IN ITS OWN WORD: a remand, the bench's
+	// regrade on accepting a proposal, or its rejection of one — every closing word closes the gap.
+	// Only a gap that is material carries it back into the debate (routeOf); the bench's ruling on
+	// any other leaves it where it was, readying nobody. The assignee's own accept is its own act, and
+	// no news to it.
 	held := map[string]bool{}
 	for _, g := range gaps {
 		held[g.id] = g.material
 	}
 	for _, m := range motions {
-		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
-			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
+		if m.Subject != "docket" || !m.Ruled() || !held[m.GapID] || seatclass.RoleOfSeat(m.RulingBy) != "bench" {
+			continue
 		}
+		item := "the bench's remand of " + m.GapID + " in " + m.ID
+		switch m.Ruling {
+		case "accepted":
+			item = "the bench's " + m.Act + " of " + m.GapID + " on " + m.ID
+		case "rejected":
+			item = "the bench's rejection of the " + m.Act + " " + m.ID + " proposed on " + m.GapID
+		}
+		out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: item})
 	}
 	return out
 }

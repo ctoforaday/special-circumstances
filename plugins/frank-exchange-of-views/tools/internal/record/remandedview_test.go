@@ -22,8 +22,11 @@ import (
 // measurement would take.
 func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	run := mustRun(t, newRun(t))
-	red := Identity{Run: run, SeatID: "red-chair"}
-	judge := Identity{Run: run, SeatID: "judge"}
+	// The cast seats the bench, so the dispatch may convene it (convene); the evidence lens mints
+	// the gaps, and the dispatch files their dockets.
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
+	lens := Identity{Run: run, SeatID: evLens}
+	gapOf := map[string]string{}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -31,18 +34,20 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 		}
 	}
 	mint := func(id string) {
-		app(red, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		app(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p " + id), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}
 	file := func(motionID, gapID string) {
-		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
+		gapOf[motionID] = gapID
+		mustFileByDispatch(t, run, &recordpb.Motion{MotionId: proto.String(motionID),
 			Basis:  proto.String("red cannot settle " + gapID),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 	}
+	// Each ruling is the bench's in the docket sitting the dispatch convenes for its gap.
 	carry := func(motionID, reopensOn string) {
-		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
@@ -53,7 +58,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
-		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("settled"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),

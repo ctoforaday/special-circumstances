@@ -17,6 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -1451,7 +1452,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
+	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found,
+		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
 	if role == "bench" || role == "chair" {
@@ -1810,11 +1813,12 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				continue
 			}
 			d, isDocket := r.GetRuling().(*recordpb.MotionRule_Docket)
-			if !isDocket {
+			// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act.
+			if !isDocket || seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				continue
 			}
 			rj.Lead = append(rj.Lead, DebateOpinionJSON{
-				GapID: docketGapOf[r.GetMotionId()], Disposition: recordpb.Word(d.Docket.GetDisposition()),
+				GapID: docketGapOf[r.GetMotionId()], Disposition: rulingWord(r),
 				Principle: d.Docket.GetPrinciple(), Tension: d.Docket.GetTension(),
 				ReviewFlag: d.Docket.GetReviewFlag(), Rationale: r.GetOpinion(),
 			})

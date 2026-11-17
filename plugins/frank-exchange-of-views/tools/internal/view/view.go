@@ -17,6 +17,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -693,13 +694,17 @@ func debateMD(in Input) []byte {
 				// the only thing that can name what was settled. The bench's argument is
 				// `MotionRule.opinion`, the prose channel every subject's ruling carries.
 				if d, isDocket := t.GetRuling().(*recordpb.MotionRule_Docket); isDocket {
+					// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act.
+					if seatclass.RoleOfSeat(l.GetSeatId()) != "bench" {
+						continue
+					}
 					ops = append(ops, "- "+fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 						// recordpb.Word, NOT the enum's own String(). A generated enum prints its
 						// Go constant name — a seat reading the debate would be shown
 						// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing
 						// made this a rendering bug that no longer announces itself as a type
 						// error.
-						docketGapOf[t.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+						docketGapOf[t.GetMotionId()], record.RulingWord(t),
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+t.GetOpinion())
 					continue
 				}

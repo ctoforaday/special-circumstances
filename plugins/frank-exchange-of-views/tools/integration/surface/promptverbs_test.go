@@ -97,8 +97,22 @@ func promptPath(m []string, real map[string]bool) string {
 //
 // `appeal` IS MATCHED AND NO SUBJECT HOLDS IT: a ruling stands, and a text that sends a seat to
 // appeal one names a path the tree lacks — which is what this gate reports.
+//
+// A DOCKET PROPOSAL'S VERB NAMES ITS ACT (`motion docket file close`), and the assignee answers one
+// with `accept`; the act is matched where it follows, so a bare `file` on the docket is reported as
+// the path the tree lacks.
 var promptMotion = regexp.MustCompile(
-	`\bmotion\s+(` + strings.Join(record.MotionSubjects, "|") + `)\s+(file|rule|appeal)\b`)
+	`\bmotion\s+(` + strings.Join(record.MotionSubjects, "|") + `)\s+(file|rule|appeal|accept)(?:\s+(` +
+		strings.Join(record.ProposedActs, "|") + `))?\b`)
+
+// motionPath is the command path a promptMotion match names.
+func motionPath(m []string) string {
+	p := "motion " + m[1] + " " + m[2]
+	if m[3] != "" {
+		p += " " + m[3]
+	}
+	return p
+}
 
 // AND A COMMAND NAMED WITHOUT ITS ROLE IS STILL A COMMAND.
 //
@@ -333,7 +347,7 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 		// exists and could not see a motion at all, so a prompt telling a seat to run
 		// `motion docket retract` would have passed it. Symmetric with the orphan gate below.
 		for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
-			if p := "motion " + m[1] + " " + m[2]; !real[p] {
+			if p := motionPath(m); !real[p] {
 				bad = append(bad, site{filepath.Base(path), p})
 			}
 		}
@@ -454,7 +468,7 @@ func namedIn(text string, real map[string]bool, roleless *regexp.Regexp) map[str
 		}
 	}
 	for _, m := range promptMotion.FindAllStringSubmatch(text, -1) {
-		if p := "motion " + m[1] + " " + m[2]; real[p] {
+		if p := motionPath(m); real[p] {
 			named[p] = true
 		}
 	}

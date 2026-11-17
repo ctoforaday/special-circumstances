@@ -2,7 +2,6 @@ package record
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// closureStage is one gap, G1, minted by the evidence lens in epoch 1, and the closing acts a row
+// closureStage is one gap, G1, minted by the evidence lens in epoch 1 of a cast run, and the closing acts a row
 // writes on it — every one through the write path, as a seat (or migrate's replay) writes it.
 type closureStage struct {
 	t                  *testing.T
@@ -24,6 +23,8 @@ type closureStage struct {
 func newClosureStage(t *testing.T) *closureStage {
 	t.Helper()
 	s := &closureStage{t: t, run: corrRun(t)}
+	// The cast seats the bench, so the dispatch may convene it (convene).
+	mustAppend(t, Identity{Run: s.run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	s.chair = sit(t, s.run, "red-chair")
 	s.lens = sit(t, s.run, evLens)
 	mustAppend(t, s.lens, corrMint("G1"))
@@ -73,38 +74,32 @@ func (s *closureStage) ruled(word recordpb.Disposition) *Event {
 	return s.rule(s.docketed(), word)
 }
 
-// docketed is the chair putting G1 before the bench, and rule the bench sitting to rule that motion
-// — apart, for the record where the gap closes between the two.
+// docketed is the dispatch putting G1 before the bench, and rule the bench, convened on G1, ruling
+// that motion — apart, for the record where the gap closes between the two.
 func (s *closureStage) docketed() string {
 	s.t.Helper()
 	s.motions++
 	id := "M" + string(rune('0'+s.motions))
-	mustAppend(s.t, s.chair, docketMotion(id, "G1"))
+	mustFileByDispatch(s.t, s.run, docketMotion(id, "G1"))
 	return id
 }
 
-// reconsidered is the lens putting G1, which the bench ruled closed, before it again on new grounds:
-// a citation blue placed as G1's answer since the ruling.
-func (s *closureStage) reconsidered() string {
+// docketedArchived is a docket motion on G1 that an archived record holds where the live write
+// refuses it: on G1 once it is closed, where no act but a successor moves it (F8). The readers still
+// read such a record, so the stage seeds it through the replay writer.
+func (s *closureStage) docketedArchived() string {
 	s.t.Helper()
 	s.motions++
 	id := "M" + string(rune('0'+s.motions))
-	label := fmt.Sprintf("C-0000000%d", s.motions)
-	if _, err := replayed(s.t, sit(s.t, s.run, "blue-respond"), &recordpb.Cite{FetchedAt: proto.String("2026-11-12T00:00:00Z"),
-		SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0),
-		SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
-		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
-		Label: proto.String(label), Url: proto.String("https://x/" + label), Title: proto.String("t"), CiteKey: proto.String("k-" + label),
-		Sha256: proto.String("abc"), Answers: proto.String("G1")}); err != nil {
+	if _, err := replayed(s.t, s.chair, docketMotion(id, "G1")); err != nil {
 		s.t.Fatal(err)
 	}
-	mustAppend(s.t, s.lens, docketMotion(id, "G1"))
 	return id
 }
 
 func (s *closureStage) rule(motion string, word recordpb.Disposition) *Event {
 	s.t.Helper()
-	s.bench = sit(s.t, s.run, "judge")
+	s.bench = convene(s.t, s.run, "G1")
 	return mustAppend(s.t, s.bench, docketRuling(motion, word))
 }
 
@@ -142,7 +137,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 	}{
 		{"a: red closes, the bench rules it closed in a later sitting", func(s *closureStage) {
 			s.close(repaired, "red's close")
-			s.epoch().ruled(notADefect)
+			s.epoch().rule(s.docketedArchived(), notADefect)
 		}, closureWant{epoch: 2, fate: "not_a_defect", bodyClass: "repaired", benchDispo: "not_a_defect",
 			closureProse: "red's close", estopped: true}},
 		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391), the lens
@@ -162,7 +157,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		}, closureWant{open: true, closureAbsent: true}},
 		{"c: the bench rules it closed twice", func(s *closureStage) {
 			s.ruled(notADefect)
-			s.epoch().rule(s.reconsidered(), elsewhere)
+			s.epoch().rule(s.docketedArchived(), elsewhere)
 		}, closureWant{byBench: true, epoch: 2, fate: "defect_owed_elsewhere", bodyDispo: "defect_owed_elsewhere",
 			benchDispo: "defect_owed_elsewhere", estopped: true}},
 		{"d: red closes, the chair carries it under another word", func(s *closureStage) {
@@ -171,7 +166,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		}, closureWant{epoch: 2, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", closureProse: "carried"}},
 		{"e: red closes, the bench rules, the chair carries", func(s *closureStage) {
 			s.close(accepted, "red's close")
-			s.epoch().ruled(notADefect)
+			s.epoch().rule(s.docketedArchived(), notADefect)
 			s.epoch().carry("1", repaired)
 		}, closureWant{epoch: 3, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", benchDispo: "not_a_defect",
 			closureProse: "carried"}},
@@ -327,9 +322,18 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING (#681 Scope 2), so each of these is a
 	// PAIR: red files the gap to the bench, the bench rules. The gap rides the FILING, which is
 	// why both halves have to be on the record for either projection to attribute the closure.
+	// The live write refuses both pairs — G3 is closed (F8), and red-chair is G2's own assignee
+	// (F1) — so the record is an archived one, seeded through the replay writer: the board reads
+	// what such a record holds.
+	replay := func(id Identity, body proto.Message) {
+		t.Helper()
+		if _, err := replayed(t, id, body); err != nil {
+			t.Fatal(err)
+		}
+	}
 	docket := func(motionID, gapID string, rule *recordpb.DocketRuling) {
 		t.Helper()
-		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
+		replay(red, &recordpb.Motion{MotionId: proto.String(motionID),
 			Basis:  proto.String("red cannot settle " + gapID),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
@@ -337,7 +341,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
-		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
+		replay(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("ra"),
 			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
 	}
@@ -408,7 +412,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 func TestAClosingActTheReadDidNotLoadIsLoud(t *testing.T) {
 	s := newClosureStage(t)
 	s.close(recordpb.Disposition_DISPOSITION_REPAIRED, "red's close")
-	s.epoch().ruled(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
+	s.epoch().rule(s.docketedArchived(), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
 
 	absent := sql.NullInt64{Int64: 4242, Valid: true}
 	for _, c := range []struct {

@@ -371,18 +371,20 @@ func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 
 // A DOCKET MOTION THAT WOULD OWE ITS FILER A CLOSING ITS SITTING CANNOT FILE IS REFUSED (gblock,
 // 2026-10-24): the filer has filed its closing on the gap this sitting, and the sitting holds one per
-// gap. Filed in a later sitting, it is admitted.
+// gap. Filed in a later sitting, it is admitted. A gap holds one proposal at a time (F5), so the
+// fixture is the one live order that reaches it: blue argues M1 in its sitting, the bench remands M1
+// while that sitting is still open, and blue moves to docket G1 again before the sitting ends. A
+// remand owes the gap one more exchange, and a seat's proposal waits on it (requireExchangedOn), so the
+// admitted arms give G1 that exchange first.
 func TestADocketMotionAfterTheFilersClosingThisSittingIsRefused(t *testing.T) {
-	b := docketed(t).register("blue-respond").closing("blue-respond", "G1")
-	run := b.seed()
+	run := docketed(t).register("blue-respond").closing("blue-respond", "G1").
+		dispatch(2, "judge", "G1").register("judge").add("judge", remandRuling("M1", "new evidence")).seed()
 	_, err := Append(Identity{Run: run, SeatID: "blue-respond"}, docketMotion("M2", "G1"))
 	if err == nil || !strings.Contains(err.Error(), "already filed its closing on G1 in this sitting") {
 		t.Fatalf("a docket motion after the filer's closing this sitting = %v, want refused naming the closing", err)
 	}
-	if _, err := Append(Identity{Run: run, SeatID: evLens}, docketMotion("M3", "G1")); err != nil {
-		t.Errorf("the other party, which filed no closing this sitting, is refused: %v", err)
-	}
-	run = b.more().register("red-chair").register("blue-respond").seed()
+	// The exchange the remand owes sits blue twice more: its closing's sitting is over.
+	exchangeOn(t, run, "G1")
 	if _, err := Append(Identity{Run: run, SeatID: "blue-respond"}, docketMotion("M4", "G1")); err != nil {
 		t.Errorf("in a later sitting the docket motion is refused: %v", err)
 	}

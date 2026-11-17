@@ -143,12 +143,25 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 // BETTER documentation would be read as noise and turned off.
 // setKey spells a command the way record.EnumFields does — by the EVENT TYPE it writes, since a
 // type can now have more than one verb. Operator commands write no record and keep their name.
+//
+// A DOCKET PROPOSAL IS SPELLED BY THE ACT IT PROPOSES: it records a `motion`, and its flags are the
+// act's own, generated from the act's sets and refused by the act's own parse — so each is held to
+// that act's declared set. Keyed as `motion`, the supersede's --class would share a key with the
+// petition's, and whichever the walk reached last would be the one checked.
 func setKey(c *cobra.Command) string {
+	if p := c.Parent(); p != nil && p.Name() == "file" && p.Parent() != nil && p.Parent().Name() == "docket" {
+		if typ, ok := proposedActType[c.Name()]; ok {
+			return typ
+		}
+	}
 	if t := seat.RecordType(c); t != "" {
 		return t
 	}
 	return c.Name()
 }
+
+// proposedActType is the event type each docket proposal's act is.
+var proposedActType = map[string]string{"regrade": "regrade", "close": "close", "supersede": "mint"}
 
 func setFlags(c *cobra.Command, out map[string]string) {
 	registered := enumhelp.Registered(c)

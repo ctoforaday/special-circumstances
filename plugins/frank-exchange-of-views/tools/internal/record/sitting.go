@@ -124,6 +124,9 @@ type sittingReads struct {
 	// found: the located readings (locatedReadingsAt), the reading debt's input, read on the list's
 	// snapshot.
 	found []locatedReading
+	// exchanged: whether a gap has had the one exchange a proposal on it waits for
+	// (requireExchangedOn's count, on the list's snapshot); nil reads every gap as exchanged.
+	exchanged func(gap string) bool
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -523,8 +526,12 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 			limit := ""
 			if at, ok := limited[b.About]; ok && b.motionSubject == "docket" {
-				limit = fmt.Sprintf(" — a remand of %s is refused: you remanded it at impasse at event %d, and %s; rule a disposition that closes it (%s)",
-					b.About, at, RemandLimitRule, strings.Join(ClosingDispositions(), ", "))
+				answer := "rule a disposition that closes it (" + strings.Join(ClosingDispositions(), ", ") + ")"
+				if b.act != "" {
+					answer = "accept or reject the " + b.act + " it proposes"
+				}
+				limit = fmt.Sprintf(" — a remand of %s is refused: you remanded it at impasse at event %d, and %s; %s",
+					b.About, at, RemandLimitRule, answer)
 			}
 			if held[b.Subject] {
 				s.Open = append(s.Open, b.asItem("motion "+b.Subject+" ("+b.Detail+") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands"+limit, true))
@@ -535,7 +542,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut)...)
+	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut, reads.exchanged)...)
 
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —

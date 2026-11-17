@@ -89,7 +89,7 @@ func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) e
 			}
 			return feov.Errorf(feov.Validation,
 				"--supersedes names %s, which is open and assigned to %s. A mint superseding an open gap closes it, and only its assignee closes a gap; %s cannot. "+
-					"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede|regrade|close --id %s`), argued in --reason; %s may accept it, else the bench rules.%s "+
+					"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede --id %s`, or regrade or close in place of supersede), argued in --reason; %s may accept it, else the bench rules.%s "+
 					"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. If yours is a different defect, mint it without --supersedes. Nothing was written",
 				anc, assignee, seatID, anc, anc, assignee, exchanged, anc, anc)
 		}

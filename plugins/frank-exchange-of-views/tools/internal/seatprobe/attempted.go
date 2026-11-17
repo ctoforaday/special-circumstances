@@ -127,7 +127,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	//
 	cand := commandWords(fields)
 	for i := range cand {
-		for n := min(3, len(cand)-i); n >= 1; n-- {
+		for n := min(4, len(cand)-i); n >= 1; n-- {
 			if v := strings.Join(cand[i:i+n], " "); verbs[v] {
 				return v
 			}

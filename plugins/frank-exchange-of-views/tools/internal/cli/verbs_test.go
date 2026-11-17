@@ -26,6 +26,9 @@ func seedReferents(t *testing.T, runDir string) {
 	// blue's cite has always been held to. Without this the reading was refused for quoting a sentence
 	// that existed nowhere, which reads as the verb being broken rather than as the fixture being a
 	// placeholder.
+	// The cast names the lane the cases file from: an exchange — a dispatch row — is admitted only
+	// against a cast, and a seat outside it cannot register.
+	seedCastWith(t, runDir, "blue-lane-1")
 	seedBlueReport(t, runDir)
 	// THE LENS MINTS (plans/roundless.md §III.B.3). The chair sits first so the epoch is 1, then
 	// `lensSeat` mints — and is the seat that closes G2 below, because the originator closes.
@@ -45,10 +48,12 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--reason", "the seeded docket motion this fixture answers"); err != nil {
-		t.Fatal(err)
-	}
+	// M1 proposes a close of G1 once G1 has had its one exchange, and the bench is convened on G1:
+	// the bench rules a docket motion its docket sitting holds.
+	g1 := handleText(t, runDir, "G1")
+	exchangeOn(t, runDir, g1)
+	proposeClose(t, runDir, "blue-respond", "G1", "not_a_defect", "the seeded docket motion this fixture answers")
+	conveneBench(t, runDir, g1)
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--class", "safety", "--relief", "the relief sought",
 		"--reason", "the seeded petition this fixture answers"); err != nil {
@@ -64,6 +69,8 @@ func seedReferents(t *testing.T, runDir string) {
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
+	// G3, open, has had its one exchange: the filing case proposes an act on it.
+	exchangeOn(t, runDir, handleText(t, runDir, "G3"))
 	// The lens seat has sat: it registered and minted above, so `petition-rule --petitioner`
 	// finds a seat that recorded something in the run without a seeded `log` for presence.
 }
@@ -132,12 +139,12 @@ func TestVerbPayloads(t *testing.T) {
 			says: "motion M1 ruled remanded",
 		},
 		{
-			name: "motion docket file puts a gap before the bench",
-			path: []string{"motion", "docket", "file"}, seatID: "blue-lane-1",
-			args: []string{"--id", "G2", "--reason", "§4 says otherwise"},
+			name: "motion docket file regrade proposes an act on a gap",
+			path: []string{"motion", "docket", "file", "regrade"}, seatID: "blue-lane-1",
+			args: []string{"--id", "G3", "--severity", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
-			want: map[string]string{"gap_id": "G2", "basis": "§4 says otherwise"},
-			says: "filed (docket)",
+			want: map[string]string{"gap_id": "G3", "basis": "§4 says otherwise"},
+			says: "filed (docket, proposing a regrade)",
 		},
 		{
 			name: "blue retire records what left and why",
@@ -434,9 +441,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 				restore()
 			}
 			runDir := seeded
-			if tc.verb == "closing" {
-				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle") // a closing argues a docketing
-			}
+			// A closing argues a docketing: the seeded M1 stands on G1.
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
 			if _, err := runAt(t, args...); err != nil {

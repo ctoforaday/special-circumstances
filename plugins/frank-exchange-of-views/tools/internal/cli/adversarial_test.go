@@ -52,6 +52,9 @@ type adversarialCase struct {
 	// setup runs in order and MUST all succeed — a scenario whose setup silently failed asserts
 	// its refusal against an empty board, which passes for the wrong reason.
 	setup []seatStep
+	// proposed is the docket proposal filed once setup has run and gap G1 has had its one exchange
+	// (exchangeOn): a proposal is admitted from there, and no CLI step stages an exchange.
+	proposed []seatStep
 	// act is the hostile move.
 	act seatStep
 	// refused is what the message must contain. Empty means the act must be ACCEPTED.
@@ -66,8 +69,9 @@ func adversarialCases() []adversarialCase {
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",
 		"--reason", "the board needs something to argue about"}
-	fileDocket := seatStep{"motion", "docket", "file", "--seat-id", "blue-respond",
-		"--id", "G1", "--reason", "the consequence is bounded by the caller's own validation; the bench should decide the gap"}
+	fileDocket := append(seatStep{"motion", "docket", "file", "close", "--seat-id", "blue-respond",
+		"--id", "G1", "--reason", "the consequence is bounded by the caller's own validation; the bench should decide the gap"},
+		closeFlags("not_a_defect")...)
 	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-evidence",
 		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
@@ -94,11 +98,12 @@ func adversarialCases() []adversarialCase {
 				"cannot make. The subject is established before anything phrased in its terms.",
 		},
 		{
-			name:    "a docket motion cannot be ruled through the petition subgroup",
-			setup:   []seatStep{mint, fileDocket},
-			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the bench takes the chair's docket"},
-			refused: "was filed as a docket motion and you are ruling it as a petition",
-			guards:  "The same hole from the other side — a docket motion answered with a petition's verdicts.",
+			name:     "a docket motion cannot be ruled through the petition subgroup",
+			setup:    []seatStep{mint},
+			proposed: []seatStep{fileDocket},
+			act:      seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the bench takes the chair's docket"},
+			refused:  "was filed as a docket motion and you are ruling it as a petition",
+			guards:   "The same hole from the other side — a docket motion answered with a petition's verdicts.",
 		},
 		{
 			name:    "a motion is answered once",
@@ -173,10 +178,11 @@ func adversarialCases() []adversarialCase {
 				"four classes and what each is for — the seat learns the vocabulary from the refusal.",
 		},
 		{
-			name:    "the gavel holds even with the right subject",
-			setup:   []seatStep{mint, fileDocket},
-			act:     seatStep{"motion", "docket", "rule", "--seat-id", "blue-respond", "--id", "M1", "--as", "repaired", "--reason", "ruling my own motion"},
-			refused: "is ruled by the bench",
+			name:     "the gavel holds even with the right subject",
+			setup:    []seatStep{mint},
+			proposed: []seatStep{fileDocket},
+			act:      seatStep{"motion", "docket", "rule", "--seat-id", "blue-respond", "--id", "M1", "--as", "repaired", "--reason", "ruling my own motion"},
+			refused:  "is ruled by the bench",
 			guards: "Filed by any seat, ruled by one. The asymmetry IS the mechanism, and blue " +
 				"answering its own ask would make the exchange a monologue.",
 		},
@@ -199,6 +205,15 @@ func TestAHostileSeatIsRefused(t *testing.T) {
 				args := byHandle(t, runDir, append(append([]string{}, step...), "--run", runDir))
 				if _, err := run(t, args...); err != nil {
 					t.Fatalf("setup step %d (%v) failed: %v\n\nA scenario whose setup fails asserts its outcome against a board that was never built, which passes for the wrong reason.", i, step, err)
+				}
+			}
+			if len(tc.proposed) > 0 {
+				exchangeOn(t, runDir, handleText(t, runDir, "G1"))
+			}
+			for i, step := range tc.proposed {
+				args := byHandle(t, runDir, append(append([]string{}, step...), "--run", runDir))
+				if _, err := run(t, args...); err != nil {
+					t.Fatalf("proposal %d (%v) failed: %v\n\nA scenario whose setup fails asserts its outcome against a board that was never built, which passes for the wrong reason.", i, step, err)
 				}
 			}
 

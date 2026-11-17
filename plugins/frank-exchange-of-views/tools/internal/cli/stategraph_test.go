@@ -293,8 +293,13 @@ func gapProbe(t *testing.T) entityProbe {
 			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
 			// that drove only the closing word would report a lifecycle whose defer state the
 			// record can reach and the graph cannot see.
-			{"motion docket file", []string{"motion", "docket", "file", "--id", "G1",
-				"--reason", "contested and not mine to close"}},
+			// A PROPOSAL IS THE GAP'S DISPUTE: another seat proposes the act it wants, the assignee
+			// may accept it, else the bench rules it.
+			{"motion docket file close", append([]string{"motion", "docket", "file", "close", "--id", "G1",
+				"--reason", "contested and not mine to close"}, closeFlags("not_a_defect")...)},
+			{"motion docket file supersede", append([]string{"motion", "docket", "file", "supersede", "--id", "G1",
+				"--reason", "the gap as stated is not the defect"}, supersedeFlags()...)},
+			{"motion docket accept", []string{"motion", "docket", "accept", "--id", "M1", "--reason", "the proposal is right"}},
 			{"motion docket rule:remanded", docketRuleArgs("remanded")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},
@@ -307,6 +312,8 @@ func gapProbe(t *testing.T) entityProbe {
 			if !build(t, runDir, gapMint()) {
 				t.Fatalf("no seat could mint, so the gap probe would measure a board it never reached")
 			}
+			// The gap has had its one exchange, so a proposal on it is admitted.
+			exchangeOn(t, runDir, "G1")
 			if state == "closed" && !build(t, runDir, close) {
 				t.Fatalf("no seat could close, so state %q was never reached", state)
 			}

@@ -40,7 +40,7 @@ func TestNoSurfaceMountsAFinding(t *testing.T) {
 // The roads, in the words each case's refusal states them; none names a finding, a no-act docket
 // motion or reconsideration grounds.
 const (
-	roadSupersede = "motion docket file supersede|regrade|close --id "
+	roadSupersede = "motion docket file supersede --id "
 	roadOnBoard   = "nothing more is recorded"
 	roadExchange  = "a proposal on it is admitted once it has had one exchange"
 )
@@ -186,7 +186,7 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 		// The whole first line, so a prefix the flag frame adds and the refusal repeats is caught.
 		want := `--about-kind takes no "gap": a gap is not the subject of another gap. ` +
 			"If you dispute a gap — its problem, fix, check or weight — propose the act you want on it " +
-			"(`motion docket file supersede|regrade|close --id <gap>`), argued in --reason; its assignee may accept it, else the bench rules. " +
+			"(`motion docket file supersede --id <gap>`, or regrade or close in place of supersede), argued in --reason; its assignee may accept it, else the bench rules. " +
 			"If you restate a gap's defect, mint superseding it (`--supersedes <gap>`) — your own open gap, or any closed gap. Nothing was written"
 		if got, _, _ := strings.Cut(err.Error(), "\n"); got != want {
 			t.Errorf("the refusal reads:\n%s\nwant:\n%s", got, want)

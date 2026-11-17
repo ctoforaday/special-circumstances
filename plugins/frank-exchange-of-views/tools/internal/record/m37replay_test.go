@@ -40,7 +40,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 		gap     string
 		remains bool
 	}{{"G-584d152f", false}, {"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
-	minted := mintedBy(whole)
+	minted := assigneeOf(whole)
 	k, remain := 0, 0
 	for i, e := range whole {
 		m, ok := recordpb.BodyAs[*recordpb.Motion](e)

@@ -213,7 +213,7 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 	return feov.Errorf(feov.Conflict,
 		"gap %s, assigned to %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
-			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede|regrade|close --id %s`), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
+			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede --id %s`, or regrade or close in place of supersede), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
 		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, exchanged)
 }
 

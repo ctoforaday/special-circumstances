@@ -108,16 +108,17 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	}
 }
 
-// motionGuardRun is a record with three unruled motions: docket M1 on G1 proposing a regrade (filed
-// by the lens), docket M2 on G2 (filed by blue) and petition M3 (filed by the lens).
+// motionGuardRun is a record with three unruled motions: docket M1 on G1 proposing a regrade and
+// docket M2 on G2 proposing no act (both filed as the dispatch files them), and petition M3 (filed by
+// the lens); the chair's bench row on G1 and G2 then convenes the bench's next docket sitting on both.
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).
 		mint(evLens, "G1", "high").mint(evLens, "G2", "high").seed()
-	mustAppend(t, sit(t, run, evLens), regradeMotion("M1", "G1", "severity is overstated"))
-	blue := sit(t, run, "blue-respond")
-	mustAppend(t, blue, docketMotion("M2", "G2"))
+	mustFileByDispatch(t, run, regradeMotion("M1", "G1", "severity is overstated"))
+	mustFileByDispatch(t, run, docketMotion("M2", "G2"))
+	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: []string{"G1", "G2"}})
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"), Basis: proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
 	return run
@@ -180,13 +181,14 @@ type motionAnswer struct{ ruling, by string }
 // write refuses a second, migrate's replay included, so no record holds two.
 func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
-	// A second motion proposing a regrade, left unruled by the write.
-	mustAppend(t, sit(t, run, evLens), regradeMotion("M4", "G2", "likelihood is overstated"))
 
 	// The legal acts, through Append.
 	judge := sit(t, run, "judge")
 	mustAppend(t, judge, actRule("M1", false, "judge"))
 	mustAppend(t, judge, docketRule("M2", "the bench remands"))
+	// A second motion on G2, proposing a regrade, once the first is answered (one at a time on a
+	// gap), left unruled by the write.
+	mustFileByDispatch(t, run, regradeMotion("M4", "G2", "likelihood is overstated"))
 
 	motions := motionReadersAgree(t, run)
 	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "judge"}); got != want {
@@ -200,15 +202,15 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 }
 
-// A MOTION IS ANSWERED ONCE WHEN EVERY SEAT ANSWERS AT ONCE. The first-wins guards read the record
-// and then the write inserts; outside the writing transaction that is check-then-insert, and every
-// seat that read "unanswered" before the first insert committed lands its own answer. Each
-// goroutine is a different seat, so no idempotency key collides to hide a missing guard: exactly
-// one answer may land, every other is refused in the guard's own words, and the two readers
+// A MOTION IS ANSWERED ONCE WHEN BOTH ITS ANSWERERS ANSWER AT ONCE (T-B7). The first-wins guards
+// read the record and then the write inserts; outside the writing transaction that is
+// check-then-insert, and each answerer that read "unanswered" before the other's insert committed
+// lands its own answer. The two seats a proposal's answer admits — the gap's assignee accepting, the
+// bench rejecting — race, each on its own connection, so no idempotency key collides to hide a missing
+// guard: exactly one answer lands, the other is refused in the guard's own words, and the two readers
 // still name one answer.
 func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
-	seats := []string{evLens, "red-lens-logic", "red-lens-voice", "red-lens-adversary",
-		"red-lens-architecture", "red-lens-computation", "red-lens-dark-side", "red-chair", "blue-respond", "judge"}
+	seats := []string{evLens, "judge"}
 	for _, tc := range []struct {
 		name    string
 		act     func(i int) proto.Message
@@ -217,7 +219,7 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 		{
 			name: "rulings",
 			act: func(i int) proto.Message {
-				r := actRule("M1", false, seats[i])
+				r := actRule("M1", seats[i] == evLens, seats[i])
 				r.Opinion = proto.String(fmt.Sprintf("ruling %d", i))
 				return r
 			},
@@ -225,14 +227,10 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			st := newStage(t).cast(seats...).ingest().register("red-chair")
-			for _, s := range seats {
-				if strings.HasPrefix(s, "red-lens-") {
-					st = st.dispatch(2, s)
-				}
-			}
+			st := newStage(t).cast(append([]string{"red-chair", "blue-respond"}, seats...)...).ingest().register("red-chair").dispatch(2, evLens)
 			run := st.register(evLens).mint(evLens, "G1", "high").seed()
-			mustAppend(t, sit(t, run, evLens), regradeMotion("M1", "G1", "severity is overstated"))
+			mustFileByDispatch(t, run, regradeMotion("M1", "G1", "severity is overstated"))
+			mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: []string{"G1"}})
 			// Every seat sits BEFORE the race: a register is a write too, and the race under test
 			// is the answers', not the sittings'.
 			ids := make([]Identity, len(seats))
@@ -265,7 +263,7 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 				t.Errorf("%d of %d concurrent %s landed; want exactly one", landed, len(ids), tc.name)
 			}
 			got := motionReadersAgree(t, run)["M1"]
-			if got.ruling != "rejected" {
+			if got.ruling != "rejected" && got.ruling != "accepted" {
 				t.Errorf("motion M1 reads %+v after the race", got)
 			}
 		})

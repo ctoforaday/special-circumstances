@@ -21,7 +21,8 @@ const limitGap = "G-00000001"
 
 // stageRetiredLens seeds a run whose one lens has sat three times at the head, with the
 // chair opening its fourth sitting: nobody is ready but what a test adds. withGap leaves limitGap open and
-// material, minted in the lens's first sitting.
+// material, minted in the lens's first sitting, and given its one exchange there — blue engaged on it
+// sits twice and answers nothing — so a proposal on it is admitted.
 func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	t.Helper()
 	n := 0
@@ -43,7 +44,9 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	if withGap {
 		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(limitGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
+			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+			at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{limitGap}}),
+			at("blue-respond", &recordpb.Register{}), at("blue-respond", &recordpb.Register{}))
 	}
 	for range 2 { // it has been served the report at the head, so the head readies it for nothing further
 		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served())
@@ -116,9 +119,9 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 	}{
 		{"a docketed gap the bench disposes of", true,
 			func(t *testing.T, runDir string) string {
-				return docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, "blue-respond", limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
-			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "repaired") }},
+			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "not_a_defect") }},
 		{"a petition the bench denies", false, filePetition, denyPetition},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -166,7 +169,7 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 		name, filer string
 		args        []string
 	}{
-		{"a docket motion", "red-chair", []string{"motion", "docket", "file", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}},
+		{"a docket motion", "red-chair", append([]string{"motion", "docket", "file", "close", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}, closeFlags("not_a_defect")...)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -304,20 +307,23 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 	}{
 		{"a docket the bench sat for and ruled nothing", true, "docket",
 			func(t *testing.T, runDir string) string {
-				return docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, "blue-respond", limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
 			func(*testing.T, string) {},
-			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "repaired") }},
-		{"a docket left beside one filed into the sitting and ruled there", true, "docket",
+			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "not_a_defect") }},
+		{"a docket left while a second proposal on its gap is refused in the sitting", true, "docket",
 			func(t *testing.T, runDir string) string {
-				return docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, "blue-respond", limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
 			func(t *testing.T, runDir string) {
-				// Filed by a seat that filed no closing on the gap this sitting: both parties did
-				// (argue), and a party's docket motion over its own closing is refused.
-				ruleDocket(t, runDir, docketFile(t, runDir, "red-chair", limitGap, "filed with the bench already sitting"), "repaired")
+				// ONE MOTION STANDS ON A GAP AT A TIME, so nothing reaches the bench's open sitting
+				// beside the one it leaves: the chair's proposal is refused, and records nothing.
+				if out, err := runAt(t, closeProposalArgs(runDir, "red-chair", limitGap, "not_a_defect", "filed with the bench already sitting")...); err == nil ||
+					!strings.Contains(err.Error()+out, "stands unanswered") {
+					t.Fatalf("a second proposal on %s while the first stands = %v %q, want refused naming it", limitGap, err, out)
+				}
 			},
-			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "repaired") }},
+			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "not_a_defect") }},
 		{"a petition the bench heard and left", false, "petition", filePetition, func(*testing.T, string) {}, denyPetition},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -374,14 +380,14 @@ func TestABenchRulingAtAnExitBeforeTheLastEpochIsNotTheEpochLimit(t *testing.T) 
 			if tc.limit > 0 {
 				setEpochLimit(t, runDir, tc.limit)
 			}
-			motionID := docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+			motionID := proposeClose(t, runDir, "blue-respond", limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			argue(t, runDir)
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.EpochLimitReached || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 				t.Fatalf("the plan at the chair's fourth sitting = %+v, want the bench dispatched on the docket", plan)
 			}
 
 			asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
-			ruleDocket(t, runDir, motionID, "repaired")
+			ruleDocket(t, runDir, motionID, "not_a_defect")
 			asSeat(t, runDir, "judge", "register", "--occasion", "assemble")
 			if out, err := runAt(t, "outcome", "--as", "CEILING", "--reason", "the term ran out", "--run", runDir, "--seat-id", "judge"); err == nil {
 				t.Fatalf("CEILING was recorded over a run that stopped before its last epoch: %s", out)

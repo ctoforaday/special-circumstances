@@ -11,7 +11,7 @@ const OneAncestorRule = "one id: to fold several defects into one gap, supersede
 // OneAncestorRefusal is the refusal of a second ancestor on --supersedes, in either form: a comma in
 // the value, or the flag given twice. A successor supersedes one gap, so a chain is a line and its
 // assignee is its origin's; folding several defects into one gap is two acts the record has.
-const OneAncestorRefusal = "a successor supersedes exactly one gap. To fold several defects into one gap, supersede one and close the rest — your own with `close`, another lens's by putting it before the bench (`motion docket file`). Nothing was recorded"
+const OneAncestorRefusal = "a successor supersedes exactly one gap. To fold several defects into one gap, supersede one and close the rest — your own with `close`, another lens's by proposing its close (`motion docket file close`). Nothing was recorded"
 
 // AncestorValue is --supersedes: the one gap a mint replaces. It refuses a comma rather than taking
 // the value as an id the shape then refuses, so a seat naming two gaps is told what to do with the

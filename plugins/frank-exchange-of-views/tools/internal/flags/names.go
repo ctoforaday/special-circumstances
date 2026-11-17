@@ -106,6 +106,8 @@ const (
 	// verb and a second one would be two words for one meaning — the defect this file's own
 	// header declares.
 	Accept = "accept"
+	// Reject is the bench's answer to a proposed act it does not take: the gap stands as it is.
+	Reject = "reject"
 
 	// An inquiry's QUESTION: what it asks, holding no predicted result. Its own flag, not the prose
 	// channel's --reason, because on the two acts of one inquiry --reason is the account of a fate.
@@ -314,7 +316,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, For, Schema, JSON,
 		Reason,
-		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
+		ID, IDs, Areas, Key, Quote, New, Answers, Accept, Reject, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity,

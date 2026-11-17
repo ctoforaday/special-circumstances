@@ -69,6 +69,8 @@ type Blocker struct {
 	foldWhy string
 	// motionSubject is an unruled motion's subject — which sitting dispatch convenes its gavel for.
 	motionSubject string
+	// act is the act a docket motion blocker proposes (Motion.Act), "" for none.
+	act string
 	// since is the events.id the blocker arose at — a motion's filing, the edit that changed an
 	// unchecked anchor's sentence (0 for one no edit has changed), the failed check, the reading a
 	// debt stands on, an inquiry's latest fate — so dispatch can ask whether its owner has sat since, and an unchecked anchor's
@@ -797,7 +799,7 @@ func unruledMotionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker
 			g = gavel{phrase: m.Subject + ", and this binary cannot say who rules it: " + err.Error()}
 		}
 		out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: g.seat, Detail: g.phrase, About: m.GapID,
-			motionSubject: m.Subject, since: m.filed})
+			motionSubject: m.Subject, since: m.filed, act: m.Act})
 	}
 	return out
 }
@@ -924,7 +926,7 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	}
 	return fmt.Errorf("%d motion(s) whose gavel is the bench's stand unruled: %s. "+
 		"The outcome is the run's last act, and a run that ends over an ask the bench never answered records a settlement that did not happen. "+
-		"You hold the gavel: read what each one asks with `inquest motions`, rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`, then record the outcome",
+		"You hold the gavel: read what each one asks with `inquest motions`, rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — a docket motion that proposes an act with --accept or --reject in place of --as — then record the outcome",
 		len(named), strings.Join(named, ", "))
 }
 

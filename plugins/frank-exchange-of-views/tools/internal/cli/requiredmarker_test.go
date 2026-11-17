@@ -121,8 +121,40 @@ func requiredProbes() map[string]requiredProbe {
 		"--quote", "a claim that is no longer in the report.", "--reason", "r")}
 	probes["motion petition file"] = requiredProbe{seat: lensSeat, args: fixed("motion", "petition", "file",
 		"--class", "safety", "--relief", "stop", "--reason", "r")}
-	probes["motion docket file"] = requiredProbe{seat: "red-chair", args: fixed("motion", "docket", "file",
-		"--id", "G1", "--reason", "r")}
+	// A DOCKET PROPOSAL NAMES ITS ACT, filed by a seat that is not the gap's assignee once the gap
+	// has had its one exchange; each act's own flags are its contract.
+	exchanged := func(t *testing.T, runDir string) actVars {
+		exchangeOn(t, runDir, "G1")
+		// The filer reads the gap as the exchange left it, in a sitting of its own.
+		must(t, runDir, "register", "--seat-id", "red-chair")
+		return nil
+	}
+	probes["motion docket file regrade"] = requiredProbe{seat: "red-chair", setup: exchanged,
+		// Two axes, so the omission of either still moves one: no grade flag is required alone.
+		args: fixed("motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low", "--reason", "r")}
+	probes["motion docket file close"] = requiredProbe{seat: "red-chair", setup: exchanged,
+		args: fixed(append([]string{"motion", "docket", "file", "close", "--id", "G1", "--reason", "r"}, closeFlags("not_a_defect")...)...)}
+	probes["motion docket file supersede"] = requiredProbe{seat: "red-chair", setup: exchanged,
+		// The statement's subject by --quote, which is required unless --about-kind/--about name one.
+		args: fixed("motion", "docket", "file", "supersede", "--id", "G1", "--reason", "r",
+			"--quote", "§2 the finding prose lands in a quoted sentence.", "--class", "spec_underspecification",
+			"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
+			"--check", "the acceptance check", "--severity", "medium", "--likelihood", "medium", "--impact", "medium")}
+	// The assignee's accept answers blue's proposal on its gap, read in a sitting of its own.
+	probes["motion docket accept"] = requiredProbe{seat: lensSeat,
+		setup: func(t *testing.T, runDir string) actVars {
+			exchangeOn(t, runDir, "G1")
+			out, err := runAt(t, "motion", "docket", "file", "regrade", "--run", runDir, "--seat-id", "blue-respond",
+				"--id", "G1", "--severity", "low", "--reason", "r", "--json")
+			if err != nil {
+				t.Fatalf("blue's proposal: %v", err)
+			}
+			must(t, runDir, "register", "--seat-id", lensSeat)
+			return actVars{"m": filedMotionID(t, out)}
+		},
+		args: func(v actVars) []string {
+			return []string{"motion", "docket", "accept", "--id", v["m"], "--reason", "r"}
+		}}
 	probes["fetch"] = requiredProbe{seat: lensSeat,
 		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/f": []byte("<html>the source</html>")}})

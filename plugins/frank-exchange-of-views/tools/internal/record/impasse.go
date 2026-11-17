@@ -274,7 +274,8 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // exchange. A minter that is no lens has no re-audit to wait on, and blue's sitting ends its round. A
 // lens sitting with no turn come, which only an archived dispatch has, ends nothing.
 func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
-	minted := map[string]string{}    // gap -> the lens that minted it
+	assignees := assigneeOf(evs)
+	minted := map[string]string{}    // gap -> its assignee, the lens party of its exchanges
 	mintedAt := map[string]int64{}   // gap -> the place of its mint
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
@@ -287,7 +288,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		case *recordpb.Mint:
 			g := b.GetGapId()
 			if _, seen := minted[g]; !seen {
-				minted[g] = e.GetSeatId()
+				minted[g] = assignees[g]
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
 			}

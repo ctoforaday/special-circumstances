@@ -23,6 +23,33 @@ const hostile = "quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle 
 
 func scenarios() []scenario {
 	base := func(verb string, args ...string) cmd { return cmd{verb: verb, args: args} }
+	// exchange gives the open gaps their one counted exchange through the CLI alone: the chair's
+	// dispatch engages blue on them, and blue sits and sits again having recorded nothing — a null
+	// turn. A docket proposal on a gap waits for it. The chair's sitting must be open.
+	exchange := []cmd{
+		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
+		base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
+		base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
+	}
+	// convene is the dispatch readying the bench on a docketed gap once no party's closing is
+	// awaited, and the bench's docket sitting that row convenes.
+	convene := []cmd{
+		base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
+		base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+	}
+	// proposeClose is seat's proposal of gap's close as class, verified by the proposer.
+	proposeClose := func(seatID, gap, class, reason string) cmd {
+		return base("motion", "docket", "file", "close", "--run", "{RUN}", "--seat-id", seatID, "--id", gap, "--as", class,
+			"--verified-by", seatID, "--verified-with", "the report read", "--verified-against", "report.md#S2", "--reason", reason)
+	}
+	seq := func(parts ...[]cmd) []cmd {
+		var out []cmd
+		for _, p := range parts {
+			out = append(out, p...)
+		}
+		return out
+	}
 
 	return []scenario{
 		{
@@ -153,10 +180,11 @@ func scenarios() []scenario {
 		{
 			// oracle: an act stands as filed, and a repeat the record refuses names the act that
 			// answers the first — each followed here by that act, at the time its row states. The
-			// named cases: a closure (a docket motion on the closed gap) and a position (the next
-			// sitting's).
+			// named cases: a closure (the lens's successor of its own closed gap, naming it in
+			// --supersedes) and a position (the next sitting's).
 			name: "a_repeated_act_names_its_answer",
-			cmds: []cmd{
+			cast: castOf("evidence"), // the exchange a proposal waits on is the dispatch's, and a plan needs a cast
+			cmds: seq([]cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
@@ -164,7 +192,8 @@ func scenarios() []scenario {
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is  going in"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide the gap"),
+			}, exchange, []cmd{
+				proposeClose("blue-respond", "GAP001", "not_a_defect", "the bench should decide the gap"),
 				// A docketed gap's close is refused; a closure takes a gap nothing is before the bench on.
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the leaf"),
@@ -174,10 +203,12 @@ func scenarios() []scenario {
 					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP002", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the leaf"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP002", "--reason", "my closure lost a word: verified at the leaf"),
+				// The close's answer: the gap is the lens's, so it mints the successor naming it.
+				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "a",
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--supersedes", "GAP002", "--problem", "my closure lost a word: verified at the leaf"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
-			},
+			}),
 		},
 		{
 			name: "mint_idempotency_on_crash_retry", // oracle: --key returns the EXISTING id
@@ -209,7 +240,8 @@ func scenarios() []scenario {
 		},
 		{
 			name: "projections_debate_changelog_citations", // oracle: R2 projections
-			cmds: []cmd{
+			cast: castOf("evidence"),                       // the exchange and the bench's sitting are the dispatch's
+			cmds: seq([]cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "red's round position"),
@@ -217,21 +249,21 @@ func scenarios() []scenario {
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/paper", "--trust", "high"),
-				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
-				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
-				// the bench rules on that filing. The differential drives both because the
+			}, exchange, []cmd{
+				// THE BENCH'S DISPOSITION IS TWO COMMANDS: blue proposes the act it wants on the
+				// gap, the bench rules on that filing. The differential drives both because the
 				// projection under test reads the JOIN — the gap is on the filing and the
 				// disposition on the ruling.
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
-					"--reason", "contested, and not red's to close"),
+				proposeClose("blue-respond", "GAP001", "not_a_defect", "the figure stands as stated, and the bench should say so"),
 				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
+			}, convene, []cmd{
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),
-			},
+			}),
 		},
 		{
 			name: "bench_petitions_and_halt", // oracle: W2c verbs, filed and ruled as motions
@@ -263,15 +295,20 @@ func scenarios() []scenario {
 			// question skipped; the sixth remands with --final, which the write refuses because a
 			// remand owes the direction its --direction states; and the seventh closes the gap with
 			// a --direction, which the write refuses because a ruling that closes sends no exchange.
-			cmds: []cmd{
+			cast: castOf("evidence"), // the exchange and the bench's sitting are the dispatch's
+			cmds: seq([]cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification",
 					"--check-kind", "document", "--check", "x", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
-					"--reason", "contested, and not red's to close"),
-				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+			}, exchange, []cmd{
+				// The proposed close is `repaired`, the closing word the rulings below state: a closing
+				// word on a proposal is the bench's accept of the close it proposes, and no other.
+				proposeClose("blue-respond", "GAP001", "repaired", "repaired, and the bench should say so"),
+				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
+				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
+			}, convene, []cmd{
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
@@ -287,7 +324,7 @@ func scenarios() []scenario {
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final",
 					"--direction", "a reproduction on the shipped binary"),
-			},
+			}),
 		},
 		{
 			name: "role_boundaries_and_help_contracts", // oracle: the drift test
@@ -338,21 +375,24 @@ func scenarios() []scenario {
 		},
 		{
 			name: "ids_stay_distinct_across_rounds", // a gap minted after the chair sits again is a third id, and the chair's spot-check and blue's motion name the earlier ones
-			cmds: []cmd{
+			cast: castOf("evidence"),                // the exchange blue's proposal waits on is the dispatch's
+			cmds: seq([]cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				// GAP001 is material: the dispatch engages blue only on a material gap, and blue's
+				// proposal on it waits on that exchange.
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "doctrine_vs_implementation", "--check-kind", "document", "--check", "x",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r1 first"),
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "r1 first"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "doctrine_vs_implementation", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r1 second"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "doctrine_vs_implementation", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
 				base("spot-check", "--run", "{RUN}", "--seat-id", "red-chair", "--ids", "GAP001, GAP002", "--reason", "both re-read"),
-				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
-					"--reason", "the second failure is not required"),
-			},
+			}, exchange, []cmd{
+				base("motion", "docket", "file", "regrade", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
+					"--severity", "medium", "--reason", "the second failure is not required"),
+			}),
 		},
 		{
 			name: "full_round_integration",    // oracle: the integration test

@@ -36,6 +36,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -105,11 +106,13 @@ func walk(events []*record.Event) *groundTruth {
 	// ruling first, so the pairing is built before the walk — an oracle that quietly counted
 	// nothing would agree with a broken board, which is the one thing it must never do.
 	docketGap := map[string]string{}
+	docketSupersede := map[string]bool{} // the docket motions proposing a supersede
 	for _, e := range events {
 		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
 				if id := f.GetMotionId(); id != "" {
 					docketGap[id] = d.Docket.GetGapId()
+					docketSupersede[id] = f.GetSupersede() != nil
 				}
 			}
 		}
@@ -236,7 +239,15 @@ func walk(events []*record.Event) *groundTruth {
 				continue
 			}
 			w := recordpb.Word(d.Docket.GetDisposition())
-			if !closes[w] {
+			// AN ANSWER TO A PROPOSED ACT closes nothing here, but one: the bench's accept of a proposed
+			// supersede, which closes the gap as the bench — read by the ruling event's role — with the
+			// fate a supersession gives. Neither is a word the bench carried.
+			if d.Docket.Accepted != nil {
+				if !d.Docket.GetAccepted() || !docketSupersede[m.GetMotionId()] || seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+					continue
+				}
+				w = record.ClosedSuperseded
+			} else if !closes[w] {
 				g.carriedCount++
 				continue
 			}

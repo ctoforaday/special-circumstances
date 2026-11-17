@@ -47,10 +47,16 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// A MINT OF A CLASS A READING DEFINES STANDS ON THE SEAT'S OWN STANDING READING of its subject
 		// (standingreading.go), asked after the anchor is known live and before the one-gap rule: a
 		// mint refused for its ground is not first told about a held subject.
-		if err := requireOwnStandingReading(w, seatID, b); err != nil {
+		// THE ACTING SEAT'S CHECKS: the bench writes a Mint only as an accepted proposal's successor,
+		// and its reading and one-gap checks are asked of the assignee whose chain it continues (L5).
+		acting, err := mintActingSeat(q, seatID, b)
+		if err != nil {
 			return err
 		}
-		if err := requireOneGapPerClassAndSubject(w, seatID, b); err != nil {
+		if err := requireOwnStandingReading(w, acting, b); err != nil {
+			return err
+		}
+		if err := requireOneGapPerClassAndSubject(w, acting, b); err != nil {
 			return err
 		}
 		if err := requireSupersededOffDocket(q, b); err != nil {
@@ -88,7 +94,14 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
 			return requireEngageNamesEveryOwed(q, b)
 		}
+	case *recordpb.Motion:
+		if b.GetDocket() != nil {
+			return requireDocketFiling(w, seatID, b)
+		}
 	case *recordpb.MotionRule:
+		if err := requireBenchHeld(q, seatID, b); err != nil {
+			return err
+		}
 		return requirePetitionRelief(b)
 	case *recordpb.Reproduce:
 		return requireNamedExecution(q, b)

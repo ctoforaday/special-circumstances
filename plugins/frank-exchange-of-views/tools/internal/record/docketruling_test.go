@@ -61,10 +61,10 @@ func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 //     motion blue files into the bench's open sitting and the bench rules there is newer than the
 //     dispatch, so the bench reads as not having sat for the older motion it left alone and is
 //     readied again for it — "ruled the newer one in the sitting";
-//   - the bench's sitting keyed on the DISPATCH's place against the filing rather than the
-//     REGISTER's: blue files M2 between the chair's dispatch and the bench's register, the bench
-//     sits with M1 and M2 both on the record and rules nothing, and the plan readies it again for
-//     the docketing it just sat for — "filed before the bench registered";
+//   - the bench's sitting keyed on the REGISTER's place against the filing alone: blue files M2
+//     between the chair's dispatch and the bench's register, and the sitting that dispatch convened
+//     holds only what was filed before it (docketHeld), so it is no sitting for M2 and the plan
+//     readies the bench again — "filed before the bench registered";
 //   - the bench's sitting keyed on the last dispatch alone: a judge register after the dispatch
 //     for M1 read as a sitting for M2 too, and nobody was engaged (#1201) — every arm that readies
 //     the bench after it sat.
@@ -90,6 +90,19 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		mustAppend(t, blue, docketMotion("M2", "G1"))
 		argued(t, run, blue)
 	}
+	// A GAP HOLDS ONE PROPOSAL AT A TIME (F5), so blue's M2 while M1 stands unruled is refused live;
+	// an archived record holds it, and the plan still reads such a record — the arms that need two
+	// standing motions on G1 seed M2 through the replay writer.
+	fileM2Archived := func(t *testing.T, run Run) {
+		blue := sit(t, run, "blue-respond")
+		if _, err := Append(blue, docketMotion("M2", "G1")); err == nil || !strings.Contains(err.Error(), "M1 stands unanswered") {
+			t.Fatalf("blue's M2 while M1 stands = %v, want refused naming M1", err)
+		}
+		if _, err := replayed(t, blue, docketMotion("M2", "G1")); err != nil {
+			t.Fatal(err)
+		}
+		argued(t, run, blue)
+	}
 	for _, tc := range []arm{
 		{"left as written", func(t *testing.T, run Run) {
 			ruleM1(t, sit(t, run, "judge"))
@@ -109,18 +122,25 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 			}
 			fileM2(t, run)
 		}, []string{"G1"}, benchReady},
+		// The bench rules only what its docket sitting holds (benchHeld), so its ruling on M2, filed
+		// into that sitting, is archived too.
 		{"ruled the newer one in the sitting", func(t *testing.T, run Run) {
 			judge := sit(t, run, "judge")
-			fileM2(t, run)
-			mustAppend(t, judge, docketRule("M2", "ruled the newer"))
+			fileM2Archived(t, run)
+			if _, err := replayed(t, judge, docketRule("M2", "ruled the newer")); err != nil {
+				t.Fatal(err)
+			}
 		}, nil, fmt.Sprintf(benchSatIdle, "M1")},
+		// THE ROW CONVENES THE SITTING FOR A FILING IT FOLLOWS (benchSatFor, docketHeld): M2, filed
+		// after the dispatch that readied the bench, had no assignee window before that sitting, which
+		// neither rules it nor counts as its sitting — the bench is readied again for it.
 		{"filed before the bench registered", func(t *testing.T, run Run) {
-			fileM2(t, run)
+			fileM2Archived(t, run)
 			sit(t, run, "judge")
-		}, nil, fmt.Sprintf(benchSatIdle, "M2")},
+		}, []string{"G1"}, benchReady},
 		{"sat for both", func(t *testing.T, run Run) {
 			sit(t, run, "judge")
-			fileM2(t, run)
+			fileM2Archived(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
 			mustAppend(t, sit(t, run, "judge"), docketRule("M2", "ruled the newer"))
 		}, nil, fmt.Sprintf(benchSatIdle, "M1")},
@@ -129,6 +149,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 				register("red-chair").sit(2, evLens).
 				mint(evLens, "G1", "high").seed()
+			exchangeOn(t, run, "G1")
 			blue := sit(t, run, "blue-respond")
 			mustAppend(t, blue, docketMotion("M1", "G1"))
 			argued(t, run, blue)

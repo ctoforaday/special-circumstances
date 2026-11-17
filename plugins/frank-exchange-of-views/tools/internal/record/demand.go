@@ -143,7 +143,7 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 	ways = append(ways, again...)
 	return feov.Errorf(feov.Conflict, "gap %s was minted --check-kind %s, and nothing meets its live-answer demand, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
 		"The demand: %s. What meets it on this gap: %s; another seat's check meets nothing. "+
-		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
+		"A demand you no longer hold is not yours to end: another seat proposes ending the gap in a docket motion, or the dispatch puts it before the bench at impasse, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
 		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
 }
 
@@ -239,6 +239,6 @@ func successorDemandRefusal(awaiting []awaitingAncestor, kind string) error {
 	}
 	return feov.Errorf(feov.Conflict, "--supersedes names %s, and nothing answers %s yet; a mint superseding an open gap closes it: its live-answer demand passes to the successor, which carries the same check kind, and this mint is --check-kind %s. Nothing was recorded. "+
 		"The demand: %s. %s; or meet the demand on %s first — %s, is one way, and its close refusal names the rest — and supersede %s then; "+
-		"or, for a demand you no longer hold, file `motion docket file` on %s, and the bench's closing ruling, which is not held to the demand, disposes of it",
+		"or, for a demand you no longer hold, another seat proposes the close of %s in a docket motion, or the dispatch puts it before the bench at impasse, and the bench's closing ruling, which is not held to the demand, disposes of it",
 		strings.Join(named, ", and "), them, kind, recordpb.DemandClause, carry, it, strings.Join(met, "; "), them, it)
 }

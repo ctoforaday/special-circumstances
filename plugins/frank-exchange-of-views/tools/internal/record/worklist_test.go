@@ -140,7 +140,7 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 		{ID: "MAT", Open: true, Material: true},
 		{ID: "CARRIED", Open: true, Material: true, Remanded: true},
 	}
-	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false, nil)
 	// THE OFFER IS THE VERB, NOT THE GAP'S NAME. A remanded gap is named by a row that says the
 	// opposite — it returns only if docketed again — so a predicate that matched the id alone
 	// read that row as an offer and could not fail.
@@ -163,7 +163,7 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 		}
 		return false
 	}
-	offered := func(id string) bool { return anyItem(id, "motion docket file") }
+	offered := func(id string) bool { return anyItem(id, "with a docket motion") }
 	if !anyItem("CARRIED", "BENCH REMANDED") {
 		t.Errorf("a carried gap gets the remanded row in place of the offer, got %q", items("CARRIED"))
 	}

@@ -189,20 +189,20 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			}),
 			file("M2", "G-pending"),
 		})
-	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false)
+	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false, nil)
 
 	for _, want := range []string{"G-carried", "G-fresh"} {
-		if !mentions(open, "gap "+want+" is open") {
+		if !mentions(open, "gap "+want+" ") {
 			t.Errorf("%s is open and the bench is not being offered it: %v", want, hows(open))
 		}
 	}
-	if mentions(open, "gap G-pending is open") {
+	if mentions(open, "gap G-pending with a docket motion") {
 		t.Error("G-pending's motion is filed and UNRULED — offering a second filing asks the bench the same question twice")
 	}
 	// AND IT IS STILL AN AFFORDANCE. A blocking version would make a seat that obeyed it FURTHER
 	// from complete, because filing adds an unruled motion.
 	for _, it := range open {
-		if strings.Contains(it.What, "motion docket file") && it.Blocks {
+		if strings.Contains(it.What, "with a docket motion") && it.Blocks {
 			t.Errorf("the docket affordance blocks closure: %q", it.What)
 		}
 	}
@@ -221,7 +221,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 			DocketDirection: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
-	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false, nil)
 
 	find := func(id string) string {
 		t.Helper()
@@ -262,7 +262,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 		t.Errorf("the carried gap has %d rows on the work list, want exactly 1: %v", rows, hows(open))
 	}
 	// And the never-docketed gap still gets the filing instruction it always did.
-	if !strings.Contains(fresh, "motion docket file") {
+	if !strings.Contains(fresh, "with a docket motion") {
 		t.Errorf("the undocketed gap lost its filing affordance: %q", fresh)
 	}
 }

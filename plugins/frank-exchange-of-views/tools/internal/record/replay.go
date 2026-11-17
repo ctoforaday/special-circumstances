@@ -244,7 +244,7 @@ func (g *Gap) ClosureReason() string {
 	// says whose closing act was last; the word follows it, with the other writer's word as the
 	// fallback for a class-less close.
 	if g.BenchClosedLast {
-		if w := recordpb.Word(g.BenchClosure.GetDisposition()); w != "" {
+		if w := benchClosureWord(g.BenchClosure); w != "" {
 			return w
 		}
 		return recordpb.Word(g.Closure.GetClosureClass())
@@ -259,7 +259,7 @@ func (g *Gap) ClosureReason() string {
 			return w
 		}
 	}
-	return recordpb.Word(g.BenchClosure.GetDisposition())
+	return benchClosureWord(g.BenchClosure)
 }
 
 // ClosedSuperseded is the word that says a gap closed because a successor's mint superseded it. It

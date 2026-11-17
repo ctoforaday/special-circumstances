@@ -30,7 +30,7 @@ import (
 // the seat that could not produce them found `--carried-from` offered in the same help as the
 // easier way out. Two verbs, and each requires what it actually requires.
 func newClose() *cobra.Command {
-	anchors := flags.IDList(flags.ClosureAnchorID)
+	var ev CloseEvidence
 	c := seat.New("close", seat.CloseResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
@@ -40,14 +40,7 @@ func newClose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
-		p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
-		p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
-		// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds —
-		// a report anchor or an inquiry: capture's attestation audit joins each to the other tool
-		// calls of the closer's sitting, and an id read back out of --verified-with's words would be
-		// a guess at what the seat meant.
-		p.Anchors = anchors.Value()
+		ev.fill(cmd, p)
 		// A `SOURCE` OR `COMPUTATION` CHECK IS A DEMAND FOR A LIVE ANSWER, NOT A LABEL
 		// (recordpb.DemandClause). A closure of such a gap with nothing meeting the demand would be
 		// red accepting prose for the kind of evidence it declared prose cannot settle — the round the
@@ -64,26 +57,14 @@ func newClose() *cobra.Command {
 		//
 		// AN UNREADABLE RECORD REFUSES THE CLOSURE (gblock, 2026-10-23). A closure admitted
 		// because the check could not be asked is a closure the tool vouched for on nothing.
-		if err := requireEvidenceAnswered(seat.Str(cmd, flags.ID),
-			func(id string) (record.EvidenceDemand, error) { return record.EvidenceDemandOf(run, id) }); err != nil {
-			return nil, err
-		}
-		if _, err := record.Append(s.Identity(), p); err != nil {
+		if err := WriteClose(s, run, p); err != nil {
 			return nil, err
 		}
 		return seat.CloseResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass())}, nil
 	})
 
 	seat.ClosureFlags(c)
-	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
-	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
-	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in")
-	c.Flags().Var(anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("K-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. The bare id is "+flags.BareID("C-…")+": `--anchor C-…,K-…`, or a token whole, quoted for the shell: `--anchor '"+anchor.Token("C-…")+"'`. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
-	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
-	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
-	// unanchored one that spent the seat's turn before saying so.
-	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
-	seat.Require(c, flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
+	ev.Register(c)
 	// THE ARGUMENT IS UNCONDITIONAL FOR THIS VERB, AND CONDITIONAL FOR THE MESSAGE — the same
 	// split `blue inquiry propose` makes for --question, and for the same reason.
 	//
@@ -107,6 +88,52 @@ func newClose() *cobra.Command {
 // closurePayload builds what a closure records before either verb adds its own evidence.
 
 // closeResult names the closed gap and the closure class it was retired under.
+
+// CloseEvidence is a close's evidence as a verb takes it: the verification triple and the anchors it
+// was verified with. `close` takes it, and so does `motion docket file close`, whose close the gap's
+// assignee or the bench accepts as it is stated.
+type CloseEvidence struct{ anchors *flags.CSV }
+
+// Register registers the evidence flags on c.
+func (ev *CloseEvidence) Register(c *cobra.Command) {
+	ev.anchors = flags.IDList(flags.ClosureAnchorID)
+	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
+	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
+	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in")
+	c.Flags().Var(ev.anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("K-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. The bare id is "+flags.BareID("C-…")+": `--anchor C-…,K-…`, or a token whole, quoted for the shell: `--anchor '"+anchor.Token("C-…")+"'`. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
+	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
+	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
+	// unanchored one that spent the seat's turn before saying so.
+	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
+	seat.Require(c, flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
+}
+
+// fill sets the evidence the flags state on p.
+func (ev *CloseEvidence) fill(cmd *cobra.Command, p *recordpb.Close) {
+	p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
+	p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
+	p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
+	// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds —
+	// a report anchor or an inquiry: capture's attestation audit joins each to the other tool
+	// calls of the closer's sitting, and an id read back out of --verified-with's words would be
+	// a guess at what the seat meant.
+	p.Anchors = ev.anchors.Value()
+}
+
+// Fill is fill, for another package's verb.
+func (ev *CloseEvidence) Fill(cmd *cobra.Command, p *recordpb.Close) { ev.fill(cmd, p) }
+
+// WriteClose is the close's write, whoever takes it: `close` itself, or the gap's assignee accepting
+// a proposed close, with before — the accept's ruling — written ahead of it in the same transaction.
+// The live-answer demand is asked first, and again in the write's transaction (record.judgeAct).
+func WriteClose(s seat.Context, run record.Run, p *recordpb.Close, before ...record.Act) error {
+	if err := requireEvidenceAnswered(p.GetGapId(),
+		func(id string) (record.EvidenceDemand, error) { return record.EvidenceDemandOf(run, id) }); err != nil {
+		return err
+	}
+	_, err := record.AppendActs(s.Identity(), append(before, record.Act{Body: p})...)
+	return err
+}
 
 // requireEvidenceAnswered refuses a closure of a gap whose check kind demands a live answer
 // (recordpb.DemandClause) while nothing meets that demand, and any closure whose demand could not be

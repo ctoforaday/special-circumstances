@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // StaleChange is one act on a gap that a seat's sitting opened before: its events.id, the seat
@@ -86,7 +87,7 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 	for i, e := range evs {
 		seatAt[ids[i]] = e.GetSeatId()
 		if m := e.GetMint(); m != nil && m.GetGapId() == gapID {
-			minter = e.GetSeatId()
+			minter = assigneeOf(evs)[gapID]
 		}
 		if s := e.GetStale(); s != nil && s.GetGapId() == gapID && e.GetSeatId() == seatID && win.Of(e).SittingID == sitting {
 			from = max(from, s.GetThrough())
@@ -116,7 +117,11 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 	}
 	for _, m := range motionsAt(evs, ids, win) {
 		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID {
-			add(m.ruled, "the bench ruled "+gapID+" "+m.Ruling+" in "+m.ID)
+			if seatclass.RoleOfSeat(m.RulingBy) == "bench" {
+				add(m.ruled, "the bench ruled "+gapID+" "+m.Ruling+" in "+m.ID)
+			} else {
+				add(m.ruled, m.RulingBy+" accepted motion "+m.ID+"'s "+m.Act+" of "+gapID)
+			}
 		}
 		if slices.Contains(upheldPositionGaps(m), gapID) {
 			add(m.ruled, "the bench remanded "+gapID+" upholding position "+m.ID)

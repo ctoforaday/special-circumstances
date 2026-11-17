@@ -92,7 +92,7 @@ func wantDemandRefusal(t *testing.T, err error, gap, kind string, says ...string
 		t.Fatalf("the close of %s was admitted with its demand unmet", gap)
 	}
 	for _, w := range append([]string{"gap " + gap + " was minted --check-kind " + kind, "nothing meets its live-answer demand", "Nothing is recorded",
-		recordpb.DemandClause, "`motion docket file`"}, says...) {
+		recordpb.DemandClause, "another seat proposes ending the gap in a docket motion"}, says...) {
 		if !strings.Contains(err.Error(), w) {
 			t.Errorf("the refusal does not say %q:\n%v", w, err)
 		}

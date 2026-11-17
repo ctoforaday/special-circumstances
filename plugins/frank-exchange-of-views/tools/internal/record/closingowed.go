@@ -104,6 +104,7 @@ func ClosingDuties(evs []*Event, win WindowIndex) []ClosingDuty {
 // closingDutiesOf is ClosingDuties over evs and its places ids.
 func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 	cast := castOfEvents(evs)
+	assignees := assigneeOf(evs) // the red party of a gap's closings is its assignee
 	minter := map[string]string{}
 	closedAt := map[string]int64{}
 	type filing struct {
@@ -115,7 +116,7 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
 		case *recordpb.Mint:
-			minter[b.GetGapId()] = e.GetSeatId()
+			minter[b.GetGapId()] = assignees[b.GetGapId()]
 		case *recordpb.Close:
 			if _, seen := closedAt[b.GetGapId()]; !seen {
 				closedAt[b.GetGapId()] = ids[i]

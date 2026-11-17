@@ -210,8 +210,6 @@ type runTally struct {
 	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
 	LockRefused                int                       `json:"lock_refused"`
 	LockLifted                 int                       `json:"lock_lifted"`
-	GroundsRefused             int                       `json:"grounds_refused"`
-	GroundsAdmitted            int                       `json:"grounds_admitted"`
 	PartRefused                map[string]int            `json:"part_refused"`
 	PartsRecorded              int                       `json:"parts_recorded"`
 	SourceClosesRefused        int                       `json:"source_closes_refused"`
@@ -267,7 +265,7 @@ func tallyOf(o outcome) runTally {
 		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
-		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
+		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
 		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, NonMaterialMints: o.nonMaterialMints, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
@@ -639,7 +637,6 @@ type sweepFold struct {
 	benchRegrades, lockRefused, lockLifted          int
 	hearingsAfterChair, hearingsAfterLens           int
 	hearingsAfterBlue                               int
-	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
 	partRefused                                     map[string]int
 	partsRecorded, multiPartRuns                    int
@@ -851,8 +848,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.hearingsAfterBlue += r.HearingsAfterBlue
 		f.lockRefused += r.LockRefused
 		f.lockLifted += r.LockLifted
-		f.groundsRefused += r.GroundsRefused
-		f.groundsAdmitted += r.GroundsAdmitted
 		for kind, n := range r.PartRefused {
 			f.partRefused[kind] += n
 		}
@@ -1270,11 +1265,10 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.supersedeDemandRefused == 0 {
 			t.Errorf("fuzz drove ZERO successors at another check kind refused over an unanswered ancestor across %d runs — the refusal is unexercised (false green)", f.completed)
 		}
-		// THE RULER-FILES-NOTHING GATE. The chair's grade motion and the bench's docket motion are
-		// refused at the surface; a drive that stopped reaching for them would leave the refusal
+		// THE RULER-FILES-NOTHING GATE. The bench's docket motion is refused at the surface; a drive that stopped reaching for them would leave the refusal
 		// unreached behind a green sweep.
 		if f.rulerFilingsRefused == 0 {
-			t.Errorf("fuzz drove ZERO refused ruler filings across %d runs — neither the chair filed a grade motion nor the bench a docket motion, so the refusal of a filing by its subject's ruler is unexercised (false green)", f.completed)
+			t.Errorf("fuzz drove ZERO refused ruler filings across %d runs — the bench filed no docket motion, so the refusal of a filing by its subject's ruler is unexercised (false green)", f.completed)
 		}
 		// THE REMAND GATES (gblock, 2026-10-24). A remand of a closed gap is refused naming the close,
 		// and a remand of an open gap that is not material is readied like any remand; the run oracles
@@ -1338,8 +1332,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz drove %d hearing(s) after the chair, %d after the lenses (forced on seed %d) and %d after blue (seed %d) across %d runs — each must be nonzero, or a barrier the engine hears at is unexercised (false green)", f.hearingsAfterChair, f.hearingsAfterLens, lensPetitionSeed, f.hearingsAfterBlue, bluePetitionSeed, f.completed)
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
-		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.
-		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted, %d reconsideration(s) refused for wanting new grounds, %d admitted on them", f.benchRegrades, f.lockRefused, f.lockLifted, f.groundsRefused, f.groundsAdmitted)
+		// the gap, and the minting lens may not move it.
+		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted", f.benchRegrades, f.lockRefused, f.lockLifted)
 		if f.benchRegrades == 0 {
 			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
 		}
@@ -1348,9 +1342,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		if f.lockLifted == 0 {
 			t.Errorf("fuzz drove ZERO lens moves of an axis the bench released across %d runs — the bench's second move returning the axis to the lens is unexercised (false green)", f.completed)
-		}
-		if f.groundsRefused == 0 || f.groundsAdmitted == 0 {
-			t.Errorf("fuzz drove %d reconsiderations refused for wanting new grounds and %d admitted on them across %d runs — both must be non-zero, or the new-grounds check is unexercised (false green)", f.groundsRefused, f.groundsAdmitted, f.completed)
 		}
 		// THE REPORT IS THE LANES' PARTS (parts_test.go): every lane records one, the report joins two or
 		// more of them, and each refusal of a part is driven, partsSeed's run driving every one.

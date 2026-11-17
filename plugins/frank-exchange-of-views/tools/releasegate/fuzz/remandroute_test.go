@@ -21,9 +21,9 @@ import (
 // dispatch never dockets on its own, and the bench sitting convened on a docket filed on a gap its lens
 // had closed reaches for a remand before it rules. The sweep gates each at zero.
 
-// escalateTrifle files blue's docket motion on an open gap that is not material, so the bench's
+// escalateTrifle files blue's proposed close of an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
-// standing on it, or a closing of blue's this sitting is skipped.
+// standing on it, a closing of blue's this sitting, or no counted exchange yet is skipped.
 func (r *runner) escalateTrifle(seatID string) {
 	if !r.coin(25) {
 		return
@@ -35,7 +35,7 @@ func (r *runner) escalateTrifle(seatID string) {
 	}
 	var trifles []string
 	for _, g := range w.Open {
-		if g.Material || g.Remanded || g.RemandStage != "" || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 {
+		if g.Material || g.Remanded || g.RemandStage != "" || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 || !r.exchanged(g.ID) {
 			continue
 		}
 		trifles = append(trifles, g.ID)
@@ -44,15 +44,14 @@ func (r *runner) escalateTrifle(seatID string) {
 		return
 	}
 	id := trifles[r.rng.Intn(len(trifles))]
-	r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
-		"--reason", "fuzz: "+id+" is not material, and blue escalates it to the bench all the same")
+	r.admitFresh(id, proposeCloseArgs(seatID, id, "not_a_defect",
+		"fuzz: "+id+" is not material, and blue escalates it to the bench all the same")...)
 }
 
-// docketClosedGap is blue filing a docket motion on a gap its lens closed and no docket motion has
-// named — a real act (the record admits it, and the bench rules it on the record as it stands), and the
-// one that puts a closed gap before the bench, whose sitting then reaches for the remand its scenario
-// asks for. A gap the bench itself ruled takes a motion on new grounds alone (docketLockedGap's kind),
-// which is not this path.
+// docketClosedGap is blue proposing the successor of a gap its lens closed and no docket motion has
+// named — the one act a proposal on a closed gap may propose, and the one that puts a closed gap before
+// the bench, whose sitting then reaches for the remand its scenario asks for. A gap with no counted
+// exchange is left alone: a proposal waits for one.
 func (r *runner) docketClosedGap(seatID string) {
 	if !r.coin(25) {
 		return
@@ -85,14 +84,13 @@ func (r *runner) docketClosedGap(seatID string) {
 	for _, id := range r.closedGapIDs() {
 		if succ := superseded[id]; succ != "" {
 			if !named[id] && r.coin(20) {
-				r.refuse(feov.Conflict, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
-					"--reason", "fuzz: "+id+" closed when "+succ+" superseded it, and blue dockets it all the same")
+				r.refuse(feov.Conflict, r.proposeSupersedeArgs(seatID, id,
+					"fuzz: "+id+" closed when "+succ+" superseded it, and blue dockets it all the same")...)
 			}
 			continue
 		}
-		if !named[id] && !r.closedThisSitting(seatID, id) {
-			r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
-				"--reason", "fuzz: "+id+" closed, and blue puts the close before the bench")
+		if !named[id] && !r.closedThisSitting(seatID, id) && r.exchanged(id) {
+			r.admitFresh(id, r.proposeSupersedeArgs(seatID, id, "fuzz: "+id+" closed, and blue puts the close before the bench")...)
 			return
 		}
 	}
@@ -437,7 +435,8 @@ func (r *runner) remandPastLimit(seatID, gapID string) bool {
 
 // remandPastLimitRefused drives the bench's remand of every docket motion standing on gapID, a gap
 // its work list says is at its remand limit, and holds the tool to refusing each as a conflict that
-// names the motion, the gap, the limit and every disposition that closes the gap.
+// names the motion, the gap, the limit and what answers the motion instead: every disposition that
+// closes the gap, or, on a motion that proposes an act, its accept and its reject.
 func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 	for _, motionID := range r.unruledDocketMotions(gapID) {
 		out, err := r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
@@ -446,8 +445,12 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 			"--settled", settledByFuzzBench, "--reason", "fuzz: a remand past the limit", "--json")
 		env, ok := refusalEnvelopeIn(out)
 		named := ok && strings.Contains(env.Error, motionID) && strings.Contains(env.Error, gapID) && strings.Contains(env.Error, record.RemandLimitRule)
-		for _, d := range record.ClosingDispositions() {
-			named = named && strings.Contains(env.Error, d)
+		if act, _, _ := r.actOf(motionID); act != "" {
+			named = named && strings.Contains(env.Error, "--accept or --reject")
+		} else {
+			for _, d := range record.ClosingDispositions() {
+				named = named && strings.Contains(env.Error, d)
+			}
 		}
 		switch {
 		case err == nil:
@@ -455,7 +458,7 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 		case !ok || env.Code != string(feov.Conflict):
 			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s, past its remand limit, was refused, and not as a conflict: %s", motionID, gapID, firstLine(out)))
 		case !named:
-			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s was refused without naming the limit and the dispositions that close the gap: %s", motionID, gapID, firstLine(env.Error)))
+			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s was refused without naming the limit and what answers the motion instead: %s", motionID, gapID, firstLine(env.Error)))
 		default:
 			r.mu.Lock()
 			r.pastLimitRemandsRefused++

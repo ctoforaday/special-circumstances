@@ -49,7 +49,7 @@ import (
 //
 // blueOut is the run in the epoch that holds blue out (blueHeldOut, under the run's terms): the
 // chair's row for a remanded gap says what the dispatch can still do there.
-func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string, blueOut bool) []Item {
+func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string, blueOut bool, exchanged func(string) bool) []Item {
 	out := []Item{}
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
@@ -136,7 +136,12 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 				add(gapItem(ItemKind(BlockerRemandOwed), g.ID, remandedGapForChair(g, blueOut)))
 				continue
 			}
-			add(gapItem(ItemDocket, g.ID, "gap "+g.ID+" is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself"))
+			// AND ONLY WHERE A PROPOSAL WOULD LAND: one on a gap that has not had its exchange is
+			// refused (requireExchangedOn), so the row waits for it.
+			if exchanged != nil && !exchanged(g.ID) {
+				continue
+			}
+			add(gapItem(ItemDocket, g.ID, "propose the act you want on gap "+g.ID+" with a docket motion; its assignee may accept it, else the bench rules"))
 		}
 	case "lens":
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
@@ -153,18 +158,11 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	return out
 }
 
-// assignee maps each gap to the seat that minted it — the same fact requireOriginator reads off
-// the gap table, read here off the events this derivation already holds.
-func mintedBy(evs []*Event) map[string]string {
-	out := map[string]string{}
-	for _, e := range evs {
-		if m := e.GetMint(); m != nil && m.GetGapId() != "" {
-			if _, seen := out[m.GetGapId()]; !seen {
-				out[m.GetGapId()] = e.GetSeatId()
-			}
-		}
-	}
-	return out
+// assigneeOf maps each gap to its assignee — the fact requireOriginator reads off the gap table —
+// read here off the events this derivation already holds (mintChain).
+func assigneeOf(evs []*Event) map[string]string {
+	assignee, _ := mintChain(evs)
+	return assignee
 }
 
 // computationSeat is the computation lens's seat — the owner of every computation's check
@@ -223,7 +221,7 @@ func anchorOwnerOf(computation bool) string {
 // closes, when a docket motion on it puts it back before the bench, and when an exchange in which
 // blue acted on the gap has been had.
 func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
-	minted := mintedBy(evs)
+	minted := assigneeOf(evs)
 	var acts map[string][]gapAct
 	var dispatched int64 // blue's latest dispatch row, read with acts
 	var out []Item

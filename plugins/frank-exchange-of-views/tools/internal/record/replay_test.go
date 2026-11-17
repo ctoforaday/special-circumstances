@@ -357,21 +357,24 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
+	run := mustRun(t, runDir)
+	// The cast seats the bench, the evidence lens mints the gap (its assignee), the dispatch files M1
+	// on it, and the chair's bench row naming it convenes the bench's next sitting as the docket
+	// sitting that holds M1 (benchHeld) — so a test's `sit(judge)` is the sitting that rules it.
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id := NewID("gap")
-	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
-	if _, err := Append(redID, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(sit(t, run, evLens), &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(redID, &recordpb.Motion{
+	mustFileByDispatch(t, run, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String("red cannot settle this and puts it to the bench"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(id)}},
-	}); err != nil {
-		t.Fatal(err)
-	}
+	})
+	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: []string{id}})
 	return runDir
 }
 
@@ -449,7 +452,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validateRun(docketBenchSat(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -458,9 +461,18 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// holds the fields an empty value does not satisfy.
 	empty := complete()
 	empty.GetDocket().Settled = proto.String("")
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validateRun(docketBenchSat(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
+}
+
+// docketBenchSat is docketRunDir's run with the bench sat in the docket sitting that holds M1, so a
+// ruling validated there is judged on its fields.
+func docketBenchSat(t *testing.T) Run {
+	t.Helper()
+	run := mustRun(t, docketRunDir(t))
+	sit(t, run, "judge")
+	return run
 }
 
 // Lineage is never dangling: a mint that supersedes an id no mint created is

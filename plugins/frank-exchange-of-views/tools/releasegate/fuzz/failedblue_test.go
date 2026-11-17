@@ -234,21 +234,33 @@ func TestTheLensTurnOracleReadsANoTurnLensSittingAsTheRecordDoes(t *testing.T) {
 // blockers name it and the terminal sitting rules it, so the assembly leaves it alone.
 func TestTheAssemblyRulesOnlyTheDocketsFiledAfterTheLastPlan(t *testing.T) {
 	r, gap := blueEngagedRun(t)
+	// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue answers the gap with an edit, its lens audits
+	// the answer, and the chair plans again. An exchange that moves the gap leaves it short of impasse,
+	// so no motion of the dispatch's stands on it.
 	r.dispatchSits("blue", "blue-respond")
-	out, ok := r.do("motion docket file", "blue-respond").set("--id", gap).set("--reason", "fuzz: blue escalates "+gap).bare("--json").admit()
+	if _, ok := r.admit("edit", "--seat-id", "blue-respond", "--quote", "fuzz sentence", "--new", "fuzz statement",
+		"--answers", gap, "--reason", "fuzz: blue answers "+gap); !ok {
+		t.Fatalf("blue's edit answering %s: %s", gap, r.actErr)
+	}
+	r.dispatchReturns("blue-respond", r.envelopeEnds("blue-respond"))
+	chairPlan(t, r)
+	r.dispatchSits("lens", "red-lens-logic")
+	r.dispatchReturns("red-lens-logic", r.envelopeEnds("red-lens-logic"))
+	chairPlan(t, r)
+	if !r.exchanged(gap) {
+		t.Fatalf("%s has had no counted exchange after blue's edit and its lens's sitting: %s", gap, r.actErr)
+	}
+	r.dispatchSits("blue", "blue-respond")
+	out, ok := r.admit(withJSON(proposeCloseArgs("blue-respond", gap, "not_a_defect", "fuzz: blue escalates "+gap))...)
 	if !ok {
 		t.Fatalf("blue's docket filing: %s", r.actErr)
 	}
-	var filed struct {
-		Result struct {
-			MotionID string `json:"motion_id"`
-		} `json:"result"`
+	motionID := motionIDOf(out)
+	if motionID == "" {
+		t.Fatalf("the filing names no motion: %s", out)
 	}
-	if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.MotionID == "" {
-		t.Fatalf("the filing names no motion (%v): %s", err, out)
-	}
-	if got := r.docketsSinceTheLastPlan(); !slices.Equal(got, []string{filed.Result.MotionID}) {
-		t.Fatalf("after blue's filing the assembly would rule %v, want [%s]", got, filed.Result.MotionID)
+	if got := r.docketsSinceTheLastPlan(); !slices.Equal(got, []string{motionID}) {
+		t.Fatalf("after blue's filing the assembly would rule %v, want [%s]", got, motionID)
 	}
 	r.dispatchReturns("blue-respond", true)
 	chairPlan(t, r)

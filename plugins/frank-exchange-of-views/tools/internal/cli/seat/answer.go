@@ -2,6 +2,7 @@ package seat
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -40,12 +41,12 @@ const AnswerLead = "IF WHAT YOU RECORDED WAS WRONG"
 // IT PANICS when a verb records a type whose repeat the record refuses and the table holds no row
 // for it: that refusal would end by sending the seat nowhere, and the mount is where a new verb
 // finds out.
-func teachAnswer(c *cobra.Command) {
+func teachAnswer(c *cobra.Command, role string) {
 	typ, ok := recordpb.EventTypeOf(RecordType(c))
 	if !ok || c.Annotations[answerTaughtKey] != "" {
 		return
 	}
-	rows := AnswersFor(c)
+	rows := answersFor(c, role)
 	if len(rows) == 0 {
 		if record.RefusesARepeat(typ) {
 			panic(fmt.Sprintf("%s records a %s, whose second act in a sitting the record refuses, and no row says what answers a wrong one — add it to record's superseders",
@@ -73,7 +74,10 @@ func teachAnswer(c *cobra.Command) {
 // AnswersFor is the rows of the answers table this verb's help states: every row of the type it
 // records, less the rows for a motion subject the verb does not rule and for a key field its act is
 // not keyed on.
-func AnswersFor(c *cobra.Command) []record.Answer {
+func AnswersFor(c *cobra.Command) []record.Answer { return answersFor(c, roleOf(c)) }
+
+// answersFor is AnswersFor for the role whose surface holds c.
+func answersFor(c *cobra.Command, role string) []record.Answer {
 	typ, ok := recordpb.EventTypeOf(RecordType(c))
 	if !ok {
 		return nil
@@ -86,6 +90,9 @@ func AnswersFor(c *cobra.Command) []record.Answer {
 	for _, k := range strings.Split(c.Annotations[keysOnKey], ",") {
 		keys[k] = true
 	}
+	// A row for the verb's own role replaces the every-role row of the same shape.
+	type shape struct{ subject, keyed string }
+	own := map[shape]bool{}
 	var out []record.Answer
 	for _, r := range record.AnswersTo(typ) {
 		if r.Subject != recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED && r.Subject != subject {
@@ -94,9 +101,15 @@ func AnswersFor(c *cobra.Command) []record.Answer {
 		if r.Keyed != "" && !keys[r.Keyed] {
 			continue
 		}
+		if r.Role != "" && r.Role != role {
+			continue
+		}
+		if r.Role != "" {
+			own[shape{r.Subject.String(), r.Keyed}] = true
+		}
 		out = append(out, r)
 	}
-	return out
+	return slices.DeleteFunc(out, func(r record.Answer) bool { return r.Role == "" && own[shape{r.Subject.String(), r.Keyed}] })
 }
 
 // wrapHelp breaks a paragraph at word boundaries so no line runs past width.

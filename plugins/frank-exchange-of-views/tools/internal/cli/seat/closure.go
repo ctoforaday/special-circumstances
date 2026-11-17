@@ -39,7 +39,7 @@ func ClosurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	// against SQL written straight at the file.
 	if !recordpb.Closes(class) {
 		return nil, feov.Errorf(feov.Validation,
-			"%q does not close the gap — it is the BENCH's ruling that sends a gap back to the debate for one more exchange between its minting lens and blue, and a close asserts a verified repair. `motion docket file` puts it before the bench, which then rules it; or close it with a class that states what the repair was", word)
+			"%q does not close the gap — it is the BENCH's ruling that sends a gap back to the debate for one more exchange between its minting lens and blue, and a close asserts a verified repair. Close it with a class that states what the repair was; a gap reaches the bench by another seat's proposal or the dispatch's impasse filing, never by its own assignee's", word)
 	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared

@@ -231,8 +231,17 @@ func requireRemandWithinLimit(w writeView, seatID, motionID string) error {
 	}
 	return feov.Errorf(feov.Conflict,
 		"motion %s is about gap %s, which the bench already remanded at impasse (event %d) — "+RemandLimitRule+". "+
-			"Nothing was recorded; rule the motion with a disposition that closes the gap: %s",
-		motionID, gapID, at, strings.Join(ClosingDispositions(), ", "))
+			"Nothing was recorded; %s",
+		motionID, gapID, at, pastRemandAnswers(w.q, motionID))
+}
+
+// pastRemandAnswers is what the bench may answer a motion past its gap's remand limit: accept or
+// reject the act it proposes, or, on a motion that proposes none, a disposition that closes the gap.
+func pastRemandAnswers(q recordsql.Querier, motionID string) string {
+	if p, found, err := docketProposalAt(q, motionID); err == nil && found && p.Motion.GetAct() != nil {
+		return "answer the " + ActWord(p.Motion) + " the motion proposes: --accept or --reject"
+	}
+	return "rule the motion with a disposition that closes the gap: " + strings.Join(ClosingDispositions(), ", ")
 }
 
 // RemandLimitRule is why a second remand at impasse is refused, in the words the refusal, the

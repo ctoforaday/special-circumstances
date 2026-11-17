@@ -47,7 +47,7 @@ func EarlyLensDispatches(run Run) ([]EarlyLensDispatch, error) {
 func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]remandRow) []EarlyLensDispatch {
 	ids := win.IDs(evs)
 	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
-	minted := mintedBy(evs)
+	minted := assigneeOf(evs)
 	turns := lensTurnActsOf(evs, ids, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
 	superseded := map[string]int64{} // gap → the place of the first mint that names it superseded, which closed it
 	for i, e := range evs {

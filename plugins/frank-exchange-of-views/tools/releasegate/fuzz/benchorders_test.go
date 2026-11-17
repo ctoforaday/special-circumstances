@@ -8,19 +8,18 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade with its own regrade
 // while a docket motion on the gap stands before it, the minting lens may not move an axis the bench
 // holds locked, the bench moving that axis again releases it to the lens ("Lock returns to lens"),
-// and a docket motion on a gap the bench ruled closed is admitted on new grounds only.
+// and a proposal on a gap the bench ruled closed is admitted as a successor only.
 //
 // The drive reaches each: the bench regrades a docketed gap before it rules it; the minting lens of a
 // gap the bench remanded reaches to move the bench's axis and is refused; it moves an axis the bench
-// moved again at a later hearing and is admitted; blue files a docket motion on a gap the bench ruled closed, first with
-// no grounds (refused) and then on a computation it records since the ruling (admitted). The sweep gates
-// each count at zero. benchOrdersSeed's run drives every arm on every gap that reaches it, and the
+// moved again at a later hearing and is admitted; blue proposes on a gap the bench ruled closed, first a
+// regrade (refused, the gap being closed) and then its successor (admitted). The sweep gates
+// each bench-order count at zero. benchOrdersSeed's run drives every arm on every gap that reaches it, and the
 // sweep's ledger (benchOrderLedger) holds every run to the lift's sequence until one lift is admitted.
 
 // benchOrdersSeed is the seed whose run is FORCED through every arm above. It is none of the forced
@@ -302,28 +301,28 @@ func (r *runner) lensMovesReleasedAxis(seatID, skip string) string {
 	return ""
 }
 
-// docketLockedGap is blue, where the run drives the lift, filing a docket motion on an open gap the
-// bench holds an axis of: the motion convenes the later hearing at which the bench's second move
-// releases the axis. A gap whose scenario the bench closes on, one a docket motion already stands on,
-// and one blue filed its closing on this sitting are left alone. One motion a sitting.
+// docketLockedGap is blue, where the run drives the lift, proposing the close of an open gap the bench
+// holds an axis of: the motion convenes the later hearing at which the bench's second move releases
+// the axis. A gap whose scenario the bench closes on, one a docket motion already stands on, one blue
+// filed its closing on this sitting, and one with no counted exchange yet are left alone. One motion
+// a sitting.
 func (r *runner) docketLockedGap(seatID string) {
 	if !r.drivesLift() {
 		return
 	}
 	for _, id := range r.openGaps() {
-		if len(r.benchGrades(id)) == 0 || r.scenarioOf(id) == dirDisputeLost || r.closedThisSitting(seatID, id) || len(r.unruledDocketMotions(id)) > 0 {
+		if len(r.benchGrades(id)) == 0 || r.scenarioOf(id) == dirDisputeLost || r.closedThisSitting(seatID, id) || len(r.unruledDocketMotions(id)) > 0 || !r.exchanged(id) {
 			continue
 		}
-		r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
-			"--reason", "fuzz: the bench holds an axis of "+id+", and blue puts the gap before it again")
+		r.admitFresh(id, proposeCloseArgs(seatID, id, "not_a_defect",
+			"fuzz: the bench holds an axis of "+id+", and blue puts the gap before it again")...)
 		return
 	}
 }
 
-// reconsider is blue putting a gap the bench ruled closed before it again: with no grounds, or on a
-// quote of report text no edit answering the gap wrote since the ruling, refused; then on a computation of
-// its own answering the gap, recorded since the ruling, admitted. A gap a docket motion already
-// stands on is left to that motion.
+// reconsider is blue putting a gap the bench ruled closed before it again: a proposed regrade of it is
+// refused, the gap being closed, and the proposed successor — the one act a proposal on a closed gap
+// may propose — is admitted. A gap a docket motion already stands on is left to that motion.
 func (r *runner) reconsider(seatID string) {
 	if !r.benchOrdersArm() {
 		return
@@ -335,7 +334,7 @@ func (r *runner) reconsider(seatID string) {
 	}
 	var ruled []string
 	for _, e := range w.Estopped {
-		if len(r.unruledDocketMotions(e.ID)) == 0 {
+		if len(r.unruledDocketMotions(e.ID)) == 0 && r.exchanged(e.ID) {
 			ruled = append(ruled, e.ID)
 		}
 	}
@@ -343,74 +342,19 @@ func (r *runner) reconsider(seatID string) {
 		return
 	}
 	id := ruled[r.rng.Intn(len(ruled))]
-	file := func(extra ...string) (string, error) {
-		return r.exec(append([]string{"--json", "motion", "docket", "file", "--seat-id", seatID, "--id", id,
-			"--reason", "fuzz: what was recorded since the bench ruled " + id + " closed is new"}, extra...)...)
-	}
-	out, err := file()
+	dim := pick(r.rng, disputeDims)
+	out, err := r.exec("--json", "motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
+		"--"+dim, r.gradeOtherThan(r.currentGrade(id, dim)),
+		"--reason", "fuzz: the bench ruled "+id+" closed, and blue contests its grade")
 	env, ok := refusalEnvelopeIn(out)
 	switch {
 	case err == nil:
-		r.noteActErr(fmt.Sprintf("blue's docket motion on %s, which the bench ruled closed, was admitted with no new grounds: %s", id, firstLine(out)))
+		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was admitted: %s", id, firstLine(out)))
 		return
-	case !ok || env.Code != string(feov.Validation) || !strings.Contains(env.Error, "admitted on NEW GROUNDS only") || !strings.Contains(env.Error, "the bench ruled gap "+id):
-		r.noteActErr(fmt.Sprintf("blue's docket motion on %s, which the bench ruled closed, was refused, and not for wanting new grounds: %s", id, firstLine(out)))
-		return
-	}
-	r.mu.Lock()
-	r.groundsRefused++
-	r.mu.Unlock()
-
-	// A QUOTE THE RULING ALREADY HAD: the seeded sentence stands in the report, and no edit answering
-	// the gap wrote it after the ruling.
-	out, err = file("--quote", "§ fuzz sentence")
-	env, ok = refusalEnvelopeIn(out)
-	switch {
-	case err == nil:
-		r.noteActErr(fmt.Sprintf("blue's docket motion on %s quoting text no edit answering it wrote since the ruling was admitted: %s", id, firstLine(out)))
-		return
-	case !ok || env.Code != string(feov.Validation) || !strings.Contains(env.Error, "is not new grounds on gap "+id):
-		r.noteActErr(fmt.Sprintf("blue's docket motion on %s quoting text the ruling already had was refused, and not as old grounds: %s", id, firstLine(out)))
+	case !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "gap "+id+" is closed"):
+		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was refused, and not as a closed gap's: %s", id, firstLine(out)))
 		return
 	}
-	r.mu.Lock()
-	r.groundsRefused++
-	r.mu.Unlock()
-
-	name := "fuzz-grounds-" + id + ".js"
-	dir, argv, err := r.writeBundle(name, "console.log('what the ruling on "+id+" did not have');")
-	if err != nil {
-		return
-	}
-	if _, ok := r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", id,
-		"--reason", "fuzz: new grounds on " + id, "--"}, argv...)...); !ok {
-		return
-	}
-	computation := r.latestComputationAnswering(id)
-	if computation == "" {
-		r.noteActErr("blue computed new grounds on " + id + " and no computation answering it is on the record")
-		return
-	}
-	if _, ok := r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id, "--grounds", computation,
-		"--reason", "fuzz: computation "+computation+" was recorded since the bench ruled "+id+" closed"); ok {
-		r.mu.Lock()
-		r.groundsAdmitted++
-		r.mu.Unlock()
-	}
-}
-
-// latestComputationAnswering is the id of the newest computation on the record answering gapID, ""
-// where none does.
-func (r *runner) latestComputationAnswering(gapID string) string {
-	b, ok := r.board()
-	if !ok {
-		return ""
-	}
-	id := ""
-	for _, e := range b.Events {
-		if p, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && p.GetAnswers() == gapID {
-			id = p.GetComputationId()
-		}
-	}
-	return id
+	r.admitFresh(id, r.proposeSupersedeArgs(seatID, id,
+		"fuzz: the bench ruled "+id+" closed, and blue proposes the statement that replaces it")...)
 }

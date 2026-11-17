@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,14 +42,29 @@ func TestNoGavelHolderFilesItsOwnSubject(t *testing.T) {
 		}
 		filers := map[string]bool{}
 		rules := map[string]bool{}
+		accepts := map[string]bool{}
 		roleLeaves(func(role string, path []string, c *cobra.Command) {
 			if filingOf(subject, path, c) {
 				filers[role] = true
 			}
 			if len(path) == 3 && path[0] == "motion" && path[1] == subject && seat.RecordType(c) == "motion_rule" {
+				// A docket proposal's assignee answers it by accepting it — the act its filer proposed,
+				// applied, never a ruling — so `accept` is held to the assignee's surface below and
+				// `rule` to the gavel here.
+				if path[2] == "accept" {
+					accepts[role] = true
+					return
+				}
 				rules[role] = true
 			}
 		})
+		wantAccepts := map[string]bool{}
+		if subject == "docket" {
+			wantAccepts["lens"] = true
+		}
+		if !maps.Equal(accepts, wantAccepts) {
+			t.Errorf("%s: `accept` is on %v, want %v — the gap's assignee answers a docket proposal, nothing else", subject, accepts, wantAccepts)
+		}
 		if filers[ruler] {
 			t.Errorf("%s: the %s seat rules it and holds a verb that files it — a motion its own ruler filed is one no other seat can rule", subject, ruler)
 		}
@@ -106,7 +122,9 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 
 	t.Run("the chair files a docket motion and the bench rules it", func(t *testing.T) {
 		d := fresh(t)
-		m := docketFile(t, d.run, "red-chair", "G1", "red cannot settle G1")
+		g := handleText(t, d.run, "G1")
+		m := docketFile(t, d.run, "red-chair", g, "red cannot settle G1")
+		conveneBench(t, d.run, g)
 		d.admitted("the bench's ruling", "judge", docketRule(m)...)
 	})
 	for _, filer := range []string{"blue-respond", lensSeat, "red-chair"} {
@@ -115,9 +133,24 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 			m := motionID(t, d.run, append(append([]string{}, petition...), "--seat-id", filer)...)
 			d.admitted("the bench's ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
 		})
+		// G1 is the lens's gap: its assignee takes the act itself, and its proposal is refused.
+		if filer == lensSeat {
+			t.Run("a docket motion on its own gap, filed by "+filer+", is refused", func(t *testing.T) {
+				d := fresh(t)
+				g := handleText(t, d.run, "G1")
+				exchangeOn(t, d.run, g)
+				out, err := runAt(t, closeProposalArgs(d.run, filer, g, "not_a_defect", "the bench should decide G1")...)
+				if err == nil || !strings.Contains(err.Error()+out, "you are its assignee") {
+					t.Errorf("the assignee's proposal on its own gap = %v %q, want refused naming its own act", err, out)
+				}
+			})
+			continue
+		}
 		t.Run("a docket motion filed by "+filer+" is ruled by the bench", func(t *testing.T) {
 			d := fresh(t)
-			m := docketFile(t, d.run, filer, "G1", "the bench should decide G1")
+			g := handleText(t, d.run, "G1")
+			m := docketFile(t, d.run, filer, g, "the bench should decide G1")
+			conveneBench(t, d.run, g)
 			d.admitted("the bench's ruling", "judge", docketRule(m)...)
 		})
 	}

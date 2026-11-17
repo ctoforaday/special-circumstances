@@ -36,10 +36,7 @@ func Regrade(key string) *cobra.Command {
 		body.Basis = proto.String(basis)
 		// A GRADE SET AGAINST A GAP THAT MOVED SINCE THIS SITTING OPENED grades what the gap was
 		// (gblock ruling B): the refusal shows what changed, and the same regrade lands once read.
-		if err := AppendFresh(s, body.GetGapId(), func(guards ...record.Guard) error {
-			_, err := record.Append(s.Identity(), body, guards...)
-			return err
-		}); err != nil {
+		if err := WriteRegrade(s, body); err != nil {
 			return nil, err
 		}
 		return regradeResult{GapID: Str(cmd, flags.ID)}, nil
@@ -56,6 +53,17 @@ func Regrade(key string) *cobra.Command {
 	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	return Prose(c)
+}
+
+// WriteRegrade is the regrade's write, whoever takes it: `regrade` itself, or the gap's assignee
+// accepting a proposed regrade, with before — the accept's ruling — written ahead of it in the same
+// transaction. The Fresh guard rides with the regrade, and its refusal records the Stale that moves
+// the seat's read point (AppendFresh).
+func WriteRegrade(s Context, body *recordpb.Regrade, before ...record.Act) error {
+	return AppendFresh(s, body.GetGapId(), func(guards ...record.Guard) error {
+		_, err := record.AppendActs(s.Identity(), append(before, record.Act{Body: body, Guards: guards})...)
+		return err
+	})
 }
 
 type regradeResult struct {

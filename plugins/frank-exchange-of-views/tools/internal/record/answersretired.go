@@ -56,8 +56,9 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 
 // supersededBySeatAfter is whether seatID minted a gap naming gap in `supersedes` after the place at.
 func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int64) bool {
+	acting := mintActors(evs)
 	for i, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && e.GetSeatId() == seatID && m.GetSupersedes() == gap {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && acting[m.GetGapId()] == seatID && m.GetSupersedes() == gap {
 			return true
 		}
 	}

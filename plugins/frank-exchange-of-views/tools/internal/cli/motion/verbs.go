@@ -19,8 +19,8 @@ import (
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
 // `position` has none: the chair's position is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
-	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.",
-	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nA GAP A SUCCESSOR SUPERSEDED IS NOT DOCKETED: the successor's mint closed it and holds its purpose, and the filing is refused, naming the successor — docket the successor.",
+	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started. " +
+		"It is not how a gap is disputed: the act you want on a gap — its regrade, its close or its supersede — is proposed in a docket motion.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
@@ -300,12 +300,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-				d, ok := record.DispositionOf(word)
-				if !ok {
-					return nil, feov.Errorf(feov.Validation, "--as %q is not a disposition", word)
-				}
+				accept, _ := cmd.Flags().GetBool(flags.Accept)
+				reject, _ := cmd.Flags().GetBool(flags.Reject)
 				dr := &recordpb.DocketRuling{
-					Disposition: &d,
 					// AN OMITTED FLAG STAYS ABSENT, so the write refuses omission with the schema's
 					// own `why` — after the subject, which is asked first above — rather than
 					// receiving it as the same "" a passed blank is (#1234). Where `allow_empty`
@@ -334,6 +331,37 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				}
 				dr.Direction = seat.OptStr(cmd, flags.Direction)
 				body.Ruling = &recordpb.MotionRule_Docket{Docket: dr}
+				// THE ANSWER TO A PROPOSED ACT: --accept takes it, through the act's own write after
+				// the ruling; --reject leaves the gap as it stands. Accepting a proposed close IS its
+				// closing ruling, with the disposition it proposes.
+				switch {
+				case accept || reject:
+					if reject {
+						dr.Accepted = proto.Bool(false)
+						break
+					}
+					p, found, err := record.DocketProposalOf(run, id)
+					if err != nil {
+						return nil, err
+					}
+					if c := p.Motion.GetClose(); found && c != nil {
+						dr.Disposition = c.ClosureClass
+						break
+					}
+					dr.Accepted = proto.Bool(true)
+					if found && p.Motion.GetAct() != nil {
+						if err := applyAccepted(s, run, id, record.Act{Body: body}); err != nil {
+							return nil, err
+						}
+						return ruled{ID: id, Ruling: "accepted"}, nil
+					}
+				default:
+					d, ok := record.DispositionOf(word)
+					if !ok {
+						return nil, feov.Errorf(feov.Validation, "--as %q is not a disposition", word)
+					}
+					dr.Disposition = &d
+				}
 			case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
 				v, ok := enumOf[recordpb.PositionRuling](recordpb.PositionRuling(0).Descriptor(), word)
 				if !ok {
@@ -365,7 +393,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
-			return ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil
+			return ruled{ID: id, Ruling: rulingSaid(body)}, nil
 		}),
 	}
 	seat.Returns(c, ruled{})
@@ -373,7 +401,14 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
 	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
 	enumhelp.Flag(c, flags.As, e, "your ruling")
-	seat.Require(c, flags.As)
+	if subject == "docket" {
+		c.Flags().Bool(flags.Accept, false, "on a motion that proposes an act: take it, exactly as filed — a proposed close is closed with the disposition it proposes, and --reopens-on or --final; a regrade is your regrade; a supersede writes its successor, assigned to the gap's assignee")
+		c.Flags().Bool(flags.Reject, false, "on a motion that proposes an act: refuse it — the gap stands as it is")
+		c.MarkFlagsMutuallyExclusive(flags.Accept, flags.Reject, flags.As)
+		seat.RequiredUnless(c, flags.As, "unless --accept or --reject answers a proposed act")
+	} else {
+		seat.Require(c, flags.As)
+	}
 	for _, f := range ruleFlags {
 		help := ruleFlagHelp[f]
 		if h, ok := positionFlagHelp[f]; ok && subject == "position" {
@@ -436,9 +471,16 @@ func refHelp(subject string) string {
 type filed struct {
 	ID      string `json:"motion_id"`
 	Subject string `json:"subject"`
+	// Act is the act a docket motion proposes; absent on any other subject.
+	Act string `json:"act,omitempty"`
 }
 
-func (r filed) Human() string { return "motion " + r.ID + " filed (" + r.Subject + ")" }
+func (r filed) Human() string {
+	if r.Act != "" {
+		return "motion " + r.ID + " filed (" + r.Subject + ", proposing a " + r.Act + ")"
+	}
+	return "motion " + r.ID + " filed (" + r.Subject + ")"
+}
 
 type ruled struct {
 	ID     string `json:"motion_id"`
@@ -446,6 +488,17 @@ type ruled struct {
 }
 
 func (r ruled) Human() string { return "motion " + r.ID + " ruled " + r.Ruling }
+
+// rulingSaid is a ruling's word as the record reads it: a disposition, or accepted | rejected.
+func rulingSaid(r *recordpb.MotionRule) string {
+	if d := r.GetDocket(); d != nil && d.Accepted != nil {
+		if d.GetAccepted() {
+			return "accepted"
+		}
+		return "rejected"
+	}
+	return record.RulingWord(r)
+}
 
 // mustSubject resolves a subject word registered by this package's own command tree, where an
 // unknown word is a programming error rather than seat input: subject() is called with literals.

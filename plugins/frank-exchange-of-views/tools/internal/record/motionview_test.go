@@ -16,6 +16,7 @@ import (
 // searched six views and three help pages, then ruled `rejected` on an argument it had not read.
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
+	mustAppend(t, Identity{Run: mustRun(t, runDir), SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	for _, s := range []string{"blue-respond", "red-chair"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
@@ -25,6 +26,8 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
+	// Blue's proposal is admitted once G1 has had its one exchange.
+	exchangeOn(t, mustRun(t, runDir), "G1")
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String(basis),
@@ -63,7 +66,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, actRule("M1", false, "judge")); err != nil {
+	if _, err := Append(convene(t, mustRun(t, runDir), "G1"), actRule("M1", false, "judge")); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
@@ -84,6 +87,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 // the fabricated ruling in the first place.
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
+	mustAppend(t, Identity{Run: mustRun(t, runDir), SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	for _, sid := range []string{"blue-respond", "red-chair"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
 			t.Fatal(err)
@@ -92,6 +96,8 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
+	// Blue's proposal is admitted once G1 has had its one exchange.
+	exchangeOn(t, mustRun(t, runDir), "G1")
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
@@ -103,11 +109,13 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// The docket motion is filed after the close: a close is refused while one stands on the gap.
+	// The docket motion is filed after the close — a close is refused while one stands on the gap —
+	// and a closed gap takes a proposed successor alone (F8).
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String("b"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		Act:      &recordpb.Motion_Supersede{Supersede: successorMint("G2", "G1")},
 	}); err != nil {
 		t.Fatal(err)
 	}

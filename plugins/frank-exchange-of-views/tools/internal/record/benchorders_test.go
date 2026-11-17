@@ -94,7 +94,7 @@ func TestAnEstoppedRowStatesWhatTheRulingSettled(t *testing.T) {
 				r.GetDocket().Final = nil
 				r.GetDocket().ReopensOn = proto.String(c.reopensOn)
 			}
-			mustAppend(t, sit(t, s.run, "judge"), r)
+			mustAppend(t, convene(t, s.run, "G1"), r)
 			w, err := WorkOfSeat(s.run, "blue", "blue-respond")
 			if err != nil {
 				t.Fatal(err)

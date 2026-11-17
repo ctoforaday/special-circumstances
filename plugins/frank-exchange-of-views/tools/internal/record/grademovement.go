@@ -5,6 +5,8 @@ import (
 	"math"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -138,6 +140,43 @@ func (m gradeMovement) past() bool { return m.total > GradeMovementThreshold }
 // that does is ruled with the movement in view.
 func (m gradeMovement) docketed(g string) bool {
 	return m.past() && len(m.moves[g]) > 0 && !m.pending[g]
+}
+
+// restoring is the regrade the dispatch proposes on g for its movement: each axis set back to the
+// grade its window measured from (the first movement's `from` on that axis), where that differs from
+// the grade the axis holds now (its last movement's `to`), with basis as its reason. Nil where no axis
+// differs: a gap whose party regrades moved an axis and moved it back carries movement and no net
+// difference, and a regrade restoring nothing would move no axis.
+func (m gradeMovement) restoring(g, basis string) *recordpb.Regrade {
+	first, last := map[string]string{}, map[string]string{}
+	for _, mv := range m.moves[g] {
+		if _, seen := first[mv.axis]; !seen {
+			first[mv.axis] = mv.from
+		}
+		last[mv.axis] = mv.to
+	}
+	r := &recordpb.Regrade{GapId: proto.String(g), Basis: proto.String(basis)}
+	set := map[string]**recordpb.Grade{
+		recordpb.Word(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY):   &r.Severity,
+		recordpb.Word(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD): &r.Likelihood,
+		recordpb.Word(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT):     &r.Impact,
+	}
+	moved := false
+	for axis, from := range first {
+		if from == last[axis] || from == "" {
+			continue
+		}
+		v, ok := GradeOf(from)
+		if !ok {
+			continue
+		}
+		*set[axis] = v.Enum()
+		moved = true
+	}
+	if !moved {
+		return nil
+	}
+	return r
 }
 
 // gapMass is g's movement the bench has not ruled on.

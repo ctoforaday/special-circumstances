@@ -17,6 +17,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Check is one invariant's result. Violations lists the specific offenders (gap ids, refs)
@@ -403,7 +404,8 @@ func Compute(f record.Family) Stats {
 	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
 	// pairing is computed, and reading it a second way here is how counters come to disagree.
 	for _, m := range record.MotionsOf(f.Events, f.At) {
-		if m == nil || m.Subject != "docket" || !m.Ruled() {
+		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act settled nothing before it.
+		if m == nil || m.Subject != "docket" || !m.Ruled() || seatclass.RoleOfSeat(m.RulingBy) != "bench" {
 			continue
 		}
 		if m.GapID != "" {

@@ -475,7 +475,8 @@ func buildJudiciary(fam record.Family) Judiciary {
 		}
 	}
 	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		if m.Subject == "docket" && m.Ruled() {
+		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act is no judiciary act.
+		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) == "bench" {
 			j.Rulings[m.Ruling]++
 		}
 	}

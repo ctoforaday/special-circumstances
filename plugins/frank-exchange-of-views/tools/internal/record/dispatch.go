@@ -93,6 +93,10 @@ type Plan struct {
 	// basis is each ToFile gap's ask, in the words the bench rules on: at impasse, or past the
 	// grade-movement threshold.
 	basis map[string]string
+	// restore is each grade-movement ToFile gap's proposed act: the regrade restoring every axis whose
+	// grade differs from the grade its movement window measured from. Absent at impasse, and where the
+	// movement moved no axis net (a grade moved down and back up is two movements and no difference).
+	restore map[string]*recordpb.Regrade
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its
 	// spot-check of the stale areas. Its work list marks those blocking until they are done.
@@ -504,6 +508,12 @@ func foldPlan(params Params, r planReads) Plan {
 		case routeGradeMovement:
 			b := movedBlocker[g.id]
 			toBench(g, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
+			if r := moved.restoring(g.id, gradeMovementBasis(b)); r != nil {
+				if plan.restore == nil {
+					plan.restore = map[string]*recordpb.Regrade{}
+				}
+				plan.restore[g.id] = r
+			}
 		case routeRemandOwed:
 			lens, blue := debate(g, route, x)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
@@ -1495,6 +1505,12 @@ func benchSatOnOccasionSince(on map[recordpb.Occasion][]int64, occ recordpb.Occa
 func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gapID string, unruledFiled int64) bool {
 	for _, d := range dispatches {
 		if d.seat != benchSeat || !slices.Contains(d.gaps, gapID) {
+			continue
+		}
+		// THE ROW CONVENES THE SITTING FOR A FILING IT FOLLOWS: a motion filed after the dispatch that
+		// readied the bench has had no assignee window, so that sitting does not rule it (docketHeld),
+		// and it is no sitting for it here either.
+		if d.at <= unruledFiled {
 			continue
 		}
 		if r, ok := firstAfter(on[recordpb.Occasion_OCCASION_DOCKET], d.at); ok && r > unruledFiled {

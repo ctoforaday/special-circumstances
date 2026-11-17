@@ -17,14 +17,16 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	runDir := seatRun(t)
 	gap := mintGap(t, runDir, "motion-join", "spec_underspecification")
 
-	out, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", gap, "--reason", "the consequence is bounded by the caller's own validation; the bench should decide the gap")
+	exchangeOn(t, runDir, gap)
+	out, err := run(t, closeProposalArgs(runDir, "blue-respond", gap, "not_a_defect",
+		"the consequence is bounded by the caller's own validation; the bench should decide the gap")...)
 	if err != nil {
 		t.Fatalf("file: %v", err)
 	}
 	if !strings.Contains(out, handleText(t, runDir, "M1")) {
 		t.Fatalf("the tool must assign the id, got %q", out)
 	}
+	conveneBench(t, runDir, gap)
 	rule := benchRuleArgs("M1", "remanded", "correctness")
 	if _, err := runAt(t, append([]string{rule[0], rule[1], rule[2], "--run", runDir, "--seat-id", "judge"}, rule[3:]...)...); err != nil {
 		t.Fatalf("rule: %v", err)

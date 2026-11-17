@@ -71,6 +71,12 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 		}
 		t.Run(word+", filed by another seat", func(t *testing.T) {
 			run := motionGuardRun(t)
+			if subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+				// A seat's docket filing waits on the gap's standing motion and its first exchange:
+				// the bench answers M1, and blue sits on G1 engaged and sits again.
+				mustAppend(t, sit(t, run, benchSeat), actRule("M1", false, benchSeat))
+				exchangeOn(t, run, "G1")
+			}
 			mustAppend(t, sit(t, run, filer), filingBy(subj))
 		})
 		checked++

@@ -94,10 +94,25 @@ func NewSurface(paths []string) Surface {
 				verb = parts[1]
 			}
 			byRole[parts[0]] = append(byRole[parts[0]], verb)
+		case len(parts) == 4 && parts[0] == "motion" && parts[2] == "file":
+			// A DOCKET PROPOSAL NAMES ITS ACT: each act is its own verb, filed by every role the
+			// subject's filing is.
+			subj, _ := record.MotionSubjectEnum(parts[1])
+			for _, r := range Roles {
+				if !record.HoldsGavel(r, subj) {
+					byRole[r] = append(byRole[r], p)
+				}
+			}
 		case len(parts) == 3 && parts[0] == "motion":
 			subject, verb := parts[1], parts[2]
 			if verb == "rule" {
 				byRole[rulerOf(subject)] = append(byRole[rulerOf(subject)], p)
+				continue
+			}
+			// THE ACCEPT IS THE ASSIGNEE'S, and a gap's assignee is a lens: the lens is the one role
+			// that mints.
+			if verb == "accept" {
+				byRole["lens"] = append(byRole["lens"], p)
 				continue
 			}
 			// THE FILING IS EVERY OTHER ROLE'S: the role that rules a subject files nothing on it,
@@ -220,6 +235,14 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// wrote it into the first draft of this file.
 		if subject := motionSubject(e); subject != "" && strings.HasPrefix(verb, "motion ") {
 			verb = "motion " + subject + strings.TrimPrefix(verb, "motion")
+		}
+		// A DOCKET PROPOSAL'S VERB IS ITS ACT, and a docket ruling by the gap's assignee rather than
+		// the gavel is its accept: the record carries both, so the verb is read off them.
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && record.ActWord(m) != "" {
+			verb += " " + record.ActWord(m)
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket() != nil && c.Role != rulerOf(subjectVerb(r.Subject())) {
+			verb = "motion " + subjectVerb(r.Subject()) + " accept"
 		}
 		c.Used[verb]++
 		// THE BODY IS THE TYPE, so asking for a Log body asks the same question

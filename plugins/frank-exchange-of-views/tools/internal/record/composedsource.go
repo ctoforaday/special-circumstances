@@ -72,10 +72,13 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 			docketed[m.GapID] = true
 		}
 	}
+	// THE AUDITOR'S OWN MINTS ARE NOT OWED: authorship is the mint's acting seat (actingSeat), so a
+	// successor the bench wrote on accepting a proposal is its assignee's text.
+	acting := mintActors(evs)
 	minters := map[string]string{}
 	for _, g := range open {
-		if g.assignee != composedSourceAuditor && !docketed[g.id] {
-			minters[g.id] = g.assignee
+		if a := acting[g.id]; a != composedSourceAuditor && !docketed[g.id] {
+			minters[g.id] = a
 		}
 	}
 	for i, e := range evs {

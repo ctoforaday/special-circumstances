@@ -13,6 +13,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 var nonID = regexp.MustCompile(`[^a-zA-Z0-9]`)
@@ -82,7 +83,10 @@ func tallyByGap(f record.Family) map[string]*perGap {
 		get(m.GapID).motionsFiled++
 		if m.Ruled() {
 			get(m.GapID).motionsRuled++
-			get(m.GapID).dispositions++
+			// A DISPOSITION IS THE BENCH'S: an assignee's accept answered the motion and settled nothing.
+			if seatclass.RoleOfSeat(m.RulingBy) == "bench" {
+				get(m.GapID).dispositions++
+			}
 		}
 	}
 	return m

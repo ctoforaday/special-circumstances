@@ -599,7 +599,7 @@ type runner struct {
 	// second is where a seat learns what answers a wrong one.
 	repeatErr string
 	// rulerFilingsRefused counts the filings the tool refused the seat that rules their subject —
-	// the chair's grade motion, the bench's docket motion. The sweep gates it at zero.
+	// the bench's docket motion. The sweep gates it at zero.
 	rulerFilingsRefused int
 	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
 	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
@@ -639,16 +639,14 @@ type runner struct {
 	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
 	// second move released to the lens and the lens has not moved since. benchRegrades counts the
 	// bench's regrades, lockRefused the minting lens's moves of a locked axis the tool refused,
-	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
-	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
-	// grounds and admitted on a computation recorded since (benchorders_test.go). forceBenchOrders is
+	// lockLifted its moves of a released axis the tool admitted (benchorders_test.go). forceBenchOrders is
 	// benchOrdersSeed's run, which takes every arm. benchOrders is the sweep's ledger of the lift still
 	// owed (benchorders_test.go), nil outside the sweep. The sweep gates each count at zero.
-	benchSet                                                                map[string]map[string]string
-	benchLifted                                                             map[string]map[string]bool
-	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
-	forceBenchOrders                                                        bool
-	benchOrders                                                             *benchOrderLedger
+	benchSet                               map[string]map[string]string
+	benchLifted                            map[string]map[string]bool
+	benchRegrades, lockRefused, lockLifted int
+	forceBenchOrders                       bool
+	benchOrders                            *benchOrderLedger
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -668,8 +666,6 @@ type runner struct {
 	// closedNow is the gaps each seat filed its closing on in its sitting in progress: a docket
 	// motion it files on one of them is refused (record.requireNoClosingThisSitting).
 	closedNow map[string]map[string]bool
-	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
-	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, which fuzzLensStock bounds; the driver spreads its
 	// mints over the lenses debate.js dispatches.
 	lensMints map[string]int
@@ -680,10 +676,9 @@ type runner struct {
 	// CHECKS its reference against the record, so a drive needs a real one — a composed id
 	// would drive the refusal and never the success.
 	inquiryIDs []string
-	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
-	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
-	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
-	raised []map[string]any
+	// disputeFiled records the gaps blue's proposed regrade was admitted on: a dispute is filed once
+	// per gap, and its assignee or the bench answers it.
+	disputeFiled gapSet
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented gapSet
@@ -710,7 +705,7 @@ type runner struct {
 	// one of them refused, by seat (envelopeschema_test.go).
 	schemas        envelopeSchemas
 	schemaRefusals []string
-	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
+	// disputeRefusals is why a proposed regrade was REFUSED, per gap. The scenario oracle reports a
 	// missing dispute event; without this it cannot distinguish a drive that never ran from one
 	// that ran and was told no, and those want opposite fixes.
 	disputeRefusals map[string]string
@@ -1852,7 +1847,7 @@ func (r *runner) noteApplyMiss(why string) {
 // rulerFilingRefused files a motion as the seat that rules its subject, and holds the tool to
 // refusing it for that reason (record's rulerfiles.go, through the surface's refusal).
 func (r *runner) rulerFilingRefused(seatID string, args ...string) {
-	out, err := r.exec(append([]string{args[0], args[1], args[2], "--seat-id", seatID}, args[3:]...)...)
+	out, err := r.exec(append(args, "--seat-id", seatID)...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	what := seatID + "'s `" + strings.Join(args[:3], " ") + "`"
@@ -1909,86 +1904,6 @@ func (r *runner) repeatRefused(seatID string, args ...string) {
 	default:
 		r.repeatsRefused++
 	}
-}
-
-// THE SECOND DISPUTE DRIVER IS GONE. `raiseDisputes` sat here, fully written and NEVER CALLED —
-// the live driver is in blueRespondTo's dirDisputeWon/dirDisputeLost arm. Migrating it to the
-// motion verbs would have produced a second correct-looking copy of a path nothing runs, and the
-// command tally would have gone on reporting the verb as driven either way.
-//
-// answerDisputes is red's Stage-2 answer to blue's pending disputes: EMIT a dispute-respond event
-// (rationale on the record) and return the ROUTING REF ({gap_id, dimension, response}) for the
-// envelope's dispute_responses. Clears the pending set. A random accept/reject exercises both the
-// accepted-delta and rejected-held docket branches.
-func (r *runner) answerDisputes(seatID string) []map[string]any {
-	var refs []map[string]any
-	// FROM THE RECORD, NOT FROM MEMORY. r.raised held the disputes blue filed in its last sitting
-	// and was cleared whether or not the ruling landed, so a refused ruling — or a motion filed
-	// in a sitting this chair never saw — stood unruled forever, and PASS was refused on it at
-	// the exit ("4 motion(s) filed and never ruled"). The chair's prompt says the same: rule the
-	// grade motions blue filed, read from the motions projection, never counted by hand.
-	pending := r.raised
-	// THE GROUP IS ASKED, NOT SPELLED. `motions` moved to `inquest`, and a literal "show" here read
-	// the projection through a group that no longer holds it. This is the CHAIR's act (see the call
-	// site) and the chair carries inquest, so no membership check is needed.
-	//
-	// THE err == nil GUARD STAYS, and what makes it safe is elsewhere: the per-role sweep drives
-	// `inquest motions` for the chair STRICTLY, so a broken read fails the run there rather than
-	// falling back to `r.raised` unseen. Tolerance here with no strict driver anywhere would be how
-	// the from-memory defect above came back.
-	if out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID); err == nil {
-		var page struct {
-			Motions []struct {
-				ID      string            `json:"id"`
-				Subject string            `json:"subject"`
-				Ruled   bool              `json:"ruled"`
-				GapID   string            `json:"gap_id"`
-				Fields  map[string]string `json:"fields"`
-			} `json:"motions"`
-		}
-		if json.Unmarshal([]byte(out), &page) == nil {
-			pending = nil
-			for _, m := range page.Motions {
-				if m.Subject == "grade" && !m.Ruled {
-					pending = append(pending, map[string]any{"motion_id": m.ID, "gap_id": m.GapID, "dimension": m.Fields["dimension"]})
-				}
-			}
-		}
-	}
-	for _, d := range pending {
-		id, _ := d["gap_id"].(string)
-		dim, _ := d["dimension"].(string)
-		// THE ANSWER FOLLOWS THE SCENARIO, not a coin. The gap was minted WON or LOST, and
-		// both branches must run: an accepted regrade moves the board's mass (the
-		// accepted-delta path), a rejected one is held a round and then dockets. Coining it
-		// meant red's answer bore no relation to the dispute it was answering.
-		resp := "rejected"
-		if r.scenarioOf(id) == dirDisputeWon {
-			resp = "accepted"
-		}
-		mid, _ := d["motion_id"].(string)
-		if mid == "" {
-			continue
-		}
-		// THE RULER FILES NO MOTION ON ITS OWN SUBJECT: the chair reaching for a grade motion on a
-		// gap whose motion it is about to rule is refused, and the motion it rules is blue's.
-		if r.coin(25) {
-			r.rulerFilingRefused(seatID, "motion", "grade", "file", "--id", id, "--dimension", pick(r.rng, disputeDims),
-				"--proposed", "high", "--reason", "fuzz: the chair contesting a grade it rules on")
-		}
-		if _, err := r.exec("motion", "grade", "rule", "--seat-id", seatID, "--id", mid,
-			"--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
-			// KEPT, because the exit tally names a PASS refused over an unruled motion and could
-			// not say why the ruling never landed.
-			r.mu.Lock()
-			r.lastRuleRefusal = firstLine(strings.TrimSpace(strings.SplitN(err.Error(), "\n", 2)[len(strings.SplitN(err.Error(), "\n", 2))-1]))
-			r.mu.Unlock()
-			continue
-		}
-		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})
-	}
-	r.raised = nil
-	return refs
 }
 
 // filedPetition is one petition the fuzz filed: its motion id, its filer, and the chair sitting it
@@ -2253,7 +2168,7 @@ func (r *runner) staleAreas() []string {
 // terminal bench sitting fires on — and the verdict it recorded this sitting, if any. Gaps,
 // closures, dispute responses and petitions are the record's.
 func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[string]any) map[string]any {
-	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
+	_ = responses // every ruling is on the record; the envelope restates none
 	r.mu.Lock()
 	filed := len(r.petitionsFiled)
 	r.mu.Unlock()
@@ -2877,8 +2792,8 @@ func (r *runner) noteMint(seatID, gapID string) {
 
 // UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
 // `medium-high`: two of five values refused at every site that generates a grade, which is
-// `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
-// refused)`, `motion grade file=7(2 refused)`, and a scenario oracle three layers away reporting
+// every axis of a regrade and of a proposed one. Measured — `merge regrade=8(7
+// refused)`, and a scenario oracle three layers away reporting
 // `G1 has no dispute event` for a contest whose drive was fine.
 
 var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
@@ -2890,8 +2805,8 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // TestTheMaterialGradesAreTheRecordsMaterialGrades holds this list to the record.
 var materialGrades = grades[slices.Index(grades, "medium"):]
 
-// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's grade motions on
-// gaps it disputes, which the chair leaves unruled, and blue is engaged only on a material gap: a run
+// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's proposed regrades on
+// gaps it disputes, which their assignee leaves for the bench, and blue is engaged only on a material gap: a run
 // whose gaps all drew a grade below material permitted a PASS at its third epoch and ended VERIFIED.
 // So every severity a drive types in that run — at a mint, and at any regrade — is a material one,
 // and every other run draws exactly as before.
@@ -3929,7 +3844,7 @@ func owesAComputation(clause string, computations map[string]bool) bool {
 // (record.BlockerKinds): a new kind is named without a row here.
 func owedKinds(clause string) map[string]bool {
 	words := []struct{ word, kind string }{
-		{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
+		{"blue's answer to ", "blue's answer"},
 		{"the bench's remand of ", "remand"},
 	}
 	out := map[string]bool{}
@@ -4520,7 +4435,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 
 // oneGapRoad is the road a one-gap refusal states (plans/findings-fold.md §III.A2): "own" where the
 // refused seat holds the gap, "another" where another seat does, "" for neither; and whether the road
-// names a finding, a reconsideration's grounds or an about-kind gap. The gap's problem and its subject's
+// names a finding or an about-kind gap. The gap's problem and its subject's
 // sentence are quoted in the refusal and are the seat's words, never its road, so quoted text is not
 // read for the second answer.
 func oneGapRoad(out string) (road string, namesFinding bool) {
@@ -4535,7 +4450,7 @@ func oneGapRoad(out string) (road string, namesFinding bool) {
 		road = "another"
 	}
 	unquoted := outsideQuotes(env.Error)
-	for _, w := range []string{"finding", "--grounds", "--about-kind gap"} {
+	for _, w := range []string{"finding", "--about-kind gap"} {
 		if strings.Contains(unquoted, w) {
 			namesFinding = true
 		}
@@ -5307,7 +5222,7 @@ const (
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
 // board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
 // Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
-// closing sitting; a computation, a grade motion or silence is a stalled exchange, the gap is at impasse
+// closing sitting; a computation, a proposed act or silence is a stalled exchange, the gap is at impasse
 // after one, and the bench remands every docket but a lost dispute: the remand's one more exchange —
 // blue and the lens each held to an act on the gap — stalls the same way, the gap is docketed again,
 // and the bench, refused a second remand, rules a disposition that closes it.
@@ -5826,17 +5741,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
 		// where the seat that performs it is the seat that is sitting. What is left here is what
-		// only the chair does: rule blue's grade motions, sample the archive, keep the inquiries
+		// only the chair does: sample the archive, keep the inquiries
 		// reviewed, record the verdict the board permits, and argue a PASS it withholds.
 		//
-		// THE FORCED-UNVERIFIED SHAPE leaves blue's grade motions UNRULED. PASS is refused while a
-		// motion stands unruled, and once the bench has disposed of the disputed gap nobody is
-		// ready — so the plan comes back empty with neither pass_permitted nor ceiling, which is
-		// the UNVERIFIED exit. The terminal bench sitting then rules what the chair left.
 		var responses []map[string]any
-		if !r.forceUnverified {
-			responses = r.answerDisputes(seatID)
-		}
 		r.extras("chair", seatID, r.openGaps())
 		r.carryPrior(seatID)
 		permitted, _ := plan["pass_permitted"].(bool)
@@ -5909,7 +5817,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// for exactly these. Closings are owed on the docketed gaps, which the plan also names.
 		// AND THE BOARD IS AUTHORITATIVE, as blue's prompt says: the plan engaged blue on a gap
 		// as the epoch opened, and the lens sat first — so a gap the plan names may have been
-		// closed by its originator before blue sits, and an act on it (a grade motion, an edit
+		// closed by its originator before blue sits, and an act on it (a proposed regrade, an edit
 		// answering it) is refused as an act on a closed gap. Blue works what is still open.
 		engaged := r.engaged(seatID)
 		r.mu.Lock()
@@ -5947,11 +5855,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the epoch limit on the second remand's exchange and ended CEILING.
 		if len(open) > 0 && !r.forcedVerdict() && r.coin(15) {
 			id := open[r.rng.Intn(len(open))]
-			args := []string{"motion", "docket", "file", "--seat-id", seatID, "--id", id,
-				"--reason", "fuzz: " + id + " is not converging in the exchange and is the bench's to settle"}
-			if r.closedThisSitting(seatID, id) {
+			// BLUE PROPOSES THE CLOSE IT ARGUES FOR. A gap holds one proposal at a time, and a proposal
+			// waits for the gap's first counted exchange: each refusal is driven where it stands.
+			args := proposeCloseArgs(seatID, id, "not_a_defect",
+				"fuzz: "+id+" is not converging in the exchange and is the bench's to settle")
+			// THE ANCHORS IT VERIFIED THE CLOSE WITH, on a coin: a citation on the record.
+			if c := r.someCitation(); c != "" && r.coin(30) {
+				args = append(args, "--anchor", c)
+			}
+			switch {
+			case r.closedThisSitting(seatID, id), len(r.unruledDocketMotions(id)) > 0:
 				r.refuse(feov.Conflict, args...)
-			} else {
+			case !r.exchanged(id):
+				_, err := r.exec(withJSON(args)...)
+				noteEither(args, "blue's proposal on a gap the record held unexchanged when read", err == nil)
+			default:
 				r.admitFresh(id, args...)
 			}
 		}
@@ -6009,8 +5927,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
 		// naming the petitions it was convened for: a petition sitting cannot end with one standing,
-		// so it then rules them like any other. The run's UNVERIFIED exit is the chair's unruled
-		// grade motions, which hold a PASS and not the chair's sitting.
+		// so it then rules them like any other. The run's UNVERIFIED exit is blue's proposed
+		// regrades, which hold a PASS and not the chair's sitting.
 		if r.forceUnverified {
 			r.envelopeRefusedEarly(seatID, "motion ")
 		}
@@ -6181,7 +6099,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.closeGap(seatID, id, true)
 			case d == dirCompute && r.reproduced.has(id):
 				r.closeGap(seatID, id, false)
-			case d == dirDisputeWon && r.presented.has(id):
+			case d == dirDisputeWon && r.presented.has(id) && r.disputeFiled.has(id):
+				// THE ASSIGNEE ACCEPTS THE REGRADE BLUE PROPOSED, and the tool applies it as filed;
+				// the gap, no longer before the bench, is then its lens's to close.
+				r.acceptProposal(seatID, id)
 				r.closeGap(seatID, id, false)
 			default:
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
@@ -6690,8 +6611,8 @@ type outcome struct {
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
 	hearingsAfter map[string]int
-	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
-	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
+	// benchRegrades, lockRefused and lockLifted are runner's.
+	benchRegrades, lockRefused, lockLifted int
 	// partRefused and partsRecorded are runner's.
 	partRefused   map[string]int
 	partsRecorded int
@@ -7339,9 +7260,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {
 		res.why = "PASS refused: " + r.lastPassRefusal
-		if r.lastRuleRefusal != "" {
-			res.why += " ‖ last ruling refused: " + r.lastRuleRefusal
-		}
 	}
 	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
 	// carried model "haiku" — none unset, none on another tier. This needs no bulk-seat list; the
@@ -7767,8 +7685,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
 		// a field, so binding the message and the type in one step removes the pair that could
-		// disagree — and a grade motion's gap id now comes off the GradeMotion arm rather than
-		// from a payload key that petitions and directions also had.
+		// disagree — and a proposed regrade's gap id comes off the motion's act rather than from a
+		// payload key that petitions and directions also had.
 		for _, e := range board.Events {
 			body, ok := recordpb.Body(e)
 			if !ok {
@@ -7808,7 +7726,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					if why := r.disputeRefusals[id]; why != "" {
 						res.err += "\nthe filing was REFUSED, and this is what it said:\n  " + why
 					} else {
-						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion grade file` at all"
+						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion docket file regrade` at all"
 					}
 					return res
 				}
@@ -8163,7 +8081,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
-	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
+	res.benchRegrades, res.lockRefused, res.lockLifted = r.benchRegrades, r.lockRefused, r.lockLifted
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()
 	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
@@ -9566,8 +9484,15 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// 5 would report as a missing dispute event three layers away — which is exactly the
 			// shape the hyphenated grade words produced.
 			proposed := r.gradeOtherThan(r.currentGrade(id, dim))
-			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
-				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
+			// THE CONTEST IS A PROPOSED REGRADE, filed once per gap: the gap holds one proposal at a
+			// time, and its assignee accepts it (dirDisputeWon) or leaves it for the bench, which
+			// rejects it (dirDisputeLost). It is refused before the gap's first counted exchange, and
+			// blue files it again at a later sitting.
+			if r.disputeFiled.has(id) || len(r.unruledDocketMotions(id)) > 0 {
+				continue
+			}
+			_, err := r.exec("--json", "motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
+				"--"+dim, proposed, "--reason", "fuzz: contesting the grade on "+id)
 			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
 			// say why. `scenario DISPUTE: G1 has no dispute event` is what a discarded error
 			// looks like from the far end — a coverage report about a drive that ran fine.
@@ -9576,18 +9501,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					r.disputeRefusals = map[string]string{}
 				}
 				r.disputeRefusals[id] = err.Error()
+				continue
 			}
-			if err == nil {
-				if mid := motionIDOf(out); mid != "" {
-					// The envelope ref keeps (gap_id, dimension) because debate.js routes the
-					// DOCKET on them; the motion id rides alongside so the ruling can name the
-					// ask it answers. Not redundant: the pair says which grade, the id says
-					// which ASK about it, and #312 is the case where one gap and one dimension
-					// had two asks and the pair could not tell them apart.
-					ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed, "motion_id": mid}
-					r.raised = append(r.raised, ref)
-				}
-			}
+			r.disputeFiled.add(id)
 		case dirCompute, dirComputeDrifts:
 			// SETTLE IT BY COMPUTING. The program is written into a bundle of its own and the tool
 			// runs it TWICE in fresh copies, so this drives the real interpreter, the store, the
@@ -10112,46 +10028,36 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	// that before this read the board. The fallback filing stays for a gap no dispatch docketed,
 	// and it files as the CHAIR seat, never the bench (the gavel problem in miniature).
 	//
-	// EVERY DOCKET MOTION STANDING ON THE GAP IS RULED, not the first. A party may file one beside the
-	// dispatch's (blue's `motion docket file` drive does not look first), each is a blocker on the
-	// bench's work list, and the plan keys the bench's sitting on the newest filing: a bench that
-	// rules one of two has, on the record, sat for the other and ruled nothing, and is never readied
-	// again — the forced-VERIFIED run ended UNVERIFIED on exactly that, the sibling motion standing
-	// with nobody ready until the terminal sitting ruled it. Two remands in one sitting are one
-	// remand (remandSittingsOf), so ruling each sibling as the scenario says moves no limit.
+	// A GAP HOLDS ONE DOCKET MOTION: the record refuses a second while one stands, so the bench rules
+	// the one the record holds.
 	motionIDs := r.unruledDocketMotions(gapID)
 	// THE BENCH FILES NO DOCKET MOTION: reaching for one on the gap it is about to rule is refused.
 	if r.coin(25) {
-		r.rulerFilingRefused(seatID, "motion", "docket", "file", "--id", gapID, "--reason", "fuzz: the bench docketing "+gapID+" to itself")
+		r.rulerFilingRefused(seatID, "motion", "docket", "file", "close", "--id", gapID, "--as", "not_a_defect",
+			"--verified-by", seatID, "--verified-with", "fuzz: the record read", "--verified-against", "fuzz: the gap as it stands",
+			"--reason", "fuzz: the bench docketing "+gapID+" to itself")
 	}
 	if len(motionIDs) == 0 {
-		out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", docketFiler, "--id", gapID,
-			"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
+		// THE FALLBACK PROPOSES THE CLOSE the bench's disposition ends the gap with, so accepting it
+		// is that disposition; a remand answers any proposal.
+		out, err := r.exec(withJSON(proposeCloseArgs(docketFiler, gapID, proposedCloseClass(disposition),
+			"fuzz: "+gapID+" is contested and is the bench's to settle"))...)
 		if err != nil {
-			return // recorded by noteExec under `motion docket file`
+			return // recorded by noteExec under `motion docket file close`
 		}
 		// THE RESULT IS NESTED IN THE ENVELOPE ({"ok":true,"result":{…}}); reading `motion_id` at
 		// the top unmarshals cleanly into a zero, and the ruling below is silently skipped.
-		var filed struct {
-			Result struct {
-				MotionID string `json:"motion_id"`
-			} `json:"result"`
-		}
-		if json.Unmarshal([]byte(out), &filed) != nil || filed.Result.MotionID == "" {
+		id := motionIDOf(out)
+		if id == "" {
 			return
 		}
-		motionIDs = []string{filed.Result.MotionID}
+		motionIDs = []string{id}
 	}
-	for i, motionID := range motionIDs {
-		// THE BENCH TRIES TO END WITH A TWIN STANDING, and the record refuses its envelope naming
-		// the twin (record.BenchEnvelopeRefusal — the PreToolUse hook denies the envelope call with
-		// it). Driven before the last of two or more motions on the gap is ruled.
-		if i == len(motionIDs)-1 && i > 0 && r.coin(50) {
-			r.envelopeRefusedEarly(seatID, "motion "+motionID+" ")
-		}
+	for _, motionID := range motionIDs {
 		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
-			"--as", disposition, "--principle", "correctness", "--tension", "cost",
-			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
+			"--principle", "correctness", "--tension", "cost",
+			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench},
+			r.docketAnswer(motionID, disposition, extra)...)
 		r.admit(args...)
 	}
 }

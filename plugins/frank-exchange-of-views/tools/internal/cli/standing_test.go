@@ -177,8 +177,9 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "motion-gap", "spec_underspecification")
-	out, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--reason", "the consequence is bounded by the caller's own validation; the bench should decide the gap")
+	exchangeOn(t, runDir, id)
+	out, err := run(t, regradeProposalArgs(runDir, "blue-respond", id, "low",
+		"the consequence is bounded by the caller's own validation; the bench should decide the gap")...)
 	if err != nil {
 		t.Fatalf("motion docket file: %v\n%s", err, out)
 	}

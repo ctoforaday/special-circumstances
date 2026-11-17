@@ -522,10 +522,6 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "location", "text", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt ad1a7cdee645
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution", "fetched_at", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
-
 == stmt 7fe4438a226b
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
@@ -1404,8 +1400,8 @@
 -- INSERT INTO "motion" ("event_id", "motion_id", "basis", "relief", "filing_case") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt ebaeef2cfe56
--- INSERT INTO "motion_close" ("event_id", "gap_id", "closure_class", "prose") VALUES (?, ?, ?, ?)
+== stmt a29598e2f8e9
+-- INSERT INTO "motion_close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt f77a7466f32b
@@ -1443,6 +1439,10 @@
 -- INSERT INTO "motion_rule" ("event_id", "motion_id", "opinion", "ruling_case") VALUES (?, ?, ?, ?)
   SEARCH motion_rule_position USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH motion_rule_docket USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt 94f5981bf3ba
+-- INSERT INTO "motion_rule_docket" ("event_id", "accepted") VALUES (?, ?)
+  (no plan rows: the statement reads no table)
 
 == stmt d0bc4cb673dc
 -- INSERT INTO "motion_rule_docket" ("event_id", "disposition", "principle", "tension", "review_flag", "settled", "direction") VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1960,6 +1960,10 @@
 -- SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1
   SEARCH schema_epoch USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 0245685058a3
+-- SELECT "event_id" FROM "motion_rule" WHERE "motion_id" = ?
+  SEARCH motion_rule USING COVERING INDEX motion_rule_motion (motion_id=?)
+
 == stmt 8a98e29fded4
 -- SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "a"
   CO-ROUTINE report_op
@@ -2136,12 +2140,24 @@
   SCALAR SUBQUERY
     SEARCH events
 
+== stmt bf8fa6a82250
+-- SELECT "motion_id" FROM "motion_answers" WHERE "motion_id" = ?
+  CO-ROUTINE ids
+    SEARCH motion_rule USING COVERING INDEX motion_rule_motion (motion_id=?)
+  SCAN ids
+
 == stmt e66d4195fc02
 -- SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"
   SCAN blue_edit
 
 == stmt a2cf5c4411fe
 -- SELECT "open" FROM "gap" WHERE "gap_id" = ?
+  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt 7d321fd672fe
+-- SELECT "open", COALESCE("closed_by_bench", 0), COALESCE("bench_closed_last", 0), "bench_close_event", "supersede_event", COALESCE("assignee", ''), COALESCE("current_severity", '') FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -2285,8 +2301,20 @@
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 8146cbf6933b
+-- SELECT COALESCE("assignee", ''), "open", COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?
+  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
 == stmt 13e993676b6d
 -- SELECT COALESCE("assignee", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?
+  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt a0c899d48465
+-- SELECT COALESCE("current_severity", ''), COALESCE("current_likelihood", ''), COALESCE("current_impact", ''), COALESCE("current_complexity_cost", '') FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
@@ -2648,6 +2676,12 @@
   SEARCH m USING COVERING INDEX mint_key (mint_key=?)
   SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
+== stmt 43c0ec611db6
+-- SELECT m."event_id", e."seat_id", md."gap_id" FROM "motion" m JOIN "events" e ON e."id" = m."event_id" JOIN "motion_docket" md ON md."event_id" = m."event_id" WHERE m."motion_id" = ?
+  SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+
 == stmt 59e4c6c67072
 -- SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = ?
   SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
@@ -2669,6 +2703,14 @@
   CORRELATED SCALAR SUBQUERY
     SEARCH r USING COVERING INDEX motion_rule_motion (motion_id=?)
   USE TEMP B-TREE FOR ORDER BY
+
+== stmt 11be6a197555
+-- SELECT ms."event_id" FROM "motion_supersede" ms JOIN "motion" mo ON mo."event_id" = ms."event_id" JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id" JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id" JOIN "events" re ON re."id" = mr."event_id" WHERE ms."gap_id" = ? AND rd."accepted" = 1 AND re."seat_id" = ?
+  SEARCH ms USING COVERING INDEX sqlite_autoindex_motion_supersede_1 (gap_id=?)
+  SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH re USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 9ee27c8b0127
 -- SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = max( COALESCE((SELECT max(e."id") FROM "events" e WHERE e."seat_id" = ?1 AND e."sitting_id" = e."id" AND NOT EXISTS (SELECT 1 FROM "sitting_open" b WHERE b."event_id" = e."id" AND b."seat_id" <> '')), 0), COALESCE((SELECT b."event_id" FROM "sitting_open" b JOIN "events" e ON e."id" = b."event_id" WHERE b."seat_id" = ?1 AND e."sitting_id" = e."id" ORDER BY b."event_id" DESC LIMIT 1), 0))

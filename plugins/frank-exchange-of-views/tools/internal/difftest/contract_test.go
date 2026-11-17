@@ -145,7 +145,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// is pinned where it can be reached, in the difftest scenario of that name.
 		{"docket rule without the gavel", []string{"motion", "docket", "rule", "--id", noSuchMotion, "--as", "remanded", "--reason", "r"}},
 		// THE OTHER HALF OF THE GAVEL: the seat that rules a subject files nothing on it.
-		{"docket motion filed by the bench, which rules it", []string{"motion", "docket", "file", "--seat-id", "judge", "--id", "GAP001", "--reason", "r"}},
+		{"docket motion filed by the bench, which rules it", []string{"motion", "docket", "file", "close", "--seat-id", "judge", "--id", "GAP001", "--as", "not_a_defect",
+			"--verified-by", "judge", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
 		{"petition filed by the bench, which rules it", []string{"motion", "petition", "file", "--seat-id", "judge", "--class", "safety", "--relief", "x", "--reason", "r"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
 		// would have done, because the near-miss is the case that used to be recorded
@@ -242,8 +243,16 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// A CLOSING IS A PARTY'S ARGUMENT ON A DOCKETING: refused before the gap is docketed, from
 		// the chair, which holds no such verb, and from a lens that did not mint the gap.
 		{"a closing on a gap nothing is before the bench on", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "early"}},
-		{"blue puts GAP001 before the bench, so its closing argues a docketing", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
-		{"the same filing, once blue has read the regrade it was shown", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
+		// A PROPOSAL WAITS ON THE GAP'S FIRST EXCHANGE: the chair's dispatch engages blue on GAP001,
+		// and blue sits twice having recorded nothing — a null turn, which counts one.
+		{"a proposal on a gap no exchange has reached", []string{"motion", "docket", "file", "close", "--seat-id", "blue-respond", "--id", "GAP001", "--as", "not_a_defect",
+			"--verified-by", "blue-respond", "--verified-with", "Read", "--verified-against", "t", "--reason", "the bench should decide"}},
+		{"exchange target: the chair dispatches blue on GAP001", []string{"dispatch", "next", "--seat-id", "red-chair"}},
+		{"exchange target: blue sits", []string{"register", "--seat-id", "blue-respond"}},
+		{"exchange target: blue sits again, having recorded nothing", []string{"register", "--seat-id", "blue-respond"}},
+		{"blue proposes GAP001's close, so its closing argues a docketing", []string{"motion", "docket", "file", "close", "--seat-id", "blue-respond", "--id", "GAP001", "--as", "not_a_defect",
+			"--verified-by", "blue-respond", "--verified-with", "Read", "--verified-against", "t", "--reason", "the bench should decide"}},
+		{"a second proposal while one stands on the gap", []string{"motion", "docket", "file", "regrade", "--seat-id", "blue-respond", "--id", "GAP001", "--severity", "medium", "--reason", "the bench should decide"}},
 		{"the chair files a closing, party to no dispute", []string{"closing", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's case"}},
 		{"a lens that did not mint the gap files a closing on it", []string{"closing", "--seat-id", "red-lens-logic", "--id", "GAP001", "--reason", "another lens's case"}},
 		{"repeat target: blue's closing on GAP001", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered"}},

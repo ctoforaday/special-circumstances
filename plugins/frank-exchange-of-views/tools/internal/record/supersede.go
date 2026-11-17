@@ -1,11 +1,14 @@
 package record
 
 import (
+	"slices"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE RECORD HOLDS ACTS, AND EVERY ACT STANDS. A seat that recorded something wrong answers it with
@@ -47,6 +50,10 @@ type supersederKey struct {
 	typ     recordpb.EventType
 	subject recordpb.MotionSubject
 	keyed   protoreflect.Name
+	// role is the answering seat's role, where one act's answer differs by who took it: the bench
+	// answers its docket ruling in a declaration, and a lens's accept made the accepted act its own,
+	// which it answers with its own next act. Empty matches every role.
+	role string
 }
 
 const (
@@ -72,13 +79,17 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}: {act: "a new record of the inquiry's fate"},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}: {act: "a new certification", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CITE}:    {act: "a new citation", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:   {act: "a docket motion on the gap"},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}: {act: "a new closing on the gap", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}: {act: "a new declaration", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_HALT}:    {act: "a new halt", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_LOG}:     {act: "a new log entry", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}: {act: "a successor naming the gap in --supersedes: mint it where the gap is yours, " +
+		"or propose it in a docket motion where it is not"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE, role: "chair"}: {act: "a supersede of the gap proposed in a docket motion"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}:              {act: "a new closing on the gap", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}:              {act: "a new declaration", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                 {act: "a new halt", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                  {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
 		"the gap comes before you again only in a docket motion another seat files"},
+	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket, role: "lens"}: {act: "your own next act on the gap, " +
+		"which the accept made yours: a regrade at your next sitting while the gap is open, or a successor naming it in --supersedes once it is closed"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPosition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {whole: "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"},
@@ -106,6 +117,8 @@ type Answer struct {
 	Act string
 	// When says which acts of a verb the row is for, where one verb's help states two rows.
 	When string
+	// Role is the answering seat's role the row is for; empty when the row is every role's.
+	Role string
 }
 
 // Clause is the row as a sentence part, after "if it was wrong, …": the act to say so in.
@@ -116,22 +129,21 @@ func (a Answer) Clause() string {
 // AnswerTo is the act that answers a wrong act of this type and body, or false where the table
 // holds no row — a refusal then ends without a tail rather than send a seat to an act it has to
 // guess.
-func AnswerTo(typ recordpb.EventType, body proto.Message) (Answer, bool) {
-	k := supersederKey{typ: typ}
+func AnswerTo(role string, typ recordpb.EventType, body proto.Message) (Answer, bool) {
+	k := supersederKey{typ: typ, role: role}
 	if b, ok := body.(*recordpb.MotionRule); ok {
 		k.subject = b.Subject()
 	}
 	field := keyField(body)
-	k.keyed = field
-	row, ok := superseders[k]
-	if !ok {
-		k.keyed = ""
-		row, ok = superseders[k]
+	for _, r := range []string{role, ""} {
+		for _, f := range []protoreflect.Name{field, ""} {
+			k.role, k.keyed = r, f
+			if row, ok := superseders[k]; ok {
+				return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), When: row.when, Role: r}, true
+			}
+		}
 	}
-	if !ok {
-		return Answer{}, false
-	}
-	return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), When: row.when}, true
+	return Answer{}, false
 }
 
 // AnswersTo is every row the table holds for a type, in a stable order — what a verb's help reads,
@@ -140,17 +152,26 @@ func AnswersTo(typ recordpb.EventType) []Answer {
 	var out []Answer
 	subjects := append([]recordpb.MotionSubject{recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED}, subjectOrder()...)
 	fields := append([]protoreflect.Name{""}, keyFields...)
+	roles := []string{""}
+	for k := range superseders {
+		if k.typ == typ && k.role != "" && !slices.Contains(roles, k.role) {
+			roles = append(roles, k.role)
+		}
+	}
+	slices.Sort(roles[1:])
 	for _, s := range subjects {
 		for _, f := range fields {
-			row, ok := superseders[supersederKey{typ: typ, subject: s, keyed: f}]
-			if !ok {
-				continue
+			for _, r := range roles {
+				row, ok := superseders[supersederKey{typ: typ, subject: s, keyed: f, role: r}]
+				if !ok {
+					continue
+				}
+				field := f
+				if field == "" {
+					field = typeKeyField(typ)
+				}
+				out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when, Role: r})
 			}
-			field := f
-			if field == "" {
-				field = typeKeyField(typ)
-			}
-			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when})
 		}
 	}
 	return out
@@ -191,8 +212,8 @@ func (s superseder) render(typ recordpb.EventType, field protoreflect.Name) stri
 
 // SupersedingAnswer words the tail every refusal of a repeated act ends with, or "" where the
 // table holds no row.
-func SupersedingAnswer(typ recordpb.EventType, body proto.Message) string {
-	a, ok := AnswerTo(typ, body)
+func SupersedingAnswer(seatID string, typ recordpb.EventType, body proto.Message) string {
+	a, ok := AnswerTo(seatclass.RoleOfSeat(seatID), typ, body)
 	if !ok {
 		return ""
 	}

@@ -437,12 +437,14 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a declaration, which moves no gap: the
 you again only in a docket motion another seat files.
 
 Flags:
-      --as as-value          REQUIRED — your ruling
+      --accept               on a motion that proposes an act: take it, exactly as filed — a proposed close is closed with the disposition it proposes, and --reopens-on or --final; a regrade is your regrade; a supersede writes its successor, assigned to the gap's assignee
+      --as as-value          REQUIRED unless --accept or --reject answers a proposed act — your ruling
       --direction string     on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this
       --final                on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this
       --id motion-id         REQUIRED — the motion id
       --principle string     REQUIRED — the rule you applied, stated so a later sitting can apply the same one
       --reason string        → SHARED §11
+      --reject               on a motion that proposes an act: refuse it — the gap stands as it is
       --reopens-on string    on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this
       --review-flag string   REQUIRED — what a human should look at again; where nothing needs a human, what on the record already settles it
       --settled string       REQUIRED — what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition

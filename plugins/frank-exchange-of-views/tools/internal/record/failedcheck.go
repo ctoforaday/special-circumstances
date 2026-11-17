@@ -76,9 +76,10 @@ func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 		at        int64
 	}
 	mints := map[string][]aboutMint{}
+	acting := mintActors(evs)
 	for _, e := range evs {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-			mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: e.GetSeatId(), at: win.Of(e).ID})
+			mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: acting[m.GetGapId()], at: win.Of(e).ID})
 		}
 	}
 	var out []failedCheck

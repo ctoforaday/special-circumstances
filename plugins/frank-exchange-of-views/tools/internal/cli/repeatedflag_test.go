@@ -42,8 +42,8 @@ func TestAFlagStatedTwiceIsRefusedNamingBothValues(t *testing.T) {
 			"mint", "severity", "low", "high", "pass it once"},
 		{"a list holds one list", []string{"close", "--seat-id", lensSeat, "--anchor", "C-00000001", "--anchor", "C-00000002"},
 			"close", "anchor", "C-00000001", "C-00000002", "comma-separated list"},
-		{"a verb under a group", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--reason", "one", "--reason", "two"},
-			"motion docket file", "reason", "one", "two", "pass it once"},
+		{"a verb under a group", []string{"motion", "docket", "file", "close", "--seat-id", "blue-respond", "--reason", "one", "--reason", "two"},
+			"motion docket file close", "reason", "one", "two", "pass it once"},
 		{"the root's own flag", []string{"show", "board", "--seat-id", lensSeat, "--seat-id", "red-chair"},
 			"show board", "seat-id", lensSeat, "red-chair", "pass it once"},
 	} {

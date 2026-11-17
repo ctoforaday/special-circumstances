@@ -13,7 +13,7 @@ import (
 // liftLens is the one lens of liftRun's cast.
 const liftLens = "red-lens-logic"
 
-// liftRun is a record holding one material gap of liftLens's, minted with the scenario given, and a docket motion blue filed on it: the bench's first hearing stands before it. Every
+// liftRun is a record, under terms that put a gap at impasse after its second stalled exchange, holding one material gap of liftLens's, minted with the scenario given, and the close blue proposed on it after one exchange: the bench's first hearing stands before it. Every
 // coin of its runner lands tails, so every 20% arm alone declines.
 func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, string) {
 	t.Helper()
@@ -21,7 +21,7 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fuzzRunConfig(1, 1, 2, 10)); err != nil {
+		fuzzRunConfig(1, 2, 3, 10)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)
@@ -53,8 +53,10 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 		r.minter = map[string]string{}
 	}
 	r.minter[open[0]] = liftLens
+	// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue sits on it once before it proposes.
+	r.exchangeOn(t)
 	r.dispatchSits("blue", "blue-respond")
-	r.mustExec(t, "motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
+	r.mustExec(t, proposeCloseArgs("blue-respond", open[0], "not_a_defect", "fuzz: the bench's to settle")...)
 	r.dispatchReturns("blue-respond", false)
 	return r, open[0]
 }
@@ -77,11 +79,12 @@ func (r *runner) mustExec(t *testing.T, args ...string) string {
 	return out
 }
 
-// hearing is the bench's docket sitting over gapID as the drive sits it: the bench sets a grade, then
-// remands the gap.
+// hearing is the bench's docket sitting over gapID as the drive sits it: the gap's parties sit and file
+// their closings on it — its assignee leaving the proposal standing — and the bench then sets a grade
+// and remands the gap.
 func (r *runner) hearing(t *testing.T, gapID string) {
 	t.Helper()
-	r.chairPlans(t)
+	r.partiesClose(t, r.minter[gapID])
 	r.dispatchSits("bench", "judge", "docket")
 	r.benchSetsGrade("judge", gapID)
 	r.benchDisposes("judge", gapID, "remanded", "--direction", "fuzz: one more exchange", "--reason", "fuzz: remanded for "+gapID)
