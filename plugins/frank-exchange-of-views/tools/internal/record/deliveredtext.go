@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -114,9 +115,17 @@ func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message
 }
 
 // UndeliveredError is the delivered-text rule's refusal: the act, and why its text is not delivered.
+// It reaches the seat coded conflict (undelivered): the act is well formed, and the record's state —
+// the sitting's delivery — refuses it until the seat has read what it is owed.
 type UndeliveredError struct{ msg string }
 
 func (e *UndeliveredError) Error() string { return e.msg }
+
+// undelivered is the delivered-text refusal as the write returns it: an *UndeliveredError, which
+// migrate's replay finds by type, under a conflict code, which a seat's --json envelope reads.
+func undelivered(msg string) error {
+	return feov.Wrap(feov.Conflict, &UndeliveredError{msg}, "%s", msg)
+}
 
 // requireDeliveredText refuses an act of seatID that depends on the text around anchors unless the
 // seat's current sitting holds its delivery and no head move or retire after that delivery's head
@@ -127,7 +136,7 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 		return err
 	}
 	if !held {
-		return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this", what)}
+		return undelivered(fmt.Sprintf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this", what))
 	}
 	for _, id := range anchors {
 		var at sql.NullInt64
@@ -135,7 +144,7 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 			return fmt.Errorf("asking whether %s changed since your delivery: %w", anchor.Token(id), err)
 		}
 		if at.Valid {
-			return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and the text around %s changed after your delivery was cut: the change arrives on your work list at your next sitting", what, id)}
+			return undelivered(fmt.Sprintf("%s stands only on report text delivered to you, and the text around %s changed after your delivery was cut: the change arrives on your work list at your next sitting", what, id))
 		}
 	}
 	return nil

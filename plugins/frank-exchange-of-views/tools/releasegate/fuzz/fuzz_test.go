@@ -5481,14 +5481,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
-		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, and the driver models both
-		// halves. A retired lens does not sit again, so the plan lists each whose pin the
-		// head has moved past, and the PASS gate refuses a verdict until a spot-check this sitting
-		// names every one: with stale areas on the plan the drive always files it, or every run
-		// whose lenses retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
-		// With none, the chair samples the archive in about half its sittings and files nothing in
-		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
-		// drive that filed one every sitting would never put that in front of the oracle.
+		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, AND STANDS ONLY ON ITS SITTING'S
+		// DELIVERY, and the driver models both halves. A retired lens does not sit again, so the plan
+		// lists each area holding changes no spot-check has borne, the chair's sitting opens with those
+		// changes (readDelivery, at sit), and the PASS gate refuses a verdict until a spot-check names
+		// every one: with stale areas on the plan the drive always files it, or every run whose lenses
+		// retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
+		// With none, the chair is handed no report text, so its sitting holds no delivery: in about
+		// half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
+		// a chair whose areas have not changed owes no repeat, and one it filed would stand on nothing.
 		//
 		// A spot-check names no closure only when the board holds none.
 		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
@@ -5498,9 +5499,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			if closed := r.closedGapIDs(); len(closed) > 0 {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
-					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").admit()
+					set("--reason", "fuzz: re-read the closure record; the anchor still resolves")
 			} else {
-				sc.set("--reason", "fuzz: the archive was empty at round start").admit()
+				sc.set("--reason", "fuzz: the archive was empty at round start")
+			}
+			if len(stale) > 0 {
+				sc.admit()
+			} else {
+				sc.refuse(feov.Conflict)
 			}
 		}
 	case "blue":
