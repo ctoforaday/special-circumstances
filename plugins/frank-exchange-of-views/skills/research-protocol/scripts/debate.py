@@ -210,12 +210,10 @@ def require_plan(plan, epoch):
             raise RuntimeError(
                 f"red-chair sitting {epoch} relayed empty `{lst}` with `{flag}`={plan[flag]!r}"
             )
-    if "verdict" in plan and plan["verdict"] is not None:
-        allowed = PLAN["properties"]["verdict"]["enum"]
-        if plan["verdict"] not in allowed:
-            raise RuntimeError(
-                f"red-chair sitting {epoch} relayed invalid verdict {plan['verdict']!r}"
-            )
+    if "passed" in plan and not isinstance(plan["passed"], bool):
+        raise RuntimeError(
+            f"red-chair sitting {epoch} relayed a plan whose `passed` is {plan['passed']!r}, not a boolean or absent"
+        )
 
 
 async def sit(seat_id, prompt, schema, role_title):
@@ -300,7 +298,7 @@ async def run_debate():
         epoch += 1
         chair_prompt = (
             f"Red chair sitting (epoch {epoch}) for topic: \"{topic}\". Open the next epoch per your "
-            f"constitution, issue PASS/FAIL if permitted, and return the relayed plan in your envelope.{record_clause('red-chair')}"
+            f"constitution, record the PASS if permitted or withhold it with your position, and return the relayed plan in your envelope.{record_clause('red-chair')}"
         )
         plan = await sit("red-chair", chair_prompt, CHAIR_ENVELOPE, f"red-chair · ep{epoch}")
         if plan is None:
@@ -379,7 +377,7 @@ async def run_debate():
     )
     await sit("judge", assemble_prompt, EMPTY_ENVELOPE, f"assemble · {slug}")
 
-    verdict = "HALTED" if halted else (last_plan.get("verdict") if last_plan else None) or ("CEILING" if last_plan and last_plan.get("ceiling") else "UNVERIFIED")
+    verdict = "HALTED" if halted else ("PASS" if last_plan and last_plan.get("passed") is True else None) or ("CEILING" if last_plan and last_plan.get("ceiling") else "UNVERIFIED")
     out = {
         "verdict": verdict,
         "epochs": epoch,

@@ -86,7 +86,7 @@ def make_env(scenario, args_dict):
                 "pass_permitted": True, "stale_areas": [],
                 "ceiling": False, "max_epochs": 12, "epoch": 2,
                 "final_sitting": False, "epoch_limit_reached": False,
-                "blockers": [], "why": [], "verdict": "PASS", "record_read": rr,
+                "blockers": [], "why": [], "passed": True, "record_read": rr,
             }
         return {"record_read": rr}
 
