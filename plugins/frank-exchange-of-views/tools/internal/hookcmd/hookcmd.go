@@ -137,7 +137,11 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 func respond(req hookcore.Request, stdout io.Writer, doc []byte, msg string) error {
 	if req.Engine == hookcore.EngineAntigravity {
 		if msg != "" {
-			hookcore.QueueSay(req.PluginDataDir, req.SessionID, msg)
+			key := req.SessionID
+			if req.AgentID != "" {
+				key = req.AgentID
+			}
+			hookcore.QueueSay(req.PluginDataDir, key, msg)
 		}
 		if req.Event == "PostToolUse" || req.Event == "PostTool" || req.Event == "PostToolUseFailure" {
 			_, err := stdout.Write([]byte("{}\n"))
