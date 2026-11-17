@@ -182,6 +182,7 @@ func TestAProtocolErrorKillsAndNames(t *testing.T) {
 	for _, tc := range []struct{ mode, detail string }{
 		{"garbage", "magic"},
 		{"wrong-id", "response id"},
+		{"wrong-op", "response op selftest-sleep to a selftest-stdout request"},
 		{"no-fields", "without its status and stderr"},
 		{"one-field", "without its status and stderr"},
 		{"empty-status", "without its status and stderr"},
@@ -262,6 +263,153 @@ func TestAWrongAssetHashIsADigestMismatch(t *testing.T) {
 	t.Cleanup(func() { _ = c.Close() })
 	if err := c.Start(); err != nil {
 		t.Fatalf("the pinned asset hash is refused: %v", err)
+	}
+}
+
+// TestARefusedHandshakeKillsTheHelper: every handshake the client refuses after reading it — a
+// status other than ok, a result without the digest, an asset sha256 the binary has no pin for on
+// its arch, another digest — is a named error, never a panic, latches, and leaves no helper running.
+func TestARefusedHandshakeKillsTheHelper(t *testing.T) {
+	unpinned := []AssetPin{{File: "model.ort", SHA256: map[string]string{"no-such-arch": "aaaa"}}}
+	for _, tc := range []struct {
+		name, digest, mode string
+		assets             []AssetPin
+		kind               error
+		detail             string
+	}{
+		{"status op-error", "d1", "handshake-refused", nil, ErrProtocol, "handshake status op-error"},
+		{"no digest", "d1", "handshake-no-result", nil, ErrProtocol, "handshake carries 0 fields"},
+		{"an empty sha256 for an arch without a pin", "d1", "handshake-empty-asset", unpinned, ErrDigestMismatch, "model.ort sha256"},
+		{"another source digest", "other", "", nil, ErrDigestMismatch, "source digest other"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(EnvDir, fake(t, tc.digest, ProtocolVersion, tc.mode))
+			pids := startPIDs(t)
+			c := newClient(fakeName, Pins{Digest: "d1", Assets: tc.assets})
+			t.Cleanup(func() { _ = c.Close() })
+			err := c.Start()
+			e := asError(t, err, tc.kind)
+			if !e.Handshake || !strings.Contains(err.Error(), tc.detail) {
+				t.Errorf("the refusal is not a handshake failure naming %q: %v", tc.detail, err)
+			}
+			if again := c.Start(); again != err {
+				t.Errorf("the refused handshake did not latch: the next Start returned %v", again)
+			}
+			started := pids()
+			if len(started) != 1 {
+				t.Fatalf("the start log holds %v, want one pid", started)
+			}
+			assertGone(t, started[0])
+		})
+	}
+}
+
+// TestACrashBeforeTheCaptureCarriesOnlyItsOwnStderr: a helper that dies before it truncates the
+// capture for a request reports what it wrote to its stderr pipe, never the diagnostics the
+// previous request left in the capture file.
+func TestACrashBeforeTheCaptureCarriesOnlyItsOwnStderr(t *testing.T) {
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "crash-before-capture"))
+	c := fakeClient(t, "d1")
+	r, err := c.Do(OpSelftestStdout)
+	if err != nil || !bytes.Contains(r.Stderr, []byte("printf")) {
+		t.Fatalf("selftest-stdout: %v, stderr %q", err, r.Stderr)
+	}
+	_, err = c.Do(OpSelftestSleep, le32(1))
+	e := asError(t, err, ErrCrashed)
+	if !bytes.Contains(e.Stderr, []byte("dying before the capture")) {
+		t.Errorf("the crash lacks its own last words: %q", e.Stderr)
+	}
+	if bytes.Contains(e.Stderr, []byte("printf")) {
+		t.Errorf("the crash carries the previous request's capture: %q", e.Stderr)
+	}
+}
+
+// TestAnOversizedRequestIsRefusedAndTheHelperStaysUp: a request the frame cannot carry is
+// request-too-large before anything is written, and the same helper answers the next request.
+func TestAnOversizedRequestIsRefusedAndTheHelperStaysUp(t *testing.T) {
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, ""))
+	starts := startLog(t)
+	c := fakeClient(t, "d1")
+	_, err := c.Do(OpSelftestSleep, make([][]byte, MaxFields+1)...)
+	if !errors.Is(err, ErrRequestTooLarge) || !strings.Contains(err.Error(), "selftest-sleep") {
+		t.Fatalf("a request of %d fields returned %v, want request-too-large naming the op", MaxFields+1, err)
+	}
+	if IsAbsent(err) {
+		t.Errorf("a refused request reads as no helper: %v", err)
+	}
+	if !c.Running() {
+		t.Errorf("the refused request took the helper down")
+	}
+	if _, err := c.Do(OpSelftestSleep, le32(1)); err != nil {
+		t.Fatalf("the request after a refused one failed: %v", err)
+	}
+	if n := starts(); n != 1 {
+		t.Errorf("%d helpers started, want 1: a request the client refused is no helper failure", n)
+	}
+}
+
+// TestResolvedDirFollowsALink: the directory a helper is looked up in is the linked file's, not the
+// link's.
+func TestResolvedDirFollowsALink(t *testing.T) {
+	real, link := t.TempDir(), t.TempDir()
+	target := filepath.Join(real, "feov-record")
+	if err := os.WriteFile(target, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(link, "feov-record")); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("SKIPPED, NOT PASSED: this Windows account cannot create a symlink (%v)", err)
+		}
+		t.Fatal(err)
+	}
+	want, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolvedDir(filepath.Join(link, "feov-record")); err != nil || got != want {
+		t.Errorf("resolvedDir through a link = %q, %v; want %q", got, err, want)
+	}
+}
+
+// TestTheShippedLookupFollowsALinkedExecutable runs this test binary again through a symlink and
+// reads where the child's own client looks for its helper: beside the binary, never the link. On
+// Linux os.Executable already resolves the link, so the child's answer is the same with or without
+// resolvedDir; the check bites where os.Executable returns the link (Windows, macOS).
+func TestTheShippedLookupFollowsALinkedExecutable(t *testing.T) {
+	if os.Getenv("NATIVEHELPER_EXEDIR_CHILD") == "1" {
+		os.Unsetenv(EnvDir)
+		_, err := newClient(fakeName, Pins{Digest: "d1"}).Locate()
+		var e *Error
+		if !errors.As(err, &e) {
+			t.Fatalf("Locate beside this binary: %v", err)
+		}
+		fmt.Printf("LOOKED-UP %s\n", e.Path)
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err = filepath.EvalSymlinks(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), filepath.Base(self))
+	if err := os.Symlink(self, link); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("SKIPPED, NOT PASSED: this Windows account cannot create a symlink (%v)", err)
+		}
+		t.Fatal(err)
+	}
+	cmd := exec.Command(link, "-test.run=^TestTheShippedLookupFollowsALinkedExecutable$", "-test.count=1")
+	cmd.Env = append(os.Environ(), "NATIVEHELPER_EXEDIR_CHILD=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("the child through %s: %v\n%s", link, err, out)
+	}
+	want := "LOOKED-UP " + filepath.Join(filepath.Dir(self), exe(fakeName)) + "\n"
+	if !strings.Contains(string(out), want) {
+		t.Errorf("the child started through a link looked up its helper elsewhere: want %q in\n%s", want, out)
 	}
 }
 

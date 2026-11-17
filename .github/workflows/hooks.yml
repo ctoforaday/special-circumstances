@@ -392,6 +392,7 @@ jobs:
         TestEmbeddedTraineddataPin
         TestEveryOpFitsTheDeadline
         TestFrameChannelSurvivesLibraryStdout
+        TestStdoutOutsideARequestReachesStderr
         TestHelperExitsOnStdinEOF
         TestCorpusGoldens
         TestDetectGridOnRealCrop
