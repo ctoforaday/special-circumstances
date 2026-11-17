@@ -144,6 +144,8 @@ func TestRespondAntigravityInvocationReplyShapes(t *testing.T) {
 			ephemeral: []string{"ctx"}},
 		{name: "SessionStart, a failure line", event: "SessionStart", resp: Response{Say: "say"}, system: []string{"say"}},
 		{name: "SessionStart ignores TerminateTurn", event: "SessionStart", resp: Response{TerminateTurn: true, Reason: "x"}, silent: true},
+		{name: "SubagentStart, work list as ephemeralMessage", event: "SubagentStart", resp: Response{AdditionalContext: "work list"},
+			ephemeral: []string{"work list"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			req := Request{Engine: EngineAntigravity, Event: c.event, SessionID: "conv-shape", PluginDataDir: t.TempDir()}
@@ -199,4 +201,147 @@ func TestPreInvocationDeliversTheQueueBeforeItsOwnRequest(t *testing.T) {
 	if got := strings.TrimSpace(out.String()); got != "{}" {
 		t.Errorf("second PreInvocation replayed the queue: %s", got)
 	}
+}
+
+func TestAntigravityWorkflowFinishToolAndSubagentSessionStartContract(t *testing.T) {
+	subPayload := `{
+		"hookEventName": "SessionStart",
+		"conversationId": "conv-child-1",
+		"parentConversationId": "conv-parent-1",
+		"agentName": "red-lens-logic",
+		"transcriptPath": "/tmp/child/transcript.jsonl",
+		"workspacePaths": ["/tmp/work"]
+	}`
+	req := Read("SubagentStart", strings.NewReader(subPayload))
+	if req.Engine != EngineAntigravity {
+		t.Fatalf("engine = %q, want antigravity", req.Engine)
+	}
+	if req.SessionID != "conv-parent-1" || req.AgentID != "conv-child-1" || req.AgentType != "red-lens-logic" || req.AgentTranscriptPath != "/tmp/child/transcript.jsonl" {
+		t.Fatalf("unexpected subagent normalization: %+v", req)
+	}
+
+	finishPayload := `{
+		"hookEventName": "PreToolUse",
+		"conversationId": "conv-child-1",
+		"parentConversationId": "conv-parent-1",
+		"cwd": "/tmp/work",
+		"toolCall": {
+			"id": "call-finish-1",
+			"name": "finish",
+			"args": {"result": {"verdict": "PASS", "summary": "ok"}}
+		}
+	}`
+	freq := Read("PreToolUse", strings.NewReader(finishPayload))
+	if freq.Engine != EngineAntigravity || freq.ToolName != "finish" || freq.RawToolName != "finish" {
+		t.Fatalf("unexpected finish request: %+v", freq)
+	}
+	var stdout, stderr bytes.Buffer
+	code := Respond(freq, Response{
+		Decision:     DecisionAllow,
+		Reason:       "record_read attached",
+		UpdatedInput: map[string]any{"result": map[string]any{"verdict": "PASS", "summary": "ok", "record_read": map[string]any{"ok": true}}},
+	}, &stdout, &stderr, nil)
+	if code != 0 {
+		t.Fatalf("allow exit %d, stderr %s", code, stderr.String())
+	}
+	var allowDoc struct {
+		Decision  string `json:"decision"`
+		Reason    string `json:"reason"`
+		Overwrite struct {
+			Result map[string]any `json:"result"`
+		} `json:"overwrite"`
+	}
+	dec := json.NewDecoder(&stdout)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&allowDoc); err != nil {
+		t.Fatalf("finish allow response failed strict decode: %v\n%s", err, stdout.String())
+	}
+	if allowDoc.Decision != "allow" || allowDoc.Overwrite.Result["verdict"] != "PASS" || allowDoc.Overwrite.Result["record_read"] == nil {
+		t.Fatalf("unexpected finish allow overwrite: %+v", allowDoc)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = Respond(freq, Response{Decision: DecisionDeny, Reason: "open blocker"}, &stdout, &stderr, nil)
+	if code != 0 {
+		t.Fatalf("deny exit %d, stderr %s", code, stderr.String())
+	}
+	var denyDoc struct {
+		Decision   string `json:"decision"`
+		Reason     string `json:"reason"`
+		DenyReason string `json:"deny_reason"`
+	}
+	dec = json.NewDecoder(&stdout)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&denyDoc); err != nil {
+		t.Fatalf("finish deny response failed strict decode: %v\n%s", err, stdout.String())
+	}
+	if denyDoc.Decision != "deny" || denyDoc.DenyReason != "open blocker" {
+		t.Fatalf("unexpected finish deny doc: %+v", denyDoc)
+	}
+}
+
+func TestClaudeStrictHookContractShapes(t *testing.T) {
+	t.Run("PreToolUse StructuredOutput updatedInput", func(t *testing.T) {
+		req := Read("PreToolUse", strings.NewReader(`{"session_id":"s1","agent_id":"a1","tool_name":"StructuredOutput","tool_input":{"verdict":"PASS"}}`))
+		var out, errb bytes.Buffer
+		if code := Respond(req, Response{
+			Decision:     DecisionAllow,
+			Reason:       "record_read",
+			UpdatedInput: map[string]any{"verdict": "PASS", "record_read": map[string]any{"ok": true}},
+		}, &out, &errb, nil); code != 0 {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		var doc struct {
+			HookSpecificOutput struct {
+				HookEventName            string         `json:"hookEventName"`
+				PermissionDecision       string         `json:"permissionDecision"`
+				PermissionDecisionReason string         `json:"permissionDecisionReason"`
+				UpdatedInput             map[string]any `json:"updatedInput"`
+			} `json:"hookSpecificOutput"`
+		}
+		dec := json.NewDecoder(&out)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&doc); err != nil {
+			t.Fatalf("strict Claude PreToolUse decode: %v\n%s", err, out.String())
+		}
+		if doc.HookSpecificOutput.HookEventName != "PreToolUse" || doc.HookSpecificOutput.PermissionDecision != "allow" || doc.HookSpecificOutput.UpdatedInput["record_read"] == nil {
+			t.Fatalf("unexpected Claude PreToolUse doc: %+v", doc)
+		}
+	})
+
+	for _, ev := range []string{"PostToolUse", "PostToolUseFailure", "SubagentStart"} {
+		t.Run(ev+" additionalContext", func(t *testing.T) {
+			req := Request{Engine: EngineClaude, Event: ev, SessionID: "s1"}
+			var out, errb bytes.Buffer
+			if code := Respond(req, Response{AdditionalContext: "next item"}, &out, &errb, nil); code != 0 {
+				t.Fatalf("exit %d: %s", code, errb.String())
+			}
+			var doc struct {
+				HookSpecificOutput struct {
+					HookEventName     string `json:"hookEventName"`
+					AdditionalContext string `json:"additionalContext"`
+				} `json:"hookSpecificOutput"`
+			}
+			dec := json.NewDecoder(&out)
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&doc); err != nil {
+				t.Fatalf("strict Claude %s decode: %v\n%s", ev, err, out.String())
+			}
+			if doc.HookSpecificOutput.HookEventName != ev || doc.HookSpecificOutput.AdditionalContext != "next item" {
+				t.Fatalf("unexpected Claude %s doc: %+v", ev, doc)
+			}
+		})
+	}
+
+	t.Run("SubagentStop silence", func(t *testing.T) {
+		req := Request{Engine: EngineClaude, Event: "SubagentStop", SessionID: "s1"}
+		var out, errb bytes.Buffer
+		if code := Respond(req, Response{}, &out, &errb, nil); code != 0 {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if strings.TrimSpace(out.String()) != "" {
+			t.Fatalf("expected silent SubagentStop, got %q", out.String())
+		}
+	})
 }

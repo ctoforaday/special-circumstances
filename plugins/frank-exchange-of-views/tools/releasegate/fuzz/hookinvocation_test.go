@@ -217,13 +217,13 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 				dec.DisallowUnknownFields()
 				var allowed map[string]any
 				switch event {
-				case "PreInvocation":
+				case "PreInvocation", "SessionStart":
 					var res struct {
 						InjectSteps         []map[string]any `json:"injectSteps"`
 						TerminationBehavior string           `json:"terminationBehavior"`
 					}
 					if err := dec.Decode(&res); err != nil {
-						t.Errorf("Antigravity %s stdout failed strict PreInvocationHookResult: %v\n%s", event, err, s)
+						t.Errorf("Antigravity %s stdout failed strict %sHookResult: %v\n%s", event, event, err, s)
 					}
 				case "PreToolUse":
 					var res struct {
@@ -239,6 +239,14 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 					var res struct{}
 					if err := dec.Decode(&res); err != nil {
 						t.Errorf("Antigravity %s stdout failed strict PostToolHookResult: %v\n%s", event, err, s)
+					}
+				case "Stop":
+					var res struct {
+						Decision string `json:"decision"`
+						Reason   string `json:"reason"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("Antigravity %s stdout failed strict StopHookResult: %v\n%s", event, err, s)
 					}
 				default:
 					_ = allowed

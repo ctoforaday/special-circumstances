@@ -92,35 +92,57 @@ func main() {
 	check := flag.Bool("check", false, "verify each committed region matches what the record renders, instead of writing it")
 	flag.Parse()
 
-	path, err := repotree.DebateJS()
+	jsPath, err := repotree.DebateJS()
 	if err != nil {
 		fail(err)
 	}
-	cur, err := os.ReadFile(path)
+	pyPath, err := repotree.DebatePy()
 	if err != nil {
 		fail(err)
 	}
-	out := cur
-	stale := false
-	for _, r := range regions {
-		block, err := r.render()
+	targets := []struct {
+		path    string
+		regions []region
+	}{
+		{jsPath, regions},
+		{pyPath, pyRegions},
+	}
+
+	anyStale := false
+	for _, tgt := range targets {
+		cur, err := os.ReadFile(tgt.path)
 		if err != nil {
 			fail(err)
 		}
-		next, err := splice(out, r.begin, r.end, block)
-		if err != nil {
-			fail(fmt.Errorf("%s: %w", path, err))
-		}
-		if !bytes.Equal(out, next) {
-			stale = true
-			if *check {
-				fmt.Fprintf(os.Stderr, "enginegen: the %s in %s is stale.\n"+
-					"It is written from %s, never the region.\n", r.name, path, r.from)
+		out := cur
+		stale := false
+		for _, r := range tgt.regions {
+			block, err := r.render()
+			if err != nil {
+				fail(err)
 			}
+			next, err := splice(out, r.begin, r.end, block)
+			if err != nil {
+				fail(fmt.Errorf("%s: %w", tgt.path, err))
+			}
+			if !bytes.Equal(out, next) {
+				stale = true
+				anyStale = true
+				if *check {
+					fmt.Fprintf(os.Stderr, "enginegen: the %s in %s is stale.\n"+
+						"It is written from %s, never the region.\n", r.name, tgt.path, r.from)
+				}
+			}
+			out = next
 		}
-		out = next
+		if stale && !*check {
+			if err := os.WriteFile(tgt.path, out, 0o644); err != nil {
+				fail(err)
+			}
+			fmt.Printf("enginegen: wrote the generated regions in %s\n", tgt.path)
+		}
 	}
-	if !stale {
+	if !anyStale {
 		fmt.Println("enginegen: the engine's generated regions match the record")
 		return
 	}
@@ -128,10 +150,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Regenerate: go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen")
 		os.Exit(1)
 	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
-		fail(err)
-	}
-	fmt.Printf("enginegen: wrote the generated regions in %s\n", path)
 }
 
 func fail(err error) {
