@@ -5506,7 +5506,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if len(stale) > 0 {
 				sc.admit()
 			} else {
-				sc.refuse(feov.Conflict)
+				r.refuseUndelivered(sc.all()...)
 			}
 		}
 	case "blue":
