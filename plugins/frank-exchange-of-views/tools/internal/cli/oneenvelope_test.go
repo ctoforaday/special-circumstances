@@ -62,8 +62,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		// teaches: the refusal carries a help page in its human form and names it in the JSON one.
 		teaches bool
 		// short: the refusal answers a flag in a few lines — the same text in both forms, under
-		// 1.5 KB, naming the page and printing none of it. The bound holds `outcome --as`, whose
-		// refusal glosses each of its five words.
+		// 1 KB, naming the page and printing none of it.
 		short bool
 		// logged: the tool writes this refusal to the log — of the seat named, or of logSeat where
 		// the record binds the agent to another.
@@ -242,7 +241,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			pointer := "--help` for "
 			switch {
 			case r.short:
-				if !strings.Contains(env.Error, pointer) || env.Error != human || strings.Contains(human, "\nUsage:") || strings.Contains(human, "\nFlags:") || len(stderr) >= 1536 {
+				if !strings.Contains(env.Error, pointer) || env.Error != human || strings.Contains(human, "\nUsage:") || strings.Contains(human, "\nFlags:") || len(stderr) >= 1024 {
 					t.Errorf("a flag refusal is a few lines naming the page, the same in both forms (%d bytes).\n human: %s\n  json: %s", len(stderr), clipTo(human, 1200), clipTo(env.Error, 1200))
 				}
 			case r.teaches && !strings.Contains(env.Error, pointer):

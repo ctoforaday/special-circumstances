@@ -421,11 +421,11 @@ Flags:
 
 Enumerated values:
   --as
-    VERIFIED    red passed the board and every question part is covered, each covered part checked
-    CEILING     the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run
+    VERIFIED    red passed the board, and every question part is covered and checked
+    CEILING     the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
-    UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
-    QUALIFIED   red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each
+    UNVERIFIED  the run ended with the question unanswered, and no ceiling or halt explains it
+    QUALIFIED   red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report's answer
 ========
 $ feov-record register --help
 NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)

@@ -8543,15 +8543,15 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"GRADE_HIGH\x10\x06\x1a\x16\x8a\xb5\x18\aserious\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\b@\x12\xaf\x01\n" +
 	"\rGRADE_CERTAIN\x10\a\x1a\x9b\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\f@\x12\xbc\x01\n" +
-	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\x92\a\n" +
+	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\x84\x06\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
-	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12p\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aV\x8a\xb5\x18Rred passed the board and every question part is covered, each covered part checked\x12\x9e\x02\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x84\x02\x8a\xb5\x18\xff\x01the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
-	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it\x12\xf4\x01\n" +
-	"\x15RUN_OUTCOME_QUALIFIED\x10\x05\x1a\xd8\x01\x8a\xb5\x18\xd3\x01red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each*\x9c\x05\n" +
+	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12b\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aH\x8a\xb5\x18Dred passed the board, and every question part is covered and checked\x12\xca\x01\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xb0\x01\x8a\xb5\x18\xab\x01the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit\x12f\n" +
+	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12n\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aR\x8a\xb5\x18Nthe run ended with the question unanswered, and no ceiling or halt explains it\x12\xcf\x01\n" +
+	"\x15RUN_OUTCOME_QUALIFIED\x10\x05\x1a\xb3\x01\x8a\xb5\x18\xae\x01red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report's answer*\x9c\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xc3\x02\n" +

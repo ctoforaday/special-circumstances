@@ -125,11 +125,11 @@ var annotationsGrade = [...]ValueAnnotations{
 
 var annotationsRunOutcome = [...]ValueAnnotations{
 	{Name: "RUN_OUTCOME_UNSPECIFIED"},
-	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board and every question part is covered, each covered part checked"},
-	{Name: "RUN_OUTCOME_CEILING", Means: "the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run"},
+	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board, and every question part is covered and checked"},
+	{Name: "RUN_OUTCOME_CEILING", Means: "the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit"},
 	{Name: "RUN_OUTCOME_HALTED", Means: "the bench ended the run on a safety, ethics, consent or integrity boundary"},
-	{Name: "RUN_OUTCOME_UNVERIFIED", Means: "the run ended without the question being answered, and no ceiling or halt explains it"},
-	{Name: "RUN_OUTCOME_QUALIFIED", Means: "red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each"},
+	{Name: "RUN_OUTCOME_UNVERIFIED", Means: "the run ended with the question unanswered, and no ceiling or halt explains it"},
+	{Name: "RUN_OUTCOME_QUALIFIED", Means: "red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report's answer"},
 }
 
 var annotationsCheckKind = [...]ValueAnnotations{

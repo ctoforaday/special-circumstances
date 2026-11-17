@@ -342,15 +342,15 @@ enum Grade {
 // NOT a judged failure to verify" caveat the stamp exists to carry.
 enum RunOutcome {
   RUN_OUTCOME_UNSPECIFIED = 0;
-  RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and every question part is covered, each covered part checked"];
-  RUN_OUTCOME_CEILING = 2 [(means) = "the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run"];
+  RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board, and every question part is covered and checked"];
+  RUN_OUTCOME_CEILING = 2 [(means) = "the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit"];
   RUN_OUTCOME_HALTED = 3 [(means) = "the bench ended the run on a safety, ethics, consent or integrity boundary"];
-  RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended without the question being answered, and no ceiling or halt explains it"];
+  RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended with the question unanswered, and no ceiling or halt explains it"];
   // QUALIFIED IS A PASS OVER A QUESTION THE REPORT DOES NOT ANSWER WHOLE (ruled by gblock 2026-11-12:
   // a new value, not a field on VERIFIED). Red passed the board, and a question part's latest
   // coverage, checked, says the report does not answer it: its sources could not be obtained, or it
   // lies outside the report's answer. The derivation names each such part.
-  RUN_OUTCOME_QUALIFIED = 5 [(means) = "red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each"];
+  RUN_OUTCOME_QUALIFIED = 5 [(means) = "red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report's answer"];
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose

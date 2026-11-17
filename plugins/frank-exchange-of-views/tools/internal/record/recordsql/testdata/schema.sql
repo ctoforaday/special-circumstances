@@ -175,11 +175,11 @@ CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation''s reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('qualified', 'red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report''s answer; the derivation''s reason names each');
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and every question part is covered, each covered part checked');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('qualified', 'red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report''s answer');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended with the question unanswered, and no ceiling or halt explains it');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board, and every question part is covered and checked');
 
 CREATE TABLE "enum_class_material" (
   "value" TEXT PRIMARY KEY,
