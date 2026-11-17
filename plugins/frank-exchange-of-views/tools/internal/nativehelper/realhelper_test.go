@@ -60,7 +60,9 @@ func TestStdoutOutsideARequestReachesStderr(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Fatalf("feov-ocr on stdin EOF: %v", err)
 	}
-	stderr := p.stderr.Bytes()
+	// On Windows fd 2 is in text mode, so the stderr pipe carries CRLF; only the capture file and
+	// the frame descriptor are binary.
+	stderr := bytes.ReplaceAll(p.stderr.Bytes(), []byte("\r\n"), []byte("\n"))
 	for _, who := range []string{"selftest-stdout before the first request", "selftest-stdout between requests"} {
 		for _, route := range []string{"printf", "cout", "fwrite", "write"} {
 			if want := who + ": " + route + "\n"; !bytes.Contains(stderr, []byte(want)) {
