@@ -7,17 +7,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE TWO LOUD SURFACES TAKE THEIR WORD EXACTLY: the schema's word in capitals, and nothing the tool
-// would have to fold into it.
-func TestTheLoudVerdictWordsAreTakenExactly(t *testing.T) {
-	if v, ok := VerdictOf("PASS"); !ok || v != recordpb.Verdict_VERDICT_PASS {
-		t.Errorf("VerdictOf(PASS) = %v, %v", v, ok)
-	}
-	for _, w := range []string{"pass", "Pass", " PASS", "PASS ", ""} {
-		if v, ok := VerdictOf(w); ok {
-			t.Errorf("VerdictOf(%q) = %v; want it refused", w, v)
-		}
-	}
+// THE LOUD SURFACE TAKES ITS WORD EXACTLY: the schema's word in capitals, and nothing the tool would
+// have to fold into it.
+func TestTheLoudOutcomeWordIsTakenExactly(t *testing.T) {
 	if v, ok := RunOutcomeOf("VERIFIED"); !ok || v != recordpb.RunOutcome_RUN_OUTCOME_VERIFIED {
 		t.Errorf("RunOutcomeOf(VERIFIED) = %v, %v", v, ok)
 	}

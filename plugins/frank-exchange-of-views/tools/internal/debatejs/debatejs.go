@@ -138,13 +138,13 @@ func OccasionOf(prompt string) string {
 	return ""
 }
 
-// Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
+// Envelope is what a stubbed seat returns. debate.js branches on these fields — the PASS, the
 // gap list — so the backend supplying them decides which dispatch sites the
 // capture run reaches at all.
 type Envelope map[string]any
 
 // Relay is e carrying a chair's relay: the chair's envelope IS the plan, so each of the plan's
-// fields is a key of the envelope. A verdict the sitting recorded is the plan's `verdict`.
+// fields is a key of the envelope. A PASS the sitting recorded is the plan's `passed`.
 func (e Envelope) Relay(plan map[string]any) {
 	for k, v := range plan {
 		e[k] = v

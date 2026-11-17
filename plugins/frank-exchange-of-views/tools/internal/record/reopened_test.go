@@ -2,7 +2,6 @@ package record
 
 import (
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
 
@@ -163,7 +162,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "C-1" || got[0].Owner != evLens || got[0].since != edit || got[0].lastCheck != check {
 		t.Fatalf("blockers = %+v, want C-1 reopened at edit %d, last checked at %d, owed by %s", got, edit, check, evLens)
 	}
-	err := requireNoBlockers(viewOf(t, held), recordpb.Verdict_VERDICT_PASS, got)
+	err := requireNoBlockers(got)
 	if err == nil || !strings.Contains(err.Error(), "C-1's sentence changed at edit") || !strings.Contains(err.Error(), "show evidence --anchor") {
 		t.Fatalf("PASS over a reopened citation = %v, want a refusal naming it and where it is read", err)
 	}
@@ -616,34 +615,6 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	c.dispatch(c.at(), evLens).bracket(evLens, "agent-1").stop("agent-1").reopen("C-1").register("red-chair")
 	if third := planOf(t, c); !lensReady(third) {
 		t.Errorf("the plan after a second edit of the sentence does not ready the lens: why %q", third.Why)
-	}
-}
-
-// A CONVERGED BOARD UNDER A REOPENED ANCHOR ADMITS A FAIL. The PASS is the evidence lens's to
-// unblock, not the chair's, so the convergence refusal's "or issue `--as PASS`" is false and
-// refusing the FAIL too would leave the chair no verdict to record.
-func TestAFailIsAdmittedOnAConvergedBoardUnderAReopenedBlocker(t *testing.T) {
-	b := convergedBoard(t).cite("C-1").supports(evLens, "C-1").reopen("C-1")
-	// The lens sits at the moved head and leaves the anchor, so nothing but the anchor holds the PASS.
-	run := b.sit(b.at(), evLens).register("red-chair").seed()
-	all, err := PassBlockers(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.ContainsFunc(all, func(b Blocker) bool { return b.Kind == BlockerUnchecked }) {
-		t.Fatalf("fixture: blockers = %+v, want the reopened anchor among them", all)
-	}
-	for _, bl := range all {
-		if bl.Kind != BlockerUnchecked && !bl.ChairOwned() {
-			t.Fatalf("fixture: %s holds the PASS for another seat as well", bl.Kind)
-		}
-	}
-	chair := Identity{Run: run, SeatID: "red-chair"}
-	if _, err := Append(chair, passGate); err == nil {
-		t.Fatal("PASS is admitted over a reopened anchor")
-	}
-	if _, err := Append(chair, &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}); err != nil {
-		t.Errorf("neither PASS nor FAIL can be recorded: FAIL = %v", err)
 	}
 }
 

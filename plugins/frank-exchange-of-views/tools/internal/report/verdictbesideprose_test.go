@@ -11,30 +11,28 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE PROSE CLAIMS ONE VERDICT AND THE RECORD HOLDS ANOTHER, so the projection must show the fact
+// THE PROSE CLAIMS ONE THING AND THE RECORD HOLDS ANOTHER, so the projection must show the fact
 // beside the claim. Measured in research/2026-09-02_quadratic-formula: red's round-5 position says
-// "My verdict is PASS", `round_verdict` holds fail for all five rounds, and debate.md rendered only
-// the sentence — so a reader of that document alone concluded the opposite of the record.
+// "My verdict is PASS", the record held no PASS for any round, and debate.md rendered only the
+// sentence — so a reader of that document alone concluded the opposite of the record.
 //
 // The fix is deliberately NOT contradiction-detection. Matching "PASS" in prose would be a string
 // test on a seat's argument, and a wrong one is worse than none. Render the recorded verdict; let
 // the reader see both.
 func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair", &recordpb.Gate{
-			Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL),
-		}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")),
-			Text: proto.String("Nothing on the board is open. My verdict is PASS."),
+			Text: proto.String("A material gap is still open. I withhold the PASS."),
 		}),
 	}
 	got := debateT(t, evs)
-	if !strings.Contains(got, "recorded verdict: FAIL") {
+	if !strings.Contains(got, "recorded verdict: PASS") {
 		t.Errorf("the epoch's recorded verdict is not rendered beside the prose that claims one:\n%s", got)
 	}
 	// Both must be present: suppressing the prose would be the opposite error, hiding a seat's
 	// argument because the tool disagrees with it.
-	if !strings.Contains(got, "My verdict is PASS") {
+	if !strings.Contains(got, "I withhold the PASS") {
 		t.Errorf("red's own words were dropped — the projection must show both:\n%s", got)
 	}
 }

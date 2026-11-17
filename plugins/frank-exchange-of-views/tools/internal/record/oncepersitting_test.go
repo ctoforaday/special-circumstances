@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // onceAct is one row of the once-per-sitting rule: the seat that files this act and a body of it.
@@ -22,7 +21,7 @@ type onceAct struct {
 // without a row.
 var onceActs = map[recordpb.EventType]onceAct{
 	recordpb.EventType_EVENT_TYPE_POSITION: {"blue-respond", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the position")}},
-	recordpb.EventType_EVENT_TYPE_VERDICT:  {"red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}},
+	recordpb.EventType_EVENT_TYPE_VERDICT:  {"red-chair", &recordpb.Gate{}},
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: {"red-chair", &recordpb.SpotCheck{Ids: []string{"G1"},
 		Reason: proto.String("the anchor still resolves")}},
 }

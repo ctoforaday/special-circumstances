@@ -295,7 +295,6 @@ type processTally struct {
 	ClassLanded         map[string]bool            `json:"class_landed"`
 	Either              map[string][2]int          `json:"either"`
 	Envelope            map[string]int             `json:"envelope"`
-	Fail                map[string]int             `json:"fail"`
 }
 
 // add folds q into p.
@@ -331,7 +330,6 @@ func (p *processTally) add(q processTally) {
 		p.Either[k] = [2]int{row[0] + v[0], row[1] + v[1]}
 	}
 	p.Envelope = addCounts(p.Envelope, q.Envelope)
-	p.Fail = addCounts(p.Fail, q.Fail)
 }
 
 func addCounts(into, from map[string]int) map[string]int {
@@ -404,9 +402,6 @@ func snapshotProcess() processTally {
 	envelopeMu.Lock()
 	p.add(processTally{Envelope: envelopeRow})
 	envelopeMu.Unlock()
-	failMu.Lock()
-	p.add(processTally{Fail: failRow})
-	failMu.Unlock()
 	p.MootSpent = mootSpent.Load()
 	p.LookedFirst = lookedFirst.Load()
 	p.RegisteredTwice = registeredTwice.Load()
@@ -1485,7 +1480,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		p.SittingsClosed, p.FailedSittings, p.SittingsLeftOpen, p.AdmittedNeverClosed, p.RegisteredTwice, p.LookedFirst)
 	t.Log(execReport(p))
 	t.Log(eitherReport(p))
-	t.Log(failReport(p))
 	t.Log(envelopeReport(p))
 	if p.Envelope["red-chair: its copy of the plan refused"] == 0 {
 		t.Error("no chair's copy of the plan was refused across the sweep: the drive that puts one to the record did not run")

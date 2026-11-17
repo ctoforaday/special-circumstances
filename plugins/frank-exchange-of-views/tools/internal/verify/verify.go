@@ -238,56 +238,24 @@ func supersedesResolve(f record.Family) Check {
 		"a gap's lineage names an ancestor that is not on the record", bad)
 }
 
-// passVerdict is the word this gate switches on, and the EVENT TYPE that can carry it. Both
-// are read back out of enums.go rather than written here, because writing them here is the
-// defect this constant exists to prevent.
+// passClosesAllGaps: the #67 gate, verified after the fact. A PASS with an open MATERIAL gap is a
+// contradiction — the record says the run resolved what mattered, and it did not. A gap its class
+// never makes material leaves the PASS sound.
 //
-// The check read `e.Type == "outcome"`. An outcome's vocabulary is
-// VERIFIED|QUALIFIED|CEILING|HALTED|UNVERIFIED — validated at the write, so it can never hold "PASS".
-// Two event types share the payload key `verdict` with DISJOINT vocabularies, so the wrong
-// one is a plain type error that Go cannot see: the comparison never matched, the check took
-// the "gate not applicable" branch on every run ever recorded, and said so in words that read
-// like a considered judgement — "verdict is VERIFIED — gate not applicable".
-//
-// Severity, stated honestly rather than inflated: the LIVE gate works. record.Append refuses
-// `chair verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
-// contradiction cannot arise through the tool. What was lost is the after-the-fact half — the
-// one that exists for a record assembled some OTHER way: a hand-edited shard, a legacy run, or
-// a live gate that itself regressed. That is precisely the case a verifier is for, and it was
-// the case that never ran.
-//
-// TestPassVerdictIsAWordItsEventTypeCanActuallyCarry asserts the pair against the schema, so
-// re-pointing this at the wrong event type — or renaming the word — FAILS instead of going
-// quietly not-applicable. That is the part that generalises; the fix below is one instance.
-//
-// UNDER THE SCHEMA THE PAIR IS NOW A TYPE, and the two constants are typed with it. `verdict`
-// carries a `Verdict_` body whose only field is the `Verdict` enum, and `outcome` carries a
-// `RunOutcome`: they are different Go types, so pointing this gate at `outcome` no longer
-// compiles rather than going quietly dark. The pair is still stated here because the CHOICE of
-// which event type holds the run's PASS remains a decision this file makes.
-const (
-	passVerdictType = recordpb.EventType_EVENT_TYPE_VERDICT
-	passVerdictWord = recordpb.Verdict_VERDICT_PASS
-)
-
-// passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open MATERIAL
-// gap is a contradiction — the record says the run resolved what mattered, and it did not. A gap
-// its class never makes material leaves the PASS sound.
+// THE PASS IS THE VERDICT EVENT. The check once read `e.Type == "outcome"`, whose vocabulary can
+// never hold PASS, and took the not-applicable branch on every run ever recorded. The live gate
+// (record.Append refusing a PASS over a blocker) makes the contradiction impossible through the
+// tool; this half exists for a record assembled some other way — a legacy run, or a live gate
+// that itself regressed.
 func passClosesAllGaps(f record.Family) Check {
-	var gate *recordpb.Gate
+	passed := false
 	for _, e := range f.Events {
-		if e.GetType() != passVerdictType {
-			continue
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
+			passed = true
 		}
-		// LAST VERDICT EVENT WINS, INCLUDING A BODYLESS ONE. The old read assigned
-		// `p.Str("verdict")` unconditionally, so a later verdict event carrying nothing reset
-		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
-		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
-		// PASS out of an event that never said so.
-		gate, _ = recordpb.BodyAs[*recordpb.Gate](e)
 	}
-	if verdict := gate.GetVerdict(); verdict != passVerdictWord {
-		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
+	if !passed {
+		return notApplicable("pass-closes-all-gaps", "the verdict is unrecorded, so there is no PASS to contradict")
 	}
 	// MATERIAL gaps hold the gate, by the one definition the family carries (Gap.Material: its
 	// class, else a current severity of medium or above). A PASS over an open gap that is not
@@ -333,38 +301,9 @@ func registerBeforeAppend(f record.Family) Check {
 		"a seat emitted an event before registering", bad)
 }
 
-// verdictWord and outcomeWord render the two enums this file reads back to a human — `Verdict`
-// and `RunOutcome`.
-//
-// THE CASE OF THESE TWO WORDS IS AN OPEN QUESTION AND THIS IS NOT THE FILE THAT SETTLES IT. Two
-// surfaces of the same migration disagree today:
-//
-//   - recordpb.Spelling derives `pass` and `verified` from the generated constant names, and
-//     recordpb's own TestBySpellingIsExactAndCaseSensitive pins that `PASS` does NOT resolve —
-//     so the schema's word for this set is lower case, deliberately.
-//   - enums.go still declares PASS|FAIL and VERIFIED|QUALIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
-//     still passes `--as VERIFIED`, record.DeriveVerdict still returns "VERIFIED", and the
-//     report's stamp still switches on the capital word.
-//
-// Until the seat-facing surfaces are converted, the capital word is what the record held and
-// what `feov verify` printed, so upper-casing here PRESERVES the output rather than choosing a
-// side. If the ruling is that the schema's spelling wins everywhere, these two functions
-// collapse to recordpb.Word and the change is one line each — and it belongs in ONE place beside
-// record.GradeStr, which is the same shape of join (a seat-facing vocabulary differing from the
-// schema's spelling by a mechanical rule) and which must exist in BOTH directions, because the
-// write path needs the inverse and recordpb.BySpelling is case-sensitive by design.
-//
-// The zero renders as "", matching what `p.Str("verdict")` returned for an absent key.
-func verdictWord(v recordpb.Verdict) string { return strings.ToUpper(recordpb.Word(v)) }
-
+// outcomeWord renders a RunOutcome to a human in capitals, the seat-facing spelling `bench outcome
+// --as` takes; recordpb.Spelling's lower case is the schema's. The zero renders as "".
 func outcomeWord(o recordpb.RunOutcome) string { return strings.ToUpper(recordpb.Word(o)) }
-
-func nonEmpty(s, fallback string) string {
-	if strings.TrimSpace(s) == "" {
-		return fallback
-	}
-	return s
-}
 
 // Stats is the authoritative tally of a run's record — the numbers a human would otherwise
 // grep for. GapsOpen is the ground truth an external consumer must match: the 2026-07-22 run's

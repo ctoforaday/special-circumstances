@@ -8,8 +8,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -35,8 +34,7 @@ $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contes
 exit 0
 stdout:
 motion MOTION001 filed (docket)
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules

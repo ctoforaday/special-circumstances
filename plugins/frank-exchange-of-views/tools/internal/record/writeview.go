@@ -47,9 +47,6 @@ func filesOf(run Run) runFiles { return runFiles{dir: run.Dir()} }
 // params is the run's terms (RunParams).
 func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 
-// convergenceFraction is the run's convergence fraction (convergenceFractionIn).
-func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
-
 // WouldRefuse is the write path's validation as Append runs it, the act judgements included — inside a write transaction on
 // run's record, asked of that transaction — and rolled back: what the write would refuse, without
 // writing. A run that has recorded nothing is validated as no record, and no record is created.

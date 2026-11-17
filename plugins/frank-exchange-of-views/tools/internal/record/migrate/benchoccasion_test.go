@@ -63,8 +63,8 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // record too is one the migrated plan keeps. The census reads every archive and fails on a plan the
 // source did not store, a stored plan lost, a word changed or a number that did not move changed,
 // or an archive set holding no dispatch row, because the translation would then be tested by
-// nothing. A plan stored after its chair sitting recorded a verdict carries that verdict migrated
-// (CarryPlanVerdict) — the one field added, never in the key — and the census counts them, failing
+// nothing. A plan stored after its chair sitting recorded the PASS carries it migrated
+// (CarryPlanPass) — the one field added, never in the key — and the census counts them, failing
 // an archive set in which no plan carries one.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
@@ -72,7 +72,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows, carried, identical, verdicts := 0, 0, 0, 0
+	rows, carried, identical, verdicts, fails := 0, 0, 0, 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
@@ -89,14 +89,19 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 			continue
 		}
 		for i := range srcPlans {
-			s, d := readingBlockersTranslated(t, kindsTranslated(t, srcPlans[i].printed), anchors), dstPlans[i].printed
-			if !strings.Contains(s, `"verdict":`) {
-				for _, w := range []string{"PASS", "FAIL"} {
-					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
-						d = strings.TrimSuffix(d, v) + "}"
-						verdicts++
-					}
+			src := srcPlans[i].printed
+			// A PLAN STORED AFTER A FAIL PRINTS IT, and the FAIL translates to no event (EventSchema
+			// 76): the migrated plan prints no PASS. One stored after a PASS prints `passed`.
+			if strings.HasSuffix(src, `,"verdict":"FAIL"}`) {
+				if strings.Contains(dstPlans[i].printed, `"passed":`) {
+					t.Errorf("%s: stored plan %d printed a FAIL and migrated printing the PASS: %s", name, i, dstPlans[i].printed)
 				}
+				fails++
+			}
+			s, d := readingBlockersTranslated(t, kindsTranslated(t, src), anchors), dstPlans[i].printed
+			if v := `,"passed":true}`; !strings.Contains(src, `"verdict":`) && strings.HasSuffix(d, v) {
+				d = strings.TrimSuffix(d, v) + "}"
+				verdicts++
 			}
 			if s == d {
 				identical++
@@ -139,9 +144,12 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		t.Fatal("no stored plan migrated byte for byte — nothing here holds a plan whose events kept their numbers")
 	}
 	if verdicts == 0 {
-		t.Fatal("no archived plan carries its sitting's verdict migrated — the verdict's translation is exercised by nothing")
+		t.Fatal("no archived plan carries its sitting's PASS migrated — the PASS's carrying is exercised by nothing")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried", rows, carried, identical, verdicts)
+	if fails == 0 {
+		t.Fatal("no archived plan prints a FAIL — the stripping of the retired verdict is exercised by nothing")
+	}
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d PASS(es) carried and %d FAIL(s) stripped", rows, carried, identical, verdicts, fails)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.

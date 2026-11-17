@@ -28,16 +28,16 @@ func TestRunParamsAreReadFromTheRunConfigWithLoudRefusals(t *testing.T) {
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p != unlimited {
 		t.Fatalf("no run-config.json: got (%+v, %v), want the defaults with no epoch limit", p, err)
 	}
-	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"convergenceFraction":0.5,"maxEpochs":9}`)
+	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"maxEpochs":9}`)
 	p, err := RunParams(mustRun(t, runDir))
-	if err != nil || p != (Params{K: 3, KMax: 8, ConvergenceFraction: 0.5, MaxEpochs: 9}) {
+	if err != nil || p != (Params{K: 3, KMax: 8, MaxEpochs: 9}) {
 		t.Fatalf("recorded terms: got (%+v, %v)", p, err)
 	}
 	writeRunConfig(t, runDir, `{"lanes":"3","k":3}`)
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p.K != 3 || p.KMax != DefaultParams.KMax || p.MaxEpochs != 0 {
 		t.Fatalf("a partial file keeps the defaults for what it does not state, and no epoch limit: (%+v, %v)", p, err)
 	}
-	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"convergenceFraction":1.5}`, `{"convergenceFraction":0}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
+	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
 		writeRunConfig(t, runDir, bad)
 		if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), "run-config.json") {
 			t.Errorf("%s was accepted or refused without naming the file: %v", bad, err)
@@ -115,9 +115,6 @@ func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	}
 	if _, err := paramsIn(dir); err == nil || !strings.Contains(err.Error(), "could not be read") {
 		t.Errorf("paramsIn over an unreadable run-config = %v, want the read error", err)
-	}
-	if _, err := convergenceFractionIn(dir); err == nil {
-		t.Error("convergenceFractionIn over an unreadable run-config answered the default")
 	}
 	// ONE OBJECT, AND NOTHING ELSE IS A CONFIGURATION: `null` decodes into a struct as no terms at
 	// all, which would read as a run that stated none. migrate's copy refuses the same files.

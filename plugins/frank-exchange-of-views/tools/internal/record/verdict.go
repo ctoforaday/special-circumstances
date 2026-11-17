@@ -88,8 +88,7 @@ func verdictReadsAt(q recordsql.Querier) (verdictReads, error) {
 	if r.halted, err = recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`); err != nil {
 		return r, err
 	}
-	if r.passed, err = recordHasAt(q, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
-		recordpb.Word(recordpb.Verdict_VERDICT_PASS)); err != nil {
+	if r.passed, err = recordHasAt(q, `SELECT 1 FROM "gate" LIMIT 1`); err != nil {
 		return r, err
 	}
 	if r.cast, err = castAt(q); err != nil {

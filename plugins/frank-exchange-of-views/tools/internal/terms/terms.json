@@ -213,12 +213,7 @@
         "operator"
       ],
       "bans": [],
-      "collisions": [
-        {
-          "word": "FAIL (a verdict)",
-          "resolution": "the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing"
-        }
-      ]
+      "collisions": []
     },
     {
       "term": "exchange",
@@ -295,7 +290,7 @@
     },
     {
       "term": "chair",
-      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.",
+      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.",
       "seats": [
         "lens",
         "chair",
@@ -642,7 +637,7 @@
     },
     {
       "term": "verdict",
-      "definition": "The verdict is the chair's PASS or FAIL on the board.",
+      "definition": "The verdict is the chair's PASS on the board.",
       "seats": [
         "lens",
         "chair",
@@ -787,7 +782,7 @@
         },
         {
           "word": "verdict",
-          "resolution": "the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that reads nothing is never called a verdict"
+          "resolution": "the verdict is the chair's PASS; a reading has an outcome, and a reading that reads nothing is never called a verdict"
         },
         {
           "word": "report read",

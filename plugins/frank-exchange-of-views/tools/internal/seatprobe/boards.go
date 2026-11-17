@@ -201,7 +201,7 @@ Each figure was independently checked.
 
 The remaining cases are out of scope.
 `,
-		RedNarrative: "Epoch 1, FAIL. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
+		RedNarrative: "Epoch 1. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
 		Gaps: []Gap{
 			{
 				Key: "sum", Class: "figure_recount_fails",
@@ -286,7 +286,7 @@ An earlier draft of this report claimed the floor was 90 days.
 
 Each claim below rests on a cited source.
 `,
-		RedNarrative: "Epoch 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
+		RedNarrative: "Epoch 1. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
 		Claims:       []string{"The standard mandates a 30-day retention floor for every record class it covers."},
 		Gaps: []Gap{
 			{
@@ -342,7 +342,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
-		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second.",
+		RedNarrative: "Epoch 1. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation_status_overclaim",
@@ -801,7 +801,7 @@ Design A is cheaper to operate than design B.
 
 The comparison rests on the operator's own cost model, which is not published.
 `,
-		RedNarrative: "Epoch 1, FAIL. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
+		RedNarrative: "Epoch 1. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
 		Gaps: []Gap{
 			{
 				Key: "unpublished", Class: "unverified_composition",

@@ -243,7 +243,7 @@ func TestAQuestionPartCheckIsRefusedWhereItCannotJudge(t *testing.T) {
 // A PASS OVER A PART NOT COVERED IS QUALIFIED, naming each such part with its coverage; a PASS
 // over parts all covered is VERIFIED. Neither is stored: both are derived from the record.
 func TestAPassOverAPartNotCoveredIsQualified(t *testing.T) {
-	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
+	pass := &recordpb.Gate{}
 	for _, c := range []struct {
 		coverage recordpb.PartCoverage
 		want     string

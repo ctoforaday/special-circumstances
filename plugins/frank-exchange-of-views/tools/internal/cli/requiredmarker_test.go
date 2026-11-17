@@ -143,7 +143,9 @@ func requiredProbes() map[string]requiredProbe {
 			return nil
 		},
 		args: fixed("fetch", "--url", "https://src/f")}
-	probes["chair verdict"] = requiredProbe{seat: "red-chair", args: fixed("verdict", "--as", "FAIL")}
+	// THE FIXTURE'S BOARD HOLDS AN OPEN MATERIAL GAP, so the PASS is refused: the verb takes no flag,
+	// and none is marked required.
+	probes["chair verdict"] = requiredProbe{seat: "red-chair", args: fixed("verdict"), fullIsRefused: true}
 	// The fixture registers every seat; a second register is the bench's own again, under the
 	// occasion the bench alone is asked for.
 	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}

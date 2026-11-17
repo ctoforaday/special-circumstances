@@ -103,13 +103,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
 		// one write path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps). What holds it is PassBlockers — the one
-		// list the chair's work list, the plan's pass_permitted and the FAIL convergence refusal
-		// also read (passblockers.go).
+		// list the chair's work list and the plan's pass_permitted also read (passblockers.go).
 		blockers, err := passBlockersAt(q)
 		if err != nil {
 			return err
 		}
-		return requireNoBlockers(w, b.GetVerdict(), blockers)
+		return requireNoBlockers(blockers)
 	case *recordpb.Outcome:
 		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
 		// gavel is the bench's, standing unruled, is a settlement the run would record without it.

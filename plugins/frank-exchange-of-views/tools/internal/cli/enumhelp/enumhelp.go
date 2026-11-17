@@ -68,7 +68,7 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 
 // speaking wraps enumflag's Value so the PARSING is the library's and the REFUSAL is ours.
 //
-// enumflag rejects with `must be 'FAIL', 'PASS'` — correct, and it teaches nothing. This project's
+// enumflag rejects with `must be 'CEILING', 'HALTED', …` — correct, and it teaches nothing. This project's
 // own sentence names the near-miss ("it differs from \"PASS\" only in case"), says what the
 // mistype would have done, and prints the menu. That is not decoration: the refusal is where a
 // seat meets the design, and a probe measured a seat learning its whole surface from what the

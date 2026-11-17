@@ -59,7 +59,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 			what = append(what, d.What)
 		}
 		t.Errorf("a chair sitting on a board with open gaps listed no open-gap duty; outstanding was:\n  %s\n\n"+
-			"`verdict --as PASS` refuses over those gaps, so a work list that omits them tells a seat it is finished while the write path holds it.",
+			"`verdict` refuses over those gaps, so a work list that omits them tells a seat it is finished while the write path holds it.",
 			strings.Join(what, "\n  "))
 	}
 }

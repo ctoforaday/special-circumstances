@@ -281,7 +281,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 				e["record_read"] = map[string]any{"event": 1, "bench_owed": []any{"petition", "position"}, "halted": false}
 			} else {
 				e.Relay(plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true))
-				e["verdict"] = "PASS"
+				e["passed"] = true
 			}
 		}
 		return e

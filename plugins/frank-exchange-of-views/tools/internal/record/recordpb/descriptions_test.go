@@ -160,13 +160,13 @@ func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
 }
 
 func TestBySpellingIsExactAndCaseSensitive(t *testing.T) {
-	e := Verdict_VERDICT_PASS.Descriptor()
-	if v, ok := BySpelling(e, "pass"); !ok || v.Number() != 1 {
-		t.Errorf("BySpelling(\"pass\") = %v,%v — want VERDICT_PASS", v, ok)
+	e := RunOutcome_RUN_OUTCOME_VERIFIED.Descriptor()
+	if v, ok := BySpelling(e, "verified"); !ok || v.Number() != 1 {
+		t.Errorf("BySpelling(\"verified\") = %v,%v — want RUN_OUTCOME_VERIFIED", v, ok)
 	}
-	// The measured defect: `--as pass` when the gate compares `PASS`. Looser matching here would
+	// The measured defect: `--as pass` when the gate compared `PASS`. Looser matching here would
 	// re-open exactly that hole one layer down.
-	if _, ok := BySpelling(e, "PASS"); ok {
+	if _, ok := BySpelling(e, "VERIFIED"); ok {
 		t.Error("BySpelling accepted a different case — the gates downstream compare literally")
 	}
 }

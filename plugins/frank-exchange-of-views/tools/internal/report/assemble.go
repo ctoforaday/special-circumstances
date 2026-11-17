@@ -1321,24 +1321,24 @@ func debate(fam record.Family, coverage partsAt) string {
 		// THE RECORDED VERDICT, RENDERED BESIDE THE PROSE THAT CLAIMS ONE.
 		//
 		// A seat's position is prose, and prose can say "my verdict is PASS" while the epoch's
-		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
+		// STRUCTURED record — the one the board and every audit read — holds no PASS. That is not
 		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
-		// exactly that, `round_verdict` holds fail for all five epochs, and this document rendered
-		// only the sentence. A reader of debate.md alone concluded the opposite of the record.
+		// exactly that, the record holds no PASS for any of its five epochs, and this document
+		// rendered only the sentence. A reader of debate.md alone concluded the opposite of the record.
 		//
 		// The fix is not to detect the contradiction — that would be a string match on prose, and
 		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
 		// reader sees both and needs no inference.
-		recordedVerdict := ""
+		passed := false
 		for _, l := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
-				recordedVerdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
+				passed = true
 			}
 		}
 		redHead := "### RED"
 		switch {
-		case recordedVerdict != "":
-			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
+		case passed:
+			redHead = "### RED — recorded verdict: PASS"
 		default:
 			// ABSENCE IS ITS OWN FACT. An epoch where red spoke and recorded no verdict is not an
 			// epoch that passed; it is one whose gate never closed, and silence renders the same

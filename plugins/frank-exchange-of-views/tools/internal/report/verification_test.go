@@ -17,7 +17,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-chair", &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
@@ -54,7 +54,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-chair", &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
@@ -81,7 +81,6 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-chair", &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
@@ -90,7 +89,7 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	if !strings.Contains(got, "**n/a**") {
 		t.Errorf("an inapplicable invariant must be marked n/a, not ok:\n%s", got)
 	}
-	// One did not apply: the PASS gate (the verdict is FAIL).
+	// One did not apply: the PASS gate (no verdict is recorded).
 	if !strings.Contains(got, "1 did not apply") {
 		t.Errorf("the summary must separate did-not-apply from held:\n%s", got)
 	}

@@ -1913,12 +1913,11 @@ type DebateOutcomeJSON struct {
 // believed the help — `.red_closings | map(.gap_id)` — was told it could not iterate over null.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
-	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
-	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// Passed is the epoch's RECORDED PASS, and it is here because `red` is PROSE. A position may
+	// say "my verdict is PASS" while the record holds none — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
-	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch,
-	// which is a different fact from a verdict of fail and must not read as one.
-	Verdict      string              `json:"verdict"`
+	// concluded the opposite of the record. False means no PASS was recorded for this epoch.
+	Passed       bool                `json:"passed"`
 	Red          []string            `json:"red"`
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
@@ -2020,8 +2019,8 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
 			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}, Served: []DebateServedJSON{}}
 		for _, e := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
-				rj.Verdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+				rj.Passed = true
 			}
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both

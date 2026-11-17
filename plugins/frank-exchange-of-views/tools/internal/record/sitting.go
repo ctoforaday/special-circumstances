@@ -386,8 +386,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
 		// (passBlockersOf), so `complete` agrees with the gate and nothing here blocks what the gate
 		// admits. Each item names the seat whose act clears it: an unruled petition still blocks a
-		// chair PASS, and the chair is told whose answer it is waiting for. The FAIL-only
-		// convergence refusal has no item: this list claims nothing about a FAIL.
+		// chair PASS, and the chair is told whose answer it is waiting for.
 		//
 		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
 		// is listed there too, as work that is not owed.
@@ -422,13 +421,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				hold(b)
 			}
 		}
-		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
-			add(ItemVerdictOwed, nil, "your terminal act is missing — the run cannot say from its own record that it was ever verified")
-		}
-		// THE SITTING AFTER AN OVERRULED POSITION DECIDES THE PASS (gblock, 2026-10-30;
-		// positionheard.go): it owes a verdict, and a position here is refused.
+		// THE SITTING AFTER AN OVERRULED POSITION OWES THE PASS (gblock, 2026-10-30, 2026-11-13;
+		// positionheard.go): the bench's ruling binds, and a position here is refused.
+		//
+		// ANY OTHER SITTING OWES A VERDICT ONLY WHERE THE PASS IS THE CHAIR'S TO RECORD IN IT: this
+		// sitting's plan permits the PASS, every blocker left being the chair's own. There the chair
+		// owes the PASS or a position that withholds it, and either clears the item. Read off this
+		// sitting's acts, never the run's: a sitting whose plan permits no PASS owes none.
 		if id, owed := overruledVerdictOwed(evs, win); owed {
 			add(ItemVerdictOwed, about(SubjectMotion, id), overruledVerdictItem(id))
+		} else if passOrPositionOwed(evs, win) {
+			add(ItemVerdictOwed, nil, "your plan permits the PASS: record it, or withhold it with a position")
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: CHECKING A CITATION OR COMPUTATION IT OWNS
 	// (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS REACHED, THE GAP ABOUT A CHECK OF
@@ -606,20 +609,6 @@ func (s SittingJSON) HoldsPass() bool { return s.Role == "chair" }
 func (s SittingJSON) Blocked() bool {
 	for _, it := range s.Open {
 		if it.Blocks {
-			return true
-		}
-	}
-	return false
-}
-
-// seatDid reports whether this seat recorded an event of this type in this run.
-//
-// The type is an EventType rather than a string: a caller that mistypes `"spot_check"` for
-// `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
-// discharged when it was not, depending on which side of the comparison drifted.
-func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
-	for _, e := range evs {
-		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
 	}

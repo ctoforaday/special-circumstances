@@ -474,13 +474,13 @@ test('EPOCH LIMIT: the epoch before the last dispatches the lenses its plan name
   assert.ok(early.logs.some((m) => /epoch 3: the epoch limit \(4\) is reached/.test(m)))
 })
 
-test('a chair that records PASS ends the debate even if it relayed parties; a FAIL with parties continues', async () => {
-  const passing = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')]), verdict: 'PASS' })] }))
+test('a chair that records PASS ends the debate even if it relayed parties; one that records no verdict with parties continues', async () => {
+  const passing = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')]), passed: true })] }))
   const out = await passing.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   assert.equal(labelsOf(passing, 'red-lens').length, 0, 'PASS ends the sitting sequence')
-  const failing = makeWorld(makeResponder({ chair: [chairEnv({ verdict: 'FAIL' }), passChair()] }))
-  const out2 = await failing.run(script, ARGS)
+  const continuing = makeWorld(makeResponder({ chair: [chairEnv({}), passChair()] }))
+  const out2 = await continuing.run(script, ARGS)
   assert.equal(out2.verdict, 'VERIFIED')
   assert.equal(out2.epochs, 2)
 })
@@ -538,7 +538,7 @@ test('the chair runs the debate: copies no plan, mints nothing, closes nothing, 
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
-  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
+  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or withhold it with your position, which argues why/.test(p) && !/FAIL/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason\./.test(p))
   // THE CHAIR HOLDS NO INQUIRY DUTY: the logic lens checks each settled inquiry, and blue owes each open one a fate.
@@ -552,7 +552,7 @@ test('the chair runs the debate: copies no plan, mints nothing, closes nothing, 
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion grade rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   const schema = chair.opts.schema
-  assert.ok(schema.required.includes('parties') && schema.properties.verdict && !schema.properties.plan && schema.additionalProperties === false, 'the envelope IS the plan, closed, and the verdict is its field')
+  assert.ok(schema.required.includes('parties') && schema.properties.passed && !schema.properties.plan && schema.additionalProperties === false, 'the envelope IS the plan, closed, and the verdict is its field')
   assert.ok(!chair.opts.schema.properties.gaps, 'and no gap list — the record holds the board')
   assert.ok(!/SCORECARD/i.test(p), 'no prompt sends a seat to a scorecard: the card is retired and `show work` carries the situation (#1126)')
 })
@@ -982,7 +982,7 @@ test('a read that owes the chair\'s position seats the bench; the next chair sit
   assert.ok(sitting >= 0, 'the position sitting fired')
   assert.ok(!heard.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'a position convened a petition sitting')
   const prompt = heard.calls[sitting].prompt
-  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'next sitting decides on the PASS with a verdict', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
+  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'your ruling binds: the chair\'s next sitting owes the PASS', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
     assert.ok(prompt.includes(clause), `the position sitting's prompt lacks: ${clause}`)
   }
   const halting = makeWorld(makeResponder({ chair: [owing()], position: [{ record_read: read({ halted: true }) }] }))
@@ -1666,7 +1666,7 @@ test('the schema refuses what the plan check refuses: a bench with no gap, an oc
 test('the chair envelope is the plan, and declares no field beside it the engine does not read', async () => {
   const schema = await chairSchema()
   const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
-  const relayed = new Set([...Object.keys(plan()), 'verdict'])
+  const relayed = new Set([...Object.keys(plan()), 'passed'])
   assert.deepEqual([...relayed].filter((k) => !schema.properties[k]), [], 'every field the verb prints is a field of the envelope')
   const beside = Object.keys(schema.properties).filter((k) => !relayed.has(k))
   assert.deepEqual(beside, ['notes', 'record_read'], 'the envelope adds the chair\'s line and the hook\'s read to the plan')
@@ -1724,9 +1724,9 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   walk(full(), [])
   const DELETE = Symbol('delete')
   const pool = [DELETE, null, '', ' ', 'x', 'judge', 'blue-respond', 'red-lens-logic', 'frontier', 'docket', 0, -1, 1.5, 7, true, false, {}, [], [''], ['x'], ['docket'], ['petition'], ['terminal'], [{}], 'PASS', 'FAIL']
-  // A key the verb omits and a seat may add: the verdict the verb prints only once the sitting has
-  // recorded one, and the read, which the hook writes.
-  const added = [['verdict'], ['record_read']]
+  // A key the verb omits and a seat may add: the PASS the verb prints only once the sitting has
+  // recorded it, and the read, which the hook writes.
+  const added = [['passed'], ['record_read']]
   let accepted = 0, refused = 0
   for (const path of [...paths.filter((p) => p.length), ...added]) {
     for (const value of pool) {

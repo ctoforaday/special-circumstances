@@ -380,7 +380,7 @@ func TestRecordParityAudit(t *testing.T) {
 	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("why")}))...)); a.Verdict != "PASS" {
 		t.Errorf("the withheld PASS is argued: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}))...)); a.Verdict != "PASS" {
+	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{}))...)); a.Verdict != "PASS" {
 		t.Errorf("the chair recorded the PASS and owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	// THE SMOKE'S SITTINGS 4–5: the chair sat with no PASS permitted and filed no position. Nothing
