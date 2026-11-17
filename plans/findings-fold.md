@@ -142,7 +142,7 @@ T-B21).
 - **Part B.** Grade motions never moved a grade: 9 archived, all blue's, 0 followed by the proposed
   regrade (§II.4). A dispute becomes the act the filer wants, in the body the record already has; the
   assignee's acceptance is its own verb writing those bytes, so every guard it has today holds. Added:
-  one `oneof` on `DocketMotion`, one bool on `DocketRuling` (`accepted`: true applies the act, false
+  one `oneof` on `Motion` (`act`, beside `filing`), one bool on `DocketRuling` (`accepted`: true applies the act, false
   rejects it), one `gap_state` column (`assignee`, computed at the append), one arm of the gap state's
   bench CTE, one verb, one Go function for the acting seat, one tool-written body and table
   (`Tombstone`, written by one function in the write path, `writeTombstones` in `writeIn`), read by
@@ -392,7 +392,7 @@ Part B's, §III.B9),
 
 | # | Rule | § |
 |---|---|---|
-| D1 | `DocketMotion` gains `oneof act { Regrade regrade = 4; Close close = 5; Mint supersede = 6; }`; `grounds = 2`, `grounds_quote = 3` reserved | B1 |
+| D1 | `Motion` gains `oneof act { Regrade regrade = 15; Close close = 16; Mint supersede = 17; }` beside `filing`, with one CHECK: `act_case` is set only where `filing_case = 'docket'`; `DocketMotion.grounds = 2`, `grounds_quote = 3` reserved (act on the motion, picked 2026-11-17) | B1 |
 | D2 | `motion docket file regrade\|close\|supersede` stores one act; shape checked at filing, seat and state checks at accept | B2 |
 | D3 | Every filing but the dispatch's own: refused before one counted exchange and while G is estopped (D12) — asked in judgeAct unless the write is `dispatchNext`'s (`writeView.byDispatch`). Every filing: refused by G's assignee (F1), while a motion stands on G (F5), non-supersede on a closed G (F8), a close proposing `repaired_with_regression` (its `successor` no bench ruling carries); the dispatch's never meets these (L6). Dispatch filings: impasse stores no act (F7); grade movement stores a regrade restoring each axis whose grade differs from the movement window's start, or no act where none differs (L25) | B2 |
 | D4 | Assignee's accept: `DocketRuling{accepted: true}` then the act through the act's own verb, one transaction, under the assignee | B3 |
@@ -434,7 +434,7 @@ Correction/Revision/Appeal: struck acts needed a struck/live overlay on every re
 stands"); gblock, m30 ruling 2026-10-19: "NO amend act for a gap's acceptance check: close +
 successor gap (supersede link)" — the record keeps what was asked, and when.
 
-**What the successor costs the tool:** the nested `Mint` arm (R1), one stored column and one
+**What the successor costs the tool:** the motion's `Mint` act arm (R1, resolved by acting on the motion), one stored column and one
 rendered rule (§III.B4a), one arm of the gap state's bench CTE for the bench's accept (§III.B4). No
 new verb: the accept is `motion docket accept`, which every act shares.
 
@@ -454,11 +454,18 @@ G's live-answer demand to it (`demandlineage.go:52`). Its readers (`successor.go
 
 #### III.B1 Record — `record.proto` [MODIFY] (contract: event schema)
 
-- `DocketMotion` [MODIFY]: the `act` oneof; doc "the act this motion proposes, in that act's own body".
-  protogen generates `motion_docket_regrade`, `_close`, `_supersede`. **No body message is nested
-  anywhere today** (0 of 35, `~/.claude/scratch/1695/redesign/record.proto`), so phase B1's first
-  step runs protogen, `decode_gen`, `required_gen` and planguard on the nested arms before anything
-  else (R1).
+- `Motion` [MODIFY] (act on the motion, picked 2026-11-17): `oneof act { Regrade regrade = 15; Close
+  close = 16; Mint supersede = 17; }` beside `filing`; doc "the act a docket motion proposes, in that
+  act's own body". One message CHECK: `"act_case" IS NULL OR "filing_case" = 'docket'`. protogen
+  generates `motion_regrade`, `motion_close` (+ `motion_close_anchors`) and `motion_supersede`, each
+  carrying its act's own column constraints, and an `act_case` column on `motion`;
+  `motion_supersede."gap_id"` is `NOT NULL UNIQUE` (the Mint's own `gap_id`), which is the index the
+  bench arm's lookup reads (§III.B4). R1 was hit: the record has no table shape for a message nested
+  inside a filing arm (`scripts/protogen/bodydecode.go:157-160`; `recordsql/schema.go` `armTable`;
+  `store.go` `insertArm` skips message fields; `migrate/sqlitesource.go` `classify`), so the act sits
+  one level up, as a body's second oneof, which every one of those already carries. One piece the
+  spike found still missing: `migrate`'s `identityBody` places a body's lists and its arms' scalar
+  columns, not an arm's list (`motion_close_anchors`); phase B1 places it, with a round-trip test.
 - `DocketRuling` [MODIFY]: `optional bool accepted = 9` ("true: the ruling applies the act the
   motion proposes, through the ruler's own act; false: the bench rejects the act, and the gap stands
   as it is"). `disposition` loses `required`; CHECKs: `accepted IS NULL` XOR `disposition IS NULL`;
@@ -496,7 +503,7 @@ value is added (L12 withdrawn, 2026-11-13).
   so the successor is G's assignee's (§III.B4a); the proposal mounts no `--supersedes`.
   `motion docket file close` mounts no `--superseded-by`; no filing mounts `--grounds` or `--quote`
   (deleted, §III.B12). A remanded supersede leaves its successor id in
-  `motion_docket_supersede` with no mint; ids are random (`record/id.go:21`), so it collides with
+  `motion_supersede` with no mint; ids are random (`record/id.go:21`), so it collides with
   nothing, and readers that walk ids by reflection (`respellIDs`, references) see an id naming no gap —
   T-B2 renders and migrates such a record.
 - **Checks at filing** (shape only for the act: the filer cannot pass the act's seat-keyed checks —
@@ -504,12 +511,12 @@ value is added (L12 withdrawn, 2026-11-13).
 
   | Check | Where | Refuses |
   |---|---|---|
-  | the act's validate shape on the nested body; act gap = G | validate | a malformed act |
+  | the act's validate shape on the motion's `act` arm; act gap = G | validate | a malformed act |
   | a proposed regrade moves an axis of G as it stands | validate | a no-op proposal |
   | F1 not the assignee | judgeAct | G's assignee, naming its own regrade, close, mint `--supersedes` |
   | F5 one at a time | judgeAct | a filing while a motion stands unanswered on G, naming it |
   | F8 closed G | judgeAct | any act but `supersede` |
-  | a close proposal `--as repaired_with_regression` | validate (the nested `Close`) | it: its required `successor` (`record.go:1184-1191`) is a lineage fact no bench ruling carries, so the bench's accept would drop it. Refusal: "a close naming the regression it caused is the gap's assignee's own act (`lens close --superseded-by`); propose another disposition, or propose the supersede you want". The other `Close` fields (anchors, verification triple, prose) stay on the stored proposal, read through the motion; no reader of a bench closure reads them (bench closures never carried them) |
+  | a close proposal `--as repaired_with_regression` | validate (the `Close` act arm) | it: its required `successor` (`record.go:1184-1191`) is a lineage fact no bench ruling carries, so the bench's accept would drop it. Refusal: "a close naming the regression it caused is the gap's assignee's own act (`lens close --superseded-by`); propose another disposition, or propose the supersede you want". The other `Close` fields (anchors, verification triple, prose) stay on the stored proposal, read through the motion; no reader of a bench closure reads them (bench closures never carried them) |
   | `requireExchangedOn` [NEW] | judgeAct, every writer but the dispatch (`!w.byDispatch`) | G with `GapExchanges.Exchanges < 1`; with `Unresolved > 0` the refusal says NOT MEASURED (`impasse.go:95`) |
   | `requireGap`, `requireNotSuperseded`, `requireNoClosingThisSitting`, `HeardInTime`, `AppendFresh` | as today | as today |
   | `requireNotEstoppedOn` [NEW, replaces `requireNewGrounds`] | judgeAct (`actjudge.go:96`'s arm), every writer but the dispatch (`!w.byDispatch`) | any proposal on G, or on the successor a bench supersede accept on G left standing, while G's ruling tombstone stands (§III.B12, F-J), naming it and what ends the bar — the chair's hand-filed proposal included |
@@ -616,7 +623,7 @@ Every answer against every motion kind, at the DocketRuling write check:
 - **Who closed G on a bench supersede accept: the bench — the reader is fixed, no disposition is
   added** (ruled 2026-11-13; L12 withdrawn). The gap state's `bench` CTE (`gapstate.go:184-194`, today
   "a docket ruling whose disposition closes, on a filing that names the gap") gains one arm: an
-  `accepted` ruling on a motion that stores a supersede act (`motion_docket_supersede`), written by a
+  `accepted` ruling on a motion that stores a supersede act (`motion_supersede`), written by a
   seat other than G's stored assignee — the bench, the one other seat the ruler check lets write
   `accepted` (§III.B3). So the supersession written from a bench-accepted proposal counts as the
   bench's close: the ruling, written before the successor in one transaction, refreshes `gap_state`
@@ -624,7 +631,7 @@ Every answer against every motion kind, at the DocketRuling write check:
   `closed_by_bench` and `bench_closed_last` read true, and `supersede_event` stays NULL
   (`gapstate.go:211-214` takes a supersession only where no bench closing precedes it), so the
   successor's mint names a closed gap and closes nothing — lineage, as any mint naming a closed gap.
-  The arm's reads are key reads plus `motion_docket_supersede ("event_id")`, its table's key. G's
+  The arm's reads are key reads plus `motion_supersede ("event_id")`, its table's primary key. G's
   fate word is `superseded` (`ClosedSuperseded`, `replay.go:264`, the word a supersession already
   gives), not a disposition: the readers that take a bench closure's word from the ruling's
   `disposition` — replay `BenchClosure`/`reason()` (`replay.go:139-148,244-259`), the estopped row's
@@ -645,11 +652,11 @@ Every answer against every motion kind, at the DocketRuling write check:
   (#1828's `requireMinterOnRoster`) and on replay sees only the writer's seat. `requireSupersedable`
   (`supersession.go:77`, validate, so it binds the accept and the replay alike) gains one arm: a Mint
   whose writer's role is `bench` names, as its own gap id, the successor id a stored supersede proposal
-  assigned (`motion_docket_supersede."gap_id"`), on a motion the record already holds the bench's
+  assigned (`motion_supersede."gap_id"`), on a motion the record already holds the bench's
   `accepted` ruling of. The bench's surface mounts no mint verb, so the accept is its only writer, and on replay
   the ruling precedes the Mint in the stream. The open-ancestor assignee check does not arise: the
-  ruling closed G first. The lookup reads `motion_docket_supersede ("gap_id")`, an index this part adds
-  (`QueryIndexDDL`, planguard).
+  ruling closed G first. The lookup reads `motion_supersede ("gap_id")` through the column's generated `UNIQUE` index
+  (planguard plans it; no `QueryIndexDDL` entry).
 - **The texts that say what the bench may do** name accept | reject on an act motion and keep the
   closing words on a no-act motion: `requireRemandWithinLimit`'s refusal (`remand.go:233`), the work
   list's remand-limit clause (`sitting.go:526`), `motion docket rule --help` (`verbs.go:293`),
@@ -955,7 +962,7 @@ The docket gates `closings_filed`, `closings_refused`, `closing_waits`, `dockete
 | Test | Asserts | Fails if |
 |---|---|---|
 | T-B1 | `motion grade` unknown; grade values reserved | a surface mounts one |
-| T-B2 | `motion docket file` needs an act subcommand; each act lands in its nested table; one shape refusal per act; a no-op regrade refused; a close proposing `repaired_with_regression` refused naming the assignee's own close, and `--superseded-by` is no flag of the proposal; a remanded supersede's unminted id renders and migrates | an act's shape rule does not bind, or a regression close files |
+| T-B2 | `motion docket file` needs an act subcommand; each act lands in its act table (`motion_regrade`, `motion_close`, `motion_supersede`); one shape refusal per act; a no-op regrade refused; a close proposing `repaired_with_regression` refused naming the assignee's own close, and `--superseded-by` is no flag of the proposal; a remanded supersede's unminted id renders and migrates | an act's shape rule does not bind, or a regression close files |
 | T-B3 | filing refused by the assignee, before an exchange (NOT MEASURED when `Unresolved > 0`), with a motion standing, non-supersede on a closed G | a refusal is missing, or reads as zero |
 | T-B4 | `dispatch next` at grade movement with zero exchanges files a restoring regrade; at impasse no act; past the threshold on a gap whose party regrades moved an axis down and back up, no act (L25), and on a gap with net movement on one axis and a round trip on another, a regrade restoring the one axis only; and each again on a gap whose ruling tombstone stands (the bench rejected a proposal on open G; party regrades then move G past the threshold, or G stays at impasse): every filing lands through `dispatch next`, the plan is written, the next `dispatch next` plans, and F1, F5, F8 do not fire | a filing is refused, the plan errors, or a filing differs |
 | T-B5 | per act, assignee accept: one transaction holding ruling then act, under the assignee; mint accept writes its `Anchor`, sets `fix_basis` via `verifiedFix`, is refused by the Places guard for a quote the report lacks, and an estopped one writes the TOOL `Log`; regrade accept stamps result, and a stale one writes `Stale`; close accept: `AttestationAudit` reconciles when the assignee's sitting read the anchors, unreconciled when it did not | any effect is missing |
@@ -1156,7 +1163,7 @@ stands for the run.
 - **The gaps a ruling tombstone protects** (F-J): G; and, after a supersede accept, S — the gap id the
   ruling's motion stored for its successor. S has no row of its own; a reader asking of S reads the
   standing ruling row on S's ancestor (`Mint.supersedes`, one gap, §III.B11) whose `motion_id` stored S
-  as its supersede's `gap_id` (`motion_docket_supersede`): two key reads, both on stable ids.
+  as its supersede's `gap_id` (`motion_supersede`): two key reads, both on stable ids.
 - **The guards read the rows** (judgeAct), each through `tombstone_kind_gap`:
   - **Estoppel** — `EstoppelConflict` (`estoppel.go:117`) reads the standing estoppel rows, each with
     its gap's mint `fix_new` (the text `ProposalOver`, `estoppel.go:227`, reads today), and refuses a
@@ -1283,7 +1290,7 @@ check 5 leaves only the appendix's O lines.
 
 | # | Risk | L×I×C | Mitigation |
 |---|---|---|---|
-| R1 | protogen/decode/planguard cannot carry a body nested as a filing arm | M×H×M | B1's first step is the spike; on failure the build stops before any Part B commit and reports; nothing reaches `main`, since A and B merge together |
+| R1 | protogen/decode/planguard cannot carry a body nested as a filing arm | **hit** (spike, 2026-11-17) | **Resolved by the amendment** (act on the motion, picked 2026-11-17): the act is a second oneof of `Motion`, a shape protogen, the decode, `insertBody` and `classify` already carry; B1 re-proves it by the decode round trip (`TestEveryBodyRoundTripsThroughTheGeneratedDecode` reaches each act arm) and places an arm's list in `migrate`'s `identityBody` |
 | R2 | The verb's write function is factored but a guard stays in the verb's `RunE` | M×H×L | T-B5 per effect; delete-the-row on each M10 effect |
 | R3 | An accepted or rejected ruling reads as unruled somewhere (`grademovement.go:90` restarts its window from `m.ruled`, so an unruled-reading reject stalls the restoring regrade) | M×H×L | `rulingWord`'s two arms; M11 census; T-B10; delete-the-row |
 | R4 | A bench ruling lands outside a sitting convened for it, or an exit ruling is refused and `bench outcome` stalls | M×H×L | one predicate, `benchHeld`, on every path (§III.B5); T-B9 a row per path; oracle `bench_ruled_unheld`; gate `bench_answers_by_path` |
@@ -1318,7 +1325,7 @@ residue or release exists between them. The release fuzz (check 10) runs on the 
 | A2 | text, regenerated carriers | check 3, 6 | — |
 | A3 | migrate (Part A) | T-A5–T-A7 | — |
 | A4 | fuzz drives and gates (CI on push) | check 10 parts | — |
-| B1 | spike (R1), record: `act` oneof, `accepted`, grounds reserved, `assignee` column and rename, bench CTE arm, one ancestor, the `Tombstone` body, table, `tombstone_standing` and `tombstone_kind_gap`, validate's `Tombstone` shape arm | T-B1, T-B18, `gapstate_test` | `main` + 2, set here; Part B's only DDL phase (L16) |
+| B1 | record: `Motion.act` oneof (R1 resolved), `accepted`, grounds reserved, `assignee` column and rename, bench CTE arm, one ancestor, the `Tombstone` body, table, `tombstone_standing` and `tombstone_kind_gap`, validate's `Tombstone` shape arm | T-B1, T-B18, `gapstate_test` | `main` + 2, set here; Part B's only DDL phase (L16) |
 | B2 | filing (`byDispatch`), assignee's accept, bench answers, readiness, grade deletion, `actingSeat` | T-B2–T-B10, T-B14–T-B16 | — |
 | B3 | tombstones: `writeTombstones` in `writeIn` (which returns the act's id, through `appendAct` and `Replay.Write`; migrate's `batch.Write` calls and `newID` take it in this phase, so the tree compiles and no pin names a row) and `tombstoneArms`, the guards read the rows, the one-gap refusal's estopped case, `estopped` rows and gap-row fields; grounds and estoppel fold deleted | T-B19, T-A3's estopped case (in T-B19 (2)), `TestTheStoredTombstonesAreTheRule`, `TestEveryTombstoneArmIsNeeded` | — (its DDL is B1's) |
 | B4 | text incl. M8, M12–M15, regenerate | check 3, 5, 6 | — |
@@ -1423,6 +1430,7 @@ Before the pair merges: an independent review of the built change, and the audit
 | Tombstone protection | Picked (audit p5's fork): a `Tombstone` is protected as `Stale` and `Plan` are, by no verb mounting it — no `writeMode.owed`, no `writeView.owedTombstones`, no owed-set arm in validate, whose `Tombstone` arm keeps the body's ordinary shape checks; residue stated: a raw `Append` or a later verb could write one (§III.B12) | 2026-11-14 |
 | Cut | Picked (audit p5's fork): a cut does not end a tombstone; it stands for the run. No `BlueEdit.bared` and nothing only it needed (its `idFields` entry, migrate's archived-cut computation); the end conditions are a reword (`reopened` names G), a citation's or computation's reword or retire, an inquiry's next fate (§III.B12; L22 withdrawn) | 2026-11-14 |
 | L10 → all links | Picked (audit p4's fork): migrate drops all 8 cross-seat successor links, and 1565's engagement ev 906 with m37's ev 1186, stated as residue; the migrate-local later-act fold is deleted (§III.B7) | 2026-11-14 |
+| Act on the motion | R1 hit: the record stores no body nested inside a filing arm. gblock picked: the proposed act is `oneof act { regrade, close, supersede }` on `Motion` beside `filing`; tables `motion_regrade`, `motion_close`, `motion_supersede`; a CHECK sets `act_case` only on a docket filing; `motion_supersede.gap_id`'s `UNIQUE` serves the bench arm's lookup (§III.B1, §III.B4) | 2026-11-17 |
 
 ### Lead calls, disclosed (not ruled; each reversible plan wording)
 
