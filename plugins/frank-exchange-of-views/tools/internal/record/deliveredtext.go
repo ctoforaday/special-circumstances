@@ -77,7 +77,8 @@ func PinAt(q recordsql.Querier, seatID string) (int64, error) {
 }
 
 // changedSinceSQL is the first head move after ?1 that changed the sentence of anchor ?2 — an edit
-// whose reopened lists it, which includes one that left it bare — or a retire that removed it.
+// whose reopened lists it, which includes one that left it bare — or a retire that removed it. These
+// are the head moves (head_move) that touch one anchor's sentence; a part appends and touches none.
 const changedSinceSQL = `SELECT MIN(x) FROM (
   SELECT r."event_id" AS x FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1
   UNION ALL
@@ -164,17 +165,16 @@ func requireReportRead(q recordsql.Querier, seatID string, b *recordpb.ReportRea
 	} else if held {
 		return fmt.Errorf("%s's sitting already holds its delivery: one report read per seat and sitting", seatID)
 	}
-	head, err := reportHeadAt(q)
+	head, err := ReportHeadAt(q)
 	if err != nil {
 		return err
 	}
-	var kind string
-	err = q.QueryRow(`SELECT "type" FROM "events" WHERE "id" = ?`, b.GetHead()).Scan(&kind)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var moved bool
+	if err := q.QueryRow(`SELECT EXISTS (SELECT 1 FROM "head_move" WHERE "event_id" = ?)`, b.GetHead()).Scan(&moved); err != nil {
 		return err
 	}
-	if (kind != "blue_edit" && kind != "report_part") || b.GetHead() > head {
-		return fmt.Errorf("a report read names head %d, which is no edit or part at or before the report's head %d: it records the head its delivery was cut at", b.GetHead(), head)
+	if !moved || b.GetHead() > head {
+		return fmt.Errorf("a report read names head %d, which is no head move — a part, an edit or a retire — at or before the report's head %d: it records the head its delivery was cut at", b.GetHead(), head)
 	}
 	return nil
 }
@@ -222,7 +222,7 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 		if noRecord(q) {
 			return nil
 		}
-		head, err := reportHeadAt(q)
+		head, err := ReportHeadAt(q)
 		if err != nil || head == 0 {
 			return err
 		}
@@ -245,7 +245,7 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 			if whole {
 				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. "+wholeDeliveryNote)
 			} else {
-				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads")
+				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after, and each retire as the claim it took out — and the passages of your own gaps arrive on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads")
 			}
 		case "chair":
 			for _, it := range open {
@@ -257,7 +257,7 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 					return err
 				}
 				if n > 0 {
-					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each as the paragraphs it touched before and after, one item after each of your tool calls; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
+					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each edit as the paragraphs it touched before and after and each retire as the claim it took out, one item after each of your tool calls; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
 				}
 			}
 		case "bench":

@@ -411,6 +411,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				st.Through = proto.Int64(to)
 			}
 			// A REPORT READ'S HEAD is an events.id too — the lens's pin — translated as a dispatch's.
+			// A RETIRE MOVES THE HEAD (EventSchema 80), and an archived read named the latest edit or part:
+			// a retire between that and the read was already in the text served, so the read's head on
+			// the migrated record is the latest head move before it — the report head as it lands.
 			if rr, ok := body.(*recordpb.ReportRead); ok && rr.Head != nil {
 				to, landed := newID[rr.GetHead()]
 				if !landed {
@@ -418,7 +421,11 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 						Err: fmt.Sprintf("this report read was served at event %d, which wrote no event on the migrated record before it — the pin would name whatever event holds that number", rr.GetHead())})
 					continue
 				}
-				rr.Head = proto.Int64(to)
+				head, err := record.ReportHeadAt(batch.Querier())
+				if err != nil {
+					return nil, err
+				}
+				rr.Head = proto.Int64(max(to, head))
 			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and

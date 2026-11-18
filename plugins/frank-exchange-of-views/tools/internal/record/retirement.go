@@ -32,8 +32,8 @@ import (
 // new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
 // a computation it owns that nobody has judged — and
 // while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
-// sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits and
-// the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
+// sits at most once per head move, and the head moves only by blue's edits and retires, which the
+// gaps' limits and the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
 // limit it costs at most one sitting per head move that finds it unsat-on; an item it never
 // discharges keeps it ready only when the report has changed.
 //
@@ -415,15 +415,12 @@ func freshMaterialOfStates(gaps []WorkGapState) map[string]bool {
 	return out
 }
 
-// reportHeadOf is the report head off the stream: the last blue_edit or report_part, by row id.
+// reportHeadOf is the report head off the stream: the last head move (recordsql.HeadMoves), by row id.
 func reportHeadOf(evs []*Event, ids []int64) int64 {
 	var head int64
 	for i, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
-			if ids[i] > head {
-				head = ids[i]
-			}
+		if recordsql.IsHeadMove(e.GetType()) && ids[i] > head {
+			head = ids[i]
 		}
 	}
 	return head

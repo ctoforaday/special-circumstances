@@ -23,9 +23,10 @@ import (
 //
 //   - A lens with no complete whole delivery, and at its full re-read, is cut the whole report: its
 //     sections in order, packed into pieces; their text concatenated is the report at the cut.
-//   - Every other lens sitting is cut each head move after its pin, as the edit's stamped paragraphs
-//     before and after it (a part's text as the new side), then the passage of each gap it minted,
-//     open or closed. With neither, one piece says the report has not changed since its pin.
+//   - Every other lens sitting is cut each head move after its pin — an edit as its stamped paragraphs
+//     before and after it, a part's text as the new side, a retire as the claim it retired, the anchors
+//     it took out and its reason — then the passage of each gap it minted, open or closed. With
+//     neither, one piece says the report has not changed since its pin.
 //   - The chair is cut each stale area's changes it has not borne (area_change), as change pieces.
 //   - The bench is cut the passage of each gap an unruled motion about gaps names.
 
@@ -54,7 +55,7 @@ func CutDelivery(run Run, seatID string, subjects []string, fits func(label, tex
 	var cut DeliveryCut
 	role := seatclass.RoleOfSeat(seatID)
 	err := readSnapshot(run, func(q recordsql.Querier) error {
-		head, err := reportHeadAt(q)
+		head, err := ReportHeadAt(q)
 		if err != nil || head == 0 {
 			return err
 		}
@@ -236,24 +237,38 @@ func wordCuts(text string) []int {
 }
 
 // change is one head move: the edit's stamped paragraphs before and after it, or a part's text as
-// the new side, under the heading of the section its new side now stands in.
+// the new side, under the heading of the section its new side now stands in; or a retire, its claim
+// as before, the anchors it took out and its reason, and whether the claim's sentence stays.
 type change struct {
 	heading, before, after string
+	retire                 *retired
 }
 
-// changesAfterSQL is the head moves after ?1 and at or before ?2, in record order: each edit's stamped
-// paragraphs, and each part's text as the new side. With ?3 set, only the area_change rows of that lens.
-const changesAfterSQL = `SELECT h."event_id", h."before", h."after" FROM (
-    SELECT ed."event_id", COALESCE(ed."old_paragraphs", '') AS "before", COALESCE(ed."new_paragraphs", '') AS "after" FROM "blue_edit" ed
-    UNION ALL
-    SELECT p."event_id", '', p."text" FROM "report_part" p) h
+// retired is what a retire took out of the report: the anchors, the reason, and whether the claim's
+// sentence stays (an evidence anchor retired off a kept sentence).
+type retired struct {
+	anchors, reason string
+	kept            bool
+}
+
+// changesAfterSQL is the head moves (the head_move view) after ?1 and at or before ?2, in record
+// order: each edit's stamped paragraphs, each part's text as the new side, and each retire's claim,
+// anchors and reason. With ?3 set, only the area_change rows of that lens.
+const changesAfterSQL = `SELECT h."event_id",
+    COALESCE(ed."old_paragraphs", rt."claim", ''), COALESCE(ed."new_paragraphs", p."text", ''),
+    rt."event_id" IS NOT NULL, COALESCE(rt."claim_kept", 0), COALESCE(rt."reason", ''),
+    COALESCE((SELECT group_concat(ra."value", ', ' ORDER BY ra."ord") FROM "retire_anchors" ra WHERE ra."event_id" = h."event_id"), '')
+  FROM "head_move" h
+  LEFT JOIN "blue_edit" ed ON ed."event_id" = h."event_id"
+  LEFT JOIN "report_part" p ON p."event_id" = h."event_id"
+  LEFT JOIN "retire" rt ON rt."event_id" = h."event_id"
   WHERE h."event_id" > ?1 AND h."event_id" <= ?2
     AND (?3 = '' OR h."event_id" IN (SELECT a."change" FROM "area_change" a WHERE a."seat_id" = ?3))
   ORDER BY h."event_id"`
 
 // changeItemsAfter is each head move after pin and at or before head, as change pieces; with area set,
-// the area_change rows of that lens (pin is then not read). A move whose two sides differ only in
-// anchors is no change.
+// the area_change rows of that lens (pin is then not read). An edit or a part whose two sides differ
+// only in anchors is no change; a retire always is one, since what it takes out is anchors.
 func changeItemsAfter(q recordsql.Querier, report string, pin, head int64, area string) ([]DeliveryPiece, error) {
 	rows, err := q.Query(changesAfterSQL, pin, head, area)
 	if err != nil {
@@ -264,8 +279,16 @@ func changeItemsAfter(q recordsql.Querier, report string, pin, head int64, area 
 	for rows.Next() {
 		var id int64
 		var c change
-		if err := rows.Scan(&id, &c.before, &c.after); err != nil {
+		var isRetire bool
+		var r retired
+		if err := rows.Scan(&id, &c.before, &c.after, &isRetire, &r.kept, &r.reason, &r.anchors); err != nil {
 			return nil, err
+		}
+		if isRetire {
+			c.retire = &r
+			c.heading = headingOf(report, c.before)
+			out = append(out, changePiece(c, area))
+			continue
 		}
 		if anchortext.Visible(c.before) == anchortext.Visible(c.after) {
 			continue
@@ -293,8 +316,8 @@ func headingOf(report, text string) string {
 	return line
 }
 
-// changePiece renders a change: its section, then its paragraphs before and after; an empty side is
-// shown as added or removed.
+// changePiece renders a change: its section, then its paragraphs before and after, an empty side shown
+// as added or removed; a retire as the claim it retired, the anchors it took out, and its reason.
 func changePiece(c change, area string) DeliveryPiece {
 	label := "A CHANGE TO THE REPORT"
 	if area != "" {
@@ -305,6 +328,12 @@ func changePiece(c change, area string) DeliveryPiece {
 		b.WriteString("In section: " + c.heading + "\n\n")
 	}
 	switch {
+	case c.retire != nil && c.retire.kept:
+		b.WriteString("RETIRED " + c.retire.anchors + " OFF THIS SENTENCE, WHICH STAYS:\n" + c.before + "\n\nREASON:\n" + c.retire.reason)
+	case c.retire != nil && c.retire.anchors != "":
+		b.WriteString("RETIRED, WITH " + c.retire.anchors + ":\n" + c.before + "\n\nREASON:\n" + c.retire.reason)
+	case c.retire != nil:
+		b.WriteString("RETIRED:\n" + c.before + "\n\nREASON:\n" + c.retire.reason)
 	case c.before == "":
 		b.WriteString("ADDED:\n" + c.after)
 	case c.after == "":

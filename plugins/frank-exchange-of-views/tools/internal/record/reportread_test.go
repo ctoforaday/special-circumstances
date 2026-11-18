@@ -130,13 +130,13 @@ func TestAReportReadIsNotAnAct(t *testing.T) {
 // A REPORT READ IS A DELIVERY TO A LENS, THE CHAIR OR THE BENCH, AT A HEAD THE REPORT HAS HELD. The
 // write refuses one by any other seat — blue is delivered no report text (plan constitution-gaps
 // §III.3: one report_read row per completed delivery, for a lens, the chair and the bench) — and one
-// naming a head that is no edit or part at or before the report's head.
+// naming a head that is no head move at or before the report's head.
 func TestAReportReadIsALensesAtTheReportsHead(t *testing.T) {
 	run := retBoard(t).seed()
 	if err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err == nil || !strings.Contains(err.Error(), "blue-respond is none of them") {
 		t.Errorf("blue's report read: %v; want refused", err)
 	}
-	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "names head 1, which is no edit or part at or before the report's head 2") {
+	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "names head 1, which is no head move — a part, an edit or a retire — at or before the report's head 2") {
 		t.Errorf("a read naming head 1 over head 2: %v; want refused", err)
 	}
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err != nil {

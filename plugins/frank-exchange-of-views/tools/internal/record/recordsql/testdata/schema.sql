@@ -1925,11 +1925,17 @@ SELECT r."event_id" AS "event_id", e."seat_id" AS "seat_id", e."sitting_id" AS "
 FROM "report_read" r
 JOIN "events" e ON e."id" = r."event_id";
 
--- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move (a blue_edit or a
--- report_part) with an id after both the lens's pin — the head of its latest sat-through delivery — and
--- the last change the chair has borne for it, the highest change stamped on the latest spot-check
--- naming it. Which lenses are stale areas (retired, behind the head) is the plan's to say; this is
--- every lens's list, read for the stale ones.
+-- THE EVENTS THAT MOVE THE REPORT HEAD: one row per event whose type is in HeadMoves — each event
+-- that changes report text. The report head is the latest of them; a pin, a delivery's cut and an
+-- area's changes are read against this one set.
+CREATE VIEW "head_move" AS
+SELECT "id" AS "event_id" FROM "events" WHERE "type" IN ('report_part','blue_edit','retire');
+
+-- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move with an id after
+-- both the lens's pin — the head of its latest sat-through delivery — and the last change the chair
+-- has borne for it, the highest change stamped on the latest spot-check naming it. Which lenses are
+-- stale areas (retired, behind the head) is the plan's to say; this is every lens's list, read for
+-- the stale ones.
 CREATE VIEW "area_change" AS
 WITH "lens" AS (
   SELECT DISTINCT v."value" AS "seat_id" FROM "cast_seat_ids" v WHERE v."value" IN ('red-lens-adversary','red-lens-architecture','red-lens-computation','red-lens-dark-side','red-lens-evidence','red-lens-logic','red-lens-voice')
@@ -1942,10 +1948,9 @@ WITH "lens" AS (
                         WHERE c."event_id" = (SELECT MAX(a."event_id") FROM "spot_check_areas" a WHERE a."value" = l."seat_id")), 0)) AS "after"
   FROM "lens" l
 )
-SELECT b."seat_id" AS "seat_id", h."event_id" AS "change", h."kind" AS "kind"
+SELECT b."seat_id" AS "seat_id", h."event_id" AS "change"
 FROM "bound" b
-JOIN (SELECT "event_id", 'edit' AS "kind" FROM "blue_edit" UNION ALL SELECT "event_id", 'append' FROM "report_part") h
-  ON h."event_id" > b."after";
+JOIN "head_move" h ON h."event_id" > b."after";
 
 -- THE GAP VIEW'S RULES, ASKED OF THE GAPS THE APPEND IN FLIGHT TOUCHED (gap_dirty), one row each in
 -- gap_state's column order. The flush trigger is its one reader; between appends it reads nothing.

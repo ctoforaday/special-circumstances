@@ -1,6 +1,7 @@
 package recordsql
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -738,11 +739,17 @@ SELECT r."event_id" AS "event_id", e."seat_id" AS "seat_id", e."sitting_id" AS "
 FROM "report_read" r
 JOIN "events" e ON e."id" = r."event_id";
 
--- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move (a blue_edit or a
--- report_part) with an id after both the lens's pin — the head of its latest sat-through delivery — and
--- the last change the chair has borne for it, the highest change stamped on the latest spot-check
--- naming it. Which lenses are stale areas (retired, behind the head) is the plan's to say; this is
--- every lens's list, read for the stale ones.
+-- THE EVENTS THAT MOVE THE REPORT HEAD: one row per event whose type is in HeadMoves — each event
+-- that changes report text. The report head is the latest of them; a pin, a delivery's cut and an
+-- area's changes are read against this one set.
+CREATE VIEW "head_move" AS
+SELECT "id" AS "event_id" FROM "events" WHERE "type" IN (` + headMovesSQL() + `);
+
+-- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move with an id after
+-- both the lens's pin — the head of its latest sat-through delivery — and the last change the chair
+-- has borne for it, the highest change stamped on the latest spot-check naming it. Which lenses are
+-- stale areas (retired, behind the head) is the plan's to say; this is every lens's list, read for
+-- the stale ones.
 CREATE VIEW "area_change" AS
 WITH "lens" AS (
   SELECT DISTINCT v."value" AS "seat_id" FROM "cast_seat_ids" v WHERE v."value" IN (` + lensSeatsSQL() + `)
@@ -755,10 +762,9 @@ WITH "lens" AS (
                         WHERE c."event_id" = (SELECT MAX(a."event_id") FROM "spot_check_areas" a WHERE a."value" = l."seat_id")), 0)) AS "after"
   FROM "lens" l
 )
-SELECT b."seat_id" AS "seat_id", h."event_id" AS "change", h."kind" AS "kind"
+SELECT b."seat_id" AS "seat_id", h."event_id" AS "change"
 FROM "bound" b
-JOIN (SELECT "event_id", 'edit' AS "kind" FROM "blue_edit" UNION ALL SELECT "event_id", 'append' FROM "report_part") h
-  ON h."event_id" > b."after";
+JOIN "head_move" h ON h."event_id" > b."after";
 ` + GapRefreshViewDDL()
 
 // NotActs is every event type that is not an act of its seat's — the one definition of an act, read
@@ -785,6 +791,20 @@ var NotActs = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED,
 	recordpb.EventType_EVENT_TYPE_PLAN,
 }
+
+// HeadMoves is every event type that moves the report head — each that changes report text: a lane's
+// part, blue's edit, and blue's retire, which takes its anchors (and a claim's husk) out of the text.
+// It is the one definition of "the report moved", read by the head_move view (and through it
+// area_change and the report head) and by the Go folds over a prefix of the stream (the report head
+// off the stream, a spot-check's stamped changes) (gblock 2026-11-18).
+var HeadMoves = []recordpb.EventType{
+	recordpb.EventType_EVENT_TYPE_REPORT_PART,
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
+	recordpb.EventType_EVENT_TYPE_RETIRE,
+}
+
+// IsHeadMove is whether an event of type t moves the report head (HeadMoves).
+func IsHeadMove(t recordpb.EventType) bool { return slices.Contains(HeadMoves, t) }
 
 // evidenceAnchorArmsSQL is the evidence_anchor view's placing arms: one per EvidenceTables row,
 // reading the row's placing table and id column. Every placing table names the gap it answers in
@@ -855,6 +875,15 @@ func wholeDeliverySQL(row, seat string) string {
 func notActsSQL() string {
 	words := make([]string, len(NotActs))
 	for i, t := range NotActs {
+		words[i] = "'" + recordpb.Word(t) + "'"
+	}
+	return strings.Join(words, ",")
+}
+
+// headMovesSQL is HeadMoves as the quoted words of events.type, comma-separated.
+func headMovesSQL() string {
+	words := make([]string, len(HeadMoves))
+	for i, t := range HeadMoves {
 		words[i] = "'" + recordpb.Word(t) + "'"
 	}
 	return strings.Join(words, ",")

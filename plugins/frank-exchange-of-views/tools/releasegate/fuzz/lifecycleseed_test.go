@@ -198,10 +198,15 @@ func (r *runner) lifecycleForcedErr() string {
 }
 
 // openSitting opens seat a sitting of its own, which no dispatch carries: the record keeps one check of
-// an anchor per seat per sitting, and the drive's re-checks are the seat's own.
+// an anchor per seat per sitting, and the drive's re-checks are the seat's own. The seat reads what
+// the sitting is owed before it acts, as a dispatched sitting does: how many items that is depends on
+// how many head moves lie behind its pin, which no drive counts.
 func (r *runner) openSitting(seat string) bool {
-	_, ok := r.admit(registerArgs(seat, "")...)
-	return ok
+	if _, ok := r.admit(registerArgs(seat, "")...); !ok {
+		return false
+	}
+	r.readDelivery(seat, "")
+	return true
 }
 
 // lifecycleMint is seat's mint of a gap under check kind on claim, or about anchor where about is set,

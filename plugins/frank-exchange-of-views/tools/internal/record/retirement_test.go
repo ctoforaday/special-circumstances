@@ -32,11 +32,10 @@ func (b *stage) sitUnserved(pin int64, lens string) *stage {
 	return b.dispatch(pin, lens).register(lens)
 }
 
-// head is the stage's report head: the id of its latest ingest or edit — its count, as seeded.
+// head is the stage's report head: the id of its latest head move (recordsql.HeadMoves) — its count, as seeded.
 func (b *stage) head() int64 {
 	for i := len(b.evs) - 1; i >= 0; i-- {
-		switch b.evs[i].GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
+		if recordsql.IsHeadMove(b.evs[i].GetType()) {
 			return int64(b.n - (len(b.evs) - 1 - i))
 		}
 	}
@@ -472,7 +471,7 @@ func TestASpotCheckStampsTheChangesBehindEachPin(t *testing.T) {
 	deliver(t, run, "red-chair")
 	var want []int64
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
-		rows, err := q.Query(`SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > ? ORDER BY "id"`, pin)
+		rows, err := q.Query(`SELECT "event_id" FROM "head_move" WHERE "event_id" > ? ORDER BY "event_id"`, pin)
 		if err != nil {
 			return err
 		}

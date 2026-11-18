@@ -111,7 +111,7 @@ func benchSits(t *testing.T, run Run) Identity {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head, err := reportHeadAt(db)
+	head, err := ReportHeadAt(db)
 	if err != nil {
 		t.Fatal(err)
 	}

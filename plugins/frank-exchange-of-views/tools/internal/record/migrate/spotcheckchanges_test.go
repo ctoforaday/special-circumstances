@@ -91,7 +91,7 @@ func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
 				}
 				earliest = min(earliest, pins[i])
 			}
-			want := int64sOf(t, db, `SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > `+itoa(earliest)+` AND "id" < `+itoa(spot)+` ORDER BY "id"`)
+			want := int64sOf(t, db, `SELECT "event_id" FROM "head_move" WHERE "event_id" > `+itoa(earliest)+` AND "event_id" < `+itoa(spot)+` ORDER BY "event_id"`)
 			got := int64sOf(t, db, `SELECT "value" FROM "spot_check_changes" ORDER BY "ord"`)
 			if len(want) == 0 || !slices.Equal(got, want) {
 				t.Errorf("stamped changes %v; the migrated record holds %v after pin %d", got, want, earliest)
@@ -116,7 +116,7 @@ func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
 		if len(served) == 0 || pins[0] != served[len(served)-1] {
 			t.Errorf("area %s stamped at pin %d; the lens was served the report at %v", areas[0], pins[0], served)
 		}
-		want := int64sOf(t, db, `SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > `+itoa(pins[0])+` AND "id" < `+itoa(spot)+` ORDER BY "id"`)
+		want := int64sOf(t, db, `SELECT "event_id" FROM "head_move" WHERE "event_id" > `+itoa(pins[0])+` AND "event_id" < `+itoa(spot)+` ORDER BY "event_id"`)
 		got := int64sOf(t, db, `SELECT "value" FROM "spot_check_changes" ORDER BY "ord"`)
 		if len(want) == 0 || !slices.Equal(got, want) {
 			t.Errorf("stamped changes %v; the migrated record holds %v after pin %d", got, want, pins[0])

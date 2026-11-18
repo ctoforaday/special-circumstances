@@ -3962,7 +3962,7 @@ type SpotCheck struct {
 	//
 	// pins holds, for each of `areas` at the same index, the head of that lens's latest complete
 	// delivery of report text in a sitting it sat through. changes holds the event id of every recorded
-	// change to the report — each blue_edit and report_part, the events that move the head — after
+	// change to the report — each event that moves the head, a report_part, a blue_edit or a retire — after
 	// the earliest of those pins, in record order; an area's changes are those after its own pin.
 	// The ids are the record's own, so a migration's replay restamps them rather than translating
 	// them.
@@ -8274,10 +8274,10 @@ const file_record_proto_rawDesc = "" +
 	"\athrough\x18\x02 \x01(\x03B\x0f\x82\xb5\x18\v\"\tevents.idH\x01R\athrough\x88\x01\x01B\t\n" +
 	"\a_gap_idB\n" +
 	"\n" +
-	"\b_through\"\xc2\x01\n" +
+	"\b_through\"\xdd\x01\n" +
 	"\n" +
-	"ReportRead\x12\xaa\x01\n" +
-	"\x04head\x18\x01 \x01(\x03B\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x1a|the events.id of the report head the delivery was cut at — the latest blue_edit or report_part when its first item was cut\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
+	"ReportRead\x12\xc5\x01\n" +
+	"\x04head\x18\x01 \x01(\x03B\xab\x01\x82\xb5\x18\xa6\x01\b\x01\x1a\x96\x01the events.id of the report head the delivery was cut at — the latest head move (a report_part, a blue_edit or a retire) when its first item was cut\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +

@@ -1159,7 +1159,7 @@ message SpotCheck {
   //
   // pins holds, for each of `areas` at the same index, the head of that lens's latest complete
   // delivery of report text in a sitting it sat through. changes holds the event id of every recorded
-  // change to the report — each blue_edit and report_part, the events that move the head — after
+  // change to the report — each event that moves the head, a report_part, a blue_edit or a retire — after
   // the earliest of those pins, in record order; an area's changes are those after its own pin.
   // The ids are the record's own, so a migration's replay restamps them rather than translating
   // them.
@@ -2544,7 +2544,7 @@ message ReportRead {
   optional int64 head = 1 [(sql) = {
     required: true
     references: "events.id"
-    why: "the events.id of the report head the delivery was cut at — the latest blue_edit or report_part when its first item was cut"
+    why: "the events.id of the report head the delivery was cut at — the latest head move (a report_part, a blue_edit or a retire) when its first item was cut"
   }];
 }
 
