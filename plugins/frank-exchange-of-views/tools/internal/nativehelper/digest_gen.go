@@ -5,7 +5,7 @@ package nativehelper
 // helpers is each helper's source digest and per-arch asset sha256, recomputed by
 // TestNativeDigestMatchesSources.
 var helpers = map[string]Pins{
-	"feov-embed": {Digest: "4e1bcf8da88e6b5329a747b52c67aebb243640e68adcc7b1d0f59427262d2081", Assets: []AssetPin{{File: "gte-small.int8.ort", SHA256: map[string]string{"amd64": "f9919347c708c08fbdd93df377717bbf282a09ef21423d1a25f9c979bd335320", "arm64": "560718670ef2497d047d210a4e08c3bffce7c471a23714526db6b8571154edf7"}}}},
+	"feov-embed": {Digest: "53f33c67908d3e74c9e9e1d3950e226cab148d3d3dbfb39a7284d20701523525", Assets: []AssetPin{{File: "gte-small.int8.ort", SHA256: map[string]string{"amd64": "f9919347c708c08fbdd93df377717bbf282a09ef21423d1a25f9c979bd335320", "arm64": "560718670ef2497d047d210a4e08c3bffce7c471a23714526db6b8571154edf7"}}}},
 	"feov-ocr":   {Digest: "d8c1e9145d47fc5a7d42193334e6dd6ba2282cf86d253780c49d5642f6aa8acf"},
 }
 
