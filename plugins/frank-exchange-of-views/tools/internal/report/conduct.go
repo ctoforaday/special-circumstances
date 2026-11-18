@@ -33,7 +33,7 @@ import (
 // (registrations).
 func conduct(run record.Run, fam record.Family) string {
 	var parts []string
-	for _, p := range []string{servedModels(run, fam), registrations(run, fam)} {
+	for _, p := range []string{servedModels(run, fam), registrations(fam)} {
 		if p != "" {
 			parts = append(parts, p)
 		}

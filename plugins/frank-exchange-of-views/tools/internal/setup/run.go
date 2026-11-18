@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -304,10 +302,8 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
 		return 2
 	}
-	hooks := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
 		K: new(terms.K), KMax: new(terms.KMax), MaxEpochs: new(terms.MaxEpochs),
-		Hooks:   hooks,
 		Billing: ReadBillingIdentity()}
 	b := marshalJSON(rc)
 	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
@@ -536,18 +532,6 @@ func orUnknown(s string) string {
 		return "unknown"
 	}
 	return s
-}
-
-// homeDir is the home the plugin cache resolves against when neither CLAUDE_CODE_PLUGIN_CACHE_DIR nor
-// CLAUDE_CONFIG_DIR names it. It reads $HOME rather than os.UserHomeDir so the suite's own HOME
-// sandbox (testbuild) redirects it, which is what makes this testable at all — and what stops a test
-// reading the developer's real plugin cache and reporting a different answer on every machine.
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	h, _ := os.UserHomeDir()
-	return h
 }
 
 // refuseADecidedRun refuses setup while another run in the project has its outcome recorded and
