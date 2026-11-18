@@ -889,7 +889,7 @@ jobs:
       # left was the one thing that could say why. Linux only, where TMPDIR is the tmpfs above.
       - name: Upload the failing fuzz runs
         if: failure() && github.event_name == 'schedule' && runner.os == 'Linux'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: nightly-fuzz-failed-runs
           path: /dev/shm/tmp/fuzz-run-*/
