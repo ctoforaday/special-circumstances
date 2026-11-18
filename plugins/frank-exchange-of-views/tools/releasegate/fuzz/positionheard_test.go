@@ -177,8 +177,7 @@ func lastWithholdEpoch(form string, maxEpochs int) int {
 func finalEpoch(epoch, maxEpochs int) bool { return maxEpochs > 0 && epoch >= maxEpochs }
 
 // mintHeldTrifle is the gaps run's lens minting, once, a gap of a class that is never material, at
-// a sitting after the first where it holds no gap of its own open (the budget refuses a second
-// open one). A gap that is not material readies no seat and holds no PASS, so it stands open, with
+// a sitting after the first where it holds no gap of its own open. A gap that is not material readies no seat and holds no PASS, so it stands open, with
 // no exchange on it, at the chair's next permitted PASS — the open gap the bench names. The bench's
 // remand of it readies its lens and blue, who answer and close it, and the run then passes.
 func (r *runner) mintHeldTrifle(seatID string) {
@@ -295,9 +294,9 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		switch {
 		case r.forcePosition != "":
 			form = r.forcePosition
-		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting decides on
-		// the PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
-		// own motions unruled, so that verdict is a FAIL or none).
+		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting owes the
+		// PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
+		// own motions unruled, so the PASS is refused and no verdict is recorded).
 		case r.forcedVerdict(), r.coin(50):
 			form = "overruled"
 		case len(open) > 0 && r.coin(50):
@@ -665,7 +664,7 @@ func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 	if r.actErr != "" || r.repeatedPositionsRefused != 1 {
 		t.Fatalf("the repeated position: %q, %d refused", r.actErr, r.repeatedPositionsRefused)
 	}
-	if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+	if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("the PASS the overruling sent back: %v", err)
 	}
 	r.dispatchReturns("red-chair", false)
@@ -892,7 +891,7 @@ func TestTheLensRouteFitsTheLimitAtItsLastWithholdEpoch(t *testing.T) {
 				if err != nil || !strings.Contains(out, `"pass_permitted":true`) {
 					t.Fatalf("the final sitting's plan: %v\n%s", err, out)
 				}
-				if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+				if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair"); err != nil {
 					t.Fatalf("the PASS the lens's audit freed: %v", err)
 				}
 				r.dispatchReturns("red-chair", false)

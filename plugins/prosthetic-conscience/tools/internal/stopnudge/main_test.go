@@ -334,3 +334,44 @@ func TestTheProjectRootFallsBackToThePayloadWhenTheEnvIsUnset(t *testing.T) {
 		t.Errorf("state was not written under the payload's root: %v", err)
 	}
 }
+
+func TestAntigravityPostInvocationEmitsContextAndTurnNudges(t *testing.T) {
+	// 1. Heavy context with no checkpoint note on Antigravity transcript
+	dirNoNote := t.TempDir()
+	tpHeavy := filepath.Join(dirNoNote, "transcript_full.jsonl")
+	lineHeavy := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-08-23T00:30:00Z","input_tokens":20000,"output_tokens":500,"cache_read_tokens":180000}` + "\n"
+	if err := os.WriteFile(tpHeavy, []byte(lineHeavy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inHeavy := payload(t, map[string]any{
+		"conversationId": "conv-1",
+		"workspacePaths": []string{dirNoNote},
+		"transcriptPath": tpHeavy,
+		"executionNum":   0,
+	})
+	outHeavy, _ := drive(t, dirNoNote, inHeavy)
+	if !strings.Contains(outHeavy, "200k tokens, no checkpoint note (NOTICE)") || !strings.Contains(outHeavy, `"decision":"continue"`) {
+		t.Errorf("expected Antigravity PostInvocation context notice for 200k PLANNER_RESPONSE, got:\n%s", outHeavy)
+	}
+
+	// 2. Turn freshness nudge with checkpoint note on Antigravity transcript
+	dirNote := withNote(t, "---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. x\n")
+	tpTurns := filepath.Join(dirNote, "transcript_full.jsonl")
+	var lines []string
+	for i := range 40 {
+		lines = append(lines, `{"step_index":`+strconv.Itoa(i+1)+`,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-08-23T00:30:00Z","input_tokens":10,"output_tokens":5,"cache_read_tokens":100}`)
+	}
+	if err := os.WriteFile(tpTurns, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inTurns := payload(t, map[string]any{
+		"conversationId": "conv-2",
+		"workspacePaths": []string{dirNote},
+		"transcriptPath": tpTurns,
+		"executionNum":   0,
+	})
+	outTurns, _ := driveWith(t, dirNote, inTurns, Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120})
+	if !strings.Contains(outTurns, "40 turns") || !strings.Contains(outTurns, `"decision":"continue"`) {
+		t.Errorf("expected Antigravity PostInvocation turn notice for 40 PLANNER_RESPONSE turns, got:\n%s", outTurns)
+	}
+}

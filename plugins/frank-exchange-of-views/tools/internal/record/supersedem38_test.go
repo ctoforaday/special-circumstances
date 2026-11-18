@@ -50,11 +50,8 @@ func TestM38ASupersededAncestorHoldsNoVerdict(t *testing.T) {
 			t.Errorf("blocker %s holds on G1, which G2's mint closed", b.Kind)
 		}
 	}
-	for _, v := range []recordpb.Verdict{recordpb.Verdict_VERDICT_PASS, recordpb.Verdict_VERDICT_FAIL} {
-		err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, &recordpb.Gate{Verdict: recordtest.P(v)})
-		if err != nil && strings.Contains(err.Error(), "G1") {
-			t.Errorf("%s refused naming G1: %v", v, err)
-		}
+	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate); err != nil && strings.Contains(err.Error(), "G1") {
+		t.Errorf("PASS refused naming G1: %v", err)
 	}
 
 	names := func(what string, err error) {
@@ -107,7 +104,7 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 // its section.
 func TestAChangedFateActsOnNoSupersededGap(t *testing.T) {
 	about := func(gap, section string, supersedes ...string) *recordpb.Mint {
-		m := budgetMint(gap, supersedes...)
+		m := sectionMint(gap, supersedes...)
 		m.AboutRef = proto.String(section)
 		return m
 	}

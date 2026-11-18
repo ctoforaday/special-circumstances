@@ -56,6 +56,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [scorecard](#scorecard) | lens, chair, blue, lane, bench, operator |
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, lane, bench, operator |
+| [question part](#question-part) | lens, chair, blue, lane, bench, operator |
 | [reopened](#reopened) | lens, chair, blue, lane, operator |
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
@@ -169,10 +170,6 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 **Delivered to:** operator
 
-**Collisions:**
-
-- **FAIL (a verdict)** — the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing
-
 ## exchange
 
 An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
@@ -209,7 +206,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -401,7 +398,7 @@ A finding anchor is the anchor a lens's finding leaves at the sentence the findi
 
 ## verdict
 
-The verdict is the chair's PASS or FAIL on the board.
+The verdict is the chair's PASS on the board.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -414,7 +411,7 @@ The verdict is the chair's PASS or FAIL on the board.
 
 ## outcome
 
-The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERIFIED.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -476,7 +473,7 @@ A reading is a lens's recorded account of what one source did for one sentence o
 **Collisions:**
 
 - **reading (OCR)** — the OCR reading is the machine's reading of a scanned document's page images (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a recorded check of a source against a sentence, and a page's OCR reading may be what a lens's reading finds wrong
-- **verdict** — the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that reads nothing is never called a verdict
+- **verdict** — the verdict is the chair's PASS; a reading has an outcome, and a reading that reads nothing is never called a verdict
 - **report read** — a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence
 
 ## retire
@@ -618,6 +615,12 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
+## question part
+
+A question part is one part of the question the run was asked — split out by blue in the subject's terms, recorded with its coverage: covered where the report answers it, not obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer — judged open while it has no coverage, which holds the PASS until blue records one, as a question split into no part does; wanting while an open material gap is about it; unchecked once covered with no check standing, which holds the PASS until the logic lens checks its latest coverage; and sound while that check stands, a PASS over any part not covered deriving QUALIFIED.
+
+**Delivered to:** lens, chair, blue, lane, bench, operator
+
 ## reopened
 
 A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
@@ -637,7 +640,7 @@ A citation or computation is unchecked when no check of the sentence the report 
 
 ## failed check
 
-A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about and the later check of that anchor by the seat whose check the gap carries that holds.
+A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about and the later check of that anchor by the seat whose check the gap carries that holds.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

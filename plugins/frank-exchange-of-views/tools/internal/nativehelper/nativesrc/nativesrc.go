@@ -65,6 +65,11 @@ func Helpers(native string) ([]string, error) {
 // Inputs is the files a helper's digest covers, as slash paths relative to native, sorted:
 // native/<helper>/**, native/frame/**, native/build.sh and native/PINS.txt. A helper without
 // native/build.sh or native/PINS.txt is an error. No other helper's files are among them.
+//
+// The walk reads the filesystem, not git: every file under native/<helper>/ and native/frame/ is
+// an input, tracked or not, ignored or not. An untracked file there — a build's output, an editor's
+// backup — moves the digest, so `nativedigest -check` fails on that checkout, and a helper built
+// from it carries a digest no committed binary accepts. Build outputs go outside native/.
 func Inputs(native, helper string) ([]string, error) {
 	var out []string
 	for _, dir := range []string{helper, "frame"} {

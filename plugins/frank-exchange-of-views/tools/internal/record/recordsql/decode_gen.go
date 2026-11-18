@@ -11,40 +11,42 @@ import (
 // bodyTables is one reader per arm of Event's `body` oneof, keyed by the arm's name — the
 // event type's word.
 var bodyTables = map[string]func() bodyTable{
-	"register":          func() bodyTable { return &registerTable{} },
-	"verdict":           func() bodyTable { return &gateTable{} },
-	"outcome":           func() bodyTable { return &outcomeTable{} },
-	"position":          func() bodyTable { return &positionTable{} },
-	"halt":              func() bodyTable { return &haltTable{} },
-	"certify":           func() bodyTable { return &certifyTable{} },
-	"declare":           func() bodyTable { return &declareTable{} },
-	"motion":            func() bodyTable { return &motionTable{} },
-	"motion_rule":       func() bodyTable { return &motionRuleTable{} },
-	"mint":              func() bodyTable { return &mintTable{} },
-	"close":             func() bodyTable { return &closeTable{} },
-	"closing":           func() bodyTable { return &closingTable{} },
-	"regrade":           func() bodyTable { return &regradeTable{} },
-	"spot_check":        func() bodyTable { return &spotCheckTable{} },
-	"finding":           func() bodyTable { return &findingTable{} },
-	"anchor":            func() bodyTable { return &anchorTable{} },
-	"cite":              func() bodyTable { return &citeTable{} },
-	"verify":            func() bodyTable { return &verifyTable{} },
-	"computation":       func() bodyTable { return &computationTable{} },
-	"reproduce":         func() bodyTable { return &reproduceTable{} },
-	"inquiry":           func() bodyTable { return &inquiryTable{} },
-	"blue_edit":         func() bodyTable { return &blueEditTable{} },
-	"retire":            func() bodyTable { return &retireTable{} },
-	"log":               func() bodyTable { return &logTable{} },
-	"report_part":       func() bodyTable { return &reportPartTable{} },
-	"sitting_open":      func() bodyTable { return &sittingOpenTable{} },
-	"sitting_close":     func() bodyTable { return &sittingCloseTable{} },
-	"cast":              func() bodyTable { return &castTable{} },
-	"dispatch":          func() bodyTable { return &dispatchTable{} },
-	"plan":              func() bodyTable { return &planTable{} },
-	"stale":             func() bodyTable { return &staleTable{} },
-	"report_read":       func() bodyTable { return &reportReadTable{} },
-	"envelope_admitted": func() bodyTable { return &envelopeAdmittedTable{} },
-	"inquiry_check":     func() bodyTable { return &inquiryCheckTable{} },
+	"register":            func() bodyTable { return &registerTable{} },
+	"verdict":             func() bodyTable { return &gateTable{} },
+	"outcome":             func() bodyTable { return &outcomeTable{} },
+	"position":            func() bodyTable { return &positionTable{} },
+	"halt":                func() bodyTable { return &haltTable{} },
+	"certify":             func() bodyTable { return &certifyTable{} },
+	"declare":             func() bodyTable { return &declareTable{} },
+	"motion":              func() bodyTable { return &motionTable{} },
+	"motion_rule":         func() bodyTable { return &motionRuleTable{} },
+	"mint":                func() bodyTable { return &mintTable{} },
+	"close":               func() bodyTable { return &closeTable{} },
+	"closing":             func() bodyTable { return &closingTable{} },
+	"regrade":             func() bodyTable { return &regradeTable{} },
+	"spot_check":          func() bodyTable { return &spotCheckTable{} },
+	"finding":             func() bodyTable { return &findingTable{} },
+	"anchor":              func() bodyTable { return &anchorTable{} },
+	"cite":                func() bodyTable { return &citeTable{} },
+	"verify":              func() bodyTable { return &verifyTable{} },
+	"computation":         func() bodyTable { return &computationTable{} },
+	"reproduce":           func() bodyTable { return &reproduceTable{} },
+	"inquiry":             func() bodyTable { return &inquiryTable{} },
+	"blue_edit":           func() bodyTable { return &blueEditTable{} },
+	"retire":              func() bodyTable { return &retireTable{} },
+	"log":                 func() bodyTable { return &logTable{} },
+	"report_part":         func() bodyTable { return &reportPartTable{} },
+	"sitting_open":        func() bodyTable { return &sittingOpenTable{} },
+	"sitting_close":       func() bodyTable { return &sittingCloseTable{} },
+	"cast":                func() bodyTable { return &castTable{} },
+	"dispatch":            func() bodyTable { return &dispatchTable{} },
+	"plan":                func() bodyTable { return &planTable{} },
+	"stale":               func() bodyTable { return &staleTable{} },
+	"report_read":         func() bodyTable { return &reportReadTable{} },
+	"envelope_admitted":   func() bodyTable { return &envelopeAdmittedTable{} },
+	"inquiry_check":       func() bodyTable { return &inquiryCheckTable{} },
+	"question_part":       func() bodyTable { return &questionPartTable{} },
+	"question_part_check": func() bodyTable { return &questionPartCheckTable{} },
 }
 
 // registerTable reads the "register" table's rows past an event id, with its lists and oneof arms, keyed by event.
@@ -115,30 +117,13 @@ type gateTable struct {
 
 func (t *gateTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Gate{}
-	{
-		var id int64
-		var c0 sql.NullString
-		if err := scanRows(q, "gate", `SELECT t."event_id", t."verdict" FROM "gate" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
-			m := &recordpb.Gate{}
-			if c0.Valid {
-				if v, err := wordOf[recordpb.Verdict]("gate.verdict", c0.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Verdict = ref(v)
-				}
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (t *gateTable) attach(ev *recordpb.Event, id int64) error {
 	m := t.rows[id]
 	if m == nil {
-		return noBody(id, "gate")
+		m = &recordpb.Gate{}
 	}
 	if err := t.bad[id]; err != nil {
 		return err
@@ -1353,7 +1338,8 @@ func (t *citeTable) load(q Querier, after int64) error {
 		var c20 sql.NullString
 		var c21 sql.NullString
 		var c22 sql.NullString
-		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."answers" FROM "cite" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21, &c22}, func() {
+		var c23 sql.NullString
+		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."copy_captured_at", t."answers" FROM "cite" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21, &c22, &c23}, func() {
 			m := &recordpb.Cite{}
 			if c0.Valid {
 				m.Label = ref(c0.String)
@@ -1438,7 +1424,10 @@ func (t *citeTable) load(q Querier, after int64) error {
 				m.FetchedAt = ref(c21.String)
 			}
 			if c22.Valid {
-				m.Answers = ref(c22.String)
+				m.CopyCapturedAt = ref(c22.String)
+			}
+			if c23.Valid {
+				m.Answers = ref(c23.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -2405,5 +2394,97 @@ func (t *inquiryCheckTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_InquiryCheck{InquiryCheck: m}
+	return nil
+}
+
+// questionPartTable reads the "question_part" table's rows past an event id, with its lists and oneof arms, keyed by event.
+type questionPartTable struct {
+	rows map[int64]*recordpb.QuestionPart
+	bad  map[int64]error
+}
+
+func (t *questionPartTable) load(q Querier, after int64) error {
+	t.rows = map[int64]*recordpb.QuestionPart{}
+	{
+		var id int64
+		var c0 sql.NullString
+		var c1 sql.NullString
+		var c2 sql.NullString
+		var c3 sql.NullString
+		var c4 sql.NullString
+		if err := scanRows(q, "question_part", `SELECT t."event_id", t."part_id", t."text", t."coverage", t."supersedes_coverage", t."reason" FROM "question_part" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4}, func() {
+			m := &recordpb.QuestionPart{}
+			if c0.Valid {
+				m.PartId = ref(c0.String)
+			}
+			if c1.Valid {
+				m.Text = ref(c1.String)
+			}
+			if c2.Valid {
+				if v, err := wordOf[recordpb.PartCoverage]("question_part.coverage", c2.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Coverage = ref(v)
+				}
+			}
+			if c3.Valid {
+				m.SupersedesCoverage = ref(c3.String)
+			}
+			if c4.Valid {
+				m.Reason = ref(c4.String)
+			}
+			t.rows[id] = m
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *questionPartTable) attach(ev *recordpb.Event, id int64) error {
+	m := t.rows[id]
+	if m == nil {
+		return noBody(id, "question_part")
+	}
+	if err := t.bad[id]; err != nil {
+		return err
+	}
+	ev.Body = &recordpb.Event_QuestionPart{QuestionPart: m}
+	return nil
+}
+
+// questionPartCheckTable reads the "question_part_check" table's rows past an event id, with its lists and oneof arms, keyed by event.
+type questionPartCheckTable struct {
+	rows map[int64]*recordpb.QuestionPartCheck
+	bad  map[int64]error
+}
+
+func (t *questionPartCheckTable) load(q Querier, after int64) error {
+	t.rows = map[int64]*recordpb.QuestionPartCheck{}
+	{
+		var id int64
+		var c0 sql.NullString
+		if err := scanRows(q, "question_part_check", `SELECT t."event_id", t."part_id" FROM "question_part_check" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
+			m := &recordpb.QuestionPartCheck{}
+			if c0.Valid {
+				m.PartId = ref(c0.String)
+			}
+			t.rows[id] = m
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *questionPartCheckTable) attach(ev *recordpb.Event, id int64) error {
+	m := t.rows[id]
+	if m == nil {
+		return noBody(id, "question_part_check")
+	}
+	if err := t.bad[id]; err != nil {
+		return err
+	}
+	ev.Body = &recordpb.Event_QuestionPartCheck{QuestionPartCheck: m}
 	return nil
 }

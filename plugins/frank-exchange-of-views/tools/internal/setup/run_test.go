@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
@@ -206,25 +207,48 @@ func TestMissingModelTierRefuses(t *testing.T) {
 }
 
 func TestSeatOverridesAndAntigravityDiscovery(t *testing.T) {
+	var sawAgents bool
 	cfg, runDir := runCfg(t, func(name string, args []string) ExecResult {
 		if name == "agy" && len(args) > 0 && args[0] == "models" {
-			return ExecResult{Status: 0, Stdout: "ID\n\x1b[32mgpt-oss-120b-medium\x1b[0m\n"}
+			return ExecResult{
+				Status: 0,
+				Stdout: "\r⠋ Fetching available models...\r⠙ Fetching available models...\r\rgemini-4-argon-medium         Gemini 4 Argon (Medium)\n\x1b[32mgpt-oss-120b-medium\x1b[0m           GPT OSS 120B (Medium)\n",
+			}
+		}
+		if name == "agy" && len(args) > 0 && args[0] == "agents" {
+			sawAgents = true
+			return ExecResult{Status: 0, Stdout: "Available agents:\nred-lens-dark-side\n"}
 		}
 		return reports(strconv.Itoa(record.EventSchema))(name, args)
 	})
 	cfg.Bulk = "sonnet"
 	cfg.Judgment = "opus"
-	cfg.SeatOverrides = []string{"red-lens-dark-side=antigravity:gpt-oss-120b-medium"}
+	cfg.SeatOverrides = []string{
+		"red-lens-dark-side=antigravity:gpt-oss-120b-medium",
+		"red-lens-evidence=antigravity:gemini-4-argon-medium",
+	}
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
 		t.Fatalf("exit %d, want 0: %s", code, errb.String())
 	}
+	if !sawAgents {
+		t.Error("validateSeatModels did not invoke `agy agents` when Antigravity seats were configured")
+	}
 	if !strings.Contains(out.String(), "workflow: python") {
 		t.Errorf("mixed setup must report workflow: python; got:\n%s", out.String())
 	}
-	seats := modeltier.SeatConfigs(runDir)
-	if got := seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
+	rc, err := record.ReadRunConfig(runtest.Open(t, runDir))
+	if err != nil || rc == nil {
+		t.Fatalf("the written configuration does not read: %v", err)
+	}
+	if got := rc.Seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
 		t.Errorf("run-config.json override = %+v, want antigravity:gpt-oss-120b-medium", got)
+	}
+	if got := rc.Seats["red-lens-evidence"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gemini-4-argon-medium"}) {
+		t.Errorf("run-config.json first spinner-prefixed model override = %+v, want antigravity:gemini-4-argon-medium", got)
+	}
+	if got := rc.Seats["red-chair"]; got != (modeltier.SeatSpec{Harness: "claude", Model: "opus"}) {
+		t.Errorf("run-config.json judgment seat = %+v, want claude:opus", got)
 	}
 
 	// Missing Antigravity model refuses before creating the run.

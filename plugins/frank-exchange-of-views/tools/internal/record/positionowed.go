@@ -48,7 +48,7 @@ type PositionState string
 
 const (
 	// PositionNotOwed: the sitting withheld no PASS its plan permitted — it recorded the PASS, or its
-	// plan permitted none, or it stored no plan — and it owes no verdict after an overruled position.
+	// plan permitted none, or it stored no plan — and it owes no PASS after an overruled position.
 	PositionNotOwed PositionState = "not_owed"
 	// PositionFiled: owed, and the sitting's acts hold a position the bench hears (heardPositionsOf).
 	PositionFiled PositionState = "filed"
@@ -59,8 +59,8 @@ const (
 	// may be in flight; it is neither complete nor short.
 	PositionUnresolved PositionState = "unresolved"
 	// PositionVerdictMissing: the sitting is the chair's first after the bench overruled its position,
-	// its plan permitted the PASS, and it closed with no verdict (gblock, 2026-10-30): the overruled
-	// objection is decided, and the sitting owes the verdict the PASS was held back from.
+	// its plan permitted the PASS, and it closed without recording the PASS (gblock, 2026-10-30,
+	// 2026-11-13): the bench's ruling binds, and the sitting owes the PASS it was held back from.
 	PositionVerdictMissing PositionState = "verdict_missing"
 )
 
@@ -71,7 +71,7 @@ func positionStateOf(owed, discharged, closed, overruled bool) PositionState {
 	case !owed:
 		return PositionNotOwed
 	case discharged && overruled:
-		return PositionNotOwed // the verdict the overruling left owed is recorded
+		return PositionNotOwed // the PASS the overruling left owed is recorded
 	case discharged:
 		return PositionFiled
 	case !closed:
@@ -103,9 +103,9 @@ type PositionSitting struct {
 // PASS was permitted, and a gate recording PASS among its acts says it was recorded. A plan stored
 // in another sitting answers nothing here. A position heard by the bench is the duty discharged.
 //
-// THE SITTING AFTER AN OVERRULED POSITION OWES A VERDICT INSTEAD: where its plan permitted the PASS,
-// a verdict among its acts discharges it, and a position there is refused at the write
-// (requireNoRepeatedPosition).
+// THE SITTING AFTER AN OVERRULED POSITION OWES THE PASS INSTEAD: where its plan permitted the PASS,
+// the bench's ruling binds, only the PASS among its acts discharges it, and a position there is
+// refused at the write (requireNoRepeatedPosition).
 func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSitting {
 	var out []PositionSitting
 	seq := make([]int64, len(evs))
@@ -118,33 +118,66 @@ func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSi
 	overruled := overruledFollowers(motionsAt(evs, seq, win), openings[chairSeat])
 	for k, start := range openings[chairSeat] {
 		spans, end, closed := closer.bounds(chairSeat, start)
-		filed, permitted, passed, verdict := false, false, false, false
+		var acts chairSittingActs
 		for i := start; i < end; i++ {
-			e := evs[i]
-			if e.GetSeatId() != chairSeat || !holds(spans, i) {
-				continue
-			}
-			switch b := mustBodyOf(e).(type) {
-			case *recordpb.Position:
-				filed = filed || heard[e]
-			case *recordpb.Plan:
-				if p, _, err := ReadPlan([]byte(b.GetPrinted())); err == nil && !filed {
-					permitted = p.PassPermitted
-				}
-			case *recordpb.Gate:
-				verdict = true
-				passed = passed || b.GetVerdict() == recordpb.Verdict_VERDICT_PASS
+			if e := evs[i]; e.GetSeatId() == chairSeat && holds(spans, i) {
+				acts.read(e, heard)
 			}
 		}
 		row := PositionSitting{Ordinal: k + 1, SittingID: win.Of(evs[start]).SittingID, Overruled: overruled[start]}
 		if row.Overruled != "" {
-			row.State = positionStateOf(permitted, verdict, closed, true)
+			row.State = positionStateOf(acts.permitted, acts.passed, closed, true)
 		} else {
-			row.State = positionStateOf(filed || (permitted && !passed), filed, closed, false)
+			row.State = positionStateOf(acts.filed || acts.withheld(), acts.filed, closed, false)
 		}
 		out = append(out, row)
 	}
 	return out
+}
+
+// chairSittingActs is what one chair sitting's acts say of the PASS: whether the plan it stored last
+// before a position the bench hears — or, with none heard, the last it stored — permits the PASS,
+// whether it filed a position the bench hears, and whether it recorded the PASS. It is the ONE
+// reading of a sitting's PASS duty: PositionSittings (capture's record-parity audit), the
+// overruled-follower duty (overruledFollowerAt) and the chair's work list (passOrPositionOwed) all
+// fold a sitting's acts through read, so the list and the audit cannot disagree about what a
+// sitting owed.
+type chairSittingActs struct{ permitted, filed, passed bool }
+
+// read folds one of the sitting's acts in, in stream order. heard is heardPositionsOf.
+func (a *chairSittingActs) read(e *Event, heard map[*Event]bool) {
+	switch b := mustBodyOf(e).(type) {
+	case *recordpb.Position:
+		a.filed = a.filed || heard[e]
+	case *recordpb.Plan:
+		if p, _, err := ReadPlan([]byte(b.GetPrinted())); err == nil && !a.filed {
+			a.permitted = p.PassPermitted
+		}
+	case *recordpb.Gate:
+		a.passed = true
+	}
+}
+
+// withheld: the sitting's plan permits the PASS and the sitting has not recorded it.
+func (a chairSittingActs) withheld() bool { return a.permitted && !a.passed }
+
+// actsOfThisSitting folds the chair's latest sitting's acts.
+func actsOfThisSitting(evs []*Event, win WindowIndex) chairSittingActs {
+	var acts chairSittingActs
+	heard := heardPositionsOf(evs, win)
+	for _, e := range thisSitting(evs, win, chairSeat) {
+		acts.read(e, heard)
+	}
+	return acts
+}
+
+// passOrPositionOwed reports whether the chair's latest sitting owes the PASS or a position: its plan
+// permits the PASS — every blocker left is the chair's own to clear this sitting (PassPermitted) —
+// and it has recorded neither the PASS nor a position the bench hears. The sitting after an
+// overruled position owes the PASS alone (overruledVerdictOwed), which the caller asks first.
+func passOrPositionOwed(evs []*Event, win WindowIndex) bool {
+	acts := actsOfThisSitting(evs, win)
+	return acts.withheld() && !acts.filed
 }
 
 // THE BENCH HEARS A WITHHELD PASS (gblock, 2026-10-30). heardPositionsOf is the one definition of
@@ -172,7 +205,7 @@ func heardPositionsOf(evs []*Event, win WindowIndex) map[*Event]bool {
 	}
 	passed := map[int64]bool{}
 	for _, e := range evs {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && e.GetSeatId() == chairSeat && g.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && e.GetSeatId() == chairSeat {
 			passed[win.Of(e).SittingID] = true
 		}
 	}

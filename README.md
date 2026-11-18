@@ -108,8 +108,8 @@ It also ships `/prosthetic-conscience:plan-audit` — a binary PASS/FAIL auditor
 Give it a topic; it gives back a verified research report with the whole record of the debate preserved beside it. Three seats with genuinely different mandates:
 
 - **Blue** is *additive*. It researches, drafts, and synthesizes by **union, never summary** — its terminal goal is to be true *at the leaf node*, meaning every claim traces to a source somebody can open.
-- **Red** is *subtractive*, and **owns the PASS/FAIL gate**. It opens blue's citations at the source, grades **trust** (corroboration confidence) and **risk** (likelihood × impact × complexity), and files every defect as a tracked *gap*.
-- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates the run; passing is red's call alone.
+- **Red** is *subtractive*, and **owns the PASS gate**. It opens blue's citations at the source, grades **trust** (corroboration confidence) and **risk** (likelihood × impact × complexity), and files every defect as a tracked *gap*.
+- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates the run: the PASS is red's to record, and red withholds one the board permits only by a position the bench rules on, whose ruling binds.
 
 **Termination is judged, never counted.** A run ends on a red PASS or on detected deadlock. The epoch limit is a spending limit, not a definition of done — and a run that hits it is stamped CEILING-TERMINATED so nobody mistakes "ran out of budget" for "verified".
 
@@ -148,7 +148,7 @@ The learning plugin, designed to improve the suite while you sleep: a `/self-imp
 
 ## Anatomy of a research run
 
-Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
+Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--k-max N] [--max-epochs N]`). One end-to-end run:
 
 1. **Blue builds.** Parallel lanes research the topic, one method each; each lane records its part of the report and blue synthesizes the parts additively through the record, carrying a frontier of hypotheses.
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.

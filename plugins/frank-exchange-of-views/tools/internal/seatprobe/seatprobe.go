@@ -148,17 +148,20 @@ func isRole(s string) bool {
 // against while the real verb reported as NEVER REACHED. This table is where the two
 // vocabularies are joined, and it is the only place they are.
 //
-// ONE ENTRY NAMES NO PATH: `inquiry` matches no path the tree offers (an inquiry's verb is
-// `inquiry propose` or `inquiry record`, which the event type alone does not distinguish).
+// TWO ENTRIES NAME NO PATH: `inquiry` and `question` match no path the tree offers (an inquiry's verb
+// is `inquiry propose` or `inquiry record`, a question part's `question split` or `question cover`,
+// which the event type alone does not distinguish).
 // Reported, not fixed here.
 var verbOfEvent = map[recordpb.EventType]string{
-	recordpb.EventType_EVENT_TYPE_INQUIRY:       "inquiry",
-	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:     "edit",
-	recordpb.EventType_EVENT_TYPE_INQUIRY_CHECK: "inquiry check",
-	recordpb.EventType_EVENT_TYPE_MOTION:        "motion file",
-	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   "motion rule",
-	recordpb.EventType_EVENT_TYPE_COMPUTATION:   "compute",
-	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:    "spot-check",
+	recordpb.EventType_EVENT_TYPE_INQUIRY:             "inquiry",
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:           "edit",
+	recordpb.EventType_EVENT_TYPE_INQUIRY_CHECK:       "inquiry check",
+	recordpb.EventType_EVENT_TYPE_QUESTION_PART:       "question",
+	recordpb.EventType_EVENT_TYPE_QUESTION_PART_CHECK: "question check",
+	recordpb.EventType_EVENT_TYPE_MOTION:              "motion file",
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE:         "motion rule",
+	recordpb.EventType_EVENT_TYPE_COMPUTATION:         "compute",
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:          "spot-check",
 }
 
 // motionSubject is the SUBGROUP a seat typed, read off whichever motion body the event carries.

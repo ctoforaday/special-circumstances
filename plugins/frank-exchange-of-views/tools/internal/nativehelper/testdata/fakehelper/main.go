@@ -9,22 +9,32 @@
 // names (a temporary file when unset), truncated at the request's start, and answers with that
 // file's content bounded by nativehelper.BoundStderr. Its own frame errors go to the stderr pipe.
 //
-// mode is the misbehaviour, on selftest-stdout and selftest-sleep (the handshake is always good):
+// mode is the misbehaviour, on selftest-stdout and selftest-sleep:
 //
 //	""             none
 //	"crash"        write to the capture, then exit 3
+//	"crash-before-capture"
+//	               on selftest-sleep, write a line to the stderr pipe and exit 3 before truncating
+//	               the capture, so the capture still holds the previous request's diagnostics
 //	"flood"        write 1 MiB to the capture, then answer normally
 //	"flood-crash"  write 1 MiB to the capture, then a last line to the stderr pipe, then exit 5
 //	"garbage"      answer with bytes that are not a frame
 //	"wrong-id"     answer with another request id
+//	"wrong-op"     answer with another op
 //	"no-fields"    answer with no fields
 //	"one-field"    answer with the status field alone
 //	"empty-status" answer with an empty status field
 //	"status-7"     answer with status byte 7
 //	"ignore-eof"   keep running after stdin closes
 //
-// and "crash-on-helper-op" exits 3 on any op from nativehelper.FirstHelperOp on, after a good
+// "crash-on-helper-op" exits 3 on any op from nativehelper.FirstHelperOp on, after a good
 // handshake: a helper that comes up and then dies on a page.
+//
+// The handshake is good in every mode but these, each a handshake the client refuses:
+//
+//	"handshake-no-result"    the status and stderr fields, and no digest
+//	"handshake-refused"      status op-error, with the digest as its result
+//	"handshake-empty-asset"  the digest, then one empty asset sha256
 //
 // It answers vecembed's embed op as feov-embed's contract states it — one Dim-float32 L2-normalised
 // vector per (ids, mask) field pair — with a bag of the text's token ids hashed into the vector, so
@@ -93,6 +103,10 @@ func main() {
 			fmt.Fprintln(os.Stderr, "fakehelper:", err)
 			os.Exit(4)
 		}
+		if mode == "crash-before-capture" && req.Op == nativehelper.OpSelftestSleep {
+			fmt.Fprintln(os.Stderr, "fakehelper: dying before the capture, as built to")
+			os.Exit(3)
+		}
 		if err := capture.Truncate(0); err != nil {
 			fmt.Fprintln(os.Stderr, "fakehelper: truncating the capture file:", err)
 			os.Exit(4)
@@ -105,7 +119,7 @@ func main() {
 		if resp == nil {
 			continue
 		}
-		if err := nativehelper.WriteFrame(os.Stdout, nativehelper.Frame{Version: uint16(v), Op: req.Op, ID: req.ID + idShift(req.Op), Fields: resp}); err != nil {
+		if err := nativehelper.WriteFrame(os.Stdout, nativehelper.Frame{Version: uint16(v), Op: req.Op + opShift(req.Op), ID: req.ID + idShift(req.Op), Fields: resp}); err != nil {
 			fmt.Fprintln(os.Stderr, "fakehelper: writing a frame:", err)
 			os.Exit(5)
 		}
@@ -121,6 +135,13 @@ func openCapture() (*os.File, error) {
 
 func idShift(op nativehelper.Op) uint32 {
 	if mode == "wrong-id" && op != nativehelper.OpHandshake {
+		return 1
+	}
+	return 0
+}
+
+func opShift(op nativehelper.Op) nativehelper.Op {
+	if mode == "wrong-op" && op != nativehelper.OpHandshake {
 		return 1
 	}
 	return 0
@@ -168,6 +189,14 @@ func answer(req nativehelper.Frame, diag *os.File) [][]byte {
 			for _, a := range strings.Split(assets, ",") {
 				result = append(result, []byte(a))
 			}
+		}
+		switch mode {
+		case "handshake-no-result":
+			result = nil
+		case "handshake-refused":
+			status = byte(nativehelper.StatusOpError)
+		case "handshake-empty-asset":
+			result = append(result, []byte{})
 		}
 	case nativehelper.OpSelftestStdout:
 		fmt.Fprint(diag, "printf\ncout\nfwrite\nwrite1\n")

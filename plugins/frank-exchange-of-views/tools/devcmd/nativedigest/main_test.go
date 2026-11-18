@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativesrc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 func writeFile(t *testing.T, p, body string) {
@@ -52,6 +53,60 @@ func TestWriteCheckAndPrint(t *testing.T) {
 	writeFile(t, filepath.Join(native, "frame", "frame.cpp"), "// codec, changed\n")
 	if err := run([]string{"-native", native, "-out", out, "-check"}); err == nil || !strings.Contains(err.Error(), "stale") {
 		t.Errorf("-check accepts a digest_gen.go its sources have moved past: %v", err)
+	}
+}
+
+// TestAnEnginePinBumpReachesTheGeneratedFile runs the command on a copy of the checkout's native/
+// as build.sh runs it: the copy renders the committed digest_gen.go; a tesseract record renamed to
+// another version makes -check refuse the committed file and the written file carry the new
+// version; a copy with no tesseract record, or two, fails naming feov-ocr/PINS.txt.
+func TestAnEnginePinBumpReachesTheGeneratedFile(t *testing.T) {
+	src, err := repotree.Plugin("native")
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, err := repotree.Plugin("tools", "internal", "nativehelper", "digest_gen.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	native := filepath.Join(t.TempDir(), "native")
+	if err := os.CopyFS(native, os.DirFS(src)); err != nil {
+		t.Fatal(err)
+	}
+	pinsPath := filepath.Join(native, nativesrc.OCRHelper, "PINS.txt")
+	engine, err := nativesrc.EnginePins(pinsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"-native", native, "-out", committed, "-check"}); err != nil {
+		t.Fatalf("a copy of native/ does not render the committed digest_gen.go: %v", err)
+	}
+	pins, err := os.ReadFile(pinsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := "tesseract-" + engine.Tesseract + ".tar.gz"
+	bumped := engine.Tesseract + ".1"
+	writeFile(t, pinsPath, strings.Replace(string(pins), record, "tesseract-"+bumped+".tar.gz", 1))
+	if err := run([]string{"-native", native, "-out", committed, "-check"}); err == nil || !strings.Contains(err.Error(), "stale") {
+		t.Errorf("-check accepts the committed digest_gen.go after a tesseract bump: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "digest_gen.go")
+	if err := run([]string{"-native", native, "-out", out}); err != nil {
+		t.Fatal(err)
+	}
+	if gen, _ := os.ReadFile(out); !strings.Contains(string(gen), `Tesseract: "`+bumped+`"`) {
+		t.Errorf("the written digest_gen.go does not carry tesseract %s:\n%s", bumped, gen)
+	}
+	sha := strings.Repeat("a", 64)
+	for name, body := range map[string]string{
+		"no tesseract record":   strings.Replace(string(pins), record, "something.tar.gz", 1),
+		"two tesseract records": string(pins) + sha + "  tesseract-" + bumped + ".tar.gz  https://example.invalid/t\n",
+	} {
+		writeFile(t, pinsPath, body)
+		if err := run([]string{"-native", native, "-out", out}); err == nil || !strings.Contains(err.Error(), pinsPath) {
+			t.Errorf("%s: the command returned %v, want an error naming %s", name, err, pinsPath)
+		}
 	}
 }
 

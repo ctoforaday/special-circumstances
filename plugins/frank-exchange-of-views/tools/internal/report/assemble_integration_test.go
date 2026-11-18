@@ -110,6 +110,12 @@ func TestAssembleEndToEnd(t *testing.T) {
 		InquiryId: proto.String("Q3"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED),
 		Question: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
 	})
+	// BLUE SPLITS THE QUESTION into one part and records it not obtained, so run.md's coverage table
+	// and report.md's not-answered line both compose.
+	part := record.NewID("question part")
+	add("blue-respond", &recordpb.QuestionPart{PartId: proto.String(part), Text: proto.String("whether the cache stays coherent under two writers")})
+	add("blue-respond", &recordpb.QuestionPart{PartId: proto.String(part), SupersedesCoverage: proto.String("1"),
+		Coverage: recordpb.PartCoverage_PART_COVERAGE_NOT_OBTAINED.Enum(), Reason: proto.String("the vendor's trace was not obtainable")})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
 	// the filing, so the ruling alone would be a disposition of nothing.

@@ -155,6 +155,11 @@ type Entry struct {
 	// stored, so a later read never moves it. Store refuses an entry without one; a refusal's index
 	// line (Resolve) holds no bytes and none.
 	FetchedAt string `json:"fetched_at,omitempty"`
+	// CopyCapturedAt is when the web archive took the cached bytes, RFC 3339 UTC, on a copy the tool
+	// took from a web archive and on no other: the archive's own timestamp for the capture, read by
+	// the backend that chose it. FetchedAt is when this run took the copy; this is when the url said
+	// what the copy says. It is carried onto the citation that rests on these bytes.
+	CopyCapturedAt string `json:"copy_captured_at,omitempty"`
 	// ContentType is the bare media type from the response header ("application/pdf"), or ""
 	// where the header was absent or unparseable.
 	ContentType string `json:"content_type,omitempty"`
@@ -871,6 +876,7 @@ func EntryFor(run record.Run, url string, att *Attempt, substitution string) Ent
 		URL: url, ContentType: att.ContentType, Substitution: substitution, CopyURL: att.URL,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 		CopyVersion: att.Version, CopyLicense: att.License, DOI: att.DOI, FetchedAt: att.FetchedAt,
+		CopyCapturedAt: att.CapturedAt,
 	}
 	if att.Facts != (WorkFacts{}) {
 		facts := att.Facts

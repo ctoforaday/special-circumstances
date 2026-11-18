@@ -67,7 +67,7 @@ func famOf(t *testing.T, evs []*record.Event) record.Family {
 func debateT(t *testing.T, evs []*record.Event) string {
 	t.Helper()
 	f := famOf(t, evs)
-	return debate(f)
+	return debate(f, nil)
 }
 
 // withdrawnClaimsT is withdrawnClaims over evs as the write path stores them.

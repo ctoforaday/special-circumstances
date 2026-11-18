@@ -353,3 +353,28 @@ func ClassFor(cm recordpb.ClassMaterial) recordpb.GapClass {
 		return recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION
 	}
 }
+
+// SettledQuestionPart is the part SettledQuestion splits out.
+const SettledQuestionPart = "S-5e771ed0"
+
+// SettledQuestion is the events of a question split into one part, covered, and checked, each by the
+// harness (#1830 P5): a record with a cast and no question part holds the PASS as question_unsplit,
+// and a part needs coverage and a standing check before it lets one stand, so a fixture about
+// something else that reaches a PASS seeds these after its own events — after, so every id the
+// fixture states stays the id it names.
+func SettledQuestion(t *testing.T) []*recordpb.Event {
+	t.Helper()
+	covered := recordpb.PartCoverage_PART_COVERAGE_COVERED
+	return []*recordpb.Event{
+		At(t, "harness", "question-split", &recordpb.QuestionPart{PartId: proto.String(SettledQuestionPart), Text: proto.String("the question as asked")}),
+		At(t, "harness", "question-cover", &recordpb.QuestionPart{PartId: proto.String(SettledQuestionPart), SupersedesCoverage: proto.String("1"), Coverage: &covered, Reason: proto.String("the report answers it")}),
+		At(t, "harness", "question-check", &recordpb.QuestionPartCheck{PartId: proto.String(SettledQuestionPart)}),
+	}
+}
+
+// SettleQuestion seeds SettledQuestion onto runDir's record, after whatever it holds: a fixture about
+// something else, whose PASS the question would otherwise hold.
+func SettleQuestion(t *testing.T, runDir string) {
+	t.Helper()
+	Seed(t, runDir, SettledQuestion(t)...)
+}

@@ -234,16 +234,12 @@ var EnumFields = map[string][]EnumField{
 		Why: "the bench is ONE seat asked four different questions — rule the docket, hear a petition, dispose at the exit, assemble the report — so the seat id cannot say which sitting this is. " +
 			"It was recoverable only by matching the first words of the prompt, and that read has already returned the wrong answer once: every FINISHED run reported \"running\" forever on the dashboard, and the assembly's spend merged into a docket ruling's row",
 	}},
-	// LOUD: `chair verdict --as PASS` and `bench outcome --as VERIFIED` are the seat's words in
-	// capitals, and VerdictOf / RunOutcomeOf lowercase before resolving. The fold is applied to
-	// the generated set rather than typed into a second table.
-	"verdict": {{
-		Key: "verdict", Flag: flags.As, Values: loud(evsOf(recordpb.Verdict(0).Descriptor())),
-		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
-	}},
+	// LOUD: `bench outcome --as VERIFIED` is the seat's word in capitals, and RunOutcomeOf
+	// lowercases before resolving. The fold is applied to the generated set rather than typed into
+	// a second table.
 	"outcome": {{
 		Key: "verdict", Flag: flags.As, Values: loud(evsOf(recordpb.RunOutcome(0).Descriptor())),
-		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
+		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses its \"NOT a judged failure to verify\" caveat",
 	}},
 	// `log`, and the TYPE is the whole reason the channel is worth reading. Measured on
 	// 2026-09-02_quadratic-formula the channel ran 142,891 characters with no types on it, so an
@@ -266,6 +262,11 @@ var EnumFields = map[string][]EnumField{
 	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+	}},
+	// `question_part`, the event type whose body holds the coverage set.
+	"question_part": {{
+		Key: "coverage", Flag: flags.As, Values: evsOf(recordpb.PartCoverage(0).Descriptor()),
+		Why: "the coverage decides the run's outcome: a PASS over a part not covered derives QUALIFIED, and report.md states the part from its coverage, so a coverage outside the set would state nothing",
 	}},
 	// `inquiry_check` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling. A check
 	// is a positive judgement only; an inquiry found wanting is an ORDINARY GAP with the grade
@@ -323,7 +324,7 @@ var EnumFields = map[string][]EnumField{
 	}},
 }
 
-// Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
+// Spelling is the set as a verb summary writes it: VERIFIED|CEILING|HALTED|UNVERIFIED, no spaces.
 func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
 
 // enum returns one declared set by (event type, payload key), for the CLI's help.

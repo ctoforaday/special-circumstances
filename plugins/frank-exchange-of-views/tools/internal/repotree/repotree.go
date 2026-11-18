@@ -151,6 +151,11 @@ func DebateJS() (string, error) {
 	return Plugin("skills", "research-protocol", "scripts", "debate.js")
 }
 
+// DebatePy is the Antigravity run_workflow orchestrator script.
+func DebatePy() (string, error) {
+	return Plugin("skills", "research-protocol", "scripts", "debate.py")
+}
+
 // ConstitutionText is what a seat ACTUALLY RECEIVES: its agent file, plus the body of every
 // frank-exchange-of-views skill that file declares.
 //

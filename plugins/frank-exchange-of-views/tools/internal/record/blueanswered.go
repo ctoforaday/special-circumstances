@@ -91,6 +91,8 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 				on = a.fateOn + ", the inquiry the gap is anchored on"
 			}
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
+		case a.partAt > read[g]:
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a question part record — blue %s; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.partWhat))
 		case a.pending:
 			say(g, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case a.engaged && gone[g] && a.at > read[g]:
@@ -119,14 +121,18 @@ type blueAnswer struct {
 	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
 	// it is about, whatever gap the retire named. met is what it reached
 	// the gap through.
-	metAt   int64
-	met     reaching
-	fateAt  int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
-	fate    string // that fate
-	fateOn  string // the inquiry that fate is on
-	inquiry string // the inquiry it is anchored on; "" for a gap anchored on report text
-	pending bool   // a blue sitting engaged on it is open on the record
-	engaged bool   // a blue sitting was engaged on it
+	metAt  int64
+	met    reaching
+	fateAt int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
+	fate   string // that fate
+	fateOn string // the inquiry that fate is on
+	// partAt is the latest question part blue recorded that is an act on it (fateActsOf), and partWhat
+	// what that record was: a part split out, or a coverage recorded on one.
+	partAt   int64
+	partWhat string
+	inquiry  string // the inquiry it is anchored on; "" for a gap anchored on report text
+	pending  bool   // a blue sitting engaged on it is open on the record
+	engaged  bool   // a blue sitting was engaged on it
 	// at is the events.id of blue's latest answer to it: an edit answering it, a computation, a fate on
 	// its inquiry, or the latest act of a closed sitting engaged on it — the rebuttal, or the silence
 	// its lens states. 0 when blue has given none.
@@ -201,6 +207,21 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 		}
 		for _, e := range s.Acts {
+			if qp, ok := recordpb.BodyAs[*recordpb.QuestionPart](e); ok {
+				what := "split out question part " + qp.GetPartId()
+				if qp.GetSupersedesCoverage() != "" {
+					what = "recorded question part " + qp.GetPartId() + " as `" + recordpb.Word(qp.GetCoverage()) + "`"
+				}
+				for _, g := range fateGaps[e] {
+					if open[g] && after(g, e) {
+						a := out[g]
+						a.partAt, a.partWhat = win.Of(e).ID, what
+						out[g] = a
+						at(g, e)
+					}
+				}
+				continue
+			}
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 				// THE GAPS THE FATE IS AN ACT ON, AND NO OTHER LIST (ruled by gblock 2026-11-05): the
 				// lens's turn reads fateActsOf whatever blue's sitting was engaged on, so this does too.

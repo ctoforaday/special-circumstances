@@ -416,7 +416,7 @@ func resolveSpan(trees []roleTree, role string, known map[string]bool, span, att
 	}
 	if !anyTreeNames(trees, words) {
 		if strings.HasPrefix(words[0], "--") {
-			// A bare flag span (`--as FAIL`): the flag must exist somewhere in the tree.
+			// A bare flag span (`--as UNVERIFIED`): the flag must exist somewhere in the tree.
 			name := strings.TrimPrefix(words[0], "--")
 			if isWord(name) && !known[name] {
 				return "`--" + name + "` is a flag no command registers", true
@@ -635,7 +635,7 @@ func TestThePassRefusalOverAReadingsGapNamesIt(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
+	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 	if err == nil || !strings.Contains(err.Error(), gap) {
 		t.Fatalf("the chair's PASS over the reading's open gap %s was not refused naming it: %v", gap, err)
 	}

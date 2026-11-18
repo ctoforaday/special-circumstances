@@ -54,7 +54,6 @@ type PlanField struct {
 
 // planEnums is the closed set of each named string type the plan carries.
 var planEnums = map[reflect.Type]func() []string{
-	reflect.TypeFor[PlanVerdict](): func() []string { return Names(SeatFilable(MustEnum("verdict", "verdict").Values)) },
 	reflect.TypeFor[BlockerKind](): func() []string {
 		ks := BlockerKinds()
 		out := make([]string, len(ks))

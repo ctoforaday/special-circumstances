@@ -125,7 +125,7 @@ func (d drive) endsWithRow(refusal, row string) {
 const (
 	rowPosition     = "a new position at your next sitting (a sitting holds one, and this sitting's stands)"
 	rowSpotCheck    = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
-	rowVerdict      = "the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it"
+	rowVerdict      = "a log entry: a PASS ends the debate, so no chair sitting follows it and no act answers it"
 	rowClosing      = "a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
 	rowRegrade      = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
 	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
@@ -223,20 +223,16 @@ func answerDrives() []answerDrive {
 		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
 			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
-			d.admitted("a FAIL", "red-chair", "verdict", "--as", "FAIL")
-			d.endsWithRow(d.refused("a second verdict in the sitting", "red-chair", "verdict", "--as", "FAIL"), rowVerdict)
-			d.nextSitting("red-chair")
-			d.admitted("the next sitting's verdict, after a FAIL", "red-chair", "verdict", "--as", "FAIL")
 			// AFTER A PASS the write path still admits the next sitting's verdict; that no chair
 			// sitting follows one is the engine's rule, held by the simulator
 			// (tests/simulator debate.test.mjs, "a chair that records PASS ends the debate even if it
 			// relayed parties").
 			d.closeG1(lensSeat)
 			d.nextSitting("red-chair")
-			d.admitted("a PASS", "red-chair", "verdict", "--as", "PASS")
-			d.endsWithRow(d.refused("a second verdict after the PASS", "red-chair", "verdict", "--as", "PASS"), rowVerdict)
+			d.admitted("a PASS", "red-chair", "verdict")
+			d.endsWithRow(d.refused("a second verdict after the PASS", "red-chair", "verdict"), rowVerdict)
 			d.nextSitting("red-chair")
-			d.admitted("the next sitting's verdict, after a PASS", "red-chair", "verdict", "--as", "PASS")
+			d.admitted("the next sitting's verdict, after a PASS", "red-chair", "verdict")
 		}},
 		// A CLOSING ARGUES A DOCKETING, so each drive dockets G1 first.
 		{name: "closing, the lens", row: rowClosing, helps: []string{"lens closing"}, drive: func(d drive) {

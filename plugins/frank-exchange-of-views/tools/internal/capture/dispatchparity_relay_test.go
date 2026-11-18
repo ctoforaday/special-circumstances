@@ -123,7 +123,9 @@ func TestARelayAlteredInAnyFieldDeparts(t *testing.T) {
 			case "integer":
 				plan[f.JSON] = json.Number("7")
 			case "boolean":
-				plan[f.JSON] = !plan[f.JSON].(bool)
+				// An omitempty field the plan does not print reads as false, and a relay adding it departs.
+				held, _ := plan[f.JSON].(bool)
+				plan[f.JSON] = !held
 			case "string":
 				plan[f.JSON] = "0000000000000000"
 			case "array":

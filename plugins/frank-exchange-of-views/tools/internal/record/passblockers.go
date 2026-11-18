@@ -13,13 +13,11 @@ import (
 
 // WHAT HOLDS A PASS IS DECIDED HERE, ONCE.
 //
-// Four readers each worked it out for themselves — the verdict gate, the chair's work list,
-// `dispatch next`'s pass_permitted and the FAIL convergence refusal — and they disagreed: the plan
-// said pass_permitted over an unruled petition, a source reading nothing answered and a docket
-// motion on a gap that had since closed, and the gate refused the PASS the chair then tried. On a converged
-// board with an unruled petition the PASS refusal said "issue `--as FAIL`" and the FAIL refusal
-// said "or issue `--as PASS`", so the chair could record neither (#1202). Each copy had been
-// realigned by hand before (B9, 6a67e0bf), and the next rule added reached only some of them.
+// Each reader once worked it out for itself — the verdict gate, the chair's work list and
+// `dispatch next`'s pass_permitted — and they disagreed: the plan said pass_permitted over an
+// unruled petition, a source reading nothing answered and a docket motion on a gap that had since
+// closed, and the gate refused the PASS the chair then tried (#1202). Each copy had been realigned
+// by hand before (B9, 6a67e0bf), and the next rule added reached only some of them.
 //
 // So every reader calls passBlockersOf, and words the blockers it returns from the kind table
 // below: the gate's refusal teaches the verb, the work list names the item, the plan says why it
@@ -44,14 +42,18 @@ const (
 	BlockerUpheldPosition   BlockerKind = "upheld_position"
 	BlockerOpenInquiry      BlockerKind = "open_inquiry"
 	BlockerUncheckedInquiry BlockerKind = "unchecked_inquiry"
+	BlockerQuestionUnsplit  BlockerKind = "question_unsplit"
+	BlockerOpenPart         BlockerKind = "open_part"
+	BlockerUncheckedPart    BlockerKind = "unchecked_part"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
 type Blocker struct {
 	Kind BlockerKind
-	// Subject is what holds it: a gap id, an anchor, a lens seat, a motion id, an inquiry id, the
+	// Subject is what holds it: a gap id, an anchor, a lens seat, a motion id, an inquiry id, a question
+	// part's id, the
 	// sentence a source a lens found was read against (reading_debt, visible text, whitespace
-	// collapsed) — "" for the kind that is about the run as a whole (no_report).
+	// collapsed) — "" for the kinds that are about the run as a whole (no_report, question_unsplit).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the seat whose check failed, the lens
 	// whose reading finds against, the ready lens, the motion's gavel-holder, the chair for its own
@@ -286,7 +288,7 @@ func failedRemedy(b Blocker) string {
 // until it is minted, and blue's remedy.
 func failedOwed(b Blocker) string {
 	if b.owed() {
-		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), which takes no mint of its budget, and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
+		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
 	}
 	return fmt.Sprintf("gap %s carries it to blue, which %s", b.answeredBy, failedRemedy(b))
 }
@@ -320,9 +322,9 @@ func failedCheckRefusal(bs []Blocker) string {
 		named = append(named, fmt.Sprintf("%s (%s by %s at event %d; %s)", b.Subject, how, ownerOr(b, failedChecker), b.since, gap))
 	}
 	return fmt.Sprintf("%d citation(s) or computation(s) stand on a failed check:\n  %s\n"+
-		"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
+		"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
 		"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+". "+
-		"`show evidence --anchor <id>` reads each check. PASS waits for that, and `--as FAIL` does not",
+		"`show evidence --anchor <id>` reads each check. PASS waits for that",
 		len(bs), strings.Join(named, "\n  "))
 }
 
@@ -354,7 +356,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("gap %s is open and material — PASS is refused while it is; %s closes it", b.Subject, ownerPhrase(b, "minter", "the lens that minted it"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures; `--as FAIL` does not",
+			return fmt.Sprintf("%d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
@@ -371,7 +373,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it; `--as FAIL` does not",
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
@@ -397,8 +399,8 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d citation(s) or computation(s) have no check of the sentence the report carries:\n  %s\n"+
 				"A citation nobody has read against its sentence, or a computation nobody has judged, is a claim nothing on the record backs yet; a check of a sentence an edit has since replaced is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or a `reproduce` naming the computation's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
-				"PASS waits for the check, and `--as FAIL` does not",
+				"The lens's `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or the lens's `reproduce` naming the computation's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
+				"PASS waits for the check",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
@@ -443,7 +445,7 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d reading(s) find a source against its sentence with no gap of their class standing on it:\n  %s\n"+
 				"A reading records what one source did for one sentence and holds nothing by itself; a gap is the one thing that holds a PASS for a defect and the one thing blue answers. A reading that finds against is its lens's unfinished promise: the lens mints the gap on that reading, graded as it judges, or reads the subject again, and until it does the PASS waits. "+
-				"From the mint on, the gap's materiality decides the PASS. `show evidence` reads each reading; `--as FAIL` does not wait",
+				"From the mint on, the gap's materiality decides the PASS. `show evidence` reads each reading",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
@@ -508,8 +510,8 @@ var blockerKinds = []blockerKind{
 				named = append(named, fmt.Sprintf("%s: %.1f (%s)", b.Subject, b.moved, b.Detail))
 			}
 			return fmt.Sprintf("%d gap(s) carry grade movement the bench has not ruled on, and the open gaps' total of %.1f mass is past the %.1f at which the bench rules on it:\n  %s\n"+
-				"A moved grade changes what the gate reads: a gap regraded below medium stops holding a PASS, and gaps regraded up keep a converged board out of the FAIL refusal, so grade movement in total goes before the bench before it stands. "+
-				"`dispatch next` dockets each gap for the bench, and the bench's ruling on the gap's docket motion rules on its movement. PASS waits for those rulings, and `--as FAIL` does not",
+				"A moved grade changes what the gate reads: a gap regraded below medium stops holding a PASS, and one regraded to medium or above starts to, so grade movement in total goes before the bench before it stands. "+
+				"`dispatch next` dockets each gap for the bench, and the bench's ruling on the gap's docket motion rules on its movement. PASS waits for those rulings",
 				len(bs), bs[0].totalMoved, GradeMovementThreshold, strings.Join(named, "\n  "))
 		},
 	},
@@ -533,7 +535,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				named = append(named, fmt.Sprintf("%s (%s, motion %s)", b.Subject, ownerOr(b, "a party"), b.Detail))
 			}
-			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its minting lens and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling, and `--as FAIL` does not",
+			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its minting lens and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling",
 				len(bs), strings.Join(named, ", "))
 		},
 	},
@@ -552,7 +554,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%d motion(s) filed and never ruled: %s. "+
 				"Read what each one asks with `inquest motions` (its `basis` is the filer's argument, which your ruling answers), "+
 				"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
-				"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the sitting ends on the record and the seat that holds it can answer. "+
+				"Where it is not, the ruling is not yours to make: record no verdict this sitting, and the plan readies the seat whose gavel it is. "+
 				"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 				len(bs), strings.Join(named, ", "))
 		},
@@ -577,7 +579,7 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d position(s) the bench upheld name a lens whose audit of its area has not been had: %s. "+
 				"The bench held that the PASS was rightly withheld and named the work the debate continues on; the lens is readied to audit its area on the ruling's direction, and a defect it finds enters the board as a gap. "+
-				"PASS waits for that audit, and `--as FAIL` does not",
+				"PASS waits for that audit",
 				len(bs), strings.Join(named, ", "))
 		},
 		why: func(b Blocker) string {
@@ -602,7 +604,7 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d inquiry(ies) are still OPEN: %s. An open inquiry is a decision the report has not made, and a PASS would certify research the record says is unfinished. "+
 				"Blue records a fate that settles each — confirmed or refuted for an approach that ran, abandoned for one that gave no answer, declined or deferred with why — and the logic lens then checks it. "+
-				"PASS waits for those fates, and `--as FAIL` does not",
+				"PASS waits for those fates",
 				len(bs), strings.Join(named, ", "))
 		},
 		why: func(b Blocker) string {
@@ -627,11 +629,73 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%d settled inquiry(ies) have no check of their latest fate:\n  %s\n"+
 				"A settled inquiry is the report's account of research the run did or set aside, and nothing on the record has judged that account. "+
 				"The logic lens judges each: `inquiry check --id <id> --reason \"...\"` where its fate stands as the report's account of it, or the gap about it where it is wanting. "+
-				"A fate recorded again, or any gap minted about it, material or not, leaves its check stale. PASS waits for those checks, and `--as FAIL` does not",
+				"A fate recorded again, or any gap minted about it, material or not, leaves its check stale. PASS waits for those checks",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
 			return uncheckedInquiryFact(b) + " — " + planHold(b, "PASS is not permitted until "+ownerOr(b, inquiryOwner)+" checks it")
+		},
+	},
+	// A RECORD WITH NO QUESTION PART HOLDS THE PASS (ruled by gblock 2026-11-11, E; questionpart.go): a
+	// run that never split its question has no account of whether it answered it. Its owner is
+	// blue-respond, which dispatch readies while it stands; the frontier owes the split at e0.
+	{
+		kind:    BlockerQuestionUnsplit,
+		subject: SubjectQuestionPart,
+		gloss:   "a question with no question part on the record",
+		item: func(b Blocker) string {
+			return unsplitFact() + " — PASS is refused until blue's `question split` splits it"
+		},
+		refusal: func([]Blocker) string {
+			return unsplitFact() + ". A PASS would certify an answer to a question the record never states the parts of, so nothing could say a part went unanswered. " +
+				"Blue splits it with blue's `question split`, one part for each part of it a reader would ask answered, records each part's coverage, and the logic lens then checks each. PASS waits for that"
+		},
+		why: func(b Blocker) string {
+			return unsplitFact() + " — " + planHold(b, "PASS is not permitted until blue splits it")
+		},
+	},
+	// A QUESTION PART WITH NO COVERAGE HOLDS THE PASS UNTIL BLUE RECORDS ONE (questionpart.go). Its owner
+	// is blue-respond, which dispatch readies while any part has none.
+	{
+		kind:    BlockerOpenPart,
+		subject: SubjectQuestionPart,
+		gloss:   "a question part with no coverage recorded",
+		item: func(b Blocker) string {
+			return openPartFact(b) + " — PASS is refused until blue records it: covered, not_obtained or excluded, with the reason"
+		},
+		refusal: func(bs []Blocker) string {
+			return fmt.Sprintf("%d question part(s) have no coverage recorded: %s. A PASS would certify an answer without saying whether the report answers these parts of the question. "+
+				"Blue records each one's coverage with blue's `question cover` — covered, not_obtained or excluded, with the reason — and the logic lens then checks it. A part not covered lets the PASS stand and derives QUALIFIED. "+
+				"PASS waits for those records",
+				len(bs), strings.Join(subjects(bs), ", "))
+		},
+		why: func(b Blocker) string {
+			return openPartFact(b) + " — " + planHold(b, "PASS is not permitted until blue records its coverage")
+		},
+	},
+	// A QUESTION PART WITH COVERAGE HOLDS THE PASS UNTIL A CHECK STANDS ON IT. Its owner is the logic lens
+	// (questionPartOwner), which dispatch readies once per cause; a wanting part holds the PASS through
+	// its gap's material_gap row instead, and has no row here.
+	{
+		kind:    BlockerUncheckedPart,
+		subject: SubjectQuestionPart,
+		gloss:   "a question part whose latest coverage no check stands on",
+		item: func(b Blocker) string {
+			return uncheckedPartFact(b) + " — PASS is refused until one does. " + uncheckedPartAct(b)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, uncheckedPartFact(b))
+			}
+			return fmt.Sprintf("%d question part(s) have no check of their latest coverage:\n  %s\n"+
+				"A part's coverage is the record's account of whether the report answers that part of the question, and nothing on the record has judged that account. "+
+				"The logic lens judges each, with the lens's `question check --id <id>` where its coverage stands, or the gap about it, class coverage_misstated, where it does not. "+
+				"A coverage recorded again, or any gap minted about the part, leaves its check stale. PASS waits for those checks",
+				len(bs), strings.Join(named, "\n  "))
+		},
+		why: func(b Blocker) string {
+			return uncheckedPartFact(b) + " — " + planHold(b, "PASS is not permitted until "+ownerOr(b, questionPartOwner)+" checks it")
 		},
 	},
 }
@@ -720,7 +784,7 @@ func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 //
 // TWO SETS OF ARMS. The stream alone answers eventBlockersOf's; the gap arms and the lens arms read
 // the open gaps and the fresh-material set, which are SQL as it stands now.
-func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool, found []locatedReading) []Blocker {
+func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool, found []locatedReading, parts []QuestionPartRow) []Blocker {
 	var out []Blocker
 	for _, g := range gaps {
 		if g.material {
@@ -732,7 +796,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
-	events := owedBlockersOf(evs, ids, win, gaps, found)
+	events := owedBlockersOf(evs, ids, win, gaps, found, parts)
 	out = append(out, events...)
 	out = append(out, gradeMovementOf(evs, ids, win, openSet(gaps)).blockers()...)
 	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events), composedOwedOf(evs, ids, win, gaps)); lg.cast && lg.head != 0 {
@@ -849,7 +913,7 @@ func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 }
 
 // passBlockerReadsAt is every answer the gate's list takes off the record: the stream, the fresh
-// material gaps, the open gaps, the located readings and the bench's remands.
+// material gaps, the open gaps, the located readings, the question parts and the bench's remands.
 func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	var r planReads
 	var err error
@@ -865,6 +929,9 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.found, err = locatedReadingsAt(q, r.evs, r.win); err != nil {
 		return r, err
 	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
+	}
 	r.remands, err = remandRulingsOf(q)
 	return r, err
 }
@@ -872,22 +939,17 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 // passBlockersOfReads folds the gate's list from what passBlockerReadsAt read.
 func passBlockersOfReads(r planReads) []Blocker {
 	ids := r.win.IDs(r.evs)
-	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh, r.found)
+	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh, r.found, r.parts)
 }
 
-// requireNoBlockers is the verdict gate. A PASS is refused over every blocker. A FAIL is then held to
-// the convergence rule, which stands only while nothing another seat must act on holds the PASS — so
-// its "or issue `--as PASS`" is true apart from the chair's own items.
+// requireNoBlockers is the verdict gate: the PASS is refused over every blocker.
 //
 // AN ACT JUDGEMENT (judgeAct; gblock, 2026-10-24): an archived verdict is carried as history. The
 // archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and the replay
 // writes them as the chair issued them.
-func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker) error {
-	if verdict == recordpb.Verdict_VERDICT_PASS && len(blockers) > 0 {
+func requireNoBlockers(blockers []Blocker) error {
+	if len(blockers) > 0 {
 		return blockerRefusal(blockers)
-	}
-	if verdict == recordpb.Verdict_VERDICT_FAIL {
-		return requireFailIsNotConvergent(w, blockers)
 	}
 	return nil
 }

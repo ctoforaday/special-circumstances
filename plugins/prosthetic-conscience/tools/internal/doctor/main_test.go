@@ -454,3 +454,44 @@ func TestPluginIdentityResolution(t *testing.T) {
 		t.Errorf("p4 = (%q, %q), want (plug-four, 4.5.6)", n, v)
 	}
 }
+
+func TestSymlinkedSiblingPluginsAreDiscovered(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks require elevated privileges on Windows")
+	}
+	base := t.TempDir()
+	pluginsDir := filepath.Join(base, "plugins")
+	targetDir := filepath.Join(base, "external", "frank-exchange-of-views")
+	self := filepath.Join(pluginsDir, "prosthetic-conscience")
+
+	for _, d := range []string{
+		filepath.Join(self, "tools", "cmd", "sc-doctor"),
+		filepath.Join(targetDir, "tools", "cmd", "feov-record"),
+		filepath.Join(targetDir, "bin"),
+	} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(self, "plugin.json"), []byte(`{"name":"prosthetic-conscience","version":"0.52.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "plugin.json"), []byte(`{"name":"frank-exchange-of-views","version":"1.73.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "requirements.json"), []byte(`{"tools":[{"name":"node","tier":"required","check_cmd":"node --version"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(targetDir, filepath.Join(pluginsDir, "frank-exchange-of-views")); err != nil {
+		t.Fatal(err)
+	}
+
+	roots := siblingPluginRoots(self)
+	if len(roots) != 1 || roots[0].Name != "frank-exchange-of-views" || roots[0].Version != "1.73.0" {
+		t.Fatalf("expected symlinked sibling frank-exchange-of-views 1.73.0, got: %+v", roots)
+	}
+	reqs := siblingRequirements(self)
+	if len(reqs) != 1 || len(reqs[0].Tools) != 1 || reqs[0].Tools[0].Name != "node" {
+		t.Fatalf("expected symlinked sibling requirement node, got: %+v", reqs)
+	}
+}

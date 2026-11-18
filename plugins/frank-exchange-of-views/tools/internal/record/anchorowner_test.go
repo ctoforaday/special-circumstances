@@ -67,7 +67,7 @@ func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 				t.Fatal(err)
 			}
 			ids := fam.At.IDs(fam.Events)
-			debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil))
+			debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil, nil))
 			for _, lens := range c.cast {
 				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "citation C-1 is on the record and nobody has read its source")
 				want := lens == c.owner
@@ -122,7 +122,7 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 				t.Fatal(err)
 			}
 			ids := fam.At.IDs(fam.Events)
-			debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil))
+			debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil, nil))
 			reopened := map[string]string{}
 			for _, bl := range reopenedOf(t, run) {
 				reopened[bl.Subject] = bl.Owner

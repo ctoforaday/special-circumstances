@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
 	"path"
@@ -38,6 +37,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
@@ -619,10 +619,12 @@ func StrayRecordsAudit(project, runDir string) Audit {
 // THIS AUDIT IS THE READER THAT REPORTS AN ARGUMENT THAT WAS NOT FILED. The transcript prints the
 // positions and closings that were, and gives a sitting that holds none no section.
 //
-// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED. The chair's work list holds
-// no item for it, so its position is held by its prompt and by this audit. The chair's first sitting
-// after the bench overruled its position owes the verdict instead (gblock, 2026-10-30): its work list
-// says so, and this audit fails one that closed without it. A party's closing is on its work list as well, as the PASS
+// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED AFTER THE RUN. The chair's
+// work list holds the same duty while it sits — the PASS or a position, where its plan permits the
+// PASS — read through the same fold of the sitting's acts (record.PositionSittings). The chair's first
+// sitting after the bench overruled its position owes the PASS instead (gblock, 2026-10-30,
+// 2026-11-13): the bench's ruling binds, its work list says so, and this audit fails one that closed
+// without the PASS. A party's closing is on its work list as well, as the PASS
 // gate's blocker, and this audit is the after-the-run reading of the same duty.
 //
 // A CLOSING IS SHORT ONLY WHERE ITS PARTY SAT. A party that sat through a sitting opened after the
@@ -665,7 +667,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 		case record.PositionMissing:
 			short = append(short, name+"filed no position")
 		case record.PositionVerdictMissing:
-			short = append(short, fmt.Sprintf("red-chair sitting %d, its first after the bench overruled its position %s, closed with no verdict — the overruled objection is decided, and that sitting owed the verdict its plan permitted", p.Ordinal, p.Overruled))
+			short = append(short, fmt.Sprintf("red-chair sitting %d, its first after the bench overruled its position %s, closed without the PASS — the bench's ruling binds, and that sitting owed the PASS its plan permitted", p.Ordinal, p.Overruled))
 		}
 		owed++
 	}
@@ -1156,15 +1158,11 @@ func recordTierFindings(run record.Run, seats map[string]modeltier.SeatSpec) (fi
 			continue
 		}
 		measured++
-		spec, ok := modeltier.LookupSeat(seats, sm.SeatID)
-		if !ok || spec.Model == "" {
-			continue
-		}
-		switch {
-		case sm.Substituted():
+		switch spec, v := cost.JudgeServed(sm, seats); v {
+		case cost.ServedDeclared:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) asked for %s and was answered by %s — the harness declared the substitution",
 				sm.SeatID, sm.Class, sm.Requested, sm.Served))
-		case !modeltier.SameModel(spec.Model, sm.Served):
+		case cost.ServedOtherModel:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s against a configured %s",
 				sm.SeatID, sm.Class, sm.Served, spec.Model))
 		}
@@ -1186,7 +1184,10 @@ func summarizeConfiguredSeats(seats map[string]modeltier.SeatSpec) string {
 }
 
 func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
-	seatsCfg := cost.TierConfig(run)
+	seatsCfg, cerr := cost.TierConfig(run)
+	if cerr != nil {
+		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "could not read the run's configuration: " + cerr.Error()}
+	}
 	if len(seatsCfg) == 0 {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no seats, so there is no configured model to check the served one against"}
 	}
@@ -2137,9 +2138,9 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
-	// time by a dozen packages: record.RunParams hands k-max, mint-budget, max-epochs and the
-	// convergence fraction to the dispatch verb AND the write path; modeltier and cost read the
-	// configured tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
+	// time by a dozen packages: record.RunParams hands k, k-max and max-epochs to
+	// the dispatch verb AND the write path; cost reads the configured
+	// tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
 	// live: `ops tiers` printed configuredBulk and configuredJudgment from the live directory and
 	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
 	// exactly like a run that had none.

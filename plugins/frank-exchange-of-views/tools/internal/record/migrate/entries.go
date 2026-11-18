@@ -87,12 +87,8 @@ func Entries() Registry {
 		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
-		// A PASS BEFORE EPOCH 57 MAY CARRY THE GAPS A MIGRATION ADMITTED IT OVER. The record carries an
-		// archived verdict as history, and the replay writes it without the live gate's judgement, so
-		// nothing is admitted and the list is not carried.
-		"verdict": mapped("verdict", nil, drops{
-			"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
-		}, nil),
+		// A FAIL TRANSLATES TO NO EVENT (EventSchema 78); a PASS carries (verdictEntry).
+		"verdict": {Translate: verdictEntry},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the computations replayed before it
@@ -353,6 +349,42 @@ func remandDirection(r *recordpb.DocketRuling) {
 
 // toNoEvent translates an archived event to none, whatever its era's columns.
 func toNoEvent(OldEvent) ([]proto.Message, error) { return nil, nil }
+
+// verdictCarried is an archived PASS, written as the gate it is. A PASS BEFORE EPOCH 57 MAY CARRY THE
+// GAPS A MIGRATION ADMITTED IT OVER. The record carries an archived verdict as history, and the
+// replay writes it without the live gate's judgement, so nothing is admitted and the list is not
+// carried.
+var verdictCarried = mapped("verdict", nil, drops{
+	"verdict":                    "the PASS is the event itself (EventSchema 78): the word was the one value of a closed set, and says nothing the event's type does not",
+	"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
+}, nil)
+
+// verdictEntry: A PASS IS WRITTEN AS THE GATE, AND A FAIL AS NO EVENT (EventSchema 78). The verdict
+// is the PASS alone: a recorded FAIL changed no outcome and no dispatch, and the chair withholds a
+// PASS its plan permits with a position the bench hears. A FAIL carried its reason nowhere — the
+// plan's blockers and the chair's position are on the record either way — so the archived FAILs
+// are the residue: the manifest counts each in events_in and none in events_out. A stored plan
+// printed after a verdict prints it, and the replay translates it (TranslatePlanVerdict). A gate with
+// no word is the record's own shape from EventSchema 78, and passes as it is. Any other word is
+// refused: the replay does not decide what it meant.
+func verdictEntry(old OldEvent) ([]proto.Message, error) {
+	raw, worded := old.Fields["verdict"]
+	w, _ := raw.(string)
+	switch {
+	case !worded, recordpb.SameWord(w, archivedPass):
+		return verdictCarried.Translate(old)
+	case recordpb.SameWord(w, retiredVerdict):
+		return nil, nil
+	}
+	return nil, fmt.Errorf("verdict %v is neither the PASS the record carries as a gate nor the FAIL it drops", raw)
+}
+
+// archivedPass and retiredVerdict are the verdict words an archive may hold. They describe ARCHIVED
+// bytes, so they are migrate's own: the live record holds no verdict word.
+const (
+	archivedPass   = "pass"
+	retiredVerdict = "fail"
+)
 
 // mintCoiningDrop is why a mint's coining columns are not carried.
 const mintCoiningDrop = "a class is a value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the value's own definition is"

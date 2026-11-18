@@ -17,8 +17,8 @@ import (
 // that judged the fate before it went on standing.
 //
 // Forced runs take none: the check it re-owes is a sitting of the owner's their bound does not count.
-// A mint the tool refuses — the lens's budget spent, a gap of the drawn class already open on the
-// inquiry — is tried again at the lens's next sitting.
+// A mint the tool refuses — a gap of the drawn class already open on the inquiry — is tried again
+// at the lens's next sitting.
 func (r *runner) unseatInquiryCheck(seatID string) {
 	r.mu.Lock()
 	due := r.inquiryUnseats == 0 && !r.forcedVerdict() && !r.forceEstoppel

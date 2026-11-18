@@ -55,6 +55,9 @@
 #   CONCURRENT_AGENTS  default 16 — the Workflow tool's per-run concurrent agent limit. The engine's
 #             own default is min(16, cpu_cores - 2), which is 2 on a 4-core box and serialises the
 #             seven-lens fan-out into four waves.
+#   TOKEN_MIN_MINUTES  default 180 — the least lifetime the lent subscription access token must have
+#             when run, resume or shell starts; a shorter one is renewed through the host login first.
+#             Nothing in the universe can renew it, so a run longer than this can fail with a 401.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -63,11 +66,10 @@ MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
 # SMOKE IS THE DEFAULT, AND IT HAS TO BE SAID RATHER THAN IMPLIED.
 #
-# This script set the tiers and the lane count to smoke values and then left --mint-budget and
-# --k-max at the engine's defaults, so it produced something LABELLED a smoke in every log line
-# that was not one. Measured across two runs meant to be compared: the 2026-09-19 baseline ran
-# --mint-budget 1 --k-max 2 (launched --smoke by hand) and the 2026-09-20 run ran 5 and 6. Their
-# gap counts and epoch counts were then read as a result about the change under test.
+# A run that sets the tiers and the lane count to smoke values and leaves --k-max at the engine's
+# default is LABELLED a smoke in every log line and is not one: two runs meant to be compared then
+# differ in their terms, and their gap counts and epoch counts read as a result about the change
+# under test.
 #
 # SMOKE=0 runs the development configuration, which is an order of magnitude more expensive and is
 # a deliberate act; either way the mode is printed beside the tiers, so a log says which experiment
@@ -243,42 +245,85 @@ universe_env() {
   export CLAUDE_CODE_PLUGIN_CACHE_DIR="$WORKDIR/plugins"
   export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
   mkdir -p "$CLAUDE_CONFIG_DIR" "$CLAUDE_CODE_PLUGIN_CACHE_DIR"
-  share_credentials
+  # No credential file in the universe, link or copy: one would be a refresh token it could rotate.
+  rm -f "$CLAUDE_CONFIG_DIR/.credentials.json"
 }
 
-# PLUGINS AND SETTINGS ARE ISOLATED; AUTHENTICATION IS NOT, AND THAT DISTINCTION COST REAL MONEY.
+# PLUGINS AND SETTINGS ARE ISOLATED; THE SUBSCRIPTION IS LENT, NEVER SHARED.
 #
 # CLAUDE_CONFIG_DIR isolates the whole config, which is right for what this script is FOR — a
 # universe must not install its plugins into ~/.claude or be affected by what is already there.
 # But the credential lives in that directory too, so isolating it isolated the subscription as
 # well, and `claude -p` inside the universe fell through to whatever else it could authenticate
 # with: the console/API profile on this box, in a different organization, billed in CREDITS.
+# Measured: ~$21 a run read as telemetry for months, and the 2026-09-20 smoke died with "Credit
+# balance is too low" thirty-five minutes in.
 #
-# MEASURED, and it went unnoticed because the number looked like telemetry rather than a bill.
-# Every run reports total_cost_usd whichever way it authenticated, so ~$21 a run read as an
-# interesting statistic for months (project memory: "$209/10 runs") and was actual spend. The
-# 2026-09-20 smoke then died mid-epoch-3 with "Credit balance is too low", which is the API's
-# message and not a subscription's, thirty-five minutes and $7.09 into a run that had to be thrown
-# away.
+# SO THE UNIVERSE GETS THE HOST'S ACCESS TOKEN, AND ONLY THAT, in CLAUDE_CODE_OAUTH_TOKEN. Never the
+# refresh token. A process holding the refresh token can rotate it, and the box's Remote Control
+# sessions all refresh from ~/.claude/.credentials.json. Measured three times (11-11, 11-13, 11-14):
+# a universe that outlived the 8-hour access token refreshed it, the client saved the rotated grant
+# by REPLACING the universe's symlink to the host file with a regular file, the host file was left
+# holding a spent refresh token, and every Remote Control session failed its next refresh with "OAuth
+# session expired and could not be refreshed" — on the phone, "needs to sign in again".
 #
-# A SYMLINK RATHER THAN A COPY, so a token refreshed in the real session is picked up here and
-# there is one source of truth. A copy goes stale at the next refresh and leaves a second credential
-# on disk under scratch.
+# An access token cannot rotate anything, and the client strips CLAUDE_CODE_OAUTH_TOKEN from a Bash
+# tool's environment (measured: a seat's `env` shows no such variable), so a seat cannot print it
+# into a stream that is archived.
 #
-# AN ABSENT CREDENTIAL IS LOUD. Falling back silently is the whole defect: the run still works, it
-# just bills somewhere else, and the only symptom arrives as an out-of-credit failure long after the
-# decision was made.
-share_credentials() {
-  local src="$HOME/.claude/.credentials.json"
-  local dst="$CLAUDE_CONFIG_DIR/.credentials.json"
-  if [ ! -e "$src" ]; then
-    printf '[universe] WARNING: no %s — the universe cannot see your subscription and will\n' "$src" >&2
-    printf '           authenticate however it can, which on this box means API CREDITS.\n' >&2
-    return
+# THE TOKEN MUST OUTLIVE THE RUN, because nothing in the universe can renew it. A token with less than
+# TOKEN_MIN_MINUTES left is renewed first, through the HOST's login, so the new grant lands in the
+# host file every session reads. The client renews only a token it believes is within 5 minutes of
+# expiry and has no command to renew on demand, so the cached expiry is moved into the past and one
+# host turn is run. A renewal REVOKES the old access token at once (measured), and a session holding
+# it re-reads the host file on its next call; renewing only when the token is short keeps that to the
+# runs that need it.
+#
+# AN ABSENT OR UNRENEWABLE CREDENTIAL IS LOUD. Falling back silently is the defect above.
+TOKEN_MIN_MINUTES="${TOKEN_MIN_MINUTES:-180}"
+HOST_CREDENTIALS="$HOME/.claude/.credentials.json"
+
+# Minutes the host's access token has left; empty when the file or the field is absent.
+host_token_minutes() {
+  python3 - "$HOST_CREDENTIALS" <<'EOF' 2>/dev/null
+import json, sys, time
+o = json.load(open(sys.argv[1]))["claudeAiOauth"]
+if o.get("accessToken") and o.get("expiresAt"):
+    print(int((o["expiresAt"] / 1000 - time.time()) // 60))
+EOF
+}
+
+renew_host_token() {
+  log "access token has $1 min left, under TOKEN_MIN_MINUTES=$TOKEN_MIN_MINUTES: renewing through the host login"
+  python3 - "$HOST_CREDENTIALS" <<'EOF' || die "could not mark $HOST_CREDENTIALS for renewal"
+import json, os, sys, time
+p = sys.argv[1]
+d = json.load(open(p))
+d["claudeAiOauth"]["expiresAt"] = int((time.time() - 60) * 1000)
+tmp = p + ".universe-renew"
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    json.dump(d, f)
+os.replace(tmp, p)
+EOF
+  ( unset CLAUDE_CONFIG_DIR CLAUDE_CODE_PLUGIN_CACHE_DIR CLAUDE_CODE_OAUTH_TOKEN
+    cd "$WORKDIR" && claude -p "Reply with the single word ok" --model haiku --max-turns 1 ) >/dev/null 2>&1
+}
+
+# Called by every command that starts a claude which talks to the model: run, resume, shell.
+lend_access_token() {
+  [ -e "$HOST_CREDENTIALS" ] || die "no $HOST_CREDENTIALS — sign in with \`claude auth login\` first; without it a universe authenticates however it can, which on this box means API CREDITS"
+  local left; left="$(host_token_minutes)"
+  [ -n "$left" ] || die "$HOST_CREDENTIALS holds no claude.ai access token — sign in with \`claude auth login\`"
+  if [ "$left" -lt "$TOKEN_MIN_MINUTES" ]; then
+    renew_host_token "$left"
+    left="$(host_token_minutes)"
+    [ -n "$left" ] && [ "$left" -ge "$TOKEN_MIN_MINUTES" ] \
+      || die "renewal left the access token with ${left:-no} minutes; check \`claude auth status\` before running"
   fi
-  [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ] && return
-  rm -f "$dst"
-  ln -s "$src" "$dst"
+  CLAUDE_CODE_OAUTH_TOKEN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["claudeAiOauth"]["accessToken"])' "$HOST_CREDENTIALS")"
+  export CLAUDE_CODE_OAUTH_TOKEN
+  log "subscription access token lent for $left min; the run must finish inside it"
 }
 
 # A SEAT'S IDENTITY AND RUN MUST NOT LEAK IN FROM THE PARENT. A shell that has FEOV_RUN set —
@@ -657,6 +702,7 @@ cmd_run() {
   universe_env; clear_seat_env
 
   guard_no_live_run "run"
+  lend_access_token
   local src="$WORKDIR/src"
   mkdir -p "$src"
 
@@ -671,7 +717,7 @@ cmd_run() {
   smoke_flag=""
   if [ "$SMOKE" = "1" ]; then
     if [ "$BULK" != "haiku" ] || [ "$JUDGMENT" != "haiku" ] || [ "$LANES" != "1" ] || [ -n "$SEAT_OVERRIDES" ]; then
-      die "SMOKE=1 sets bulk=haiku judgment=haiku lanes=1 (and --mint-budget 3 --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+      die "SMOKE=1 sets bulk=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 for the development configuration, or drop the overrides."
     fi
     smoke_flag=" --smoke"
   fi
@@ -713,6 +759,7 @@ cmd_resume() {
       exit 3 ;;
   esac
   [ -f "$ORIGIN_STREAM" ] || { printf '[universe] REFUSING to resume: no stream at %s\n' "$ORIGIN_STREAM" >&2; exit 3; }
+  lend_access_token
 
   local stamp; stamp="$(new_stamp)"
   local fields
@@ -831,6 +878,7 @@ cmd_watch() {
 cmd_shell() {
   universe_env; clear_seat_env
   local src="$WORKDIR/src"; mkdir -p "$src"
+  lend_access_token
   printf '%s\n' "$$" > "$WORKDIR/shell.pid"
   trap 'rm -f "$WORKDIR/shell.pid"' EXIT
   ( cd "$src" && exec claude )

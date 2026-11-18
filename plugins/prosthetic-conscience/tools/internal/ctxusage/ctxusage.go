@@ -73,14 +73,18 @@ type Measure struct {
 func worthParsing(line []byte) bool {
 	return bytes.Contains(line, []byte(`"type":"assistant"`)) ||
 		bytes.Contains(line, []byte(`"usage"`)) ||
-		bytes.Contains(line, []byte("compact_boundary"))
+		bytes.Contains(line, []byte("compact_boundary")) ||
+		bytes.Contains(line, []byte("PLANNER_RESPONSE"))
 }
 
 type entry struct {
-	Type      string    `json:"type"`
-	Subtype   string    `json:"subtype"`
-	Timestamp time.Time `json:"timestamp"`
-	Message   struct {
+	Type            string    `json:"type"`
+	Subtype         string    `json:"subtype"`
+	Timestamp       time.Time `json:"timestamp"`
+	CreatedAt       time.Time `json:"created_at"`
+	InputTokens     int       `json:"input_tokens"`
+	CacheReadTokens int       `json:"cache_read_tokens"`
+	Message         struct {
 		Usage struct {
 			Input         int `json:"input_tokens"`
 			CacheRead     int `json:"cache_read_input_tokens"`
@@ -90,6 +94,25 @@ type entry struct {
 	CompactMetadata *struct {
 		CumulativeDroppedTokens int `json:"cumulativeDroppedTokens"`
 	} `json:"compactMetadata"`
+}
+
+func (e entry) effectiveTimestamp() time.Time {
+	if !e.Timestamp.IsZero() {
+		return e.Timestamp
+	}
+	return e.CreatedAt
+}
+
+func (e entry) isTurn() bool {
+	return e.Type == "assistant" || e.Type == "PLANNER_RESPONSE"
+}
+
+func (e entry) contextTokens() int {
+	if e.Type == "PLANNER_RESPONSE" {
+		return e.InputTokens + e.CacheReadTokens
+	}
+	u := e.Message.Usage
+	return u.Input + u.CacheRead + u.CacheCreation
 }
 
 // Read measures the transcript at path, counting turns since the note was written.
@@ -165,9 +188,14 @@ func readWindow(path string, noteWrittenAt time.Time, window int64) (Measure, er
 		}
 		var head struct {
 			Timestamp time.Time `json:"timestamp"`
+			CreatedAt time.Time `json:"created_at"`
 		}
-		if err := json.Unmarshal(line, &head); err == nil && !head.Timestamp.IsZero() {
-			oldest, sawOldest = head.Timestamp, true
+		if err := json.Unmarshal(line, &head); err == nil {
+			if !head.Timestamp.IsZero() {
+				oldest, sawOldest = head.Timestamp, true
+			} else if !head.CreatedAt.IsZero() {
+				oldest, sawOldest = head.CreatedAt, true
+			}
 		}
 		break
 	}
@@ -193,9 +221,8 @@ func readWindow(path string, noteWrittenAt time.Time, window int64) (Measure, er
 			if e.CompactMetadata != nil && !m.DroppedKnown {
 				m.Dropped, m.DroppedKnown = e.CompactMetadata.CumulativeDroppedTokens, true
 			}
-			if e.Type == "assistant" {
-				u := e.Message.Usage
-				if total := u.Input + u.CacheRead + u.CacheCreation; total > 0 {
+			if e.isTurn() {
+				if total := e.contextTokens(); total > 0 {
 					m.Tokens, m.TokensKnown = total, true
 					break
 				}
@@ -216,12 +243,11 @@ func readWindow(path string, noteWrittenAt time.Time, window int64) (Measure, er
 			continue
 		}
 		switch {
-		case e.Type == "assistant":
-			u := e.Message.Usage
-			if total := u.Input + u.CacheRead + u.CacheCreation; total > 0 {
+		case e.isTurn():
+			if total := e.contextTokens(); total > 0 {
 				m.Tokens, m.TokensKnown = total, true
 			}
-			if !e.Timestamp.Before(noteWrittenAt) {
+			if !e.effectiveTimestamp().Before(noteWrittenAt) {
 				m.Turns++
 			}
 		case e.CompactMetadata != nil:

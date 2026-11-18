@@ -20,14 +20,15 @@ import (
 )
 
 // Config carries the run's launch parameters the dashboard displays. File values (setup's
-// inputs/run-config.json) are overridden by any non-empty CLI flag — the JS merge order.
+// inputs/run-config.json, read through record.ReadRunConfig) are overridden by any non-empty CLI
+// flag — the JS merge order.
 type Config struct {
-	Topic         string                        `json:"topic"`
-	Seats         map[string]modeltier.SeatSpec `json:"seats"`
-	Bulk          string                        `json:"-"`
-	Judgment      string                        `json:"-"`
-	SeatOverrides []string                      `json:"-"`
-	Lanes         string                        `json:"lanes"`
+	Topic         string
+	Seats         map[string]modeltier.SeatSpec
+	Bulk          string
+	Judgment      string
+	SeatOverrides []string
+	Lanes         string
 }
 
 // LogTile is the log tile's data: how many log entries the record holds, of every type, and the
@@ -75,9 +76,6 @@ type Judiciary struct {
 	MigDown       int
 	MigUp         int
 	MigFlat       int
-	LatestVerdict string
-	// VerdictEpoch is the epoch whose recorded gate delivered LatestVerdict.
-	VerdictEpoch int
 }
 
 // CostRow is one seat-epoch-tier cost bucket for the dashboard's per-seat-epoch breakdown.
@@ -106,12 +104,16 @@ type Model struct {
 	Shards    Shards
 	// BlueClaims is the report's claim count, COUNTED FROM THE REPORT ON THE RECORD (blueClaimsOf)
 	// — what `count-claims` prints. Nil is "not measured": the record holds no report to count.
-	BlueClaims      *int
-	Steps           []Step
-	Rates           []Rate
-	Judiciary       Judiciary
-	Eta             Eta
-	Config          Config
+	BlueClaims *int
+	Steps      []Step
+	Rates      []Rate
+	Judiciary  Judiciary
+	Eta        Eta
+	Config     Config
+	// ConfigUnread is why the run's configuration could not be read, or "" where it was read or the
+	// run has none. A configuration that does not read shows its refusal, never values: an empty
+	// board configuration would read as a run that configured nothing.
+	ConfigUnread    string
 	TerminalVerdict string
 	Terminal        bool
 	// Live is the run's PULL-BASED liveness — see record.Liveness. The board used to answer
@@ -159,10 +161,17 @@ func blueClaimsOf(run record.Run) *int {
 // IN-PROCESS (package record's JSON views) rather than spawning the tool; nowMs is injected
 // (the CLI defaults it to the real clock) so tests are deterministic.
 func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64) Model {
-	// Config: file (setup) then non-empty CLI overrides.
+	// Config: file (setup), through the record's one reader of it, then non-empty CLI overrides.
 	var fileCfg Config
-	if b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json")); err == nil {
-		_ = json.Unmarshal(b, &fileCfg)
+	configUnread := ""
+	switch rc, err := record.ReadRunConfig(run); {
+	case err != nil:
+		configUnread = err.Error()
+	case rc != nil:
+		fileCfg = Config{Topic: rc.Topic, Seats: rc.Seats}
+		if rc.Lanes != nil {
+			fileCfg.Lanes = *rc.Lanes
+		}
 	}
 	merged := fileCfg
 	merged.Seats = maps.Clone(fileCfg.Seats)
@@ -172,25 +181,23 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	if cfg.Topic != "" {
 		merged.Topic = cfg.Topic
 	}
-	applyClassOverride := func(class, raw string) {
+	// A class flag stands for every seat of its class, through the one expansion setup uses.
+	applyClassOverride := func(raw string, spread func(modeltier.SeatSpec) map[string]modeltier.SeatSpec) {
 		spec, err := modeltier.ParseSeatSpec(raw)
 		if err != nil {
 			return
 		}
-		if seatclass.ClassOf(seatclass.Lane.Base) == class {
-			merged.Seats[seatclass.Lane.Base] = spec
-		}
-		for seatID, def := range seatclass.Seats {
-			if def.Base != "" && seatclass.ClassOf(def.Base) == class {
-				merged.Seats[seatID] = spec
-			}
-		}
+		maps.Copy(merged.Seats, spread(spec))
 	}
 	if cfg.Bulk != "" {
-		applyClassOverride("bulk", cfg.Bulk)
+		applyClassOverride(cfg.Bulk, func(s modeltier.SeatSpec) map[string]modeltier.SeatSpec {
+			return modeltier.TieredSeats(s, modeltier.SeatSpec{})
+		})
 	}
 	if cfg.Judgment != "" {
-		applyClassOverride("judgment", cfg.Judgment)
+		applyClassOverride(cfg.Judgment, func(s modeltier.SeatSpec) map[string]modeltier.SeatSpec {
+			return modeltier.TieredSeats(modeltier.SeatSpec{}, s)
+		})
 	}
 	for _, raw := range cfg.SeatOverrides {
 		if seatID, val, ok := strings.Cut(raw, "="); ok {
@@ -316,7 +323,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// MESSAGE at its own `model` field; cost.ScanTranscript picks one model per FILE and
 		// prices that file's totals at that tier. For a single-model transcript — every ordinary
 		// seat — the two agree exactly. For a transcript carrying more than one model, which is
-		// what `setup --allow-substitution` exists to permit, they do not, and the page would
+		// what a harness substitution produces, they do not, and the page would
 		// show a total that did not equal the breakdown printed under it. The breakdown's
 		// definition wins because it is the one cost.md already uses; a dashboard and a cost
 		// report disagreeing about one run is the two-readers defect this codebase keeps finding.
@@ -425,7 +432,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Log: logTile,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
-		Judiciary: jud, Eta: eta, Config: merged,
+		Judiciary: jud, Eta: eta, Config: merged, ConfigUnread: configUnread,
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
 		// record like its neighbour instead of from a filename.
 		//
@@ -448,8 +455,8 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 }
 
 // buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
-// grade-motion traffic, the latest recorded verdict, and how long arguments live over supersedes
-// chains (union-find), with grade migration.
+// grade-motion traffic, and how long arguments live over supersedes chains (union-find), with
+// grade migration.
 //
 // THE RECORD, NOT THE JOURNAL. The record holds every input as a field a writer can refuse —
 // docket and grade motions with their rulings, the chair's gate, each gap's mint and close epoch,
@@ -487,11 +494,6 @@ func buildJudiciary(fam record.Family) Judiciary {
 	// A chair that has just sat opens an epoch nothing has happened in yet, and a gap has not
 	// lived through it.
 	current := fam.At.CurrentEpoch(fam.Events)
-	for _, ep := range record.DebateJSONOfFamily(fam).Epochs {
-		if ep.Verdict != "" {
-			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
-		}
-	}
 
 	// A gap lives from its mint epoch to its close epoch, or to the current epoch while open. Its
 	// first mass is the grades it was minted at; its last is the grades it holds now.

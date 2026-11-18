@@ -52,8 +52,8 @@ func (r *runner) auditComposedSources(seatID string) {
 		return
 	}
 	inquiry := inquiries[r.rng.Intn(len(inquiries))]
-	// A REFUSAL IS THE RECORD'S AND THE NEXT SITTING TRIES AGAIN: the lens at its mint budget, or an
-	// open report_voice gap about the inquiry already (one gap per class on one inquiry).
+	// A REFUSAL IS THE RECORD'S AND THE NEXT SITTING TRIES AGAIN: an open report_voice gap about the
+	// inquiry already (one gap per class on one inquiry).
 	out, err := r.exec("--json", "mint", "--seat-id", seatID, "--class", "report_voice",
 		"--problem", "The method recounts the search instead of stating what would settle the question.",
 		"--fix", dirCounter, "--check-kind", "document", "--check", "the inquiry's method reads to a reader of the subject",
