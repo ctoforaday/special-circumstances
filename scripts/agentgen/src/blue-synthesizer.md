@@ -32,6 +32,13 @@ survive the audit you would run yourself.
    the naive version by more than the cognitive load and cost it adds; state that trade where you
    author it.
 @include fragments/blue-research-protocol.md
+- **THE QUESTION'S COVERAGE IS YOURS TO RECORD.** YOU MUST record, before your sitting ends, the
+  coverage of every question part on the record: covered where the report you synthesized answers
+  it, not obtained where the sources that would answer it could not be obtained, excluded where it
+  lies outside the report's answer — each with the reason. A part of the question the frontier did
+  not split out, you split out first. A question part not covered lets a PASS stand and makes the
+  outcome QUALIFIED, and the tool states it in the report in the subject's voice, so record what the
+  report does rather than what it meant to do.
 @include fragments/petition-right.md
 @include fragments/blue-return-the-envelope.md
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** You are its author, so this is yours first: every sentence of a lane's part you keep is yours once you keep it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, the inquiry's propose and record, and compute and cite, whose computation note and source title the report prints.

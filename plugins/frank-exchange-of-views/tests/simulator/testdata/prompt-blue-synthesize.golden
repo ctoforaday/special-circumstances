@@ -1,4 +1,4 @@
-prompt sha256: d22dac9310e531e129267b4740f3e275ddd50a59cc3111edab405a61dfaf71e4
+prompt sha256: c36e6fe0f04501c67b0f3912449c32442ee0fceaea90cf5f7c36d6595156a69c
 
 Blue synthesis for topic: "the seat prompt contract".
 The lanes have recorded their parts of the report, and the report is those parts, joined in the order they were recorded.
@@ -10,16 +10,18 @@ The report OPENS with the H1 title `# the seat prompt contract — research repo
 The report ships in the order it is written, and a change that puts any of those out of its place — the Catechism after a section of your argument, a section after the open questions, text between the title and the TL;DR — is refused.
 You write each of them once, HERE, inside the document red audits every sitting, each as a change that quotes the text beside where it goes.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, the sections of your argument under headings you choose, open questions, and your citations — and NOTHING assembly composes from the record.
-Do NOT write any of `## Risk matrix`, `## Research areas`, `## Future research directions`, `## Alternatives considered`, `## Bibliography`, `## The board`, `## The debate`, `## Citations`, `## How this run was conducted`, `## The verdict's basis`, `## Log (what the run told the operator)`, `## Record verification`, `## Claims retired`, `## Superseded bench statements`, `## Edits to the report`, or a `## Blue team report` wrapper: assembly composes each of those sections from the record, and a change that would put one of those headings in the report is refused; the refusal says how content reaches that section and lists every section assembly composes.
+Do NOT write any of `## Risk matrix`, `## Research areas`, `## Future research directions`, `## Alternatives considered`, `## Bibliography`, `## The board`, `## The debate`, `## Citations`, `## How this run was conducted`, `## The verdict's basis`, `## The question's coverage`, `## Log (what the run told the operator)`, `## Record verification`, `## Claims retired`, `## Superseded bench statements`, `## Edits to the report`, or a `## Blue team report` wrapper: assembly composes each of those sections from the record, and a change that would put one of those headings in the report is refused; the refusal says how content reaches that section and lists every section assembly composes.
 The approaches the research considered are among them: each is an inquiry on the record, where what became of it is said, and the report carries no list of them.
 A `## The board` section you author is FABRICATION, because you cannot know red's findings, red's spot-checks or the bench's dispositions.
-Do NOT write a `**Outcome:**` line ANYWHERE either — the outcome is decided after your last audit, so an outcome you author is stale beside the real one, and one above the first heading is refused with the headings.
+Do NOT write a `**Outcome:**` or `**Not answered here:**` line ANYWHERE either — the outcome is decided after your last audit, so an outcome you author is stale beside the real one, and one above the first heading is refused with the headings.
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
 The lanes name their sources in prose beside each claim, and the program behind each figure by its path: cite each source and record each program as a computation with the tool, and take the prose naming it out of the text.
 THE REPORT IS ON THE RECORD, NOT IN A FILE: read it and change it by your seat's own acts, and every change you make is on the record with its reason.
 A part is a lane's, and your seat records none.
+THE QUESTION'S COVERAGE IS YOURS TO RECORD, part by part: for each question part on the record, record whether the report answers it — covered; not obtained, where the sources that would answer it could not be obtained; or excluded, where it lies outside the report's answer — with the reason, under the group your role's help names for the question.
+A question part not covered lets a PASS stand and makes the outcome QUALIFIED, and the tool states it in the report in the subject's voice, so record what is true rather than what reads well; a part of the question nobody split out is one you split out first.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

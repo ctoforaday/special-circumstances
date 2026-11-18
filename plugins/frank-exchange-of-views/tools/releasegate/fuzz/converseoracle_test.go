@@ -60,6 +60,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		&recordpb.Cast{SeatIds: []string{converseLens, "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"}, LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	r := newRunner(bin, runDir, newLockedRand(7))
 	must := func(args ...string) string {
 		t.Helper()

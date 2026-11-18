@@ -90,18 +90,24 @@ void sleep_ms(uint32_t ms) {
 #endif
 }
 
-void selftest_stdout(std::vector<std::string>* result) {
-  std::printf("selftest-stdout: printf\n");
-  std::cout << "selftest-stdout: cout" << std::endl;
-  static const char kFwrite[] = "selftest-stdout: fwrite\n";
-  std::fwrite(kFwrite, 1, sizeof kFwrite - 1, stdout);
-  static const char kWrite[] = "selftest-stdout: write\n";
+// write_stdout writes one line to stdout through each of the four routes C and C++ code takes,
+// each line "<who>: <route>".
+void write_stdout(const std::string& who) {
+  std::printf("%s: printf\n", who.c_str());
+  std::cout << who << ": cout" << std::endl;
+  const std::string fw = who + ": fwrite\n";
+  std::fwrite(fw.data(), 1, fw.size(), stdout);
+  const std::string w = who + ": write\n";
 #ifdef _WIN32
-  int ignored = _write(1, kWrite, sizeof kWrite - 1);
+  int ignored = _write(1, w.data(), static_cast<unsigned>(w.size()));
 #else
-  ssize_t ignored = write(1, kWrite, sizeof kWrite - 1);
+  ssize_t ignored = write(1, w.data(), w.size());
 #endif
   (void)ignored;
+}
+
+void selftest_stdout(std::vector<std::string>* result) {
+  write_stdout("selftest-stdout");
   std::string all(256, '\0');
   for (int i = 0; i < 256; i++) all[i] = static_cast<char>(i);
   result->push_back(all);
@@ -394,6 +400,12 @@ int serve(const std::string& digest, const std::vector<std::string>& assets, con
     std::fprintf(stderr, "frame: %s\n", err.c_str());
     return 2;
   }
+  // NATIVE_HELPER_SELFTEST_STDOUT makes the helper write to stdout outside any request: once here,
+  // before the first request, and again after each response. Those writes reach stderr only
+  // through claim()'s and Capture::end()'s fd 1 moves, which no request's capture covers.
+  const char* outside = std::getenv("NATIVE_HELPER_SELFTEST_STDOUT");
+  const bool selftest_outside = outside != nullptr && std::strcmp(outside, "1") == 0;
+  if (selftest_outside) write_stdout("selftest-stdout before the first request");
   Capture cap;
   bool greeted = false;
   for (;;) {
@@ -458,6 +470,7 @@ int serve(const std::string& digest, const std::vector<std::string>& assets, con
       std::fprintf(stderr, "frame: %s\n", err.c_str());
       return 5;
     }
+    if (selftest_outside) write_stdout("selftest-stdout between requests");
   }
 }
 

@@ -281,6 +281,8 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		return "G-00000000"
 	case "inquiry-id":
 		return "Q-00000000"
+	case "question-part-id":
+		return "S-00000000"
 	case "motion-id":
 		return "M-00000000"
 	case "citation-anchor":

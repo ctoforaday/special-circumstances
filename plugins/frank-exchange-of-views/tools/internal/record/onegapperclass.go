@@ -56,14 +56,18 @@ import (
 // did.
 func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Mint) error {
 	quote := strings.TrimSpace(m.GetLocation())
-	inquiry, about := "", ""
+	inquiry, about, part := "", "", ""
 	switch m.GetAboutKind() {
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		inquiry = m.GetAboutRef()
+	// A GAP ABOUT A QUESTION PART IS ONE PER CLASS AND PART; one about the question as a whole names no
+	// part, and two of them may be about two parts the record does not hold, so the rule reads none.
+	case recordpb.AboutKind_ABOUT_KIND_QUESTION:
+		part = m.GetAboutRef()
 	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 		about = m.GetAboutRef()
 	}
-	if quote == "" && inquiry == "" && about == "" {
+	if quote == "" && inquiry == "" && about == "" && part == "" {
 		return nil
 	}
 	held, err := openGapsOfClassAt(w.q, m.GetClass())
@@ -78,6 +82,13 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		for _, g := range held {
 			if g.about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, inquiry) {
 				return oneGapRefusal(m, g, "inquiry "+inquiry)
+			}
+		}
+	}
+	if part != "" {
+		for _, g := range held {
+			if g.about(recordpb.AboutKind_ABOUT_KIND_QUESTION, part) {
+				return oneGapRefusal(m, g, "question part "+part)
 			}
 		}
 	}

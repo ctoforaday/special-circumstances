@@ -239,7 +239,7 @@ var EnumFields = map[string][]EnumField{
 	// a second table.
 	"outcome": {{
 		Key: "verdict", Flag: flags.As, Values: loud(evsOf(recordpb.RunOutcome(0).Descriptor())),
-		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
+		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses its \"NOT a judged failure to verify\" caveat",
 	}},
 	// `log`, and the TYPE is the whole reason the channel is worth reading. Measured on
 	// 2026-09-02_quadratic-formula the channel ran 142,891 characters with no types on it, so an
@@ -262,6 +262,11 @@ var EnumFields = map[string][]EnumField{
 	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+	}},
+	// `question_part`, the event type whose body holds the coverage set.
+	"question_part": {{
+		Key: "coverage", Flag: flags.As, Values: evsOf(recordpb.PartCoverage(0).Descriptor()),
+		Why: "the coverage decides the run's outcome: a PASS over a part not covered derives QUALIFIED, and report.md states the part from its coverage, so a coverage outside the set would state nothing",
 	}},
 	// `inquiry_check` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling. A check
 	// is a positive judgement only; an inquiry found wanting is an ORDINARY GAP with the grade
