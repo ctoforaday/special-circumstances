@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE SPOT-CHECK STATES WHAT CHANGED BEHIND EACH PIN, AND THE TOOL STATES IT (gblock, 2026-11-10).
@@ -34,8 +35,7 @@ func checkSpotCheckStamps(fam record.Family) (got spotCheckStamps, msg string) {
 	var changes []int64
 	for _, e := range fam.Events {
 		id := fam.At.Of(e).ID
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
+		if recordsql.IsHeadMove(e.GetType()) {
 			changes = append(changes, id)
 			continue
 		}

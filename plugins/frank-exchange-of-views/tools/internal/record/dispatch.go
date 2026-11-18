@@ -270,7 +270,7 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.cast, err = castAt(q); err != nil || r.cast == nil {
 		return r, err
 	}
-	if r.head, err = reportHeadAt(q); err != nil {
+	if r.head, err = ReportHeadAt(q); err != nil {
 		return r, err
 	}
 	if r.evs, r.win, err = eventsAt(q); err != nil {

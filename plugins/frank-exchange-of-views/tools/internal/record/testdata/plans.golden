@@ -51,36 +51,31 @@
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
 
 == view area_change
-  COMPOUND QUERY
-    LEFT-MOST SUBQUERY
-      MATERIALIZE bound
-        MATERIALIZE lens
-          SCAN v
-          USE TEMP B-TREE FOR DISTINCT
-        SCAN l
+  MATERIALIZE bound
+    CO-ROUTINE lens
+      SCAN v
+      USE TEMP B-TREE FOR DISTINCT
+    SCAN l
+    CORRELATED SCALAR SUBQUERY
+      SEARCH e USING INDEX events_seat (seat_id=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
-          SEARCH e USING INDEX events_seat (seat_id=?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            CORRELATED SCALAR SUBQUERY
-              SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
-              SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            CORRELATED SCALAR SUBQUERY
-              SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-          SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+          SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
-          SEARCH c USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id=?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH a USING INDEX sqlite_autoindex_spot_check_areas_1
-      SCAN b
-      SEARCH blue_edit USING INTEGER PRIMARY KEY (rowid>?)
-    UNION ALL
-      SCAN b
-      SEARCH report_part USING INTEGER PRIMARY KEY (rowid>?)
+          SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH c USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH a USING INDEX sqlite_autoindex_spot_check_areas_1
+  SCAN b
+  SEARCH events USING COVERING INDEX events_type (type=? AND rowid>?)
 
 == view board_counts
   CO-ROUTINE board_counts
@@ -339,6 +334,9 @@
     SEARCH eg USING INDEX sqlite_autoindex_enum_grade_1 (value=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH um USING INTEGER PRIMARY KEY (rowid=?)
+
+== view head_move
+  SEARCH events USING COVERING INDEX events_type (type=?)
 
 == view inquiry_state
   CO-ROUTINE p
@@ -2411,8 +2409,8 @@
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 218c39de6b34
--- SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')
+== stmt 570a2e274a95
+-- SELECT COALESCE(MAX("event_id"), 0) FROM "head_move"
   SEARCH events USING COVERING INDEX events_type (type=?)
 
 == stmt 4ebc058246d8

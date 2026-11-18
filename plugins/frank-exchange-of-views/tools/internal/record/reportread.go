@@ -47,7 +47,7 @@ func ServeReport(id Identity) (text string, head int64, err error) {
 		if text, err = l.Report(); err != nil {
 			return err
 		}
-		if head, err = reportHeadAt(l.w.q); err != nil {
+		if head, err = ReportHeadAt(l.w.q); err != nil {
 			return err
 		}
 		body.Head = proto.Int64(head)
@@ -98,7 +98,7 @@ func requireReportReadAt(q recordsql.Querier, seatID string, b *recordpb.ReportR
 	if seatclass.RoleOfSeat(seatID) != "lens" {
 		return fmt.Errorf("a report read records the whole report served to a lens, and %s is not a lens", seatID)
 	}
-	head, err := reportHeadAt(q)
+	head, err := ReportHeadAt(q)
 	if err != nil {
 		return err
 	}

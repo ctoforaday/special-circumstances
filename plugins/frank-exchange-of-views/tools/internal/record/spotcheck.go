@@ -81,8 +81,8 @@ func changesAfter(changes []int64, pin int64) []int64 {
 // either is refused: a seat that could state the changes could state 42 over a record holding 4.
 //
 // The pin is the lens fold's (lensStates): the latest head the whole report was served to the lens
-// at in a sitting it sat through. A change is an event that moves the report head — a blue_edit or a
-// report_part (reportHeadOf) — so the changes after a stale area's pin are exactly what moved the
+// at in a sitting it sat through. A change is an event that moves the report head — a report_part, a
+// blue_edit or a retire (recordsql.HeadMoves) — so the changes after a stale area's pin are exactly what moved the
 // head past it.
 func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 	if len(b.GetPins()) > 0 || len(b.GetChanges()) > 0 {
@@ -104,11 +104,8 @@ func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 		earliest = min(earliest, pin)
 	}
 	for i, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
-			if ids[i] > earliest {
-				b.Changes = append(b.Changes, ids[i])
-			}
+		if recordsql.IsHeadMove(e.GetType()) && ids[i] > earliest {
+			b.Changes = append(b.Changes, ids[i])
 		}
 	}
 	return nil
