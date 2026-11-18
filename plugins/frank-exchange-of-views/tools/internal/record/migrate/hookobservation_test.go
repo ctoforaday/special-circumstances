@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-// AN ARCHIVED RUN'S `hooks` KEY IS DROPPED, AND THE MANIFEST KEEPS WHAT IT SAID. Setup's reading of
+// AN ARCHIVED RUN'S `hooks` KEY IS DROPPED, AND THE MANIFEST KEEPS WHAT IT SAID. Setup's observation of
 // the plugin install cache is no key of the run's configuration, which the record reads strictly,
 // so a copy carrying it would refuse every read of the migrated run's terms. The 11-11 run is the
-// one whose reading named every hook binary missing while every seat's register carries a hook
+// one whose observation named every hook binary missing while every seat's register carries a hook
 // build: the source is checked to state the key first, so the test cannot pass on an archive that
 // never had one.
-func TestAnArchivedRunsHookReadingIsDroppedAndRecorded(t *testing.T) {
+func TestAnArchivedRunsHookObservationIsDroppedAndRecorded(t *testing.T) {
 	const name = "2026-11-11_eiffel-tower-height.tar.gz"
 	src := t.TempDir()
 	untar(t, archivePath(t, name), src)

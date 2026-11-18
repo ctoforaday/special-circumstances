@@ -139,6 +139,20 @@ func TestARunWhoseEveryRegistrationMixesBuildsIsNamed(t *testing.T) {
 	}
 }
 
+// AN UNSTAMPED RECORD BINARY UNDER A STAMPED HOOK IS A MIX. `unknown` is a build with no commit
+// stamp, and a hook that carries one is another build: the 09-10 b3 run's evidence lens ran a
+// record binary built outside a git tree under the run's hook.
+func TestAnUnstampedRecordBuildUnderAStampedHookIsNamed(t *testing.T) {
+	got := buildsLine(t, stampedRun(t,
+		stamped{"red-chair", "5679a6e+dirty", "5679a6e+dirty", "injected"},
+		stamped{"red-lens-evidence", "unknown", "5679a6e+dirty", "injected"},
+	))
+	want := "- `red-lens-evidence`: feov-record build `unknown`, hook build `5679a6e+dirty`"
+	if !strings.HasSuffix(got, want) || !strings.Contains(got, "MIXED BUILDS") {
+		t.Errorf("an unknown record build under a stamped hook is not named as a mix:\n%s\nwant it to end\n%s", got, want)
+	}
+}
+
 // A RUN NO HOOK STAMPED COMPARES NO BUILDS. Its registrations say they carry no hook stamp, and the
 // section claims neither agreement nor a mix.
 func TestARunNoHookStampedComparesNoBuilds(t *testing.T) {

@@ -288,8 +288,8 @@ var runConfigDrops = map[string]struct{}{
 	// the chair's FAIL over a converged board was refused, which went with the FAIL at epoch 78: the
 	// verdict is the PASS alone.
 	"convergenceFraction": {},
-	// A SOURCE UP TO EPOCH 79 MAY STATE `hooks`, setup's reading of the plugin install cache. The
-	// cache is not the tree a session loads for every install, so the reading went: each
+	// A SOURCE UP TO EPOCH 79 MAY STATE `hooks`, setup's observation of the plugin install cache. The
+	// cache is not the tree a session loads for every install, so the observation went: each
 	// registration's tool_version and hook_version say which builds ran.
 	"hooks": {},
 }
