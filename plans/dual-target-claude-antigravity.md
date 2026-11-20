@@ -518,6 +518,66 @@ Claude Code installs from the marketplace pin and updates with `claude plugin up
 - **Detect by contents, not label.** The doctor's version check reads the manifest and `.fetch/installed`, so a half-updated plugin reads as current. `sc-doctor -fix` under Antigravity compares the installed contents with the pinned tag (a commit marker written at install) and reinstalls through `agy plugin install` on a mismatch (#1796).
 - **Scheduled update.** A machine's agy daemon restart runs the reinstall before the daemon starts. This box does that with `~/.local/bin/agy-update-plugins`, an `ExecStartPre` of `antigravity-cli-daemon.service`, until the doctor ships the behaviour.
 
+
+### III.9 System-Level Install for Both Harnesses ([#1792](https://github.com/ctoforaday/special-circumstances/issues/1792))
+
+**Ruling (gblock, 2026-11-20):** "both of you should be installing plugins at system level, both of you should be using official binaries, both of you should have your own plugin.json files that contain your own harness specific behaviours, and both of you should have your own hooks file."
+
+**Measured** by Antigravity conversation 31aafaf1 on 2026-11-20 (agy 1.5.13, isolated HOME):
+- **Workspace copies shadow installed ones completely.** With `.agents/plugins.json` (`{"entries":[{"path":"plugins"}]}`), only the workspace copy's hooks fire (`PWD=<ws>/plugins/<name>`). Without it, the installed copy's hooks fire (`PWD=~/.gemini/config/plugins/<name>`) in a session whose workspace is this repository.
+- **agy loads hooks only from `<plugin>/hooks.json`.** `.antigravity-plugin/hooks.json` is "never loaded", and a `hooks` field in `.antigravity-plugin/plugin.json` is an "unknown field … ignored". Both register 0 hooks (agrees with Q1).
+- **An installed copy's `fetch-bin.sh` fills `bin/` with the official release assets on the first hook under agy, SHA-256 verified.** It needs no `sc-doctor -fix`. Measured on the archived tag `gray-area--v0.21.0`, whose `bin/` holds only `.gitkeep`.
+- **`.antigravity-plugin/plugin.json` accepts only** `name`, `displayName`, `version`, `description`, `logo`, `suggestedPrompts`, `author`, `homepage`, `repository` and `disabled`.
+
+Before this change, every in-repo agy session ran the main checkout's `plugins/<name>` hooks. `fetch-bin.sh` refused to fetch into that source tree, so none of them acted. The daemon logs record a refusal every day from 2026-11-04 07:15: no secrets gate, no push-freeze guard, and no gray-area capture.
+
+**The layout, one column per harness:**
+
+| | Claude Code | Antigravity |
+|---|---|---|
+| Installed at | `~/.claude/plugins/cache/special-circumstances/<name>/<version>/` | `~/.gemini/config/plugins/<name>/` |
+| Manifest | `.claude-plugin/plugin.json`, including `"hooks"` | `.antigravity-plugin/plugin.json` (the fields above) |
+| Hooks file | `.claude-plugin/hooks.json` | `hooks.json` at the plugin root, the only place agy reads |
+| Binaries | Official release assets, fetched by `hooks/fetch-bin.sh` into the installed `bin/` | The same |
+| Installed and updated by | `claude plugin install` / `update` from the marketplace pin | `sc-doctor -fix` from the marketplace pin |
+
+No session loads a plugin from a workspace or a checkout.
+
+**Changes:**
+1. **Delete `.agents/plugins.json`.**
+2. **`scripts/pluginparity`:**
+   - `antigravityPluginProblems` keeps the manifest-parity checks and drops workspace discovery.
+   - A new check fails when `.agents/plugins.json` exists, because a workspace entry shadows the installed copy and runs source-tree hooks that do nothing.
+   - `TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins` drops its workspace-discovery subtests. Its bulk install (`agy plugin install <repo>`, which relied on the manifest) becomes one `agy plugin install plugins/<name>` per plugin into a temporary HOME, and it asserts that agy discovers all four from the installed copies, with no `--add-dir`.
+3. **First install under agy.**
+   - `sc-doctor -fix` today reinstalls only plugins agy already has. It now also installs every marketplace plugin agy lacks, at its pinned tag, or at `origin/main` for a source-only plugin such as `sleeper-service`, which has no release (`parseMarketplacePins` already resolves both).
+   - Bootstrap: `agy plugin install <checkout>/plugins/prosthetic-conscience`, then run `sh ~/.gemini/config/plugins/prosthetic-conscience/hooks/fetch-bin.sh fetch` so `sc-doctor` is present, then `/prosthetic-conscience:doctor --fix`. The fix installs the other plugins and re-pins prosthetic-conscience itself to its tag.
+   - **Every install path fetches binaries before it returns.** After each `agy plugin install`, `sc-doctor -fix` and the nightly updater run the installed plugin's `hooks/fetch-bin.sh fetch`, the synchronous download, verify and install.
+   - Why: a hook's `fetch-bin.sh hook` downloads in the background (about 3–8 s), and until it finishes that plugin's hooks do nothing, including the secrets gate. Fetching at install time closes that window for every path except a hand install.
+4. **README "On Google Antigravity"** describes that bootstrap and drops the bulk install.
+5. **`fetch-bin.sh` keeps refusing a source tree.** With no workspace loading, no session reaches that branch except a development run that builds its own binaries.
+6. **Developing a plugin change under agy** happens in an isolated HOME that installs the checkout's plugin with locally built binaries, as hookcore's live tests do. It never happens in a developer's own session. This is agy's counterpart of `universe.sh`.
+7. **§III.2.1 is rewritten in the present tense.** No workspace discovery exists, so the "Active Workspace Hook Invariant" and Stage 3's build-into-checkout go.
+8. **`AGENTS.md`'s hook-execution line** names both install locations.
+9. **This box.** `agy-nightly` already installs from the pinned tags, so the change takes effect once the manifest is gone from the main checkout. A running agy daemon picks it up at its next restart.
+
+**Delivery, two PRs in order:**
+1. Antigravity conversation 31aafaf1 owns the first: `sc-doctor -fix` installs missing marketplace plugins and fetches at install, with unit tests. It lands before the manifest goes.
+2. The Claude session (8a3d5199) owns the second: delete `.agents/plugins.json`, the pluginparity guard and test, README, `AGENTS.md`, and this section's companions. It is paired with 31aafaf1's live test, which needs the manifest gone.
+
+Coordinate with the install-shape contract work in the `install-contract` worktree (Claude session 004f9d8b, `scripts/installshape`), which drives the same install path.
+
+**Verification (adds to §V):**
+- **Live test** (`HOOKCORE_LIVE=1`, isolated HOME):
+  - Setup: archive the three tagged plugins at their pinned tags and `sleeper-service` at `HEAD`, each with `bin/` empty, and install them. Use this repository as the workspace, without `.agents/plugins.json`.
+  - Turn 1 fires `SessionStart`. Poll until `.fetch/installed`, `bin/sc-pretooluse` and `bin/gray-area-capture` exist.
+  - Turn 2 runs a `run_command` carrying a planted key and asserts the secrets gate refuses it. It also asserts that gray-area captured the turn into the isolated catalogue.
+  - The planted key goes in Turn 2, not Turn 1: Turn 1 races the background fetch.
+- **Delete-the-row check:** restoring `.agents/plugins.json` fails pluginparity, and the live test then sees no installed hook fire.
+- **On this box after merge:**
+  - `for f in ~/.gemini/antigravity-cli/log/cli-*.log; do echo "$f $(grep -c 'refusing to fetch release binaries into source tree' $f)"; done` reads 0 for logs after the next daemon restart.
+  - `telepathy session <in-repo agy conversation>` reads `open`, with current acts, without a manual backfill.
+
 ---
 
 ## IV. Risk & Mitigation
