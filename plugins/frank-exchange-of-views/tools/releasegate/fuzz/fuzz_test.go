@@ -3011,6 +3011,13 @@ func (r *runner) bridgeRefusalOwed() bool {
 	return r.bridgesRefused == 0
 }
 
+// bridgesLanded is how many supports_with_bridge readings naming a bridge the record has taken.
+func (r *runner) bridgesLanded() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bridgesNamed
+}
+
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low
 // confidence, `supports` at low confidence — only exist if the two are drawn apart.
@@ -6399,7 +6406,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
 				// enough to fail it by chance.
 				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
-				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
+				// THE KIND CYCLES OVER THE NAMED READINGS THE RECORD TOOK, so every kind lands once a run
+				// has three; a drawn kind left `summary` undriven across a whole sweep by chance.
+				bridge := bridgeKinds[r.bridgesLanded()%len(bridgeKinds)]
 				axes := func(outcome string, c *cmd) *cmd {
 					if outcome == "supports_with_bridge" && !kindless {
 						c = c.set("--bridge", bridge)
