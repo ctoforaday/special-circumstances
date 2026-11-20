@@ -56,6 +56,18 @@ func (x *WindowIndex) readViews(q recordsql.Querier) error {
 	return nil
 }
 
+// deliveriesUpTo is the report_delivery rows with an event id at or before upTo.
+func (x WindowIndex) deliveriesUpTo(upTo int64) []recordsql.DeliveryRow {
+	x.mustViews()
+	var out []recordsql.DeliveryRow
+	for _, r := range x.deliveries {
+		if r.EventID <= upTo {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // mustViews panics where the index read no views.
 func (x WindowIndex) mustViews() {
 	if !x.viewsRead {

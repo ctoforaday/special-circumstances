@@ -3,7 +3,6 @@ package cli
 import (
 	"database/sql"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -49,14 +48,16 @@ func headOf(t *testing.T, runDir string) int64 {
 
 const servedReport = "# Costs\n\nCosts rose sharply in the first quarter.\n\nVolume grew.\n"
 
-// THE WHOLE REPORT SERVED TO A LENS IS RECORDED, ONCE PER HEAD IN A SITTING, AND NOTHING ELSE IS. Both
-// whole forms record it; a read at an anchor and a selection serve part of it, and record nothing; no other seat's read is a lens's pin. A head move is a new
-// read.
-func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
+// NO READ OF THE REPORT IS RECORDED; A DELIVERY IS, WHEN THE WRITER HANDS ITS LAST ITEM. `show report`
+// serves the report — whole, at an anchor, or a selection, to any seat — and records nothing and moves
+// no pin. The tool records a report_read only as the delivery writer hands the last item of a seat's
+// delivery, at the head the delivery was cut at, in the seat's sitting; a head move after it is a
+// change the seat is delivered at its next sitting, never a second read in this one.
+func TestNoReadOfTheReportIsRecordedAndTheWritersLastItemIs(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, servedReport)
-	// The mint helper seats the lens and serves it the report, as an audit does, so the head moves
-	// before the reads below: a read at the head the lens was already served records nothing anyway.
+	// The mint helper seats the lens and completes its first delivery, so the reads below are in a
+	// sitting that holds one; the counts are taken after it.
 	id, err := mintQuote(t, runDir, "k1", "Costs rose sharply")
 	if err != nil {
 		t.Fatal(err)
@@ -77,34 +78,50 @@ func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
 		}
 		return out
 	}
-	before := readsOf(t, runDir)
+	pin := func() int64 {
+		t.Helper()
+		p, err := record.PinAt(openRunDB(t, runDir), lensSeat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	before, pinBefore := readsOf(t, runDir), pin()
 	head := edit("E1", "Volume grew.", "Volume grew steadily.")
-	for _, partial := range [][]string{
+	for _, args := range [][]string{
 		{"--anchor", id}, {"--anchor", id, "--json"}, {"--match", "Volume"}, {"--quote", "Volume grew"},
-		{"--json", "--match", "Volume"}, {"--json", "--quote", "Volume grew"},
+		{"--json", "--match", "Volume"}, {"--json", "--quote", "Volume grew"}, {}, {"--json"},
 	} {
-		show(lensSeat, partial...)
+		show(lensSeat, args...)
 	}
 	show("red-chair")
 	show(blueSeat, "--json")
-	if got := readsOf(t, runDir); len(got) != len(before) {
-		t.Fatalf("a read at an anchor, a selection or another seat's whole read recorded %+v", got[len(before):])
-	}
-
 	if out := show(lensSeat); out != readReport(t, runDir) {
 		t.Fatalf("the lens's bare read is not the report:\n%s", out)
 	}
-	show(lensSeat, "--json")
-	show(lensSeat)
+	if got := readsOf(t, runDir); len(got) != len(before) || pin() != pinBefore {
+		t.Fatalf("a read of the report recorded %+v and moved the lens's pin %d -> %d", got[len(before):], pinBefore, pin())
+	}
+
+	// The lens's next sitting owes its full re-read: the writer hands it, item by item.
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatal(err)
+	}
+	if n := writerHands(t, runDir, "agent_lens_delivered", lensSeat); n == 0 {
+		t.Fatal("the writer handed the lens no item, so the read below measures nothing")
+	}
 	got := readsOf(t, runDir)[len(before):]
 	if len(got) != 1 || got[0].seat != lensSeat || got[0].head != head || got[0].sitting == 0 {
 		t.Fatalf("reads = %+v, want one by %s at head %d in its sitting", got, lensSeat, head)
 	}
 
-	moved := edit("E2", "Volume grew steadily.", "Volume grew steadily all year.")
+	edit("E2", "Volume grew steadily.", "Volume grew steadily all year.")
 	show(lensSeat, "--json")
-	if got = readsOf(t, runDir)[len(before):]; len(got) != 2 || got[1].head != moved || got[1].sitting != got[0].sitting {
-		t.Fatalf("reads after the head moved to %d = %+v, want a second read at it in the same sitting", moved, got)
+	if n := writerHands(t, runDir, "agent_lens_delivered", lensSeat); n != 0 {
+		t.Errorf("the writer handed %d item(s) of report text after the head moved, in a sitting that holds its delivery", n)
+	}
+	if got = readsOf(t, runDir)[len(before):]; len(got) != 1 {
+		t.Fatalf("reads after the head moved = %+v, want the one delivery and no second read in the sitting", got)
 	}
 }
 
@@ -140,10 +157,11 @@ func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 	}
 }
 
-// A READ THE RECORD CANNOT TAKE IS REFUSED, NOT SERVED UNRECORDED. Another writer holds the lock past
-// the busy budget: the read fails loudly, prints nothing, and nothing is on the record. The budget is
-// shortened so the test waits a fraction of a second, not the production minute.
-func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
+// A READ UNDER ANOTHER WRITER'S LOCK IS SERVED AND RECORDS NOTHING: the read writes nothing, so a lock
+// held past the busy budget does not stand in its way. A READ THE RECORD CANNOT ANSWER IS REFUSED AND
+// SERVES NOTHING: with the report's own rows unreadable, the read fails loudly and prints no text. The
+// budget is shortened so a wait, if the read took one, would cost a fraction of a second.
+func TestAReadTheRecordCannotAnswerIsRefusedAndServesNothing(t *testing.T) {
 	const budget = 300 * time.Millisecond
 	t.Cleanup(recordsql.SetBusyBudgetForTest(budget))
 	runDir := newRun(t)
@@ -160,20 +178,20 @@ func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	started := time.Now()
 	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat)
-	took := time.Since(started)
 	_ = tx.Rollback()
-	if err == nil || out != "" {
-		t.Fatalf("a read under another writer's lock = %q, %v; want a refusal and no text", out, err)
-	}
-	if !strings.Contains(strings.ToLower(err.Error()), "lock") && !strings.Contains(strings.ToLower(err.Error()), "busy") {
-		t.Errorf("the refusal does not say the record was locked: %v", err)
-	}
-	if took < budget {
-		t.Errorf("the refusal came after %v, before the %v budget ran out — it was not the lock wait that refused", took, budget)
+	if err != nil || out != readReport(t, runDir) {
+		t.Fatalf("a read under another writer's lock = %q, %v; want the report, served", out, err)
 	}
 	if got := readsOf(t, runDir); len(got) != 0 {
-		t.Errorf("a refused read recorded %+v", got)
+		t.Errorf("a read recorded %+v", got)
+	}
+
+	if _, err := openRunDB(t, runDir).Exec(`DROP TABLE "report_part"`); err != nil {
+		t.Fatal(err)
+	}
+	out, err = run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat)
+	if err == nil || out != "" {
+		t.Fatalf("a read the record cannot answer = %q, %v; want a refusal and no text", out, err)
 	}
 }

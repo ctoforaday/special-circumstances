@@ -46,6 +46,9 @@ type FailedSitting struct {
 	Sitting int    `json:"sitting"`
 	Epoch   int    `json:"epoch"`
 	AgentID string `json:"agent_id"`
+	// SittingID is the id of the event that opened the sitting (events.sitting_id), which every act in
+	// it carries.
+	SittingID int64 `json:"sitting_id"`
 }
 
 // FailedSittings is every failed sitting on the run's record, in the order they opened.
@@ -58,7 +61,7 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 }
 
 // FailedSittingsOf IS THE ONE ANSWER TO "DID THIS SITTING FAIL", read off the record's own facts
-// (AgentSittingsOf): a sitting of a seat whose work arrives as items that closed and was never
+// (the agent_sitting view AgentSittingsOf reads): a sitting of a seat whose work arrives as items that closed and was never
 // admitted.
 //
 // A SITTING NOT YET CLOSED HAS NOT FAILED: it may be in flight. An opening with no agent — a headless
@@ -67,11 +70,32 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 // and the synthesizer return no envelope the gate asks about.
 func FailedSittingsOf(win WindowIndex) []FailedSitting {
 	var out []FailedSitting
-	for _, s := range AgentSittingsOf(win) {
+	win.mustViews()
+	for _, s := range win.sittings {
 		if !s.Closed || s.Admitted || !WorkArrivesAsItems(seatclass.RoleOfSeat(s.SeatID), s.SeatID) {
 			continue
 		}
-		out = append(out, FailedSitting{SeatID: s.SeatID, Sitting: s.Sitting, Epoch: s.Epoch, AgentID: s.AgentID})
+		out = append(out, FailedSitting{SeatID: s.SeatID, Sitting: s.Sitting, Epoch: s.Epoch, AgentID: s.AgentID, SittingID: s.SittingID})
+	}
+	return out
+}
+
+// ToolDefectsIn is the text of every (TOOL, DEFECT) log row stored in the sitting sittingID, in record
+// order: a tool that failed internally while the seat sat. Joined on the row's source, type and stored
+// sitting (events.sitting_id), never on its text.
+//
+// NONE OF THEM IS A SITTING'S FAILURE REASON. cite, compute and reproduce log defects that fail no
+// sitting, so a defect in a failed sitting sits beside its failure, and is not said to cause it.
+func ToolDefectsIn(evs []*Event, win WindowIndex, sittingID int64) []string {
+	var out []string
+	for _, e := range evs {
+		l := e.GetLog()
+		if l == nil || l.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL || l.GetType() != recordpb.LogType_LOG_TYPE_DEFECT {
+			continue
+		}
+		if win.Of(e).SittingID == sittingID {
+			out = append(out, l.GetText())
+		}
 	}
 	return out
 }

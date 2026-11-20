@@ -565,19 +565,19 @@ test('the chair is told a lens sits again only when the head passes its pin and 
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)
   const p = labelsOf(world, 'red-chair')[0].prompt
-  assert.ok(/RECORDS who sits — each lens that has never sat or whose pin the report head has moved past,/.test(p), 'the dispatch is described by the head and the lens\'s pin')
+  assert.ok(/RECORDS who sits — each lens that has never sat, that owes the whole report or its full re-read, or whose pin the report head has moved past,/.test(p), 'the dispatch is described by the head, the lens\'s pin and the whole deliveries it owes')
   assert.ok(!/active lenses/.test(p) && !/re-arm/.test(p), 'no lens is described as ready at a head it has sat at')
   assert.ok(!/every sitting it is not empty/.test(p) && !/Re-sample the archive/.test(p), 'no sitting without a PASS in view owes a spot-check')
   // THE READINESS RULE AND THE PASS IT PERMITS ARE THE CONSTITUTION'S, ONCE. They hold at every chair
   // sitting, so the prompt carries none of them (TestEveryFragmentRendersOnceWhereItIsIncluded, rule 2).
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
-  assert.ok(/A lens with no gap engaged is readied when it has never sat or its pin is behind the head, and not otherwise: its pin is the head the tool last served it the whole report at, in a sitting it sat through, so a lens whose sitting ended without the report served to it at the head is readied again\. Three sittings in a row with no fresh material mint retire a lens that owes nothing, and a head move does not ready a retired lens; a gap a lens holds owes only what is new on it since that lens last sat\./.test(chairMd), 'ready only on a moved head, retired at three owing nothing')
-  assert.ok(/permits a PASS only when no lens is ready — every lens has been served the report at the head or has retired — and nothing another seat must clear holds it\. BEFORE a PASS/.test(chairMd), 'the no-lens-ready PASS condition')
-  assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(chairMd), 'the stale areas')
+  assert.ok(chairMd.includes('A lens with no gap engaged is readied when it has never sat, when it owes the whole report — the tool delivers a lens the whole report at its first sitting and once more at its next, its full re-read, and a lens owing either is ready at an unmoved head until it has it — or when its pin is behind the head, and not otherwise: its pin is the head of the latest report text the tool delivered to it, in a sitting it sat through, so a lens whose sitting ended before its delivery at the head completed is readied again.') && chairMd.includes('Three sittings in a row with no fresh material mint retire a lens that owes nothing'), 'ready only on a moved head or an owed whole delivery, retired at three owing nothing')
+  assert.ok(/permits a PASS only when no lens is ready — every lens has had its delivery at the head, its full re-read included, or has retired — and nothing another seat must clear holds it\./.test(chairMd), 'the no-lens-ready PASS condition')
+  assert.ok(/BEFORE a PASS, the changes behind each stale area's pin that you have not borne arrive on your work list/.test(chairMd) && /Read them and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(chairMd), 'the stale areas')
   assert.ok(/The spot-check is owed before a PASS and at no other time: name in it every stale area the plan lists/.test(chairMd), 'the spot-check is owed before a PASS, and names the stale areas')
   assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(chairMd), 'the by-class listing')
   assert.ok(!/A LENS SITS AGAIN/.test(p) && !/YOUR PASS LISTS EVERY OPEN GAP/.test(p) && !/The spot-check is owed before a PASS/.test(p), 'the chair prompt restates the readiness rule its constitution carries')
-  for (const clause of ['is readied again. Three sittings in a row with no fresh material mint retire a lens that owes nothing', 'The plan permits a PASS only when no lens is ready', "each stale area's pin", 'YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS', 'each lens that has never sat or whose pin — the head the tool last served it the whole report at — the report head has moved past']) {
+  for (const clause of ['so a lens whose sitting ended before its delivery at the head completed is readied again', 'Three sittings in a row with no fresh material mint retire a lens that owes nothing', 'The plan permits a PASS only when no lens is ready', "each stale area's pin", 'YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS', 'each lens that has never sat, that owes the whole report — its first whole delivery or its full re-read, at any head — or whose pin — the head of the latest report text the tool delivered to it — the report head has moved past']) {
     assert.ok(chairMd.includes(clause), `the chair constitution and prompt disagree: ${clause}`)
   }
 })
@@ -590,7 +590,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
-    'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
+    'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'audit it whole, in context, never a diff',
     'counts LINES, not occurrences',
     "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output", "read at its anchor, gives the program and the output blue recorded"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
@@ -628,8 +628,8 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // and the unconditional rule won. A seat obeys the strictest thing it is told.
   assert.ok(!/RE-READ THE FULL REPORT IN CONTEXT/.test(evidence),
     'the re-read must not be ordered unconditionally in the prompt body — scope it to `first` and `behind`')
-  assert.ok(/`first`: audit the report in full/.test(evidence) && /`behind`:[^`]*in full/.test(evidence),
-    'the kinds that DID move still order the full read')
+  assert.ok(/`first`: the whole report — audit it whole/.test(evidence) && /`behind`[^`]*the whole report at your full re-read, else each edit since your pin/.test(evidence),
+    'the kinds that DID move still order the audit of what is delivered: the whole report, or each edit since the pin')
   assert.ok(/`unchanged`:[^`]*NOTHING TO AUDIT/.test(evidence),
     'the kind that did not move must say there is nothing to audit')
   assert.ok(/the sitting owes no entry/.test(evidence),
@@ -696,11 +696,15 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const bench = firstPrompt(world, 'judge')
   assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
   for (const want of ['YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
+    'RULING BASIS IS CONFINED TO', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
+  // HOW A CLOSING IS WEIGHED IS THE CONSTITUTION'S, and the prompt does not restate it.
+  const judgeMd = readFileSync(new URL('../../agents/lead-judge.md', import.meta.url), 'utf8')
+  assert.ok(judgeMd.includes("Weigh each closing as that side's best case; a claim the record does not support counts AGAINST the side that made it"), 'the bench constitution lost how a closing is weighed')
+  assert.ok(!/Weigh each closing/.test(bench), 'the bench prompt restates how a closing is weighed, which its constitution carries')
   const schema = labelsOf(world, 'judge')[0].opts.schema
   assert.deepEqual(Object.keys(schema.properties), ['record_read'], 'the docket envelope declares a field beside the read: its rulings are on the record')
 })
@@ -1468,7 +1472,7 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
   for (const area of LENS_AREAS) {
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
-    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on.') &&
+    assert.ok(md.includes('the record readies you for your first look, for your full re-read at an unmoved head, again whenever the report head is past your pin — the head of the latest report text delivered to you, in a sitting you sat through, so a sitting that ends before its delivery completes leaves you ready at the head — and whenever your gap needs acting on.') &&
       md.includes('Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
     assert.ok(md.includes("On a gap you minted, your turn comes with blue's: the record readies you on it once blue has acted on it since your own last act there, your mint included, and never before"), `red-lens-${area}: a lens's turn on its gap comes with blue's act`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)

@@ -25,6 +25,9 @@ import (
 func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	runDir := seatRun(t)
 	real := mintGap(t, runDir, "the-real-gap", "spec_underspecification")
+	// The spot-check row stands on a stale area's delivered changes, so the run has one; without it the
+	// refusal measured would be the delivered-text one, not the reference's.
+	chairOwesAStaleArea(t, runDir, "red-lens-logic")
 
 	for _, c := range []struct {
 		name, wants string
@@ -89,6 +92,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	// The bench's two references — the gap on the filing, the motion on the ruling — both
 	// resolve, which is the converse of the two rows above.
 	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
+	benchSitsOn(t, runDir, first)
 	for _, c := range [][]string{
 		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", "the ruling"},
@@ -121,6 +125,9 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
 	}
+	// The spot-check row stands on a stale area's delivered changes, so the run has one; without it the
+	// refusal measured would be the delivered-text one, not the state's.
+	chairOwesAStaleArea(t, runDir, "red-lens-logic")
 
 	for _, c := range []struct {
 		name, wants string
@@ -211,6 +218,10 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
+	// The lens sits once more for its full re-read and the chair after it: a PASS waits on both whole
+	// deliveries.
+	lensRereads(t, runDir)
+	chairSitsAgain(t, runDir)
 	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS"); err != nil {
 		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}

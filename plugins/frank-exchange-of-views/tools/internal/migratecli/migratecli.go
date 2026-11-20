@@ -173,6 +173,9 @@ func printManifest(out io.Writer, m *migration.Manifest) {
 	for w, why := range m.Accepted {
 		fmt.Fprintf(out, "  accepted loss of %q: %s\n", w, why)
 	}
+	if len(m.LostActs) > 0 {
+		fmt.Fprintf(out, "  %d archived act(s) written as no event, each listed in the manifest as an accepted loss\n", len(m.LostActs))
+	}
 	if len(m.Refusals) > 0 {
 		fmt.Fprintf(out, "  %d REFUSAL(S) — each is in the manifest, and each is a decision to make, not a row to ignore\n", len(m.Refusals))
 	}

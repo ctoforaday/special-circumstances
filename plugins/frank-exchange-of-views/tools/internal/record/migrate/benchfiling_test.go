@@ -1,12 +1,16 @@
 package migrate_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -21,10 +25,32 @@ func TestNoMigratedDocketMotionIsFiledByTheBench(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opinions, synthesized := 0, 0
+	opinions, synthesized, ruled := 0, 0, 0
+	type source struct {
+		name string
+		res  *migration.Manifest
+		run  record.Run
+	}
+	var sources []source
 	for _, tb := range archiveTarballs(t) {
 		name := filepath.Base(tb)
 		res, run := migrateArchive(t, name)
+		sources = append(sources, source{name, res, run})
+	}
+	// Every archived opinion's ruling is a lost act (no archived bench sitting holds a delivery), so
+	// the ruling's seat is read on a bench that was delivered the report before it ruled.
+	res, _, dir := migrate.MigratedDeliveredBench(t)
+	sources = append(sources, source{"delivered bench", res, runtest.Open(t, dir)})
+	for _, s := range sources {
+		name, res, run := s.name, s.res, s.run
+		// A lost ruling leaves its motion unruled: the motion is still the harness's, and there is
+		// no ruling to hold to the bench.
+		lostRuling := map[string]bool{}
+		for _, a := range res.LostActs {
+			if a.Word == "opinion" {
+				lostRuling[res.IDs[fmt.Sprintf("M-mig-%d", a.OldID)]] = true
+			}
+		}
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d refusal(s); the first: %+v", name, len(res.Refusals), res.Refusals[0])
 		}
@@ -54,6 +80,13 @@ func TestNoMigratedDocketMotionIsFiledByTheBench(t *testing.T) {
 			if e.GetSeatId() != record.HarnessSeat {
 				t.Errorf("%s: the docket motion %s translated from an opinion is filed by %s, want the harness", name, m.GetMotionId(), e.GetSeatId())
 			}
+			if lostRuling[m.GetMotionId()] {
+				if seat, ok := ruledBy[m.GetMotionId()]; ok {
+					t.Errorf("%s: the ruling on %s is listed lost, and the migrated record holds one by %q", name, m.GetMotionId(), seat)
+				}
+				continue
+			}
+			ruled++
 			if seat := ruledBy[m.GetMotionId()]; seatclass.RoleOfSeat(seat) != ruler {
 				t.Errorf("%s: the ruling on %s, translated from an opinion, is by %q, want a %s seat", name, m.GetMotionId(), seat, ruler)
 			}
@@ -64,7 +97,7 @@ func TestNoMigratedDocketMotionIsFiledByTheBench(t *testing.T) {
 		opinions += res.In["opinion"]
 		synthesized += fromOpinion
 	}
-	if opinions == 0 || synthesized != opinions {
-		t.Errorf("the archives hold %d opinion(s) and %d translated docket motion(s); the census needs at least one", opinions, synthesized)
+	if opinions == 0 || synthesized != opinions || ruled == 0 {
+		t.Errorf("the sources hold %d opinion(s), %d translated docket motion(s) and %d ruling(s) that stand; the census needs at least one of each", opinions, synthesized, ruled)
 	}
 }

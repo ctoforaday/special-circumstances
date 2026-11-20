@@ -228,7 +228,8 @@ func lineNumerals(p record.Plan) [][]int64 {
 // A STORED PLAN CROSSES A RENUMBERING NAMING THE EVENTS ITS SOURCE NAMED (F8). m28 holds two
 // class_new events, a chair's closing, a close of a gap its successor's mint had closed, eight
 // positions no chair filed, eight inquiry reviews and five rulings on an inquiry, which migrate
-// writes as none, so every later event lands up to twenty-five numbers lower; sixteen of its twenty stored plans
+// writes as none, so every later event lands lower, its lost acts (listed in the manifest) lower still;
+// sixteen of its twenty stored plans
 // name such an event — as a head, a pin, or a number a line
 // prints after `head`, `pin`, `edit` or `event`. Driven on the real archive through Migrate, and
 // checked against both databases rather than migrate's own map:
@@ -268,8 +269,17 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if firstDropped == 0 {
 		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
 	}
-	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8}; !maps.Equal(dropped, want) {
-		t.Errorf("m28's events that write none: %v, want %v", dropped, want)
+	// An archived act the delivered-text rule refuses, or one refused for a gap such a loss took
+	// with it, is an accepted loss listed in lost_acts; the rest of what writes none is the
+	// renumbering this test drives.
+	notLost := maps.Clone(dropped)
+	for w, n := range migrate.LostByWord(res) {
+		if notLost[w] -= n; notLost[w] == 0 {
+			delete(notLost, w)
+		}
+	}
+	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8}; !maps.Equal(notLost, want) {
+		t.Errorf("m28's events that write none, less its lost acts %v: %v, want %v", migrate.LostByWord(res), notLost, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }
 	translated := 0

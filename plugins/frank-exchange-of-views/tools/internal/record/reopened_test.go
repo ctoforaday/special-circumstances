@@ -444,19 +444,20 @@ func TestAnUnreachableFirstCheckAfterTheEditFailsTheCheck(t *testing.T) {
 }
 
 // F8: the sitting the evidence lens is readied into for a reopened anchor is a sitting like any
-// other in the lens fold — one that mints nothing fresh is barren.
+// other in the lens fold. A sitting that records a verify is productive (plan constitution-gaps
+// §III.3, "Productive sitting (retirement)"), so neither sitting here is barren, and both count.
 func TestAReopenedSittingCountsInTheRetirementFold(t *testing.T) {
 	board := func() *stage { return retBoard(t).sit(2, evLens).cite("C-1").supports(evLens, "C-1") }
-	if f := lensStateOf(t, board().seed()); f.barren != 1 {
-		t.Fatalf("fixture: the lens has %d barren sitting(s), want 1", f.barren)
+	if f := lensStateOf(t, board().seed()); f.barren != 0 {
+		t.Fatalf("fixture: the lens has %d barren sitting(s), want 0: its sitting recorded a verify", f.barren)
 	}
 	b := board().reopen("C-1")
 	run := b.sit(b.at(), evLens).supports(evLens, "C-1").seed()
 	if got := reopenedOf(t, run); len(got) != 0 {
 		t.Fatalf("fixture: blockers = %+v, want the sitting's verify to clear C-1", got)
 	}
-	if f := lensStateOf(t, run); f.barren != 2 || f.sittings != 2 {
-		t.Errorf("the lens has %d barren sitting(s) of %d, want 2 of 2: the sitting that cleared C-1 minted nothing fresh, and counts toward its retirement", f.barren, f.sittings)
+	if f := lensStateOf(t, run); f.barren != 0 || f.sittings != 2 {
+		t.Errorf("the lens has %d barren sitting(s) of %d, want 0 of 2: the sitting that cleared C-1 recorded a verify, and counts as sat", f.barren, f.sittings)
 	}
 }
 
@@ -562,7 +563,7 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	// The epoch limit, over an open material gap G1.
 	coverage := base(why(epochTwo(t), "2"), term)
 	withReopened := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").cite("C-1").supports(evLens, "C-1").
+		register("red-chair").readFully(2, evLens).mint(evLens, "G1", "high").cite("C-1").supports(evLens, "C-1").
 		reopen("C-1").register("red-chair")
 	if got := why(withReopened, "2"); got != term+"; unchecked: C-1"+coverage {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
@@ -570,7 +571,7 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	// T26: a standing reading debt names its subject under its own clause (StandingClauses), and
 	// nothing else.
 	withDebt := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").cite("C-1").foundAgainst(evLens, "C-1", "").register("red-chair")
+		register("red-chair").readFully(2, evLens).mint(evLens, "G1", "high").cite("C-1").foundAgainst(evLens, "C-1", "").register("red-chair")
 	if got := why(withDebt, "2"); got != term+"; on a reading debt: C-1"+coverage {
 		t.Errorf("reason = %q, want the term's reason naming the reading debt on C-1 and not the material gap", got)
 	}
@@ -598,7 +599,7 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lensReady(second) || !strings.Contains(whyOf(second), evLens+": served the report at the head") {
+	if lensReady(second) || !strings.Contains(whyOf(second), evLens+": its delivery is at the head") {
 		t.Errorf("the plan after a sitting that was served the report and did nothing: parties %+v, why %q — want the lens left alone and told why", second.Parties, second.Why)
 	}
 	if got := reopenedOf(t, run); len(got) != 1 || second.PassPermitted {

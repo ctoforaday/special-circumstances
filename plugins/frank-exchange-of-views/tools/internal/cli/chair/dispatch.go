@@ -87,7 +87,7 @@ func (r dispatchResult) Human() string {
 		fmt.Fprintf(&b, "  docketed %s for the bench\n", g)
 	}
 	for _, a := range r.StaleAreas {
-		fmt.Fprintf(&b, "  stale area %s — retired at pin %d; read the changes since against its duties and name it in this sitting's spot-check before a PASS\n", a.SeatID, a.Pin)
+		fmt.Fprintf(&b, "  stale area %s — retired at pin %d; read the changes no spot-check has borne against its duties and name it in a spot-check before a PASS\n", a.SeatID, a.Pin)
 	}
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)

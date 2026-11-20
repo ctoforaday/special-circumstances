@@ -157,6 +157,7 @@ func StandingClauses() []StandingClause {
 		{BlockerReadingDebt, "on a reading debt"},
 		{BlockerOpenInquiry, "inquiries open"},
 		{BlockerUncheckedInquiry, "inquiries unchecked"},
+		{BlockerWholeReportOwed, "the whole report not delivered to"},
 	}
 }
 

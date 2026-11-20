@@ -44,7 +44,7 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 		return "", nil
 	}
 	runDir := recordtest.TmpRun(t)
-	if err := Build(runtest.Open(t, runDir), Boards()["arithmetic"], exec); err != nil {
+	if err := Build(runtest.Open(t, runDir), Boards()["arithmetic"], exec, nil); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if len(registers) == 0 {

@@ -773,7 +773,7 @@ JOIN "head_move" h ON h."event_id" > b."after";
 //
 // THE BOOKKEEPING IS NOT AN ACT. A register is the seat announcing itself, a log is the channel a
 // sitting closes, sitting_open/sitting_close are the hooks' own, a stale refusal is the tool's record
-// of what it showed the seat, a report read is what the tool served it, an envelope admission is the
+// of what it showed the seat, a report read is the tool's record of report text it delivered to the seat, an envelope admission is the
 // gate letting the sitting end, and a plan is the record's
 // copy of what `dispatch next` printed (its rows are the act). Counting any of them would make every
 // sitting look busy and the empty case unreachable — the plausible zero both readers exist to remove.
@@ -852,6 +852,9 @@ func lensSeatsSQL() string {
 	}
 	return strings.Join(words, ",")
 }
+
+// WholeDeliverySQL is wholeDeliverySQL for the statement that decides a seat's next delivery.
+func WholeDeliverySQL(row, seat string) string { return wholeDeliverySQL(row, seat) }
 
 // wholeDeliverySQL is whether a lens's delivery row (its event id at row, the lens at seat) is the
 // whole report: report_delivery's "whole", and the statement that decides a lens's next delivery,

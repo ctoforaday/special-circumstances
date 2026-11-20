@@ -16,8 +16,9 @@ import (
 // write stamps what changed behind each area's pin (record.stampSpotCheckChanges) and the verb prints
 // it back; the chair's prose is its judgement of those changes, never their count.
 //
-// It is owed before a PASS and at no other time: the PASS gate refuses a verdict until a spot-check
-// in the chair's sitting names every stale area (record.BlockerStaleArea). The archived closures
+// It is owed before a PASS and at no other time: the PASS gate refuses a verdict while a stale area
+// stands — a retired lens's area holding changes no spot-check has borne (record.BlockerStaleArea).
+// A spot-check bears an area's changes once, whichever sitting filed it. The archived closures
 // it names are the chair's sample of a closure index that is only as good as the last time anyone
 // looked.
 func newSpotCheck() *cobra.Command {
@@ -47,7 +48,7 @@ func newSpotCheck() *cobra.Command {
 	})
 
 	c.Flags().Var(ids, flags.IDs, "comma-separated gap ids (G-…) of the closed gaps whose closures you re-verified this sitting")
-	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose changes since the pin you judged against the area's duties this sitting — the tool states each pin and the changes behind it; a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason")
+	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose changes since the pin you judged against the area's duties this sitting — the tool states each pin and the changes behind it; a PASS is refused while a stale area's changes are borne by no spot-check; what you found goes in --reason")
 	// ONE PROSE CHANNEL, ALWAYS REQUIRED: what the spot-check found, or why it names nothing — the
 	// board says how much the archive held, and the reason says why none of it was re-read.
 	// REQUIRED, THROUGH EITHER SPELLING, and stated once by the channel itself rather than by a

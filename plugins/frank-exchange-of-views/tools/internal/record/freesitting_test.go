@@ -123,15 +123,21 @@ func TestAHookOpenedSeatIsIdentifiedWithoutRegistering(t *testing.T) {
 }
 
 func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
-	hookOpened := func() *stage {
-		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).
+	// hookOpened is the lens's hook-opened sitting; after its full sitting before it, it is the lens's
+	// full re-read.
+	hookOpenedAfter := func(prior bool) *stage {
+		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
+		if prior {
+			b.sit(2, evLens)
+		}
+		return b.dispatch(2, evLens).
 			add(HarnessSeat, &recordpb.SittingOpen{
 				AgentId:   proto.String("agent-lens-1"),
 				AgentType: proto.String("frank-exchange-of-views:red-lens-evidence"),
 				SeatId:    proto.String(evLens),
 			})
 	}
+	hookOpened := func() *stage { return hookOpenedAfter(false) }
 
 	s := sittingOfRunT(t, hookOpened().seed(), "lens", evLens)
 	if owed := owedItems(s); len(owed) != 0 {
@@ -145,11 +151,12 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	// `dispatch` readies a seat until it has SAT: if a hook-opened sitting did not count, the lens
 	// would be re-dispatched for the same unsat dispatch forever.
 	//
-	// THE LENS IS NOT READIED AGAIN once the report was served to it in that sitting: its pin is the
+	// THE LENS IS NOT READIED AGAIN once the report was served to it in that sitting, its full re-read
+	// after a first sitting that was served it too: its pin is the
 	// head (retirement.go), and the fold that says so reads the hook-opened sitting through the same
 	// ledger the work list does. The chair plans after the lens returned, so its agent's stop is on
 	// the record: a sitting still open is not one it sat through (satThrough).
-	plan, err := PlanDispatch(hookOpened().served(evLens, 2).stop("agent-lens-1").seed())
+	plan, err := PlanDispatch(hookOpenedAfter(true).served(evLens, 2).stop("agent-lens-1").seed())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +164,7 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	if len(plan.Parties) != 0 || strings.Contains(why, "never sat") {
 		t.Errorf("the lens sat (hook-opened) and dispatch still treats it as unsat: parties %+v, why %s", plan.Parties, why)
 	}
-	if !strings.Contains(why, evLens+": served the report at the head (pin 2)") {
+	if !strings.Contains(why, evLens+": its delivery is at the head (pin 2)") {
 		t.Errorf("the lens fold did not count the hook-opened sitting, so it reached the ledger "+
 			"for the work list and not for the fold: %s", why)
 	}
@@ -171,7 +178,7 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	}
 	why = strings.Join(plan.Why, " | ")
 	if _, ready := partyOf(plan, evLens); !ready || strings.Contains(why, "never sat") ||
-		!strings.Contains(why, evLens+": no sitting it sat through was served the whole report, behind head 2 — audits the report (1 sitting(s) in a row") {
+		!strings.Contains(why, evLens+": no sitting it sat through holds a complete delivery of report text, behind head 2 — audits the report (1 sitting(s) in a row") {
 		t.Errorf("a sat sitting that was never served the report: parties %+v, why %s — want the lens ready behind the head, one sitting counted", plan.Parties, why)
 	}
 }

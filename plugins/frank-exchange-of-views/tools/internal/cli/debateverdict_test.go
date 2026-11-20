@@ -26,6 +26,8 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	// PASS).
 	chair("verdict", "--as", "FAIL")
 	registerLensOnce(t, runDir)
+	// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+	lensRereads(t, runDir)
 	chair("register")
 	chair("verdict", "--as", "PASS")
 

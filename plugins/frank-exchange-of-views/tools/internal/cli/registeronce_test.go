@@ -53,39 +53,60 @@ func TestRegisterAfterTheFirstActRegisteredItIsRefused(t *testing.T) {
 	}
 }
 
-// A LENS'S WHOLE READ IS ITS FIRST RECORD, SO IT REGISTERS THE LENS, AND A REGISTER AFTER IT IS
-// REFUSED NAMING THE READ. Measured on the #1565 smoke: four lenses read the report whole, ran
-// `register`, were refused naming only the dispatch, and blamed the dispatch bracket.
-func TestARegisterAfterAWholeReadIsRefusedNamingTheRead(t *testing.T) {
+// A LENS'S WHOLE READ RECORDS NOTHING, SO ITS REGISTER AFTER IT IS ITS REGISTER; ITS DELIVERY IS THEN
+// ITS FIRST RECORD, AND A SECOND REGISTER IS REFUSED NAMING IT. Measured on the #1565 smoke: four lenses
+// read the report whole, ran `register`, were refused naming only the dispatch, and blamed the dispatch
+// bracket. A read writes nothing — no report_read and no register — so the register that follows it
+// opens the sitting; once the writer has handed the delivery's last item, the report_read it wrote is
+// the first record a repeated register's refusal names.
+func TestARegisterAfterAWholeReadRegistersAndARepeatNamesTheDelivery(t *testing.T) {
 	runDir := seatRunReport(t, servedReport)
-	t.Setenv(seatenv.AgentVar, "agent_lens_read_first")
+	const agent = "agent_lens_read_first"
+	t.Setenv(seatenv.AgentVar, agent)
+	ofLens := func() (registers int, registered, read int64) {
+		t.Helper()
+		m, err := record.MergedEvents(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := m.At.IDs(m.Events)
+		for i, e := range m.Events {
+			if e.GetSeatId() != lensSeat {
+				continue
+			}
+			switch e.GetType() {
+			case recordpb.EventType_EVENT_TYPE_REGISTER:
+				registers++
+				registered = ids[i]
+			case recordpb.EventType_EVENT_TYPE_REPORT_READ:
+				read = ids[i]
+			}
+		}
+		return registers, registered, read
+	}
+	before, _, _ := ofLens()
 	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
 		t.Fatalf("the whole read: %v", err)
 	}
-	m, err := record.MergedEvents(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
+	if n, _, read := ofLens(); n != before || read != 0 {
+		t.Fatalf("the whole read recorded %d register(s) and a read at event %d; want neither", n-before, read)
 	}
-	ids := m.At.IDs(m.Events)
-	var registered, read int64
-	for i, e := range m.Events {
-		if e.GetSeatId() != lensSeat {
-			continue
-		}
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER:
-			registered = ids[i]
-		case recordpb.EventType_EVENT_TYPE_REPORT_READ:
-			read = ids[i]
-		}
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("the register after the whole read was refused: %v", err)
 	}
-	if registered == 0 || read <= registered {
-		t.Fatalf("the read registered the lens at event %d and was recorded at event %d; want a register before the read", registered, read)
+	_, registered, _ := ofLens()
+
+	if n := writerHands(t, runDir, agent, lensSeat); n == 0 {
+		t.Fatal("the writer handed the lens no item, so the refusal below measures nothing")
 	}
-	_, err = run(t, "register", "--run", runDir, "--seat-id", lensSeat)
+	_, _, read := ofLens()
+	if read <= registered {
+		t.Fatalf("the delivery was recorded at event %d; want a report_read after the register at event %d", read, registered)
+	}
+	_, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat)
 	want := fmt.Sprintf("(dispatch 2, register at event %d)", registered)
 	named := fmt.Sprintf("your report_read at event %d is your first record after it", read)
 	if err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), named) {
-		t.Errorf("the register after the whole read = %v; want a conflict naming %q and %q", err, want, named)
+		t.Errorf("the register after the delivery = %v; want a conflict naming %q and %q", err, want, named)
 	}
 }

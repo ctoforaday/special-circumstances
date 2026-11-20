@@ -2,19 +2,25 @@ package seatprobe
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	osexec "os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -38,6 +44,23 @@ import (
 // Exec runs one tool invocation and returns its stdout.
 type Exec func(args ...string) (string, error)
 
+// Hand is the delivery writer's next phase for a seat after one of its tool calls, as the
+// PostToolUse hook runs it (sittingwrite.WriteNextItem): report text is handed one item per call, and
+// the writer writes the seat's report_read as it hands the last. The build calls it after every call
+// the record admitted that names a seat, so a close or a ruling stands on a delivery the shipped
+// writer completed and on nothing the build wrote itself. A nil Hand hands nothing: a stand-in tool
+// has no record to deliver from.
+type Hand func(seatID string) error
+
+// buildAgentID is the agent the build's calls of a seat are handed under. The build registers its
+// seats as the harness, with no agent, so the writer resolves the seat from its agent configuration
+// (record.SeatOfAgentType); the id keys only what the writer handed, per agent and sitting.
+func buildAgentID(seatID string) string { return "build-" + seatID }
+
+// maxDeliveryCalls bounds the calls readDelivery makes for one seat: a board's report is cut into far
+// fewer items, so a delivery still owed past it is a writer that stopped handing it.
+const maxDeliveryCalls = 200
+
 // ProbeAgentID is the harness handle the probe uses for a seat, at both ends of the binding: the
 // register the build writes, and the environment the seat is dispatched with. Derived from the
 // seat id so the two cannot drift, and prefixed so a probe record is never mistaken for a
@@ -60,7 +83,7 @@ var Seats = []struct{ Role, ID string }{
 // each lens's default budget of five.
 var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
-func Build(run record.Run, b Board, exec Exec) error {
+func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 	// THE BOARD NAMES ITS GAPS AND MOTIONS BY POSITION — G1 is its first gap, M1 its first motion —
 	// and the record mints their ids. Every argument is staged through the ids the tool reported, so
 	// a board's references and its prose name what the record holds.
@@ -74,7 +97,42 @@ func Build(run record.Run, b Board, exec Exec) error {
 				return h
 			})
 		}
-		return tool(args...)
+		out, err := tool(args...)
+		if err != nil || hand == nil {
+			return out, err
+		}
+		if seat := seatOfCall(args); seat != "" {
+			if herr := hand(seat); herr != nil {
+				return out, fmt.Errorf("the delivery writer after %s's %s: %w", seat, strings.Join(args[:min(3, len(args))], " "), herr)
+			}
+		}
+		return out, nil
+	}
+	// readDelivery is the seat reading what it is owed before an act that stands on delivered text: while
+	// the head of its queue is report text it calls the record, and the writer hands the next item after
+	// each call. With no Hand nothing is handed and nothing is read.
+	readDelivery := func(seatID string) error {
+		if hand == nil {
+			return nil
+		}
+		for i := 0; i < maxDeliveryCalls; i++ {
+			out, err := exec("show", "work", "--run", run.Dir(), "--seat-id", seatID)
+			if err != nil {
+				return fmt.Errorf("reading %s's work list: %w", seatID, err)
+			}
+			at := strings.Index(out, "{")
+			if at < 0 {
+				return fmt.Errorf("%s's work list printed no list: %q", seatID, out)
+			}
+			var w record.WorkJSON
+			if err := json.Unmarshal([]byte(out[at:]), &w); err != nil {
+				return fmt.Errorf("%s's work list does not read: %w", seatID, err)
+			}
+			if q := record.QueueOf(w); len(q) == 0 || q[0].Kind != record.ItemReportText {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s is still owed report text after %d tool calls: the writer stopped handing it", seatID, maxDeliveryCalls)
 	}
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
 	closingsOf := map[string][]struct{ seat, text string }{}
@@ -151,6 +209,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the verb exercised has to give it something.
+		// A close stands only on report text delivered to the closing lens.
+		if err := readDelivery(minter); err != nil {
+			return fmt.Errorf("close %s: %w", gapID, err)
+		}
 		if _, err := exec("close", "--run", run.Dir(), "--seat-id", minter,
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
@@ -238,6 +300,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 			continue
 		}
 		ruler := map[string]string{"grade": "red-chair", "petition": "judge", "docket": "judge"}[m.Subject]
+		// A ruling on a motion about gaps stands only on report text delivered to its ruler.
+		if err := readDelivery(ruler); err != nil {
+			return fmt.Errorf("rule motion %d: %w", i+1, err)
+		}
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
 			"--id", staged[fmt.Sprintf("M%d", i+1)], "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
@@ -458,4 +524,56 @@ func splitFrame(text string) (frame, part string, err error) {
 	}
 	at := tldr + 1 + next + 1
 	return text[:at], text[at:], nil
+}
+
+// seatOfCall is the seat a call names with --seat-id, or "" for a call of no seat's.
+func seatOfCall(args []string) string {
+	for i, a := range args {
+		if a == "--seat-id" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// WriterHand is the Hand that spawns the shipped writer (`feov-sitting-write -phase next`) at bin, with
+// env, against runDir: the process the PostToolUse hook spawns, under the seat's own agent
+// configuration and a harness whose hooks hand report text. A held delivery hands nothing and is no
+// failure; any other non-zero exit is.
+func WriterHand(bin, runDir string, env []string) Hand {
+	return func(seatID string) error {
+		s, ok := seatclass.Seats[seatID]
+		if !ok {
+			return nil
+		}
+		cmd := osexec.Command(bin, "-run", runDir, "-phase", "next", "-agent-id", buildAgentID(seatID),
+			"-agent-type", s.AgentType, "-engine", string(hookcore.EngineClaude))
+		cmd.Env = env
+		var stderr strings.Builder
+		cmd.Stdout, cmd.Stderr = io.Discard, &stderr
+		err := cmd.Run()
+		if exit, ok := errors.AsType[*osexec.ExitError](err); ok && exit.ExitCode() == hookgate.ExitDeliveryHeld {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("feov-sitting-write -phase next for %s: %v: %s", seatID, err, strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+}
+
+// InProcessHand is the Hand that runs the writer's next phase in this process, for a build whose tool
+// runs in this process too and so reads the same record.
+func InProcessHand(runDir string) Hand {
+	return func(seatID string) error {
+		s, ok := seatclass.Seats[seatID]
+		if !ok {
+			return nil
+		}
+		err := sittingwrite.WriteNextItem(runDir, buildAgentID(seatID), s.AgentType, string(hookcore.EngineClaude), io.Discard)
+		if errors.Is(err, hookgate.ErrDeliveryHeld) {
+			return nil
+		}
+		return err
+	}
 }

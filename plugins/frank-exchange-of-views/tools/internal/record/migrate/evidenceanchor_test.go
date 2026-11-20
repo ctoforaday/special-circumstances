@@ -27,7 +27,7 @@ import (
 // are the closing acts the record holds: the live-answer demand is asked in the close verb,
 // which no replay passes, so no archived gap moves open or closed.
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
-	sourceCloses := map[string]int{}
+	sourceCloses, lostSourceCloses := map[string]int{}, map[string]int{}
 	for _, tb := range archiveTarballs(t) {
 		name := filepath.Base(tb)
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
@@ -101,11 +101,27 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			// out as acts on a closed gap (epoch 62), so they are not counted here.
 			sourceCloses[name] = len(column(t, db, `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
 			  WHERE c."carried_from" IS NULL AND g."check_kind" = 'source' AND NOT g."evidence_answered"`))
+			// A close its lens's sitting holds no delivery for is a lost act: its gap stays open, and
+			// it is counted among the archive's closes of unanswered source gaps as lost, not replayed.
+			for g := range migrate.LostCloseGaps(t, name, res) {
+				lostSourceCloses[name] += len(column(t, db, `SELECT "gap_id" FROM "gap" WHERE "gap_id" = '`+g+`' AND "check_kind" = 'source' AND NOT "evidence_answered"`))
+			}
 		})
 	}
+	// Every archived such close is lost, so the arm is held on a source whose lens was delivered the
+	// report before it closed G2, a source gap no citation answers.
+	t.Run("delivered bench", func(t *testing.T) {
+		_, _, dir := migrate.MigratedDeliveredBench(t)
+		replayed := len(column(t, openMigrated(t, dir), `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
+		  WHERE c."carried_from" IS NULL AND g."check_kind" = 'source' AND NOT g."evidence_answered"`))
+		if replayed != 1 {
+			t.Errorf("the delivered lens's close of an unanswered source gap replayed %d time(s), want once", replayed)
+		}
+	})
 	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "wave-a": 1, "-m23": 1}
 	got, total := map[string]int{}, 0
-	for name, n := range sourceCloses {
+	for name := range sourceCloses {
+		n := sourceCloses[name] + lostSourceCloses[name]
 		total += n
 		for k := range want {
 			if n > 0 && strings.Contains(name, k) {
@@ -114,7 +130,7 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 		}
 	}
 	if total != 7 || fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused: %v (total %d), want %v (total 7)", sourceCloses, total, want)
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 7)", sourceCloses, lostSourceCloses, total, want)
 	}
 }
 

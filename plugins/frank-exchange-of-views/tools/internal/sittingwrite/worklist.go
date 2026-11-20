@@ -35,16 +35,6 @@ import (
 // prompt cannot say it (blue's configuration seats three seats and gets no injection) and the help
 // page cannot say it (a resumed dispatch fires no SubagentStart, #1111, and that seat must still ask).
 const (
-	// arrived is the preamble on a list that was read. It names no command: the surface owns the
-	// verbs, and a seat that wants the list again finds it where it already found everything else.
-	arrived = "YOUR WORK LIST, read from this run's record at the moment you were dispatched. It is the " +
-		"same projection your own surface returns, delivered instead of fetched — you are holding it, " +
-		"and you do not need to ask for it before you act. Everything open to you is in `sitting.open`, " +
-		"each item with whether it blocks you finishing; `sitting.complete` is the answer to whether " +
-		"anything does. The bench's holdings are in `declarations`, each gap one names beside where the " +
-		"board says it stands now. Act on it, and read it again from your surface after you have " +
-		"recorded anything, because your own acts move it, and so do the acts of the seats dispatched beside you."
-
 	// unreadable is the preamble on a list that could NOT be read, and it exists so that this case
 	// and an empty list are not the same bytes. A seat handed "nothing is open to you" when the truth
 	// is "nothing was determined" ends its turn on a measurement that never happened.
@@ -68,33 +58,37 @@ func injectWorkList(run record.Run, agentID, agentType string, out io.Writer) {
 	if !known {
 		return
 	}
-	// The seat is a roster row: the attestation table is the roster read by configuration.
-	role := seatclass.RoleOfSeat(seat)
-	if role == "lens" {
-		injectLensWork(run, agentID, seat, out)
-		return
-	}
-	b, err := record.WorkJSONBytes(run, role, seat)
-	if err != nil {
-		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
-		return
-	}
-	fmt.Fprintf(out, "%s\n\n%s", arrived, b)
+	injectSeatWork(run, agentID, seat, out)
 }
 
-// injectLensWork is a lens's delivery at dispatch (delivery.go): its standing, the head of its queue
+// injectSeatWork is a seat's delivery at dispatch (delivery.go): its standing, the head of its queue
 // in full, and the index — and what it was handed, stored for the first call after it to compare
 // against (WriteNextItem). A store that fails costs the comparison and never the delivery: the first
 // call after it hands the head of the queue again.
-func injectLensWork(run record.Run, agentID, seat string, out io.Writer) {
-	w, err := record.WorkOfSeat(run, "lens", seat)
+//
+// SUBAGENTSTART HANDS NO REPORT TEXT. Where the head of the queue is report text, the seat is handed one
+// line saying it arrives one item after each of its tool calls, and nothing is stored, so the
+// first call hands the first item.
+func injectSeatWork(run record.Run, agentID, seat string, out io.Writer) {
+	role := seatclass.RoleOfSeat(seat)
+	w, err := record.WorkOfSeat(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return
 	}
 	q := record.QueueOf(w)
+	if len(q) > 0 && q[0].Kind == record.ItemReportText {
+		io.WriteString(out, reportTextArrives+"\n")
+		return
+	}
+	if !record.WorkArrivesAsItems(role, seat) && len(q) == 0 {
+		return
+	}
 	if err := recordDelivered(run.Dir(), agentID, w, q); err != nil {
 		fmt.Fprintf(os.Stderr, "sittingwrite: storing what %s was handed: %v\n", agentID, err)
 	}
-	io.WriteString(out, renderLens(w, q))
+	io.WriteString(out, renderDispatch(w, q))
 }
+
+// reportTextArrives is a seat's line at dispatch when its work opens with report text.
+const reportTextArrives = "YOUR WORK THIS SITTING OPENS WITH REPORT TEXT, and it arrives one item after each of your tool calls — the first after your first call. Make that call (register, or read your work list), then work each item as it arrives; your envelope waits until all of the report text owed to you has been delivered, and the rest of your work follows it on the same chain. Your whole work list is on your own surface when you want it."

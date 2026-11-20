@@ -37,7 +37,11 @@ import (
 //
 // AN ENVELOPE WHOSE CHECK CANNOT RUN IS REFUSED, and the refusal names why (gblock's standing rule:
 // an unreadable record refuses). A missing record is unreadable: the seat asking is bound to a run.
-func EnvelopeRefusal(run Run, seatID string) (string, error) {
+//
+// REPORT-TEXT ITEMS REFUSE EVERY SEAT'S ENVELOPE, THE CHAIR'S INCLUDED, while holdReportText: a sitting
+// whose envelope is admitted holds its delivery. A harness whose hooks cannot yet deliver report text
+// into the seat's context — Antigravity today — is not held on them (holdReportText false).
+func EnvelopeRefusal(run Run, seatID string, holdReportText bool) (string, error) {
 	role := seatclass.RoleOfSeat(seatID)
 	if role == "" {
 		return "", fmt.Errorf("%q is no seat this binary knows, so its work list cannot be read", seatID)
@@ -49,10 +53,13 @@ func EnvelopeRefusal(run Run, seatID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if w.Sitting.HoldsPass() {
-		return "", nil
-	}
 	owed, _ := w.Sitting.Owed()
+	if !holdReportText {
+		owed = slices.DeleteFunc(owed, func(it Item) bool { return it.Kind == ItemReportText })
+	}
+	if w.Sitting.HoldsPass() {
+		owed = slices.DeleteFunc(owed, func(it Item) bool { return it.Kind != ItemReportText })
+	}
 	if len(owed) == 0 {
 		return "", nil
 	}
@@ -70,7 +77,7 @@ func EnvelopeRefusal(run Run, seatID string) (string, error) {
 // envelope the call carries instead (ChairEnvelope). Neither, for a seat the record does not refuse;
 // and no seat for an agent bound to none, which returns no seat's envelope. A run whose record is
 // absent cannot say whether the agent is a seat, so it is an error, not "no seat".
-func AgentEnvelope(run Run, agentID string, input []byte) (filled []byte, refusal, seatID string, err error) {
+func AgentEnvelope(run Run, agentID string, input []byte, holdReportText bool) (filled []byte, refusal, seatID string, err error) {
 	if err := recordPresent(run); err != nil {
 		return nil, "", "", err
 	}
@@ -78,7 +85,7 @@ func AgentEnvelope(run Run, agentID string, input []byte) (filled []byte, refusa
 	if err != nil || !found {
 		return nil, "", "", err
 	}
-	if refusal, err = EnvelopeRefusal(run, seatID); err != nil || refusal != "" {
+	if refusal, err = EnvelopeRefusal(run, seatID, holdReportText); err != nil || refusal != "" {
 		return nil, refusal, seatID, err
 	}
 	if seatID != chairSeat {

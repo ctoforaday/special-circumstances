@@ -2175,13 +2175,11 @@ func holdsBlueOut(plan map[string]any) bool {
 	return record.Plan{MaxEpochs: int(maxEpochs), Epoch: int(epoch)}.BlueHeldOut()
 }
 
-// auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
-// auditRead is the lens's pin: a lens that is not served it at the head is ready at the head again,
-// until it is or retires. Most sittings read it, in either whole form; the rest read only a
-// selection, which serves part of it and moves nothing, so the sweep reaches a lens readied again at
-// a head it sat at. A forced run's lens reads it whole every sitting, so each sitting moves its pin:
-// a selection read leaves it ready at the head it sat at, which is one more sitting the bound does
-// not count.
+// auditRead is a lens sitting's read of the report through the selector reads, beside the report text
+// the writer hands it. The read records nothing and moves no pin: the lens's pin is the head of the
+// delivery the writer completed (readDelivery). Most sittings read the report whole, in either form;
+// the rest read a selection. The call is a call to the record, so the writer hands the lens its next
+// item after it.
 func (r *runner) auditRead(seatID string) {
 	switch n := r.rng.Intn(10); {
 	case r.forcedVerdict() || n < 5:
@@ -2335,6 +2333,7 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 func (r *runner) execAs(agent string, args ...string) (string, error) {
 	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
 	// --run as two more of its arguments.
+	seat := seatOfCall(args)
 	full := append([]string{}, args...)
 	if i := slices.Index(full, "--"); i >= 0 {
 		full = slices.Insert(full, i, "--run", r.runDir)
@@ -2350,8 +2349,14 @@ func (r *runner) execAs(agent string, args ...string) (string, error) {
 	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		return string(out), err
 	}
-	return string(out), err
+	// THE WRITER HANDS THE SEAT ITS NEXT ITEM AFTER A CALL THAT SUCCEEDED, as the PostToolUse hook does;
+	// a refused call reaches PostToolUseFailure, which hands nothing.
+	if seat != "" {
+		r.handNext(seat, agent)
+	}
+	return string(out), nil
 }
 
 // sit is the register a DISPATCH makes: every time debate.js hands a seat a prompt, that seat sits
@@ -2429,6 +2434,9 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.sittingAgent[seatID] = agent
 		r.mu.Unlock()
 	}
+	// THE SEAT READS WHAT ITS SITTING IS OWED BEFORE IT ACTS: the writer handed the first item after
+	// its register, and hands the rest one per call.
+	r.readDelivery(seatID, agent)
 	close(done)
 }
 
@@ -5473,14 +5481,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
-		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, and the driver models both
-		// halves. A retired lens does not sit again, so the plan lists each whose pin the
-		// head has moved past, and the PASS gate refuses a verdict until a spot-check this sitting
-		// names every one: with stale areas on the plan the drive always files it, or every run
-		// whose lenses retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
-		// With none, the chair samples the archive in about half its sittings and files nothing in
-		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
-		// drive that filed one every sitting would never put that in front of the oracle.
+		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, AND STANDS ONLY ON ITS SITTING'S
+		// DELIVERY, and the driver models both halves. A retired lens does not sit again, so the plan
+		// lists each area holding changes no spot-check has borne, the chair's sitting opens with those
+		// changes (readDelivery, at sit), and the PASS gate refuses a verdict until a spot-check names
+		// every one: with stale areas on the plan the drive always files it, or every run whose lenses
+		// retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
+		// With none, the chair is handed no report text, so its sitting holds no delivery: in about
+		// half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
+		// a chair whose areas have not changed owes no repeat, and one it filed would stand on nothing.
 		//
 		// A spot-check names no closure only when the board holds none.
 		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
@@ -5490,9 +5499,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			if closed := r.closedGapIDs(); len(closed) > 0 {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
-					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").admit()
+					set("--reason", "fuzz: re-read the closure record; the anchor still resolves")
 			} else {
-				sc.set("--reason", "fuzz: the archive was empty at round start").admit()
+				sc.set("--reason", "fuzz: the archive was empty at round start")
+			}
+			if len(stale) > 0 {
+				sc.admit()
+			} else {
+				r.refuseUndelivered(sc.all()...)
 			}
 		}
 	case "blue":
@@ -10207,7 +10221,7 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) bool {
 		noteEnvelope(seatID, "not driven early: the record owed no item naming "+strings.TrimSpace(standing))
 		return false
 	}
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	if err != nil {
 		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
 		return false
@@ -10254,14 +10268,14 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
 		r.dischargeOwed(seatID)
 		r.answerFailed(seatID)
 		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap
 		// that held it wanting after the owner's pass, and the owner's list now offers its check.
 		r.checkInquiries(seatID)
-		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
+		refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
 	}
 	switch {
 	case err != nil:

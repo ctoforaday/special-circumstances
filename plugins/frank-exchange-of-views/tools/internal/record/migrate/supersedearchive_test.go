@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -15,10 +16,13 @@ import (
 // already closed, are left out.
 func TestAGapSupersededWhileOpenIsClosedByItsSuccessorsMint(t *testing.T) {
 	res, dst := migrateArchive(t, "2026-10-19_is-91-prime-m30.tar.gz")
-	if got := res.In["close"] - res.Out["close"]; got != 2 {
-		t.Errorf("migrate left out %d close(s), want the 2 on the superseded ancestors", got)
+	// A close the delivered-text rule refuses is an accepted loss listed in lost_acts; the closes
+	// left out as acts on a superseded gap are the rest.
+	lost := migrate.LostByWord(res)
+	if got := res.In["close"] - res.Out["close"] - lost["close"]; got != 2 {
+		t.Errorf("migrate left out %d close(s) beside its %d lost, want the 2 on the superseded ancestors", got, lost["close"])
 	}
-	if got := res.In["regrade"] - res.Out["regrade"]; got != 1 {
+	if got := res.In["regrade"] - res.Out["regrade"] - lost["regrade"]; got != 1 {
 		t.Errorf("migrate left out %d regrade(s), want G-97b44713's", got)
 	}
 	fam, err := record.FamilyOf(dst)

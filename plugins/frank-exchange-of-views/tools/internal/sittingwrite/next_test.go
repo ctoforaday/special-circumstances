@@ -68,7 +68,7 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 	g := record.WorkGapJSON{ID: "G-1", Problem: "the problem", ProblemSynopsis: "the problem", YourTurn: true,
 		Location: loc, Passage: long + loc + ". " + long, MintedBy: "red-lens-logic", Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
 	w := record.WorkJSON{Open: []record.WorkGapJSON{g}, Sitting: record.SittingJSON{Seat: "red-lens-logic", Role: "lens", Open: []record.Item{}}}
-	text := RenderLensDelivery(w)
+	text := RenderDispatchDelivery(w)
 	if len(text) > DeliveryBudget {
 		t.Fatalf("delivery is %d bytes, over the budget of %d", len(text), DeliveryBudget)
 	}
@@ -90,7 +90,9 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 }
 
 // THE OPENING END STORES WHAT IT HANDED, AND THE FIRST CALL AFTER IT COMPARES AGAINST THAT: nothing
-// moved, so nothing is said. A lost file hands the head of the queue again.
+// moved, so nothing is said. A lost file hands the head of the queue again. The chain is every
+// seat's: the chair is the seat here, since a lens's first sitting opens with report text, which the
+// opening end never hands — its first call does.
 func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
@@ -100,34 +102,49 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 			&recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}),
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
 			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
-	const agentType = "frank-exchange-of-views:red-lens-evidence"
-	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: agentType}, &bytes.Buffer{}); err != nil {
+	const chair = "frank-exchange-of-views:red-chair"
+	var opened bytes.Buffer
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_02", AgentType: chair}, &opened); err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(opened.String(), `"key": "`) {
+		t.Fatalf("the chair's opening end handed no item:\n%s", opened.String())
+	}
 	var out bytes.Buffer
-	if err := WriteNextItem(dir, "agent_01", agentType, &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Errorf("nothing moved and the lens was handed:\n%s", out.String())
+		t.Errorf("nothing moved and the chair was handed:\n%s", out.String())
 	}
-	files, _ := filepath.Glob(filepath.Join(dir, deliveryDir, "agent_01-*.json"))
+	files, _ := filepath.Glob(filepath.Join(dir, deliveryDir, "agent_02-*.json"))
 	if len(files) != 1 {
 		t.Fatalf("delivery files = %v, want the one the opening end stored", files)
 	}
 	if err := os.Remove(files[0]); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteNextItem(dir, "agent_01", agentType, &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), `"key": "audit:report:`) {
+	if !strings.Contains(out.String(), `"key": "`) {
 		t.Errorf("a lost file did not hand the head of the queue again:\n%s", out.String())
 	}
-	// ANOTHER SEAT'S CALL IS HANDED NOTHING: its work arrives whole.
+	// A LENS'S FIRST CALL HANDS ITS REPORT TEXT, which its opening end did not.
+	const lens = "frank-exchange-of-views:red-lens-evidence"
+	var lensOpened bytes.Buffer
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: lens}, &lensOpened); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(lensOpened.String(), "One paragraph.") {
+		t.Errorf("the opening end handed report text:\n%s", lensOpened.String())
+	}
 	out.Reset()
-	if err := WriteNextItem(dir, "agent_02", "frank-exchange-of-views:red-chair", &out); err != nil || out.Len() != 0 {
-		t.Errorf("a chair's call was handed %q (%v)", out.String(), err)
+	if err := WriteNextItem(dir, "agent_01", lens, "claude", &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "One paragraph.") {
+		t.Errorf("the lens's first call did not hand the report text:\n%s", out.String())
 	}
 }
 
@@ -165,7 +182,7 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 		if len(text) > DeliveryBudget {
 			t.Fatalf("%s: %d bytes, over the budget of %d", name, len(text), DeliveryBudget)
 		}
-		var d lensDelivery
+		var d seatDelivery
 		if err := json.Unmarshal([]byte(text[strings.Index(text, "{"):]), &d); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -187,7 +204,7 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 			t.Errorf("%s: estopped holds %d lines and %d omitted, want 30 in all", name, len(d.Estopped), d.EstoppedOmitted)
 		}
 	}
-	check("at dispatch", RenderLensDelivery(w), 0)
+	check("at dispatch", RenderDispatchDelivery(w), 0)
 	check("next", renderNext(w, q, 3, false), 3)
 	check("changed", renderNext(w, q, 0, true), 0)
 }
@@ -235,12 +252,12 @@ func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
 		for _, r := range []struct {
 			arm  string
 			text string
-		}{{"at dispatch", RenderLensDelivery(w)}, {"next", renderNext(w, q, 0, false)}} {
+		}{{"at dispatch", RenderDispatchDelivery(w)}, {"next", renderNext(w, q, 0, false)}} {
 			name := tc.name + ", " + r.arm
 			if len(r.text) > DeliveryBudget {
 				t.Fatalf("%s: %d bytes, over the budget of %d", name, len(r.text), DeliveryBudget)
 			}
-			var d lensDelivery
+			var d seatDelivery
 			if err := json.Unmarshal([]byte(r.text[strings.Index(r.text, "{"):]), &d); err != nil {
 				t.Fatalf("%s: %v", name, err)
 			}

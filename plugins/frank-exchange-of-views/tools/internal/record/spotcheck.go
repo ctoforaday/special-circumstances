@@ -12,8 +12,8 @@ import (
 // THE SPOT-CHECKS ON THE RECORD, JOINED TO THE BOARD.
 //
 // A spot-check is owed before a PASS and at no other time, and the write enforces it: a PASS is
-// refused while a stale area stands that no spot-check in the chair's sitting names
-// (BlockerStaleArea, passblockers.go). Nothing here is a second statement of that rule. This file
+// refused while a stale area stands — a retired lens's area holding changes no spot-check has borne
+// (BlockerStaleArea, passblockers.go; borneThroughOf, retirement.go). Nothing here is a second statement of that rule. This file
 // is the reader's account of the spot-checks the chair filed — which stale areas each read, which
 // closures it re-read, what it found, and what the board says the archive held at that point, a
 // number no seat can author.
@@ -80,8 +80,8 @@ func changesAfter(changes []int64, pin int64) []int64 {
 // earliest of them onto a spot-check, which no writer may do itself. A spot-check that ARRIVES with
 // either is refused: a seat that could state the changes could state 42 over a record holding 4.
 //
-// The pin is the lens fold's (lensStates): the latest head the whole report was served to the lens
-// at in a sitting it sat through. A change is an event that moves the report head — a report_part or
+// The pin is the lens fold's (lensStates): the head of the lens's latest complete delivery of report
+// text in a sitting it sat through. A change is an event that moves the report head — a report_part or
 // a blue_edit (recordsql.HeadMoves) — so the changes after a stale area's pin are exactly what moved
 // the head past it.
 func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {

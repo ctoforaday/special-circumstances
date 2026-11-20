@@ -14,7 +14,7 @@ import (
 // EVERY ITEM ON EVERY PROBE BOARD SAYS WHAT IT IS, EVERY OWED ITEM IS QUEUED, AND EVERY LENS DELIVERY
 // FITS. Over each board's record, for every fixed seat: each item carries a kind (record.ItemKinds), an
 // item the seat owes (SittingJSON.Owed) is on its queue (record.QueueOf) — an owed item off the queue
-// is never handed to a lens, and its envelope is refused over it — and a lens's delivery at dispatch
+// is never handed to the seat, and its envelope is refused over it — and a lens's delivery at dispatch
 // is within sittingwrite.DeliveryBudget, below the harness's cap past which it reaches the seat as a
 // file's preview.
 func TestEveryProbeBoardsListIsKeyedQueuedAndFits(t *testing.T) {
@@ -29,7 +29,7 @@ func TestEveryProbeBoardsListIsKeyedQueuedAndFits(t *testing.T) {
 		t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 		exec := func(args ...string) (string, error) { return run(t, args...) }
 		r := runtest.Open(t, runDir)
-		if err := seatprobe.Build(r, b, exec); err != nil {
+		if err := seatprobe.Build(r, b, exec, seatprobe.InProcessHand(r.Dir())); err != nil {
 			t.Fatalf("board %q does not build: %v", name, err)
 		}
 		for seat := range seatclass.Seats {
@@ -62,7 +62,7 @@ func TestEveryProbeBoardsListIsKeyedQueuedAndFits(t *testing.T) {
 			if role != "lens" {
 				continue
 			}
-			n := len(sittingwrite.RenderLensDelivery(w))
+			n := len(sittingwrite.RenderDispatchDelivery(w))
 			if n > max {
 				max = n
 			}

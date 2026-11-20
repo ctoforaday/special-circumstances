@@ -3,12 +3,10 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
@@ -21,8 +19,8 @@ var subjectlessOwed = map[record.ItemKind]bool{
 // queueHolds holds a lens's work list, on whatever board the sweep reached, to its delivery one item
 // at a time: every item carries a kind; every item it owes carries a subject (bar the run-scoped
 // kinds) and is on its queue (record.QueueOf) under a key no other entry holds; its delivery at
-// dispatch fits sittingwrite.DeliveryBudget, in bytes as the writer measures it; and the item the writer's next phase hands it as current
-// moves only when the one before it has left the queue.
+// dispatch fits sittingwrite.DeliveryBudget, in bytes as the writer measures it. The item the writer
+// hands it as current, after each of its calls to the record, is held by headMovesOnlyOnDischarge.
 func (r *runner) queueHolds(seatID string) {
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
@@ -55,32 +53,16 @@ owed:
 		r.noteActErr(fmt.Sprintf("queue oracle: %s owes %q and it is not queued", seatID, it.What))
 		return
 	}
-	if text := sittingwrite.RenderLensDelivery(w); len(text) > sittingwrite.DeliveryBudget {
+	if text := sittingwrite.RenderDispatchDelivery(w); len(text) > sittingwrite.DeliveryBudget {
 		r.noteActErr(fmt.Sprintf("queue oracle: %s's delivery is %d bytes, over the budget of %d (%s)", seatID, len(text), sittingwrite.DeliveryBudget, sectionBytes(text)))
 		return
 	}
-	r.headMovesOnlyOnDischarge(seatID, fmt.Sprintf("%s#%d", seatID, w.SittingID()), keys)
 }
 
-// headMovesOnlyOnDischarge asks the writer what the lens is handed next, as the PostToolUse hook does,
-// and holds the current item it names to the one handed before while that one is still queued.
-// sitting keys what was handed: a new sitting starts from the head of its queue.
-func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[string]bool) {
-	if r.writer == "" {
-		return
-	}
-	agentType := seatclass.Seats[seatID].AgentType
-	out, err := exec.Command(r.writer, "-run", r.runDir, "-phase", string(sittingwrite.Next),
-		"-agent-id", "fuzz-queue-"+seatID, "-agent-type", agentType).Output()
-	if err != nil {
-		r.noteActErr("queue oracle: the writer's next phase failed for " + seatID + ": " + err.Error())
-		return
-	}
-	text := string(out)
-	if strings.Contains(text, "COULD NOT BE READ") {
-		r.noteActErr("queue oracle: " + seatID + "'s next item could not be read: " + firstLine(text))
-		return
-	}
+// headMovesOnlyOnDischarge holds the current item the writer named in text, what it handed the lens
+// after one of its calls to the record (handNext), to the one handed before while that one is still
+// queued. sitting keys what was handed: a new sitting starts from the head of its queue.
+func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[string]bool, text string) {
 	current, handed := "", false
 	if i := strings.Index(text, "{"); i >= 0 {
 		var d struct {

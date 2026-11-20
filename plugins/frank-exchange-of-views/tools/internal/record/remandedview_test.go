@@ -21,9 +21,9 @@ import (
 // gap would pass any test that only checks the positive one, which is the shape #759 warned this
 // measurement would take.
 func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
-	run := mustRun(t, newRun(t))
+	run := withReport(t, mustRun(t, newRun(t)))
 	red := Identity{Run: run, SeatID: "red-chair"}
-	judge := Identity{Run: run, SeatID: "judge"}
+	var judge Identity
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -42,6 +42,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 	}
 	carry := func(motionID, reopensOn string) {
+		judge = benchSits(t, run)
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
@@ -53,6 +54,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
+		judge = benchSits(t, run)
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("settled"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{

@@ -67,9 +67,12 @@ func TestTheMigratedM30RaiseIsDropped(t *testing.T) {
 					closed = closed || b.GetGapId() == c.gap
 				}
 			}
-			// Both gaps were closed in their archives, and stay closed.
-			if !minted || !closed {
-				t.Errorf("%s minted %v, closed %v; the archive minted and closed it", c.gap, minted, closed)
+			// Both gaps were closed in their archives, and stay closed unless the close is a lost act
+			// (its lens's sitting holds no delivery), listed in the manifest.
+			res, _ := MigratedArchive(t, c.archive)
+			wantClosed := !LostCloseGaps(t, c.archive, res)[c.gap]
+			if !minted || closed != wantClosed {
+				t.Errorf("%s minted %v, closed %v; the archive minted and closed it, and its close is lost: %v", c.gap, minted, closed, !wantClosed)
 			}
 			if in["finding"] != out["finding"]+len(c.raises) {
 				t.Errorf("findings in %d, out %d: each of the %d raise(s) is read and written as no event", in["finding"], out["finding"], len(c.raises))

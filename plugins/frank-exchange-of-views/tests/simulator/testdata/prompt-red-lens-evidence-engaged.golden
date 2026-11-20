@@ -1,4 +1,4 @@
-prompt sha256: a7acf83bb3981ae21239090a633b03f8add8538a55dc71bce43099673fdcf5f7
+prompt sha256: 92ceee7cd9aec5a17791385556fee4e881ee81e734d5c5b3f20a6522532ac3a2
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -17,17 +17,17 @@ If a source is too large for your context, read it in SECTIONS and name the sect
 YOU ARE ENGAGED ON: G-00000002 — gaps you minted that are still open, each with something for you to audit: your work list says what, gap by gap, and its row gives its location state and the edits that changed its sentence since you last sat.
 DID BLUE ACTUALLY DO WHAT YOU ASKED?
 `gone`: the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands.
-Otherwise re-read the report where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds.
+Otherwise read the passage where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds.
 On a gap you are engaged on, a sitting with neither a regrade nor a close is a NULL TURN, and it ends the exchange all the same — silence is a turn taken.
 A gap you hold and are not engaged on asks nothing of you this sitting: its turn has not come, and the row says so.
-YOUR ITEMS ARRIVE ONE AT A TIME; the index lists the rest.
-YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
-`first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
-`behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
-`unchanged`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
-`served`: served to you whole this sitting (pin P) — audit it.
-`undispatched`: the record holds no dispatch for you — log that and end the sitting.
-Only a whole read of the report moves your pin.
+YOUR ITEMS ARRIVE ONE AT A TIME, each after a tool call of yours; the index lists the rest.
+YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides your audit.
+`first`: the whole report — audit it whole, in context, never a diff.
+`behind` (head H; pin P): the whole report at your full re-read, else each edit since your pin as the paragraphs it touched, before and after, and your own gaps' passages.
+`unchanged`: NOTHING TO AUDIT at head H unless the whole report is owed; your earlier read stands, and if nothing engages you the sitting owes no entry.
+`served`: this sitting's delivery is complete (pin P) — audit it.
+`undispatched`: no dispatch for you — log that and end.
+Only a complete delivery moves your pin.
 A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The ids of your findings and of the gaps you mint are the tool's to assign.

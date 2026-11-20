@@ -1,12 +1,15 @@
 package record
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -71,5 +74,94 @@ func sitToAssemble(t *testing.T, run Run) Identity {
 	if _, _, err := RegisterSeat(id, "", recordpb.Word(recordpb.Occasion_OCCASION_ASSEMBLE)); err != nil {
 		t.Fatal(err)
 	}
+	return id
+}
+
+// withReport ingests a report holding the Findings section every corrMint is about: an act that
+// stands on delivered text needs a report head to cut its delivery at.
+func withReport(t *testing.T, run Run) Run {
+	t.Helper()
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")})
+	return run
+}
+
+// delivered completes id's delivery of report text in its open sitting, as the delivery writer does
+// before the seat's act; a sitting that already holds its delivery is left as it is.
+func delivered(t *testing.T, id Identity) {
+	t.Helper()
+	db, err := openRunForRead(id.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, held, err := DeliveryThisSitting(db, id.SeatID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !held {
+		deliver(t, id.Run, id.SeatID)
+	}
+}
+
+// benchSits is the chair convening the bench on every gap an unruled docket motion is about, at the
+// report head, and the bench sitting that docket with its delivery of those gaps' passages: the
+// sitting a live bench rules from. The chair's sitting is the one it already holds.
+func benchSits(t *testing.T, run Run) Identity {
+	t.Helper()
+	db, err := openRunForRead(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := ReportHeadAt(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.Query(`SELECT DISTINCT d."gap_id" FROM "motion" m JOIN "motion_docket" d ON d."event_id" = m."event_id"
+  WHERE m."motion_id" NOT IN (SELECT "motion_id" FROM "motion_answers" WHERE "ruled_by" IS NOT NULL) ORDER BY m."event_id"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gaps []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			t.Fatal(err)
+		}
+		gaps = append(gaps, g)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// The chair's dispatch is committed as the record holds it: these fixtures cast no seats, and the
+	// dispatch write admits only a cast seat.
+	raw, err := recordsql.OpenSeparate(filepath.Join(run.Records(), dbName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	ev := &recordpb.Event{SeatId: proto.String("red-chair"), Ts: proto.String(Stamp()), Key: proto.String(fmt.Sprintf("red-chair:dispatch:%s:%s", benchSeat, Stamp()))}
+	typ, err := recordpb.SetBody(ev, &recordpb.Dispatch{Pin: proto.Int64(head), SeatId: proto.String(benchSeat), GapIds: gaps})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev.Type = &typ
+	tx, err := raw.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	return sitRead(t, run, benchSeat)
+}
+
+// sitRead opens seat's sitting and completes its delivery of report text in it: the sitting of a
+// seat whose next act stands on text delivered to it.
+func sitRead(t *testing.T, run Run, seat string) Identity {
+	t.Helper()
+	id := sit(t, run, seat)
+	delivered(t, id)
 	return id
 }

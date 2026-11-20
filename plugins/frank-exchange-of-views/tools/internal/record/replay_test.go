@@ -384,7 +384,8 @@ func TestValidateVerbContracts(t *testing.T) {
 
 // docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
-// the missing gap or the missing filing.
+// the missing gap or the missing filing. The gap is minted on an ingested report, so a bench sitting
+// can be delivered its passage (docketBench).
 //
 // IT TAKES BOTH EVENTS, and that is the shape of the verb now. The gap rides the FILING and the
 // disposition rides the RULING, so a fixture that seeds only one of them leaves the other end of
@@ -392,6 +393,7 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -408,6 +410,15 @@ func docketRunDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return runDir
+}
+
+// docketBench is docketRunDir's run with the bench convened on the docket and sitting with its
+// delivery of the gap's passage, as a bench rules.
+func docketBench(t *testing.T) Run {
+	t.Helper()
+	run := mustRun(t, docketRunDir(t))
+	benchSits(t, run)
+	return run
 }
 
 // The bench's ruling demands every field its schema marks required, and names the one that is
@@ -459,7 +470,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		t.Run("missing "+c.field, func(t *testing.T) {
 			o := complete()
 			c.clear(o)
-			err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
+			err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
 			if err == nil {
 				t.Fatalf("a docket ruling was accepted without %s", c.field)
 			}
@@ -484,7 +495,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -493,7 +504,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// holds the fields an empty value does not satisfy.
 	empty := complete()
 	empty.GetDocket().Settled = proto.String("")
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
 }
@@ -535,14 +546,18 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair"
+	seatID := evLens
 	// BOTH gaps are minted: G1 is the one being closed, G2 the successor a
 	// repaired_with_regression names. A successor is a reference like any other and is
-	// now checked, so a fixture that names one has to create it.
+	// now checked, so a fixture that names one has to create it. The lens mints them on an
+	// ingested report and sits with its delivery, so each close is answered by the rule it names.
 	writeShard(t, runDir, []*Event{
+		recordtest.At(t, HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")}),
+		recordtest.At(t, seatID, seatID+":register", &recordpb.Register{}),
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
 		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
+	deliver(t, mustRun(t, runDir), seatID)
 	anchored := func() *recordpb.Close {
 		return &recordpb.Close{
 			GapId: proto.String("G1"), AnchorSeat: proto.String("L1"),
@@ -585,7 +600,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
+			err := validateRun(mustRun(t, runDir), seatID, recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -849,11 +864,13 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTarget: proto.String("blue/report.md"),
 	}
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	// A real gap on the record, minted by the lens whose sitting holds its delivery, so the reference
+	// check and the delivered-text rule pass and the ARGUMENT rule is what answers.
+	if _, err := Append(sitRead(t, mustRun(t, runDir), evLens), &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
 		Class: recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -872,7 +889,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
-	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
+	err := validateRun(mustRun(t, runDir), evLens, recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
 	if err == nil || !strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
@@ -915,7 +932,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
 			o := full()
 			tc.set(o.GetDocket())
-			_, err := Append(sit(t, run, "judge"), o)
+			_, err := Append(benchSits(t, run), o)
 			if err == nil {
 				t.Fatalf("a docket ruling with an EMPTY %s reached the record — an empty answer cannot be told from a skipped question", tc.flag)
 			}
@@ -926,7 +943,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	}
 	t.Run("all three stated", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		if _, err := Append(sit(t, run, "judge"), full()); err != nil {
+		if _, err := Append(benchSits(t, run), full()); err != nil {
 			t.Errorf("a docket ruling stating its rule, tension and review flag was refused: %v", err)
 		}
 	})

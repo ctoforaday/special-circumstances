@@ -104,7 +104,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_DISPATCH", Means: "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"},
 	{Name: "EVENT_TYPE_PLAN", Means: "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"},
 	{Name: "EVENT_TYPE_STALE", Means: "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"},
-	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
+	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool handed a delivery's last report-text item into the seat's context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens's latest in a sitting it sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
 }

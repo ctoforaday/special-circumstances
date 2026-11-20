@@ -5,17 +5,19 @@
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
 // have established there is a live run and a real seat, by the PreToolUse hook for each envelope it
 // checks, by the PostToolUseFailure hook for a seat's failed call, and by the PostToolUse hook for a
-// seat's envelope the harness accepted and for a lens's call that went to the record — see
+// seat's envelope the harness accepted and for every other call of a seat's — see
 // internal/sittingwrite for why the write is a separate process, which is a frequency argument
 // rather than a structural one.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
@@ -23,10 +25,11 @@ import (
 func main() {
 	gcpolicy.Short()
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), refusal (the PreToolUse hook denied a call), failure (a call failed), envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin), admission (the call returning the seat's envelope succeeded, recorded as admitted) or next (a lens's call went to the record: what it is handed next, printed)")
+	phase := flag.String("phase", "", "open or close (an end of the span), refusal (the PreToolUse hook denied a call), failure (a call failed), envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin), admission (the call returning the seat's envelope succeeded, recorded as admitted) or next (after a seat's call: what it is handed next, printed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open, close and next)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
+	engine := flag.String("engine", "", "the harness answering the hook (envelope and next): on antigravity no report text is delivered or held on")
 	entry := flag.String("entry", "", "what a hook saw happen to the seat's call — refused, or failed (refusal and failure only)")
 	flag.Parse()
 
@@ -36,13 +39,13 @@ func main() {
 		// STDIN IS THE CALL'S ARGUMENTS: what the seat stated, which the answer turns on.
 		var input []byte
 		if input, err = io.ReadAll(os.Stdin); err == nil {
-			err = sittingwrite.WriteEnvelopeAnswer(*run, *agentID, input, os.Stdout)
+			err = sittingwrite.WriteEnvelopeAnswer(*run, *agentID, *engine, input, os.Stdout)
 		}
 	case sittingwrite.Admission:
 		err = sittingwrite.WriteAdmission(*run, *agentID)
 	case sittingwrite.Next:
 		// STDOUT IS THE SEAT'S CHANNEL here as on the opening end: the PostToolUse hook passes it on.
-		err = sittingwrite.WriteNextItem(*run, *agentID, *agentType, os.Stdout)
+		err = sittingwrite.WriteNextItem(*run, *agentID, *agentType, *engine, os.Stdout)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:
@@ -56,8 +59,23 @@ func main() {
 	}
 	if err != nil {
 		// Stderr and a non-zero exit. The span hooks ignore it — a seat is not blocked because the
-		// bookkeeping failed; the PreToolUse hook passes it to its own stderr.
+		// bookkeeping failed; the PreToolUse hook passes it to its own stderr. A held delivery has its
+		// own status (exitStatus), since it is no failure.
 		fmt.Fprintln(os.Stderr, "feov-sitting-write:", err)
-		os.Exit(1)
+		os.Exit(exitStatus(sittingwrite.Phase(*phase), err))
 	}
+}
+
+// exitStatus is the writer's exit on err: hookgate.ExitDeliveryHeld for a seat's delivery another call
+// holds, on the next phase, which the PostToolUse hook reads as handing nothing;
+// hookgate.ExitDeliveryStuck for report text that cannot be delivered, which it reads as ending the
+// seat's turn; 1 for everything else.
+func exitStatus(phase sittingwrite.Phase, err error) int {
+	if phase == sittingwrite.Next && errors.Is(err, hookgate.ErrDeliveryHeld) {
+		return hookgate.ExitDeliveryHeld
+	}
+	if phase == sittingwrite.Next && errors.Is(err, hookgate.ErrDeliveryStuck) {
+		return hookgate.ExitDeliveryStuck
+	}
+	return 1
 }

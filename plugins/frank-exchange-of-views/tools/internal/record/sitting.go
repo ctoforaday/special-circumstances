@@ -83,7 +83,7 @@ type Item struct {
 	AnotherSeatClears bool `json:"another_seat_clears,omitempty"`
 	// Kind is what the item is, and Subject what it is about (itemkind.go): the item's identity as
 	// fields, set where the item is built, so a reader keys an item without reading its sentence. A
-	// lens's work arrives one item at a time keyed on them (QueueOf).
+	// seat's work arrives one item at a time keyed on them (QueueOf).
 	Kind    ItemKind     `json:"kind"`
 	Subject *ItemSubject `json:"subject,omitempty"`
 }
@@ -98,8 +98,8 @@ type SittingJSON struct {
 	// — which is the difference this exists to make.
 	Complete bool   `json:"complete"`
 	Open     []Item `json:"open"`
-	// LastRead is a lens's pin as of this read — the head the whole report was last served to it at,
-	// this sitting included (lastReadOf) — on the read it already does first. Present for every lens,
+	// LastRead is a lens's pin as of this read — the head of its latest complete delivery of report
+	// text, this sitting included (lastReadOf) — on the read it already does first. Present for every lens,
 	// with an explicit kind — first, behind, unchanged, served or undispatched — never inferred from
 	// an absent field; absent for every other role.
 	LastRead *LastReadJSON `json:"last_read,omitempty"`
@@ -181,29 +181,23 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		report := about(SubjectReport, strconv.FormatInt(s.LastRead.Head, 10))
 		switch s.LastRead.Kind {
 		case "first":
-			may(ItemAudit, report, "audit the report in full — no sitting of yours before this one was served it whole, so nothing of it is yet yours to have read. "+ServedPinNote)
+			may(ItemAudit, report, "audit the report in full — no sitting of yours before this one had it delivered to you, so the whole report arrives on your work list this sitting. "+ServedPinNote)
 		case "behind":
-			// THE PINS ARE NAVIGATION, NOT THE AUDIT SURFACE, and this item said the opposite.
+			// THE ITEM STATES THE FACT AND POINTS AT THE DELIVERY; THE SEAT'S CONSTITUTION SAYS WHAT
+			// THE DUTY IS. Which text this sitting delivers — the whole report, or the changes since the
+			// pin with the lens's own gap passages — is the report-text item's to say (reportTextItems),
+			// read off report_delivery; this item does not restate it, so the two never disagree. A
+			// work list that argues with a MUST teaches a seat to weigh the two.
 			//
-			// It read "the change is your surface, not the whole document", which contradicts the
-			// duty it was meant to serve in the words adversarial-audit already uses: "a
-			// change-summary is a navigation hint, never the audit surface… This is not permission to
-			// audit a fragment — when the report HAS moved, the full re-read stands exactly as
-			// written." A lens asked about it had resolved the contradiction in the SKILL's favour
-			// and read the report whole, which is the right outcome reached despite this text.
-			//
-			// So it states the fact and points at the duty, and the seat's constitution keeps saying
-			// what the duty is. A work list that argues with a MUST teaches a seat to weigh the two.
-			//
-			// IT SPEAKS OF BEFORE THIS SITTING because the kind is behind only until this sitting serves
-			// the report whole: the read moves the field to served, and the item goes with it. Measured
-			// before the field counted this sitting (#1565 and #1601 smokes): a lens that had read the
-			// report whole was still told it was behind, re-read its work list, and filed the
+			// IT SPEAKS OF BEFORE THIS SITTING because the kind is behind only until this sitting's
+			// delivery completes: the delivery moves the field to served, and the item goes with it.
+			// Measured before the field counted this sitting (#1565 and #1601 smokes): a lens that had
+			// read the report was still told it was behind, re-read its work list, and filed the
 			// contradiction as friction.
-			may(ItemAudit, report, fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
+			may(ItemAudit, report, fmt.Sprintf("before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is %d, and you are dispatched against head %d: this sitting's audit is the report text your work list delivers you, the whole report where it owes you that and otherwise each edit since your pin, as the paragraphs it touched before and after, with your own gaps' passages. %s",
 				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
 		case "served":
-			may(ItemAudit, report, fmt.Sprintf("this sitting served you the report whole at head %d, and you are dispatched against head %d: the text you were served is this sitting's audit.",
+			may(ItemAudit, report, fmt.Sprintf("this sitting delivered you its report text, cut at head %d, and you are dispatched against head %d: the text delivered to you is this sitting's audit.",
 				s.LastRead.Pin, s.LastRead.Head))
 		}
 	}

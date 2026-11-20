@@ -88,8 +88,10 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		{kind: "record validation", seat: lens, args: []string{"close", "--id", "G-0000beef", "--as", "repaired", "--reason", "x", "--verified-by", "y", "--verified-with", "z", "--verified-against", "a"},
 			verb: "close", path: "close", role: "lens", code: "error", logged: true},
 
-		{kind: "record validation", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
-			verb: "spot-check", path: "spot-check", role: "chair", code: "error", logged: true},
+		// The record's state refusing a well-formed act: a spot-check in a sitting that holds no
+		// delivery of report text (record.DeliveredTextRefusal), which answers before the gaps it names.
+		{kind: "delivered-text refusal", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
+			verb: "spot-check", path: "spot-check", role: "chair", code: "conflict", logged: true},
 		{kind: "bad value, its message several lines long", seat: chair, args: []string{"verdict", "--as", "MAYBE"},
 			verb: "verdict", path: "verdict", role: "chair", code: "validation", short: true, logged: true},
 

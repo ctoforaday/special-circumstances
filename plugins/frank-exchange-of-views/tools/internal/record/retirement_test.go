@@ -20,6 +20,12 @@ func (b *stage) sit(pin int64, lens string) *stage {
 	return b.sitUnserved(pin, lens).served(lens, pin)
 }
 
+// readFully is a lens's first sitting and its full re-read, each served the whole report at pin: a
+// lens that has read the report at pin and is owed no whole delivery again until the head moves.
+func (b *stage) readFully(pin int64, lens string) *stage {
+	return b.sit(pin, lens).sit(pin, lens)
+}
+
 // sitUnserved is one sitting of a lens that was never served the whole report: a dispatch at pin and
 // its register.
 func (b *stage) sitUnserved(pin int64, lens string) *stage {
@@ -89,18 +95,18 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 	if !lensReady(never) || !strings.Contains(whyOf(never), "never sat") {
 		t.Fatalf("a lens that has never sat is ready for its first look: %+v", never)
 	}
-	same := planOf(t, retBoard(t).sit(2, evLens))
-	if lensReady(same) || !strings.Contains(whyOf(same), "served the report at the head (pin 2)") {
+	same := planOf(t, retBoard(t).readFully(2, evLens))
+	if lensReady(same) || !strings.Contains(whyOf(same), "its delivery is at the head (pin 2)") {
 		t.Fatalf("a lens that sat at the head is not readied for a second look at the same report: %+v", same)
 	}
 	// A SITTING AT THE HEAD THAT WAS NEVER SERVED THE REPORT IS NOT A LOOK AT IT (#1458): the lens is
 	// still behind the head, and readied to audit it.
 	unserved := planOf(t, retBoard(t).sitUnserved(2, evLens))
-	if !lensReady(unserved) || !strings.Contains(whyOf(unserved), "no sitting it sat through was served the whole report, behind head 2") {
+	if !lensReady(unserved) || !strings.Contains(whyOf(unserved), "no sitting it sat through holds a complete delivery of report text, behind head 2") {
 		t.Fatalf("a lens that sat at the head and was never served the report is ready to audit it: %+v", unserved)
 	}
 	moved := planOf(t, retBoard(t).sit(2, evLens).ingest())
-	if !lensReady(moved) || !strings.Contains(whyOf(moved), "the whole report was last served to it at its pin 2, behind head") {
+	if !lensReady(moved) || !strings.Contains(whyOf(moved), "its latest complete delivery of report text was cut at its pin 2, behind head") {
 		t.Fatalf("a lens is ready when the head has moved past its last sitting's pin: %+v", moved)
 	}
 }
@@ -109,8 +115,8 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 // of the report it has just read, and its gap waits for blue's answer (lensTurnOn) — blue is engaged
 // on it, and the lens is not.
 func TestALensThatMintedAtTheHeadWaitsForBlue(t *testing.T) {
-	plan := planOf(t, retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")))
-	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
+	plan := planOf(t, retBoard(t).readFully(2, evLens).add(evLens, freshHigh("G1")))
+	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "its delivery is at the head (pin 2)") {
 		t.Fatalf("a lens whose open material gap blue has not answered does not sit, and the head has not moved: %+v", plan)
 	}
 }
@@ -214,7 +220,7 @@ func TestPassRefusedWhileALensHasNotSeenTheHead(t *testing.T) {
 		t.Fatalf("pass_permitted while the head has moved past a lens's last sitting: %+v", plan)
 	}
 	_, err = Append(Identity{Run: run, SeatID: "red-chair"}, passGate)
-	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "the whole report was last served to it at its pin") {
+	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "its latest complete delivery of report text was cut at its pin") {
 		t.Fatalf("a chair's PASS over a lens the head has moved past must be refused at the write path, naming the lens: %v", err)
 	}
 }
@@ -233,7 +239,7 @@ func TestPassPermittedAndGateShareTheFold(t *testing.T) {
 		{staleRead, func(t *testing.T) *stage {
 			b, _ := retiredBehindHead(t)
 			b.register("red-chair")
-			return b.add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")})
+			return b.add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Changes: []int64{b.head()}, Reason: proto.String("read the changes since the pin")})
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -257,7 +263,7 @@ func TestPassPermittedAndGateShareTheFold(t *testing.T) {
 // A lens that sat at the head and found nothing holds no PASS: the plan permits one and the gate
 // takes it, with no second sitting at the same head between.
 func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
-	run := retBoard(t).sit(2, evLens).register("red-chair").seed()
+	run := retBoard(t).readFully(2, evLens).register("red-chair").seed()
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
@@ -307,12 +313,17 @@ func TestWhyCarriesState(t *testing.T) {
 		want string
 	}{
 		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
-		{"served at the head", planOf(t, retBoard(t).sit(2, evLens)), "served the report at the head (pin 2) — ready when the head moves"},
-		{"head moved", planOf(t, retBoard(t).sit(2, evLens).ingest()), "the whole report was last served to it at its pin 2, behind head 7 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)"},
+		{"served at the head", planOf(t, retBoard(t).readFully(2, evLens)), "its delivery is at the head (pin 2) — ready when the head moves"},
+		// A lens served once owes its full re-read, which readies it at this head: its pin line says so.
+		{"owes its re-read at the head", planOf(t, retBoard(t).sit(2, evLens)), "its delivery is at the head (pin 2) — it owes its full re-read, the whole report once more, which readies it at this head"},
+		{"head moved", planOf(t, retBoard(t).readFully(2, evLens).ingest()), "its latest complete delivery of report text was cut at its pin 2, behind head 10 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3)"},
 		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
 		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
 			t.Errorf("%s: the why must say %q:\n%s", c.name, c.want, whyOf(c.plan))
+		}
+		if c.name == "owes its re-read at the head" && strings.Contains(whyOf(c.plan), evLens+": its delivery is at the head (pin 2) — ready when the head moves") {
+			t.Errorf("%s: the pin line waits on a head move while the lens is readied at this head:\n%s", c.name, whyOf(c.plan))
 		}
 	}
 }
@@ -393,12 +404,12 @@ func TestLensWorkItemFollowsTheServe(t *testing.T) {
 		return strings.Join(whats, "\n")
 	}
 	b, _ := behind()
-	if got := items(b); !strings.Contains(got, "before this sitting, the report was last served to you whole at 2") {
+	if got := items(b); !strings.Contains(got, "before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is 2") {
 		t.Errorf("behind: the work list does not say so:\n%s", got)
 	}
 	b, head := behind()
 	got := items(b.served(evLens, head))
-	if strings.Contains(got, "before this sitting") || !strings.Contains(got, fmt.Sprintf("this sitting served you the report whole at head %d", head)) {
+	if strings.Contains(got, "before this sitting") || !strings.Contains(got, fmt.Sprintf("this sitting delivered you its report text, cut at head %d", head)) {
 		t.Errorf("served in this sitting: the work list still speaks of before it, or not of the serve:\n%s", got)
 	}
 }
@@ -414,23 +425,29 @@ func TestPlanListsStaleAreas(t *testing.T) {
 }
 
 func TestPassRefusedUntilSpotCheckCoversStaleAreas(t *testing.T) {
-	spot := &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")}
-	// A spot-check in an EARLIER chair sitting does not cover this one.
+	// The tool stamps the changes a spot-check bore: every change up to the head it was filed at.
+	spotAt := func(head int64) *recordpb.SpotCheck {
+		return &recordpb.SpotCheck{Areas: []string{evLens}, Changes: []int64{head}, Reason: proto.String("read the changes since the pin")}
+	}
+	// A spot-check in an EARLIER chair sitting, with the report changed since, does not cover this one.
 	b, _ := retiredBehindHead(t)
-	b.add("red-chair", spot).register("red-chair")
+	b.add("red-chair", spotAt(b.head())).ingest().register("red-chair")
 	run := b.seed()
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err == nil || !strings.Contains(err.Error(), "the report changed behind 1 retired lens(es)") {
-		t.Fatalf("a PASS over an uncovered stale area must be refused: %v", err)
+		t.Fatalf("a PASS over a stale area changed since its spot-check must be refused: %v", err)
 	}
 	b2, _ := retiredBehindHead(t)
-	b2.register("red-chair").add("red-chair", spot)
+	b2.register("red-chair").add("red-chair", spotAt(b2.head()))
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("a PASS after this sitting's spot-check named the stale area was refused: %v", err)
 	}
 }
 
 func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
-	run := retBoard(t).seed()
+	// The chair spot-checks in a sitting that holds its delivery: the stale area's changes.
+	b, _ := retiredBehindHead(t)
+	run := b.register("red-chair").seed()
+	deliver(t, run, "red-chair")
 	chair := Identity{Run: run, SeatID: "red-chair"}
 	// The refused areas come first and are refused FOR THE AREA: a spot-check is once per sitting,
 	// so one that lands makes every later one a refusal whatever it names.
@@ -451,6 +468,7 @@ func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 func TestASpotCheckStampsTheChangesBehindEachPin(t *testing.T) {
 	b, pin := retiredBehindHead(t)
 	run := b.register("red-chair").seed()
+	deliver(t, run, "red-chair")
 	var want []int64
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		rows, err := q.Query(`SELECT "event_id" FROM "head_move" WHERE "event_id" > ? ORDER BY "event_id"`, pin)
@@ -502,6 +520,7 @@ func TestASpotCheckArrivingWithItsChangesIsRefused(t *testing.T) {
 	} {
 		b, _ := retiredBehindHead(t)
 		run := b.register("red-chair").seed()
+		deliver(t, run, "red-chair")
 		if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, body); err == nil || !strings.Contains(err.Error(), "stamped by the tool") {
 			t.Errorf("a spot-check supplying %v / %v is not refused as the tool's stamp: %v", body.GetPins(), body.GetChanges(), err)
 		}
@@ -587,7 +606,8 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
 	beh := sittingOfRunT(t, b.sitUnserved(head, evLens).seed(), "lens", evLens)
-	if !listsItem(beh, "reads it in full") {
+	// Its second sitting is its full re-read: the whole report is what its list delivers.
+	if !listsItem(beh, "the whole report arrives on your work list") {
 		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
 	}
 	if listsItem(beh, "not the whole document") {

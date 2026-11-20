@@ -1,112 +1,14 @@
 package record
 
-import (
-	"database/sql"
-	"errors"
-	"fmt"
-
-	"google.golang.org/protobuf/proto"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
-)
-
-// A LENS'S PIN IS THE HEAD THE WHOLE REPORT WAS LAST SERVED TO IT AT (#1458).
-//
-// The pin was the head of the dispatch whose sitting the lens opened, and a sitting opens when the
-// hook brackets it — so a lens that crashed, skipped its audit or read only at anchors left the
-// same record as one that read the report and found nothing: an empty sitting, pin = head. At the
-// final head nothing re-readied it, and its area went uncovered at the PASS. The read verb now
-// records what it served (ReportRead), and the fold reads the pin from there (lensStates): a lens
-// that was never served the report at the head is still ready at it, through the rule that readies
-// a lens behind the head, until it is served it or retires — and a retired lens behind the head is a
-// stale area the chair's spot-check covers, as before.
-//
-// SERVED, NOT READ. The tool cannot see a seat read; it can see that the whole text at a head
-// reached the seat in a sitting, which a read at an anchor or a selection cannot claim.
+// A SEAT'S PIN IS THE HEAD OF ITS LATEST COMPLETE DELIVERY in a sitting it sat through
+// (report_delivery). The delivery writer appends one report_read when it hands a delivery's last item
+// into the seat's context, its head the report head the delivery was cut at: the tool's record of
+// what reached the seat, never the seat's claim to have read it. A lens never delivered the report at
+// the head is ready at it until it is, or retires; a retired lens behind the head is a stale area the
+// chair bears changes on.
 
 // ServedPinNote is what moves a lens's pin, as its work list's audit item states it.
-const ServedPinNote = "Your pin moves when the tool serves you the whole report — `show report`, bare or with --json and no selector — in a sitting you sit through; a read at an anchor or a selection serves part of it and moves nothing, and a sitting that ends with the report not served to you at the head leaves you ready at it"
-
-// ServeReport is the report as the whole-report read serves it to a lens, and its head, with the
-// ReportRead that records the serving — one transaction, so the head recorded is the head of the
-// text returned. It writes nothing where the run has its outcome or was captured, or where the seat's current
-// sitting already holds a read at this head; the text is served either way. A write the record
-// cannot take — a lock it could not get — is the caller's error, and nothing is served.
-func ServeReport(id Identity) (text string, head int64, err error) {
-	// A CAPTURED RUN IS SERVED AND RECORDS NOTHING, asked before the append, which a captured run
-	// refuses as the write it is (requireRunNotCaptured): the seat asked for a read.
-	if captured, err := RunCaptured(id.Run); err != nil {
-		return "", 0, err
-	} else if captured {
-		return ReportAtHead(id.Run)
-	}
-	body := &recordpb.ReportRead{}
-	_, err = Append(id, body, Check(func(l *Landing) error {
-		if text, err = l.Report(); err != nil {
-			return err
-		}
-		if head, err = ReportHeadAt(l.w.q); err != nil {
-			return err
-		}
-		body.Head = proto.Int64(head)
-		if v, err := l.Outcome(); err != nil {
-			return err
-		} else if v != "" {
-			return ErrWritesNothing
-		}
-		served, err := servedThisSittingAt(l.w.q, id.SeatID, head)
-		if err != nil {
-			return err
-		}
-		if served {
-			return ErrWritesNothing
-		}
-		return nil
-	}))
-	if errors.Is(err, ErrWritesNothing) {
-		err = nil
-	}
-	if err != nil {
-		return "", 0, err
-	}
-	return text, head, nil
-}
-
-// servedThisSittingAt is whether seatID's current sitting already holds a read at head.
-func servedThisSittingAt(q recordsql.Querier, seatID string, head int64) (bool, error) {
-	sitting, _, err := latestSittingAt(q, seatID)
-	if err != nil {
-		return false, err
-	}
-	var one int
-	err = q.QueryRow(`SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id"
-	  WHERE e."seat_id" = ?1 AND r."head" = ?2 AND e."sitting_id" IS ?3 LIMIT 1`, seatID, head, sitting).Scan(&one)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("asking whether %s was already served the report at head %d this sitting: %w", seatID, head, err)
-	}
-	return true, nil
-}
-
-// requireReportReadAt refuses a read by any seat but a lens — no other seat's audit is pinned — and
-// one whose head is not the report's head on the record it lands on: the head is the text served.
-func requireReportReadAt(q recordsql.Querier, seatID string, b *recordpb.ReportRead) error {
-	if seatclass.RoleOfSeat(seatID) != "lens" {
-		return fmt.Errorf("a report read records the whole report served to a lens, and %s is not a lens", seatID)
-	}
-	head, err := ReportHeadAt(q)
-	if err != nil {
-		return err
-	}
-	if b.GetHead() != head {
-		return fmt.Errorf("a report read names head %d and the report's head is %d — it records the head the text was served at", b.GetHead(), head)
-	}
-	return nil
-}
+const ServedPinNote = "Your pin moves when the report text owed to you this sitting has all been delivered on your work list, in a sitting you sit through; a read through `show report` records nothing"
 
 // served is one completed delivery to a seat (report_delivery): the sitting it was in, its head, and
 // whether that sitting was sat through.

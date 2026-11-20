@@ -35,8 +35,11 @@ func TestADistinctFromListIsNotCarried(t *testing.T) {
 	if len(res.Refusals) != 0 {
 		t.Fatalf("%d event(s) refused; the first: %+v", len(res.Refusals), res.Refusals[0])
 	}
-	if res.In["mint"] == 0 || res.In["mint"] != res.Out["mint"] {
-		t.Errorf("mint census: in=%d out=%d — dropping the list dropped a mint", res.In["mint"], res.Out["mint"])
+	// A mint refused because it supersedes a gap a lost close left open is that same loss, listed in
+	// lost_acts with the close it depended on; it is not a mint the list's drop took.
+	lost := migrate.LostByWord(res)["mint"]
+	if res.In["mint"] == 0 || res.In["mint"]-lost != res.Out["mint"] {
+		t.Errorf("mint census: in=%d out=%d, %d lost — dropping the list dropped a mint", res.In["mint"], res.Out["mint"], lost)
 	}
 	// m28's PASS is carried as history (gblock, 2026-10-24) over the gap the class-material residue
 	// makes material (TestTheGapClassMigratesOntoTheEnum), so the #67 check reads it as violated.

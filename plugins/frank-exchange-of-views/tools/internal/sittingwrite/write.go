@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"io"
 	"os"
 
@@ -72,7 +73,7 @@ const (
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
-func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) error {
+func WriteEnvelopeAnswer(runDir, agentID, engine string, input []byte, out io.Writer) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: an envelope is asked about with no agent id")
 	}
@@ -80,7 +81,7 @@ func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) er
 	if err != nil {
 		return err
 	}
-	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input)
+	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input, DeliversReportText(engine))
 	if err != nil || seat == "" {
 		return err
 	}
@@ -275,3 +276,8 @@ func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
 	}
 	return nil
 }
+
+// DeliversReportText is whether the harness named engine delivers report text into a seat's context:
+// every harness but Antigravity, whose hooks queue a PostToolUse answer until the seat's next
+// PreInvocation, so text handed there has not reached the seat when it would be recorded (#1827).
+func DeliversReportText(engine string) bool { return engine != string(hookcore.EngineAntigravity) }

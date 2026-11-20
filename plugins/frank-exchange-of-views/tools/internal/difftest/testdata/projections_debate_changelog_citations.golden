@@ -8,8 +8,10 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -21,14 +23,18 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ position --run {RUN} --seat-id red-chair --reason red's round position
 exit 0
 stdout:
 position POSITION001 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
@@ -36,7 +42,8 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ motion grade file --run {RUN} --seat-id blue-respond --id GAP001 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
@@ -52,6 +59,73 @@ This verb's flags: --anchor, --as, --bridge, --confidence, --page, --quote, --re
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
+$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
+exit 0
+stdout:
+motion MOTION002 filed (docket)
+2 STILL TO CLEAR before the run can PASS, and yours to clear (of 10 item(s) open to you):
+  · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
+  · gap GAP001 is docketed for the bench (motion MOTION002) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is docketed for the bench (motion MOTION002) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+
+$ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
+exit 0
+stdout:
+closing filed for GAP001
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+
+$ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
+exit 0
+stdout:
+closing filed for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+registered red-chair (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+2 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
+  · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+
+$ dispatch next --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+dispatch against head 3:
+  red-lens-evidence — audits the report (its state is in the reasons below)
+  judge — GAP001
+  · red-lens-evidence: never sat — audits the report at head 3
+  · GAP001: docketed and unruled — the bench is ready, no party's closing being awaited
+  · red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered
+  · MOTION001: motion (grade, ruled by the chair seat) filed and never ruled — yours to clear before a PASS
+  · red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered
+2 STILL TO CLEAR before the run can PASS, and yours to clear (of 8 item(s) open to you):
+  · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+
 $ register --run {RUN} --seat-id judge --occasion docket
 exit 0
 stdout:
@@ -62,31 +136,11 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the passage of gap GAP001, which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your tool calls; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has
+  · motion MOTION002 (docket, ruled by the bench seat) is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands
 
-$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
-exit 0
-stdout:
-motion MOTION002 filed (docket)
-2 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
-  · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · gap GAP001 is docketed for the bench (motion MOTION002) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
-
-$ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
-exit 0
-stdout:
-closing filed for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
-
-$ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
-exit 0
-stdout:
-closing filed for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+drive: judge reads its delivery
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION002 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --direction the figure recomputed from its source --reason the rationale body
 exit 0
@@ -101,20 +155,26 @@ certification recorded
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"red's round position"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --title: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_REGISTER"}
+{"cast":{"lane_seat_ids":["blue-lane-1"],"seat_ids":["red-lens-evidence","red-chair","blue-lane-1","blue-synthesize","blue-respond","frontier","judge"]},"key":"harness:setup:cast","seat_id":"harness","ts":0,"type":"EVENT_TYPE_CAST"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_REGISTER"}
+{"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":2,"type":"EVENT_TYPE_REPORT_PART"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"red's round position"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --title: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MOTION"}
 {"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#1:GAP001","seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_CLOSING"}
 {"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_CLOSING"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":13,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_REGISTER"}
+{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"judge"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_DISPATCH"}
+{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"judge\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"unruled_motion\",\"subject\":\"MOTION001\",\"owner\":\"red-chair\"},{\"kind\":\"unruled_motion\",\"subject\":\"MOTION002\",\"owner\":\"judge\"},{\"kind\":\"whole_report_owed\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: docketed and unruled — the bench is ready, no party's closing being awaited\",\"red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered\",\"MOTION001: motion (grade, ruled by the chair seat) filed and never ruled — yours to clear before a PASS\",\"red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered\"]}"},"seat_id":"red-chair","ts":15,"type":"EVENT_TYPE_PLAN"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":16,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:report_read:#1","report_read":{"head":"3"},"seat_id":"judge","ts":17,"type":"EVENT_TYPE_REPORT_READ"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body"},"seat_id":"judge","ts":18,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":19,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- inquiries
