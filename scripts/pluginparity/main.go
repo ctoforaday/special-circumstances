@@ -14,6 +14,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -451,96 +452,24 @@ type agyPluginManifest struct {
 	Keywords    []string        `json:"keywords,omitempty"`
 }
 
-type agyPluginsConfig struct {
-	Entries []struct {
-		Path        string   `json:"path"`
-		IncludeOnly []string `json:"include_only,omitempty"`
-		Exclude     []string `json:"exclude,omitempty"`
-	} `json:"entries"`
-}
-
-// antigravityPluginProblems verifies that .agents/plugins.json discovers the exact plugin set
-// declared in .claude-plugin/marketplace.json and that every plugin carries a synced,
-// schema-clean .antigravity-plugin/plugin.json alongside its .claude-plugin/plugin.json.
+// antigravityPluginProblems verifies that no workspace plugin registration exists and that every
+// plugin carries a synced, schema-clean .antigravity-plugin/plugin.json alongside its
+// .claude-plugin/plugin.json.
+//
+// A workspace entry (.agents/plugins.json) makes Antigravity load the checkout's plugins/<name> in
+// place of the installed copy under ~/.gemini/config/plugins — measured on agy 1.5.13, the
+// workspace copy shadows the installed one completely. A checkout's bin/ holds no release
+// binaries and fetch-bin.sh refuses to fill a source tree, so every hook of a shadowing copy does
+// nothing: no secrets gate, no capture (#1792). Both harnesses run installed copies only.
 func antigravityPluginProblems(root string, declared []string) []string {
 	var problems []string
 	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
 
-	cfgRel := ".agents/plugins.json"
-	cfgBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cfgRel)))
-	if err != nil {
-		add("%s: cannot read (%v) — Antigravity workspace discovery needs this file to locate plugins/*.", cfgRel, err)
-		return problems
-	}
-	dec := json.NewDecoder(bytes.NewReader(cfgBytes))
-	dec.DisallowUnknownFields()
-	var cfg agyPluginsConfig
-	if err := dec.Decode(&cfg); err != nil {
-		add("%s: invalid JSON or unknown field: %v", cfgRel, err)
-		return problems
-	}
-	if len(cfg.Entries) == 0 {
-		add("%s: entries list is empty — Antigravity discovers zero workspace plugins.", cfgRel)
-		return problems
-	}
-
-	discoveredSet := map[string]bool{}
-	for _, e := range cfg.Entries {
-		p := strings.TrimSpace(e.Path)
-		if p == "" || filepath.IsAbs(p) || strings.HasPrefix(filepath.ToSlash(filepath.Clean(p)), "..") {
-			add("%s: entry path %q must be a non-empty repository-relative path.", cfgRel, e.Path)
-			continue
-		}
-		dir := filepath.Join(root, filepath.FromSlash(p))
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			add("%s: entry path %q cannot be read: %v", cfgRel, e.Path, err)
-			continue
-		}
-		subDirs := map[string]bool{}
-		for _, d := range entries {
-			if d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
-				subDirs[d.Name()] = true
-			}
-		}
-		excluded := map[string]bool{}
-		for _, ex := range e.Exclude {
-			excluded[ex] = true
-		}
-		if len(e.IncludeOnly) > 0 {
-			for _, inc := range e.IncludeOnly {
-				if !subDirs[inc] {
-					add("%s: include_only names %q under %s, which is not a directory on disk.", cfgRel, inc, e.Path)
-					continue
-				}
-				if !excluded[inc] {
-					discoveredSet[inc] = true
-				}
-			}
-			continue
-		}
-		for name := range subDirs {
-			if !excluded[name] {
-				discoveredSet[name] = true
-			}
-		}
-	}
-
-	var discovered []string
-	for name := range discoveredSet {
-		discovered = append(discovered, name)
-	}
-	sort.Strings(discovered)
-
-	for _, p := range declared {
-		if !discoveredSet[p] {
-			add("%s: never discovers %s — declared in .claude-plugin/marketplace.json but not reachable from .agents/plugins.json entries.", cfgRel, p)
-		}
-	}
-	for _, p := range discovered {
-		if !contains(declared, p) {
-			add("%s: discovers %s, which .claude-plugin/marketplace.json does not declare.", cfgRel, p)
-		}
+	const workspaceRel = ".agents/plugins.json"
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(workspaceRel))); err == nil {
+		add("%s: exists — Antigravity would load this checkout's plugins/<name> in place of the installed copies, and their hooks do nothing in a source tree. Delete it; install plugins with `agy plugin install` and `sc-doctor -fix`.", workspaceRel)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		add("%s: cannot stat (%v).", workspaceRel, err)
 	}
 
 	for _, p := range declared {
