@@ -91,7 +91,7 @@ and the `retire_anchors` marker one union arm, the subject's lineage heirs (a vi
 child table); one view (`anchor_removal`) and three changed (`change`, `evidence_anchor`, `report_op`, which gains an
 intra-event order column); one gap-view column (`closed_by_record`); one gap marker; no blocker, no item kind (the
 moot reaches the lens as the existing `news` item); `retire` loses `--quote` and `--new`; P12a's arm 4 kept, re-read
-from `anchor_removal`.
+from `anchor_removal`'s edit arm.
 
 **Success criteria (quantitative, checked in §V):**
 1. On a re-run of the same topic, every part of the question the frontier lists has a coverage state and a standing
@@ -242,7 +242,7 @@ P3 + #1889 (#1695 fold, Parts A and B) + P12a ── P12b (anchors follow their 
 | **P9** | **WITHDRAWN** (F15, ruled by gblock 2026-11-20): one gap per site supersedes the section key | — | — | — |
 | **P10** | M: archive capture time on `cite`, beside `Cite.fetched_at`. **Its own PR** (gblock 2026-11-14) | `Cite` field (bump) | — | small |
 | **P11** | Defect 11: certify's counts composed where they render; render-only (F9). **SHIPPED: #1862** | none | — | small |
-| **P12a** | One gap per site in every lens duty carrier (no tool refusal, F13); P9 withdrawn (F15); the live-answer demand holds while its subject stands. **Its own PR, first** | `met` arm + marker name (view change, no bump) | — | small |
+| **P12a** | One gap per site in every lens duty carrier (no tool refusal, F13); P9 withdrawn (F15); the live-answer demand holds while its subject stands. **Its own PR, first** | `met` arm + a lineage arm on the `retire_anchors` marker (view change, no bump) | — | small |
 | **P12b** | Anchors follow their text: a pure cut takes its anchors; the record writes a real `moot` `Close` in the cutting edit's transaction; `retire` anchor-only (F14); a cut ends the tombstone (F16); no bare anchor in any writer; migrate folds claim retires (F18). **Its own PR after #1889 and P12a** | `Retire` loses 3 fields, `BlueEdit.removed_anchors` (F17 (a)), view `anchor_removal`, `closed_by_record`, one marker (bump) | P3, #1889, P12a | large |
 
 ### III.0a P0 — the archive is a fixture (its own PR, off this gate; no PR yet)
@@ -1152,7 +1152,7 @@ waits for P5's `QuestionPart`, and P5 adds it to `countsAtCertification` and the
 (`view/view.go:797`, `record/viewjson.go:2014`) show the statement without counts; and defect 11's second half, "asks
 for the wrong check", is not addressed by any part (Left out, §VII).
 
-### III.10b P12a — one gap per site; P9 withdrawn; the demand holds while its subject stands (its own PR, FIRST; drafted 2026-11-20, revised after plan-audit r1)
+### III.10b P12a — one gap per site; P9 withdrawn; the demand holds while its subject stands (its own PR, FIRST; drafted 2026-11-20, revised after plan-audits r1 and r2)
 
 **Status and order.** This part is built from gblock's 2026-11-20 rulings, recorded in RULINGS.md under 11-20, including
 the last two entries. gblock's own words are quoted only where that log has them typed; every other ruling below is
@@ -1262,16 +1262,18 @@ reference holds there; the live-answer sweep (§III.11 "P12a") ran on c7666d2f3.
     `TestEveryGapMarkerIsNeeded` (`:299`) drops whole marker triggers, so it cannot see a name missing inside a union;
     the steps are what fail when the lineage arm is deleted (§V 12.3).
   - **`DemandClause`** (`recordpb/descriptions.go:45`) says the demand holds "while its subject stands in the
-    report: the anchor it is about, or its marker (or the marker of an ancestor whose demand it carries)".
+    report: the anchor it is about, or the claim its marker marks (or an ancestor's marker, for a demand carried from
+    it), which leaves the report only with that marker".
     `DemandRefusal` (`demand.go:120-147`) and the `moot` sentence at `:144` say the same. Once the subject has left,
     `moot` is admitted.
-    - **The subject is the marker, not the sentence (lead call, disclosed, reversible).** On P12a's tree an edit may
+    - **The claim leaves only with its marker (lead call, disclosed, reversible).** On P12a's tree an edit may
       leave a carried `G-` standing on no words (`cli/blue/edit.go:267` on main, "carried may stand bare until the
-      retire"). In that window the sentence has gone but the marker stands, arm 4 waits for blue's claim retire, and a
-      lens's `moot` is refused. A clause naming the sentence would tell the lens its `moot` lands while the record
-      refuses it. Worded by the marker, the clause is true in the window: **residue, stated:** the lens waits for
-      blue's retire, as on main today. P12b removes the window (no writer leaves a token bare), and the clause stays
-      true there unchanged.
+      retire"). In that window the words have gone but the marker stands, arm 4 waits for blue's claim retire, and a
+      lens's `moot` is refused. A clause saying "the sentence" would tell the lens its `moot` lands while the record
+      refuses it; the clause above is true in the window, because the claim has not left until the retire takes its
+      marker. **Residue, stated:** the lens waits for blue's retire, as on main today. On P12b's tree the clause stays
+      true unchanged in both directions: a pure cut takes the claim and its marker together, and an anchor-only retire
+      of a closed gap's marker (F14) takes the marker while the claim stands, so it ends no demand (§III.10c).
   - **The carriers, each rendering or restating the clause** (census: §III.11 "P12a"):
     - the `(means)` of `CHECK_KIND_COMPUTATION`/`CHECK_KIND_SOURCE` (`record.proto:357-366`, through
       `annotations.go:90`);
@@ -1299,8 +1301,8 @@ reference holds there; the live-answer sweep (§III.11 "P12a") ran on c7666d2f3.
       `scripts/agentgen/src/blue-researcher.md:88-90` ("closes only on a live answer of its kind … still in the report
       — never on prose", generated into `agents/blue-researcher.md`), which P12a makes false for a `--quote` gap whose
       marker has left; `help/mint.md:13`, whose list of what meets an ancestor's demand ("a retire of the anchor it is
-      about … or that anchor's check again") omits the ancestor's marker leaving; and the `EvidenceAnswered` comment
-      at `viewjson.go:159-161`, which lists the arms.
+      about … or that anchor's check again") omits the ancestor's marker leaving; `help/close.md:13`, which gives the
+      same list for a successor; and the `EvidenceAnswered` comment at `viewjson.go:159-161`, which lists the arms.
 
     Each says "while its subject stands in the report", or says nothing of the demand's end. None names an act that
     ends it.
@@ -1310,7 +1312,7 @@ reference holds there; the live-answer sweep (§III.11 "P12a") ran on c7666d2f3.
     `requireDeclaredSchema` compares triggers and refuses, that is the same refusal and the same `migrate`.
 - **Left out of P12a:** the pure cut, the record's moot, the retire's shape and migrate. All of these are P12b.
 
-### III.10c P12b — anchors follow their text: the pure cut, the record's moot Close, retire anchor-only, the tombstone's cut end, migrate (its own PR, after #1889 and P12a; drafted 2026-11-20, revised after plan-audit r1)
+### III.10c P12b — anchors follow their text: the pure cut, the record's moot Close, retire anchor-only, the tombstone's cut end, migrate (its own PR, after #1889 and P12a; drafted 2026-11-20, revised after plan-audits r1 and r2)
 
 **Status and order.** This part ships as its own PR after #1889 (Parts A and B) and P12a merge. P3 merges before #1889,
 so P3 lands first as well.
@@ -1479,9 +1481,10 @@ and `~/.claude/scratch/p12/r2/`):
       `bluedoc.go:135-167`) and a token abutting the span outside the quote are removed the same way, by the list,
       and never by the splice too. `removeMut`'s loud failure on an absent token (`render.go:166-170`) therefore stays
       correct: nothing else took it first.
-    - **No other edit changes.** Every edit admitted before P12b carries each located token in `new` (the
-      dropped-token refusal, `bluedoc.go:191-240`), so keeping un-carried located tokens is a no-op for it, and an
-      edit with an empty list replays byte for byte as today. The three archived pairs F18 folds keep the bare token
+    - **No other edit changes.** The dropped-token refusal (`bluedoc.go:191-240`) admits no edit whose `new` drops a
+      located token, so keeping un-carried located tokens should be a no-op for every stored edit, and an edit with an
+      empty list replays byte for byte as today. That is a claim about 22 archives written under older binaries, so §V
+      13.4 proves it: each migrated run's final report bytes equal its archived final report. The three archived pairs F18 folds keep the bare token
       in their stored `new`, so the splice yields it in place and the folded list's remove takes it: the migrated
       report equals the archived report after the retire (§V 13.4 checks the bytes).
     - **The test.** `TestReplayRemovesWhatTheWriteRemoved` has one subtest per token position: inside the span and
@@ -1546,7 +1549,9 @@ and `~/.claude/scratch/p12/r2/`):
       (`toNoEvent`, `:1331-1337`; #1889's R18, `:2134`, is the twice-written defect this prevents), and maps every
       other `Close` by identity. Nothing names a Close by its event id (the
       closure line reads the edit from `anchor_removal`), so the re-derived Close's new id breaks no reference.
-      `TestEveryArchivedRunMigrates` on a record holding a record moot asserts one Close per cut gap after replay.
+      No archive holds a record moot, so `TestARecordMootIsWrittenOnceOnReplay` (`internal/record/migrate`, as #1889's
+      T-B21 is for tombstones) writes a record at P12b's epoch through the command tree, with a pure cut of an open
+      gap's marker, migrates it, and asserts one Close per cut gap and one tombstone end row per standing tombstone.
     - **Gaps already closed** get no close. `requireOpenGap` is never asked, because the derivation skips them.
   - **Attribution (lead call, disclosed, reversible).** The close is written under `record.HarnessSeat`
     (`cast.go:17-19`), never under the editing blue seat or the minting lens.
@@ -1634,8 +1639,8 @@ and `~/.claude/scratch/p12/r2/`):
   - `evidence_anchor.retired_event` (`views.go:370-381`) becomes `MIN(anchor_removal.event_id)`. It is renamed only if
     the census's name check finds a collision.
   - **Every "this anchor is out of the report" SQL reader reads that one view:**
-    - `gap_state`'s `answers_retired_event`, `met`'s arm 2 and `met`'s arm 4 (each from `retire_anchors` to
-      `anchor_removal`; below);
+    - `gap_state`'s `answers_retired_event` and `met`'s arm 2 (from `retire_anchors` to `anchor_removal`) and `met`'s
+      arm 4 (to `anchor_removal`'s edit arm; below);
     - `refs.go:270-322`;
     - `windowindex.go` `reachingRetiresOf` (`:148-206`; its `retiredAnchorsSQL`, `:142`, reads `anchor_removal`), and
       through it `replay.go:107` and `blueanswered.go:247-256`;
@@ -1690,18 +1695,24 @@ and `~/.claude/scratch/p12/r2/`):
     `answered.live` and `answers_retired_event`); the gaps whose demand reaches it (`reachingSQL`); and P12a's lineage
     arm, `SELECT "gap_id" FROM "demand_lineage" WHERE "from_gap" = NEW."value"`, which names the gap whose own marker
     left and every heir carrying its demand.
-  - **Arm 4 stays, read from `anchor_removal`.** A superseded ancestor is closed, so a pure cut of its marker writes no
-    record close, and its heir's demand is met only by arm 4: without it, the heir would be met when the ancestor's
-    marker leaves by retire (P12a) and never when it leaves by cut, and arm 2 cannot stand in, because it reads
-    `anchor_removal` only through `demand_reach`, whose rows are the gap's about-anchors (`about_kind = 'anchor'`).
-    **The property:** P12b's `met` holds for every lineage member whose marker left the report, by retire or by cut,
-    exactly where P12a's arm 4 held for a retire. For an open gap's own marker the arm is redundant with the record's
-    close in the same transaction, and harmless; it is kept because one arm over one view states the demand's end for
-    every lineage member, and `DemandClause` stays as P12a wrote it.
-  - **The test.** `gapStateSteps` (`gapstate_test.go:145`, run by `TestTheStoredGapStateIsTheRules`) gains four steps:
+  - **Arm 4 stays, read from `anchor_removal`'s edit arm only (`by = 'edit'`).** A superseded ancestor is closed, so a
+    pure cut of its marker writes no record close, and its heir's demand is met only by arm 4: without it, the heir
+    would be met when the ancestor's marker leaves with its claim by retire (P12a) and never when it leaves by cut, and
+    arm 2 cannot stand in, because it reads `anchor_removal` only through `demand_reach`, whose rows are the gap's
+    about-anchors (`about_kind = 'anchor'`). The retire arm is excluded: under P12b a retire is anchor-only and keeps
+    its sentence, and F14 admits one on a CLOSED gap's marker, so `retire --anchor <ancestor's G->` would otherwise
+    meet the heir's demand while the claim still stands. **The property:** P12b's `met` holds for every lineage member
+    whose marker left the report WITH ITS CLAIM, exactly where P12a's arm 4 held for a claim retire, and never for a
+    marker retired off a standing sentence. For an open gap's own marker the arm is redundant with the record's close
+    in the same transaction, and harmless; it is kept because one arm states the demand's end for every lineage
+    member, and `DemandClause` stays as P12a wrote it.
+  - **The `retire_anchors` marker loses P12a's lineage arm.** No retire changes arm 4 under P12b, so the arm would name
+    gaps no retire can move; its other two arms stay.
+  - **The test.** `gapStateSteps` (`gapstate_test.go:145`, run by `TestTheStoredGapStateIsTheRules`) gains five steps:
     a pure cut of a gap's own marker; a pure cut of a superseded `--quote` ancestor's marker, with the heir's
-    `evidence_answered` in `holds()`; a pure cut of an about-anchor; and a pure cut of an answer anchor of a closed
-    gap. `TestEveryGapMarkerIsNeeded` (`:299`) covers the new trigger as a whole; the lineage arm inside it is
+    `evidence_answered` in `holds()`; an anchor-only retire of a closed ancestor's marker off its standing sentence,
+    with the heir's `evidence_answered` NOT in `holds()`; a pure cut of an about-anchor; and a pure cut of an answer
+    anchor of a closed gap. P12a's two retire steps are rewritten as the cut steps they become. `TestEveryGapMarkerIsNeeded` (`:299`) covers the new trigger as a whole; the lineage arm inside it is
     covered by the ancestor step, which fails when that arm is deleted (§V 13.3).
   - **The release fuzz oracle.** After EVERY drawn act, stored `gap_state` equals `gap_refresh` over all gaps (§III.12).
     `gapStateRefreshDiff` moves to a non-test helper the fuzz can call.
@@ -2045,24 +2056,28 @@ from the repository root (`P=plugins/frank-exchange-of-views`). They are re-run 
 - **The live-answer sweep** (plan-audit r2 gap 3; the demand grep above does not reach a carrier that states the end
   in its own words). Command, on c7666d2f3:
   `git grep -n -i 'live.answer\|live answer' -- $P/tools/internal scripts/agentgen/src $P/skills | grep -v '_test.go\|\.golden\|record.pb.go\|testdata'`
-  It returns 59 lines (worksheet `~/.claude/scratch/p12/r3/live-answer-main.txt`; the audit's 63 on 9cdcedd7a counted
-  `testdata`). Each was read for a statement of when the demand ends:
+  It returns 59 lines (worksheet `~/.claude/scratch/p12/r3/live-answer-main.txt`). The audit counted 63 on 9cdcedd7a
+  by a filter it did not state; with generated files also excluded the same command returns 48. Each line was read
+  whole, around every match, for a statement of when the demand ends:
   - **Render `DemandClause`, so change with the constant:** `help/{carry.md:9, close.md:15, mint.md:21,
     reproduce.md:27, verify.md:22}`; `help_gen.go:11, 26, 31, 46, 91, 156, 176`, which is GENERATED by
     `devcmd/cmdtreegen` and holds the rendered clause, so it is regenerated, never edited; `failedcheck.go:213-214`; `record.go:1132`;
     `sitting.go:307`; `annotations_gen.go:138-139` (from `record.proto:357-366`).
   - **State the end in their own words, reworded:** `scripts/agentgen/src/blue-researcher.md:88-90` (NEW to the
     census; "closes only on a live answer of its kind … still in the report — never on prose"); `help/mint.md:13`
-    (NEW: its list of what meets an ancestor's demand omits the ancestor's marker leaving);
-    `viewjson.go:159-161` (NEW: the `EvidenceAnswered` comment lists the arms);
+    (NEW: its list of what meets an ancestor's demand omits the ancestor's marker leaving); `help/close.md:13` (NEW:
+    "a retire of the gap's citation or computation, or its own seat's check of it again … meets on the successor
+    too", the same list); `viewjson.go:159-161` (NEW: the `EvidenceAnswered` comment lists the arms);
+    `terms.json:1111` ("failed check": "… as do the retire of the anchor the gap is about and the later check …",
+    already a carrier above, here for its own list of arms) with `definitions_gen.go:58`;
     `fragments/blue-search-and-cite.md:42-44`, `fragments/lens-audit-and-mint.md:8`, `descriptions.go:40-45`,
     `demand.go:144, 241`, `gapstate.go:257` and `viewjson.go:135` (already listed above).
   - **Name the demand without stating its end, unchanged:** `cli/lens/close.go:51, 111, 117`, `cli/lens/mint.go:222`
     ("what would have met the ancestor's demand after this mint meets this gap's", true under arm 4), `seat.go:1218`,
     `verbs.go:291, 1390`, `actjudge.go:20, 79`, `demand.go:14, 72, 104, 163, 186`, `recordpb/record.proto:1414`,
     `recordsql/demandlineage.go:8, 47`, `schema.go:244`, `views.go:333, 394, 663`, `replay.go:199`,
-    `viewjson.go:154`, `help/mint.md:31`, and `terms.json:1111, 1139` with their
-    `definitions_gen.go` lines.
+    `viewjson.go:154`, `help/mint.md:31`, and `terms.json:1139` ("superseded": the demand passes, its end unstated)
+    with `definitions_gen.go:60`.
 - **P9.** These name P9 or F5's section key, and each is marked withdrawn:
   - §III.0's diagram and table;
   - §III.9;
@@ -2161,9 +2176,12 @@ The census:
   - `estoppel.go:365-399`;
   - `seat/verbs.go:291, 1004`.
 
-  The Go folds among these hits (`countsat.go:53`, `answersretired.go:83`, `sitting.go:746`, `evidenceview.go:407, 484`,
-  `impasse.go:333`, `gapacts.go:68`, `anchorchecks.go:267`, `windowindex.go:233` on `ae2b9a9fb`) are each decided in
-  §III.10c's fold table.
+  The Go folds over `Retire` events: `grep -rn 'BodyAs\[\*recordpb.Retire\]\|case \*recordpb.Retire' tools/internal
+  --include=*.go | grep -v _test` on `ae2b9a9fb` hits `countsat.go:53`, `answersretired.go:83`, `sitting.go:746`,
+  `evidenceview.go:407, 484`, `impasse.go:333`, `gapacts.go:68` and `anchorchecks.go:267`, each decided in §III.10c's
+  fold table (with `windowindex.go:233`, which tests the event type rather than the body), and four sites that are not
+  folds of the removal: `actjudge.go:123` (the retire's own judge, listed above), `blueanswered.go:277`,
+  `record.go:1462` and `report/assemble.go:829` (the claim shape's readers, listed under "The retire's claim shape").
 - **Close readers, against a Close the record writes.** Command:
   `grep -rn 'supersessionsOf(\|case \*recordpb.Close\|BodyAs\[\*recordpb.Close\]\|GetClose()' tools/internal --include=*.go | grep -v _test`
   It returns 16 files (`audit/g5.txt`), plus `scorecard/scorecard.go:150-170`, `stale.go:111`, `available.go:249`
@@ -2186,8 +2204,8 @@ The census:
 - **gap_refresh.**
   - `gapstate.go:117-149` (`gapMarkers`) and `gapstate_test.go:48, 145, 272, 299-301`.
   - The release fuzz: `grep -rn 'gap_state\|gapStateRefresh' releasegate/` returns 0 hits.
-- **Demand, after P12a.** These are P12a's sites. P12b changes only the source of arms 2 and 4 (to `anchor_removal`),
-  and no carrier's wording.
+- **Demand, after P12a.** These are P12a's sites. P12b changes only the source of arms 2 and 4 (to `anchor_removal`,
+  arm 4 to its edit arm), and no carrier's wording.
 - **Report-text writers.**
   - `cli/blue/edit.go`, covering blue-respond and the synthesizer's opening write (`cli/blue/command.go:21-28`);
   - `cli/blue/ingest.go:55-110`, for lanes (`:40-42`);
@@ -2204,6 +2222,12 @@ The census:
   - `:1346-1347` [`:1312`], "the write path derives exactly one event body, `Tombstone`";
   - the migrate registry's `tombstone` → `toNoEvent` (`:1331-1337`), beside which the record moot's entry goes;
   - `tombstone.go`, `writeTombstones`, `tombstone_standing`, and T-B20.
+
+  `grep -rln 'writeTombstones\|tombstonesOwed\|tombstone_standing\|toNoEvent' tools/internal --include=*.go | grep -v _test`
+  hits only `migrate/entries.go` and `migrate/eraentries.go` (the existing `toNoEvent`) on `ae2b9a9fb`, and adds
+  `recordpb/record.proto`, `record.pb.go`, `recordsql/schema.go` and `recordsql/views.go` on c6ae0335b, whose
+  `writeTombstones` is still plan text. #1889's code lands before P12b opens, so §V 13.1's `listed-files.txt` takes
+  this grep's hits from main at that time, each read as a carrier of the end rule or not.
 
   L34's bare-token derivation is deleted on #1889 itself.
 - **Prose and generated carriers.** These are listed in full in §III.10c's "Carriers of the old shape":
@@ -2654,12 +2678,14 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          ```
          cd plugins/frank-exchange-of-views/tools
          unset $(env | grep -o '^FEOV_[A-Z_]*')
-         T=~/.claude/scratch/p12a/fuzz; mkdir -p $T
-         for k in 0 1 2 3; do FEOV_RELEASE_GATE=1 FUZZ_PART=$k/4 FUZZ_TALLY=$T/release-fuzz-tally-$k.json go test -count=1 -timeout=60m ./releasegate/fuzz/ > $T/part-$k.log 2>&1; echo "part $k exit $?"; done
-         FUZZ_TALLIES=$T go test -count=1 -run '^TestFuzzSweepTally$' -v ./releasegate/fuzz/ > $T/tally.log 2>&1; grep -E '^(--- |ok|FAIL)' $T/tally.log
+         T=~/.claude/scratch/p12a/fuzz; mkdir -p $T/tallies $T/logs
+         for k in 0 1 2 3; do FEOV_RELEASE_GATE=1 FUZZ_PART=$k/4 FUZZ_TALLY=$T/tallies/release-fuzz-tally-$k.json go test -count=1 -timeout=60m ./releasegate/fuzz/ > $T/logs/part-$k.log 2>&1; echo "part $k exit $?"; done
+         FUZZ_TALLIES=$T/tallies go test -count=1 -run '^TestFuzzSweepTally$' -v ./releasegate/fuzz/ > $T/logs/tally.log 2>&1; grep -E '^(--- |ok|FAIL)' $T/logs/tally.log
          ```
-         Each part exits 0, read from the echoed status (never a piped one), and `--- PASS: TestFuzzSweepTally` is
-         in the tally log. A red on the branch is run on `origin/main` before it is blamed on the branch.
+         Parts are `0/4` to `3/4` (`parseSweepPart`, `sweeptally_test.go:52-66`; CI's matrix `part: [0, 1, 2, 3]`), and
+         `loadTallies` refuses a tallies directory holding anything but `.json` tallies (`sweeptally_test.go:459-467`),
+         so the logs go beside it. Each part exits 0, read from the echoed status (never a piped one), and
+         `--- PASS: TestFuzzSweepTally` is in the tally log. A red on the branch is run on `origin/main` before it is blamed on the branch.
        - Re-armed by: agentgen sources, help pages, `terms.json`, `gapstate.go`.
     5. **A universe smoke carrying P12a**, before merge.
        ```
@@ -2731,7 +2757,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        - `TestEveryCloseReaderReadsTheRecordsMoot` has one subtest per row of §III.10c's reader table.
        - `TestAnchorRemovalIsOneView` has one subtest per SQL reader and per row of §III.10c's fold table.
        - `TestReplayRemovesWhatTheWriteRemoved` has one subtest per token position (§III.10c "The splice and the list").
-       - `TestTheStoredGapStateIsTheRules` carries §III.10c's four new `gapStateSteps` steps.
+       - `TestTheStoredGapStateIsTheRules` carries §III.10c's five new `gapStateSteps` steps.
        - Re-armed by: `edit.go`, `ingest.go`, `retire.go`, `mint.go`, `bluedoc/`, `reportproj/`, `views.go`,
          `gapstate.go`, `demand.go`, `record.go`, `actjudge.go`, `tombstone.go`, and every file in the fold table.
     3. **Deletion checks, one at a time, with 13.2's suite each time.** Each must turn at least one named test red:
@@ -2740,27 +2766,28 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        3. delete its union from `changedSinceSQL`;
        4. delete the edit-removal gap marker;
        5. delete the edit-removal marker's lineage arm (the ancestor step of `TestTheStoredGapStateIsTheRules`);
-       6. delete `met`'s arm 4;
+       6. delete `met`'s arm 4, and separately widen it to `anchor_removal`'s retire arm (the anchor-only retire step);
        7. delete `ingest`'s token refusal;
        8. restore `edit.go:275`'s carried-may-stand-bare arm;
        9. drop each validate guard's `isRecordMoot` exemption (originator, delivered text, triple), one per run;
        10. drop the tombstone end row;
        11. derive the tombstone end rows before the moot Close;
        12. let the splice take a located token `new` does not carry;
-       13. drop each fold table row's `BlueEdit` arm, one per run;
+       13. drop each `BlueEdit` arm the fold table adds (`countsat`, `answersretired`, `evidenceview:484`, `impasse`,
+           `gapacts`, `anchorchecks`) and `Reaches`' widened type filter, one per run;
        14. drop `closed_by_record` from the closure CTE;
-       15. drop the migrate registry's record-moot `toNoEvent` entry (`TestEveryArchivedRunMigrates` on a record holding a
-           record moot sees two Closes).
+       15. drop the migrate registry's record-moot `toNoEvent` entry (`TestARecordMootIsWrittenOnceOnReplay` sees two
+           Closes).
 
        Re-armed by the same files.
     4. **Migrate.**
        ```
        cd plugins/frank-exchange-of-views/tools
-       M='TestEveryArchivedRunMigrates|TestAClaimRetireFoldsIntoItsCut|TestNoMigratedArchiveHoldsABareAnchor|TestArchivedRunsCarryTheirTombstones'
+       M='TestEveryArchivedRunMigrates|TestAClaimRetireFoldsIntoItsCut|TestNoMigratedArchiveHoldsABareAnchor|TestArchivedRunsCarryTheirTombstones|TestARecordMootIsWrittenOnceOnReplay'
        go test -list "$M" ./internal/record/migrate/ | grep -c '^Test'
        go test -count=1 -run "$M" ./internal/record/migrate/
        ```
-       - The list returns 4, each name once, so none passes vacuously; then the tests are green.
+       - The list returns 5, each name once, so none passes vacuously; then the tests are green.
        - On all 22 tracked archives (`run-archive/` and `run-archive/bundle-store/`), migrate reports zero refusals.
        - No migrated record holds a claim-shaped `retire` or a token on no words.
        - All 104 claim retires are classified: 88 dropped, and the 16 anchored ones each folded or reshaped.
