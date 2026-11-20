@@ -176,6 +176,9 @@ func (b *box) env(extra ...string) []string {
 		"LANG=C.UTF-8",
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
 		"DISABLE_AUTOUPDATER=1",
+		// A hook or the doctor that runs `go` must not fetch a toolchain into the temp HOME.
+		"GOTOOLCHAIN=local",
+		"GOFLAGS=-modcacherw",
 		"SC_RELEASE_BASE_URL=" + b.release,
 	}
 	return append(env, extra...)

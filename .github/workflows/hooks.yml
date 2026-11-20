@@ -1679,10 +1679,32 @@ jobs:
             plugins/prosthetic-conscience/tools/go.sum
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.sum
-      # Real harness validation (#1872) at the versions scripts/installshape/clients.json pins.
-      - uses: ./.github/actions/install-clients
-        with:
-          clients: pinned
+      # THE HARNESS CLIENTS FOR REAL HARNESS VALIDATION (#1872). A pull request and a push get
+      # exactly the versions scripts/installshape/clients.json pins, so a client release cannot
+      # redden an unrelated pull request. The nightly and a dispatch get whatever the installers
+      # serve today instead, and the install-shape contract then names both versions on every
+      # failure: a client that moved a layout surfaces there once, and the pins move when it
+      # passes. agy's manifest serves only its latest build, so its pin is a URL and sha512.
+      - name: Install claude and agy (pinned; latest on the nightly)
+        env:
+          LATEST: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [ "$LATEST" = true ]; then
+            curl -fsSL https://claude.ai/install.sh | bash
+            pins="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
+            echo "INSTALLSHAPE_CLIENTS=latest" >> "$GITHUB_ENV"
+          else
+            curl -fsSL https://claude.ai/install.sh | bash -s -- "$(jq -er .claude.version installshape/clients.json)"
+            pins="$(jq -c .agy installshape/clients.json)"
+          fi
+          curl -fsSL "$(jq -er .url <<<"$pins")" -o "$RUNNER_TEMP/agy.tar.gz"
+          printf '%s  %s\n' "$(jq -er .sha512 <<<"$pins")" "$RUNNER_TEMP/agy.tar.gz" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/agy.tar.gz" -O antigravity > "$HOME/.local/bin/agy"
+          chmod +x "$HOME/.local/bin/agy"
+          rm -f "$RUNNER_TEMP/agy.tar.gz"
+          echo "claude $("$HOME/.local/bin/claude" --version), agy $("$HOME/.local/bin/agy" --version)"
       - run: go test -skip '^TestInstallShapeContract$' ./...
       # Its own step, verbose, so the log shows the root the client handed each shape's hooks.
       - name: Install-shape contract (real clients, no login)
@@ -1696,42 +1718,6 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: save
-
-  install-shape-latest:
-    # THE PINNED CLIENTS AGAINST TOMORROW'S. The scripts job runs the install-shape contract on
-    # the clients scripts/installshape/clients.json pins, so a client release cannot redden an
-    # unrelated pull request. This runs the same contract on whatever the installers serve today,
-    # nightly, and every failure names both client versions: a client that moved a layout or the
-    # no-login hook behaviour surfaces here once, and the pins move only when it passes.
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    defaults:
-      run:
-        working-directory: scripts
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@v7
-        with:
-          cache: false
-          go-version: "1.27"
-      - uses: ./.github/actions/go-cache
-        with:
-          phase: restore
-          job: scripts
-          dependency-files: |
-            scripts/go.sum
-            plugins/prosthetic-conscience/tools/go.sum
-            plugins/frank-exchange-of-views/tools/go.sum
-            plugins/gray-area/tools/go.sum
-      - uses: ./.github/actions/install-clients
-        with:
-          clients: latest
-      - name: Install-shape contract on the latest clients
-        env:
-          INSTALLSHAPE_CLIENTS: latest
-        run: go test -count=1 -v -run '^TestInstallShapeContract$' ./installshape/
 
   qlty:
     # The quality gate had no CI leg at all. `qlty check` is mandatory during

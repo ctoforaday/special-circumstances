@@ -4,5 +4,5 @@
 // with the root the client actually handed the hooks.
 //
 // clients.json pins the client versions; the scripts job in .github/workflows/hooks.yml installs
-// exactly those, and the scheduled run installs the latest instead (INSTALLSHAPE_CLIENTS=latest).
+// exactly those on a pull request, and the latest on the nightly (INSTALLSHAPE_CLIENTS=latest).
 package installshape
