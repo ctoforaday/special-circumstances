@@ -74,7 +74,7 @@ func stage(t *testing.T) (string, []stagedPlugin) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dst := t.TempDir()
+	dst := harnessDir(t)
 	copied := 0
 	for _, rel := range gitx.Lines(out) {
 		if strings.Contains(rel, "/tools/") {
@@ -164,7 +164,7 @@ func inventory(t *testing.T, dst, name string) stagedPlugin {
 // copyTree duplicates a staged tree so a negative control can break its copy.
 func copyTree(t *testing.T, src string) string {
 	t.Helper()
-	dst := t.TempDir()
+	dst := harnessDir(t)
 	err := filepath.Walk(src, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -210,21 +210,35 @@ func isolatedEnv(home string) []string {
 	)
 }
 
-// tempHome creates an isolated HOME directory and retries removal on cleanup so a harness child
-// process (such as Antigravity's language server) flushing its logs as it exits does not fail
-// t.TempDir()'s RemoveAll.
-func tempHome(t *testing.T) string {
+// harnessDir creates a directory a harness process reads or writes, outside t.TempDir(). Antigravity
+// leaves a language server running after `agy` exits, and it writes into its HOME and the
+// workspace it was handed for a moment longer. Under t.TempDir() that late write fails the test
+// with "TempDir RemoveAll cleanup: directory not empty" after every assertion has passed, so the
+// cleanup here retries for up to ten seconds and logs, not fails, a directory still held. The
+// directory is scratch in the OS temp dir; a straggler there tells nothing about the plugins.
+func harnessDir(t *testing.T) string {
 	t.Helper()
-	home := t.TempDir()
+	dir, err := os.MkdirTemp("", "pluginparity-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
-		for range 20 {
-			if err := os.RemoveAll(home); err == nil {
+		var err error
+		for range 100 {
+			if err = os.RemoveAll(dir); err == nil {
 				return
 			}
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
+		t.Logf("left %s behind: %v", dir, err)
 	})
-	return home
+	return dir
+}
+
+// tempHome creates an isolated HOME directory for a harness run.
+func tempHome(t *testing.T) string {
+	t.Helper()
+	return harnessDir(t)
 }
 
 // run executes a harness command and returns its stdout; a non-zero exit fails the test with
