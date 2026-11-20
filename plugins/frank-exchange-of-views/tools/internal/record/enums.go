@@ -11,14 +11,9 @@ import (
 // WHAT EACH CLOSED-SET FLAG ACCEPTS, DECLARED ONCE.
 //
 // Ten flags spelled an enum in their --help and then took ANY STRING. The help was the
-// only statement of the set, and it was decoration: `--as pass` recorded a PASS, `--as
-// banana` recorded a banana, and every gate downstream compares literally — so a
-// near-miss never failed, it took the OTHER branch, silently. Measured on the shipped
-// tree, one case each:
-//
-//	chair verdict --as PASS    -> refused, 1 gap still open   <- the gate working
-//	chair verdict --as pass    -> RECORDED, gate never ran
-//	chair verdict --as banana  -> RECORDED
+// only statement of the set, and it was decoration: a value in the wrong case, or no member
+// of the set at all, was recorded as typed, and every gate downstream compares literally —
+// so a near-miss never failed, it took the OTHER branch, silently.
 //
 // The first pass at this fixed the five `--as` flags and stopped there, which is the
 // same defect one level up: the class is "a flag whose help spells a set", not "the flag

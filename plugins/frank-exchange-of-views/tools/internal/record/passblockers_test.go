@@ -13,10 +13,9 @@ import (
 
 // EVERY KIND OF BLOCKER HAS A FIXTURE, AND EVERY SURFACE AGREES ABOUT IT. For each row a board where
 // only that kind holds the PASS: the list returns it and nothing else; the gate refuses a PASS and
-// names it, and refuses a FAIL exactly when the kind holds every verdict; the chair's blocking items
-// are the list's items, no more and no fewer; and the plan permits a PASS exactly when nobody is
-// ready and every blocker is the chair's own. A kind added to blockerKinds with no row here fails
-// the coverage check below.
+// names it; the chair's blocking items are the list's items, no more and no fewer; and the plan
+// permits a PASS exactly when nobody is ready and every blocker is the chair's own. A kind added to
+// blockerKinds with no row here fails the coverage check below.
 func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	gradeMotion := &recordpb.Motion{MotionId: proto.String("M1"),
 		Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),

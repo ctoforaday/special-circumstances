@@ -38,8 +38,8 @@ import (
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
 //
 // EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
-// actRows plus a hand-typed dozen, and `verdict --as` and `fetch --url` — refused when omitted,
-// unmarked — were neither probed nor exempt, so the gate was green over the defect it exists for.
+// actRows plus a hand-typed dozen, and `fetch --url` — refused when omitted, unmarked — was
+// neither probed nor exempt, so the gate was green over the defect it exists for.
 // TestEveryRunnableLeafIsProbedForItsMarkers is the census.
 
 // requiredProbe is one verb with an argument set that RUNS CLEAN on the act fixture.
