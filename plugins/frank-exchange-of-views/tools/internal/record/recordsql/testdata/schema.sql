@@ -1929,7 +1929,7 @@ JOIN "events" e ON e."id" = r."event_id";
 -- that changes report text. The report head is the latest of them; a pin, a delivery's cut and an
 -- area's changes are read against this one set.
 CREATE VIEW "head_move" AS
-SELECT "id" AS "event_id" FROM "events" WHERE "type" IN ('report_part','blue_edit','retire');
+SELECT "id" AS "event_id" FROM "events" WHERE "type" IN ('report_part','blue_edit');
 
 -- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move with an id after
 -- both the lens's pin — the head of its latest sat-through delivery — and the last change the chair

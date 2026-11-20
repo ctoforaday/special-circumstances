@@ -81,9 +81,9 @@ func changesAfter(changes []int64, pin int64) []int64 {
 // either is refused: a seat that could state the changes could state 42 over a record holding 4.
 //
 // The pin is the lens fold's (lensStates): the latest head the whole report was served to the lens
-// at in a sitting it sat through. A change is an event that moves the report head — a report_part, a
-// blue_edit or a retire (recordsql.HeadMoves) — so the changes after a stale area's pin are exactly what moved the
-// head past it.
+// at in a sitting it sat through. A change is an event that moves the report head — a report_part or
+// a blue_edit (recordsql.HeadMoves) — so the changes after a stale area's pin are exactly what moved
+// the head past it.
 func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 	if len(b.GetPins()) > 0 || len(b.GetChanges()) > 0 {
 		return fmt.Errorf("a spot-check's pins and changes are stamped by the tool from the record — the changes to the report behind each area's pin — and never supplied by a seat; record it without them")
