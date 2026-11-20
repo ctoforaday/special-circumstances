@@ -222,32 +222,33 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 			t.Fatalf("Turn 2 created no conversation under %s/brain; output:\n%s", fakeHome, out2)
 		}
 
-		// Verify sc-pretooluse refused the planted key (check output and Turn 2 transcript).
+		// Verify sc-pretooluse refused the planted key. Only the gate's own reason counts: the model
+		// can decline a command that carries a key and SAY "secret" or "AWS access" without any hook
+		// having fired, so a phrase the model might write would pass with the gate absent.
 		transcriptPath := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "brain", turn2Conv, ".system_generated", "logs", "transcript.jsonl")
-		transcriptBytes, _ := os.ReadFile(transcriptPath)
-		combined := out2 + "\n" + string(transcriptBytes)
-		lowerCombined := strings.ToLower(combined)
-		blocked := strings.Contains(combined, "sc-secrets-gate: BLOCKED") ||
-			strings.Contains(lowerCombined, "aws-access-token") ||
-			strings.Contains(lowerCombined, "aws access") ||
-			strings.Contains(lowerCombined, "denied by pre-tool hook") ||
-			(strings.Contains(lowerCombined, "secrets") && strings.Contains(lowerCombined, "block"))
-		if !blocked {
-			t.Errorf("expected sc-pretooluse secrets gate to refuse planted key in Turn 2; output:\n%s\ntranscript:\n%s", out2, string(transcriptBytes))
+		transcriptBytes, err := os.ReadFile(transcriptPath)
+		if err != nil {
+			t.Fatalf("Turn 2 transcript: %v", err)
+		}
+		transcript := string(transcriptBytes)
+		switch {
+		case strings.Contains(transcript, "sc-secrets-gate: BLOCKED"):
+		case !strings.Contains(transcript, "run_command"):
+			t.Errorf("Turn 2 never attempted run_command, so the secrets gate was not exercised; output:\n%s\ntranscript:\n%s", out2, transcript)
+		default:
+			t.Errorf("Turn 2 attempted run_command with a planted key and the transcript holds no sc-secrets-gate refusal; output:\n%s\ntranscript:\n%s", out2, transcript)
 		}
 
-		// Verify gray-area captured Turn 2 into the isolated catalogue without manual backfill.
+		// Verify gray-area captured Turn 2 into the isolated catalogue without manual backfill: the
+		// conversation's full id is a session row with at least one recorded act.
 		teleBin := filepath.Join(gaDir, "bin", "telepathy")
-		qCmd := exec.Command(teleBin, "session", turn2Conv)
+		qCmd := exec.Command(teleBin, "sql", "SELECT count(*) FROM act WHERE session_id = '"+turn2Conv+"'")
 		qCmd.Dir = repoRoot
 		qCmd.Env = env
 		qOut, qErr := qCmd.CombinedOutput()
-		if qErr != nil || !strings.Contains(string(qOut), turn2Conv) {
-			allCmd := exec.Command(teleBin, "sql", "SELECT session_id FROM v_session")
-			allCmd.Dir = repoRoot
-			allCmd.Env = env
-			allOut, _ := allCmd.CombinedOutput()
-			t.Errorf("expected gray-area to capture Turn 2 session %s into isolated catalogue: err=%v out=%s (v_session=%s)", turn2Conv, qErr, string(qOut), string(allOut))
+		rows := strings.Fields(string(qOut))
+		if qErr != nil || len(rows) != 2 || rows[1] == "0" {
+			t.Errorf("expected gray-area to have captured Turn 2 (%s) with at least one act, without a backfill: err=%v out=%s", turn2Conv, qErr, string(qOut))
 		}
 
 		// Verify zero source-tree fetch refusals in CLI logs and no hook panics.
