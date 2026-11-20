@@ -406,14 +406,18 @@ func (r *shapeRun) underBase(name, root string) {
 	}
 }
 
-// waitFilled waits for fetch-bin's detached fetch to finish in root: the stamp names tag, or the
-// fetch recorded a failure. It reports false, with the error already recorded, when neither came.
+// waitFilled waits for fetch-bin's detached fetch to finish in root: the stamp names tag and the
+// lock is gone, or the fetch recorded a failure. It reports false, with the error already recorded, when neither came.
 func (r *shapeRun) waitFilled(p plugin, root, tag string, deadline time.Time) bool {
 	r.t.Helper()
 	for {
 		b, err := os.ReadFile(filepath.Join(root, ".fetch", "installed"))
 		if err == nil && strings.TrimSpace(string(b)) == tag {
-			return true
+			// The fetch has finished only when it has released its lock: it stamps first and
+			// exits after, and whatever it does in between must land before the snapshot.
+			if _, err := os.Stat(filepath.Join(root, ".fetch", "lock")); os.IsNotExist(err) {
+				return true
+			}
 		}
 		if f, err := os.ReadFile(filepath.Join(root, ".fetch", "failed")); err == nil {
 			log, _ := os.ReadFile(filepath.Join(root, ".fetch", "log"))
