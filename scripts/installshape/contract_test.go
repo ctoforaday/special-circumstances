@@ -220,7 +220,7 @@ func (s *suite) gitShape(t *testing.T) {
 	oldRoots := r.roots
 	for _, p := range s.plugins {
 		if p.hasBinaries() {
-			if !r.waitFilled(p, oldRoots[p.name], p.tag(oldVersion)) {
+			if !r.waitFilled(p, oldRoots[p.name], p.tag(oldVersion), time.Now().Add(2*time.Minute)) {
 				t.FailNow()
 			}
 			removeOne(t, oldRoots[p.name], p)
@@ -294,10 +294,10 @@ func (r *shapeRun) check() {
 	r.t.Helper()
 	before := snapshot(r.t, r.base)
 	r.fire()
-	filled := true
+	filled, deadline := true, time.Now().Add(2*time.Minute)
 	for _, p := range r.s.plugins {
 		if p.hasBinaries() {
-			filled = r.waitFilled(p, r.roots[p.name], p.tag(p.version)) && filled
+			filled = r.waitFilled(p, r.roots[p.name], p.tag(p.version), deadline) && filled
 		}
 	}
 	// Before giving up on an unfilled root, say which tree the session filled instead.
@@ -408,9 +408,8 @@ func (r *shapeRun) underBase(name, root string) {
 
 // waitFilled waits for fetch-bin's detached fetch to finish in root: the stamp names tag, or the
 // fetch recorded a failure. It reports false, with the error already recorded, when neither came.
-func (r *shapeRun) waitFilled(p plugin, root, tag string) bool {
+func (r *shapeRun) waitFilled(p plugin, root, tag string, deadline time.Time) bool {
 	r.t.Helper()
-	deadline := time.Now().Add(2 * time.Minute)
 	for {
 		b, err := os.ReadFile(filepath.Join(root, ".fetch", "installed"))
 		if err == nil && strings.TrimSpace(string(b)) == tag {
