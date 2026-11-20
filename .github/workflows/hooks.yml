@@ -1673,22 +1673,20 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: restore
+          # The plugins' go.sum files too: the install-shape contract builds their release.
           dependency-files: |
             scripts/go.sum
-      - name: Install claude and agy CLIs for real harness validation (#1872)
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          curl -fsSL https://claude.ai/install.sh | bash
-          manifest="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
-          url="$(jq -r .url <<<"$manifest")"
-          sha="$(jq -r .sha512 <<<"$manifest")"
-          curl -fsSL "$url" -o /tmp/agy.tar.gz
-          printf '%s  /tmp/agy.tar.gz\n' "$sha" | sha512sum -c -
-          tar -xzf /tmp/agy.tar.gz -O antigravity > "$HOME/.local/bin/agy"
-          chmod +x "$HOME/.local/bin/agy"
-          rm -f /tmp/agy.tar.gz
-      - run: go test ./...
+            plugins/prosthetic-conscience/tools/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.sum
+      # Real harness validation (#1872) at the versions scripts/installshape/clients.json pins.
+      - uses: ./.github/actions/install-clients
+        with:
+          clients: pinned
+      - run: go test -skip '^TestInstallShapeContract$' ./...
+      # Its own step, verbose, so the log shows the root the client handed each shape's hooks.
+      - name: Install-shape contract (real clients, no login)
+        run: go test -count=1 -v -run '^TestInstallShapeContract$' ./installshape/
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
       # path/bytes pair could hand one file another file's contents. That shipped, and was found
@@ -1698,6 +1696,42 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: save
+
+  install-shape-latest:
+    # THE PINNED CLIENTS AGAINST TOMORROW'S. The scripts job runs the install-shape contract on
+    # the clients scripts/installshape/clients.json pins, so a client release cannot redden an
+    # unrelated pull request. This runs the same contract on whatever the installers serve today,
+    # nightly, and every failure names both client versions: a client that moved a layout or the
+    # no-login hook behaviour surfaces here once, and the pins move only when it passes.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: false
+          go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          job: scripts
+          dependency-files: |
+            scripts/go.sum
+            plugins/prosthetic-conscience/tools/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.sum
+      - uses: ./.github/actions/install-clients
+        with:
+          clients: latest
+      - name: Install-shape contract on the latest clients
+        env:
+          INSTALLSHAPE_CLIENTS: latest
+        run: go test -count=1 -v -run '^TestInstallShapeContract$' ./installshape/
 
   qlty:
     # The quality gate had no CI leg at all. `qlty check` is mandatory during

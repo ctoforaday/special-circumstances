@@ -1,0 +1,63 @@
+---
+# THE TWO HARNESS CLIENTS, claude AND agy, INSTALLED INTO ~/.local/bin FOR THE REAL-CLIENT TESTS.
+#
+# `pinned` installs exactly scripts/installshape/clients.json, the versions the install-shape
+# contract asserts, so a client release cannot redden an unrelated pull request. `latest` installs
+# whatever the installers serve today; only the scheduled install-shape-latest job asks for it, so
+# a client change surfaces there once, naming the version, before anyone bumps the pins.
+#
+# agy's auto-updater manifest serves the latest build only, so its pin is the build's URL and
+# sha512; claude's installer takes a version.
+name: Install harness clients
+description: Install claude and agy into ~/.local/bin at the pinned versions or the latest.
+inputs:
+  clients:
+    description: "`pinned` (scripts/installshape/clients.json) or `latest`."
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install claude and agy (${{ inputs.clients }})
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        WHICH: ${{ inputs.clients }}
+        PINS: scripts/installshape/clients.json
+      run: |
+        set -euo pipefail
+        mkdir -p "$HOME/.local/bin"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        dl="$RUNNER_TEMP/clients"
+        mkdir -p "$dl"
+        case "$WHICH" in
+          pinned)
+            claude_version="$(jq -er .claude.version "$PINS")"
+            agy_version="$(jq -er .agy.version "$PINS")"
+            agy_url="$(jq -er .agy.url "$PINS")"
+            agy_sha="$(jq -er .agy.sha512 "$PINS")"
+            curl -fsSL https://claude.ai/install.sh | bash -s -- "$claude_version"
+            ;;
+          latest)
+            curl -fsSL https://claude.ai/install.sh | bash
+            manifest="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
+            agy_version="$(jq -er .version <<<"$manifest")"
+            agy_url="$(jq -er .url <<<"$manifest")"
+            agy_sha="$(jq -er .sha512 <<<"$manifest")"
+            ;;
+          *)
+            echo "::error::install-clients: clients must be pinned or latest, not '$WHICH'"
+            exit 1
+            ;;
+        esac
+        curl -fsSL "$agy_url" -o "$dl/agy.tar.gz"
+        printf '%s  %s\n' "$agy_sha" "$dl/agy.tar.gz" | sha512sum -c -
+        tar -xzf "$dl/agy.tar.gz" -O antigravity > "$HOME/.local/bin/agy"
+        chmod +x "$HOME/.local/bin/agy"
+        rm -f "$dl/agy.tar.gz"
+        got_claude="$("$HOME/.local/bin/claude" --version | cut -d' ' -f1)"
+        got_agy="$("$HOME/.local/bin/agy" --version | cut -d' ' -f1)"
+        echo "installed claude $got_claude, agy $got_agy ($WHICH)"
+        if [ "$WHICH" = pinned ] && { [ "$got_claude" != "$claude_version" ] || [ "$got_agy" != "$agy_version" ]; }; then
+          echo "::error::install-clients: installed claude $got_claude / agy $got_agy, pinned $claude_version / $agy_version"
+          exit 1
+        fi
