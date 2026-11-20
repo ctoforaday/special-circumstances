@@ -2016,7 +2016,7 @@ T-B20 (35 → 19), T-B26, check 5–7 and 9. Measured pre-replay: `amend2/docket
 
 Three forks the rulings do not settle, each blocking phase B2a (recommendation first; option text the agent's):
 
-- **O4 — a red seat's proposal on another red seat's gap: what the reject leaves.** gblock's principle
+- **O4 — RESOLVED (lead call 2026-11-20, reversible): reject leaves G standing; `accepted: false` keeps its one meaning, and the "gap closes" side is blue's position only.** a red seat's proposal on another red seat's gap: what the reject leaves.** gblock's principle
   names red against blue; a non-assignee lens's or the chair's proposal held on D sets a red filer
   against G's assignee, and blue holds no position on it. (a) **Recommended:** `--reject` leaves G as
   it stands (its assignee's position) and applies nothing, as gblock typed for a petition ("it
@@ -2024,13 +2024,13 @@ Three forks the rulings do not settle, each blocking phase B2a (recommendation f
   docketing (L33). (b) The option's wording read literally: blue's text as it stands is the other side's
   position, so `--reject` closes G with the derived word — a close neither the filer nor the assignee
   asked for.
-- **O5 — how many archived dockets O2 drops.** O2 was put as "the 11 (chair by hand 2, minter's own 5,
+- **O5 — RESOLVED (lead call 2026-11-20, reversible): drop 16; the 7 early chair dockets with no `plan` row cannot be shown to be the dispatch's under O3, so O2 drops them (gblock 2026-11-03, drop and state the residue).** how many archived dockets O2 drops.** O2 was put as "the 11 (chair by hand 2, minter's own 5,
   blue 4)"; O3's structural rule (ruled) finds 23 dispatch dockets and 7 chair dockets that no `plan`
   row ends, all in four runs holding no `plan` row at all (is-91-prime-a, b6, wave-b, 07d). (a)
   **Recommended:** apply both rulings as ruled — drop all 16; 12 gaps are then open at their run's end
   where the bench had closed them (§III.B14). (b) Class a chair docket in a run with no `plan` row as
   the dispatch's (no transaction exists to read, so this is not structural), dropping 9.
-- **O6 — the 22 closings filed on the dropped dockets.** On the translated record they answer no
+- **O6 — RESOLVED (lead call 2026-11-20, reversible): drop the 22 closings with their dockets, residue stated; B2a does not stop on them.** the 22 closings filed on the dropped dockets.** On the translated record they answer no
   docketing, so `ClosingRefusal` is expected to refuse each on replay — the cascade O2 says stops B2a.
   (a) **Recommended:** drop each with its docket, stated (it argues a docket that is no longer on the
   record), so B2a is not stopped by a cascade known now; (b) build as ruled, let the replay measure,
