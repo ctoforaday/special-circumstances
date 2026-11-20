@@ -5,7 +5,7 @@ package main
 // pluginparity proves the manifests agree with each other. That is not the same claim as "Claude
 // Code and Antigravity load all four plugins, every skill and every agent" — a manifest can agree
 // with its twin and still be skipped by the loader that reads it (Antigravity drops an agent whose
-// `tools:` is a scalar, and finds no workspace plugin without .agents/plugins.json). So these tests
+// `tools:` is a scalar). So these tests
 // stage the checkout into a temp tree, point the real `claude` and `agy` binaries at it under an
 // isolated HOME, and compare what each harness reports loading with what is on disk.
 //
@@ -61,7 +61,7 @@ type stagedPlugin struct {
 	hooks          int
 }
 
-// stage copies the files a harness loads — the marketplace, .agents/, and every plugin minus its
+// stage copies the files a harness loads — the marketplace and every plugin minus its
 // Go tools tree — into a temp directory, and rewrites each marketplace source to its relative path
 // so both harnesses install THIS checkout rather than the release the manifest pins.
 func stage(t *testing.T) (string, []stagedPlugin) {
@@ -70,7 +70,7 @@ func stage(t *testing.T) (string, []stagedPlugin) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := gitx.Run(root, "ls-files", "-co", "--exclude-standard", "--", ".claude-plugin", ".agents", "plugins")
+	out, err := gitx.Run(root, "ls-files", "-co", "--exclude-standard", "--", ".claude-plugin", "plugins")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,8 +387,9 @@ func runMustFail(t *testing.T, home, bin string, args ...string) string {
 }
 
 // Antigravity: every plugin validates strictly against .antigravity-plugin/plugin.json and root
-// hooks.json, the workspace finds all four through .agents/plugins.json, a bulk install enables all
-// four at the manifest's version, and every skill and agent on disk loads.
+// hooks.json, installing each plugin directory enables all four at the manifest's version, and every
+// skill and agent on disk loads. Antigravity runs installed copies only: no workspace registration
+// loads a checkout's plugins (#1792), so every subtest installs into an isolated HOME.
 func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	agy := harnessCLI(t, "agy")
 	repo, plugins := stage(t)
@@ -498,20 +499,6 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		}
 	})
 
-	t.Run("workspace discovery through .agents/plugins.json", func(t *testing.T) {
-		if got := lines(run(t, tempHome(t), agy, "--add-dir", repo, "agents")); !sameSet(got, want) {
-			t.Errorf("agy --add-dir found agents %v, want %v", got, want)
-		}
-		// Negative control: without the registration file the workspace holds no plugin.
-		bare := copyTree(t, repo)
-		if err := os.Remove(filepath.Join(bare, ".agents", "plugins.json")); err != nil {
-			t.Fatal(err)
-		}
-		if got := lines(run(t, tempHome(t), agy, "--add-dir", bare, "agents")); len(got) != 0 {
-			t.Errorf("without .agents/plugins.json agy still found agents %v — this subtest cannot tell the file matters", got)
-		}
-	})
-
 	t.Run("a scalar tools field drops the agent", func(t *testing.T) {
 		// Negative control for the frontmatter gate: plant the scalar form in one agent and the
 		// harness must stop listing exactly that agent.
@@ -528,7 +515,9 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		if err := os.WriteFile(probe, re.ReplaceAll(b, []byte("tools: $1")), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		got := lines(run(t, tempHome(t), agy, "--add-dir", broken, "agents"))
+		home := tempHome(t)
+		installEach(t, home, agy, broken, plugins)
+		got := lines(run(t, home, agy, "agents"))
 		for _, a := range got {
 			if a == "probe" {
 				t.Fatalf("agy still loads probe with a scalar tools field — the frontmatter rule guards nothing: %v", got)
@@ -539,9 +528,9 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		}
 	})
 
-	t.Run("bulk install", func(t *testing.T) {
+	t.Run("install each plugin", func(t *testing.T) {
 		home := tempHome(t)
-		run(t, home, agy, "plugin", "install", repo)
+		installEach(t, home, agy, repo, plugins)
 		var listed []struct {
 			Name    string   `json:"name"`
 			Enabled bool     `json:"enabled"`
@@ -581,4 +570,13 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 			t.Errorf("agy agents after install: %v, want %v", got, want)
 		}
 	})
+}
+
+// installEach installs every staged plugin directory into home with `agy plugin install`, one at a
+// time — the way sc-doctor -fix and a consumer install them.
+func installEach(t *testing.T, home, agy, root string, plugins []stagedPlugin) {
+	t.Helper()
+	for _, p := range plugins {
+		run(t, home, agy, "plugin", "install", filepath.Join(root, "plugins", p.name))
+	}
 }
