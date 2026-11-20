@@ -136,7 +136,7 @@ func TestAReportReadIsALensesAtTheReportsHead(t *testing.T) {
 	if err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err == nil || !strings.Contains(err.Error(), "blue-respond is none of them") {
 		t.Errorf("blue's report read: %v; want refused", err)
 	}
-	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "names head 1, which is no head move — a part, an edit or a retire — at or before the report's head 2") {
+	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "names head 1, which is no head move — a part or an edit — at or before the report's head 2") {
 		t.Errorf("a read naming head 1 over head 2: %v; want refused", err)
 	}
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err != nil {

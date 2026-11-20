@@ -51,7 +51,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		"seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why a lens",
 		"audits the report text its work list delivers — the whole report, or each edit since its pin as",
-		"the whole paragraphs it touched, before and after, and each retire as the claim it took out. To put red's required_fix and blue's actual change side by",
+		"the whole paragraphs it touched, before and after. To put red's required_fix and blue's actual change side by",
 		"side, scope it — `show changes --id <gap>`.",
 		"",
 	}

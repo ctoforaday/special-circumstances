@@ -793,14 +793,13 @@ var NotActs = []recordpb.EventType{
 }
 
 // HeadMoves is every event type that moves the report head — each that changes report text: a lane's
-// part, blue's edit, and blue's retire, which takes its anchors (and a claim's husk) out of the text.
-// It is the one definition of "the report moved", read by the head_move view (and through it
-// area_change and the report head) and by the Go folds over a prefix of the stream (the report head
-// off the stream, a spot-check's stamped changes) (gblock 2026-11-18).
+// part and blue's edit. A retire is not one: the anchor leaves and its text stays, an anchor fact that
+// reaches seats through their work lists (gblock 2026-11-20). It is the one definition of "the report
+// moved", read by the head_move view (and through it area_change and the report head) and by the Go
+// folds over a prefix of the stream (the report head off the stream, a spot-check's stamped changes).
 var HeadMoves = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_REPORT_PART,
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
-	recordpb.EventType_EVENT_TYPE_RETIRE,
 }
 
 // IsHeadMove is whether an event of type t moves the report head (HeadMoves).

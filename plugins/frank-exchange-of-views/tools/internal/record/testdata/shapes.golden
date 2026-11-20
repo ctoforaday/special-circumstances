@@ -7,10 +7,9 @@
 # holds one. The record suite's TestMain fails on a finding not listed here and on a line here that
 # no longer occurs. UPDATE_GOLDENS=1 writes only what the baseline already holds, less what the
 # fix removed; a new line takes PLANGUARD_ACCEPT_VIEW_COST=1 as well, and shows in the diff.
-stmt 02c1fae1a1c5 | automatic-index | b(blue_edit|bound) (seat_id=?) | x1 | via area_change,change
-stmt 02c1fae1a1c5 | constrained-scan | cast_seat_ids | x1 | via area_change
-stmt 02c1fae1a1c5 | correlated-sort | FOR group_concat(ORDER BY) over retire_anchors | x1 | table
 stmt 0cd405f346b6 | constrained-scan | mint | x1 | via gap
+stmt 32bec13b78c0 | automatic-index | b(blue_edit|bound) (seat_id=?) | x1 | via area_change,change
+stmt 32bec13b78c0 | constrained-scan | cast_seat_ids | x1 | via area_change
 stmt 5292bd746d5b | constrained-scan | anchor | x2 | via report_op
 stmt 5292bd746d5b | constrained-scan | blue_edit | x1 | via report_op
 stmt 5292bd746d5b | constrained-scan | report_part | x1 | via report_op

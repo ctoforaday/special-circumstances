@@ -44,8 +44,8 @@ There is no search index.
 **The report arrives on the work list** — every seat's work arrives one item at a time, and
 report text only after a tool call, never at dispatch. A lens is delivered blue's report
 whole, in context, at its first sitting and once more at its next — its full re-read — and at
-every other sitting each edit since its pin as the whole paragraphs it touched, before and
-after, each retire as the claim it took out, with the passages of its own gaps; the chair is delivered each stale area's changes it has not
+every other sitting each edit since its pin as the whole paragraphs it touched, before and after,
+with the passages of its own gaps; the chair is delivered each stale area's changes it has not
 borne, and the bench the passages of the gaps its motions are about. A snippet NEVER substitutes:
 a decontextualized quote is how audits go blind, which is why a change arrives as whole
 paragraphs. The tool records what it delivered when a delivery's last item reaches the seat, and

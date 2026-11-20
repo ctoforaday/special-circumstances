@@ -113,7 +113,7 @@ and each cut is said in an `_omitted` or `_clipped` field.
 REPORT TEXT IS HANDED HERE AND NOWHERE ELSE. A lens's, the chair's and the bench's queues open with
 the report text owed to them this sitting — a lens's whole report at its first sitting and its full
 re-read at its next, and otherwise each edit since its pin as the whole paragraphs it touched, before
-and after, and each retire as the claim it took out, with its own gaps' passages; the chair's unborne changes behind each stale area's pin; the
+and after, with its own gaps' passages; the chair's unborne changes behind each stale area's pin; the
 bench's passages of the gaps its motions are about. The delivery is cut once, at its first item, from
 the report as it then stands, and kept with its head in the sitting's `.work-delivery/` file; each
 call hands one item of it, whole — a report-text item is never clipped and is packed to fit the

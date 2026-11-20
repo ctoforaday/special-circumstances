@@ -194,7 +194,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// Measured before the field counted this sitting (#1565 and #1601 smokes): a lens that had
 			// read the report was still told it was behind, re-read its work list, and filed the
 			// contradiction as friction.
-			may(ItemAudit, report, fmt.Sprintf("before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is %d, and you are dispatched against head %d: this sitting's audit is the report text your work list delivers you, the whole report where it owes you that and otherwise each edit since your pin, as the paragraphs it touched before and after, and each retire as the claim it took out, with your own gaps' passages. %s",
+			may(ItemAudit, report, fmt.Sprintf("before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is %d, and you are dispatched against head %d: this sitting's audit is the report text your work list delivers you, the whole report where it owes you that and otherwise each edit since your pin, as the paragraphs it touched before and after, with your own gaps' passages. %s",
 				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
 		case "served":
 			may(ItemAudit, report, fmt.Sprintf("this sitting delivered you its report text, cut at head %d, and you are dispatched against head %d: the text delivered to you is this sitting's audit.",

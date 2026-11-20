@@ -32,8 +32,8 @@ import (
 // new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
 // a computation it owns that nobody has judged — and
 // while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
-// sits at most once per head move, and the head moves only by blue's edits and retires, which the
-// gaps' limits and the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
+// sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits
+// and the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
 // limit it costs at most one sitting per head move that finds it unsat-on; an item it never
 // discharges keeps it ready only when the report has changed.
 //

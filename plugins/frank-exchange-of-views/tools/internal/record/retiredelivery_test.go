@@ -1,7 +1,6 @@
 package record
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -35,13 +34,29 @@ func closeRefusal(t *testing.T, run Run, seat, gap string) error {
 
 func allFit(string, string) bool { return true }
 
-// A DELIVERY CUT AFTER A RETIRE STANDS AT THE RETIRE (gblock 2026-11-18: a retire moves the head).
-// Release fuzz seed 32: a lens's delivery was cut after blue retired its gap's anchor, stamped with the
-// head before the retire, and its close was refused forever by the delivered-text rule, which counts
-// the retire as a change after that head. Cut at the retire, the delivery holds it and the close stands.
-func TestACloseAfterARetireAndADeliveryCutAfterItStands(t *testing.T) {
-	b := retireBoard(t).retire("G1")
-	retire := int64(b.n)
+// A RETIRE AFTER THE DELIVERY WAS CUT CHANGES NO DELIVERED TEXT (gblock 2026-11-20: a retire moves no
+// head; the anchor leaves and its text stays). Release fuzz seed 32: a lens's delivery was cut at head
+// 409, blue retired its gap's anchor at 410, and the lens's close was refused forever by the
+// delivered-text rule, which counted the retire as a change to the gap's sentence. The close stands on
+// the delivery it holds.
+func TestACloseAfterARetireItsDeliveryPredatesStands(t *testing.T) {
+	b := retireBoard(t)
+	head := b.head()
+	b = b.sitUnserved(head, evLens).served(evLens, head).retire("G1")
+	run := b.seed()
+
+	if err := closeRefusal(t, run, evLens, "G1"); err != nil {
+		t.Fatalf("a close after a retire of its gap's anchor, on a delivery cut before it, is refused: %v", err)
+	}
+}
+
+// A DELIVERY CUT AFTER A RETIRE STANDS AT THE HEAD BEFORE IT, and hands no piece for it: the retire
+// moved no head and changed no text, so the lens is told the report has not changed since its pin, and
+// its close stands on that delivery.
+func TestADeliveryCutAfterARetireHandsNoPieceForIt(t *testing.T) {
+	b := retireBoard(t)
+	head := b.head()
+	b = b.retire("G1")
 	b = b.sitUnserved(b.head(), evLens)
 	run := b.seed()
 
@@ -49,43 +64,25 @@ func TestACloseAfterARetireAndADeliveryCutAfterItStands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cut.Head != retire {
-		t.Fatalf("the delivery was cut at head %d, want the retire at %d", cut.Head, retire)
+	if cut.Head != head {
+		t.Fatalf("the delivery was cut at head %d, want the head before the retire, %d", cut.Head, head)
 	}
-	var shown bool
 	for _, p := range cut.Pieces {
-		if strings.Contains(p.Text, "RETIRED, WITH G1:\nthe claim G1 backs") && strings.Contains(p.Text, "REASON:\nit does not hold") {
-			shown = true
+		if strings.Contains(p.Text, "RETIRED") || strings.Contains(p.Text, "it does not hold") {
+			t.Fatalf("the delivery hands the retire as a change: %+v", cut.Pieces)
 		}
 	}
-	if !shown {
-		t.Fatalf("the retire since the pin is not delivered as the claim it retired and its reason: %+v", cut.Pieces)
-	}
 	if err := RecordDelivery(run, evLens, cut.Head); err != nil {
-		t.Fatalf("the delivery cut at the retire is refused: %v", err)
+		t.Fatalf("the delivery cut after the retire is refused: %v", err)
 	}
 	if err := closeRefusal(t, run, evLens, "G1"); err != nil {
 		t.Fatalf("a close on a delivery cut after the retire is refused: %v", err)
 	}
 }
 
-// A RETIRE AFTER THE DELIVERY WAS CUT IS A CHANGE THE SEAT HAS NOT READ: the close is refused by the
-// delivered-text rule until a later delivery holds it.
-func TestACloseAfterARetireTheDeliveryWasCutBeforeIsRefused(t *testing.T) {
-	b := retireBoard(t)
-	b = b.sitUnserved(b.head(), evLens).served(evLens, b.head()).retire("G1")
-	run := b.seed()
-
-	var undelivered *UndeliveredError
-	if err := closeRefusal(t, run, evLens, "G1"); !errors.As(err, &undelivered) {
-		t.Fatalf("a close after a retire of its gap's anchor that its delivery predates is not refused as undelivered: %v", err)
-	}
-}
-
-// A RETIRE BEHIND A RETIRED LENS'S PIN IS DELIVERED TO THE CHAIR: the stale area's change is the
-// retire, the chair's cut holds it — a cut of nothing would end its turn — and its spot-check of the
-// area stands on that delivery.
-func TestARetireBehindAStaleAreaIsDeliveredToTheChair(t *testing.T) {
+// A RETIRE BEHIND A RETIRED LENS'S PIN GIVES THE CHAIR NOTHING TO BEAR: no stale area, and a cut of the
+// lens's area holds no change.
+func TestARetireBehindARetiredLensGivesTheChairNothingToBear(t *testing.T) {
 	b := retireBoard(t)
 	b = b.sit(b.head(), evLens).sit(b.head(), evLens).sit(b.head(), evLens).retire("C1").register("red-chair")
 	run := b.seed()
@@ -93,27 +90,16 @@ func TestARetireBehindAStaleAreaIsDeliveredToTheChair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.StaleAreas) != 1 || plan.StaleAreas[0].SeatID != evLens {
-		t.Fatalf("stale_areas = %+v, want %s behind the retire", plan.StaleAreas, evLens)
+	if len(plan.StaleAreas) != 0 {
+		t.Fatalf("stale_areas = %+v, want none: a retire moves no head", plan.StaleAreas)
 	}
-	cut, err := CutDelivery(run, "red-chair", []string{evLens}, allFit)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cut.Pieces) != 1 || !strings.Contains(cut.Pieces[0].Text, "RETIRED") || !strings.Contains(cut.Pieces[0].Text, "C1") {
-		t.Fatalf("the chair's cut of %s's area is not the retire behind its pin: %+v", evLens, cut.Pieces)
-	}
-	if err := RecordDelivery(run, "red-chair", cut.Head); err != nil {
-		t.Fatal(err)
-	}
-	var refusal error
+	var n int
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
-		refusal = DeliveredTextRefusal(q, "red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the retire")})
-		return nil
+		return q.QueryRow(`SELECT COUNT(*) FROM "area_change" WHERE "seat_id" = ?`, evLens).Scan(&n)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if refusal != nil {
-		t.Fatalf("the chair's spot-check on its delivered retire is refused: %v", refusal)
+	if n != 0 {
+		t.Fatalf("area_change holds %d changes for %s after a retire alone, want none", n, evLens)
 	}
 }
