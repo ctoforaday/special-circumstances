@@ -220,7 +220,9 @@ func (s *suite) gitShape(t *testing.T) {
 	oldRoots := r.roots
 	for _, p := range s.plugins {
 		if p.hasBinaries() {
-			r.waitFilled(p, oldRoots[p.name], p.tag(oldVersion))
+			if !r.waitFilled(p, oldRoots[p.name], p.tag(oldVersion)) {
+				t.FailNow()
+			}
 			removeOne(t, oldRoots[p.name], p)
 		}
 	}
@@ -292,12 +294,17 @@ func (r *shapeRun) check() {
 	r.t.Helper()
 	before := snapshot(r.t, r.base)
 	r.fire()
+	filled := true
 	for _, p := range r.s.plugins {
 		if p.hasBinaries() {
-			r.waitFilled(p, r.roots[p.name], p.tag(p.version))
+			filled = r.waitFilled(p, r.roots[p.name], p.tag(p.version)) && filled
 		}
 	}
+	// Before giving up on an unfilled root, say which tree the session filled instead.
 	r.unchangedElsewhere(before, snapshot(r.t, r.base))
+	if !filled {
+		r.t.FailNow()
+	}
 	for _, p := range r.s.plugins {
 		if p.hasBinaries() {
 			r.releaseBytes(p)
@@ -400,22 +407,24 @@ func (r *shapeRun) underBase(name, root string) {
 }
 
 // waitFilled waits for fetch-bin's detached fetch to finish in root: the stamp names tag, or the
-// fetch recorded a failure.
-func (r *shapeRun) waitFilled(p plugin, root, tag string) {
+// fetch recorded a failure. It reports false, with the error already recorded, when neither came.
+func (r *shapeRun) waitFilled(p plugin, root, tag string) bool {
 	r.t.Helper()
-	deadline := time.Now().Add(3 * time.Minute)
+	deadline := time.Now().Add(2 * time.Minute)
 	for {
 		b, err := os.ReadFile(filepath.Join(root, ".fetch", "installed"))
 		if err == nil && strings.TrimSpace(string(b)) == tag {
-			return
+			return true
 		}
 		if f, err := os.ReadFile(filepath.Join(root, ".fetch", "failed")); err == nil {
 			log, _ := os.ReadFile(filepath.Join(root, ".fetch", "log"))
-			r.fatalf("(ii) fetch-bin failed to fill %s's root %s with %s: %s\n%s", p.name, root, tag, f, log)
+			r.errorf("(ii) fetch-bin failed to fill %s's root %s with %s: %s\n%s", p.name, root, tag, f, log)
+			return false
 		}
 		if time.Now().After(deadline) {
 			log, _ := os.ReadFile(filepath.Join(root, ".fetch", "log"))
-			r.fatalf("(ii) after SessionStart, %s's root %s was never filled with %s (stamp %q): the session's self-heal filled another tree, or none\nfetch log:\n%s", p.name, root, tag, strings.TrimSpace(string(b)), log)
+			r.errorf("(ii) after SessionStart, %s's loaded root %s was never filled with %s (stamp %q): the session's self-heal filled another tree, or none\nfetch log:\n%s", p.name, root, tag, strings.TrimSpace(string(b)), log)
+			return false
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
