@@ -175,7 +175,10 @@ func (b *box) env(extra ...string) []string {
 		"TMPDIR=" + filepath.Join(b.home, "tmp"),
 		"LANG=C.UTF-8",
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
+		// Each client's own updater switch: an update replaces the binary under test in place.
+		// agy honours its variable only at the exact value "true".
 		"DISABLE_AUTOUPDATER=1",
+		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
 		// A hook or the doctor that runs `go` must not fetch a toolchain into the temp HOME.
 		"GOTOOLCHAIN=local",
 		"GOFLAGS=-modcacherw",

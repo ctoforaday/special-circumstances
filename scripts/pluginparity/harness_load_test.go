@@ -207,6 +207,11 @@ func isolatedEnv(home string) []string {
 		"XDG_CACHE_HOME="+filepath.Join(home, ".cache"),
 		"XDG_DATA_HOME="+filepath.Join(home, ".local", "share"),
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
+		// Each client's own updater switch. A client's updater replaces the running executable
+		// wherever it lives, whatever HOME says: `agy agents` alone swaps the developer's agy for
+		// the latest build. agy honours its variable only at the exact value "true".
+		"DISABLE_AUTOUPDATER=1",
+		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
 	)
 }
 
