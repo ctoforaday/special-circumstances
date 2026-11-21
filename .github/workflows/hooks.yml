@@ -33,6 +33,13 @@ permissions:
 # the cap; go-cache-prune's line states what all of them come to against the repository's 10 GB.
 env:
   GO_CACHE_MAX_MIB: "2048"
+  # THE HELPERS CI BUILDS NONE OF, space-separated. native-scope drops their native-build legs and
+  # nativehelper.Require skips their tests, saying so, in every job. feov-embed is here because
+  # its pinned ONNX Runtime source sits in microsoft/onnxruntime, which Microsoft took private on
+  # Nov 17 2026, so its build cannot fetch it. A release tag still refuses while a helper is
+  # listed: dist demands every helper. Empty this, and return feov-embed's six tests to
+  # native-run's NATIVE_RUN_MUST_PASS, once the repository is public again.
+  NATIVE_HELPERS_PAUSED: feov-embed
 
 defaults:
   run:
@@ -403,12 +410,6 @@ jobs:
         TestTextCellTableKeepsItsRowsThroughTheEngine
         TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
         TestReleaseLayoutFindsItsHelper
-        TestEmbedWithBuiltHelper
-        TestTokenizerParity400
-        TestEmbedLoadsTheExportForItsArch
-        TestEmbedFidelityMeetsS5
-        TestEmbedSpeedMeetsS6
-        TestEveryEmbedOpFitsTheDeadline
       # The target-scoped names: selftest-libc runs on the Linux legs only.
       NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
