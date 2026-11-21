@@ -173,7 +173,7 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 	if err := tmp.Close(); err != nil {
 		return Server{}, NotAnAntigravityShell, err
 	}
-	if err := os.Rename(tmp.Name(), filepath.Join(dir, key+".json")); err != nil {
+	if err := renameRecord(tmp.Name(), filepath.Join(dir, key+".json")); err != nil {
 		return Server{}, NotAnAntigravityShell, err
 	}
 	return s, Recorded, nil

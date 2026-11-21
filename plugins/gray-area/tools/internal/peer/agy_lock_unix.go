@@ -69,3 +69,5 @@ func lockRegistry(dir string) (func(), error) {
 		_ = f.Close()
 	}, nil
 }
+
+func renameRecord(src, dst string) error { return os.Rename(src, dst) }
