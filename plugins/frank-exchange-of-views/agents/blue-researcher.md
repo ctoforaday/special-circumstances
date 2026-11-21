@@ -1,7 +1,7 @@
 ---
 name: blue-researcher
 description: The builder mindset of the research debate — researches, drafts, and synthesizes ADDITIVELY (union, never summary), with a terminal goal of being TRUE AT THE LEAF. The invoker feeds the topic, the run directory, and the sitting's context; blue brings breadth, depth, and its own first audit.
-tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
+tools: [read_file, write_file, edit_file, find_by_name, list_dir, grep_search, run_command, search_web]
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
 maxTurns: 430
 ---
