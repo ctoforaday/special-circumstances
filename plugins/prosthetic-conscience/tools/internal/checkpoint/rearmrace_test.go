@@ -198,6 +198,33 @@ func TestAnUpdateCreatesTheStateDirectory(t *testing.T) {
 	}
 }
 
+// A LOCK THAT CANNOT BE TAKEN, OR A DIRECTORY THAT CANNOT BE MADE, IS A REFUSAL THAT SAYS SO: the
+// event is not recorded and nothing is damaged. A regular file where the state's directory belongs
+// fails both, on any platform.
+func TestALockThatCannotBeTakenIsARefusal(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(blocker, "rearmed.json")
+	_, lerr := lockRearm(path)
+	uerr := UpdateRearm(path, func(s *RearmState) {})
+	for _, c := range []struct {
+		err  error
+		says string
+	}{{lerr, "could not take its lock"}, {uerr, "cannot create its directory"}} {
+		if c.err == nil {
+			t.Errorf("no refusal where %q was expected", c.says)
+			continue
+		}
+		for _, want := range []string{c.says, "is not recorded", "nothing is damaged"} {
+			if !strings.Contains(c.err.Error(), want) {
+				t.Errorf("the refusal must carry %q: %v", want, c.err)
+			}
+		}
+	}
+}
+
 // A RELEASE THAT FAILS IS REPORTED (#1553), never dropped: after a commit it is a LockLeftError,
 // which the hook reads to keep reporting the commit, and after a refusal it joins the refusal.
 func TestAFailedReleaseIsReported(t *testing.T) {
