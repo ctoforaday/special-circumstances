@@ -1880,8 +1880,13 @@ and `~/.claude/scratch/p12/r2/`):
     the `tombstone` table holds no placing row for G written in it.
   - The view's "a placing row with no later row on the same pair" (`findings-fold.md:1167`) then reads it ended.
   - T-B20's recompute (`TestArchivedRunsCarryTheirTombstones`) and the fuzz oracle's test-side fold gain the arm.
-  - A proposal on G after the cut is refused, because G is closed, not because a tombstone stands. A same-class mint at
-    another sentence lands.
+  - After the cut G's tombstone no longer bars a supersede proposal (F8); other proposals are refused because G is
+    closed. The estoppel lapses with the text (#1889's owner 2026-11-21; their R28 reads "barred while G's tombstone
+    stands; a reword, or a pure cut (P12b), ends it"). A same-class mint at another sentence lands.
+  - A grade ruling's lock ends with its tombstone (#1889, gblock 2026-11-21, `f9a0f29da`), so the cut's end row also
+    ends that lock. If #1889's B3 derives the lock from `tombstone_standing` this needs nothing; if the lock is its own
+    column, the end path clears it. Which holds is read at P12b's open from #1889's merged code, and
+    `TestACutEndsItsTombstone` gains a subtest: a cut of a gap under a grade lock leaves no lock standing.
 - **One view of an anchor leaving the report** [NEW `anchor_removal` in `recordsql/views.go`: one row per anchor that
   left, `(anchor_id, event_id, by)`, with `by` ∈ {`retire`, `edit`}].
   - The retire arm is `retire_anchors`. The edit arm is `blue_edit_removed_anchors` (F17 (a)). Both child tables are
