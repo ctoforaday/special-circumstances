@@ -58,10 +58,11 @@ telepathy send <id> <msg>     deliver a message to a Claude Code or Antigravity 
 telepathy link                from an Antigravity shell: make this conversation wakeable by send
 ```
 
-`send` reaches a Claude Code session through its inbox socket, and an Antigravity conversation
-through its own live language server or (on Linux, for conversations under `~/.gemini/antigravity-cli`)
-the current remote-control daemon's server — checking on every live route that `presence/<id>.lock`
-is not held and no other process has `conversations/<id>.db` open — or, failing that, its on-disk
+`send` reaches a Claude Code session through its inbox socket, and on Linux reaches an Antigravity
+conversation live through its own language server or (for conversations under
+`~/.gemini/antigravity-cli`) the current remote-control daemon's server — checking on every live
+route that `presence/<id>.lock` is not held and no other process has `conversations/<id>.db` open —
+or, failing that (and always off Linux, where second-writer safety cannot be verified), its on-disk
 mailbox, read at its next turn. The server's token exists only in an Antigravity agent's shell, so
 `telepathy link` (and any other verb) run from one records that server keyed by server (PID and
 start time, or address), storing port and token in `$XDG_RUNTIME_DIR/gray-area/antigravity-servers`

@@ -100,7 +100,16 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 			return true, fmt.Sprintf("cannot resolve conversation root %s: %v", agyRoot, err)
 		}
 	}
-	wantPrefix := filepath.Join(canonRoot, "conversations", conversation+".db")
+	convDir := filepath.Join(canonRoot, "conversations")
+	canonConvDir, err := filepath.EvalSymlinks(convDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			canonConvDir = convDir
+		} else {
+			return true, fmt.Sprintf("cannot resolve conversations dir %s: %v", convDir, err)
+		}
+	}
+	wantPrefix := filepath.Join(canonConvDir, conversation+".db")
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return true, fmt.Sprintf("cannot read /proc to verify no second writer: %v", err)
@@ -115,8 +124,10 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 			continue
 		}
 		fdDir := filepath.Join("/proc", e.Name(), "fd")
-		// Skip fd dirs owned by another user (including root-owned non-dumpable helpers like
-		// systemd's (sd-pam), whose /proc/<pid> is ours while /proc/<pid>/fd is root:root 0500).
+		// Skip fd directories not owned by our UID. Because non-dumpable same-UID processes
+		// (e.g. systemd's (sd-pam), gpg-agent) have root:root 0500 /proc/<pid>/fd, this skips
+		// them as well as other users' processes. Residual: a non-dumpable agy process holding
+		// the conversation DB would be missed; agy is dumpable, so the risk is low.
 		info, err := os.Stat(fdDir)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {

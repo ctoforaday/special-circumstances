@@ -140,12 +140,15 @@ func TestSendToAnUnrecordedConversationQueuesAndSaysSo(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "QUEUED for antigravity conversation "+agyPeer) ||
-		!strings.Contains(out, "no daemon server is recorded since the last restart") {
+	if !strings.Contains(out, "QUEUED for antigravity conversation "+agyPeer) {
 		t.Errorf("stdout = %q", out)
 	}
-	if runtime.GOOS == "linux" && !strings.Contains(out, "opening a daemon-hosted Antigravity conversation restores the live route") {
-		t.Errorf("stdout = %q, want Linux daemon-hosted restore hint", out)
+	if runtime.GOOS == "linux" {
+		if !strings.Contains(out, "no daemon is running") || !strings.Contains(out, "opening a daemon-hosted Antigravity conversation restores the live route") {
+			t.Errorf("stdout = %q, want no-daemon + daemon-hosted restore hint", out)
+		}
+	} else if !strings.Contains(out, "live delivery to an Antigravity conversation runs on Linux only") {
+		t.Errorf("stdout = %q, want Linux-only notice", out)
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
@@ -157,6 +160,15 @@ func TestSendToAnUnrecordedConversationQueuesAndSaysSo(t *testing.T) {
 func TestAVerbRunFromAnAntigravityShellMakesItReachableLive(t *testing.T) {
 	w := newSendWorld(t)
 	addr, got := w.languageServer(t)
+	const hostPID = 6006
+	w.env.HostServer = func() peer.ServerIdentity {
+		return peer.ServerIdentity{PID: hostPID, StartTime: 66666}
+	}
+	var gotBusyPID int
+	w.env.ConversationBusy = func(_, _ string, excludePID int) (bool, string) {
+		gotBusyPID = excludePID
+		return false, ""
+	}
 
 	// The recipient runs some unrelated verb from its own shell.
 	w.callerEnv = map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "tok"}
@@ -173,6 +185,9 @@ func TestAVerbRunFromAnAntigravityShellMakesItReachableLive(t *testing.T) {
 	}
 	if !strings.Contains(out, "delivered to antigravity conversation "+agyPeer+" through its language server at "+addr) {
 		t.Errorf("stdout = %q", out)
+	}
+	if gotBusyPID != hostPID {
+		t.Errorf("route 1 ConversationBusy received excludePID=%d, want %d", gotBusyPID, hostPID)
 	}
 	m := <-got
 	if m["recipient"] != agyPeer || m["senderId"] != agySelf || m["displayTitle"] != "Ping" ||
@@ -197,9 +212,11 @@ func TestAStaleServerRecordFallsBackToTheMailboxAndNamesWhy(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "answered HTTP 403") ||
-		!strings.Contains(out, "no current daemon server is recorded") {
+	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "answered HTTP 403") {
 		t.Errorf("stdout = %q", out)
+	}
+	if runtime.GOOS == "linux" && !strings.Contains(out, "no daemon is running") {
+		t.Errorf("stdout = %q, want 'no daemon is running' when CurrentDaemon is absent", out)
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
@@ -309,6 +326,11 @@ func TestSendWakesUnlinkedConversationThroughRestartedDaemonRecord(t *testing.T)
 	postRestart := peer.ServerIdentity{PID: 2002, StartTime: 22222, Daemon: true}
 	w.env.HostServer = func() peer.ServerIdentity { return postRestart }
 	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return postRestart, true }
+	var busyPIDs []int
+	w.env.ConversationBusy = func(_, _ string, excludePID int) (bool, string) {
+		busyPIDs = append(busyPIDs, excludePID)
+		return false, ""
+	}
 	w.callerEnv = map[string]string{peer.EnvConversation: agySelf, peer.EnvAddress: daemonAddr, peer.EnvToken: "tok"}
 	if _, errOut, code := w.run(t, "link"); code != 0 {
 		t.Fatalf("link agySelf: exit %d, stderr %q", code, errOut)
@@ -322,6 +344,9 @@ func TestSendWakesUnlinkedConversationThroughRestartedDaemonRecord(t *testing.T)
 	}
 	if !strings.Contains(out, "delivered to antigravity conversation "+agyPeer+" through its language server at "+daemonAddr) {
 		t.Errorf("stdout = %q", out)
+	}
+	if len(busyPIDs) != 2 || busyPIDs[0] != preRestart.PID || busyPIDs[1] != postRestart.PID {
+		t.Errorf("ConversationBusy excludePIDs = %v, want [%d, %d]", busyPIDs, preRestart.PID, postRestart.PID)
 	}
 	m := <-got
 	if m["recipient"] != agyPeer || !strings.HasSuffix(m["content"], "\n\nwake after restart") {

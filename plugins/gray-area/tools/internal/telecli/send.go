@@ -50,8 +50,10 @@ WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
                        read at the conversation's next turn, and nothing wakes it. The
                        reason it was not delivered live is printed with it.
 
-An Antigravity conversation is reached live through its own server record when that
-server is up, or on Linux through the current remote-control daemon's server record —
+Live delivery to an Antigravity conversation runs on Linux only; on other platforms
+second-writer safety cannot be verified, so send always queues to the mailbox. On
+Linux, an Antigravity conversation is reached live through its own server record when
+that server is up, or through the current remote-control daemon's server record —
 written by any daemon-hosted conversation that linked since the daemon started — for
 conversations under the CLI daemon root (~/.gemini/antigravity-cli). Every live route
 checks that presence/<id>.lock is not held and no other process has conversations/<id>.db
@@ -240,9 +242,11 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 
 	var why string
 	var triedDaemon bool
+	var hasDaemon bool
 	if ownBusyWhy != "" {
 		why = ownBusyWhy
 	} else if daemonID, ok := env.currentDaemon(); ok {
+		hasDaemon = true
 		daemonKey := peer.ServerKey(daemonID.PID, daemonID.StartTime, "")
 		if own != nil && own.Key == daemonKey {
 			// Route 1 already attempted the current daemon's record.
@@ -268,9 +272,18 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 		}
 	}
 
+	daemonStatus := "no daemon is running"
+	if hasDaemon {
+		daemonStatus = "no current daemon server is recorded"
+	}
 	restoreHint := "opening a daemon-hosted Antigravity conversation restores the live route (a standalone interactive agy does not)"
 	if runtime.GOOS != "linux" {
-		restoreHint = "cross-conversation daemon wake is Linux-only; run telepathy link from the conversation's own shell"
+		daemonStatus = "live delivery to an Antigravity conversation runs on Linux only"
+		restoreHint = ""
+	}
+	suffix := daemonStatus
+	if restoreHint != "" {
+		suffix += " — " + restoreHint
 	}
 
 	switch {
@@ -280,9 +293,13 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 	case ownWhy != "" && triedDaemon:
 		why = ownWhy
 	case ownWhy != "":
-		why = ownWhy + "; no current daemon server is recorded — " + restoreHint
+		why = ownWhy + "; " + suffix
 	default:
-		why = "no daemon server is recorded since the last restart — " + restoreHint
+		if hasDaemon && runtime.GOOS == "linux" {
+			why = "no daemon server is recorded since the last restart — " + restoreHint
+		} else {
+			why = suffix
+		}
 	}
 	d, err := peer.EnqueueAgy(c.dir, m, env.Now())
 	d.NotWoken = why
