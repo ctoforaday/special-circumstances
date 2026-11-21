@@ -73,7 +73,7 @@ func run(doScope, doMatrix, doCheck, doRequirePackages bool, dist, ref, event st
 		if err != nil {
 			return err
 		}
-		return Scope(root, event, ref, nativeSet, targets, stdout, os.Getenv("GITHUB_OUTPUT"))
+		return Scope(root, event, ref, nativeSet, targets, os.Getenv(EnvPaused), stdout, os.Getenv("GITHUB_OUTPUT"))
 	case doRequirePackages:
 		pkgs, err := RequirePackages(root)
 		if err != nil {
@@ -104,14 +104,15 @@ func run(doScope, doMatrix, doCheck, doRequirePackages bool, dist, ref, event st
 // Scope decides one event's native jobs for the repository at root and prints the decision; with
 // ghOutput set it also appends the decision there as step outputs. A pull request's changed files
 // are its merge commit's diff against the base tip, HEAD^1; a pull request whose HEAD is not that
-// merge commit, or any git failure, is an error, never an empty change list.
-func Scope(root, event, ref string, nativeSet NativeSet, targets []Target, stdout io.Writer, ghOutput string) error {
+// merge commit, or any git failure, is an error, never an empty change list. pausedList is
+// NATIVE_HELPERS_PAUSED's value: the helpers it names build no leg.
+func Scope(root, event, ref string, nativeSet NativeSet, targets []Target, pausedList string, stdout io.Writer, ghOutput string) error {
 	wf := filepath.Join(root, ".github", "workflows", "hooks.yml")
 	helpers, err := FindHelpers(filepath.Join(root, "plugins", "frank-exchange-of-views", "native"))
 	if err != nil {
 		return err
 	}
-	helpers, paused, err := Unpaused(helpers, os.Getenv(EnvPaused))
+	helpers, paused, err := Unpaused(helpers, pausedList)
 	if err != nil {
 		return err
 	}

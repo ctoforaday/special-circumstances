@@ -84,7 +84,7 @@ func TestAPullRequestScopeReadsItsMergeCommit(t *testing.T) {
 			root := prRepo(t, tc.changed)
 			var out bytes.Buffer
 			ghOut := filepath.Join(t.TempDir(), "out")
-			if err := Scope(root, "pull_request", "refs/pull/1/merge", repoNativeSet(t), scopeTargets(t, root), &out, ghOut); err != nil {
+			if err := Scope(root, "pull_request", "refs/pull/1/merge", repoNativeSet(t), scopeTargets(t, root), "", &out, ghOut); err != nil {
 				t.Fatalf("Scope: %v", err)
 			}
 			if !strings.Contains(out.String(), tc.full+"\n") || !strings.Contains(out.String(), "changed files: 1,") {
@@ -109,12 +109,12 @@ func TestAnUnreadablePullRequestIsRefused(t *testing.T) {
 
 	shallow := filepath.Join(t.TempDir(), "shallow")
 	git(t, filepath.Dir(shallow), "clone", "-q", "--depth", "1", "file://"+root, shallow)
-	if err := Scope(shallow, "pull_request", "refs/pull/1/merge", repoNativeSet(t), targets, &bytes.Buffer{}, ""); err == nil || !strings.Contains(err.Error(), "merge commit") {
+	if err := Scope(shallow, "pull_request", "refs/pull/1/merge", repoNativeSet(t), targets, "", &bytes.Buffer{}, ""); err == nil || !strings.Contains(err.Error(), "merge commit") {
 		t.Errorf("a merge commit without its parents was scoped: %v", err)
 	}
 
 	git(t, root, "checkout", "-q", "pr")
-	if err := Scope(root, "pull_request", "refs/pull/1/merge", repoNativeSet(t), targets, &bytes.Buffer{}, ""); err == nil || !strings.Contains(err.Error(), "merge commit") {
+	if err := Scope(root, "pull_request", "refs/pull/1/merge", repoNativeSet(t), targets, "", &bytes.Buffer{}, ""); err == nil || !strings.Contains(err.Error(), "merge commit") {
 		t.Errorf("a HEAD that is not a merge commit was scoped: %v", err)
 	}
 }
