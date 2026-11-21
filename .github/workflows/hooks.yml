@@ -1656,6 +1656,15 @@ jobs:
     # the six were unverified prose, and rule-sweep's `--selftest` was the lone exception
     # (#157 §3). A guard nothing tests is indistinguishable from a clean repo.
     runs-on: ubuntu-latest
+    # The clients installed below stay the clients every step runs. A client that starts its
+    # full CLI (agy: `agy agents`, which pluginparity's load test calls) spawns a background
+    # updater that replaces the running executable in place, so the install-shape contract
+    # would read a version nobody installed. Each client's own switch turns that off for every
+    # step and test; agy honours AGY_CLI_DISABLE_AUTO_UPDATE only at the exact value "true".
+    # The nightly still tests the latest build: it installs it.
+    env:
+      AGY_CLI_DISABLE_AUTO_UPDATE: "true"
+      DISABLE_AUTOUPDATER: "1"
     defaults:
       run:
         working-directory: scripts
