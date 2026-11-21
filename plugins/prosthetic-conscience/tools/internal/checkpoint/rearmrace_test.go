@@ -1,9 +1,13 @@
 package checkpoint
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -92,91 +96,139 @@ func TestConcurrentUpdatesNeverLeaveATornFile(t *testing.T) {
 	}
 }
 
-// A lock left behind by a process that died must not wedge the mechanism.
-// Losing one re-arm is cheap; losing the file is not, and a permanent block
-// would be worse than either.
-func TestAnAbandonedLockIsBrokenRatherThanWaitedOnForever(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "rearmed.json")
-	stale := path + ".lock"
-	if err := os.WriteFile(stale, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Backdate it well past the timeout.
-	old := timeNowMinus(2 * lockRearmTimeout)
-	if err := os.Chtimes(stale, old, old); err != nil {
-		t.Fatal(err)
-	}
+// holderEnv, set, turns this test binary into a lock holder: it takes the re-arm lock on the path
+// the variable names, says "held" on stdout, and waits to be killed.
+const holderEnv = "CHECKPOINT_TEST_REARM_HOLDER"
 
-	if err := UpdateRearm(path, func(s *RearmState) {
-		s.Rearmed["k"] = Rearm{Index: 1, Check: "k", At: "t"}
-	}); err != nil {
-		t.Fatalf("an abandoned lock blocked the update: %v", err)
+func TestMain(m *testing.M) {
+	if path := os.Getenv(holderEnv); path != "" {
+		if _, err := lockRearm(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Println("held")
+		time.Sleep(time.Hour)
+		os.Exit(3)
 	}
-	if _, err := os.Stat(stale); err == nil {
-		t.Error("the lock file was left behind")
-	}
+	os.Exit(m.Run())
 }
 
-// timeNowMinus keeps the test's intent readable without importing time at the
-// top for one call.
-func timeNowMinus(d time.Duration) time.Time { return time.Now().Add(-d) }
-
-// A RELEASE THAT CANNOT READ ITS LOCK SAYS SO (#1553). It used to be dropped: the lock stayed,
-// every waiting hook timed out, and nothing named why.
-func TestAReleaseThatFailsIsReported(t *testing.T) {
+// A HOOK KILLED WHILE HOLDING THE LOCK DOES NOT BLOCK THE NEXT ONE. The holder is another process,
+// as a hook is: while it lives, an update is refused within the timeout and writes nothing; once
+// it is killed, the operating system releases its lock and the next update takes it at once.
+// Losing one re-arm is cheap; a lock that outlives its holder would lose every one after it.
+func TestAKilledHolderDoesNotBlockTheNextUpdate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "rearmed.json")
-	lock, err := lockRearm(path)
+	holder := exec.Command(os.Args[0], "-test.run=^$")
+	holder.Env = append(os.Environ(), holderEnv+"="+path)
+	holder.Stderr = os.Stderr
+	out, err := holder.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The lock's path becomes something no read can open as a file, on any platform.
-	if err := os.Remove(lock.path); err != nil {
+	if err := holder.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(lock.path, "occupant"), 0o755); err != nil {
+	killed := false
+	kill := func() {
+		if !killed {
+			killed = true
+			_ = holder.Process.Kill()
+			_ = holder.Wait()
+		}
+	}
+	t.Cleanup(kill)
+	ready := make(chan string, 1)
+	go func() {
+		line, _ := bufio.NewReader(out).ReadString('\n')
+		ready <- strings.TrimSpace(line)
+	}()
+	select {
+	case line := <-ready:
+		if line != "held" {
+			t.Fatalf("the holder process did not take the lock: said %q", line)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("the holder process never said it held the lock")
+	}
+
+	add := func(key string) error {
+		return UpdateRearm(path, func(s *RearmState) {
+			s.Rearmed[key] = Rearm{Index: 1, Check: key, At: "t"}
+		})
+	}
+	err = add("while-held")
+	if err == nil {
+		t.Fatal("an update went through while another process held the lock")
+	}
+	for _, want := range []string{"is not recorded", "nothing is damaged"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal must carry %q: %v", want, err)
+		}
+	}
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("a refused update wrote the state: %v", err)
+	}
+
+	kill()
+	start := time.Now()
+	if err := add("after-kill"); err != nil {
+		t.Fatalf("a killed holder's lock blocked the next update: %v", err)
+	}
+	if waited := time.Since(start); waited >= lockRearmTimeout {
+		t.Errorf("the next update waited %s for a dead holder", waited)
+	}
+	s, err := LoadRearm(os.ReadFile, path)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := lock.release(); err == nil {
-		t.Fatal("a release that could not read its lock reported success")
+	if _, ok := s.Rearmed["after-kill"]; !ok {
+		t.Errorf("the update after the kill was not recorded: %v", keysOf(s))
+	}
+}
+
+// THE STATE'S DIRECTORY IS CREATED BEFORE ITS LOCK. The lock file lives beside the state, so a
+// project with no .claude/checkpoints yet records its first event rather than failing to lock.
+func TestAnUpdateCreatesTheStateDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".claude", "checkpoints", "rearmed.json")
+	if err := UpdateRearm(path, func(s *RearmState) {
+		s.Rearmed["k"] = Rearm{Index: 1, Check: "k", At: "t"}
+	}); err != nil {
+		t.Fatalf("the first update in a project with no state directory: %v", err)
+	}
+}
+
+// A RELEASE THAT FAILS IS REPORTED (#1553), never dropped: after a commit it is a LockLeftError,
+// which the hook reads to keep reporting the commit, and after a refusal it joins the refusal.
+func TestAFailedReleaseIsReported(t *testing.T) {
+	refused := errors.New("refused")
+	if err := withRelease("rearmed.json", nil, nil); err != nil {
+		t.Errorf("a clean commit and release reported %v", err)
+	}
+	if err := withRelease("rearmed.json", refused, nil); err != refused {
+		t.Errorf("a refusal with a clean release must be the refusal itself, got %v", err)
+	}
+	var left *LockLeftError
+	if err := withRelease("rearmed.json", nil, os.ErrPermission); !errors.As(err, &left) {
+		t.Errorf("a release that failed after a commit must be a LockLeftError, got %v", err)
+	}
+	err := withRelease("rearmed.json", refused, os.ErrPermission)
+	if !errors.Is(err, refused) || !errors.Is(err, os.ErrPermission) || errors.As(err, &left) {
+		t.Errorf("a release that failed after a refusal must join both and claim no commit, got %v", err)
 	}
 }
 
 // A COMMITTED UPDATE WHOSE RELEASE FAILED SAYS BOTH HALVES: the event is recorded, and the lock is
-// left for the next hook to wait on. The hook reads the type to keep reporting the commit.
+// held until the hook exits. The hook reads the type to keep reporting the commit.
 func TestALockLeftErrorSaysTheEventIsRecorded(t *testing.T) {
 	var err error = &LockLeftError{Path: "rearmed.json", Err: os.ErrPermission}
 	var left *LockLeftError
 	if !errors.As(err, &left) || !errors.Is(err, os.ErrPermission) {
 		t.Fatalf("LockLeftError must be matchable and unwrap its cause: %v", err)
 	}
-	for _, want := range []string{"IS recorded", "could not be released", "waits up to"} {
+	for _, want := range []string{"IS recorded", "could not be released", "when this hook exits"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the error must carry %q: %v", want, err)
-		}
-	}
-}
-
-// THE TIMEOUT NAMES THE HOLDER, THE LOCK'S AGE AND THE LAST OPEN ERROR (#1553): the next lock that
-// does not free has to say whose it was and whether it was being worked or left behind.
-func TestTheLockTimeoutNamesItsHolder(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "rearmed.json")
-	if err := os.WriteFile(path+".lock", []byte("4242-holder"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Stamped a second ahead, so the wait's deadline arrives before the lock ages into a
-	// stale-break and the timeout is what this test sees.
-	ahead := time.Now().Add(time.Second)
-	if err := os.Chtimes(path+".lock", ahead, ahead); err != nil {
-		t.Fatal(err)
-	}
-	_, err := lockRearm(path)
-	if err == nil {
-		t.Fatal("a fresh lock held by another hook was taken")
-	}
-	for _, want := range []string{`held by "4242-holder"`, "lock age", "last open error"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the timeout must carry %q: %v", want, err)
 		}
 	}
 }
