@@ -46,3 +46,25 @@ func TestConversationBusyDetectsHeldPresenceLock(t *testing.T) {
 		t.Errorf("after unlock: ConversationBusy = (%v, %q), want false", busy, why)
 	}
 }
+
+func TestConversationBusyFailsClosedOnUnreadableLock(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses 0000 file permissions")
+	}
+	agyRoot := t.TempDir()
+	lockDir := filepath.Join(agyRoot, "presence")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const conv = "conv-lock-unreadable"
+	lockPath := filepath.Join(lockDir, conv+".lock")
+	if err := os.WriteFile(lockPath, nil, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(lockPath, 0o600) })
+
+	busy, why := ConversationBusy(agyRoot, conv, 0)
+	if !busy || !strings.Contains(why, "cannot inspect presence/"+conv+".lock") {
+		t.Errorf("unreadable lock: ConversationBusy = (%v, %q), want fail-closed (true, cannot inspect)", busy, why)
+	}
+}

@@ -36,8 +36,15 @@ func TestLinkRequestSkipsWhenHostServerAlreadyLinkedByAnotherConversation(t *tes
 		t.Fatal(err)
 	}
 	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
-	if got := linkRequestForHost(req, rt, "/bin/telepathy", host, func(string) bool { return true }); got != "" {
+	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return host }, func(string) bool { return true }); got != "" {
 		t.Errorf("another conv already linked this host server, yet linkRequest asked: %q", got)
+	}
+	// Early returns must not invoke hostFn (/proc walk).
+	called := false
+	reqStep1 := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(1))))
+	_ = linkRequestWithHost(reqStep1, rt, "/bin/telepathy", func() peer.ServerIdentity { called = true; return host }, func(string) bool { return true })
+	if called {
+		t.Errorf("hostFn was called on invocationNum=1 early return")
 	}
 }
 

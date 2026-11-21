@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -76,7 +77,7 @@ func RegistryDir(runtimeDir string) string {
 	return filepath.Join(runtimeDir, "gray-area", "antigravity-servers")
 }
 
-// Linked is what Register found.
+// Linked is what RegisterWith found.
 type Linked int
 
 const (
@@ -115,6 +116,21 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 		return Server{}, NotAnAntigravityShell, fmt.Errorf("server key %q is not a valid filename", key)
 	}
 
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return Server{}, NotAnAntigravityShell, err
+	}
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(dir, 0o700); err != nil {
+			return Server{}, NotAnAntigravityShell, err
+		}
+	}
+
+	unlock, err := lockRegistry(dir)
+	if err != nil {
+		return Server{}, NotAnAntigravityShell, err
+	}
+	defer unlock()
+
 	s := Server{
 		Key:           key,
 		PID:           id.PID,
@@ -137,9 +153,6 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 		}
 	}
 
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return Server{}, NotAnAntigravityShell, err
-	}
 	b, err := json.Marshal(s)
 	if err != nil {
 		return Server{}, NotAnAntigravityShell, err

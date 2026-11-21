@@ -3,6 +3,7 @@ package peer
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -61,6 +63,61 @@ func TestRegisterRecordsTheServerPrivatelyKeyedByServer(t *testing.T) {
 		if got := st.Mode().Perm(); got != want {
 			t.Errorf("%s is %o, want %o: the token controls the whole language server", path, got, want)
 		}
+	}
+}
+
+func TestRegisterTightensExistingDirectoryPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no Unix permission bits on Windows")
+	}
+	rt := t.TempDir()
+	dir := RegistryDir(rt)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok"), hostID(10, 20, true), at); err != nil || got != Recorded {
+		t.Fatalf("RegisterWith = %v, %v", got, err)
+	}
+	st, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := st.Mode().Perm(); perm != 0o700 {
+		t.Errorf("registry dir perm = %o, want 0700", perm)
+	}
+}
+
+func TestRegisterConcurrentLinksPreserveAllConversations(t *testing.T) {
+	rt := t.TempDir()
+	h := hostID(555, 77777, true)
+	const n = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			id := fmt.Sprintf("conv-%d", idx)
+			_, _, err := RegisterWith(rt, agyShell(id, "localhost:555", "tok"), h, at)
+			if err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("concurrent RegisterWith error: %v", err)
+	}
+	s, err := LookupDaemonServer(rt, ServerIdentity{PID: 555, StartTime: 77777, Daemon: true})
+	if err != nil || s == nil {
+		t.Fatalf("LookupDaemonServer = %+v, %v", s, err)
+	}
+	if len(s.Conversations) != n {
+		t.Errorf("got %d conversations (%v), want %d", len(s.Conversations), s.Conversations, n)
 	}
 }
 

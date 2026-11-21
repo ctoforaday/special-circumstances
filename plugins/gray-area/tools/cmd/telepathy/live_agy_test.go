@@ -434,11 +434,24 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	}
 	t.Logf("C1 linked restarted server key=%s addr=%s", linkedSrv.Key, linkedSrv.Address)
 
+	// Positive control: while srvCmd is actively hosting C1, ConversationBusy must report C1 busy
+	// for any caller excluding a different PID (observing the real agy DB holder), and NOT busy
+	// when excluding srvCmd's own PID.
+	if busy, why := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid+1); !busy {
+		t.Fatalf("positive control failed: ConversationBusy(c1, otherPID) = false while real agy pid %d hosts C1", srvCmd.Process.Pid)
+	} else {
+		t.Logf("positive control: ConversationBusy detected real agy hosting C1: %s", why)
+	}
+	if busy, why := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid); busy {
+		t.Fatalf("positive control failed: ConversationBusy(c1, srvPID=%d) = true (%s)", srvCmd.Process.Pid, why)
+	}
+
 	runSend := func(target, msg string) (string, error) {
 		t.Helper()
 		sendEnv := telecli.Env{
 			BrainDirs:        []string{filepath.Join(agyDir, "brain")},
 			AnnotationsDirs:  []string{filepath.Join(agyDir, "annotations")},
+			DaemonRoot:       agyDir,
 			RuntimeDir:       runtimeDir,
 			Getenv:           func(k string) string { return map[string]string{"CLAUDE_CODE_SESSION_ID": "test-sender"}[k] },
 			HostServer:       func() peer.ServerIdentity { return peer.ServerIdentity{} },
@@ -467,9 +480,18 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 		!strings.Contains(outLocked, "second writer") {
 		t.Fatalf("expected locked send to refuse live route and queue, got:\n%s", outLocked)
 	}
-	left, _ := filepath.Glob(filepath.Join(agyDir, "brain", c2, ".system_generated", "messages", "undelivered", "*"))
-	if len(left) == 0 {
-		t.Fatalf("expected an undelivered mailbox marker for locked send to C2")
+	msgDir := filepath.Join(agyDir, "brain", c2, ".system_generated", "messages")
+	left, _ := filepath.Glob(filepath.Join(msgDir, "undelivered", "*"))
+	foundLockedMsg := false
+	for _, marker := range left {
+		body, err := os.ReadFile(filepath.Join(msgDir, filepath.Base(marker)+".json"))
+		if err == nil && strings.Contains(string(body), "LIVE_LOCK_BLOCKED_1855") {
+			foundLockedMsg = true
+			break
+		}
+	}
+	if !foundLockedMsg {
+		t.Fatalf("expected an undelivered mailbox message containing LIVE_LOCK_BLOCKED_1855 (found %d markers)", len(left))
 	}
 
 	// 4. With the lock released, send to C2 (never loaded on srvCmd) and assert it wakes and takes
@@ -506,6 +528,35 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	if !sawWakeMsg || !sawPlannerReply {
 		t.Fatalf("C2 did not wake and take a turn after send (sawWakeMsg=%v sawPlannerReply=%v); steps=%d (was %d)",
 			sawWakeMsg, sawPlannerReply, len(readTranscript(c2)), c2Before)
+	}
+}
+
+// TestLiveAntigravityRealDaemonDiscovery exercises peer.CurrentDaemon (systemd MainPID +
+// /proc/<pid>/stat + isDaemonCmdline) read-only against the host's running
+// antigravity-cli-daemon.service, and when invoked from a daemon-hosted shell also verifies
+// peer.HostServer() matches CurrentDaemon() and produces the same server key.
+func TestLiveAntigravityRealDaemonDiscovery(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live Antigravity test without HOOKCORE_LIVE=1")
+	}
+	daemon, ok := peer.CurrentDaemon()
+	if !ok {
+		t.Skip("no active antigravity-cli-daemon.service on this host")
+	}
+	if daemon.PID <= 0 || daemon.StartTime <= 0 || !daemon.Daemon {
+		t.Fatalf("CurrentDaemon() = %+v, want PID>0, StartTime>0, Daemon=true", daemon)
+	}
+	key := peer.ServerKey(daemon.PID, daemon.StartTime, "")
+	if !strings.HasPrefix(key, "pid-") {
+		t.Fatalf("ServerKey = %q, want pid-<pid>-<start>", key)
+	}
+	t.Logf("real daemon discovered: key=%s pid=%d start=%d", key, daemon.PID, daemon.StartTime)
+
+	if os.Getenv(peer.EnvConversation) != "" {
+		host := peer.HostServer()
+		if host.Daemon && (host.PID != daemon.PID || host.StartTime != daemon.StartTime) {
+			t.Errorf("HostServer() = %+v disagrees with CurrentDaemon() = %+v", host, daemon)
+		}
 	}
 }
 

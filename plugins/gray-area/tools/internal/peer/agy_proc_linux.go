@@ -5,12 +5,15 @@ package peer
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -80,17 +83,29 @@ func ProcessStartTime(pid int) (int64, bool) {
 	return start, ok && start > 0
 }
 
-// otherAgyDBHolder checks whether any live Antigravity process other than excludePID holds
+// otherDBHolder checks whether ANY live process (regardless of comm) other than excludePID holds
 // <agyRoot>/conversations/<conversation>.db (or its -wal/-shm) open.
-func otherAgyDBHolder(agyRoot, conversation string, excludePID int) (int, bool) {
+// Fails CLOSED: if /proc cannot be read, agyRoot cannot be canonicalised, or a same-UID
+// process's /proc/<pid>/fd cannot be read (for a reason other than the process exiting), it
+// reports busy with the reason.
+func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) {
 	if agyRoot == "" || conversation == "" {
-		return 0, false
+		return true, "conversation root is empty, so open handles cannot be verified"
 	}
-	wantPrefix := filepath.Join(agyRoot, "conversations", conversation+".db")
+	canonRoot, err := filepath.EvalSymlinks(agyRoot)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			canonRoot = filepath.Clean(agyRoot)
+		} else {
+			return true, fmt.Sprintf("cannot resolve conversation root %s: %v", agyRoot, err)
+		}
+	}
+	wantPrefix := filepath.Join(canonRoot, "conversations", conversation+".db")
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return 0, false
+		return true, fmt.Sprintf("cannot read /proc to verify no second writer: %v", err)
 	}
+	myUID := uint32(os.Getuid())
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -99,26 +114,79 @@ func otherAgyDBHolder(agyRoot, conversation string, excludePID int) (int, bool) 
 		if err != nil || pid <= 1 || pid == excludePID {
 			continue
 		}
-		_, comm, _, ok := readProcStat(pid)
-		if !ok || !isAgyProcess(pid, comm) {
+		fdDir := filepath.Join("/proc", e.Name(), "fd")
+		// Skip fd dirs owned by another user (including root-owned non-dumpable helpers like
+		// systemd's (sd-pam), whose /proc/<pid> is ours while /proc/<pid>/fd is root:root 0500).
+		info, err := os.Stat(fdDir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue // process exited
+			}
+			return true, fmt.Sprintf("cannot stat %s to verify no second writer: %v", fdDir, err)
+		}
+		if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Uid != myUID {
 			continue
 		}
-		fdDir := filepath.Join("/proc", e.Name(), "fd")
 		fds, err := os.ReadDir(fdDir)
 		if err != nil {
-			continue
+			if errors.Is(err, fs.ErrNotExist) {
+				continue // process exited between stat and ReadDir
+			}
+			return true, fmt.Sprintf("cannot inspect /proc/%d/fd to verify no second writer: %v", pid, err)
 		}
 		for _, f := range fds {
 			target, err := os.Readlink(filepath.Join(fdDir, f.Name()))
 			if err != nil {
-				continue
+				continue // fd closed or process exited
 			}
 			if target == wantPrefix || target == wantPrefix+"-wal" || target == wantPrefix+"-shm" {
-				return pid, true
+				return true, fmt.Sprintf("process pid %d already has conversations/%s.db open", pid, conversation)
 			}
 		}
 	}
-	return 0, false
+	return false, ""
+}
+
+// flockHeldOnlyBy reports whether /proc/locks shows FLOCK holders for path's inode and ALL of them
+// are excludePID. Returns false when any other PID holds the lock or /proc/locks cannot confirm.
+func flockHeldOnlyBy(path string, excludePID int) bool {
+	if excludePID <= 0 {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false
+	}
+	raw, err := os.ReadFile("/proc/locks")
+	if err != nil {
+		return false
+	}
+	wantIno := strconv.FormatUint(st.Ino, 10)
+	sawExclude := false
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		// Format: N: FLOCK ADVISORY WRITE <pid> <maj>:<min>:<ino> 0 EOF
+		if len(fields) < 6 || fields[1] != "FLOCK" {
+			continue
+		}
+		devIno := strings.Split(fields[5], ":")
+		if len(devIno) != 3 || devIno[2] != wantIno {
+			continue
+		}
+		pid, err := strconv.Atoi(fields[4])
+		if err != nil {
+			return false
+		}
+		if pid != excludePID {
+			return false
+		}
+		sawExclude = true
+	}
+	return sawExclude
 }
 
 func systemdDaemonPID() (int, bool) {

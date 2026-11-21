@@ -28,10 +28,10 @@ import (
 // port and has a new PID/start time. It never asks where linking would fail: no runtime directory,
 // or no telepathy binary beside this one.
 func linkRequest(req hookcore.Request, runtimeDir, telepathy string, dial func(addr string) bool) string {
-	return linkRequestForHost(req, runtimeDir, telepathy, peer.HostServer(), dial)
+	return linkRequestWithHost(req, runtimeDir, telepathy, peer.HostServer, dial)
 }
 
-func linkRequestForHost(req hookcore.Request, runtimeDir, telepathy string, host peer.ServerIdentity, dial func(addr string) bool) string {
+func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hostFn func() peer.ServerIdentity, dial func(addr string) bool) string {
 	if req.Engine != hookcore.EngineAntigravity || req.SessionID == "" || runtimeDir == "" || telepathy == "" {
 		return ""
 	}
@@ -42,9 +42,12 @@ func linkRequestForHost(req hookcore.Request, runtimeDir, telepathy string, host
 	if p.InvocationNum != 0 {
 		return ""
 	}
-	if host.PID > 0 && host.StartTime > 0 {
-		if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && dial(hs.Address) {
-			return ""
+	if hostFn != nil {
+		host := hostFn()
+		if host.PID > 0 && host.StartTime > 0 {
+			if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && dial(hs.Address) {
+				return ""
+			}
 		}
 	}
 	s, err := peer.LookupConversationServer(runtimeDir, req.SessionID)

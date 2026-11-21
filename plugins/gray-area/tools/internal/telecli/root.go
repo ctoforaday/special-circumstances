@@ -48,10 +48,13 @@ type Env struct {
 	// the store opened, so an Env built without it keeps every verb's behaviour.
 	Boot func() (int64, bool)
 	// RuntimeDir is $XDG_RUNTIME_DIR, where Antigravity server records live; empty means none
-	// are kept. Getenv reads the calling process's environment. HostServer, CurrentDaemon, and
+	// are kept. DaemonRoot is the Antigravity CLI root (~/.gemini/antigravity-cli) that the
+	// remote-control daemon serves; route 2 (daemon wake) is restricted to conversations under it.
+	// Getenv reads the calling process's environment. HostServer, CurrentDaemon, and
 	// ConversationBusy probe local Antigravity server/lock state. All are injected so tests can
 	// stand in an Antigravity shell or daemon without being one.
 	RuntimeDir       string
+	DaemonRoot       string
 	Getenv           func(string) string
 	HostServer       func() peer.ServerIdentity
 	CurrentDaemon    func() (peer.ServerIdentity, bool)
@@ -75,6 +78,7 @@ func Defaults() Env {
 	if home, err := os.UserHomeDir(); err == nil {
 		e.ProjectsDir = filepath.Join(home, ".claude", "projects")
 		e.SessionsDir = filepath.Join(home, ".claude", "sessions")
+		e.DaemonRoot = filepath.Join(home, ".gemini", "antigravity-cli")
 	}
 	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
 	e.AnnotationsDirs = peer.DefaultAntigravityAnnotationsDirs()

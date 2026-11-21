@@ -46,14 +46,15 @@ telepathy link                   from an Antigravity shell: make this conversati
   conversation reads it at its next turn and nothing wakes it, so do not wait on a reply.
   `claude-socket` means it reached the session's inbox, where a session that bypasses permission
   prompts holds it for its human. No route says the message was read.
-- An Antigravity server becomes reachable live when any conversation on it runs `telepathy link`
+- An Antigravity server becomes reachable live when a conversation on it runs `telepathy link`
   (or any other verb) from its own shell; the server's token reaches nothing else. Records are
-  keyed by server (PID, start time, port, token), so linking one conversation on a restarted daemon
-  restores live delivery for every idle conversation on that daemon (provided `presence/<id>.lock`
-  is not held by another live process). When Gray Area's hook asks you to run `telepathy link`, run
-  it: that one command is what lets other agents wake conversations on this server. When no
-  conversation has linked since a restart, `send` queues to the mailbox and reports that opening
-  any Antigravity conversation restores the live route.
+  keyed by server (PID and start time, or address) and store port and token, so on Linux linking
+  one daemon-hosted conversation restores live delivery for every idle CLI conversation under
+  `~/.gemini/antigravity-cli` (a standalone interactive `agy` does not restore the daemon route,
+  and every live route refuses to send if `presence/<id>.lock` is held or another process has
+  `conversations/<id>.db` open). When Gray Area's hook asks you to run `telepathy link`, run it:
+  that one command is what lets other agents wake conversations on this server. When no
+  daemon-hosted conversation has linked since a restart, `send` queues to the mailbox and says so.
 
 `search` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps

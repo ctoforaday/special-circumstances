@@ -2,4 +2,9 @@
 
 package peer
 
-func otherAgyDBHolder(string, string, int) (int, bool) { return 0, false }
+// otherDBHolder fails closed on non-Linux Unix platforms where /proc/<pid>/fd is unavailable.
+func otherDBHolder(_, conversation string, _ int) (bool, string) {
+	return true, "cannot verify whether another process holds conversations/" + conversation + ".db open on this platform"
+}
+
+func flockHeldOnlyBy(string, int) bool { return false }

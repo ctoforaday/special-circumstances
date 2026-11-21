@@ -32,7 +32,8 @@ type sendWorld struct {
 
 func newSendWorld(t *testing.T) *sendWorld {
 	t.Helper()
-	w := &sendWorld{harness: newColdHarness(t), brain: t.TempDir(), runtime: t.TempDir(), callerEnv: map[string]string{}}
+	agyRoot := t.TempDir()
+	w := &sendWorld{harness: newColdHarness(t), brain: filepath.Join(agyRoot, "brain"), runtime: t.TempDir(), callerEnv: map[string]string{}}
 	dir, err := os.MkdirTemp("", "tp")
 	if err != nil {
 		t.Fatal(err)
@@ -50,6 +51,7 @@ func newSendWorld(t *testing.T) *sendWorld {
 		}
 	}
 	w.env.BrainDirs = []string{w.brain}
+	w.env.DaemonRoot = agyRoot
 	w.env.RuntimeDir = w.runtime
 	w.env.Getenv = func(k string) string { return w.callerEnv[k] }
 	// Isolate unit tests from the host machine's running daemon and /proc.
@@ -139,8 +141,11 @@ func TestSendToAnUnrecordedConversationQueuesAndSaysSo(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 	if !strings.Contains(out, "QUEUED for antigravity conversation "+agyPeer) ||
-		!strings.Contains(out, "opening any Antigravity conversation restores the live route") {
+		!strings.Contains(out, "no daemon server is recorded since the last restart") {
 		t.Errorf("stdout = %q", out)
+	}
+	if runtime.GOOS == "linux" && !strings.Contains(out, "opening a daemon-hosted Antigravity conversation restores the live route") {
+		t.Errorf("stdout = %q, want Linux daemon-hosted restore hint", out)
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
@@ -193,11 +198,98 @@ func TestAStaleServerRecordFallsBackToTheMailboxAndNamesWhy(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "answered HTTP 403") ||
-		!strings.Contains(out, "opening any Antigravity conversation restores the live route") {
+		!strings.Contains(out, "no current daemon server is recorded") {
 		t.Errorf("stdout = %q", out)
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
+	}
+}
+
+func TestSendWhenOwnRecordIsDaemonDoesNotMislabelAsNoDaemonRecorded(t *testing.T) {
+	w := newSendWorld(t)
+	addr, _ := w.languageServer(t)
+	daemon := peer.ServerIdentity{PID: 3003, StartTime: 33333, Daemon: true}
+	w.env.HostServer = func() peer.ServerIdentity { return daemon }
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return daemon, true }
+	stale := func(k string) string {
+		return map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "bad-tok"}[k]
+	}
+	if _, _, err := peer.RegisterWith(w.runtime, stale, w.env.HostServer, frozen); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, code := w.run(t, "send", agyPeer, "hello")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "answered HTTP 403") {
+		t.Errorf("stdout = %q", out)
+	}
+	if strings.Contains(out, "no current daemon server is recorded") {
+		t.Errorf("stdout mislabelled a failed send to the current daemon as no daemon recorded: %q", out)
+	}
+}
+
+func TestSendRefusesOwnRouteWhenConversationIsBusy(t *testing.T) {
+	w := newSendWorld(t)
+	addr, got := w.languageServer(t)
+	host := peer.ServerIdentity{PID: 4004, StartTime: 44444, Daemon: true}
+	w.env.HostServer = func() peer.ServerIdentity { return host }
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return host, true }
+	w.env.ConversationBusy = func(_, conv string, _ int) (bool, string) {
+		return true, "process pid 9999 already has conversations/" + conv + ".db open"
+	}
+	w.callerEnv = map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "tok"}
+	if _, errOut, code := w.run(t, "link"); code != 0 {
+		t.Fatalf("link: exit %d, stderr %q", code, errOut)
+	}
+	w.callerEnv = map[string]string{"CLAUDE_CODE_SESSION_ID": "caller-1"}
+	out, errOut, code := w.run(t, "send", agyPeer, "do not double-write route 1")
+	if code != 0 {
+		t.Fatalf("send: exit %d, stderr %q", code, errOut)
+	}
+	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "second writer") {
+		t.Errorf("stdout = %q", out)
+	}
+	select {
+	case m := <-got:
+		t.Errorf("route 1 delivered live despite ConversationBusy: %v", m)
+	default:
+	}
+}
+
+func TestSendRefusesDaemonRouteForNonCLIRoot(t *testing.T) {
+	w := newSendWorld(t)
+	daemonAddr, got := w.languageServer(t)
+	// Put agyPeer under a separate IDE root, NOT w.env.DaemonRoot.
+	ideRoot := t.TempDir()
+	ideConv := "1de00000-0000-4000-8000-000000000099"
+	if err := os.MkdirAll(filepath.Join(ideRoot, "brain", ideConv, ".system_generated"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	w.env.BrainDirs = append(w.env.BrainDirs, filepath.Join(ideRoot, "brain"))
+
+	postRestart := peer.ServerIdentity{PID: 2002, StartTime: 22222, Daemon: true}
+	w.env.HostServer = func() peer.ServerIdentity { return postRestart }
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return postRestart, true }
+	w.callerEnv = map[string]string{peer.EnvConversation: agySelf, peer.EnvAddress: daemonAddr, peer.EnvToken: "tok"}
+	if _, errOut, code := w.run(t, "link"); code != 0 {
+		t.Fatalf("link: exit %d, stderr %q", code, errOut)
+	}
+
+	w.callerEnv = map[string]string{"CLAUDE_CODE_SESSION_ID": "caller-1"}
+	out, errOut, code := w.run(t, "send", ideConv, "hello ide")
+	if code != 0 {
+		t.Fatalf("send: exit %d, stderr %q", code, errOut)
+	}
+	if !strings.Contains(out, "QUEUED for antigravity conversation "+ideConv) ||
+		!strings.Contains(out, "is not the CLI daemon root") {
+		t.Errorf("stdout = %q", out)
+	}
+	select {
+	case m := <-got:
+		t.Errorf("daemon route sent to non-CLI root conversation: %v", m)
+	default:
 	}
 }
 

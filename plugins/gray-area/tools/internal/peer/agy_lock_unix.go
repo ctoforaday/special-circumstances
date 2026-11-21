@@ -13,29 +13,59 @@ import (
 
 // ConversationBusy reports whether another live process holds conversation's presence lock
 // (<agyRoot>/presence/<conversation>.lock) or, on Linux, has <agyRoot>/conversations/<conversation>.db
-// open under a PID other than excludePID. Sending through the daemon when true would create a
-// second writer.
+// open under any PID other than excludePID.
+//
+// Fails CLOSED: any unexpected error opening or probing the lock file, reading /proc, or
+// inspecting a same-UID process's file descriptors is treated as busy so telepathy send queues to
+// the mailbox rather than risking a second writer.
+//
+// Check-then-send race: a second process can still open the conversation in the window between
+// this check and the HTTP SendAgentMessage call. This guard prevents sending into an already-open
+// second writer; eliminating the race completely requires a server-side lock inside Antigravity.
 func ConversationBusy(agyRoot, conversation string, excludePID int) (bool, string) {
 	if agyRoot == "" || !safeName(conversation) {
-		return false, ""
+		return true, "conversation path cannot be validated for second-writer safety"
 	}
 	lockPath := filepath.Join(agyRoot, "presence", conversation+".lock")
-	if f, err := os.Open(lockPath); err == nil {
-		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-		if err != nil {
+	f, err := os.Open(lockPath)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return true, fmt.Sprintf("cannot inspect presence/%s.lock: %v", conversation, err)
+		}
+	} else {
+		flockErr := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if flockErr != nil {
 			f.Close()
-			if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
-				return true, fmt.Sprintf("presence/%s.lock is held by another live process", conversation)
+			if errors.Is(flockErr, syscall.EWOULDBLOCK) || errors.Is(flockErr, syscall.EAGAIN) {
+				if !flockHeldOnlyBy(lockPath, excludePID) {
+					return true, fmt.Sprintf("presence/%s.lock is held by a live process", conversation)
+				}
+			} else {
+				return true, fmt.Sprintf("cannot probe presence/%s.lock: %v", conversation, flockErr)
 			}
 		} else {
 			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 			f.Close()
 		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		// Unreadable lock file: leave to DB-holder check rather than falsely blocking.
 	}
-	if pid, held := otherAgyDBHolder(agyRoot, conversation, excludePID); held {
-		return true, fmt.Sprintf("another Antigravity process (pid %d) already has conversations/%s.db open", pid, conversation)
+	if busy, why := otherDBHolder(agyRoot, conversation, excludePID); busy {
+		return true, why
 	}
 	return false, ""
+}
+
+// lockRegistry serialises concurrent RegisterWith read-modify-write updates in dir.
+func lockRegistry(dir string) (func(), error) {
+	f, err := os.OpenFile(filepath.Join(dir, ".register.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}, nil
 }

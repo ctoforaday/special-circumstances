@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -50,13 +51,14 @@ WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
                        reason it was not delivered live is printed with it.
 
 An Antigravity conversation is reached live through its own server record when that
-server is up, or otherwise through the current daemon's server record — written by any
-conversation that linked since the daemon started — provided presence/<id>.lock is not
-held by another live process (which would create a second writer). The server's token
-reaches nothing but an agent's shell commands, so when no conversation has linked
-since a restart, send queues to the mailbox and says that opening any Antigravity
-conversation restores the live route. telepathy link --help says where the record
-lives.
+server is up, or on Linux through the current remote-control daemon's server record —
+written by any daemon-hosted conversation that linked since the daemon started — for
+conversations under the CLI daemon root (~/.gemini/antigravity-cli). Every live route
+checks that presence/<id>.lock is not held and no other process has conversations/<id>.db
+open (which would create a second writer). The server's token reaches nothing but an
+agent's shell commands, so when no daemon-hosted conversation has linked since a
+restart (a standalone interactive agy does not restore the daemon route), send queues
+to the mailbox and says so. telepathy link --help says where the record lives.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, and the Claude Code socket does not report a hold or a drop. A
@@ -193,6 +195,21 @@ func (e *Env) conversationBusy(agyRoot, conversation string, excludePID int) (bo
 	return peer.ConversationBusy(agyRoot, conversation, excludePID)
 }
 
+func sameCanonicalPath(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	ca, errA := filepath.EvalSymlinks(a)
+	if errA != nil {
+		ca = filepath.Clean(a)
+	}
+	cb, errB := filepath.EvalSymlinks(b)
+	if errB != nil {
+		cb = filepath.Clean(b)
+	}
+	return ca == cb
+}
+
 func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 	if c.harness == "claude" {
 		return peer.SendClaude(c.socket, body)
@@ -204,44 +221,68 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 		return d, err
 	}
 
+	agyRoot := filepath.Dir(filepath.Dir(c.dir))
 	client := &http.Client{Timeout: 15 * time.Second}
 	own, ownErr := peer.LookupConversationServer(env.RuntimeDir, c.id)
 	var ownWhy string
+	var ownBusyWhy string
 	if ownErr == nil && own != nil {
-		d, err := peer.SendAgyServer(client, *own, m)
-		if err == nil {
-			return d, nil
+		if busy, busyWhy := env.conversationBusy(agyRoot, c.id, own.PID); busy {
+			ownBusyWhy = busyWhy + " — sending live would create a second writer"
+		} else {
+			d, err := peer.SendAgyServer(client, *own, m)
+			if err == nil {
+				return d, nil
+			}
+			ownWhy = err.Error()
 		}
-		ownWhy = err.Error()
 	}
 
 	var why string
-	if daemonID, ok := env.currentDaemon(); ok {
-		daemonSrv, dErr := peer.LookupDaemonServer(env.RuntimeDir, daemonID)
-		if dErr != nil {
-			why = dErr.Error()
-		} else if daemonSrv != nil && (own == nil || daemonSrv.Key != own.Key) {
-			agyRoot := filepath.Dir(filepath.Dir(c.dir))
-			if busy, busyWhy := env.conversationBusy(agyRoot, c.id, daemonSrv.PID); busy {
-				why = busyWhy + " — sending through the daemon would create a second writer"
-			} else {
-				d, err := peer.SendAgyServer(client, *daemonSrv, m)
-				if err == nil {
-					return d, nil
+	var triedDaemon bool
+	if ownBusyWhy != "" {
+		why = ownBusyWhy
+	} else if daemonID, ok := env.currentDaemon(); ok {
+		daemonKey := peer.ServerKey(daemonID.PID, daemonID.StartTime, "")
+		if own != nil && own.Key == daemonKey {
+			// Route 1 already attempted the current daemon's record.
+			triedDaemon = true
+		} else if !sameCanonicalPath(agyRoot, env.DaemonRoot) {
+			why = fmt.Sprintf("conversation root %s is not the CLI daemon root (%s)", agyRoot, env.DaemonRoot)
+		} else {
+			daemonSrv, dErr := peer.LookupDaemonServer(env.RuntimeDir, daemonID)
+			if dErr != nil {
+				why = dErr.Error()
+			} else if daemonSrv != nil {
+				triedDaemon = true
+				if busy, busyWhy := env.conversationBusy(agyRoot, c.id, daemonSrv.PID); busy {
+					why = busyWhy + " — sending through the daemon would create a second writer"
+				} else {
+					d, err := peer.SendAgyServer(client, *daemonSrv, m)
+					if err == nil {
+						return d, nil
+					}
+					why = err.Error()
 				}
-				why = err.Error()
 			}
 		}
+	}
+
+	restoreHint := "opening a daemon-hosted Antigravity conversation restores the live route (a standalone interactive agy does not)"
+	if runtime.GOOS != "linux" {
+		restoreHint = "cross-conversation daemon wake is Linux-only; run telepathy link from the conversation's own shell"
 	}
 
 	switch {
 	case why != "":
 	case ownErr != nil:
 		why = ownErr.Error()
+	case ownWhy != "" && triedDaemon:
+		why = ownWhy
 	case ownWhy != "":
-		why = ownWhy + "; no current daemon server is recorded — opening any Antigravity conversation restores the live route"
+		why = ownWhy + "; no current daemon server is recorded — " + restoreHint
 	default:
-		why = "no Antigravity server is recorded since the last restart — opening any Antigravity conversation restores the live route"
+		why = "no daemon server is recorded since the last restart — " + restoreHint
 	}
 	d, err := peer.EnqueueAgy(c.dir, m, env.Now())
 	d.NotWoken = why
