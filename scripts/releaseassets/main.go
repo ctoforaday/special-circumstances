@@ -111,6 +111,13 @@ func Scope(root, event, ref string, nativeSet NativeSet, targets []Target, stdou
 	if err != nil {
 		return err
 	}
+	helpers, paused, err := Unpaused(helpers, os.Getenv(EnvPaused))
+	if err != nil {
+		return err
+	}
+	if len(paused) > 0 {
+		fmt.Fprintf(stdout, "paused (%s): %s builds no leg\n", EnvPaused, strings.Join(paused, " "))
+	}
 	var changed []string
 	if event == "pull_request" {
 		if changed, err = PullRequestChanges(root); err != nil {

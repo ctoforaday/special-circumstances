@@ -140,6 +140,31 @@ func FindHelpers(nativeRoot string) ([]string, error) {
 	return helpers, nil
 }
 
+// EnvPaused names the helpers CI builds no leg for, space-separated. hooks.yml sets it at the
+// workflow level, so native-scope drops their legs and nativehelper.Require skips their tests in
+// every job that runs them. A release still demands every helper (dist reads FindHelpers), so a
+// tag refuses while one is paused.
+const EnvPaused = "NATIVE_HELPERS_PAUSED"
+
+// Unpaused is helpers without the ones the space-separated list names, and the names it dropped.
+// A name that is no helper is an error: a paused list that pauses nothing is a typo.
+func Unpaused(helpers []string, list string) (kept, paused []string, err error) {
+	names := strings.Fields(list)
+	for _, n := range names {
+		if !slices.Contains(helpers, n) {
+			return nil, nil, fmt.Errorf("%s names %q, and native/ holds no such helper (helpers: %v)", EnvPaused, n, helpers)
+		}
+	}
+	for _, h := range helpers {
+		if slices.Contains(names, h) {
+			paused = append(paused, h)
+		} else {
+			kept = append(kept, h)
+		}
+	}
+	return kept, paused, nil
+}
+
 // BuilderFor returns the runner that builds helper for target.
 func BuilderFor(helper string, target Target) string {
 	if helper == "feov-ocr" {
