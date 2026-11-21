@@ -23,23 +23,37 @@ func agyShell(conv, addr, token string) func(string) string {
 	}
 }
 
-func TestRegisterRecordsTheServerPrivately(t *testing.T) {
+func hostID(pid int, start int64, daemon bool) func() ServerIdentity {
+	return func() ServerIdentity {
+		return ServerIdentity{PID: pid, StartTime: start, Daemon: daemon}
+	}
+}
+
+func TestRegisterRecordsTheServerPrivatelyKeyedByServer(t *testing.T) {
 	rt := t.TempDir()
-	_, got, err := Register(rt, agyShell("conv-1", "localhost:1234", "tok"), at)
+	s, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1234", "tok"), hostID(4242, 99999, true), at)
 	if err != nil || got != Recorded {
-		t.Fatalf("Register = %v, %v; want Recorded", got, err)
+		t.Fatalf("RegisterWith = %v, %v; want Recorded", got, err)
 	}
-	s, err := LookupServer(rt, "conv-1")
-	if err != nil || s == nil {
-		t.Fatalf("LookupServer = %v, %v", s, err)
+	wantKey := "pid-4242-99999"
+	if s.Key != wantKey || s.PID != 4242 || s.StartTime != 99999 || !s.Daemon || s.Address != "localhost:1234" || s.Token != "tok" || s.RegisteredAt != at.Unix() {
+		t.Fatalf("returned record = %+v", s)
 	}
-	if *s != (Server{Conversation: "conv-1", Address: "localhost:1234", Token: "tok", RegisteredAt: at.Unix()}) {
-		t.Errorf("record = %+v", *s)
+	byConv, err := LookupConversationServer(rt, "conv-1")
+	if err != nil || byConv == nil || byConv.Key != wantKey {
+		t.Fatalf("LookupConversationServer = %+v, %v", byConv, err)
+	}
+	byDaemon, err := LookupDaemonServer(rt, ServerIdentity{PID: 4242, StartTime: 99999, Daemon: true})
+	if err != nil || byDaemon == nil || byDaemon.Address != "localhost:1234" {
+		t.Fatalf("LookupDaemonServer = %+v, %v", byDaemon, err)
+	}
+	if _, err := os.Stat(filepath.Join(RegistryDir(rt), "conv-1.json")); !os.IsNotExist(err) {
+		t.Errorf("legacy conversation-keyed file exists; records must be keyed by server only")
 	}
 	if runtime.GOOS == "windows" {
 		return // no Unix permission bits to assert
 	}
-	for path, want := range map[string]os.FileMode{RegistryDir(rt): 0o700, filepath.Join(RegistryDir(rt), "conv-1.json"): 0o600} {
+	for path, want := range map[string]os.FileMode{RegistryDir(rt): 0o700, filepath.Join(RegistryDir(rt), wantKey+".json"): 0o600} {
 		st, err := os.Stat(path)
 		if err != nil {
 			t.Fatal(err)
@@ -51,23 +65,34 @@ func TestRegisterRecordsTheServerPrivately(t *testing.T) {
 }
 
 // ONCE PER SERVER LAUNCH. Every telepathy verb run from an Antigravity shell calls Register, so a
-// record that already names this server must not be rewritten; a restarted server, which has a new
-// token, must replace it.
-func TestRegisterWritesOncePerServerLaunch(t *testing.T) {
+// record that already names this server and conversation must not be rewritten; a second
+// conversation on the same server shares the same server record; a restarted server writes a new
+// server record.
+func TestRegisterWritesOncePerServerLaunchAndSharesAcrossConversations(t *testing.T) {
 	rt := t.TempDir()
-	if _, got, err := Register(rt, agyShell("conv-1", "localhost:1", "tok-a"), at); got != Recorded || err != nil {
-		t.Fatalf("first Register = %v, %v; want Recorded", got, err)
+	h1 := hostID(100, 5000, true)
+	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok-a"), h1, at); got != Recorded || err != nil {
+		t.Fatalf("first RegisterWith = %v, %v; want Recorded", got, err)
 	}
-	if _, got, err := Register(rt, agyShell("conv-1", "localhost:1", "tok-a"), at.Add(time.Hour)); got != AlreadyLinked || err != nil {
-		t.Errorf("same server again: Register = %v, %v; want AlreadyLinked", got, err)
+	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok-a"), h1, at.Add(time.Hour)); got != AlreadyLinked || err != nil {
+		t.Errorf("same server and conv again: RegisterWith = %v, %v; want AlreadyLinked", got, err)
 	}
-	if s, _ := LookupServer(rt, "conv-1"); s == nil || s.RegisteredAt != at.Unix() {
+	if s, _ := LookupConversationServer(rt, "conv-1"); s == nil || s.RegisteredAt != at.Unix() {
 		t.Errorf("record = %+v; the same server's record was rewritten", s)
 	}
-	if _, got, err := Register(rt, agyShell("conv-1", "localhost:2", "tok-b"), at.Add(2*time.Hour)); got != Recorded || err != nil {
-		t.Errorf("restarted server: Register = %v, %v; want Recorded", got, err)
+	// Second conversation on the same server joins the same record without bumping RegisteredAt.
+	if _, got, err := RegisterWith(rt, agyShell("conv-2", "localhost:1", "tok-a"), h1, at.Add(time.Hour)); got != Recorded || err != nil {
+		t.Errorf("second conv on same server: RegisterWith = %v, %v; want Recorded", got, err)
 	}
-	if s, _ := LookupServer(rt, "conv-1"); s == nil || s.Token != "tok-b" || s.Address != "localhost:2" {
+	if servers, _ := ListServers(rt); len(servers) != 1 || len(servers[0].Conversations) != 2 {
+		t.Errorf("servers = %+v; want 1 shared server record with 2 conversations", servers)
+	}
+	// Restarted server (new PID/start time): creates a new record; LookupConversationServer returns the newest.
+	h2 := hostID(200, 6000, true)
+	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:2", "tok-b"), h2, at.Add(2*time.Hour)); got != Recorded || err != nil {
+		t.Errorf("restarted server: RegisterWith = %v, %v; want Recorded", got, err)
+	}
+	if s, _ := LookupConversationServer(rt, "conv-1"); s == nil || s.Token != "tok-b" || s.Address != "localhost:2" || s.PID != 200 {
 		t.Errorf("record = %+v; want the restarted server", s)
 	}
 }
@@ -80,12 +105,12 @@ func TestRegisterOutsideAnAntigravityShellRecordsNothing(t *testing.T) {
 		"no address":      agyShell("conv-1", "", "tok"),
 		"no conversation": agyShell("", "localhost:1", "tok"),
 	} {
-		if _, got, err := Register(rt, env, at); got != NotAnAntigravityShell || err != nil {
-			t.Errorf("%s: Register = %v, %v; want NotAnAntigravityShell and no error", name, got, err)
+		if _, got, err := RegisterWith(rt, env, hostID(10, 20, false), at); got != NotAnAntigravityShell || err != nil {
+			t.Errorf("%s: RegisterWith = %v, %v; want NotAnAntigravityShell and no error", name, got, err)
 		}
 	}
-	if _, got, err := Register("", agyShell("conv-1", "localhost:1", "tok"), at); got != NoRuntimeDir || err != nil {
-		t.Errorf("no runtime dir: Register = %v, %v; want NoRuntimeDir", got, err)
+	if _, got, err := RegisterWith("", agyShell("conv-1", "localhost:1", "tok"), hostID(10, 20, false), at); got != NoRuntimeDir || err != nil {
+		t.Errorf("no runtime dir: RegisterWith = %v, %v; want NoRuntimeDir", got, err)
 	}
 	if _, err := os.Stat(RegistryDir(rt)); !os.IsNotExist(err) {
 		t.Errorf("a registry directory was created with nothing to put in it")
@@ -95,18 +120,21 @@ func TestRegisterOutsideAnAntigravityShellRecordsNothing(t *testing.T) {
 func TestRegisterRefusesAnIdThatIsAPath(t *testing.T) {
 	rt := t.TempDir()
 	for _, id := range []string{"../escape", "a/b", "..", `a\b`} {
-		if _, got, err := Register(rt, agyShell(id, "localhost:1", "tok"), at); got == Recorded || err == nil {
-			t.Errorf("Register(%q) = %v, %v; want a refusal", id, got, err)
+		if _, got, err := RegisterWith(rt, agyShell(id, "localhost:1", "tok"), hostID(10, 20, false), at); got == Recorded || err == nil {
+			t.Errorf("RegisterWith(%q) = %v, %v; want a refusal", id, got, err)
 		}
 	}
 }
 
 func TestLookupOfAnUnrecordedConversationIsNil(t *testing.T) {
-	if s, err := LookupServer(t.TempDir(), "never"); s != nil || err != nil {
-		t.Errorf("LookupServer = %v, %v; want nil, nil", s, err)
+	if s, err := LookupConversationServer(t.TempDir(), "never"); s != nil || err != nil {
+		t.Errorf("LookupConversationServer = %v, %v; want nil, nil", s, err)
 	}
-	if s, err := LookupServer("", "never"); s != nil || err != nil {
-		t.Errorf("LookupServer with no runtime dir = %v, %v; want nil, nil", s, err)
+	if s, err := LookupConversationServer("", "never"); s != nil || err != nil {
+		t.Errorf("LookupConversationServer with no runtime dir = %v, %v; want nil, nil", s, err)
+	}
+	if s, err := LookupDaemonServer(t.TempDir(), ServerIdentity{PID: 1, StartTime: 2}); s != nil || err != nil {
+		t.Errorf("LookupDaemonServer = %v, %v; want nil, nil", s, err)
 	}
 }
 

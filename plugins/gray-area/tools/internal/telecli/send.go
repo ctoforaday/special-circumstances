@@ -49,10 +49,14 @@ WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
                        read at the conversation's next turn, and nothing wakes it. The
                        reason it was not delivered live is printed with it.
 
-An Antigravity conversation is reachable live only after it has run telepathy link
-(or any other verb) from its own shell since its server last started: the server's
-token reaches nothing but an agent's shell commands, so that is the one moment it
-can be recorded. telepathy link --help says where the record lives.
+An Antigravity conversation is reached live through its own server record when that
+server is up, or otherwise through the current daemon's server record — written by any
+conversation that linked since the daemon started — provided presence/<id>.lock is not
+held by another live process (which would create a second writer). The server's token
+reaches nothing but an agent's shell commands, so when no conversation has linked
+since a restart, send queues to the mailbox and says that opening any Antigravity
+conversation restores the live route. telepathy link --help says where the record
+lives.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, and the Claude Code socket does not report a hold or a drop. A
@@ -168,26 +172,76 @@ func resolvePeer(env *Env, prefix string) (candidate, error) {
 	return candidate{}, usagef("%q names %d sessions — give more of the id:\n  %s", prefix, len(found), strings.Join(names, "\n  "))
 }
 
+func (e *Env) hostServer() func() peer.ServerIdentity {
+	if e.HostServer != nil {
+		return e.HostServer
+	}
+	return peer.HostServer
+}
+
+func (e *Env) currentDaemon() (peer.ServerIdentity, bool) {
+	if e.CurrentDaemon != nil {
+		return e.CurrentDaemon()
+	}
+	return peer.CurrentDaemon()
+}
+
+func (e *Env) conversationBusy(agyRoot, conversation string, excludePID int) (bool, string) {
+	if e.ConversationBusy != nil {
+		return e.ConversationBusy(agyRoot, conversation, excludePID)
+	}
+	return peer.ConversationBusy(agyRoot, conversation, excludePID)
+}
+
 func deliver(env *Env, c candidate, body, title string) (peer.Delivery, error) {
 	if c.harness == "claude" {
 		return peer.SendClaude(c.socket, body)
 	}
 	m := peer.AgyMessage{Recipient: c.id, Sender: senderID(env), Title: title, Content: body}
-	srv, err := peer.LookupServer(env.RuntimeDir, c.id)
-	var why string
-	switch {
-	case err != nil:
-		why = err.Error()
-	case env.RuntimeDir == "":
-		why = "no runtime directory ($XDG_RUNTIME_DIR is unset), so no server is ever recorded"
-	case srv == nil:
-		why = "the conversation has not run telepathy since its server started, so its server is not recorded"
-	default:
-		d, err := peer.SendAgyServer(&http.Client{Timeout: 15 * time.Second}, *srv, m)
+	if env.RuntimeDir == "" {
+		d, err := peer.EnqueueAgy(c.dir, m, env.Now())
+		d.NotWoken = "no runtime directory ($XDG_RUNTIME_DIR is unset), so no server is ever recorded"
+		return d, err
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	own, ownErr := peer.LookupConversationServer(env.RuntimeDir, c.id)
+	var ownWhy string
+	if ownErr == nil && own != nil {
+		d, err := peer.SendAgyServer(client, *own, m)
 		if err == nil {
 			return d, nil
 		}
-		why = err.Error()
+		ownWhy = err.Error()
+	}
+
+	var why string
+	if daemonID, ok := env.currentDaemon(); ok {
+		daemonSrv, dErr := peer.LookupDaemonServer(env.RuntimeDir, daemonID)
+		if dErr != nil {
+			why = dErr.Error()
+		} else if daemonSrv != nil && (own == nil || daemonSrv.Key != own.Key) {
+			agyRoot := filepath.Dir(filepath.Dir(c.dir))
+			if busy, busyWhy := env.conversationBusy(agyRoot, c.id, daemonSrv.PID); busy {
+				why = busyWhy + " — sending through the daemon would create a second writer"
+			} else {
+				d, err := peer.SendAgyServer(client, *daemonSrv, m)
+				if err == nil {
+					return d, nil
+				}
+				why = err.Error()
+			}
+		}
+	}
+
+	switch {
+	case why != "":
+	case ownErr != nil:
+		why = ownErr.Error()
+	case ownWhy != "":
+		why = ownWhy + "; no current daemon server is recorded — opening any Antigravity conversation restores the live route"
+	default:
+		why = "no Antigravity server is recorded since the last restart — opening any Antigravity conversation restores the live route"
 	}
 	d, err := peer.EnqueueAgy(c.dir, m, env.Now())
 	d.NotWoken = why

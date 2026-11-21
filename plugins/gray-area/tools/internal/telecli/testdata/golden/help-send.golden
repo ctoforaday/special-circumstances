@@ -18,10 +18,14 @@ WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
                        read at the conversation's next turn, and nothing wakes it. The
                        reason it was not delivered live is printed with it.
 
-An Antigravity conversation is reachable live only after it has run telepathy link
-(or any other verb) from its own shell since its server last started: the server's
-token reaches nothing but an agent's shell commands, so that is the one moment it
-can be recorded. telepathy link --help says where the record lives.
+An Antigravity conversation is reached live through its own server record when that
+server is up, or otherwise through the current daemon's server record — written by any
+conversation that linked since the daemon started — provided presence/<id>.lock is not
+held by another live process (which would create a second writer). The server's token
+reaches nothing but an agent's shell commands, so when no conversation has linked
+since a restart, send queues to the mailbox and says that opening any Antigravity
+conversation restores the live route. telepathy link --help says where the record
+lives.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, and the Claude Code socket does not report a hold or a drop. A

@@ -59,10 +59,13 @@ telepathy link                from an Antigravity shell: make this conversation 
 ```
 
 `send` reaches a Claude Code session through its inbox socket, and an Antigravity conversation
-through the language server hosting it — which wakes it — or, failing that, its on-disk mailbox,
-read at its next turn. The server's token exists only in an Antigravity agent's shell, so
-`telepathy link` (and any other verb) run from one records that conversation's server address and token in
-`$XDG_RUNTIME_DIR/gray-area/antigravity-servers` (0700, each record 0600, gone at logout).
+through its own live language server or the current daemon's server (when `presence/<id>.lock` is
+not held by another live process) — which wakes it — or, failing that, its on-disk mailbox, read at
+its next turn. The server's token exists only in an Antigravity agent's shell, so `telepathy link`
+(and any other verb) run from one records that server's PID, start time, address, and token keyed by
+server in `$XDG_RUNTIME_DIR/gray-area/antigravity-servers` (0700, each record 0600, gone at logout).
+Linking any one conversation on a restarted daemon restores live wake for every idle conversation on
+that daemon.
 
 Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
 `--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own

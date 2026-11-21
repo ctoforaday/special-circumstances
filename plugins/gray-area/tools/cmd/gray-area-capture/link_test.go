@@ -23,8 +23,21 @@ func agyPreInvocation(n int) []byte {
 func recordServer(t *testing.T, runtimeDir, addr string) {
 	t.Helper()
 	env := map[string]string{peer.EnvConversation: linkConv, peer.EnvAddress: addr, peer.EnvToken: "tok"}
-	if _, _, err := peer.Register(runtimeDir, func(k string) string { return env[k] }, time.Unix(0, 0)); err != nil {
+	if _, _, err := peer.RegisterWith(runtimeDir, func(k string) string { return env[k] }, func() peer.ServerIdentity { return peer.ServerIdentity{} }, time.Unix(0, 0)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLinkRequestSkipsWhenHostServerAlreadyLinkedByAnotherConversation(t *testing.T) {
+	rt := t.TempDir()
+	host := peer.ServerIdentity{PID: 7777, StartTime: 88888, Daemon: true}
+	otherEnv := map[string]string{peer.EnvConversation: "other-conv", peer.EnvAddress: "localhost:9999", peer.EnvToken: "tok"}
+	if _, _, err := peer.RegisterWith(rt, func(k string) string { return otherEnv[k] }, func() peer.ServerIdentity { return host }, time.Unix(0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
+	if got := linkRequestForHost(req, rt, "/bin/telepathy", host, func(string) bool { return true }); got != "" {
+		t.Errorf("another conv already linked this host server, yet linkRequest asked: %q", got)
 	}
 }
 

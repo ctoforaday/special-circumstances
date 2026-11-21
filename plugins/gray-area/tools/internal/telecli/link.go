@@ -19,33 +19,36 @@ Antigravity agent's own shell: the server's address and token reach nothing else
 not hooks, not MCP servers — so this is the one place they can be recorded.
 
 The record lives in $XDG_RUNTIME_DIR/gray-area/antigravity-servers (directory 0700,
-record 0600, gone at logout), keyed by conversation, because a server that does not
-host a conversation takes it over when sent a message for it. A link lasts until the
-server restarts; linking again with the same server writes nothing. Every other
-telepathy verb run from an Antigravity shell links as a side effect, and Gray Area's
-Antigravity hook asks for a link on the first step of any turn while there is none.
+record 0600, gone at logout), keyed by server (PID, start time, port, token). Because
+a restarted daemon loads any idle conversation from disk when sent a message for it,
+linking any one conversation on the daemon makes every idle conversation on that
+daemon wakeable by telepathy send. A link lasts until the server restarts; linking
+again with the same server writes nothing. Every other telepathy verb run from an
+Antigravity shell links as a side effect, and Gray Area's Antigravity hook asks for a
+link on the first step of any turn while its server has none.
 
 A Claude Code session needs no link: its inbox socket is advertised for it.
 
 WHAT IT CANNOT TELL YOU. That the server will still be there when a message is sent:
-a restart since the link makes telepathy send fall back to the mailbox, and it says
-so.`,
+a restart since the link makes telepathy send fall back to the mailbox until any
+Antigravity conversation links on the new server, and it says so.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			getenv := env.Getenv
 			if getenv == nil {
 				getenv = func(string) string { return "" }
 			}
-			s, got, err := peer.Register(env.RuntimeDir, getenv, env.Now())
+			s, got, err := peer.RegisterWith(env.RuntimeDir, getenv, env.hostServer(), env.Now())
 			if err != nil {
 				return err
 			}
+			conv := getenv(peer.EnvConversation)
 			out := cmd.OutOrStdout()
 			switch got {
 			case peer.Recorded:
-				fmt.Fprintf(out, "linked antigravity conversation %s to its language server at %s; telepathy send now wakes it\n", s.Conversation, s.Address)
+				fmt.Fprintf(out, "linked antigravity conversation %s to its language server at %s; telepathy send now wakes it\n", conv, s.Address)
 			case peer.AlreadyLinked:
-				fmt.Fprintf(out, "antigravity conversation %s is already linked to its language server at %s; nothing written\n", s.Conversation, s.Address)
+				fmt.Fprintf(out, "antigravity conversation %s is already linked to its language server at %s; nothing written\n", conv, s.Address)
 			case peer.NoRuntimeDir:
 				return errors.New("$XDG_RUNTIME_DIR is unset, so there is nowhere private to keep the link; telepathy send will queue to this conversation's mailbox instead")
 			default:
