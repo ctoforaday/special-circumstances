@@ -4,10 +4,10 @@ go 1.27.1
 
 require (
 	github.com/ctoforaday/special-circumstances/shared v0.0.0
+	github.com/gofrs/flock v0.13.1
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/viper v1.21.0
 	github.com/zricethezav/gitleaks/v8 v8.30.1
-	golang.org/x/sys v0.49.0
 )
 
 require (
@@ -62,13 +62,13 @@ require (
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/wasilibs/go-re2 v1.9.0 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
 
 replace github.com/ctoforaday/special-circumstances/shared => ../../../shared
-
