@@ -189,6 +189,10 @@ func main() {
 		fail("%s", p)
 	}
 
+	for _, p := range rawLockProblems(root) {
+		fail("%s", p)
+	}
+
 	if failed {
 		os.Exit(1)
 	}
