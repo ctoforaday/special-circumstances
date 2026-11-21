@@ -183,23 +183,28 @@ func TestASkillNameMustMatchItsDirectory(t *testing.T) {
 	}
 }
 
-// AN AGENT'S tools AND skills ARE SEQUENCES. Antigravity decodes both into []string and skips
-// the whole agent on a scalar, so `tools: Read, Write` loads in Claude Code and vanishes from
-// `agy agents` with nothing said.
+// AN AGENT'S tools AND skills ARE SEQUENCES, and every tool name must belong to the target
+// harness's tool registry (`agents/` -> Antigravity, `agents-claude/` -> Claude Code).
 func TestAnAgentToolsFieldMustBeAList(t *testing.T) {
-	const f = "plugins/p/agents/probe.md"
-	if p, _ := check(f, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\nskills: [a, b]\n---\n"); len(p) > 0 {
-		t.Errorf("YAML sequence tools and skills fields must pass: %v", p)
+	const agyF = "plugins/p/agents/probe.md"
+	const claudeF = "plugins/p/agents-claude/probe.md"
+	if p, _ := check(agyF, "---\nname: probe\ndescription: d\ntools: [read_file, write_file, run_command]\nskills: [a, b]\n---\n"); len(p) > 0 {
+		t.Errorf("valid Antigravity agent frontmatter must pass: %v", p)
 	}
-	for _, tc := range []struct{ block, want string }{
-		{"---\nname: probe\ndescription: d\ntools: Read, Write, Bash\n---\n", "`tools` must be a non-empty YAML sequence"},
-		{"---\nname: probe\ndescription: d\ntools: []\n---\n", "`tools` must be a non-empty YAML sequence"},
-		{"---\nname: probe\ndescription: d\ntools: [Read, \"\"]\n---\n", "every entry in `tools`"},
-		{"---\nname: probe\ndescription: d\nskills: a, b\n---\n", "`skills` must be a non-empty YAML sequence"},
+	if p, _ := check(claudeF, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\nskills: [a, b]\n---\n"); len(p) > 0 {
+		t.Errorf("valid Claude agent frontmatter must pass: %v", p)
+	}
+	for _, tc := range []struct{ file, block, want string }{
+		{agyF, "---\nname: probe\ndescription: d\ntools: read_file, write_file\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: []\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: [read_file, \"\"]\n---\n", "every entry in `tools`"},
+		{agyF, "---\nname: probe\ndescription: d\nskills: a, b\n---\n", "`skills` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\n---\n", "not in Antigravity's tool registry"},
+		{claudeF, "---\nname: probe\ndescription: d\ntools: [read_file, run_command]\n---\n", "not a known Claude Code tool"},
 	} {
-		p, _ := check(f, tc.block)
+		p, _ := check(tc.file, tc.block)
 		if got := fmt.Sprint(p); !strings.Contains(got, tc.want) {
-			t.Errorf("block %q: want a problem containing %q, got %v", tc.block, tc.want, p)
+			t.Errorf("%s block %q: want a problem containing %q, got %v", tc.file, tc.block, tc.want, p)
 		}
 	}
 	// Only agents are held to it: a skill's own SKILL.md is not an agent definition.

@@ -62,7 +62,7 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	// agentgen -check holds the written file to the source, and this holds this reader to both.
 	body := map[string]bool{}
 	for _, typ := range agentTypes {
-		p, err := repotree.Plugin("agents", typ+".md")
+		p, err := repotree.Plugin("agents-claude", typ+".md")
 		if err != nil {
 			t.Fatal(err)
 		}

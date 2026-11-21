@@ -280,6 +280,32 @@ func allAgents(plugins []stagedPlugin) []string {
 // detailsLine matches one row of `claude plugin details`' component inventory.
 var detailsLine = regexp.MustCompile(`^\s*(Skills|Agents) \((\d+)\)\s*(.*)$`)
 
+// claudeValidateAgents parses the agent names `claude plugin validate --strict` reports under
+// "Provides: ... • agents: <plugin>:<name>, ...". Claude Code's `plugin details` only counts the
+// default agents/ directory and prints Agents (0) when `.claude-plugin/plugin.json` declares an
+// explicit `"agents"` array (such as `./agents-claude/*.md`), whereas `plugin validate --strict`
+// resolves and lists every declared agent.
+func claudeValidateAgents(out, pluginName string) []string {
+	ansi := regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+	clean := ansi.ReplaceAllString(out, "")
+	clean = strings.ReplaceAll(clean, "\r", "")
+	prefix := pluginName + ":"
+	re := regexp.MustCompile(`agents:\s*([^\n]+)`)
+	var names []string
+	for _, m := range re.FindAllStringSubmatch(clean, -1) {
+		for _, item := range strings.Split(m[1], ",") {
+			item = strings.TrimSpace(item)
+			if strings.HasPrefix(item, prefix) {
+				if name := strings.TrimPrefix(item, prefix); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 // claudeInventory parses the skill and agent names `claude plugin details` reports.
 func claudeInventory(t *testing.T, out string) (skills, agents []string) {
 	t.Helper()
@@ -316,8 +342,10 @@ func TestClaudeLoadsMarketplaceAndAllFourPlugins(t *testing.T) {
 	home := tempHome(t)
 
 	run(t, home, claude, "plugin", "validate", "--strict", repo)
+	validatedAgents := map[string][]string{}
 	for _, p := range plugins {
-		run(t, home, claude, "plugin", "validate", "--strict", filepath.Join(repo, "plugins", p.name))
+		vout := run(t, home, claude, "plugin", "validate", "--strict", filepath.Join(repo, "plugins", p.name))
+		validatedAgents[p.name] = claudeValidateAgents(vout, p.name)
 	}
 
 	run(t, home, claude, "plugin", "marketplace", "add", repo)
@@ -353,14 +381,31 @@ func TestClaudeLoadsMarketplaceAndAllFourPlugins(t *testing.T) {
 			t.Errorf("%s was read from %q, not the staged checkout %q — the test measured a published release", id, l.ReadFromFolder, want)
 		}
 
-		skills, agents := claudeInventory(t, run(t, home, claude, "plugin", "details", id))
+		skills, _ := claudeInventory(t, run(t, home, claude, "plugin", "details", id))
 		if !sameSet(skills, p.skills) {
 			t.Errorf("%s: Claude loaded skills %v, disk has %v", p.name, skills, p.skills)
 		}
-		if !sameSet(agents, p.agents) {
-			t.Errorf("%s: Claude loaded agents %v, disk has %v", p.name, agents, p.agents)
+		if !sameSet(validatedAgents[p.name], p.agents) {
+			t.Errorf("%s: Claude validated agents %v, disk has %v", p.name, validatedAgents[p.name], p.agents)
 		}
 	}
+
+	t.Run("strict validate rejects broken agents entry", func(t *testing.T) {
+		broken := copyTree(t, repo)
+		manifest := filepath.Join(broken, "plugins", "prosthetic-conscience", ".claude-plugin", "plugin.json")
+		b, err := os.ReadFile(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutated := bytes.Replace(b, []byte("./agents-claude/probe.md"), []byte("./agents-claude/does-not-exist.md"), 1)
+		if bytes.Equal(b, mutated) {
+			t.Fatalf("%s has no ./agents-claude/probe.md entry to break", manifest)
+		}
+		if err := os.WriteFile(manifest, mutated, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runMustFail(t, home, claude, "plugin", "validate", "--strict", filepath.Join(broken, "plugins", "prosthetic-conscience"))
+	})
 }
 
 type agyFinding struct {
@@ -584,4 +629,132 @@ func installEach(t *testing.T, home, agy, root string, plugins []stagedPlugin) {
 	for _, p := range plugins {
 		run(t, home, agy, "plugin", "install", filepath.Join(root, "plugins", p.name))
 	}
+}
+
+// TestLiveBothCLIsInstantiateAgentsWithValidTools exercises real executor construction on both
+// `agy -p --agent` and `claude -p --plugin-dir --agent`. Static `agy plugin validate --strict` and
+// `agy agents` only check YAML shape and never resolve `tools:` against the live tool registry;
+// this test proves every distinct toolset across both plugins instantiates cleanly on both CLIs
+// and includes a negative control planting a Claude tool name in an Antigravity agent.
+func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live dual-CLI agent instantiation test without HOOKCORE_LIVE=1")
+	}
+	agy := harnessCLI(t, "agy")
+	claude := harnessCLI(t, "claude")
+	repo, plugins := stage(t)
+
+	realHome, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	agyToken := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
+	if _, err := os.Stat(agyToken); err != nil {
+		t.Skipf("no agy credentials at %s", agyToken)
+	}
+	seedAgyHome := func(t *testing.T) string {
+		t.Helper()
+		home := tempHome(t)
+		dstDir := filepath.Join(home, ".gemini", "antigravity-cli")
+		if err := os.MkdirAll(dstDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"antigravity-oauth-token", "antigravity_state.pbtxt"} {
+			src := filepath.Join(realHome, ".gemini", "antigravity-cli", name)
+			if b, err := os.ReadFile(src); err == nil {
+				if err := os.WriteFile(filepath.Join(dstDir, name), b, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		return home
+	}
+
+	t.Run("agy instantiates agents across all distinct toolsets", func(t *testing.T) {
+		home := seedAgyHome(t)
+		installEach(t, home, agy, repo, plugins)
+		for _, agent := range []string{"probe", "plan-auditor", "blue-lane"} {
+			out := run(t, home, agy, "-p", "Reply with the single word OK.", "--agent", agent, "--model", "gemini-3.8-flash-low", "--output-format", "text")
+			if strings.Contains(out, "not found in registry") {
+				t.Errorf("agy -p --agent %s reported missing tool:\n%s", agent, out)
+			}
+		}
+	})
+
+	t.Run("agy negative control rejects Claude tool name in agents/probe.md", func(t *testing.T) {
+		broken := copyTree(t, repo)
+		probe := filepath.Join(broken, "plugins", "prosthetic-conscience", "agents", "probe.md")
+		b, err := os.ReadFile(probe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutated := bytes.Replace(b, []byte("read_file"), []byte("Read"), 1)
+		if bytes.Equal(b, mutated) {
+			t.Fatalf("%s has no read_file to replace with Read", probe)
+		}
+		if err := os.WriteFile(probe, mutated, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		home := seedAgyHome(t)
+		installEach(t, home, agy, broken, plugins)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, agy, "-p", "Reply OK.", "--agent", "probe", "--model", "gemini-3.8-flash-low", "--output-format", "text")
+		cmd.Env = isolatedEnv(home)
+		cmd.Dir = home
+		out, err := cmd.CombinedOutput()
+		if err == nil || !strings.Contains(string(out), `tool "Read" not found in registry`) {
+			t.Fatalf("expected agy -p --agent probe with Read to fail with registry error, got err=%v out:\n%s", err, string(out))
+		}
+	})
+
+	t.Run("claude instantiates agents-claude with Claude built-in tools", func(t *testing.T) {
+		cases := []struct {
+			plugin, agent string
+			wantTools     []string
+		}{
+			{"prosthetic-conscience", "probe", []string{"Read", "Write", "Bash"}},
+			{"prosthetic-conscience", "plan-auditor", []string{"Read", "Bash", "WebSearch", "WebFetch"}},
+			{"frank-exchange-of-views", "blue-lane", []string{"Read", "Write", "Edit", "Bash"}},
+		}
+		for _, tc := range cases {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			cmd := exec.CommandContext(ctx, claude,
+				"-p", "Reply with the single word OK.",
+				"--plugin-dir", filepath.Join(repo, "plugins", tc.plugin),
+				"--agent", tc.plugin+":"+tc.agent,
+				"--model", "haiku",
+				"--output-format", "stream-json",
+				"--verbose",
+			)
+			cmd.Dir = t.TempDir()
+			out, err := cmd.CombinedOutput()
+			cancel()
+			if err != nil {
+				t.Fatalf("claude -p --agent %s:%s failed: %v\n%s", tc.plugin, tc.agent, err, string(out))
+			}
+			var initTools []string
+			for _, line := range strings.Split(string(out), "\n") {
+				if !strings.Contains(line, `"subtype":"init"`) {
+					continue
+				}
+				var ev struct {
+					Tools []string `json:"tools"`
+				}
+				if json.Unmarshal([]byte(line), &ev) == nil {
+					initTools = ev.Tools
+					break
+				}
+			}
+			have := map[string]bool{}
+			for _, tl := range initTools {
+				have[tl] = true
+			}
+			for _, want := range tc.wantTools {
+				if !have[want] {
+					t.Errorf("claude %s:%s init tools = %v, missing %q", tc.plugin, tc.agent, initTools, want)
+				}
+			}
+		}
+	})
 }
