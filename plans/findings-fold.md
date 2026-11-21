@@ -2706,24 +2706,24 @@ Re-audit before B2a.
 
 The plan is written to each recommendation (a); each is reversible plan wording until ruled.
 
-- **F-RG — a regrade proposal under "the winner's statement applies".** (a) **As written, L39:** it is a
+- **F-RG — RESOLVED (lead call 2026-11-21, reversible): (a) as written.** a regrade proposal under "the winner's statement applies".** (a) **As written, L39:** it is a
   ruling on a grade — red's statement is G's grades as they stand, G stays open either way at its ruled
   grades, those axes locked; no text is refused while G stays open, so no later docketing can apply it.
   (b) Red's statement there is its text: for red applies it and G closes `repaired`; for blue applies the
   regrade and leaves G open having refused red's text, so a later impasse docketing must be barred from
   applying that same text (a stored refused-text check, a new mechanism).
-- **F-X — a proposal filed after the last plan** (the assembly case). Its assignee had no window, so red
+- **F-X — RESOLVED (lead call 2026-11-21, reversible): (c) an assembly closing sitting before the bench, as at the final sitting (gblock 2026-11-21 "Red gets its closing").** a proposal filed after the last plan** (the assembly case). Its assignee had no window, so red
   states no text and only the filer's side lands. (a) **Accept, stated residue** (0 archived). (b) Refuse
   a proposal's filing when no plan follows (no seat sits to argue it). (c) An assembly closing sitting
   before the bench, as at the final sitting.
-- **F-HO — blue held out of its epoch** (`heldOut`, the epoch before the last). It files no closing, so a
+- **F-HO — RESOLVED (lead call 2026-11-21, reversible): (b) await held-out blue's closing, as at the final sitting, admitting only that (L44's arm).** blue held out of its epoch** (`heldOut`, the epoch before the last). It files no closing, so a
   for-blue answer writes `not_a_defect`. (a) **As written:** unchanged. (b) Await held-out blue's closing
   as at the final sitting (a closing is no act a lens audits), admitting only that (L44's arm).
-- **F-S — the successor of a supersede ruling.** A for-blue (for-filer) supersede closes G and leaves S
+- **F-S — RESOLVED (lead call 2026-11-21, reversible): (a) as written.** the successor of a supersede ruling.** A for-blue (for-filer) supersede closes G and leaves S
   open (F-J); S's later impasse asks S's defect. (a) **As written:** a new question — red's text on S
   may be applied, though the bench refused it as G's repair. (b) Bar, at S's impasse, the text G's
   ruling refused (a stored refused-text check, a new mechanism).
-- **F-LT — the lock's toggle under L35′.** (a) **As written:** keep gblock's 2026-10-30 "Lock returns to
+- **F-LT — RESOLVED (lead call 2026-11-21, reversible): (a) as written.** the lock's toggle under L35′.** (a) **As written:** keep gblock's 2026-10-30 "Lock returns to
   lens" (a bench move of a locked axis lifts it); it can act only after blue's reword ends G's tombstone.
   (b) A later grade ruling re-locks at its grade instead of lifting.
 - **P12b's admission (coordination, not a fork of this plan).** On this branch the act judge refuses
