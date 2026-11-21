@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // The three variables Antigravity puts in the environment of an agent's shell commands.
@@ -346,6 +348,15 @@ func EnqueueAgy(conversationDir string, m AgyMessage, now time.Time) (Delivery, 
 		return Delivery{}, err
 	}
 	return Delivery{Route: RouteAgyMailbox, Via: path}, nil
+}
+
+// lockRegistry serialises concurrent RegisterWith read-modify-write updates in dir.
+func lockRegistry(dir string) (func(), error) {
+	fl := flock.New(filepath.Join(dir, ".register.lock"), flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	if err := fl.Lock(); err != nil {
+		return nil, err
+	}
+	return func() { _ = fl.Unlock() }, nil
 }
 
 // safeName refuses an id that could name a path outside the directory it is joined to.

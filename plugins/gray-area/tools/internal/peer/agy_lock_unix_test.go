@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
+
+	"github.com/gofrs/flock"
 )
 
 func TestConversationBusyDetectsHeldPresenceLock(t *testing.T) {
@@ -18,29 +19,30 @@ func TestConversationBusyDetectsHeldPresenceLock(t *testing.T) {
 	}
 	const conv = "conv-lock-1"
 	lockPath := filepath.Join(lockDir, conv+".lock")
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
+	if err := os.WriteFile(lockPath, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 
 	// Unlocked file is not busy.
 	if busy, why := ConversationBusy(agyRoot, conv, 0); busy {
 		t.Fatalf("unlocked file reported busy: %s", why)
 	}
 
-	// Acquire an exclusive flock on this open file description; ConversationBusy opens a separate
-	// file description and must see EWOULDBLOCK.
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Fatalf("flock: %v", err)
+	// Acquire an exclusive lock on a separate open file description; ConversationBusy must see it held.
+	fl := flock.New(lockPath, flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	ok, err := fl.TryLock()
+	if err != nil || !ok {
+		t.Fatalf("TryLock = (%v, %v), want (true, nil)", ok, err)
 	}
+	defer fl.Unlock()
+
 	busy, why := ConversationBusy(agyRoot, conv, 0)
 	if !busy || !strings.Contains(why, "presence/"+conv+".lock") {
 		t.Errorf("locked file: ConversationBusy = (%v, %q), want (true, naming presence/%s.lock)", busy, why, conv)
 	}
 
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_UN); err != nil {
-		t.Fatalf("unlock: %v", err)
+	if err := fl.Unlock(); err != nil {
+		t.Fatalf("Unlock: %v", err)
 	}
 	if busy, why := ConversationBusy(agyRoot, conv, 0); busy {
 		t.Errorf("after unlock: ConversationBusy = (%v, %q), want false", busy, why)

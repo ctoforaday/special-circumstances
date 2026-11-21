@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
+
+	"github.com/gofrs/flock"
 )
 
 func TestOtherDBHolderDetectsOpenDBAndHandlesSymlinkedRoot(t *testing.T) {
@@ -66,15 +67,12 @@ func TestConversationBusyAllowsLockHeldOnlyByExcludedPID(t *testing.T) {
 	}
 	const conv = "conv-lock-own-pid"
 	lockPath := filepath.Join(lockDir, conv+".lock")
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		t.Fatal(err)
+	fl := flock.New(lockPath, flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	ok, err := fl.TryLock()
+	if err != nil || !ok {
+		t.Fatalf("TryLock = (%v, %v), want (true, nil)", ok, err)
 	}
-	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Fatalf("flock: %v", err)
-	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer fl.Unlock()
 
 	myPID := os.Getpid()
 	if busy, why := ConversationBusy(agyRoot, conv, myPID); busy {

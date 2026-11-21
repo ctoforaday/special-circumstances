@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/ctoforaday/special-circumstances/shared v0.0.0
+	github.com/gofrs/flock v0.13.1
 	github.com/spf13/cobra v1.10.2
 	github.com/yuin/goldmark v1.8.7
 	golang.org/x/sys v0.49.0
