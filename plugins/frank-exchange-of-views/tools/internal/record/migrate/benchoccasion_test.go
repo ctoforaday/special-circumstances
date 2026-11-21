@@ -65,7 +65,8 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // or an archive set holding no dispatch row, because the translation would then be tested by
 // nothing. A plan stored after its chair sitting recorded the PASS carries it migrated
 // (CarryPlanPass) — the one field added, never in the key — and the census counts them, failing
-// an archive set in which no plan carries one.
+// an archive set in which no plan carries one. A plan stored at EventSchema 78 or later prints
+// `passed` itself, and migrates byte for byte.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
@@ -99,7 +100,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 				fails++
 			}
 			s, d := readingBlockersTranslated(t, kindsTranslated(t, src), anchors), dstPlans[i].printed
-			if v := `,"passed":true}`; !strings.Contains(src, `"verdict":`) && strings.HasSuffix(d, v) {
+			if v := `,"passed":true}`; !strings.Contains(src, `"verdict":`) && !strings.HasSuffix(src, v) && strings.HasSuffix(d, v) {
 				d = strings.TrimSuffix(d, v) + "}"
 				verdicts++
 			}
