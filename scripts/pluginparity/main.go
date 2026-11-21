@@ -440,6 +440,7 @@ type claudePluginManifest struct {
 	Keywords     []string        `json:"keywords,omitempty"`
 	Dependencies []string        `json:"dependencies,omitempty"`
 	Hooks        string          `json:"hooks,omitempty"`
+	Agents       []string        `json:"agents,omitempty"`
 }
 
 type agyPluginManifest struct {
