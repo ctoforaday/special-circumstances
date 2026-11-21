@@ -69,6 +69,9 @@ func TestAnArchivedFailMigratesToNoEvent(t *testing.T) {
 	}
 }
 
+// passOnlyEpoch is the first EventSchema whose verdict states no word: the gate is the PASS.
+const passOnlyEpoch = 78
+
 // THE RESIDUE IS EVERY ARCHIVED FAIL, and nothing else: each archive's migrated record holds as many
 // gates as its source held PASSes, and no stored plan prints the PASS on a record that holds none.
 // The count is stated so a change to it is read, not passed: 25 FAILs in 11 runs — 16 in the six
@@ -79,7 +82,13 @@ func TestEveryArchivedFailIsTheResidue(t *testing.T) {
 	total := 0
 	for _, name := range archivedRuns(t) {
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
-			src, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
+			source := archivedSource(t, recordtest.ExtractArchive(t, name))
+			var epoch int
+			stated := false
+			if sq, ok := source.(*SQLiteSource); ok {
+				epoch, stated = sq.SourceEpoch()
+			}
+			src, err := source.Events()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -88,11 +97,15 @@ func TestEveryArchivedFailIsTheResidue(t *testing.T) {
 				if old.Word != "verdict" {
 					continue
 				}
-				// EVERY ARCHIVE PREDATES EPOCH 78, so each of its verdicts states its word: a wordless
-				// gate is the live shape, and one here would pass through the replay as a PASS unread.
+				// AN ARCHIVE BEFORE EPOCH 78 STATES EACH VERDICT'S WORD, and one at 78 or later states
+				// none: a wordless gate is that epoch's shape, and one in an earlier archive would pass
+				// through the replay as a PASS unread.
 				raw, worded := old.Fields["verdict"]
-				if !worded {
-					t.Errorf("archived verdict event %d states no word", old.ID)
+				switch wordless := stated && epoch >= passOnlyEpoch; {
+				case wordless && worded:
+					t.Errorf("archived verdict event %d at epoch %d states the word %v", old.ID, epoch, raw)
+				case !wordless && !worded:
+					t.Errorf("archived verdict event %d at epoch %d states no word", old.ID, epoch)
 				}
 				if w, _ := raw.(string); recordpb.SameWord(w, retiredVerdict) {
 					dropped++
