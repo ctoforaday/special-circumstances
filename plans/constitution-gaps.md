@@ -1617,9 +1617,7 @@ and `~/.claude/scratch/p12/r2/`):
     applying red's text in a for-red ruling's transaction (§III.B14 at c6ae0335b, `findings-fold.md:1776-1778`),
     written through `appendBodies` under the bench seat and compared "exactly" with `PlanAccept`'s re-plan of red's
     pair by validate's `DocketRuling` arm (`findings-fold.md:704`). An assignee's accept writes no `BlueEdit`: #1889's
-    B2 proposals are regrade, close and supersede only (`proposal.go:72-84` at c6ae0335b). The bench's edit replaces a
-    span with red's prescription, which `mint --new` already refuses to leave a token on no words (§III.10c "The other
-    report-text writers"), so a bench cut is a pure cut only when red's text is empty. At open (§V 13.1)
+    B2 proposals are regrade, close and supersede only (`proposal.go:72-84` at c6ae0335b). At open (§V 13.1)
     `census-edit-writers.txt` confirms, on #1889's merged write path, that the bench's edit stamps `removed_anchors`
     through the edit's guard, that validate's exact comparison covers the stamped list, and that the record's moot
     fires for a bench cut; a writer that does not gains each in P12b, and `TestACutIsHeldToL6` and
@@ -2045,10 +2043,22 @@ and `~/.claude/scratch/p12/r2/`):
      | m26 | G-59e61f8c (108 {104}) | 233 {209}: a REWRITE; the sentence stays and the token moves past its terminator ({205} rewrote the paragraph and kept the token on words) | superseded by G-4a4093c0 at mint 309 {278} | `moot` at 233; mint 309 lands as lineage only, so G-4a4093c0 and its acts stand | `answers` on edits 244-248, 263; dispatch 277, 278; mint 309's `supersedes` |
      | m26 | G-0f2d72fd (192 {169}) | 240 {216}: a REWRITE; the bullet the gap marked is cut, and the token moves to the rewritten neighbour, past its terminator | open (lens close {286} already lost) | `moot` at 240 | `answers`, `old` and `new` on edit 260; dispatch 274, 278 |
 
-     - **What drops.** The first migration's `lost_acts` is compared with the last column. F18's table gives the
-       expected classes (closes, motions and rulings, dispatches, `answers`), and a difference widens the residue
-       before code. One act may break on replay: edit 260 quotes G-0f2d72fd's token in its `old`. On #1889's tree that
-       edit is gone with its `F-` tokens; which holds at P12b's base is read at open.
+     - **What drops: expected nothing.** Validate refuses an act on a closed gap only for a fresh `Close`
+       (`record.go:1192`), a `Regrade` (`:1307`), a grade motion (`:1333`) and a remand (`positionheard.go:130`), on
+       ae2b9a9fb. None of those follows any of the five cuts at P3's tip, because P3's delivery rule already lost each
+       later close. Every act in the last column is one validate admits on a closed gap, so each lands as written:
+       - `answers` and dispatch `gap_ids` pass `requireGap` (`refs.go:160-172`), which checks only that the gap exists;
+       - a docket motion carries no open-gap check (`record.go:1366-1368`);
+       - mint 309's `supersedes` is lineage.
+
+       So the ruling's "later closes and supersessions drop" is already met: P3 lost the closes, and the supersession
+       stops closing. The first migration's `lost_acts` is compared with this expectation, and a difference widens the
+       residue before code. One act may break on replay: edit 260 quotes G-0f2d72fd's token in its `old`. On #1889's
+       tree that edit is gone with its `F-` tokens; which holds at P12b's base is read at open.
+     - **F18's table, read against the same rules.** It lists `answers` (m28 514, 586) and dispatches (wave-a 321,
+       324; m28 522, 530, 608; m37 999, 1000) among the dropped acts. Validate admits both on a closed gap, so unless
+       another rule refuses them, those rows land. The first migration decides, and F18's table is corrected to the
+       manifest before code.
      - **m26's two `G-` (F20).** By §III.10c's own definitions, neither edit is a pure cut: each replacement holds
        prose, and moving a cut sentence's token onto its neighbour is a rewrite of the neighbour. The ruling's premise,
        "an edit cut its sentence", holds for b3, b6 and b9 and not for these two. The plan carries the ruling as
@@ -3078,9 +3088,17 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          `census-retire-literals.txt`, filtered to files outside the 28, equals §III.11's 17-literal list. And
          each `reopened` line in `census-plan.txt` is one §III.10c's "Supersedes" list names. A hit the lists omit is
          added before code.
-       - **The full-set measurement, again on P12b's base** (§III.10c migrate, "The full-set measurement": the scratch
-         test `~/.claude/scratch/p12/r5/zz_p12measure_test.go`, copied into `internal/record/migrate/` and removed
-         after). Its counts equal §III.10c's: 0 refusals, 108 claim retires (94 anchorless and 14 anchored once Part A
+       - **The full-set measurement, again on P12b's base** (§III.10c migrate, "The full-set measurement"). The
+         scratch test is copied into P12b's worktree, run over every committed archive, and removed:
+         ```
+         mkdir -p $S/tmp; cp ~/.claude/scratch/p12/r5/zz_p12measure_test.go tools/internal/record/migrate/
+         cp ../../run-archive/bundle-store/*.tar.gz ../../run-archive/   # until archivedRuns walks (§V 13.4); removed after
+         L=$(cd ../../run-archive && ls *.tar.gz | tr '\n' ' ')
+         (cd tools && TMPDIR=$S/tmp P12_ARCHIVES="$L" P12_OUT=$S/measure-base.txt \
+           go test -count=1 -run '^TestP12Measure$' ./internal/record/migrate/)
+         rm tools/internal/record/migrate/zz_p12measure_test.go ../../run-archive/2026-10-31_is-91-prime-m37.tar.gz ../../run-archive/2026-11-04_is-91-prime-m38.tar.gz
+         ```
+         Its counts equal §III.10c's: 0 refusals, 108 claim retires (94 anchorless and 14 anchored once Part A
          has dropped the `F-` anchors), the 7 tokens left on no words at a run's end, the one L6 residue, and 0 lane
          parts holding a token. Any difference changes §III.10c, and F18's or translation 4's table, before code.
        - **After the PR:**
@@ -3167,6 +3185,20 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          - In `internal/record`, `archivedRun` (`reopenedm19_test.go:85` on `ae2b9a9fb`), which m37's and m38's own
            tests use, fails on any manifest refusal as well as on an error: `archiveMigrate` returns the manifest's
            refusals beside its lost acts.
+         - **Every other caller of `archivedRuns` reads m37 and m38 too** (lead call, disclosed: one census of the
+           committed set, not two helpers with two sets; the alternative is to scope the walk to the 13.4 tests and
+           state that the other censuses leave out `bundle-store/`). Measured on `ae2b9a9fb` with the two tarballs read
+           beside the others (`~/.claude/scratch/p12/r5/migrate-flat.log`), nine tests move. Each gains m37's and m38's
+           entries, read before they are written:
+           - stated residues: `TestEveryArchivedNotRunStandsOnItsBundlesReRun` (m37 20 and m38 9 acts written
+             `ran=false`, `computationresidue_test.go:379, 426`), `TestActsSharingABundleHoldItsOneOutput` (206 acts,
+             50 bundles, 32 runs, against 183, 46, 30), `TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses`
+             (`argumentResidue` names neither), and `TestEveryMigratedEvidenceAnchorHasAPlacingRow`
+             (`evidenceanchor_test.go:133`);
+           - goldens: `archived_gaps`, `archived_renders`, `archived_gap_rewrites` and `archived_inquiry_methods`;
+           - `TestEveryArchivedRemandMigratesWithItsDirection` on m37: the source states 1 closing ruling with a reopen
+             condition and the migration carries 0. That is a lost ruling to list or a defect to fix, read before
+             code.
        - **Each assertion and the test that makes it**, over the 39 committed archives (36 in `run-archive/`, 2 in
          `run-archive/bundle-store/`, and P0's 2026-11-10 run):
          - Migrate reports zero refusals in each: `TestEveryArchivedRunMigrates`.
@@ -3502,6 +3534,10 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     standing sentence meets no heir | read both arms, and let an F14 retire meet the heir while the claim stands.
   - **The record's moot under `harness`** (§III.10c "Attribution"), and **"the claim leaves only with its marker"** in
     `DemandClause` (§III.10b).
+  - **`archivedRuns` walks every committed archive for every caller** (§V 13.4): one census of the committed set, and
+    nine tests gain m37's and m38's entries | scope the walk to §V 13.4's tests and `archivedRun`, and state that the
+    other censuses leave out `bundle-store/`.
+
 ## VII. In the rulings: contradictions, limits and what is left out
 
 1. **F, as ruled 2026-11-13.** The work list carries the report and the read is the tool's record of what it delivered
