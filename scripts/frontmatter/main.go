@@ -57,8 +57,10 @@ var keyLine = regexp.MustCompile(`^([A-Za-z_][\w-]*):\s+(\S.*)$`)
 // agentFile and skillFile are the two files a plugin declares its contract in. A skill is its
 // directory's SKILL.md only; the markdown under references/ beside it is ordinary prose.
 var (
-	agentFile = regexp.MustCompile(`^plugins/[^/]+/agents/[^/]+\.md$`)
-	skillFile = regexp.MustCompile(`^plugins/([^/]+)/skills/([^/]+)/SKILL\.md$`)
+	agentFile       = regexp.MustCompile(`^plugins/[^/]+/agents(?:-claude)?/[^/]+\.md$`)
+	agyAgentFile    = regexp.MustCompile(`^plugins/[^/]+/agents/[^/]+\.md$`)
+	claudeAgentFile = regexp.MustCompile(`^plugins/[^/]+/agents-claude/[^/]+\.md$`)
+	skillFile       = regexp.MustCompile(`^plugins/([^/]+)/skills/([^/]+)/SKILL\.md$`)
 )
 
 // problem is one finding, pre-formatted for the operator.
@@ -212,15 +214,41 @@ func skillVisibilityProblems(file string, doc map[string]any) []problem {
 // agentListKeys are the agent frontmatter fields Antigravity's loader decodes as `[]string`.
 var agentListKeys = []string{"tools", "skills"}
 
+// antigravityTools are the Antigravity built-in tool registry names verified against `agy -p --agent`.
+// Putting a Claude Code tool name (e.g. Read, Bash) in plugins/*/agents/*.md causes Antigravity to
+// fail executor construction (`unknown component: tool "Read" not found in registry`), even though
+// `agy plugin validate --strict` and `agy agents` do not catch it.
+var antigravityTools = map[string]bool{
+	"read_file":        true,
+	"write_file":       true,
+	"edit_file":        true,
+	"grep_search":      true,
+	"find_by_name":     true,
+	"list_dir":         true,
+	"run_command":      true,
+	"search_web":       true,
+	"read_url_content": true,
+}
+
+// claudeTools are the Claude Code built-in tool names allowed in plugins/*/agents-claude/*.md.
+var claudeTools = map[string]bool{
+	"Read":       true,
+	"Write":      true,
+	"Edit":       true,
+	"Glob":       true,
+	"Grep":       true,
+	"Bash":       true,
+	"WebSearch":  true,
+	"WebFetch":   true,
+	"ToolSearch": true,
+}
+
 // agentToolsProblems refuses an agent whose `tools` or `skills` frontmatter field is not a YAML
-// sequence of non-empty strings.
-//
-// Antigravity's loader unmarshals these fields into `[]string` and skips the entire agent when
-// one is a comma-separated scalar (`cannot unmarshal !!str ... into []string`) — the agent
-// vanishes from `agy agents` and nothing else says so. A YAML sequence
-// (`tools: [Read, Write, Bash]`) loads in both Claude Code and Antigravity.
+// sequence of non-empty strings, and verifies every tool name belongs to the target harness's
+// tool registry (`agents/` -> Antigravity, `agents-claude/` -> Claude Code).
 func agentToolsProblems(file string, doc map[string]any) []problem {
-	if !agentFile.MatchString(filepath.ToSlash(file)) {
+	slash := filepath.ToSlash(file)
+	if !agentFile.MatchString(slash) {
 		return nil
 	}
 	var problems []problem
@@ -237,11 +265,25 @@ func agentToolsProblems(file string, doc map[string]any) []problem {
 			continue
 		}
 		for _, it := range items {
-			if s, ok := it.(string); !ok || strings.TrimSpace(s) == "" {
+			s, ok := it.(string)
+			if !ok || strings.TrimSpace(s) == "" {
 				problems = append(problems, problem(fmt.Sprintf(
 					"%s: every entry in `%s` must be a non-empty string, got %v.",
 					file, key, it)))
 				break
+			}
+			if key != "tools" {
+				continue
+			}
+			if agyAgentFile.MatchString(slash) && !antigravityTools[s] {
+				problems = append(problems, problem(fmt.Sprintf(
+					"%s: tool %q is not in Antigravity's tool registry (plugins/*/agents/*.md serves Antigravity; put Claude tool names in agents-claude/ and regenerate with `go -C scripts run ./agentgen`).",
+					file, s)))
+			}
+			if claudeAgentFile.MatchString(slash) && !claudeTools[s] {
+				problems = append(problems, problem(fmt.Sprintf(
+					"%s: tool %q is not a known Claude Code tool (plugins/*/agents-claude/*.md serves Claude Code).",
+					file, s)))
 			}
 		}
 	}
