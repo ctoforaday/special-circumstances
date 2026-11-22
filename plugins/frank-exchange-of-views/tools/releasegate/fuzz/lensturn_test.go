@@ -22,7 +22,7 @@ import (
 // turn there — its mint, an act, or the opening of a closed sitting it was engaged on, silent or not —
 // where blue's acts include an evidence anchor placed as the gap's answer and a REACHING RETIRE, one
 // taking out the anchor the gap is about or whose reading it carries (gblock, 2026-11-03),
-// and after the bench's latest remand of it; and a gap blue is engaged on whose minting lens's turn HAS
+// and after the bench's latest remand of it; and a gap blue is engaged on whose assignee's turn HAS
 // come must engage that lens too, so the rule never holds a lens off blue's answer. A gap a successor
 // superseded closed at the successor's mint, so no plan engages anyone on it.
 //
@@ -424,7 +424,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 		switch came := turnCame(lens, gap); {
 		case came && !seats[lens]:
-			r.noteActErr(fmt.Sprintf("lens-turn oracle: the plan engages blue on %s and not its minting lens %s, whose turn has come — blue acted on %s since the lens's last act there: %s", gap, lens, gap, witness(gap)))
+			r.noteActErr(fmt.Sprintf("lens-turn oracle: the plan engages blue on %s and not its assignee %s, whose turn has come — blue acted on %s since the lens's last act there: %s", gap, lens, gap, witness(gap)))
 			return
 		case came:
 			turns++

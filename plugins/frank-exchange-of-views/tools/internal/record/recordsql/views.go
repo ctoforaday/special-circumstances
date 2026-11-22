@@ -387,7 +387,7 @@ CREATE VIEW "demand_reach" AS
 --                       many times — and the LAST of each arm is the word that stands. A reader takes
 --                       a closing act's word, epoch and seat from the event the id names.
 --   closed_by_bench     the arm of the FIRST closing act. A docket motion filed while its gap is open
---                       stands unruled after the minting lens closes the gap, and the bench rules it to
+--                       stands unruled after the assignee closes the gap, and the bench rules it to
 --                       clear the PASS: in universe-m25 the lenses closed G-e205e589 and G-a810bbab
 --                       (ev440, ev460) before the bench ruled their k-max dockets (ev488, ev489), and
 --                       read by its later act the run holds four lens closures counted as the bench's.

@@ -11,8 +11,8 @@ import (
 )
 
 // A BENCH REMAND SENDS ITS GAP BACK TO THE DEBATE FOR ONE MORE EXCHANGE (gblock, 2026-09-29: a
-// remand sends the gap back with a stated research direction, and the dispatch readies the minting
-// lens and blue for one more exchange on it).
+// remand sends the gap back with a stated research direction, and the dispatch readies the assignee
+// and blue for one more exchange on it).
 //
 // WHAT COUNTS AS A REMAND. A bench sitting that remanded the gap WHILE IT WAS AT IMPASSE, once per
 // sitting however many of its docket motions that sitting ruled. A remand of a docket a party filed
@@ -22,7 +22,7 @@ import (
 // THE REMAND'S EXCHANGE IS THE FIRST ONE IN WHICH BLUE ACTS ON THE GAP (gblock, 2026-10-25; blue's
 // act alone, ruled by gblock 2026-10-27). The ruling hands the turn to blue (exchangeFold), so the
 // round blue's answer opens begins at the ruling; a round in which blue recorded no act on the gap
-// (gapActsOf) spends nothing. The minting lens's turn comes only after the ruling (lensTurnOn), so
+// (gapActsOf) spends nothing. The assignee's turn comes only after the ruling (lensTurnOn), so
 // until blue has acted the dispatch readies blue on the gap and not the lens, and blue's item blocks
 // its envelope. Once blue has acted, the dispatch readies the lens alone: THE EXCHANGE ENDS ON THE
 // RE-AUDIT THE RULING ORDERS (ruled by gblock 2026-10-31), and it is owed until that audit.
@@ -177,7 +177,7 @@ func remandSubject(r *recordpb.MotionRule) string {
 // requireRemandOfOpenGap refuses a remand whose gap is closed (gblock, 2026-10-24): what names the
 // docketing (or motion) the remand answers. A gap may be closed while a docketing on it stands — a
 // proposal docketed on a gap already closed (F8) — but a remand sends the gap back for one more
-// exchange between its minting lens and blue, and a closed gap has none to have: the obligation would
+// exchange between its assignee and blue, and a closed gap has none to have: the obligation would
 // stand with no seat able to discharge it, as the remand of a run's closed gap did on universe-m33,
 // stored and never acted on while the run passed. The tool does not reopen the gap either; the refusal
 // names the close, and the bench answers with a side of the docketing's pair.
@@ -192,7 +192,7 @@ func requireRemandOfOpenGap(q recordsql.Querier, gapID, what string) error {
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"%s is about gap %s, which is CLOSED — %s closed it at event %d. A remand sends a gap back for one more exchange between its minting lens and blue, and a closed gap has none to have, so nobody could discharge it; the record does not reopen a gap. "+
+		"%s is about gap %s, which is CLOSED — %s closed it at event %d. A remand sends a gap back for one more exchange between its assignee and blue, and a closed gap has none to have, so nobody could discharge it; the record does not reopen a gap. "+
 			"Nothing was recorded; answer with a side of the docketing's pair, on the record as it stands",
 		what, gapID, seat, closed)
 }
@@ -234,7 +234,7 @@ func requireRemandWithinLimit(w writeView, seatID, gapID, what string) error {
 
 // RemandLimitRule is why a second remand at impasse is refused, in the words the refusal, the
 // bench's work list and `motion docket rule --help` share.
-const RemandLimitRule = "one remand at impasse is a gap's limit: it grants one more exchange between the gap's minting lens and blue, and a gap that exchange leaves at impasse is docketed again to be closed — a second remand would store a direction no dispatch hands any seat"
+const RemandLimitRule = "one remand at impasse is a gap's limit: it grants one more exchange between the gap's assignee and blue, and a gap that exchange leaves at impasse is docketed again to be closed — a second remand would store a direction no dispatch hands any seat"
 
 // remandPastLimit reports whether a remand of the gap now, ruled in sitting, would be its second at
 // impasse, and the place of the remand it already has: the gap is at impasse, the bench has
@@ -290,7 +290,7 @@ func remandStageOf(x *GapExchanges) remandStage {
 }
 
 // gapRoute is what the dispatch does with one open gap — THE ONE PREDICATE the plan's readiness, the
-// remand items on blue's and the minting lens's work lists, and the chair's row all read, so no
+// remand items on blue's and the assignee's work lists, and the chair's row all read, so no
 // list offers an exchange the dispatch does not ready, nor withholds one it does.
 type gapRoute int
 
@@ -299,8 +299,8 @@ const (
 	routeBench                         // a docketing stands on it: the bench's, once the closings owed on it are in
 	routeProposal                      // a proposal stands on it and no docketing: its assignee's window, then the docketing
 	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
-	routeDebate                        // below its limits: blue, and its minting lens when its turn has come (lensTurnOn)
-	routeLensFirst                     // at its limits with the lens's audit still to come (lensGoesFirst): its minting lens alone, and any docket after it
+	routeDebate                        // below its limits: blue, and its assignee when its turn has come (lensTurnOn)
+	routeLensFirst                     // at its limits with the lens's audit still to come (lensGoesFirst): its assignee alone, and any docket after it
 	routeDocket                        // at impasse, never remanded there: docketed for the bench
 	routeRemandOwed                    // at impasse and remanded, or not material and remanded: blue, once, on the direction — then the lens's re-audit
 	routeRedocket                      // at impasse after its remand's exchange: docketed for the bench again, to be closed
@@ -367,7 +367,7 @@ func routeOf(material, docketed, proposal, moved bool, x *GapExchanges) gapRoute
 	return routeDocket
 }
 
-// partiesOnRoute is whether a route engages the gap's minting lens and blue on it: what the plan
+// partiesOnRoute is whether a route engages the gap's assignee and blue on it: what the plan
 // engages (foldPlan), what each row says of its reader's turn (WorkGapJSON.YourTurn), and what the
 // lens's re-audit items read (blueAnswers), so no list offers a turn the dispatch does not give.
 //

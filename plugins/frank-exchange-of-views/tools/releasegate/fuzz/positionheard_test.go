@@ -118,7 +118,7 @@ func planEpochs(plan map[string]any) (epoch, maxEpochs int) {
 //   - lens: the named lens owes an audit of its area (an upheld_position blocker), which readies it
 //     at the next chair sitting until it is served the report in a sitting opened after the ruling.
 //   - gaps: each named gap goes back for one more exchange — a remand whose plan readies blue until
-//     it has acted, and then the gap's minting lens alone, whose re-audit closes it.
+//     it has acted, and then the gap's assignee alone, whose re-audit closes it.
 //   - overruled: the chair's next sitting decides on the PASS, and dispatches nobody first.
 //
 // The bench's position sitting falls inside the withholding epoch: the engine convenes it before the
@@ -219,7 +219,7 @@ func (r *runner) mintHeldTrifle(seatID string) {
 // mint to the next sitting.
 const trifleMintTries = 3
 
-// closeNamedOnTurn is the minting lens's turn on a gap the bench named upholding a position: once
+// closeNamedOnTurn is the assignee's turn on a gap the bench named upholding a position: once
 // blue has answered it, the lens audits the answer and closes it as any satisfied gap is closed. A
 // gap that is not material is routed to nobody once its remand's exchange has begun, so the lens is
 // readied by blue's answer as news, not engaged on the gap, and the engaged loop never reaches it.

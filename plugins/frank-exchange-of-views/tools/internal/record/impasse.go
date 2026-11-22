@@ -14,7 +14,7 @@ import (
 // GapExchanges is what the record says about one gap's dispute (plans/roundless.md §III.B.2).
 //
 // THE ROUND ENDS ON THE LENS'S RE-AUDIT (ruled by gblock 2026-10-31). One exchange on G is blue's
-// answer followed by its minting lens's audit of that answer: the turn is blue's from the mint, from a
+// answer followed by its assignee's audit of that answer: the turn is blue's from the mint, from a
 // remand ruling and from the end of the last exchange, and the exchange ends when a sitting of the
 // lens engaged on G, opened with its turn come (lensTurnOn), ends. A sitting that closes having
 // recorded nothing on G is a NULL TURN: silence is a turn taken, and the exchange still counts. Where
@@ -56,7 +56,7 @@ type GapExchanges struct {
 	// pending is the exchange blue's answer has opened and no lens sitting has ended: what its round
 	// would be if the lens's next sitting ended it now.
 	pending exchangeRound
-	// lensTurn is whether the minting lens's turn on the gap has come (lensTurnOn), lensRead the place
+	// lensTurn is whether the assignee's turn on the gap has come (lensTurnOn), lensRead the place
 	// that turn is read from: its last act or sitting on the gap, the mint, the latest remand ruling.
 	lensTurn bool
 	lensRead int64
@@ -178,7 +178,7 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 }
 
 // lensGoesFirst is THE LENS'S PREFERENCE IN THE ORDER (ruled by gblock 2026-10-31): a gap at its
-// limits, or whose owed audit would bring it there, readies its minting lens alone, and the docket
+// limits, or whose owed audit would bring it there, readies its assignee alone, and the docket
 // comes only after that lens's sitting. Blue is held off the gap for that epoch, because blue sits
 // after the lens and its answer would be one the lens has not read when the bench is asked.
 //

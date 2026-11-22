@@ -8,8 +8,8 @@ import (
 )
 
 // CLOSURES ARE HISTORY (gblock, 2026-11-01). A retire moves no closure: a closed gap whose answers
-// are all retired stays closed for every reader, and what the retire adds is one hop to its minting
-// lens's work list — the gap view's `answers_retired_event`, read through the WORK query. The item
+// are all retired stays closed for every reader, and what the retire adds is one hop to its assignee's
+// work list — the gap view's `answers_retired_event`, read through the WORK query. The item
 // blocks nothing, so `complete` and PASS are as they were: no BlockerKind, no lensOwesOf row and no
 // gapNewsOf row reads the column (gapNewsOf holds open gaps).
 //

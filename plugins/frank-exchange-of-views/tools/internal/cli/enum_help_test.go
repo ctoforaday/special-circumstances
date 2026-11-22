@@ -163,17 +163,33 @@ func setKey(c *cobra.Command) string {
 // proposedActType is the event type each docket proposal's act is.
 var proposedActType = map[string]string{"regrade": "regrade", "close": "close", "supersede": "mint"}
 
-func setFlags(c *cobra.Command, out map[string]string) {
+// setSite is one set-shaped flag on one page: the key record.EnumFields and the exemption tables
+// spell it by, the help it renders, and the flag, whose parse says what the page refuses.
+type setSite struct {
+	key   string
+	usage string
+	flag  *pflag.Flag
+	menu  []record.EnumValue // the enumhelp-registered values; nil for a usage-line set
+}
+
+// setFlags keys each site by its PAGE — the command path and the flag — because two pages can
+// share a key: the lens's `close` and the proposal `motion docket file close` both write a close,
+// and keyed by the type alone the walk kept whichever page it reached last and checked only that one.
+func setFlags(c *cobra.Command, out map[string]setSite) {
 	registered := enumhelp.Registered(c)
 	collect := func(f *pflag.Flag) {
+		site := setSite{key: setKey(c) + " --" + f.Name, flag: f}
 		switch {
 		case setInHelp.MatchString(f.Usage):
-			out[setKey(c)+" --"+f.Name] = f.Usage
+			site.usage = f.Usage
 		case registered[f.Name] != nil:
-			// Keyed the same way, so the exemption tables and the "declared but absent" check
-			// both keep working; the value is the MENU, which is what a seat now reads.
-			out[setKey(c)+" --"+f.Name] = record.Menu(registered[f.Name])
+			// The value is the MENU, which is what a seat now reads.
+			site.usage = record.Menu(registered[f.Name])
+			site.menu = registered[f.Name]
+		default:
+			return
 		}
+		out[c.CommandPath()+" --"+f.Name] = site
 	}
 	c.Flags().VisitAll(collect)
 	for _, sub := range c.Commands() {
@@ -198,8 +214,21 @@ func offers(usage, name string) bool {
 	return false
 }
 
+// refuses reports whether the page's parse refuses v.
+func refuses(s setSite, v string) bool {
+	return s.flag.Value.Set(v) != nil
+}
+
+// refusesNaming reports whether the page refuses v with a sentence of its own. A word the declared
+// set holds that the page leaves off its menu is legitimate only there: refused as a word the menu
+// lacks, it is a narrowing nothing decided — the menu's refusal names no reason.
+func refusesNaming(s setSite, v, why string) bool {
+	err := s.flag.Value.Set(v)
+	return err != nil && err.Error() != record.Refuse(v, s.menu, why).Error()
+}
+
 func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
-	found := map[string]string{}
+	found := map[string]setSite{}
 	for _, r := range AllRoots() {
 		setFlags(r, found)
 	}
@@ -217,10 +246,11 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 	}
 
 	var undeclared []string
-	for site, usage := range found {
-		e, closed := declared[site]
-		_, open := openSets[site]
-		_, elsewhere := enforcedElsewhere[site]
+	for site, s := range found {
+		usage := s.usage
+		e, closed := declared[s.key]
+		_, open := openSets[s.key]
+		_, elsewhere := enforcedElsewhere[s.key]
 		switch {
 		case boolCount(closed, open, elsewhere) > 1:
 			t.Errorf("%s is claimed by more than one of record.EnumFields / openSets / enforcedElsewhere — at least one of them is a stale claim", site)
@@ -240,10 +270,17 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			// offer a value its own write path rejects, which is the lie this test exists to
 			// catch, inverted. ToolOnly is derived from the schema facet, so this is still the
 			// declared set asking itself a question rather than a second list.
+			// A PAGE MAY OFFER LESS THAN THE SET, AND ONLY WHERE IT REFUSES THE REST: a proposed
+			// close leaves off repaired_with_regression, the assignee's own act, and its flag refuses
+			// that word naming why. A word left off the menu that the parse still takes is the drift
+			// this test exists for, and a word on the menu that the parse refuses is its inverse.
 			var absent []string
 			for _, v := range record.Names(record.SeatFilable(e.Values)) {
-				if !offers(usage, v) {
+				if !offers(usage, v) && !refusesNaming(s, v, e.Why) {
 					absent = append(absent, v)
+				}
+				if offers(usage, v) && refuses(s, v) {
+					t.Errorf("%s help offers %q and its parse refuses it — the menu and the refusal disagree", site, v)
 				}
 			}
 			// AND THE OTHER DIRECTION, which is the half that keeps the narrowing honest: a
@@ -257,7 +294,7 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			}
 			if len(absent) > 0 {
 				t.Errorf("%s help does not carry %s from its declared set — generate it from record.MustEnum(%q, %q), do not restate it.\nhelp was: %q",
-					site, strings.Join(absent, ", "), strings.SplitN(site, " ", 2)[0], e.Key, usage)
+					site, strings.Join(absent, ", "), strings.SplitN(s.key, " ", 2)[0], e.Key, usage)
 			}
 		case open:
 			if !strings.Contains(usage, "...") {
@@ -291,9 +328,13 @@ func boolCount(bs ...bool) int {
 // otherwise leave its set enforced in validate under a name nothing writes — enforcement
 // that looks present and is dead.
 func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
-	found := map[string]string{}
+	sites := map[string]setSite{}
 	for _, r := range AllRoots() {
-		setFlags(r, found)
+		setFlags(r, sites)
+	}
+	found := map[string]bool{}
+	for _, s := range sites {
+		found[s.key] = true
 	}
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {

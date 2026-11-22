@@ -615,7 +615,7 @@ func StrayRecordsAudit(project, runDir string) Audit {
 
 // RecordParityAudit holds what the record owes the bench to the record: the chair's POSITION at each
 // sitting that withheld a PASS its plan permitted (record.PositionSittings), and each party's CLOSING
-// on each docketing (record.ClosingDuties) — the gap's minting lens and blue-respond.
+// on each docketing (record.ClosingDuties) — the gap's assignee and blue-respond.
 //
 // THIS AUDIT IS THE READER THAT REPORTS AN ARGUMENT THAT WAS NOT FILED. The transcript prints the
 // positions and closings that were, and gives a sitting that holds none no section.

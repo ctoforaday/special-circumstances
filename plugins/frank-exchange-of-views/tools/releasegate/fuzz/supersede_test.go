@@ -9,7 +9,7 @@ import (
 )
 
 // A MINT SUPERSEDING AN OPEN GAP CLOSES IT (ruled by gblock 2026-11-04). The drive supersedes only
-// what the record admits — a gap the minting lens holds open and may close — and holds the record to
+// what the record admits — a gap the assignee holds open and may close — and holds the record to
 // the closing: the ancestor leaves the open board, closed, naming the successor.
 
 // holdClosing marks gap id as one whose close the drive is driving (on), or clears it: a mint drawn

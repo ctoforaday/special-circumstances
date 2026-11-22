@@ -77,7 +77,7 @@ type lifecycleCounts struct {
 	unsoundDemandRejudged, unsoundDemandRefused int
 	// retiredAboutMintsRefused: a mint about a retired evidence anchor, refused naming the retire.
 	retiredAboutMintsRefused int
-	// reachingRetireTurns: a plan engaging a gap's minting lens whose turn a reaching retire gave it.
+	// reachingRetireTurns: a plan engaging a gap's assignee whose turn a reaching retire gave it.
 	reachingRetireTurns int
 	// screenedUnsound: an assembly screen FAIL naming a live computation a standing judgement calls
 	// unsound, at the end of a run that ends with one.
@@ -158,7 +158,7 @@ func (t lifecycleTally) gates() []struct {
 		{t.UnsoundDemandRejudged, "closes admitted of a computation gap owed about an unsound computation, after the lens's own sound judgement"},
 		{t.UnsoundDemandRefused, "closes of a computation gap owed about an unsound computation refused by its demand after another lens's sound judgement"},
 		{t.RetiredAboutMintsRefused, "mints about a retired evidence anchor refused naming the retire"},
-		{t.ReachingRetireTurns, "plans engaging a gap's minting lens whose turn a reaching retire gave it"},
+		{t.ReachingRetireTurns, "plans engaging a gap's assignee whose turn a reaching retire gave it"},
 		{t.ScreenedUnsound, "assembly screens FAILING on a live unsound computation at a run's end"},
 	}
 }
@@ -1030,7 +1030,7 @@ func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
 	t.Run("blue alone engaged", func(t *testing.T) {
 		r, g := drive(t)
 		r.tallyLensTurns(plan("blue-respond", g))
-		if r.lifecycle.reachingRetireTurns != 0 || !strings.Contains(r.actErr, "not its minting lens") {
+		if r.lifecycle.reachingRetireTurns != 0 || !strings.Contains(r.actErr, "not its assignee") {
 			t.Errorf("a plan engaging blue alone on %s counted %d turn(s) and failed the run with %q, want it failed naming the lens", g, r.lifecycle.reachingRetireTurns, r.actErr)
 		}
 	})

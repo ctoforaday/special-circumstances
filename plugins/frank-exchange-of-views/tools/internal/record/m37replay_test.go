@@ -20,7 +20,7 @@ const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 
 // UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's docketings is folded again on
 // the record as it stood before the plan that wrote it. On every one the plan now files nothing and
-// readies the gap's minting lens alone. What that lens did next is the run's own record: on four it
+// readies the gap's assignee alone. What that lens did next is the run's own record: on four it
 // closed the gap, each within minutes, so no docket exists and the bench has nothing to rule. On
 // G-deced912's first docket it kept its grade, and that docket and its remand stand a sitting later:
 // the one ruling that decided anything.

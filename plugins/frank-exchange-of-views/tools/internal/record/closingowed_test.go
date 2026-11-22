@@ -47,7 +47,7 @@ func closingOwners(t *testing.T, run Run) []string {
 	return out
 }
 
-// A DOCKETED GAP OWES A CLOSING FROM EACH PARTY, AND THE BENCH WAITS. The minting lens and
+// A DOCKETED GAP OWES A CLOSING FROM EACH PARTY, AND THE BENCH WAITS. The assignee and
 // blue-respond are readied with no gap engaged — the closing is not an exchange — and the bench is
 // not convened while either closing is awaited. Once both are filed, the bench sits.
 func TestADocketedGapOwesAClosingFromBothPartiesAndTheBenchWaits(t *testing.T) {
@@ -158,7 +158,7 @@ func TestAClosingIsNotOwedOnAClosedGapOrByAMinterTheCastDoesNotSeat(t *testing.T
 	})
 }
 
-// EACH PARTY'S WORK LIST BLOCKS ON ITS OWN CLOSING AND ON NO OTHER: the minting lens and blue-respond
+// EACH PARTY'S WORK LIST BLOCKS ON ITS OWN CLOSING AND ON NO OTHER: the assignee and blue-respond
 // are blocked; another lens, a lane and the chair are not owed it (the chair's list carries it as
 // another seat's). Filing clears it.
 func TestTheWorkListBlocksEachPartyOnItsOwnClosing(t *testing.T) {

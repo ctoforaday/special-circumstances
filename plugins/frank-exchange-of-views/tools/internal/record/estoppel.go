@@ -74,8 +74,8 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	return out
 }
 
-// Estoppel is a prescription a mint's quote relitigates: the gap whose fix it is, the seat that minted
-// that gap — the author of the prescription — and the prescribed text.
+// Estoppel is a prescription a mint's quote relitigates: the gap whose fix it is, the acting seat of
+// that gap's mint (actingSeat) — the author of the prescription — and the prescribed text.
 type Estoppel struct{ Gap, PrescribedBy, Text string }
 
 // EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one:

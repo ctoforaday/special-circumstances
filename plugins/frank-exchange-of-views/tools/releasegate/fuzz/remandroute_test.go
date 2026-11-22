@@ -12,7 +12,7 @@ import (
 
 // THE BENCH'S REMAND, ON A GAP THAT IS NOT MATERIAL AND ON A CLOSED ONE (gblock, 2026-10-24).
 //
-// A remand of an open gap routes its minting lens and blue to one more exchange whatever its
+// A remand of an open gap routes its assignee and blue to one more exchange whatever its
 // materiality, and holds the PASS until that exchange has begun; a remand of a closed gap is refused,
 // naming the close, and the bench answers the docketing with a side of its pair. On universe-m33
 // both remands were stored and never acted on, and the run passed against the bench's holding.
@@ -303,7 +303,7 @@ func (r *runner) remandStands(gapID string) bool {
 
 // tallyTrifleRoutes counts each remanded gap that is not material whose one more exchange the plan
 // readies: named in remand_owed, with blue among the parties for it — the exchange begins with
-// blue's act, and the lens-turn oracle (tallyLensTurns) holds the minting lens to waiting for it. Once
+// blue's act, and the lens-turn oracle (tallyLensTurns) holds the assignee to waiting for it. Once
 // blue has answered, the plan readies the lens alone to audit the answer, and blue owes nothing more.
 func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 	r.mu.Lock()
@@ -361,14 +361,14 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 }
 
 // A REMAND'S ITEM HOLDS BLUE UNTIL BLUE ACTS ON THE GAP (gblock, 2026-10-25), AND NEVER HOLDS THE
-// MINTING LENS (ruled by gblock 2026-10-30): the exchange begins with blue's act, and the lens's turn
+// ASSIGNEE (ruled by gblock 2026-10-30): the exchange begins with blue's act, and the lens's turn
 // on the gap comes with it.
 //
 // answerRemands is the act blue owes before its envelope (record.EnvelopeRefusal refuses it while
 // the item blocks): a computation answering the gap — an act that moves nothing, so a gap the scenario
 // leaves unanswered still stalls, goes back to the bench and is closed there. It acts on a gap only
 // where the item blocks blue's list, so a sitting that already acted, or whose dispatch was made
-// before the ruling, is held to nothing here. On the minting lens's list the item must not block.
+// before the ruling, is held to nothing here. On the assignee's list the item must not block.
 func (r *runner) answerRemands(seatID string) {
 	role := "lens"
 	if seatID == "blue-respond" {
@@ -384,7 +384,7 @@ func (r *runner) answerRemands(seatID string) {
 			continue
 		}
 		if role == "lens" {
-			r.noteActErr(fmt.Sprintf("%s's remand item on gap %s blocks its list — the exchange begins with blue's act, so the minting lens owes the gap nothing before it", seatID, g.ID))
+			r.noteActErr(fmt.Sprintf("%s's remand item on gap %s blocks its list — the exchange begins with blue's act, so the assignee owes the gap nothing before it", seatID, g.ID))
 			continue
 		}
 		dir, argv, err := r.writeBundle("fuzz-remand-"+g.ID+".js", "console.log('the remand direction for "+g.ID+"');")

@@ -276,7 +276,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// predicate dispatch reads (sittingFor): a seat a dispatch names whose sitting has not opened
 	// since — no hook bracket, no register — has not sat. Dispatch enforces it — the lens's sitting
 	// is not counted, the bench has not sat for the docketing, no exchange is counted for blue or
-	// the minting lens — so the seat is readied again, epoch after epoch, until its sitting opens.
+	// the assignee — so the seat is readied again, epoch after epoch, until its sitting opens.
 	// That covers every seat a dispatch names: the lenses, blue-respond and the bench.
 	// A HEARING CAN SIT BEFORE THE BENCH'S DOCKET: a sitting already registered for its hearing owes
 	// the docket's register to the NEXT sitting: a second register in this one is refused as a repeat,
@@ -308,7 +308,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	switch role {
 	case "blue":
 		// A live-answer demand prose cannot answer (recordpb.DemandClause): a `source` gap owes a
-		// citation, a `computation` gap a computation, placed as its answer. The lens that minted it
+		// citation, a `computation` gap a computation, placed as its answer. The gap's assignee
 		// is REFUSED if it tries to close one unanswered, so an unanswered demand does not settle —
 		// it carries into the next epoch.
 		//
@@ -453,7 +453,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// blue never cited, among others — come from availableOf and land on this same list carrying
 	// Blocks:false: available work, none of it owed.
 	case "lens":
-		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
+		// A REMAND'S EXCHANGE HOLDS ITS ASSIGNEE'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
 		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,

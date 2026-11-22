@@ -1314,8 +1314,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// have no reopening to answer for, so the check is on the arm rather than the event.
 		//
 		// A REMAND ANSWERS WITH --direction, ALWAYS, AND WITH NOTHING ELSE. The remand's one more
-		// exchange owes the research the ruling states, and the dispatch hands blue and the minting
-		// lens its direction; --reopens-on and --final say what would reopen a gap the remand never
+		// exchange owes the research the ruling states, and the dispatch hands blue and the assignee
+		// its direction; --reopens-on and --final say what would reopen a gap the remand never
 		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
@@ -1339,7 +1339,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			closes := d.Docket.Disposition != nil && d.Docket.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
-					return fmt.Errorf("a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+					return fmt.Errorf("a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the assignee, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
 				}
 				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
 				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
@@ -1772,9 +1772,9 @@ func isDuplicateKey(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
 }
 
-// requireOriginator is "the originator closes" (plans/roundless.md §III.B.3): a gap belongs to the
-// lens that minted it for its whole life, so its regrade and its close are that lens's acts and
-// nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
+// requireOriginator is "the assignee closes" (plans/roundless.md §III.B.3): a gap is its assignee's —
+// the lens that minted its chain's first gap, whoever wrote the gap itself — for its whole life, so
+// its regrade and its close are that lens's acts and nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
 // disposes of a docketed gap through its ruling, not through a close. A carry is exempt at the
 // call site: it restates a closure the archive already holds and is the chair's account.
 //
@@ -1869,7 +1869,7 @@ func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) erro
 }
 
 // ClosingRefusal is who may file a closing, when, and what it states: a party to the gap's dispute —
-// its minting lens, or blue-respond — while a docketing or a proposal stands on it (closingowed.go),
+// its assignee, or blue-respond — while a docketing or a proposal stands on it (closingowed.go),
 // stating its side's position (requireClosingStatement). A closing is an argument the bench reads when
 // it rules a docketing, so one with nothing before the bench answers no docketing, one from a seat that
 // is no party argues a dispute it is not in, and one that states no position the bench can side with

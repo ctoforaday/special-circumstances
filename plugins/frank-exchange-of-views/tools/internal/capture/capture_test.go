@@ -369,7 +369,7 @@ func docketedRun(t *testing.T, docketing string, closers, sitters []string) reco
 }
 
 // RECORD-PARITY HOLDS WHAT IS OWED THE BENCH TO THE RECORD: the chair's position at a sitting that
-// withheld a PASS its plan permitted, and each party's closing on a docketing — the minting lens's
+// withheld a PASS its plan permitted, and each party's closing on a docketing — the assignee's
 // and blue-respond's. A party that sat since the docketing and filed none is short; one that never
 // sat after it had no sitting to file in, and is named, not failed.
 func TestRecordParityAudit(t *testing.T) {

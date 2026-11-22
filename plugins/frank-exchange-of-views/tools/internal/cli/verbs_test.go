@@ -83,7 +83,7 @@ func TestVerbPayloads(t *testing.T) {
 		role string
 		// path is the command path when it is not <role> <second word of name>. The default
 		// recovers the verb from the TEST NAME, which is a fact composed into a string and
-		// split apart again — it works only for a two-level tree, and `motion grade file` is
+		// split apart again — it works only for a two-level tree, and `motion petition file` is
 		// three. Rather than re-derive a deeper path from a longer name, the cases that need
 		// one say so.
 		path   []string
@@ -373,7 +373,7 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	t.Parallel()
 	runDir := newRun(t)
-	// The lens that minted the gap is the one that regrades it — the originator closes.
+	// The gap's assignee is the one that regrades it — the assignee closes.
 	seatID := lensSeat
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)

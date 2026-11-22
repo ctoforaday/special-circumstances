@@ -9,7 +9,7 @@ import (
 
 // THE BENCH'S ORDERS, ACROSS SEATS, THROUGH THE COMMANDS EACH SEAT TYPES: the bench has no grade of
 // its own; it sides with blue's regrade proposal, the tool applies the proposal's grade in the
-// ruling's transaction, and the minting lens may not move the axis the ruling decided.
+// ruling's transaction, and the assignee may not move the axis the ruling decided.
 func TestTheBenchSetsAGradeTheLensMayNotMove(t *testing.T) {
 	runDir := seatRun(t)
 	g := mintGap(t, runDir, "bench-orders", "spec_underspecification")
@@ -30,6 +30,6 @@ func TestTheBenchSetsAGradeTheLensMayNotMove(t *testing.T) {
 	}
 	_, err := lensRegrade(t, runDir, g, "severity", "high")
 	if err == nil || !strings.Contains(err.Error(), "which the bench's ruling at event") {
-		t.Fatalf("the minting lens moved the axis the ruling decided: %v", err)
+		t.Fatalf("the assignee moved the axis the ruling decided: %v", err)
 	}
 }

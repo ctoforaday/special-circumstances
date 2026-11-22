@@ -12,7 +12,7 @@ import (
 
 const keptReason = "the acceptance check still fails: the sentence still names 7 as the only factor"
 
-// keepGrade is the minting lens's regrade that names no grade: it keeps the gap's grade, with why.
+// keepGrade is the assignee's regrade that names no grade: it keeps the gap's grade, with why.
 func (b *stage) keepGrade(lens, gap, reason string) *stage {
 	return b.add(lens, &recordpb.Regrade{GapId: proto.String(gap), Basis: proto.String(reason)})
 }

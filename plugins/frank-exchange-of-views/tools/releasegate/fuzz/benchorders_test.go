@@ -10,10 +10,10 @@ import (
 )
 
 // THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade with its own regrade
-// while a docketing on the gap stands before it, the minting lens may not move an axis the bench holds
+// while a docketing on the gap stands before it, the assignee may not move an axis the bench holds
 // locked, and a proposal on a gap the bench ruled closed is admitted as a successor only.
 //
-// The drive reaches each: the bench regrades a docketed gap before it rules it; the minting lens of a
+// The drive reaches each: the bench regrades a docketed gap before it rules it; the assignee of a
 // gap the bench remanded reaches to move the bench's axis and is refused; blue proposes on a gap the
 // bench ruled closed, first a regrade (refused, the gap being closed) and then its successor
 // (admitted). The sweep gates each bench-order count at zero. benchOrdersSeed's run drives every arm on
@@ -110,7 +110,7 @@ func (r *runner) keepingBenchGrades(args []string) []string {
 	return args
 }
 
-// lensMovesBenchAxis is the minting lens reaching to move an axis the bench set on an open gap of its
+// lensMovesBenchAxis is the assignee reaching to move an axis the bench set on an open gap of its
 // own, which the record refuses as a conflict naming the bench's grade and its place.
 func (r *runner) lensMovesBenchAxis(seatID string) {
 	for _, id := range r.openGaps() {

@@ -116,8 +116,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 
 	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats, rotated
-	// over stagingLenses, and each gap is closed by the lens that minted it, because the originator
-	// closes.
+	// over stagingLenses, and each gap is closed by its assignee, the lens that minted it, because the
+	// assignee closes.
 	for _, lensSeat := range stagingLenses {
 		if _, err := exec("register", "--run", run.Dir(), "--seat-id", lensSeat); err != nil {
 			return fmt.Errorf("register %s: %w", lensSeat, err)
@@ -142,7 +142,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		ref := fmt.Sprintf("G%d", i+1)
 		staged[ref] = gapID
-		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
+		// THE CLOSINGS ARE THE PARTIES': the red one the assignee's, the blue one blue-respond's,
 		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
 		for _, c := range []closingOf{{minter, g.RedClosing, g.Location, g.RedText}, {"blue-respond", g.BlueClosing, "", ""}} {
 			if c.text != "" {

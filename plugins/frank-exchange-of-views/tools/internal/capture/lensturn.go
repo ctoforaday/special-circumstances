@@ -29,7 +29,7 @@ func LensTurnAudit(run record.Run) Audit {
 		len(early), strings.Join(named, "; "))}
 }
 
-// DocketOrderAudit names every impasse docketing the dispatch wrote before the gap's minting lens had
+// DocketOrderAudit names every impasse docketing the dispatch wrote before the gap's assignee had
 // its re-audit (record.EarlyDockets). The plan readies the lens alone there and dockets after its
 // sitting (ruled by gblock 2026-10-31), so a row FAILS: the dispatch broke its rule, or the run was dispatched
 // by a binary that did not hold it.
@@ -39,13 +39,13 @@ func DocketOrderAudit(run record.Run) Audit {
 		return Audit{Check: "docket-order", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	if len(early) == 0 {
-		return Audit{Check: "docket-order", Verdict: "PASS", Detail: "no impasse docketing came before the gap's minting lens had its re-audit"}
+		return Audit{Check: "docket-order", Verdict: "PASS", Detail: "no impasse docketing came before the gap's assignee had its re-audit"}
 	}
 	named := make([]string, len(early))
 	for i, e := range early {
 		named[i] = fmt.Sprintf("%s on %s (event %d)", e.Docketing, e.GapID, e.At)
 	}
 	return Audit{Check: "docket-order", Verdict: "FAIL", Detail: fmt.Sprintf(
-		"%d impasse docketing(s) written with the gap's minting lens's audit still to come: %s. The bench was asked before the lens had read blue's answer",
+		"%d impasse docketing(s) written with the gap's assignee's audit still to come: %s. The bench was asked before the lens had read blue's answer",
 		len(early), strings.Join(named, "; "))}
 }

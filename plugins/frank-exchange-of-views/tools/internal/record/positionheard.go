@@ -100,7 +100,7 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 		return fmt.Errorf("--as %s names the work the debate continues on, and names it one way: --lens for a lens to audit its area, or --ids for open gaps, comma-separated, sent back for one more exchange — not both, and not neither", positionUpheld)
 	}
 	if strings.TrimSpace(h.GetDirection()) == "" {
-		return fmt.Errorf("--as %s requires --direction: the work the ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens", positionUpheld)
+		return fmt.Errorf("--as %s requires --direction: the work the ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its assignee", positionUpheld)
 	}
 	if lens != "" {
 		cast, err := castAt(w.q)
@@ -128,7 +128,7 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 			return err
 		}
 		if err := requireOpenGap(w.q, g, "--ids",
-			"a remand sends a gap back for one more exchange, begun by blue's act on it and audited by its minting lens after, and a closed gap has none to have"); err != nil {
+			"a remand sends a gap back for one more exchange, begun by blue's act on it and audited by its assignee after, and a closed gap has none to have"); err != nil {
 			return err
 		}
 		docketing, _, err := standingOnGap(w.q, g)

@@ -12,7 +12,7 @@ import (
 // THE ARGUMENT VERBS ARE TOPOLOGY, NOT OBEDIENCE (gblock, 2026-10-20). The position — the argument on
 // what is about no one gap — is the chair's, and no blue seat's surface holds it: blue-respond argues a
 // gap in its closing, and a lane, the frontier and the synthesizer argue in what they write. The
-// closing is a party's — the minting lens's and blue-respond's — and the chair, party to no dispute,
+// closing is a party's — the assignee's and blue-respond's — and the chair, party to no dispute,
 // holds no closing verb.
 func TestThePositionIsTheChairsAndTheClosingThePartiesVerb(t *testing.T) {
 	for _, seatID := range []string{"blue-respond", "blue-lane-1", "frontier", "blue-synthesize"} {

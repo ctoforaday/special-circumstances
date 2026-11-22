@@ -56,7 +56,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 }
 
 // The core rule: a mint located in text red prescribed and blue applied VERBATIM names
-// the gap that prescribed it, the seat that minted that gap, and the text.
+// the gap that prescribed it, the acting seat of that gap's mint, and the text.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 	mint := recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String("G1")})
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{mint, edit(t, "G1", true), stone(t, "G1", false)})

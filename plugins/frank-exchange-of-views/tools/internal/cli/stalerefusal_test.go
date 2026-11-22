@@ -74,10 +74,10 @@ func TestAnotherSeatsActSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain(t *
 	if st := lastBody(t, runDir, &recordpb.Stale{}); st.GetGapId() != gap || st.GetThrough() != regradedAt {
 		t.Errorf("the refusal recorded read point %s through %d, want %s through %d", st.GetGapId(), st.GetThrough(), gap, regradedAt)
 	}
-	// The minting lens regrades again at a sitting opened after the refusal.
+	// The assignee regrades again at a sitting opened after the refusal.
 	sit(t, runDir, lensSeat)
 	if err := regrade(t, runDir, lensSeat, gap, "medium"); err != nil {
-		t.Fatalf("the minting lens's second regrade: %v", err)
+		t.Fatalf("the assignee's second regrade: %v", err)
 	}
 	if err := docketMotion(t, runDir, gap); err == nil || !strings.Contains(err.Error(), "regraded "+gap) {
 		t.Fatalf("a regrade after the first refusal did not refuse the re-filed motion: %v", err)
@@ -97,7 +97,7 @@ func docketMotion(t *testing.T, runDir, gap string) error {
 	return proposeRegradeOf(t, runDir, "blue-respond", gap, "low")
 }
 
-// A seat's own acts are never news to it: the minting lens accepts blue's proposed regrade of its gap,
+// A seat's own acts are never news to it: the assignee accepts blue's proposed regrade of its gap,
 // which writes its answer to the motion — a change to the gap — and then the regrade, an act on the
 // gap that is refused when the gap moved under it, in the same transaction.
 func TestASeatsOwnActsOnAGapNeverRefuseIt(t *testing.T) {
@@ -171,8 +171,8 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 			if c.seat != lensSeat {
 				sit(t, runDir, c.seat)
 			}
-			// The move is another seat's: the minting lens's regrade, or, where the act is the minting
-			// lens's own, the bench's ruling on a docketing of the gap.
+			// The move is another seat's: the assignee's regrade, or, where the act is the
+			// assignee's own, the bench's ruling on a docketing of the gap.
 			moved := lensSeat + ": regraded " + gap
 			if c.seat == lensSeat {
 				m := proposeClose(t, runDir, "red-chair", gap, "not_a_defect", "the lens and blue have exchanged twice and neither moved")
@@ -212,7 +212,7 @@ func TestARegradeLandingAsTheMotionWritesIsSeen(t *testing.T) {
 	}
 }
 
-// CONCURRENT SEATS, FUZZED. Seats open sittings, the minting lens closes and regrades, other seats
+// CONCURRENT SEATS, FUZZED. Seats open sittings, the assignee closes and regrades, other seats
 // file docket motions on the gaps, in a seeded random interleaving. The oracle is independent of the
 // tool's fold: for every recorded docket motion, no close or regrade on that gap by another seat lies
 // between the filer's read point (its sitting's opening, or the last stale refusal on that gap in the

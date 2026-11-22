@@ -36,7 +36,7 @@ func (b *stage) sitClosed(seat string) *stage {
 	return b.stop(agent)
 }
 
-// exchangeOn is one exchange on gap: the chair engages the minting lens and blue, and each sits
+// exchangeOn is one exchange on gap: the chair engages the assignee and blue, and each sits
 // once and returns, recording nothing on the gap — a stalled exchange.
 func (b *stage) exchangeOn(gap string) *stage {
 	return b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap).
@@ -44,7 +44,7 @@ func (b *stage) exchangeOn(gap string) *stage {
 }
 
 // actingExchangeOn is the first half of one exchange on gap in which both parties act on it without
-// moving it: the minting lens keeps the grade, and blue records an edit answering it that changes
+// moving it: the assignee keeps the grade, and blue records an edit answering it that changes
 // nothing. It is the remand's exchange when one is owed, because blue acted in it, and the lens's
 // re-audit (reauditOn) is what ends it.
 func (b *stage) actingExchangeOn(gap string) *stage {
@@ -53,20 +53,20 @@ func (b *stage) actingExchangeOn(gap string) *stage {
 	return b.registerAs("blue-respond", agent).edit(gap, "same", "same").stop(agent)
 }
 
-// reauditOn is the chair engaging the minting lens alone on gap and the lens sitting and returning
+// reauditOn is the chair engaging the assignee alone on gap and the lens sitting and returning
 // with nothing recorded on it: the null turn that ends the exchange blue's answer opened.
 func (b *stage) reauditOn(gap string) *stage {
 	return b.register("red-chair").dispatch(2, evLens, gap).sitClosed(evLens)
 }
 
-// lensOnlyExchangeOn is one exchange on gap in which only the minting lens acts: it sits first and
+// lensOnlyExchangeOn is one exchange on gap in which only the assignee acts: it sits first and
 // keeps the grade, and blue sits after it and records nothing on the gap — universe-m35's order. It
 // begins no remand's exchange.
 func (b *stage) lensOnlyExchangeOn(gap string) *stage {
 	return b.lensActs(gap).sitClosed("blue-respond")
 }
 
-// lensActs is the chair dispatching the minting lens and blue on gap, and the lens sitting first and
+// lensActs is the chair dispatching the assignee and blue on gap, and the lens sitting first and
 // keeping the grade.
 func (b *stage) lensActs(gap string) *stage {
 	b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap)
@@ -128,7 +128,7 @@ func workMentions(t *testing.T, run Run, role, seat, frag string) bool {
 // A BENCH REMAND SENDS THE GAP BACK TO THE DEBATE FOR ONE MORE EXCHANGE (#1210, gblock's ruling of
 // 2026-09-29: the code follows the prose), AND THE EXCHANGE BEGINS WITH BLUE (ruled by gblock
 // 2026-10-27 and 2026-10-30). The gap is at impasse and the bench has ruled it, and the next plan
-// readies blue on it — not its minting lens, whose turn comes with blue's act — with the ruling's
+// readies blue on it — not its assignee, whose turn comes with blue's act — with the ruling's
 // direction stated in the plan and on both seats' work lists, so the direction the bench wrote
 // reaches both parties. While that exchange is owed the board is not at its ceiling. Once blue has
 // answered, the plan readies the lens alone on the gap to audit the answer (ruled by gblock
@@ -144,7 +144,7 @@ func TestARemandReadiesBlueForOneMoreExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("a remanded gap readies blue on it, and not its minting lens before blue has acted; parties %+v, why %q", plan.Parties, plan.Why)
+		t.Fatalf("a remanded gap readies blue on it, and not its assignee before blue has acted; parties %+v, why %q", plan.Parties, plan.Why)
 	}
 	if _, bench := partyOf(plan, benchSeat); bench || len(docketGaps(plan)) != 0 {
 		t.Errorf("the remand's exchange is owed, so nothing goes back to the bench yet: parties %+v, to file %v", plan.Parties, docketGaps(plan))
@@ -213,7 +213,7 @@ func TestARemandLineCarriesItsDirectionAsWritten(t *testing.T) {
 	}
 }
 
-// ONE EXCHANGE, NOT A LOOP. The minting lens and blue sit once on the remanded gap, both act on it,
+// ONE EXCHANGE, NOT A LOOP. The assignee and blue sit once on the remanded gap, both act on it,
 // and nothing moves: the gap is at impasse again, and the plan dockets it for the bench afresh
 // rather than readying the parties a second time. The work lists stop carrying the direction once its
 // exchange is spent.
@@ -263,7 +263,7 @@ func TestARemandExchangeThatMovesTheGapLeavesItBelowItsLimits(t *testing.T) {
 	}
 }
 
-// A SITTING THAT DOES NOT TOUCH THE GAP SPENDS NOTHING (gblock, 2026-10-25). The minting lens and blue
+// A SITTING THAT DOES NOT TOUCH THE GAP SPENDS NOTHING (gblock, 2026-10-25). The assignee and blue
 // sit once after the ruling and neither records an act on G1: the remand's exchange is still owed, so
 // the plan readies blue on it again with the direction — and not the lens, whose turn comes with
 // blue's act — nothing goes back to the bench, the stage stays owed and the PASS is held. The next
@@ -306,7 +306,7 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 }
 
 // BLUE'S ENVELOPE IS REFUSED UNTIL IT ACTS ON THE REMANDED GAP (gblock, 2026-10-25), AND THE LENS'S
-// NEVER IS (ruled by gblock 2026-10-30). Blue and the minting lens each sit after the ruling. Blue's
+// NEVER IS (ruled by gblock 2026-10-30). Blue and the assignee each sit after the ruling. Blue's
 // envelope is refused naming the remanded gap and its direction until blue records an act on it — an
 // edit answering it; the lens's act clears nothing for blue. The exchange begins with blue's act, so
 // the lens owes the gap nothing until blue has acted, and its envelope is not held by the remand.
@@ -653,7 +653,7 @@ func TestTheStoredPlanCarriesTheRemandOwed(t *testing.T) {
 }
 
 // A LENS'S ACT BEFORE BLUE'S BEGINS NO REMAND'S EXCHANGE (ruled by gblock 2026-10-27). The lenses sit
-// before blue in an epoch, so the minting lens acts on the remanded gap first: on universe-m35 its
+// before blue in an epoch, so the assignee acts on the remanded gap first: on universe-m35 its
 // regrade ("Blue has not answered the remand") was counted as the exchange, blue's item vanished when
 // blue's sitting closed, and blue never acted. Here the lens keeps the grade and blue sits without
 // touching G1: the exchange has not begun — the plan readies blue again with the direction, and not

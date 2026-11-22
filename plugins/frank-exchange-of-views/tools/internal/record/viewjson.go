@@ -997,7 +997,7 @@ type WorkGapState struct {
 	route         gapRoute
 	unruledDocket bool
 	docketed      bool
-	// lensDue and blueDue are whether the route engages the gap's minting lens and blue on it
+	// lensDue and blueDue are whether the route engages the gap's assignee and blue on it
 	// (partiesOnRoute); lensTurn and lensRead are GapExchanges', which the lens's items read.
 	lensDue, blueDue, lensTurn bool
 	lensRead                   int64
@@ -1711,7 +1711,7 @@ type DebateEpochJSON struct {
 	// what it names and what it found. A defect the chair finds in a stale area is stated there,
 	// with no verdict recorded.
 	SpotChecks []string `json:"spot_checks"`
-	// RedKeeps is each regrade a minting lens made this epoch that kept its gap's grade (KeptGrades):
+	// RedKeeps is each regrade an assignee made this epoch that kept its gap's grade (KeptGrades):
 	// the lens saying, after its re-audit, that the gap stands and what its check still finds
 	// failing. The bench reads it with the closings.
 	RedKeeps []DebateKeepJSON `json:"red_keeps"`
@@ -1731,8 +1731,8 @@ func ServedLine(seatID string, head int64) string {
 	return fmt.Sprintf("### REPORT SERVED — %s\nthe whole report was served to %s at head %d", seatID, seatID, head)
 }
 
-// DebateKeepJSON is one regrade that kept the grade: the gap, the lens that minted it, and its
-// reason.
+// DebateKeepJSON is one regrade that kept the grade: the gap, the seat whose regrade it
+// is — the gap's assignee — and its reason.
 type DebateKeepJSON struct {
 	GapID  string `json:"gap_id"`
 	SeatID string `json:"seat_id"`
@@ -1810,7 +1810,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
-		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
 		// blue-respond (BLUE) (closingowed.go). The write path admits no other (PositionRefusal,
 		// ClosingRefusal), so each renders as the record holds it.
 		var positions, redClosings, blueClosings []*Event

@@ -470,11 +470,11 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
 			if verbs[other][board] {
-				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
+				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than its assignee", other, board)
 			}
 		}
 	}
-	// The chair's duties are the chair's alone: the lens that minted a gap does not carry it,
+	// The chair's duties are the chair's alone: a gap's assignee does not carry it,
 	// sample the archive, or pronounce on the run.
 	for _, duty := range []string{"carry", "spot-check", "verdict", "dispatch"} {
 		if !verbs["chair"][duty] {
@@ -1423,7 +1423,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 			t.Errorf("the refusal must name the open gaps, got: %v", err)
 		}
 	}
-	// The originator closes: the lens that minted the gaps is the seat that closes them.
+	// The assignee closes: the lens that minted the gaps is their assignee and the seat that closes them.
 	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
 		if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 			"--id", id, "--as", "repaired",

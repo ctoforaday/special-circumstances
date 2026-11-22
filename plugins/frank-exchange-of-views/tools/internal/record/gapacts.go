@@ -11,15 +11,15 @@ import (
 // AN ACT ON A GAP IS A RECORDED EVENT THAT NAMES IT (gblock, 2026-10-25), and A REMAND'S EXCHANGE
 // BEGINS ONLY WHEN BLUE RECORDS ONE (ruled by gblock 2026-10-27). A sitting that opens and records
 // nothing on the gap is the null turn the exchange fold counts as a turn taken; a remand grants ONE
-// more exchange so the direction it states is worked, and a null turn works nothing. The minting
-// lens sits before blue in an epoch, so its act on a remanded gap is an audit of an answer that does
+// more exchange so the direction it states is worked, and a null turn works nothing. The assignee
+// sits before blue in an epoch, so its act on a remanded gap is an audit of an answer that does
 // not exist yet: on universe-m35 the voice lens's regrade ("Blue has not answered the remand") was
 // counted as the exchange, blue's item went with it, and blue never acted. The lens's act still
 // clears the lens's own item (remandItemsOf); it begins nothing.
 //
 // The acts, by the field each names the gap in:
 //
-//   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a mint
+//   - the assignee: a regrade (one that keeps the grade included), a close, a closing, a mint
 //     superseding it, a check (a reading or a judgement) of a citation or
 //     computation placed as its answer;
 //   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
@@ -94,7 +94,7 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 
 // A FATE BLUE CHANGED IS BLUE'S ACT ON THE GAPS ABOUT WHAT IT CHANGED (ruled by gblock 2026-11-05):
 // each gap anchored on the inquiry, and each gap anchored on a section the tool composes that prints
-// the inquiry — exactly as an edit is on the gap it answers: the minting lens's turn comes with it, and
+// the inquiry — exactly as an edit is on the gap it answers: the assignee's turn comes with it, and
 // the exchange counts it as movement. The tool composes the report's inquiry sections from fates, so
 // recording a fate again is the only act that changes them: on universe-m38 the adversary's
 // G-ca807516, about the section "Research areas", was answered twice by blue recording eight fates
@@ -204,19 +204,19 @@ func blueActed(acts []gapAct, after, upto int64) bool {
 // THE LENS'S TURN ON A GAP COMES WITH SOMETHING TO AUDIT (ruled by gblock 2026-10-30: #1603's rule —
 // a remand's exchange begins only on blue's act — applied to every exchange). The lens sits before
 // blue in an epoch, so a lens readied on a gap nothing has touched since its own last turn there
-// audits an answer that does not exist yet: on universe-m36 every fresh gap readied its minting lens
+// audits an answer that does not exist yet: on universe-m36 every fresh gap readied its assignee
 // and blue in the next epoch, and seven lens sittings recorded a keep-the-grade regrade ("Blue has not
 // edited the sentence since this gap was minted") before blue sat.
 //
-// lensTurnOn reports whether the minting lens's turn on a gap has come by upto: blue recorded an
+// lensTurnOn reports whether the assignee's turn on a gap has come by upto: blue recorded an
 // entry of turns (lensTurnActsOf) after the place the lens last read it (lensReadAt). The plan engages
-// the minting lens on the gap only when it holds, and a round whose blue sitting leaves it false ends
+// the assignee on the gap only when it holds, and a round whose blue sitting leaves it false ends
 // there (exchangeFold), so a gap blue never acts on still reaches impasse.
 func lensTurnOn(turns []gapAct, lens string, minted, floor, upto int64) bool {
 	return blueActed(turns, lensReadAt(turns, lens, minted, floor, upto), upto)
 }
 
-// lensReadAt is the place the minting lens last read a gap by upto: its latest turn there (turns),
+// lensReadAt is the place the assignee last read a gap by upto: its latest turn there (turns),
 // minted, the place of its mint — the mint is not an act on the gap itself — or floor, the gap's latest
 // remand ruling (0 for none), whose bench heard every answer before it.
 func lensReadAt(turns []gapAct, lens string, minted, floor, upto int64) int64 {

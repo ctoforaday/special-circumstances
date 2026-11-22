@@ -78,7 +78,7 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 	return out
 }
 
-// EarlyDocket is one impasse docketing the dispatch wrote on a gap whose minting lens still had its
+// EarlyDocket is one impasse docketing the dispatch wrote on a gap whose assignee still had its
 // audit to come (lensGoesFirst), read on the record as it stood at the docketing.
 type EarlyDocket struct {
 	At        int64  // the docketing's events.id

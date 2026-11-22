@@ -36,8 +36,8 @@ type Gap struct {
 	// Closed asks the builder to close this gap after minting it, so the board can carry an
 	// archive (spot-check has nothing to sample against an empty one).
 	Closed bool
-	// RedClosing and BlueClosing are the two parties' closing arguments on this gap — the minting
-	// lens's and blue-respond's — filed once the board's docket motion on it stands, before the
+	// RedClosing and BlueClosing are the two parties' closing arguments on this gap — the
+	// assignee's and blue-respond's — filed once the board's docket motion on it stands, before the
 	// bench sits.
 	//
 	// THE BENCH'S PROMPT PROMISES THEM. debate.js tells the judge its ruling basis is confined to
@@ -489,7 +489,7 @@ Figures were read from the deployed configuration at the pinned revision.
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
 				Baits: "motion docket file close",
 				Why: "A gap red RE-RAISES is docket-bound: it goes before the bench, where its parties — " +
-					"the minting lens and blue — argue it in their closings.",
+					"the assignee and blue — argue it in their closings.",
 			},
 		},
 		Inquiries: []Inquiry{
@@ -567,7 +567,7 @@ Integrity levels follow consequence.
 // lensDispose is the lens sitting AFTER its gap was answered: the report now carries the
 // derivation G1 asked for, and what remains is presentation. Two moves are right and both are the
 // originator's alone — regrade to the weight that remains, close with the verification triple —
-// because a gap belongs to the lens that minted it (plans/roundless.md §III.B.3). Split from lens-audit so neither board is a checklist.
+// because a gap is its assignee's for its whole life (plans/roundless.md §III.B.3). Split from lens-audit so neither board is a checklist.
 func lensDispose() Board {
 	return Board{
 		Name: "lens-dispose", Seat: "red-lens-evidence",
@@ -600,7 +600,7 @@ The methodology follows the standard published by the working group.
 			Severity: "high", Likelihood: "high", Impact: "medium", Complexity: "low",
 			Baits: "close",
 			Why: "The report now states the derivation the gap asked for, so the acceptance check is met on the " +
-				"page — and the lens that minted this gap is the one seat that may close it; the chair has no close verb.",
+				"page — and this gap's assignee, the lens that minted it, is the one seat that may close it; the chair has no close verb.",
 		}},
 		Expect: []Expectation{
 			{Seat: "red-lens-evidence", Verb: "regrade", Because: "G1's severity was set for a headline figure nobody could re-run, and the report now states its derivation: what remains is presentation, not correctness. The grade is the ORIGINATOR's to move, and a close over a grade that overstates the defect records the wrong weight; nobody else's regrade lands on this gap."},

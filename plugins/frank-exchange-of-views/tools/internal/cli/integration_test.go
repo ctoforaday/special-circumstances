@@ -143,7 +143,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	}
 }
 
-// The lens that minted a gap closes it with its verification anchor; the closure and its anchor
+// A gap's assignee closes it with its verification anchor; the closure and its anchor
 // must both be readable afterwards. An anchored closure whose anchor is not recoverable is exactly the
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.
 func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
@@ -211,7 +211,7 @@ func registerChairOnce(t *testing.T, runDir string) {
 
 // registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and serves it the whole report
 // where one is ingested, as a lens's audit does. A seat registers before it acts, and a gap is its
-// minting lens's to close, so every mint helper here sits the same lens rather than a fresh one per
+// assignee's to close, so every mint helper here sits the same lens rather than a fresh one per
 // call. The read is the lens's pin (record.ServeReport): a lens that sat and was never
 // served the report is still ready at the head, and every PASS these fixtures drive waits on it.
 func registerLensOnce(t *testing.T, runDir string) {

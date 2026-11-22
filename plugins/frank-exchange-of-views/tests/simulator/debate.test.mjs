@@ -683,7 +683,7 @@ test('the lens mints its own gaps, screens first, and closes as the originator',
 
 // THE ORDER IS THE RECORD'S, NOT THE SCRIPT'S (ruled by gblock 2026-10-30): a lens's turn on a gap
 // comes with blue's act, and the plan says when. An epoch whose plan engages blue alone on a fresh gap
-// sits no lens; the next, whose plan engages the minting lens on it after blue's answer, sits the lens
+// sits no lens; the next, whose plan engages the assignee on it after blue's answer, sits the lens
 // on it with the gap named, and blue after it.
 test('a plan that engages blue alone on a gap sits no lens, and the lens sits on it when the plan engages it', async () => {
   const world = makeWorld(makeResponder({

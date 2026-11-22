@@ -101,7 +101,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 
 	pet := lastBody(t, runDir, &recordpb.Motion{})
 	// The class lives on the PETITION ARM — the filing is a oneof, so a petition's class is not a
-	// field the Motion itself carries. That separation is what stops a grade motion silently
+	// field the Motion itself carries. That separation is what stops a docket motion silently
 	// holding a petition's class.
 	if pet.GetPetition().GetClass() != recordpb.PetitionClass_PETITION_CLASS_SAFETY || !setFields(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (%v) — relief that is not recorded cannot bind anybody", pet)

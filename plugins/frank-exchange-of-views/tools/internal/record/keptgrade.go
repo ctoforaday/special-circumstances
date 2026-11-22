@@ -76,7 +76,7 @@ func KeptGradeHeading(e *Event) string {
 	return fmt.Sprintf("### RED KEEPS THE GRADE — %s (%s)", r.GetGapId(), e.GetSeatId())
 }
 
-// keptGradeItems is blue's item for each open gap of gaps whose minting lens kept its grade after
+// keptGradeItems is blue's item for each open gap of gaps whose assignee kept its grade after
 // blue last answered it (blueAnswersOf): the lens's reason, which is what its check still finds
 // failing. A keep blue has answered since is answered, and drops off.
 func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []Item {

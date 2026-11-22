@@ -228,7 +228,7 @@ func payloadKey(flag string) string {
 var ruleDetail = map[string]string{
 	"position": "\n\nA POSITION HAS NO FILING: the chair's position at a sitting that withheld a PASS its plan permitted is the filing, so the id is the position's own — the " +
 		"`A-` id your work list names with the chair's argument, which is what you rule on. A position filed at any other sitting is not before you, and its id is refused. " +
-		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
+		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
 		"`overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.",
 }
 
@@ -467,16 +467,16 @@ var ruleFlagHelp = map[string]string{
 	flags.Settled:    "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition",
 	flags.ReopensOn:  "on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this",
 	flags.Final:      "on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this",
-	flags.Direction:  "on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this",
+	flags.Direction:  "on a remand, and required there: the research direction its one more exchange owes blue and the assignee. A ruling that closes the gap sends no exchange, so it never passes this",
 	flags.Relief:     "on a grant, and required there: the ORDER, written as an instruction the seats it binds can follow without reading your opinion — every seat's work list carries it. A denial orders nothing, so it never passes this",
 }
 
 // positionFlagHelp is what a ruling on a position says of the flags it shares with the docket's, and
 // of its own: the work an upheld ruling names.
 var positionFlagHelp = map[string]string{
-	flags.Direction: "the work an upheld ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens",
+	flags.Direction: "the work an upheld ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its assignee",
 	flags.Lens:      "on an upheld position, naming the work as a lens: the `seat-id` of the lens of the run's cast readied to audit its area on --direction. Never with --ids, never on an overruled one",
-	flags.IDs:       "on an upheld position, naming the work as open gaps — their `gap-ids`, comma-separated: each goes back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after. Never with --lens, never on an overruled one",
+	flags.IDs:       "on an upheld position, naming the work as open gaps — their `gap-ids`, comma-separated: each goes back for one more exchange on --direction, begun by blue's act on it and audited by its assignee after. Never with --lens, never on an overruled one",
 }
 
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a

@@ -611,7 +611,7 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
 		// blue-respond (BLUE) (record/closingowed.go). The write path admits no other
 		// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
 		var positions, redClosings, blueClosings []*record.Event

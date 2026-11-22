@@ -71,7 +71,7 @@ func Fresh(seatID, gapID string) Guard {
 //
 // WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, a
 // reaching retire, the bench's remand — and the acts that
-// move the gap's state, which that fold leaves out because they are its minting lens's own or end
+// move the gap's state, which that fold leaves out because they are its assignee's own or end
 // the gap: a close, a regrade, the bench's ruling on a docket motion on it, and its upholding of a
 // position naming it, which remands it. A seat's own acts are
 // never news to it.

@@ -10,7 +10,7 @@ import (
 // A CLOSING IS A PARTY'S ARGUMENT TO THE BENCH ON ONE DOCKETED GAP, AND THIS FILE IS WHERE WHO OWES
 // ONE IS SAID (gblock, 2026-10-20).
 //
-// A gap's dispute has two parties: the lens that minted it, which holds it from mint to close, and
+// A gap's dispute has two parties: its assignee, which holds it from mint to close, and
 // blue's responding seat, which answers it. Once the gap is docketed — the dispatch writes a docketing
 // at impasse, for its grade movement, or for a proposal its assignee did not accept — the bench rules it
 // on the two parties' closings, the transcript and the artifacts as they stand, so each party owes one
@@ -149,7 +149,7 @@ func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
 }
 
 // dutiesOn is the closing rows of one span on gapID — from its opening place to end (0 while it
-// stands) — for the docketing id (the gap's minting lens's row where the cast seats it, then blue's).
+// stands) — for the docketing id (the gap's assignee's row where the cast seats it, then blue's).
 func (r closingReads) dutiesOn(gapID, docketing string, from, end int64, ruled bool) []ClosingDuty {
 	within := func(at int64) bool { return at > from && (end == 0 || at < end) }
 	row := func(party string) ClosingDuty {

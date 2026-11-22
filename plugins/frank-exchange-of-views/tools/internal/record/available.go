@@ -198,7 +198,7 @@ func anchorOwnerOf(computation bool) string {
 }
 
 // remandItemsOf is the item a remand's exchange puts on the list of blue-respond, which the dispatch
-// readies for it, and of the gap's minting lens, whose turn comes after blue's act — carrying the
+// readies for it, and of the gap's assignee, whose turn comes after blue's act — carrying the
 // research direction the ruling states, so the bench's words reach both parties to the exchange. blue
 // says which of the two seatID is.
 //
@@ -269,13 +269,13 @@ func latestDispatchOf(evs []*Event, win WindowIndex, seatID string) int64 {
 	return at
 }
 
-// remandItem is the remand's sentence for blue or for the gap's minting lens: the direction, the act
+// remandItem is the remand's sentence for blue or for the gap's assignee: the direction, the act
 // that discharges it, and where the gap goes next.
 func remandItem(g WorkGapState, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
 	if blue {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the research direction the ruling states: " + g.DocketDirection +
-			". Your sitting cannot end until you record an act on " + g.ID + ": an edit answering it, a citation or computation placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints, or a motion on it. Its minting lens audits your answer after you have acted" + next
+			". Your sitting cannot end until you record an act on " + g.ID + ": an edit answering it, a citation or computation placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints, or a motion on it. Its assignee audits your answer after you have acted" + next
 	}
 	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — it begins when blue records an act on " + g.ID + " against the research direction the ruling states: " + g.DocketDirection +
 		". The dispatch readies you on " + g.ID + " once blue has acted or an edit has changed its sentence, and you audit it against that direction then: your audit is what ends this exchange" + next
@@ -288,7 +288,7 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	const head = "gap "
 	switch {
 	case g.route == routeRemandOwed && blueOut && g.lensDue:
-		return head + g.ID + " is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause + ": " + g.DocketDirection
+		return head + g.ID + " is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its assignee to audit that answer, which ends the one more exchange; " + blueHeldOutClause + ": " + g.DocketDirection
 	case g.route == routeRemandOwed && blueOut:
 		return head + g.ID + " is open because the BENCH REMANDED it — its one more exchange begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends; the gap stays open and holds the PASS: " + g.DocketDirection
 	}
@@ -298,7 +298,7 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	case routeProposal:
 		return head + g.ID + " is open because the BENCH REMANDED it, and a proposal stands on it — the dispatch readies its assignee for its window, and dockets the proposal for the bench if the assignee does not accept it there"
 	case routeRemandOwed:
-		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its minting lens once blue has acted: " + g.DocketDirection
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its assignee once blue has acted: " + g.DocketDirection
 	case routeRedocket:
 		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again, to be closed"
 	case routeDocket:
@@ -308,7 +308,7 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	case routeLensFirst:
-		return head + g.ID + " is open because the BENCH REMANDED it, and it is at its limits — the dispatch readies its minting lens alone on it, and dockets it for the bench if it stands after that audit"
+		return head + g.ID + " is open because the BENCH REMANDED it, and it is at its limits — the dispatch readies its assignee alone on it, and dockets it for the bench if it stands after that audit"
 	}
-	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its minting lens once blue has acted on it since the lens last did"
+	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its assignee once blue has acted on it since the lens last did"
 }

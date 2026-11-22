@@ -1292,7 +1292,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE LENS'S TURN COMES WITH BLUE'S ACT (ruled by gblock 2026-10-30): every lens a relayed plan
 		// engaged on a gap had blue's act since its own (the oracle fails the run otherwise), and gaps
 		// whose lens waited were dispatched to blue alone.
-		t.Logf("lens turns: %d lens engagement(s) after blue's act; %d gap(s) dispatched to blue while their minting lens waited", f.lensTurns, f.lensWaits)
+		t.Logf("lens turns: %d lens engagement(s) after blue's act; %d gap(s) dispatched to blue while their assignee waited", f.lensTurns, f.lensWaits)
 		if f.lensTurns == 0 || f.lensWaits == 0 {
 			t.Errorf("fuzz drove %d lens engagement(s) after blue's act and %d wait(s) across %d runs — the lens-turn rule is unexercised on one side (false green)", f.lensTurns, f.lensWaits, f.completed)
 		}
@@ -1326,7 +1326,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz drove %d hearing(s) after the chair, %d after the lenses (forced on seed %d) and %d after blue (seed %d) across %d runs — each must be nonzero, or a barrier the engine hears at is unexercised (false green)", f.hearingsAfterChair, f.hearingsAfterLens, lensPetitionSeed, f.hearingsAfterBlue, bluePetitionSeed, f.completed)
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
-		// the gap, and the minting lens may not move it.
+		// the gap, and the assignee may not move it.
 		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused", f.benchRegrades, f.lockRefused)
 		if f.benchRegrades == 0 {
 			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)

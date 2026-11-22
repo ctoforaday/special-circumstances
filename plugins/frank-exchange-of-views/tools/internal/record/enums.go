@@ -36,7 +36,7 @@ import (
 // record's classes, the bench's dispositions, an envelope enum and the prose of a prompt — with no
 // mechanism able to see them disagree.
 // DispositionRemanded is the ONE bench disposition that does not end a gap: it sends the gap back
-// to the debate for one more exchange between its minting lens and blue, on the research direction
+// to the debate for one more exchange between its assignee and blue, on the research direction
 // the ruling states (remandStageOf says what a remand still owes).
 //
 // It stays a named constant because it is the word the CLI defaults to and the seat-facing help

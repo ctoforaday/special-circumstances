@@ -478,7 +478,7 @@ var fuzzArms = []fuzzArm{
 // tourArms are the recording verbs the random sequences rarely land, each with the prerequisites
 // it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce, and
 // the logic lens's inquiry check;
-// the chair's position; the parties' closing on the docketed GAP002 — its minting lens's and
+// the chair's position; the parties' closing on the docketed GAP002 — its assignee's and
 // blue-respond's; the bench's declare, certify, halt and outcome.
 // Every arm files its act and then files it AGAIN: where a sitting holds one of the act the repeat
 // is refused, and the refusal names the act that answers the first.

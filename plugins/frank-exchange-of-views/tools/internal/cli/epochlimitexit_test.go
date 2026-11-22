@@ -58,7 +58,7 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	recordtest.Seed(t, runDir, evs...)
 }
 
-// argue files both parties' closings on limitGap — blue's and its minting lens's — so the plan
+// argue files both parties' closings on limitGap — blue's and its assignee's — so the plan
 // convenes the bench for its docketing: no party's closing is then awaited.
 func argue(t *testing.T, runDir string) {
 	t.Helper()

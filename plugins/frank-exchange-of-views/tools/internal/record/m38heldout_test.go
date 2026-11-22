@@ -355,7 +355,7 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 	if !held.BlueHeldOut() || len(held.RemandOwed) != 1 || !slices.Contains(gapsOf(held, evLens), "G1") {
 		t.Errorf("blue answered the remand before the hold: the lens's audit is owed, remand_owed %+v, parties %+v", held.RemandOwed, held.Parties)
 	}
-	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause
+	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its assignee to audit that answer, which ends the one more exchange; " + blueHeldOutClause
 	if !workMentions(t, answered, "chair", "red-chair", audits) {
 		t.Errorf("the chair's row for G1 does not say the lens's audit ends the exchange while blue is held out")
 	}

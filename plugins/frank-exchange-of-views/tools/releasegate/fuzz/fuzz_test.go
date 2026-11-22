@@ -626,14 +626,14 @@ type runner struct {
 	remandHolds, remandReleases int
 	blueSatSincePlan            bool
 	// lensTurns counts the lens engagements the relayed plans made on a gap blue had acted on since
-	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
-	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
+	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their
+	// assignee, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
 	lensTurns, lensWaits int
 	// fateTurns counts the lens engagements on a gap about a report section whose turn a fate blue
 	// changed helped bring (ruled by gblock 2026-11-05): those of lensTurns, and those that engage the
 	// lens alone. The sweep gates it at zero.
 	fateTurns int
-	// lensAlone counts the gaps a plan engaged their minting lens on and not blue (the last audit before
+	// lensAlone counts the gaps a plan engaged their assignee on and not blue (the last audit before
 	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
 	// floor; docketedClosesRefused the closes of a docketed gap refused naming the motion;
 	// docketedOffList the docketed gaps a party's list was read and held off (remandroute_test.go,
@@ -641,7 +641,7 @@ type runner struct {
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
 	// (benchSetsGrade; a successor inherits its ancestor's). benchRegrades counts the bench's
-	// regrades, lockRefused the minting lens's moves of a locked axis the tool refused
+	// regrades, lockRefused the assignee's moves of a locked axis the tool refused
 	// (benchorders_test.go). forceBenchOrders is benchOrdersSeed's run, which takes every arm. The
 	// sweep gates each count at zero.
 	benchSet                   map[string]map[string]string
@@ -1483,7 +1483,7 @@ func (r *runner) dischargeOwed(seatID string) {
 			}
 		}
 	}
-	// A REMAND'S ITEM HOLDS BLUE AND THE MINTING LENS UNTIL EACH ACTS ON THE GAP (answerRemands).
+	// A REMAND'S ITEM HOLDS BLUE AND THE ASSIGNEE UNTIL EACH ACTS ON THE GAP (answerRemands).
 	if seatID == "blue-respond" || strings.HasPrefix(seatID, "red-lens-") {
 		r.answerRemands(seatID)
 	}
@@ -4086,8 +4086,8 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 
 // mint records a gap as LENS seatID and returns the tool-assigned id. The first mint of a
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
-// has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
-// may later close or regrade the gap, which is why every landed mint is noted on r.minter.
+// has no mint verb (roundless §III.B.3), and the record remembers the minter — the gap's assignee where it succeeds
+// no other lens's gap — as the one seat that may later close or regrade it, which is why every landed mint is noted on r.minter.
 func (r *runner) mint(seatID string) string { return r.mintWith(seatID, "") }
 
 // mintWith mints as mint does, under the gap class class where it is set and the drawn class where
@@ -9446,7 +9446,7 @@ func (r *runner) checkRefused(class, seatID, id, reason string) {
 	}
 }
 
-// recomputeOpenComputations audits the computation answering each open COMPUTE gap, and the gap's minting lens
+// recomputeOpenComputations audits the computation answering each open COMPUTE gap, and the gap's assignee
 // closes on that computation's own comparison rather than on its own say-so. The computation's OWNER
 // reproduces it — executing the bundle where nobody has, else comparing against its standing re-run —
 // and judges its sentence: the one audit that does not end in believing bytes somebody else chose.

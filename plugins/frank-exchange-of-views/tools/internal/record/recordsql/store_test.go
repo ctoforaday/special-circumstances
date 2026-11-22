@@ -395,7 +395,7 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 // THE DATABASE REFUSES A REMAND WITHOUT A DIRECTION ON ITS OWN, with no write path in front of it.
 // The write path refuses it first, in words a bench can act on; the DocketRuling CHECK is what
 // holds when anything else inserts — migrate's replay, a fixture, a future verb. A remand ruled
-// final, or with a blank or whitespace direction, would reach blue and the minting lens owing
+// final, or with a blank or whitespace direction, would reach blue and the assignee owing
 // nothing; one stating what would reopen it states a condition for a gap it never closed.
 func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 	for _, c := range []struct {

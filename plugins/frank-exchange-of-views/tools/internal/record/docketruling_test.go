@@ -191,7 +191,7 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 }
 
 // EVERY REMAND STATES ITS DIRECTION (gblock, 2026-10-04), AND ONLY A REMAND DOES. A remand sends the
-// gap back for one more exchange, and the dispatch hands blue and the minting lens the ruling's
+// gap back for one more exchange, and the dispatch hands blue and the assignee the ruling's
 // direction as what that exchange owes. --reopens-on and --final say what would reopen a closed gap,
 // which a remand is not, so either on a remand is refused rather than given a meaning; a direction on
 // a ruling that closes the gap is research no exchange is dispatched to do.
@@ -214,7 +214,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 			c.set(o.GetDocket())
 			_, err := Append(sit(t, run, "judge"), o)
 			if err == nil {
-				t.Fatal("a remand stating no direction reached the record — blue and the minting lens would be dispatched owing nothing")
+				t.Fatal("a remand stating no direction reached the record — blue and the assignee would be dispatched owing nothing")
 			}
 			if !strings.Contains(err.Error(), "a remand requires --direction") {
 				t.Errorf("the refusal does not name --direction, so the bench cannot tell what the remand owes: %v", err)

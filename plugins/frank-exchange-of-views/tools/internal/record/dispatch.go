@@ -79,10 +79,10 @@ type Plan struct {
 	Docket []string `json:"docket" desc:"gaps the verb docketed for the bench at this sitting"`
 	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
 	// each with the research direction the remand states: blue is among Parties for it until it has
-	// acted, and then its minting lens alone, whose re-audit ends the exchange (partiesOnRoute). The
+	// acted, and then its assignee alone, whose re-audit ends the exchange (partiesOnRoute). The
 	// duty lasts exactly as long as the exchange is owed, and it quotes THIS direction, the record's,
 	// never the bench envelope's account of its own ruling.
-	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it until it has acted, and then its minting lens alone, whose re-audit ends the exchange"`
+	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it until it has acted, and then its assignee alone, whose re-audit ends the exchange"`
 	// Exchanges is one entry per gap a party is engaged on, in the order the parties first name
 	// them. It is the engine's measure of movement that the head does not carry: a gap marching to
 	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
@@ -399,7 +399,7 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		return lens, blue
 	}
-	// waiting is the reason's clause for a gap whose minting lens debate did not ready. A gap whose
+	// waiting is the reason's clause for a gap whose assignee debate did not ready. A gap whose
 	// minter is no lens has no re-audit to wait on.
 	waiting := func(g openGap, lens bool) string {
 		if lens || seatclass.RoleOfSeat(g.assignee) != "lens" {
@@ -579,11 +579,11 @@ func foldPlan(params Params, r planReads) Plan {
 			ready := "blue is ready for the one more exchange the remand grants, and it begins with blue's act"
 			switch {
 			case lens && blue && heldOut:
-				ready = "its minting lens is ready for the one more exchange the remand grants, and " + blueHeldOutClause
+				ready = "its assignee is ready for the one more exchange the remand grants, and " + blueHeldOutClause
 			case lens && blue:
-				ready = "its minting lens and blue are ready for the one more exchange the remand grants"
+				ready = "its assignee and blue are ready for the one more exchange the remand grants"
 			case lens:
-				ready = "blue has acted, and its minting lens is ready to audit that answer, which ends the one more exchange the remand grants"
+				ready = "blue has acted, and its assignee is ready to audit that answer, which ends the one more exchange the remand grants"
 			case heldOut:
 				ready = "the one more exchange the remand grants begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends"
 			}

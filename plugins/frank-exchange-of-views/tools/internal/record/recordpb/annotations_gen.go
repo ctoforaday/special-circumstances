@@ -86,7 +86,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_CERTIFY", Means: "a seat's signed statement about its own work — what it asserts on the record"},
 	{Name: "EVENT_TYPE_CITE", Means: "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"},
 	{Name: "EVENT_TYPE_CLOSE", Means: "red closing a gap on a verified repair — red's half of the closing vocabulary"},
-	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"},
+	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its assignee's or blue-respond's"},
 	{Name: "EVENT_TYPE_DECLARE", Means: "the bench stating a holding that later sittings are expected to apply"},
 	{Name: "EVENT_TYPE_LOG", Means: "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"},
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
@@ -198,7 +198,7 @@ var annotationsDisposition = [...]ValueAnnotations{
 	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_ACCEPTED", Means: "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_OWED_ELSEWHERE", Means: "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_REMANDED", Means: "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", Closes: DeclaredBool{Declared: true, Value: false}},
+	{Name: "DISPOSITION_REMANDED", Means: "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its assignee once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", Closes: DeclaredBool{Declared: true, Value: false}},
 	{Name: "DISPOSITION_MOOT", Means: "the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired", Closes: DeclaredBool{Declared: true, Value: true}},
 }
 
@@ -272,7 +272,7 @@ var annotationsPetitionRuling = [...]ValueAnnotations{
 
 var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
-	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
+	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
 	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
 }
 

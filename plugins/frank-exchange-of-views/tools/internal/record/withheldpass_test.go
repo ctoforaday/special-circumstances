@@ -152,15 +152,15 @@ func TestAnUpheldPositionReadiesTheWorkItNames(t *testing.T) {
 			t.Fatalf("plan after the upheld ruling = %+v, want G1's one more exchange owed on the ruling's direction", p)
 		}
 		// BLUE ACTS FIRST, THEN THE LENS'S TURN, as on any remand: the ruling readies blue on G1, and
-		// its minting lens only once blue has acted on it — on G1's news, blue's answer, since a gap
+		// its assignee only once blue has acted on it — on G1's news, blue's answer, since a gap
 		// that is not material is routed to nobody once its remand's exchange has begun.
 		if !slices.Contains(gapsOf(p, blueRespondSeat), "G1") || slices.Contains(gapsOf(p, evLens), "G1") {
-			t.Errorf("parties = %+v, want blue on G1 and not its minting lens", p.Parties)
+			t.Errorf("parties = %+v, want blue on G1 and not its assignee", p.Parties)
 		}
 		acted := b.blueSitsOn("G1", true).register("red-chair")
 		recordReset(t, acted)
 		if p := runPlan(t, acted.seed()); !slices.Contains(gapsOf(p, evLens), "G1") || slices.Contains(gapsOf(p, blueRespondSeat), "G1") {
-			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn alone: its audit ends the remand's exchange", p.Parties, p.RemandOwed)
+			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its assignee's turn alone: its audit ends the remand's exchange", p.Parties, p.RemandOwed)
 		}
 		audited := acted.dispatch(2, evLens, "G1").registerAs(evLens, "lens-audits").served(evLens, b.head()).stop("lens-audits").register("red-chair")
 		recordReset(t, audited)

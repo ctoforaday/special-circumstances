@@ -372,10 +372,10 @@ var blockerKinds = []blockerKind{
 		subject: SubjectGap,
 		gloss:   "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
+			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "its assignee"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it",
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its assignee and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},

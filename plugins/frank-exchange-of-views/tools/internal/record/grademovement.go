@@ -13,7 +13,7 @@ import (
 
 // GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH (gblock, 2026-10-20).
 //
-// Each regrade is the minting lens's own act. Nothing reviewed the movement IN TOTAL, and the total
+// Each regrade is the assignee's own act. Nothing reviewed the movement IN TOTAL, and the total
 // is what games the gate: a gap regraded below medium stops holding a PASS, and one regraded to
 // medium or above starts to. The round-loop engine docketed the cumulative magnitude of a round's accepted grade
 // changes past 2 mass units for the judge (debate.js ACCEPTED_DELTA_DOCKET_THRESHOLD, removed with the

@@ -590,7 +590,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		// RED'S CLOSING IS THE ASSIGNEE'S: the party to the gap's dispute.
 		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
 	})
 	writeShard(t, runDir, []*record.Event{

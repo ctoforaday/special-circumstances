@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// THE BOARD NAMES EACH GAP'S MINTER, as the work list does. m28's lenses asked `show board` for
-// `minted_by` 21 times and jq returned null: the key was on the work list's rows alone. The value
-// is the work list's, read off the same column.
-func TestTheBoardNamesEachGapsMinter(t *testing.T) {
+// THE BOARD NAMES EACH GAP'S ASSIGNEE, as the work list does. m28's lenses asked `show board` for
+// whose gap each was 21 times and jq returned null: the key was on the work list's rows alone. The
+// value is the work list's, read off the same column.
+func TestTheBoardNamesEachGapsAssignee(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "board-minter", "spec_underspecification")
 	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair")
@@ -38,10 +38,10 @@ func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 		t.Fatalf("show work: %v\n%s", err, work)
 	}
 	if len(board.Open) != 1 || board.Open[0].ID != id || board.Open[0].Assignee != lensSeat {
-		t.Fatalf("the board does not name %s's minter %s: %+v", id, lensSeat, board.Open)
+		t.Fatalf("the board does not name %s's assignee %s: %+v", id, lensSeat, board.Open)
 	}
 	if len(list.Open) != 1 || list.Open[0].Assignee != board.Open[0].Assignee {
-		t.Errorf("the board and the work list name different minters: board %+v, work %+v", board.Open, list.Open)
+		t.Errorf("the board and the work list name different assignees: board %+v, work %+v", board.Open, list.Open)
 	}
 }
 

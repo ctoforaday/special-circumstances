@@ -105,7 +105,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	}
 }
 
-// Every seat a dispatch names is readied again by the same predicate — blue and the minting lens
+// Every seat a dispatch names is readied again by the same predicate — blue and the assignee
 // get no exchange counted, the bench has not sat for its docketing — so each owes the sitting on
 // its own list, and a seat no dispatch names owes none.
 func TestEveryDispatchedSeatOwesTheSittingItWasDispatchedFor(t *testing.T) {

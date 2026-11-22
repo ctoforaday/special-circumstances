@@ -38,7 +38,7 @@ func scenarios() []scenario {
 		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 	}
-	// windowEnds is the minting lens sitting twice: a proposal's assignee window ends, unaccepted, and
+	// windowEnds is the assignee sitting twice: a proposal's assignee window ends, unaccepted, and
 	// the next dispatch dockets the proposal.
 	windowEnds := []cmd{
 		base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -260,7 +260,7 @@ func scenarios() []scenario {
 				// projection under test reads the JOIN — the gap is on the filing and the
 				// disposition on the ruling.
 				proposeClose("blue-respond", "GAP001", "not_a_defect", "the figure stands as stated, and the bench should say so"),
-				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
+				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its assignee and blue.
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
 			}, windowEnds, convene, []cmd{

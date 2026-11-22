@@ -114,7 +114,7 @@ func (b *stage) seed() Run {
 
 const evLens = "red-lens-evidence"
 
-// One exchange is blue's sitting engaged on G and its minting lens's sitting that audits it, both
+// One exchange is blue's sitting engaged on G and its assignee's sitting that audits it, both
 // complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it resets the
 // stall; a null turn — blue sat and recorded nothing on G — leaves the lens nothing to audit, ends
 // the exchange there and stalls it. The sittings of the last epoch are still open: they are not
@@ -364,8 +364,8 @@ func TestASupersededAncestorReadiesNobody(t *testing.T) {
 }
 
 // Empty is the termination signal: every cast lens retired and no material gap is open — PASS
-// permitted. With a material gap open and below its limits, blue is ready on it, and its minting
-// lens once blue has acted on it.
+// permitted. With a material gap open and below its limits, blue is ready on it, and its assignee
+// once blue has acted on it.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").sit(2, evLens).sit(2, evLens). // two barren sittings: retired
@@ -510,7 +510,7 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	}
 }
 
-// A gap belongs to the lens that minted it: only that lens regrades or closes it. The chair may
+// A gap is its assignee's: only that lens regrades or closes it. The chair may
 // still carry a closure the archive holds; the bench disposes through its ruling.
 func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().

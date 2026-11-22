@@ -1227,7 +1227,7 @@ func debate(fam record.Family, coverage partsAt) string {
 		// recordpb/required.go ("the closing argument for this gap").
 		for _, l := range re {
 			e := l
-			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
 			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
 			// record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {

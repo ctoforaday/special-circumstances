@@ -262,7 +262,7 @@ enum EventType {
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"];
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its assignee's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   // 11 was EVENT_TYPE_FINDING: a lens reports a defect as a gap, and a small defect is a gap
   // graded below what holds the gate. Reserved: a stored event carries its type's number.
@@ -521,7 +521,7 @@ enum Disposition {
   // `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", (closes) = false];
+  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its assignee once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
   // `not_a_defect` asserts that blue argued the gap was wrong and the argument HELD — a
@@ -677,7 +677,7 @@ enum PetitionRuling {
 // sitting, which records a verdict.
 enum PositionRuling {
   POSITION_RULING_UNSPECIFIED = 0;
-  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
+  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
   POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"];
 }
 
@@ -2043,13 +2043,13 @@ message DocketRuling {
 
   // A REMAND STATES ITS DIRECTION AND NOTHING THAT REOPENS. A remand sends the gap back to the
   // debate for one more exchange, and the dispatch hands that exchange's two seats — blue and the
-  // minting lens — the ruling's `direction` as the research they owe. A remand closes nothing, so
+  // assignee — the ruling's `direction` as the research they owe. A remand closes nothing, so
   // neither `reopens_on` nor `final` answers anything on it. A blank is no direction: the check
   // trims what the write path's strings.TrimSpace trims in ASCII (space, tab, newline, carriage
   // return), and a NULL direction fails it, where a bare `trim(NULL) <> ''` would be NULL and pass.
   option (check) = {
     expr: "coalesce(\"disposition\", '') <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
-    why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
+    why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the assignee; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
   };
 
   // A DIRECTION IS A REMAND'S. A ruling that closes the gap sends no exchange anywhere, so a
@@ -2086,7 +2086,7 @@ message DocketRuling {
   // bench's edit of red's (the assignee's) text, blue's closing's word or `not_a_defect` where it states
   // none, a close proposal's stored word; none on a grade answer.
   optional Disposition disposition = 1 [(sql) = {
-    why: "the closing word the tool writes from the side the ruling sided with, or `remanded` — which sends the gap back to the debate for one more exchange between its minting lens and blue; every other word ends it"
+    why: "the closing word the tool writes from the side the ruling sided with, or `remanded` — which sends the gap back to the debate for one more exchange between its assignee and blue; every other word ends it"
   }];
 
   optional string principle = 2 [(sql) = {
@@ -2121,11 +2121,11 @@ message DocketRuling {
   // checks above are what make "neither" and "both" unrepresentable.
   optional bool final = 7;
 
-  // THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the minting lens. Every reader of a
+  // THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the assignee. Every reader of a
   // remand reads this (the "remand" view, the dispatch plan's remand_owed, the work lists).
   optional string direction = 8 [(sql) = {
     flag: "direction"
-    why: "on a remand: the research direction its one more exchange owes blue and the minting lens"
+    why: "on a remand: the research direction its one more exchange owes blue and the assignee"
   }, (prose) = true];
 
   // 9 held `accepted`, an answer to a proposed act as true or false. A stored side replaces it
@@ -2208,7 +2208,7 @@ message PositionHearing {
   // THE WORK'S DIRECTION. The dispatch hands it to the readied seats, as a remand's.
   optional string direction = 4 [(sql) = {
     flag: "direction"
-    why: "on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its minting lens"
+    why: "on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its assignee"
   }, (prose) = true];
 }
 

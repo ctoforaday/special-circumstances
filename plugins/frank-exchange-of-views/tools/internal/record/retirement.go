@@ -195,7 +195,7 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	return out
 }
 
-// gapNews is one act on a gap that its minting lens has not had: what it is, as a work list names
+// gapNews is one act on a gap that its assignee has not had: what it is, as a work list names
 // it, and the events.id it arrived at.
 type gapNews struct {
 	gap, item string
@@ -205,7 +205,7 @@ type gapNews struct {
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
 // (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), the bench's
 // remand of it. It is one reading with two
-// readers: the minting lens owes each item until it sits through a sitting opened after it
+// readers: the assignee owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
 // (staleOf).
 func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []gapNews {

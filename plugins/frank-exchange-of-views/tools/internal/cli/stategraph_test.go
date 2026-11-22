@@ -407,7 +407,7 @@ func gapOf(t *testing.T, runDir, id string) *record.Gap {
 
 // motionProbe is the shape the motion subjects share.
 //
-// `prelude` is what must exist before the motion can: the gap a grade motion argues over. `order`
+// `prelude` is what must exist before the motion can: the gap a docket motion proposes an act on. `order`
 // maps each state to the act that reaches it.
 func motionProbe(subject, id string, prelude, acts []probeAct, states []string, order, terminal map[string]string) entityProbe {
 	return entityProbe{

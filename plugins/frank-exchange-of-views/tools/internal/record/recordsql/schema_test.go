@@ -123,9 +123,9 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	t.Run("a ruling cannot answer two subjects at once", func(t *testing.T) {
 		res, _ := db.Exec(`INSERT INTO events (seat_id, key, ts, type, sitting, epoch) VALUES ('judge', 'judge:motion_rule:#' || ?, '2026-01-01T00:00:01Z', 'motion_rule', 0, 0)`, seq())
 		id, _ := res.LastInsertId()
-		_, err := db.Exec(`INSERT INTO motion_rule (event_id, motion_id, subject, grade, petition) VALUES (?, 'M1', 'grade', 'accepted', 'granted')`, id)
-		if err == nil {
-			t.Fatal("a motion rule carried BOTH a grade verdict and a petition verdict — the oneof exists so that a grade motion cannot be answered with a petition's word")
+		_, err := db.Exec(`INSERT INTO motion_rule (event_id, motion_id, opinion, petition, ruling_case) VALUES (?, 'M1', 'o', 'granted', 'docket')`, id)
+		if err == nil || !strings.Contains(err.Error(), "CHECK constraint") {
+			t.Fatalf("a motion rule carried BOTH a petition verdict and a docket ruling (%v) — the oneof exists so that a docket motion cannot be answered with a petition's word", err)
 		}
 	})
 
