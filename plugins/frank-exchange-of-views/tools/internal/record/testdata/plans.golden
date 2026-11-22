@@ -481,6 +481,10 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
+== stmt 4f09736a6ef7
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "fetched_at", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
 == stmt 66c9df8faf08
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)

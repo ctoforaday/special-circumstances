@@ -17,5 +17,19 @@
     "debate",
     "verification"
   ],
-  "hooks": "./.claude-plugin/hooks.json"
+  "hooks": "./.claude-plugin/hooks.json",
+  "agents": [
+    "./agents-claude/blue-lane.md",
+    "./agents-claude/blue-researcher.md",
+    "./agents-claude/blue-synthesizer.md",
+    "./agents-claude/lead-judge.md",
+    "./agents-claude/red-chair.md",
+    "./agents-claude/red-lens-adversary.md",
+    "./agents-claude/red-lens-architecture.md",
+    "./agents-claude/red-lens-computation.md",
+    "./agents-claude/red-lens-dark-side.md",
+    "./agents-claude/red-lens-evidence.md",
+    "./agents-claude/red-lens-logic.md",
+    "./agents-claude/red-lens-voice.md"
+  ]
 }

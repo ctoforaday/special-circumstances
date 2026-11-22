@@ -189,6 +189,10 @@ func main() {
 		fail("%s", p)
 	}
 
+	for _, p := range rawLockProblems(root) {
+		fail("%s", p)
+	}
+
 	if failed {
 		os.Exit(1)
 	}
@@ -440,6 +444,7 @@ type claudePluginManifest struct {
 	Keywords     []string        `json:"keywords,omitempty"`
 	Dependencies []string        `json:"dependencies,omitempty"`
 	Hooks        string          `json:"hooks,omitempty"`
+	Agents       []string        `json:"agents,omitempty"`
 }
 
 type agyPluginManifest struct {
