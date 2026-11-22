@@ -283,19 +283,23 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 		t.Fatalf("subsequent call did not resolve via bound conv file:\n%s", out.String())
 	}
 
-	// PreInvocation drains a failed run_command step from transcript_full.jsonl and logs it via recordFailure,
-	// AND flushes a PostToolUse-queued NextItem under the same bound agy agent id.
+	// PreInvocation drains a failed run_command step from transcript_full.jsonl and logs it via
+	// failureEntry/recordFailure, skipping feov-record refusals already logged as refusals.
 	t.Setenv("PLUGIN_DATA", t.TempDir())
 	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
-	trData := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"/missing/feov-record register\""}}]}` + "\n" +
-		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 127.\n\nCommand output:\nbash: /missing/feov-record: No such file or directory\n"}` + "\n"
+	trData := strings.Join([]string{
+		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"/bin/feov-record cite --help\""}}]}`,
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 2.\n\nCommand output:\nfeov-record: \"cite\" is not on your surface\n"}`,
+		`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"/missing/script.py\""}}]}`,
+		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 127.\n\nCommand output:\nbash: /missing/script.py: No such file or directory\n"}`,
+	}, "\n") + "\n"
 	if err := os.WriteFile(tp, []byte(trData), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	var loggedAgent, loggedText string
+	var logged []string
 	prevFail := recordFailure
 	recordFailure = func(_, agentID, text string) error {
-		loggedAgent, loggedText = agentID, text
+		logged = append(logged, agentID+"|"+text)
 		return nil
 	}
 	t.Cleanup(func() { recordFailure = prevFail })
@@ -311,7 +315,7 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 	if err := Pre(bytes.NewReader(preInvPayload), &out, testRecorder()); err != nil {
 		t.Fatal(err)
 	}
-	if loggedAgent != "agy-0123456789abcdef" || !strings.Contains(loggedText, "exited 127") {
-		t.Fatalf("PreInvocation failed-step log = (%q, %q), want agy-0123456789abcdef + exited 127", loggedAgent, loggedText)
+	if len(logged) != 1 || !strings.HasPrefix(logged[0], "agy-0123456789abcdef|") || !strings.Contains(logged[0], "/missing/script.py") {
+		t.Fatalf("PreInvocation failed-step logs = %v, want 1 non-refusal entry for /missing/script.py", logged)
 	}
 }

@@ -149,14 +149,16 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		return
 	}
 	for _, st := range failed {
-		summary := fmt.Sprintf("`%s` exited %d on `%s`", st.ToolName, st.ExitCode, strings.TrimSpace(st.Command))
-		if out := strings.TrimSpace(st.Output); out != "" {
-			if len(out) > 240 {
-				out = out[:240] + "…"
-			}
-			summary += " — " + strings.ReplaceAll(out, "\n", " ")
+		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
+		errText := strings.TrimSpace(st.Output)
+		if errText == "" {
+			errText = fmt.Sprintf("Command exited with code %d.", st.ExitCode)
 		}
-		if err := recordFailure(runDir, caller.ID, summary); err != nil {
+		text, ok := failureEntry(runDir, st.ToolName, rawInput, errText)
+		if !ok {
+			continue
+		}
+		if err := recordFailure(runDir, caller.ID, text); err != nil {
 			rec.Fail(StageFailureLog, "a seat's call failed and could not be logged: "+err.Error())
 		} else {
 			rec.OK(StageFailureLog)
