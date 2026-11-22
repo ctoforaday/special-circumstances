@@ -7,21 +7,19 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade with its own regrade
-// while a docketing on the gap stands before it, the assignee may not move an axis the bench holds
-// locked, and a proposal on a gap the bench ruled closed is admitted as a successor only.
+// THE LOCK A RULING ON A GRADE HOLDS (amendments 2–4, gblock 2026-11-20): the bench writes no grade of
+// its own; a ruling on a grade — a side of a regrade proposal's pair, or --keep | --restore at grade
+// movement — locks each axis it decided at the grade it leaves, the assignee may not move it back, a
+// successor carries it, and the ruling's tombstone ending ends it.
 //
-// The drive reaches each: the bench regrades a docketed gap before it rules it; the assignee of a
-// gap the bench remanded reaches to move the bench's axis and is refused; blue proposes on a gap the
-// bench ruled closed, first a regrade (refused, the gap being closed) and then its successor
-// (admitted). The sweep gates each bench-order count at zero. benchOrdersSeed's run drives every arm on
-// every gap that reaches it.
-
-// benchOrdersSeed is the seed whose run is FORCED through every arm above. It is none of the forced
-// seeds before it: their runs are each shaped for one fact, and the bench's regrade reshapes the
-// grades every one of them reads.
+// The drive reaches each: the assignee of a gap a ruling locked reaches to move a locked axis and is
+// refused; blue proposes on a gap the bench ruled closed, first a regrade (refused, the gap being
+// closed or its ruling's tombstone standing) and then its successor. benchOrdersSeed's run takes every
+// arm on every gap that reaches it.
 
 // benchOrdersPct is how often a drawn run takes each arm where it can.
 const benchOrdersPct = 20
@@ -35,65 +33,130 @@ func (r *runner) benchOrdersArm() bool {
 	return r.forceBenchOrders || r.coin(benchOrdersPct)
 }
 
-// benchSetsGrade is the bench, hearing gapID, moving one axis before it rules: admitted while a
-// docketing on the gap stands unruled. The move locks the axis (benchMoves).
-func (r *runner) benchSetsGrade(seatID, gapID string) {
-	if !slices.Contains(r.openGaps(), gapID) || len(r.standingDocketings(gapID)) == 0 || !r.benchOrdersArm() {
-		return
-	}
-	// EVERY AXIS, complexity included: the bench's regrade takes the lens's four flags.
-	r.benchMoves(seatID, gapID, pick(r.rng, benchRegradeDims))
-}
-
-// benchMoves is the bench's regrade moving gapID's dim, and the drive's model of the lock after it: the
-// axis is the bench's (benchSet), at the grade it set.
-func (r *runner) benchMoves(seatID, gapID, dim string) bool {
-	grade := r.gradeOnOtherThan(dim, r.currentGrade(gapID, dim))
-	if _, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, grade,
-		"--reason", "fuzz: the bench holds "+gapID+"'s "+dim+" is "+grade+", and rules on that grade"); !ok {
-		return false
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.benchSet == nil {
-		r.benchSet = map[string]map[string]string{}
-	}
-	if r.benchSet[gapID] == nil {
-		r.benchSet[gapID] = map[string]string{}
-	}
-	r.benchSet[gapID][dim] = grade
-	r.benchRegrades++
-	return true
-}
-
-// benchRegradeDims is the four axes by flag name, as a regrade spells them.
+// benchRegradeDims is the four axes by flag name, as a regrade spells them, in the record's axis order.
 var benchRegradeDims = append(append([]string{}, regradeDims...), "complexity")
 
-// benchGrades is a copy of the axes the bench set on gapID, by flag name.
+// axisFlags is the record's axis order by flag name: severity, likelihood, impact, complexity.
+var axisFlags = [4]string{"severity", "likelihood", "impact", "complexity"}
+
+// lockedAxes is, per gap, the axes a ruling on a grade holds locked — recomputed by the fuzz from the
+// stream, independent of the record's fold: a ruling that is not a remand decides the axes its regrade
+// proposal names, or at grade movement the axes a party's regrade moved since each axis's last ruling;
+// a successor inherits its ancestor's locks; a ruling tombstone's end row ends every lock a ruling on
+// its gap set. It also reports how many rulings locked an axis.
+func (r *runner) lockedAxes() (map[string][4]bool, int) {
+	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_DOCKETING, recordpb.EventType_EVENT_TYPE_REGRADE,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE, recordpb.EventType_EVENT_TYPE_TOMBSTONE)
+	if err != nil {
+		r.noteActErr("the record's grade rulings could not be read: " + err.Error())
+		return nil, 0
+	}
+	locks := map[string][4]int{} // each axis's locking ruling, by its place in evs; -1 for none
+	grades := map[string][4]recordpb.Grade{}
+	moved := map[string][4]bool{}
+	named := map[string][4]bool{}
+	type docketed struct {
+		gap, motion string
+		movement    bool
+	}
+	docketings := map[string]docketed{}
+	rulingGap := map[int]string{}
+	rulings := 0
+	unlocked := [4]int{-1, -1, -1, -1}
+	for i, e := range evs {
+		body, _ := recordpb.Body(e)
+		switch b := body.(type) {
+		case *recordpb.Mint:
+			g := b.GetGapId()
+			if _, seen := locks[g]; seen {
+				continue
+			}
+			cur := unlocked
+			if a := b.GetSupersedes(); a != "" {
+				if from, ok := locks[a]; ok {
+					cur = from
+				}
+			}
+			locks[g] = cur
+			grades[g] = [4]recordpb.Grade{b.GetSeverity(), b.GetLikelihood(), b.GetImpact(), b.GetComplexityCost()}
+		case *recordpb.Motion:
+			if rg := b.GetRegrade(); rg != nil {
+				named[b.GetMotionId()] = [4]bool{rg.Severity != nil, rg.Likelihood != nil, rg.Impact != nil, rg.ComplexityCost != nil}
+			}
+		case *recordpb.Docketing:
+			docketings[b.GetDocketingId()] = docketed{gap: b.GetGapId(), motion: b.GetMotionId(),
+				movement: b.GetCause() == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT}
+		case *recordpb.Regrade:
+			g := b.GetGapId()
+			now := [4]recordpb.Grade{b.GetResultSeverity(), b.GetResultLikelihood(), b.GetResultImpact(), b.GetResultComplexityCost()}
+			m := moved[g]
+			for k := range now {
+				if now[k] != grades[g][k] && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+					m[k] = k < 3
+				}
+			}
+			moved[g], grades[g] = m, now
+		case *recordpb.MotionRule:
+			d := b.GetDocket()
+			k, ok := docketings[d.GetDocketingId()]
+			if d == nil || !ok || d.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+				continue
+			}
+			decided := named[k.motion]
+			if k.movement {
+				decided = moved[k.gap]
+			}
+			cur, m, any := locks[k.gap], moved[k.gap], false
+			for ax, on := range decided {
+				if on {
+					cur[ax], m[ax], any = i, false, true
+				}
+			}
+			locks[k.gap], moved[k.gap] = cur, m
+			if any {
+				rulings++
+				rulingGap[i] = k.gap
+			}
+		case *recordpb.Tombstone:
+			if !b.GetEnds() || b.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_RULING {
+				continue
+			}
+			for g, axes := range locks {
+				for ax, by := range axes {
+					if by >= 0 && rulingGap[by] == b.GetGapId() {
+						axes[ax] = -1
+					}
+				}
+				locks[g] = axes
+			}
+		}
+	}
+	out := map[string][4]bool{}
+	for g, axes := range locks {
+		var on [4]bool
+		for ax, by := range axes {
+			on[ax] = by >= 0
+		}
+		out[g] = on
+	}
+	return out, rulings
+}
+
+// benchGrades is each axis a ruling holds locked on gapID, by flag name, at the grade the gap holds.
 func (r *runner) benchGrades(gapID string) map[string]string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	locked, _ := r.lockedAxes()
 	out := map[string]string{}
-	for dim, g := range r.benchSet[gapID] {
-		out[dim] = g
+	for ax, on := range locked[gapID] {
+		if on {
+			out[axisFlags[ax]] = r.currentGrade(gapID, axisFlags[ax])
+		}
 	}
 	return out
 }
 
-// inheritBenchGrades is a successor minted superseding ancestor carrying the bench's axes: the lock
-// follows the lineage, so the successor's are the bench's too.
-func (r *runner) inheritBenchGrades(successor, ancestor string) {
-	held := r.benchGrades(ancestor)
-	if len(held) == 0 || successor == "" {
-		return
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.benchSet[successor] = held
-}
-
-// keepingBenchGrades is args with every axis the bench set on any gap it supersedes stated at the
-// bench's grade, so a successor mint the drive expects to land does not meet the lock.
+// keepingBenchGrades is args with every axis a ruling locked on any gap it supersedes stated at the
+// locked grade, so a successor mint the drive expects to land does not meet the lock.
 func (r *runner) keepingBenchGrades(args []string) []string {
 	for i, a := range args {
 		if a != "--supersedes" || i+1 >= len(args) {
@@ -150,9 +213,11 @@ func (r *runner) lensMovesBenchAxis(seatID string) {
 	}
 }
 
-// reconsider is blue putting a gap the bench ruled closed before it again: a proposed regrade of it is
-// refused, the gap being closed, and the proposed successor — the one act a proposal on a closed gap
-// may propose — is admitted. A gap before the bench is left to it.
+// reconsider is blue putting a gap the bench ruled closed before it again. While the ruling's tombstone
+// stands, a proposed regrade of it and a proposed successor are each refused naming the tombstone — the
+// ruling is final for the ruled gap's text until a reword ends it (estopped_refused); once a reword
+// ended it, the regrade is refused as a proposal on a closed gap, and the successor — the one act a
+// proposal on a closed gap may propose — is admitted. A gap before the bench is left to it.
 func (r *runner) reconsider(seatID string) {
 	if !r.benchOrdersArm() {
 		return
@@ -180,11 +245,30 @@ func (r *runner) reconsider(seatID string) {
 	switch {
 	case err == nil:
 		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was admitted: %s", id, firstLine(out)))
-		return
-	case !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "gap "+id+" is closed"):
-		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was refused, and not as a closed gap's: %s", id, firstLine(out)))
-		return
+	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands):
+		r.countGate("estopped_refused:regrade")
+		r.estoppedSuccessorRefused(seatID, id)
+	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, "gap "+id+" is closed"):
+		r.proposeSuccessor(seatID, id, "fuzz: the bench ruled "+id+" closed, and blue proposes the statement that replaces it")
+	default:
+		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was refused, and neither by its ruling's tombstone nor as a closed gap's: %s", id, firstLine(out)))
 	}
-	r.admitFresh(id, r.proposeSupersedeArgs(seatID, id,
-		"fuzz: the bench ruled "+id+" closed, and blue proposes the statement that replaces it")...)
+}
+
+// tombstoneStands is the words a proposal on a gap whose ruling's tombstone stands is refused with.
+const tombstoneStands = "its tombstone stands"
+
+// estoppedSuccessorRefused is blue proposing the successor of gapID while its ruling's tombstone
+// stands: refused naming the tombstone, as the regrade was.
+func (r *runner) estoppedSuccessorRefused(seatID, gapID string) {
+	out, err := r.exec(withJSON(r.plainSuccessorArgs(seatID, gapID, "fuzz: the bench ruled "+gapID+" closed, and blue proposes its successor"))...)
+	env, ok := refusalEnvelopeIn(out)
+	switch {
+	case err == nil:
+		r.noteActErr(fmt.Sprintf("blue's proposed successor of %s was admitted while its ruling's tombstone stood: %s", gapID, firstLine(out)))
+	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands):
+		r.countGate("estopped_refused:supersede")
+	default:
+		r.noteActErr(fmt.Sprintf("blue's proposed successor of %s, whose ruling's tombstone stands, was refused, and not by the tombstone: %s", gapID, firstLine(out)))
+	}
 }

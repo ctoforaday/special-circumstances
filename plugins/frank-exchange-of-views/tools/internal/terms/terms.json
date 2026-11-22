@@ -669,6 +669,19 @@
       ]
     },
     {
+      "term": "assignee",
+      "definition": "An assignee is the seat whose gap it is: the lens that minted the origin of the gap's lineage, which every successor carries whoever wrote it — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "material",
       "definition": "A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.",
       "seats": [

@@ -88,6 +88,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERIFIED.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
+  - An assignee is the seat whose gap it is: the lens that minted the origin of the gap's lineage, which every successor carries whoever wrote it — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.

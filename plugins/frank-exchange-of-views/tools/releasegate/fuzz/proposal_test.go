@@ -1,8 +1,11 @@
 package fuzz
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -85,19 +88,22 @@ func (r *runner) beforeTheBench(gapID string) bool { return len(r.standingOn(gap
 //
 // --final and --reopens-on stay on an answer that closes the gap by its own word (AnswerWord), and leave
 // every other; an answer that closes the gap with neither in extra states --final.
-func (r *runner) docketAnswer(id, want string, extra []string) (answer []string, remand bool) {
+//
+// unstated is the side the draw first named where that side stated nothing, "" otherwise: the caller
+// answers for it first, and the record refuses it naming the missing statement (refuseUnstated).
+func (r *runner) docketAnswer(id, want string, extra []string) (answer []string, remand bool, unstated recordpb.SidedWith) {
 	p, found, err := record.PositionsOf(r.run(), id)
 	switch {
 	case err != nil:
 		r.noteActErr("docketing " + id + "'s positions could not be read: " + err.Error())
-		return nil, false
+		return nil, false, 0
 	case !found:
 		r.noteActErr("docketing " + id + " is not on the record")
-		return nil, false
+		return nil, false, 0
 	}
 	gradeMovement := p.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT
 	if want == "remanded" && !gradeMovement {
-		return append([]string{"--remand"}, extra...), true
+		return append([]string{"--remand"}, extra...), true, 0
 	}
 	closes := false
 	switch {
@@ -116,8 +122,11 @@ func (r *runner) docketAnswer(id, want string, extra []string) (answer []string,
 		var side recordpb.SidedWith
 		switch {
 		case p.FilerSide != 0:
+			// A CLOSE IS THE FILER'S MOST OFTEN, and on a coin the other side's: red's text where the
+			// filer is blue, the assignee's where the filer is another lens (--for-assignee).
 			side = p.FilerSide
-			if _, isClose := p.Act.(*recordpb.Close); !isClose && r.scenarioOf(p.GapID) != dirDisputeWon {
+			_, isClose := p.Act.(*recordpb.Close)
+			if (!isClose && r.scenarioOf(p.GapID) != dirDisputeWon) || (isClose && r.coin(30)) {
 				side = other(side)
 			}
 		case want == "repaired":
@@ -126,7 +135,7 @@ func (r *runner) docketAnswer(id, want string, extra []string) (answer []string,
 			side = p.Pair[1]
 		}
 		if !p.Stated(side) {
-			side = other(side)
+			unstated, side = side, other(side)
 		}
 		answer = []string{"--for-" + recordpb.Word(side)}
 		closes = p.AnswerWord(side) != nil
@@ -150,7 +159,24 @@ func (r *runner) docketAnswer(id, want string, extra []string) (answer []string,
 	if closes && !reopens {
 		answer = append(answer, "--final")
 	}
-	return answer, false
+	return answer, false, unstated
+}
+
+// refuseUnstated is the bench answering docketing id for side, which stated nothing, with the rest of
+// its ruling in common: the record refuses it naming the missing statement, and the sweep counts the
+// refusal by the docketing's cause and the side (unstated_side_refused).
+func (r *runner) refuseUnstated(id string, side recordpb.SidedWith, common []string) {
+	cause := ""
+	for _, d := range r.docketings() {
+		if d.ID == id {
+			cause = recordpb.Word(d.Cause)
+		}
+	}
+	before := r.actErr
+	r.refuse(feov.Validation, append(slices.Clone(common), "--for-"+recordpb.Word(side), "--final")...)
+	if r.actErr == before {
+		r.countGate("unstated_side_refused:" + cause + ":" + recordpb.Word(side))
+	}
 }
 
 // exchangeOn is one counted exchange on the gaps the chair's plan engages blue on: the chair plans,
@@ -216,7 +242,20 @@ func (r *runner) proposeSupersedeArgs(seatID, gapID, reason string) []string {
 		kind, ref := r.aboutAnchor()
 		args = append(args, "--about-kind", kind, "--about", ref)
 	case r.coin(50):
-		args = append(args, "--quote", "A § fuzz sentence to anchor findings.", "--new", "A § fuzz statement to anchor findings.")
+		// A CONCRETE FIX CARRIES THE ANCHORS ITS SPAN HOLDS, as the lens's own prescription does
+		// (edgeRun): a replacement that drops one is a successor its assignee's mint could not write.
+		if cur, err := record.RenderRun(r.run()); err == nil {
+			fixOld, fixNew := "rising over time", "climbing sharply"
+			if !strings.Contains(string(cur), fixOld) {
+				fixOld, fixNew = fixNew, fixOld
+			}
+			if strings.Contains(string(cur), fixOld) {
+				run := r.edgeRun(string(cur), fixOld)
+				args = append(args, "--quote", fixOld+run, "--new", fixNew+run)
+				break
+			}
+		}
+		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	default:
 		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
@@ -256,4 +295,68 @@ func (r *runner) mustExec(t *testing.T, args ...string) string {
 		t.Fatalf("%v: %v\n%s", args, err, out)
 	}
 	return out
+}
+
+// unmintableSuccessor is the refusal of a proposed supersede whose successor its gap's assignee could
+// not mint: the bench writes it as the assignee's on siding with the filer, so the filing is checked
+// against the assignee's own mint (record.requireSuccessorMintable).
+const unmintableSuccessor = "is one its assignee's mint could not write"
+
+// unmintableReasons is each check the refusal names, by the words that name it, and its tally key.
+var unmintableReasons = []struct{ words, key string }{
+	{"holds no such standing reading", "reading"},
+	{"carries citation anchor", "anchor"},
+	{"carries computation anchor", "anchor"},
+	{"one class on one subject is one gap", "one_gap"},
+	{"a grade a ruling holds locked", "locked_grade"},
+	{"the anchor it is about is retired", "retired_about"},
+}
+
+// proposeSuccessor is seatID's proposed supersede of gapID, which the drive expects to land: drawn by
+// proposeSupersedeArgs, and where the record refuses a successor the assignee could not mint — its class
+// stands on a reading the assignee does not hold, its fix drops an anchor — the seat reads the refusal
+// and proposes the plain successor instead: a class no reading defines and no open gap holds on the
+// seeded sentence, quoting it, at the grades a ruling locked. The refusal is counted by what it named.
+func (r *runner) proposeSuccessor(seatID, gapID, reason string) bool {
+	args := r.proposeSupersedeArgs(seatID, gapID, reason)
+	out, err := r.exec(withJSON(args)...)
+	if err == nil {
+		return true
+	}
+	env, ok := refusalEnvelopeIn(out)
+	if !ok || env.Code != string(feov.Validation) || !strings.Contains(env.Error, unmintableSuccessor) {
+		// ANY OTHER REFUSAL is admitFresh's: a stale read point is recorded again, the rest fail the run.
+		_, landed := r.admitFresh(gapID, args...)
+		return landed
+	}
+	key := "other"
+	for _, u := range unmintableReasons {
+		if strings.Contains(env.Error, u.words) {
+			key = u.key
+			break
+		}
+	}
+	r.countGate("successor_unmintable_refused:" + key)
+	_, landed := r.admitFresh(gapID, r.plainSuccessorArgs(seatID, gapID, reason)...)
+	return landed
+}
+
+// plainSuccessorArgs is the successor a proposal on gapID can always state: a pool class no open gap
+// holds on the seeded sentence (freeClass), quoting it, at medium grades but on each axis a ruling locked
+// on gapID, which the successor carries at the locked grade.
+func (r *runner) plainSuccessorArgs(seatID, gapID, reason string) []string {
+	args := []string{"motion", "docket", "file", "supersede", "--seat-id", seatID, "--id", gapID,
+		"--class", mintPoolClasses[0], "--problem", "fuzz: the defect, restated", "--fix", "fuzz: the fix, restated",
+		"--check-kind", "document", "--check", "fuzz: the acceptance check red runs at re-audit",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", reason,
+		"--quote", "A § fuzz sentence to anchor findings."}
+	r.freeClass(args)
+	for dim, g := range r.benchGrades(gapID) {
+		if at := slices.Index(args, "--"+dim); at >= 0 {
+			args[at+1] = g
+		} else {
+			args = append(args, "--"+dim, g)
+		}
+	}
+	return args
 }

@@ -38,6 +38,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [verdict](#verdict) | lens, chair, blue, lane, bench, operator |
 | [outcome](#outcome) | lens, chair, blue, lane, bench, operator |
 | [gap](#gap) | lens, chair, blue, lane, bench, operator |
+| [assignee](#assignee) | lens, chair, blue, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
 | [current item](#current-item) | lens, operator |
@@ -407,6 +408,12 @@ A gap is a defect in the report that changes a conclusion or a decision a reader
 **Collisions:**
 
 - **gap** — a parity gap between two numbers is ordinary English; a missing tool is a missing capability
+
+## assignee
+
+An assignee is the seat whose gap it is: the lens that minted the origin of the gap's lineage, which every successor carries whoever wrote it — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
+
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## material
 

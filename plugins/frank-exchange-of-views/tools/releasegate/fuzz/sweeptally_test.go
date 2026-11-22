@@ -205,12 +205,13 @@ type runTally struct {
 	DocketsAfterAudit          int                       `json:"dockets_after_audit"`
 	DocketedClosesRefused      int                       `json:"docketed_closes_refused"`
 	DocketedOffList            int                       `json:"docketed_off_list"`
-	BenchRegrades              int                       `json:"bench_regrades"`
+	GradeRulings               int                       `json:"grade_rulings"`
 	HearingsAfterChair         int                       `json:"hearings_after_chair"`
 	HearingsAfterLens          int                       `json:"hearings_after_lens"`
 	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
 	LockRefused                int                       `json:"lock_refused"`
 	PartRefused                map[string]int            `json:"part_refused"`
+	ProposalGates              map[string]int            `json:"proposal_gates"`
 	PartsRecorded              int                       `json:"parts_recorded"`
 	SourceClosesRefused        int                       `json:"source_closes_refused"`
 	Lifecycle                  lifecycleTally            `json:"lifecycle"`
@@ -265,8 +266,8 @@ func tallyOf(o outcome) runTally {
 		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
-		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused,
-		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
+		GradeRulings: o.gradeRulings, LockRefused: o.lockRefused,
+		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded, ProposalGates: o.proposalGates,
 		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, NonMaterialMints: o.nonMaterialMints, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
@@ -629,11 +630,12 @@ type sweepFold struct {
 	composedHanded, composedGaps, composedAnswers   int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
-	benchRegrades, lockRefused                      int
+	gradeRulings, lockRefused                       int
 	hearingsAfterChair, hearingsAfterLens           int
 	hearingsAfterBlue                               int
 	applyMisses, estoppelMisses                     map[string]int
 	partRefused                                     map[string]int
+	proposalGates                                   map[string]int
 	partsRecorded, multiPartRuns                    int
 	// sourceClosesRefused: closes of `source` gaps nothing answers refused by the live-answer demand.
 	sourceClosesRefused int
@@ -665,7 +667,7 @@ func foldRuns(runs []runTally) sweepFold {
 	f := sweepFold{
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
-		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, passExits: map[int64]forcedExit{},
+		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, proposalGates: map[string]int{}, passExits: map[int64]forcedExit{},
 		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{},
 		mintsByEpoch: map[int]int{}, closesByEpoch: map[int]int{},
 		inquiryCheckRefused: map[string]int{}, oneGapRedirects: map[string]int{},
@@ -837,11 +839,14 @@ func foldRuns(runs []runTally) sweepFold {
 		f.docketsAfterAudit += r.DocketsAfterAudit
 		f.docketedClosesRefused += r.DocketedClosesRefused
 		f.docketedOffList += r.DocketedOffList
-		f.benchRegrades += r.BenchRegrades
+		f.gradeRulings += r.GradeRulings
 		f.hearingsAfterChair += r.HearingsAfterChair
 		f.hearingsAfterLens += r.HearingsAfterLens
 		f.hearingsAfterBlue += r.HearingsAfterBlue
 		f.lockRefused += r.LockRefused
+		for key, n := range r.ProposalGates {
+			f.proposalGates[key] += n
+		}
 		for kind, n := range r.PartRefused {
 			f.partRefused[kind] += n
 		}
@@ -1325,14 +1330,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.hearingsAfterChair == 0 || f.hearingsAfterLens == 0 || f.hearingsAfterBlue == 0 {
 			t.Errorf("fuzz drove %d hearing(s) after the chair, %d after the lenses (forced on seed %d) and %d after blue (seed %d) across %d runs — each must be nonzero, or a barrier the engine hears at is unexercised (false green)", f.hearingsAfterChair, f.hearingsAfterLens, lensPetitionSeed, f.hearingsAfterBlue, bluePetitionSeed, f.completed)
 		}
-		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
-		// the gap, and the assignee may not move it.
-		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused", f.benchRegrades, f.lockRefused)
-		if f.benchRegrades == 0 {
-			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
+		// THE LOCK A RULING ON A GRADE HOLDS (amendments 2–4, gblock 2026-11-20): a ruling on a grade
+		// locks each axis it decided, and the assignee may not move it back.
+		t.Logf("grade locks: %d ruling(s) on a grade locked an axis, %d lens move(s) of a locked axis refused", f.gradeRulings, f.lockRefused)
+		if f.gradeRulings == 0 {
+			t.Errorf("fuzz drove ZERO rulings on a grade that locked an axis across %d runs — the lock a ruling on a grade sets is unexercised (false green)", f.completed)
 		}
 		if f.lockRefused == 0 {
-			t.Errorf("fuzz drove ZERO moves of a bench-set axis refused across %d runs — the lock on the bench's grade is unexercised (false green)", f.completed)
+			t.Errorf("fuzz drove ZERO moves of a ruled axis refused across %d runs — the lock on a ruled grade is unexercised (false green)", f.completed)
 		}
 		// THE REPORT IS THE LANES' PARTS (parts_test.go): every lane records one, the report joins two or
 		// more of them, and each refusal of a part is driven, partsSeed's run driving every one.
@@ -1343,6 +1348,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		for _, kind := range partRefusals {
 			if f.partRefused[kind] == 0 {
 				t.Errorf("fuzz drove ZERO part refusals for %s across %d runs — the refusal is unexercised (false green)", kind, f.completed)
+			}
+		}
+		// PROPOSED ACTS AND DOCKETINGS (#1695 §III.B9, §III.B13, §III.B14): each key is a path the sweep
+		// must drive; zero is a path unexercised (proposalgates_test.go).
+		t.Logf("proposals and docketings: %v", f.proposalGates)
+		for _, g := range proposalGateKeys {
+			if f.proposalGates[g.key] == 0 {
+				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", g.what, f.completed)
 			}
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive

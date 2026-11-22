@@ -87,13 +87,13 @@ func (r *runner) docketClosedGap(seatID string) {
 	for _, id := range r.closedGapIDs() {
 		if succ := superseded[id]; succ != "" {
 			if !named[id] && r.coin(20) {
-				r.refuse(feov.Conflict, r.proposeSupersedeArgs(seatID, id,
+				r.refuse(feov.Conflict, r.plainSuccessorArgs(seatID, id,
 					"fuzz: "+id+" closed when "+succ+" superseded it, and blue dockets it all the same")...)
 			}
 			continue
 		}
 		if !named[id] && !r.closedThisSitting(seatID, id) && r.exchanged(id) {
-			r.admitFresh(id, r.proposeSupersedeArgs(seatID, id, "fuzz: "+id+" closed, and blue puts the close before the bench")...)
+			r.proposeSuccessor(seatID, id, "fuzz: "+id+" closed, and blue puts the close before the bench")
 			return
 		}
 	}

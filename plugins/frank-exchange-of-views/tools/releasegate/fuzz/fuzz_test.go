@@ -639,14 +639,12 @@ type runner struct {
 	// docketedOffList the docketed gaps a party's list was read and held off (remandroute_test.go,
 	// lensturn_test.go). The sweep gates each at zero.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
-	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
-	// (benchSetsGrade; a successor inherits its ancestor's). benchRegrades counts the bench's
-	// regrades, lockRefused the assignee's moves of a locked axis the tool refused
-	// (benchorders_test.go). forceBenchOrders is benchOrdersSeed's run, which takes every arm. The
+	// lockRefused counts the assignee's moves of an axis a ruling on a grade locked, which the tool
+	// refused (benchorders_test.go); the rulings that locked an axis are read off the record at the
+	// run's end (lockedAxes). forceBenchOrders is benchOrdersSeed's run, which takes every arm. The
 	// sweep gates each count at zero.
-	benchSet                   map[string]map[string]string
-	benchRegrades, lockRefused int
-	forceBenchOrders           bool
+	lockRefused      int
+	forceBenchOrders bool
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -904,6 +902,12 @@ type runner struct {
 	partRefused   map[string]int
 	partsRecorded int
 	withheld      map[string]bool
+	// proposalGates counts the proposed-act and docketing drives the sweep gates by key (countGate):
+	// the successor refusals a filer reads and answers, the acts a closings-only sitting refuses and the
+	// closings it files, the proposals a ruling's tombstone bars. The counts read off the stream at the
+	// run's end — docketings by cause, the bench's answers by cause and side, ruling tombstones by side —
+	// join them in the run's outcome (docketTally).
+	proposalGates map[string]int
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
@@ -1375,7 +1379,7 @@ func (r *runner) fileClosings(seatID string) {
 func (r *runner) fileClosing(seatID, id string) bool {
 	args := []string{"closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-" + id + "-by-" + seatID}
 	if seatclass.RoleOfSeat(seatID) != "lens" {
-		_, ok := r.admitFresh(id, args...)
+		_, ok := r.admitFresh(id, append(args, r.blueClosingWord(seatID, id)...)...)
 		return ok
 	}
 	takes, err := record.ClosingTakesText(r.runHandle, id)
@@ -1388,6 +1392,13 @@ func (r *runner) fileClosing(seatID, id string) bool {
 		return ok
 	}
 	var roads [][]string
+	// ON A GAP ABOUT A CITATION OR A COMPUTATION, RED'S TEXT MAY BE THE ANCHOR'S RETIRE, its sentence
+	// kept word for word.
+	if fam, err := record.FamilyOf(r.run()); err == nil {
+		if g := fam.Gap(id); g != nil && g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && r.coin(50) {
+			roads = append(roads, []string{"--retire"})
+		}
+	}
 	if cur, err := record.RenderRun(r.run()); err == nil {
 		if _, fo, fn := r.proposalFor(id, cur); fo != "" {
 			roads = append(roads, []string{"--quote", fo, "--new", fn})
@@ -1402,7 +1413,45 @@ func (r *runner) fileClosing(seatID, id string) bool {
 		}
 	}
 	_, ok := r.admitFresh(id, append(args, "--no-text")...)
+	if ok {
+		r.countGate("closing_no_text")
+	}
 	return ok
+}
+
+// blueClosingWords is each closing word blue's closing may state at an impasse docketing; blueRefusedWords
+// the two it may not, each driven to its refusal.
+var (
+	blueClosingWords = []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "moot"}
+	blueRefusedWords = []string{"repaired_with_regression", "amends_prior"}
+)
+
+// blueClosingWord is the --as blue's closing on gap id states, by a draw: at a gap docketed at impasse, a
+// word a ruling for blue writes, or none (that ruling writes not_a_defect); first, on a coin, a word the
+// record refuses there — one of blueRefusedWords, or any word on a gap docketed for a proposal or at
+// grade movement, where blue's statement is its proposal or the record's grades.
+func (r *runner) blueClosingWord(seatID, id string) []string {
+	impasse := false
+	for _, d := range r.standingDocketings(id) {
+		impasse = d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE
+	}
+	if r.coin(20) {
+		word := pick(r.rng, blueRefusedWords)
+		if !impasse {
+			word = pick(r.rng, blueClosingWords)
+		}
+		out, err := r.exec("--json", "closing", "--seat-id", seatID, "--id", id, "--as", word,
+			"--reason", "fuzz: blue's closing stating a word the record refuses here")
+		if err == nil {
+			r.noteActErr(fmt.Sprintf("blue's closing on %s stating --as %s (impasse %t) was admitted: %s", id, word, impasse, firstLine(out)))
+			return nil
+		}
+		r.countGate("blue_closing_word_refused")
+	}
+	if impasse && r.coin(50) {
+		return []string{"--as", pick(r.rng, blueClosingWords)}
+	}
+	return nil
 }
 
 // statesNoText is the flag a closing of seatID's on gap id states no text with — `--no-text` where the
@@ -4338,7 +4387,6 @@ func (r *runner) mintWith(seatID, class string) string {
 	if env.Result.GapID != "" {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
-		r.inheritBenchGrades(env.Result.GapID, ancestor)
 		r.supersessionClosed(ancestor, env.Result.GapID, carries[ancestor])
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
@@ -5898,6 +5946,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.chairPosition(seatID, permitted)
 		return r.chairEnvelope(seatID, false, "", responses)
 
+	case strings.HasPrefix(seatID, "blue-respond") && strings.Contains(prompt, closingsOnlyClause),
+		strings.HasPrefix(seatID, "red-lens") && strings.Contains(prompt, closingsOnlyClause):
+		// A SITTING FOR THE PARTY'S CLOSINGS ALONE (record.requireClosingsOnlySitting): the final epoch's,
+		// and blue's in the epoch that holds it out. No lens audits an act after it.
+		return r.closingsOnlySitting(seatclass.RoleOfSeat(seatID), seatID)
+
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.remandHeldBeforeRegister()
 		r.sit("blue", seatID)
@@ -6067,8 +6121,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if closed && r.scenarioOf(id) != dirDisputeLost {
 				r.remandOfClosedRefused(seatID, id)
 			}
-			// THE BENCH SETS A GRADE IT HOLDS WRONG BEFORE IT RULES, while the docketing stands.
-			r.benchSetsGrade(seatID, id)
 			// A GAP AT ITS REMAND LIMIT IS NOT REMANDED EITHER: the bench's work list says a remand of it
 			// is refused, the bench reaches for one and is refused naming the dispositions that close
 			// the gap, and it rules one of them.
@@ -6706,8 +6758,10 @@ type outcome struct {
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
 	hearingsAfter map[string]int
-	// benchRegrades and lockRefused are runner's.
-	benchRegrades, lockRefused int
+	// gradeRulings is the rulings on a grade that locked an axis (lockedAxes); lockRefused is runner's.
+	gradeRulings, lockRefused int
+	// proposalGates is runner's, joined by docketTally's counts off the stream.
+	proposalGates map[string]int
 	// partRefused and partsRecorded are runner's.
 	partRefused   map[string]int
 	partsRecorded int
@@ -7824,6 +7878,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					return res
 				}
 			case dirDisputeWon, dirDisputeLost:
+				// A DISPUTE THE EXCHANGE GATE HELD TO THE END IS THE RECORD'S ANSWER, NOT A MISSING ONE: the
+				// gate refuses a proposal until the gap's first counted exchange, and a lens sitting engaged on
+				// the gap that no stop closes, by a seat that never sits again, holds every later blue sitting
+				// uncounted (TestAProposalWaitsOnALensSittingTheRecordCannotClose). Excused only where the
+				// refusal was that gate's and the record still counts no exchange on the gap at the end.
+				if !disputed[id] && r.heldUnexchanged(id) {
+					continue
+				}
 				if !disputed[id] {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
 					if why := r.disputeRefusals[id]; why != "" {
@@ -8184,8 +8246,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
-	res.benchRegrades, res.lockRefused = r.benchRegrades, r.lockRefused
+	_, res.gradeRulings = r.lockedAxes()
+	res.lockRefused = r.lockRefused
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
+	res.proposalGates = r.docketTally()
 	r.mu.Unlock()
 	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
 	if missed := r.partsMissed(); len(missed) > 0 && res.err == "" {
@@ -9581,8 +9645,8 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 		case dirCounter:
 			r.counterEdit(seatID, id)
 		case dirDisputeWon, dirDisputeLost:
-			// AN AXIS THE BENCH SET TAKES NO GRADE MOTION: the record refuses one, and the dispute
-			// contests an axis that is still the parties'.
+			// AN AXIS A RULING LOCKED TAKES NO PROPOSED REGRADE: the dispute contests an axis that is
+			// still the parties'.
 			held := r.benchGrades(id)
 			var free []string
 			for _, d := range disputeDims {
@@ -9655,6 +9719,20 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// proves --answers records provenance rather than decorating it.
 		}
 	}
+}
+
+// heldUnexchanged reports whether gapID's proposed regrade was refused by the exchange gate — a proposal
+// waits for the gap's first counted exchange — and the record, read now, still counts none on it; or by
+// a ruling's tombstone on it, which bars the dispute the scenario asked for (estopped_refused).
+func (r *runner) heldUnexchanged(gapID string) bool {
+	why := r.disputeRefusals[gapID]
+	if strings.Contains(why, tombstoneStands) {
+		return true
+	}
+	if !strings.Contains(why, "a proposal on a gap is admitted once it has had one exchange") {
+		return false
+	}
+	return !r.exchanged(gapID)
 }
 
 // counterEdit makes a real edit that is NOT red's proposed text.
@@ -10136,14 +10214,17 @@ func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (rem
 		r.noteActErr("the bench sat on open gap " + gapID + " with no docketing standing on it to answer")
 	}
 	for _, d := range ds {
-		answer, remand := r.docketAnswer(d.ID, want, extra)
+		answer, remand, unstated := r.docketAnswer(d.ID, want, extra)
 		if answer == nil {
 			continue
 		}
-		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", d.ID,
+		common := []string{"motion", "docket", "rule", "--seat-id", seatID, "--id", d.ID,
 			"--principle", "correctness", "--tension", "cost",
-			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench},
-			answer...)
+			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}
+		if unstated != 0 {
+			r.refuseUnstated(d.ID, unstated, append(slices.Clone(common), "--reason", "fuzz: siding with a side that stated nothing"))
+		}
+		args := append(common, answer...)
 		if _, ok := r.admit(args...); ok && remand {
 			remanded = true
 		}
@@ -10276,14 +10357,18 @@ func (r *runner) ruleStandingDockets(seatID string) {
 // grade answer: nothing can be remanded, there being no next sitting to remand it to.
 func (r *runner) ruleDocketAtExit(seatID, id string) {
 	want := pick(r.rng, []string{"repaired", "not_a_defect"})
-	answer, _ := r.docketAnswer(id, want, []string{"--final"})
+	answer, _, unstated := r.docketAnswer(id, want, []string{"--final"})
 	if answer == nil {
 		return
 	}
-	r.admit(append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", id,
+	common := []string{"motion", "docket", "rule", "--seat-id", seatID, "--id", id,
 		"--principle", "correctness", "--tension", "cost",
 		"--review-flag", "none: the run's term ended with this docketing standing", "--settled", settledByFuzzBench,
-		"--reason", "fuzz: ruled at the exit, where nothing can be remanded"}, answer...)...)
+		"--reason", "fuzz: ruled at the exit, where nothing can be remanded"}
+	if unstated != 0 {
+		r.refuseUnstated(id, unstated, common)
+	}
+	r.admit(append(common, answer...)...)
 }
 
 // docketingsHolding is the docketing standing that holds each of motionIDs, in motionIDs' order: the
@@ -10325,10 +10410,17 @@ func (r *runner) docketsSinceTheLastPlan() []string {
 	if n := len(stored); n > 0 {
 		last = stored[n-1].At
 	}
+	// A PROPOSAL IS RULED BY ITS ASSIGNEE'S ACCEPT, which names it, or by the bench's answer to the
+	// docketing that holds it, which names the docketing: a docketing no longer standing ended it.
 	ruled := map[string]bool{}
 	for _, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
+		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && m.GetMotionId() != "" {
 			ruled[m.GetMotionId()] = true
+		}
+	}
+	for _, d := range r.docketings() {
+		if d.MotionID != "" && !d.Standing() {
+			ruled[d.MotionID] = true
 		}
 	}
 	var out []string
