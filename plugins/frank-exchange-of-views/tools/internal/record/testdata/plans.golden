@@ -1527,6 +1527,10 @@
 -- INSERT INTO "motion_supersede" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 0f24d9426618
+-- INSERT INTO "motion_supersede" ("event_id", "gap_id", "class", "location", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt ae02dc67bb39
 -- INSERT INTO "motion_supersede" ("event_id", "gap_id", "class", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "supersedes", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -3024,8 +3028,8 @@
 -- SELECT t."event_id", t."verdict", t."prose", t."verdict_why", t."verdict_basis" FROM "outcome" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt b0a317e526c7
--- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling'
+== stmt 7ea18c6c3047
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", ''), COALESCE(md."settled", ''), COALESCE(md."reopens_on", ''), COALESCE(md."final", 0) FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling'
   SEARCH t USING INDEX tombstone_kind_gap (kind=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
@@ -3034,8 +3038,8 @@
   SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?) LEFT-JOIN
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt a3252613a8ba
--- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND s."gap_id" = ?
+== stmt 70e6c592403e
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", ''), COALESCE(md."settled", ''), COALESCE(md."reopens_on", ''), COALESCE(md."final", 0) FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND s."gap_id" = ?
   SEARCH s USING COVERING INDEX sqlite_autoindex_motion_supersede_1 (gap_id=?)
   SEARCH t USING INDEX tombstone_kind_gap (kind=?)
   CORRELATED SCALAR SUBQUERY
@@ -3044,8 +3048,8 @@
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?) LEFT-JOIN
 
-== stmt fdd639e5d9b4
--- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND t."gap_id" = ?
+== stmt fc283a05d851
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", ''), COALESCE(md."settled", ''), COALESCE(md."reopens_on", ''), COALESCE(md."final", 0) FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND t."gap_id" = ?
   SEARCH t USING INDEX tombstone_kind_gap (kind=? AND gap_id=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)

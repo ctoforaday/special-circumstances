@@ -161,6 +161,19 @@ func TestEveryRowOfTheTableIsWhole(t *testing.T) {
 		if !testsplit.Splits(r.Dir) {
 			t.Errorf("Splits(%q) is false for a directory a row names", r.Dir)
 		}
+		// A PACKAGE THAT JUDGES ITS WHOLE RUN IS NEVER SPLIT: each share runs under -test.run, and
+		// planguard reads that as a narrowed run and measures nothing, so a split box passed the
+		// suite with plans.golden never compared.
+		pkgDir := filepath.Join("..", "..", r.Dir, strings.TrimPrefix(r.Package, r.Module+"/"))
+		tests, err := filepath.Glob(filepath.Join(pkgDir, "*_test.go"))
+		if err != nil || len(tests) == 0 {
+			t.Errorf("row %+v: no test files under %s (%v)", r, pkgDir, err)
+		}
+		for _, f := range tests {
+			if b, err := os.ReadFile(f); err == nil && strings.Contains(string(b), "planguard.StartSuite(") {
+				t.Errorf("row %+v: %s installs planguard, which judges only a whole run; a split package's shares run narrowed and measure nothing", r, f)
+			}
+		}
 		if len(testsplit.For(r.Module)) == 0 {
 			t.Errorf("For(%q) does not return the row that names it", r.Module)
 		}
