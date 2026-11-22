@@ -1652,10 +1652,11 @@ and `~/.claude/scratch/p12/r2/`):
     refuses the edit after which a road no longer places, and L48, while a supersede proposal stands, re-runs the
     successor's mint checks after every act that moves an input (blue's edit and retire, and the assignee's own
     `verify`, `reproduce` and `mint`) and refuses the act where they fail (`findings-fold.md:1754, 1767, 1986-1995,
-    2741` at 4b3e0341f). The freeze is asked in `judgeLanded` (#1889's `record/freeze.go`, B3 at `ba64f7b64` per its
-    owner 2026-11-22), not in `judgeAct`, so P12b's `judgeAct` `case *recordpb.BlueEdit` (L6) adds no duplicate case;
-    L6 stays beside the retire's call in `judgeAct`, the same function on `removed_anchors`. P12b's census at open
-    confirms both sites on #1889's merged code.
+    2741` at 4b3e0341f). On #1889's B3 (`a971fd358`, per its owner 2026-11-22) L45 is `requireRoadsHold`, a guard at
+    the blue verb (`cli/blue/freeze.go`), and L48 is `judgeLanded`, a check after the act lands; neither is a
+    `judgeAct` case. P12b's L6 is its own `judgeAct` `case *recordpb.BlueEdit`, a check before the act lands, beside
+    the retire's call, the same function on `removed_anchors` (agreed with #1889's owner). P12b's census at open
+    confirms the three sites on #1889's merged code.
   - **The list is on the body when `judgeAct` asks.** The edit's guard decides the cut and stamps
     `removed_anchors` on the body inside the write's transaction (a `Check` guard is asked before the write path's
     validation and "may fill fields of the body", `landing.go:5-11, 24-25`), so `validateAct` → `judgeAct` reads the
@@ -1875,7 +1876,9 @@ and `~/.claude/scratch/p12/r2/`):
     - blue's verbatim edit answering G whose prescription is a pure cut of G's sentence: the record moots G, and no
       estoppel row on G is placed;
     - a for-red ruling whose bench edit cuts G's sentence (ruling 4's skip): G closes `repaired` by the ruling, and
-      neither the bench edit's estoppel row nor the ruling's tombstone on G is placed.
+      the ruling's tombstone on G is not placed. (The bench's edit places no estoppel row: on #1889 estoppel rows come
+      only from blue's verbatim accept, and a bench ruling for either side places the ruling tombstone — gblock
+      2026-11-22, relayed by #1889's owner: "Estoppel applies to the judges ruling for either side.")
 
     `TestACutEndsItsTombstone` has a subtest for each: after the transaction `tombstone_standing` holds no G row and
     the `tombstone` table holds no placing row for G written in it.
