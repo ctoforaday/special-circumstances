@@ -332,8 +332,9 @@ async def hear_owed(reads):
     for occ in owed:
         if halted or read_stop:
             break
+        head = "Petition sitting" if occ == "petition" else "Position sitting" if occ == "position" else f"Adjudication, topic: \"{topic}\""
         prompt = (
-            f"Bench hearing ({occ}) for topic: \"{topic}\". Read the open {occ} filings on your "
+            f"{head} ({occ}) for topic: \"{topic}\". Read the open {occ} filings on your "
             f"work list and rule on each on the record.{record_clause('judge')} Return the bench envelope."
         )
         env = await sit("judge", prompt, BENCH_ENVELOPE, f"judge · {occ}")
@@ -344,8 +345,8 @@ async def run_debate():
     global halted, read_stop
     phase("Frontier")
     frontier_prompt = (
-        f"Frontier reconnaissance for topic: \"{topic}\". Produce falsifiable hypotheses, "
-        f"contested claims, and key sources to test.{record_clause('frontier')} Return the envelope."
+        f"Frontier reconnaissance — produce frontier hypotheses for topic: \"{topic}\". "
+        f"Produce falsifiable hypotheses, contested claims, and key sources to test.{record_clause('frontier')} Return the envelope."
     )
     f_env = await sit("frontier", frontier_prompt, EMPTY_ENVELOPE, f"frontier · {slug}")
     if f_env is not None:
@@ -392,7 +393,7 @@ async def run_debate():
     while not halted and not read_stop:
         epoch += 1
         chair_prompt = (
-            f"Red chair sitting (epoch {epoch}) for topic: \"{topic}\". Open the next epoch per your "
+            f"Red chair, topic: \"{topic}\" (epoch {epoch}). Open the next epoch per your "
             f"constitution, record the PASS if permitted or withhold it with your position, and return the relayed plan in your envelope.{record_clause('red-chair')}"
         )
         plan = await sit("red-chair", chair_prompt, CHAIR_ENVELOPE, f"red-chair · ep{epoch}")
@@ -426,7 +427,7 @@ async def run_debate():
                 sid = party["seat_id"]
                 gaps = party.get("gap_ids") or []
                 prompt = (
-                    f"Red lens sitting ({SEATS[sid]['area']}, epoch {epoch}) for topic: \"{topic}\". "
+                    f"Red lens sitting, area {SEATS[sid]['area']} (epoch {epoch}) for topic: \"{topic}\". "
                     f"Engaged gaps: {', '.join(gaps) if gaps else 'none'}.{record_clause(sid)} "
                     "Return the lens envelope."
                 )
@@ -442,7 +443,7 @@ async def run_debate():
             sid = bp["seat_id"]
             gaps = bp.get("gap_ids") or []
             prompt = (
-                f"Blue response sitting (epoch {epoch}) for topic: \"{topic}\". "
+                f"Blue response, topic: \"{topic}\" (epoch {epoch}). "
                 f"Address gaps: {', '.join(gaps) if gaps else 'per work list'}.{record_clause(sid)} "
                 "Return the blue envelope."
             )
@@ -456,7 +457,7 @@ async def run_debate():
             sid = jp["seat_id"]
             gaps = jp.get("gap_ids") or []
             prompt = (
-                f"Bench impasse/ruling sitting (epoch {epoch}) for topic: \"{topic}\". "
+                f"Adjudication, topic: \"{topic}\" (epoch {epoch}). "
                 f"Docketed gaps: {', '.join(gaps)}.{record_clause(sid)} Return the bench envelope."
             )
             env = await sit(sid, prompt, BENCH_ENVELOPE, f"{sid} · ep{epoch}")
@@ -467,7 +468,7 @@ async def run_debate():
 
     phase("Assemble")
     assemble_prompt = (
-        f"Assemble final report for topic: \"{topic}\". Stamp the outcome and assemble all documents "
+        f"Final assembly for topic: \"{topic}\". Stamp the outcome and assemble all documents "
         f"on the record by union-copy.{record_clause('judge')} Return the envelope."
     )
     await sit("judge", assemble_prompt, EMPTY_ENVELOPE, f"assemble · {slug}")

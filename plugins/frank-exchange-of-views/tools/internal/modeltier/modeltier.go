@@ -175,13 +175,27 @@ func LookupSeat(seats map[string]SeatSpec, seatID string) (SeatSpec, bool) {
 }
 
 // SameModel reports whether a served model matches the configured model: Anthropic tier match
-// when both are recognized Anthropic tiers, and exact case-insensitive ID match otherwise.
+// when both are recognized Anthropic tiers, Antigravity run_workflow tier match when configured
+// is an Antigravity tier, and exact case-insensitive ID match otherwise.
 func SameModel(configured, served string) bool {
 	if configured == "" || served == "" {
 		return false
 	}
 	if Recognized(configured) && Recognized(served) {
 		return Of(configured) == Of(served)
+	}
+	if RecognizedAntigravity(configured) {
+		s := strings.ToLower(strings.TrimSpace(served))
+		switch configured {
+		case "inherit":
+			return s != ""
+		case "flash_lite":
+			return strings.Contains(s, "flash-lite") || strings.Contains(s, "flash_lite")
+		case "flash":
+			return strings.Contains(s, "flash") && !strings.Contains(s, "flash-lite") && !strings.Contains(s, "flash_lite")
+		case "pro":
+			return strings.Contains(s, "pro")
+		}
 	}
 	return strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(served))
 }

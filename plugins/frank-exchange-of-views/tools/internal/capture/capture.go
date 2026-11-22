@@ -1794,6 +1794,9 @@ func ingestSeatTurns(run record.Run, transcripts []record.Transcript) string {
 		if len(turns) == 0 {
 			continue
 		}
+		if agentID == "" {
+			agentID = tr.AgentID
+		}
 		n, err := record.AppendSeatTurns(run, agentID, turns)
 		if err != nil {
 			failed++
