@@ -8559,7 +8559,7 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xdf\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_idJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\agroundsR\rgrounds_quote\"\x91\x1b\n" +
+	"\a_gap_idJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\agroundsR\rgrounds_quote\"\xbf\x1a\n" +
 	"\fDocketRuling\x12\x9d\x02\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xd8\x01\x82\xb5\x18\xd3\x01\x1a\xd0\x01the closing word the tool writes from the side the ruling sided with, or `remanded` — which sends the gap back to the debate for one more exchange between its minting lens and blue; every other word ends itH\x00R\vdisposition\x88\x01\x01\x12y\n" +
 	"\tprinciple\x18\x02 \x01(\tBV\x82\xb5\x18N\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xbf\x01\n" +
@@ -8577,8 +8577,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"sided_with\x18\v \x01(\x0e2\x19.feov.record.v1.SidedWithH\tR\tsidedWith\x88\x01\x01\x12C\n" +
 	"\fmoved_grades\x18\f \x01(\x0e2\x1b.feov.record.v1.MovedGradesH\n" +
-	"R\vmovedGrades\x88\x01\x01:\xdd\r\x92\xb5\x18\x90\x03\n" +
-	"ccoalesce(\"disposition\", 'remanded') = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\xa8\x02a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
+	"R\vmovedGrades\x88\x01\x01:\x8b\r\x92\xb5\x18\xbe\x02\n" +
+	"ccoalesce(\"disposition\", 'remanded') = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\xd6\x01a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one\x92\xb5\x18\xb4\x01\n" +
 	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\x9b\x03\n" +
 	"\x99\x01coalesce(\"disposition\", '') <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)\x12\xfc\x01a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing\x92\xb5\x18\xdb\x01\n" +
 	"?coalesce(\"disposition\", '') = 'remanded' OR \"direction\" IS NULL\x12\x97\x01--direction is the research a remand's one more exchange owes; a ruling that closes the gap sends no exchange, and what would reopen it is --reopens-on\x92\xb5\x18\x87\x02\n" +

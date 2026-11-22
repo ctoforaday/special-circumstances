@@ -2030,7 +2030,7 @@ message DocketRuling {
   // nothing, so it owes a direction instead (below).
   option (check) = {
     expr: "coalesce(\"disposition\", 'remanded') = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
+    why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one"
   };
 
   // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"

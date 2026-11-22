@@ -56,7 +56,7 @@ type Blocker struct {
 	// sentence a source a lens found was read against (reading_debt, visible text, whitespace
 	// collapsed) — "" for the kinds that are about the run as a whole (no_report, question_unsplit).
 	Subject string
-	// Owner is the seat whose act clears it — the gap's minter, the seat whose check failed, the lens
+	// Owner is the seat whose act clears it — the gap's assignee, the seat whose check failed, the lens
 	// whose reading finds against, the ready lens, the motion's gavel-holder, the chair for its own
 	// reads — and "" where no seat on the record can.
 	Owner string
@@ -174,7 +174,7 @@ type blockerKind struct {
 	why func(Blocker) string
 }
 
-// ownerPhrase names the seat that clears a blocker, as the subject of a sentence: "its minter,
+// ownerPhrase names the seat that clears a blocker, as the subject of a sentence: "its assignee,
 // red-lens-logic," — or the fallback where the record names no seat.
 func ownerPhrase(b Blocker, role, fallback string) string {
 	if b.Owner == "" {
@@ -355,10 +355,10 @@ var blockerKinds = []blockerKind{
 		subject: SubjectGap,
 		gloss:   "an open material gap (material by its class, else graded medium or above)",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("gap %s is open and material — PASS is refused while it is; %s closes it", b.Subject, ownerPhrase(b, "minter", "the lens that minted it"))
+			return fmt.Sprintf("gap %s is open and material — PASS is refused while it is; %s closes it", b.Subject, ownerPhrase(b, "assignee", "its assignee"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures",
+			return fmt.Sprintf("%d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by its assignee, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
@@ -513,12 +513,12 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d gap(s) carry grade movement the bench has not ruled on, and the open gaps' total of %.1f mass is past the %.1f at which the bench rules on it:\n  %s\n"+
 				"A moved grade changes what the gate reads: a gap regraded below medium stops holding a PASS, and one regraded to medium or above starts to, so grade movement in total goes before the bench before it stands. "+
-				"`dispatch next` dockets each gap for the bench, and the bench's ruling on the gap's docket motion rules on its movement. PASS waits for those rulings",
+				"`dispatch next` dockets each gap for the bench, and the bench's ruling on the gap's docketing rules on its movement. PASS waits for those rulings",
 				len(bs), bs[0].totalMoved, GradeMovementThreshold, strings.Join(named, "\n  "))
 		},
 	},
 	// A DOCKETED GAP IS RULED ON ITS PARTIES' CLOSINGS (closingowed.go). The owner is the party — the
-	// gap's minting lens, or blue-respond — and the docketing holds the PASS as a docketed gap as well,
+	// gap's assignee, or blue-respond — and the docketing holds the PASS as a docketed gap as well,
 	// so every wording says the bench rules once the closings are in. The gap's own reason in
 	// the plan states who is readied and whether the bench sits, so the kind has no plan line of its own.
 	{
@@ -537,7 +537,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				named = append(named, fmt.Sprintf("%s (%s, %s)", b.Subject, ownerOr(b, "a party"), b.Detail))
 			}
-			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its minting lens and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling",
+			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its assignee and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling",
 				len(bs), strings.Join(named, ", "))
 		},
 	},
@@ -579,8 +579,8 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d motion(s) filed and never ruled: %s. "+
 				"Read what each one asks with `inquest motions` (its `basis` is the filer's argument, which your ruling answers), "+
-				"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
-				"Where it is not, the ruling is not yours to make: record no verdict this sitting, and the plan readies the seat whose gavel it is. "+
+				"then answer it — IF THE GAVEL NAMED ABOVE IS YOURS: a proposal is its gap's assignee's to accept in its window, else the dispatch dockets it for the bench; a petition or a position the bench rules with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
+				"Where it is not, the answer is not yours to give: record no verdict this sitting, and the plan readies the seat whose gavel it is. "+
 				"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 				len(bs), strings.Join(named, ", "))
 		},

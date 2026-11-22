@@ -415,7 +415,7 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 	// one expectation presumed a ruling the seat was free to make differently.
 	fmt.Fprintf(&b, "\n%d of %d expectations unmet. READ EACH AGAINST WHAT THE SEAT ACTUALLY DID.\n"+
 		"  · the board let the gap be satisfied WITHOUT the baited verb — a fixture bug, not a seat one\n"+
-		"  · the expectation presumed a judgement the seat could make differently (a REJECTED docket motion owes no act)\n"+
+		"  · the expectation presumed a judgement the seat could make differently (a proposal its assignee did not accept owes no act)\n"+
 		"  · the seat had the verb, had the situation, and did not reach for it\n"+
 		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))

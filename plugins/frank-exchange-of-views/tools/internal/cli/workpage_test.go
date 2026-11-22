@@ -46,7 +46,7 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"EVERY ITEM SAYS WHAT IT IS", every},
 		{"An item with `blocks: false` is work nobody will refuse you for skipping", every},
 		{"`open` holds OPEN gaps only", every},
-		{"`estopped` IS WHAT YOU MAY NOT RE-RAISE", every},
+		{"`estopped` IS WHAT NO SEAT MAY RE-RAISE", every},
 	}
 	for _, role := range every {
 		page := workPageOf(t, NewRootFor(record.SampleSeatOf(role)))

@@ -49,9 +49,9 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [disposition](#disposition) | lens, chair, blue, lane, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [docketing](#docketing) | lens, chair, blue, bench, operator |
-| [grade motion](#grade-motion) | lens, chair, blue, lane, bench, operator |
+| [tombstone](#tombstone) | lens, chair, blue, bench, operator |
+| [estopped](#estopped) | lens, chair, blue, bench, operator |
 | [relief](#relief) | lens, chair, blue, lane, bench, operator |
-| [new grounds](#new-grounds) | lens, chair, blue, lane, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, lane, bench, operator |
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, lane, bench, operator |
@@ -171,7 +171,7 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 ## exchange
 
-An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
+An exchange is blue's sitting on one gap followed by its assignee's audit of the answer, and k-max counts them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -205,7 +205,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
+The chair is red's running seat: it asks the record who sits, spot-checks the stale areas before a PASS and records red's PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -526,18 +526,17 @@ A docketing is the tool's record that a gap is before the bench, and why — wri
 
 - **docket motion** — a docket motion is a party's proposal of an act on a gap; a docketing is the tool's record that the gap is before the bench, and holds a proposal only when the proposal's window ended unaccepted
 
-## grade motion
+## tombstone
 
-A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
+A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose prescription blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry or citation and every proposal on the gap are refused, and blue's reword of the sentence, a reword or retire of the anchor the gap is about, or the inquiry's next fate ends it; a cut ends none.
 
-**Delivered to:** lens, chair, blue, lane, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
-**Not:**
+## estopped
 
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| grade dispute | GATED | `grade disputes?` |  |  |
-| grade_disputes (the envelope key) | GATED | `grade_disputes` |  |  |
+An estopped gap is one a standing ruling tombstone protects, which the work list names with the ruling and the act that ends it, and which no seat may re-raise while it stands.
+
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## relief
 
@@ -548,12 +547,6 @@ Relief is the order the bench records when it grants a petition: what the seats 
 **Collisions:**
 
 - **relief sought** — the petitioner's ask, on the filing; relief is what the bench ordered on the ruling
-
-## new grounds
-
-New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## scorecard
 
@@ -632,7 +625,7 @@ A reading debt is a lens's standing reading that finds a source against its sent
 
 ## superseded
 
-A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
+A gap is superseded when its assignee mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or proposal on it is refused naming the successor.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -644,7 +637,7 @@ A gap is superseded when its own lens mints a successor naming it with `--supers
 
 **Collisions:**
 
-- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it
+- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, and the successor is the closed gap's assignee's, so only the mint that names the gap while it is open supersedes it
 - **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
 - **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
 - **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

@@ -1233,8 +1233,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Regrade:
-		// THE ORIGINATOR REGRADES, AND SO DOES THE BENCH WHILE IT HEARS THE GAP (benchgrade.go): the
-		// bench's regrade sets the grade its ruling rules on.
+		// THE ASSIGNEE REGRADES; THE BENCH'S REGRADE IS THE TOOL'S (benchgrade.go): the statement a
+		// ruling applies, written in that ruling's transaction.
 		if seatclass.RoleOfSeat(seatID) != "bench" {
 			if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 				return err
@@ -1362,7 +1362,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			} else if !closes && (d.Docket.ReopensOn != nil || d.Docket.Final != nil) {
 				return fmt.Errorf("--reopens-on and --final say what would reopen a gap the ruling closes, and this ruling closes nothing by its own word")
 			} else if closes && d.Docket.ReopensOn == nil && d.Docket.Final == nil {
-				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
+				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
 				return fmt.Errorf("--final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")

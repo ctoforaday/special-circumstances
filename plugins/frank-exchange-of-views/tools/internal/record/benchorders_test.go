@@ -12,8 +12,7 @@ import (
 )
 
 // The bench's orders on the record (gblock, 2026-10-30): a granted petition's relief, a docket
-// ruling's answers on the work list, the bench's own regrade and its lock, and reconsideration on
-// new grounds. Each case is driven through the write path a seat's act takes.
+// ruling's answers on the work list, and the regrade a ruling applies with its lock. Each case is driven through the write path a seat's act takes.
 
 const orderedRelief = "Restate the section's claim as conditional on the search it names."
 

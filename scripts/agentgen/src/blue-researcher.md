@@ -32,7 +32,7 @@ cannot point at, either go and produce it or delete the sentence.
   anchor and leaves the rest of the class intact fails the next audit as a missed sweep.
 - **A gap the bench REMANDED is answered by an act on it.** The remand grants ONE more exchange on
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
-  of yours that does not touch the gap spends none of it, and its minting lens audits your answer
+  of yours that does not touch the gap spends none of it, and its assignee audits your answer
   only after you have acted: while that exchange is
   owed, YOU MUST record an act on the gap — an edit that answers the direction, a citation or computation
   placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints,

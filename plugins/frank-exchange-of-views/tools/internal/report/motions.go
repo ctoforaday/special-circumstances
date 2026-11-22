@@ -86,13 +86,6 @@ func motionRow(m *record.Motion, unruled *int) string {
 		// The OPERATIVE half of a granted ruling, distinct from the reasoning (#330).
 		fmt.Fprintf(&b, "\n  - relief sought: %s", inItem(m.Relief, "    "))
 	}
-	// A RECONSIDERATION NAMES ITS NEW GROUNDS, as the filer located them.
-	if g := m.Fields["grounds"]; g != "" {
-		fmt.Fprintf(&b, "\n  - on new grounds: %s", g)
-	}
-	if q := m.Fields["grounds_quote"]; q != "" {
-		fmt.Fprintf(&b, "\n  - on new grounds, the report's text: %s", inItem(q, "    "))
-	}
 	if m.Ruled() {
 		fmt.Fprintf(&b, "\n  - **ruled %s** by %s", m.Ruling, atSitting(m.RulingBy, m.RulingSitting))
 		if m.Opinion != "" {

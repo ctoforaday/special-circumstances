@@ -18,7 +18,7 @@ import (
 
 // A DOCKET MOTION IS A PROPOSED ACT. The filer files the regrade, close or supersede it wants on the
 // gap, with that act's own flags; the gap's assignee may accept it (`motion docket accept`), else the
-// bench accepts, rejects or remands it. So `file` under docket is a group, one verb per act, and the
+// dispatch dockets it and the bench sides with a party or remands it. So `file` under docket is a group, one verb per act, and the
 // act's flags are the ones its own verb takes.
 
 // proposeSays is what each proposal's page says, and the docket filing group's refusal of a bare call.
@@ -66,7 +66,7 @@ func newDocketFile() *cobra.Command {
 	var ev lens.CloseEvidence
 	c.AddCommand(propose("close", "how you hold the gap ended, verified as a close is",
 		func(c *cobra.Command) {
-			enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), "HOW the gap ended — the same words the bench's dispositions use. Not repaired_with_regression: a close naming the regression it caused is the assignee's own act")
+			enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), "HOW you hold the gap ended — one vocabulary with every closure on the record. Not repaired_with_regression: a close naming the regression it caused is the assignee's own act")
 			seat.Require(c, flags.As)
 			ev.Register(c)
 			seat.Records(c, "close")
@@ -183,7 +183,7 @@ func newAccept() *cobra.Command {
 		Short: "accept the act a docket motion proposes on your gap — the tool applies it as filed",
 		Long: "accept the act a docket motion proposes on a gap you are the assignee of — the tool applies it exactly as filed.\n\n" +
 			"ONE TRANSACTION: your answer to the motion, then the act — the regrade, the close, or the successor the proposal states, its id assigned at filing — written as your own act, through that act's own write and every check it meets. " +
-			"A refusal of the act records nothing, and the motion stands for the bench. Read the proposal on your work list before you accept: a close is attested by the anchors your sitting read. " +
+			"A refusal of the act records nothing, and the proposal stands: unaccepted in your window, it is docketed for the bench. Read the proposal on your work list before you accept: a close is attested by the anchors your sitting read. " +
 			"If you do not accept it, your closing on the gap is your argument, and the bench rules.",
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -236,7 +236,7 @@ func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act)
 	}
 	switch a := record.StoredAct(p.Motion).(type) {
 	case *recordpb.Regrade:
-		// The bench's regrade is the grade its ruling rules on, so it is written first.
+		// On the bench's side the stored regrade is written as the bench's, before the ruling that applies it.
 		if s.Role == "bench" {
 			_, err := record.AppendActs(s.Identity(), record.Act{Body: a}, ruling)
 			return err

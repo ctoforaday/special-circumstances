@@ -224,7 +224,7 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 		for _, g := range w.Open {
 			mine := g.Assignee == reader
 			if g.YoursToClose != mine {
-				t.Errorf("%s reading %s: yours_to_close=%v but minted_by=%q — the field must answer for THIS reader",
+				t.Errorf("%s reading %s: yours_to_close=%v but assignee=%q — the field must answer for THIS reader",
 					reader, g.ID, g.YoursToClose, g.Assignee)
 			}
 			// The prose that made a seat leave this list for the board.

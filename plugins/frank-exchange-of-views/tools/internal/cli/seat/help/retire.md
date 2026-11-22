@@ -14,4 +14,6 @@ A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taki
 
 Name what replaces it where something does.
 
-A STATEMENT STANDING ON A GAP HOLDS UNTIL ITS RULING. While a docketing or a proposal stands on a gap, the text the gap's lens states in its closing there, and the quote and fix of a supersede proposed on it, are what the bench applies when it sides with them: an retire after which one of them no longer applies to the report is refused, naming that docketing or proposal, and nothing is recorded. An retire that leaves each of them applying lands.
+A RETIRE ENDS A BENCH RULING'S BAR ON THE GAP ABOUT WHAT IT RETIRES: the tombstone a ruling for either side left on a gap about the citation or computation you retire ends with it.
+
+A STATEMENT STANDING ON A GAP HOLDS UNTIL ITS RULING. While a docketing or a proposal stands on a gap, the text the gap's lens states in its closing there, and the quote and fix of a supersede proposed on it, are what the bench applies when it sides with them: a retire after which one of them no longer applies to the report is refused, naming that docketing or proposal, and nothing is recorded. A retire that leaves each of them applying lands.
