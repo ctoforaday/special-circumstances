@@ -51,7 +51,9 @@ func TestReapStaleTakesOnlyOldDirectoriesOfItsOwn(t *testing.T) {
 	old := mk(memPrefix+"old", memStale+time.Minute)
 	young := mk(memPrefix+"young", memStale-time.Minute)
 	foreign := mk("someone-elses", memStale*10)
-	reapStale(root, now)
+	if errs := reapStale(root, now); len(errs) != 0 {
+		t.Fatalf("reapStale reported %v", errs)
+	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
 		t.Error("a stale directory of this tool's was left in RAM")
 	}
@@ -59,5 +61,40 @@ func TestReapStaleTakesOnlyOldDirectoriesOfItsOwn(t *testing.T) {
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("%s was removed: %v", filepath.Base(p), err)
 		}
+	}
+}
+
+// THE REAP RUNS BEFORE THE FLOOR IS MEASURED, AND TAKES A READ-ONLY TREE. Reaping only above the
+// floor never reaped a /dev/shm the leftovers held just under it (3057 MB free against 3072), and a
+// gate's leftover holds Go's module cache, whose directories a plain RemoveAll cannot empty.
+func TestTheReapRunsUnderTheFloorAndTakesReadOnlyTrees(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	stale := filepath.Join(root, memPrefix+"killed")
+	locked := filepath.Join(stale, "go", "pkg", "mod", "m@v1.0.0")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "go.mod"), nil, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	old := now.Add(-memStale - time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	c, errs := reapThenChoose(root, "", now, func(string) uint64 { return memFloor - 1 })
+	if len(errs) != 0 {
+		t.Fatalf("the reap reported %v", errs)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("a stale directory holding a read-only tree survived a reap under the floor (stat: %v)", err)
+	}
+	if c.dir != "" {
+		t.Errorf("chose %q with the root under the floor, want the default temp directory", c.dir)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // THE GATES' TEMP DIRECTORY IS MEMORY WHEN THE BOX HAS SOME TO SPARE.
@@ -55,31 +57,51 @@ func chooseTmp(callerSet string, rootExists bool, free uint64) tmpChoice {
 
 // useMemoryTmp applies the choice: a fresh directory under memRoot becomes TMPDIR for every gate
 // this process starts. The returned func removes it, and must run before the process exits.
-func useMemoryTmp() (string, func()) {
-	_, statErr := os.Stat(memRoot)
-	c := chooseTmp(os.Getenv("TMPDIR"), statErr == nil, freeBytes(memRoot))
-	if c.dir == "" {
-		return c.reason, func() {}
+//
+// What killed checks left behind is reaped FIRST, whatever the choice: the reap is what frees the
+// space the floor measures, so reaping only above the floor never reaps a box the leftovers hold
+// just under it — 28 directories, 4.9 GB of RAM, 9 to 12 days old, on 2026-11-22. A directory the
+// reap cannot remove is printed; the release's error is the run's own directory surviving.
+func useMemoryTmp() (string, func() error) {
+	none := func() error { return nil }
+	c, errs := reapThenChoose(memRoot, os.Getenv("TMPDIR"), time.Now(), freeBytes)
+	for _, err := range errs {
+		fmt.Fprintln(os.Stderr, "check: reaping a stale temp directory:", err)
 	}
-	reapStale(c.dir, time.Now())
+	if c.dir == "" {
+		return c.reason, none
+	}
 	dir, err := os.MkdirTemp(c.dir, memPrefix)
 	if err != nil {
-		return fmt.Sprintf("could not make a directory in %s (%v); the gates use the default temp directory", c.dir, err), func() {}
+		return fmt.Sprintf("could not make a directory in %s (%v); the gates use the default temp directory", c.dir, err), none
 	}
 	if err := os.Setenv("TMPDIR", dir); err != nil {
-		_ = os.RemoveAll(dir)
-		return fmt.Sprintf("could not set TMPDIR (%v); the gates use the default temp directory", err), func() {}
+		_ = testhome.RemoveTree(dir)
+		return fmt.Sprintf("could not set TMPDIR (%v); the gates use the default temp directory", err), none
 	}
-	return c.reason + " — " + dir, func() { _ = os.RemoveAll(dir) }
+	return c.reason + " — " + dir, func() error { return testhome.RemoveTree(dir) }
 }
 
-// reapStale removes what killed checks left in root. Only this tool's own prefix, only past
-// memStale: a directory that young may belong to a check still running in another session.
-func reapStale(root string, now time.Time) {
+// reapThenChoose reaps root, when it exists, and only then measures its free space and chooses.
+func reapThenChoose(root, callerSet string, now time.Time, free func(string) uint64) (tmpChoice, []error) {
+	_, statErr := os.Stat(root)
+	var errs []error
+	if statErr == nil {
+		errs = reapStale(root, now)
+	}
+	return chooseTmp(callerSet, statErr == nil, free(root)), errs
+}
+
+// reapStale removes what killed checks left in root and returns what it could not remove. Only
+// this tool's own prefix, only past memStale: a directory that young may belong to a check still
+// running in another session. A gate can leave a read-only tree (Go's module cache), so the removal
+// restores write permission where a plain RemoveAll fails.
+func reapStale(root string, now time.Time) []error {
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		return
+		return nil
 	}
+	var errs []error
 	for _, e := range entries {
 		if !e.IsDir() || !strings.HasPrefix(e.Name(), memPrefix) {
 			continue
@@ -88,6 +110,9 @@ func reapStale(root string, now time.Time) {
 		if err != nil || now.Sub(info.ModTime()) < memStale {
 			continue
 		}
-		_ = os.RemoveAll(filepath.Join(root, e.Name()))
+		if err := testhome.RemoveTree(filepath.Join(root, e.Name())); err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errs
 }

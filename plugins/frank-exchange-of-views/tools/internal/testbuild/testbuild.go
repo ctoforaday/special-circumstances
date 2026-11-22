@@ -55,7 +55,6 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +62,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // Main runs the test binary inside a sandbox: its own HOME, and the shared build directory
@@ -164,7 +165,7 @@ func stubClient() (func() error, error) {
 		} else {
 			_ = os.Unsetenv("PATH")
 		}
-		return removeTree(dir)
+		return testhome.RemoveTree(dir)
 	}, nil
 }
 
@@ -223,85 +224,12 @@ func ClearDispatch() {
 }
 
 func sandboxHome() (func() error, error) {
-	h, err := os.MkdirTemp("", "sc-testhome-")
-	if err != nil {
-		return nil, fmt.Errorf("no temp HOME: %w", err)
-	}
-	unpin := keepGoCaches()
-	key := homeKey()
-	if err := os.Setenv(key, h); err != nil {
-		unpin()
-		_ = removeTree(h)
-		return nil, fmt.Errorf("setting %s: %w", key, err)
-	}
-	return func() error {
-		if realHomeSet {
-			_ = os.Setenv(key, realHome)
-		} else {
-			_ = os.Unsetenv(key)
-		}
-		unpin()
-		return removeTree(h)
-	}, nil
-}
-
-// keepGoCaches pins GOMODCACHE and GOCACHE, for every `go` this process starts, to where they
-// resolve NOW — before HOME moves — and returns the undo.
-//
-// THE SANDBOX IS FOR THE COMMAND UNDER TEST, NOT FOR THE TOOLCHAIN; buildEnv states the same
-// for the builds this package runs, and this extends it to every other `go` a test starts
-// (nativehelpertest builds its fake helper with the inherited environment). Unpinned, such a
-// build resolves GOPATH to $HOME/go under the sandbox, downloads the module graph into
-// $HOME/go/pkg/mod — which Go writes READ-ONLY — and the sandbox could not be removed: one
-// directory per test binary, up to 430 MB each, 30 GB on 2026-11-22 before the disk filled.
-//
-// A value the caller already set is left alone, and a machine with no `go` on PATH is left as
-// it was: a test that needs one says so itself. The prosthetic-conscience plugin's hooktest
-// pins the same two variables for the same reason.
-func keepGoCaches() (undo func()) {
-	out, err := exec.Command("go", "env", "GOMODCACHE", "GOCACHE").Output()
-	if err != nil {
-		return func() {}
-	}
-	paths := strings.Split(strings.TrimSpace(string(out)), "\n")
-	var set []string
-	for i, k := range []string{"GOMODCACHE", "GOCACHE"} {
-		if i >= len(paths) || strings.TrimSpace(paths[i]) == "" || os.Getenv(k) != "" {
-			continue
-		}
-		if os.Setenv(k, strings.TrimSpace(paths[i])) == nil {
-			set = append(set, k)
-		}
-	}
-	return func() {
-		for _, k := range set {
-			_ = os.Unsetenv(k)
-		}
-	}
-}
-
-// removeTree removes dir and everything under it, and says so when it cannot.
-//
-// os.RemoveAll alone fails on a tree holding a directory without write permission — the module
-// cache Go writes is exactly that — and the error used to be discarded, so the directory stayed
-// and nothing said so. Write permission is restored on every directory first, so a read-only
-// tree a test left behind still goes; whatever survives that is returned.
-func removeTree(dir string) error {
-	if err := os.RemoveAll(dir); err == nil {
-		return nil
-	}
-	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err == nil && d.IsDir() {
-			if info, ierr := d.Info(); ierr == nil {
-				_ = os.Chmod(p, info.Mode().Perm()|0o700)
-			}
-		}
-		return nil
-	})
-	if err := os.RemoveAll(dir); err != nil {
-		return fmt.Errorf("could not remove %s: %w", dir, err)
-	}
-	return nil
+	// testhome also pins GOMODCACHE and GOCACHE before HOME moves, for every `go` a test starts
+	// (nativehelpertest builds its fake helper with the inherited environment): unpinned, such a
+	// build downloaded the module graph, read-only, into the sandbox, which then could not be
+	// removed. buildEnv states the same principle for the builds this package runs.
+	_, undo, err := testhome.New("sc-testhome-", homeKey())
+	return undo, err
 }
 
 // buildEnv is the environment for `go build`: this process's, with HOME put back to the real
@@ -334,7 +262,7 @@ func buildEnv() []string {
 // exported for use at any other moment.
 func Cleanup() error {
 	if dir != "" {
-		return removeTree(dir)
+		return testhome.RemoveTree(dir)
 	}
 	return nil
 }
