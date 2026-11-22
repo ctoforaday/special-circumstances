@@ -18,9 +18,10 @@ import (
 // Antigravity's run_workflow dispatches each agent() as a top-level conversation whose hook
 // payloads carry its own conversationId and neither parentConversationId nor agentName. debate.py
 // writes seat-<seat_id>.json before launching a seat and removes it on close; on the seat's first
-// run_command carrying --seat-id <seat_id>, this hook binds conv-<conversationId>.json so every
-// subsequent call in that conversation (run_command, read_file, PostToolUse) resolves its seat
-// identity and lead session directly.
+// run_command carrying --seat-id <seat_id>, this hook binds conv-<conversationId>.json atomically
+// (guarded by an O_EXCL seat-<seat_id>.bound marker so a second conversation cannot claim the same
+// sitting) so every subsequent call in that conversation (run_command, read_file, PostToolUse,
+// PostFailure, PreInvocation) resolves its seat identity and lead session directly.
 type agySitting struct {
 	AgentID     string `json:"agent_id"`
 	AgentType   string `json:"agent_type"`
@@ -30,6 +31,19 @@ type agySitting struct {
 }
 
 const agySittingsDir = ".agy-sittings"
+
+// applyAgySitting populates req's AgentID, AgentType and SessionID from an active Antigravity
+// run_workflow sitting when applicable. Used uniformly by Pre, Post, PostFailure, and PreInvocation.
+func applyAgySitting(req *hookcore.Request, cwd string) (agySitting, bool) {
+	s, ok := resolveAgySitting(*req, cwd)
+	if !ok {
+		return agySitting{}, false
+	}
+	req.AgentID = s.AgentID
+	req.AgentType = s.AgentType
+	req.SessionID = s.LeadSession
+	return s, true
+}
 
 func resolveAgySitting(req hookcore.Request, cwd string) (agySitting, bool) {
 	if req.Engine != hookcore.EngineAntigravity || req.AgentID != "" || req.SessionID == "" {
@@ -49,7 +63,11 @@ func resolveAgySitting(req hookcore.Request, cwd string) (agySitting, bool) {
 
 		// Fast path: this conversation is already bound to an active sitting.
 		if s, ok := readAgySitting(filepath.Join(sdir, "conv-"+req.SessionID+".json")); ok && s.LeadSession == m.LeadSession {
-			return s, true
+			caller := runlive.Caller{ID: s.AgentID, Type: s.AgentType, Session: s.LeadSession}
+			if runlive.StateOf(markerDir, m, caller) == runlive.RowLive {
+				return s, true
+			}
+			continue
 		}
 
 		// First-call bind: a run_command calling feov-record --seat-id <id>.
@@ -64,15 +82,37 @@ func resolveAgySitting(req hookcore.Request, cwd string) (agySitting, bool) {
 		if !ok || s.LeadSession != m.LeadSession {
 			continue
 		}
-		if b, err := json.Marshal(s); err == nil {
-			_ = os.WriteFile(filepath.Join(sdir, "conv-"+req.SessionID+".json"), b, 0o600)
+		caller := runlive.Caller{ID: s.AgentID, Type: s.AgentType, Session: s.LeadSession}
+		if runlive.StateOf(markerDir, m, caller) != runlive.RowLive {
+			continue
 		}
+		// First-bind exclusivity: O_EXCL prevents a second conversation from hijacking an active seat.
+		boundPath := filepath.Join(sdir, "seat-"+seatID+".bound")
+		bf, err := os.OpenFile(boundPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err != nil {
+			continue
+		}
+		_, _ = bf.WriteString(req.SessionID + "\n")
+		_ = bf.Close()
+
+		if b, err := json.Marshal(s); err == nil {
+			_ = writeFileAtomic(filepath.Join(sdir, "conv-"+req.SessionID+".json"), b, 0o600)
+		}
+		_ = writeFileAtomic(filepath.Join(sdir, "seat-"+seatID+".conv"), []byte(req.SessionID), 0o600)
 		if req.TranscriptPath != "" {
-			_ = os.WriteFile(filepath.Join(sdir, "seat-"+seatID+".transcript"), []byte(req.TranscriptPath), 0o600)
+			_ = writeFileAtomic(filepath.Join(sdir, "seat-"+seatID+".transcript"), []byte(req.TranscriptPath), 0o600)
 		}
 		return s, true
 	}
 	return agySitting{}, false
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp := fmt.Sprintf("%s.tmp.%d", path, os.Getpid())
+	if err := os.WriteFile(tmp, data, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func findRunLiveDir(start string) string {
@@ -128,16 +168,11 @@ func sanitizeSeatID(raw string) string {
 	return s
 }
 
-// logAgyFailedToolSteps drains newly completed non-zero run_command steps from an Antigravity
-// seat's transcript on PreInvocation and logs each as LOG_TYPE_FAILURE. Antigravity fires
-// PostToolUse with error:"" on non-zero shell exits, so PreInvocation is the first hook point
-// where the exit code is visible on disk.
+// logAgyFailedToolSteps drains newly completed non-zero run_command steps from a bound Antigravity
+// seat's transcript on PreInvocation and logs each via failureEntry/recordFailure. The caller check
+// runs first so unbound conversations perform zero transcript I/O.
 func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, rec *hookfailures.Recorder) {
 	if req.Engine != hookcore.EngineAntigravity {
-		return
-	}
-	failed := hookcore.DrainFailedToolSteps(req)
-	if len(failed) == 0 {
 		return
 	}
 	caller := callerAgent(in)
@@ -148,6 +183,7 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	if runDir == "" {
 		return
 	}
+	failed := hookcore.DrainFailedToolSteps(req)
 	for _, st := range failed {
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)

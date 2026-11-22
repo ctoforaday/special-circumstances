@@ -4,6 +4,7 @@ Mirrors debate.js's roundless, record-driven debate engine using Antigravity's
 native run_workflow primitives (agent, parallel, phase, log).
 """
 
+import asyncio
 import json
 import os
 import re
@@ -116,6 +117,11 @@ agy_sittings_dir = os.path.join(run_dir, ".agy-sittings")
 journal_dir = os.path.join(run_dir, ".agy-workflow")
 journal_path = os.path.join(journal_dir, "journal.jsonl")
 lead_session = globals().get("CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or ""
+if not lead_session:
+    raise RuntimeError(
+        "debate: refusing dispatch — lead session id unset (CONVERSATION_ID / ANTIGRAVITY_CONVERSATION_ID). "
+        "Without it, no seat conversation can bind to the run's live marker."
+    )
 
 
 def _append_journal(seat_id, agent_id, envelope):
@@ -254,7 +260,10 @@ async def sit(seat_id, prompt, schema, role_title):
     os.makedirs(agy_sittings_dir, exist_ok=True)
     seat_reg_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.json")
     seat_tr_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.transcript")
-    with open(seat_reg_path, "w") as f:
+    seat_bound_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.bound")
+    seat_conv_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.conv")
+    tmp_reg = f"{seat_reg_path}.tmp.{os.getpid()}"
+    with open(tmp_reg, "w") as f:
         json.dump(
             {
                 "agent_id": agent_id,
@@ -265,12 +274,19 @@ async def sit(seat_id, prompt, schema, role_title):
             },
             f,
         )
+    os.replace(tmp_reg, seat_reg_path)
 
-    open_res = _run_sitting_write(
-        ["-run", run_dir, "-phase", "open", "-agent-id", agent_id, "-agent-type", agent_type]
+    open_res = await asyncio.to_thread(
+        _run_sitting_write,
+        ["-run", run_dir, "-phase", "open", "-agent-id", agent_id, "-agent-type", agent_type],
     )
     if open_res.returncode != 0:
         log(f"{seat_id} sitting open failed: {open_res.stderr.strip()}")
+        try:
+            os.remove(seat_reg_path)
+        except OSError:
+            pass
+        return None
     work_list = (open_res.stdout or "").strip()
     full_prompt = f"{prompt}\n\n{work_list}" if work_list else prompt
 
@@ -278,27 +294,31 @@ async def sit(seat_id, prompt, schema, role_title):
     try:
         env = await seat_agent(full_prompt, schema)
         for attempt in range(ENVELOPE_REFUSAL_RETRIES + 1):
-            env_res = _run_sitting_write(
+            env_res = await asyncio.to_thread(
+                _run_sitting_write,
                 ["-run", run_dir, "-phase", "envelope", "-agent-id", agent_id],
-                stdin_text=json.dumps(env if isinstance(env, dict) else {}),
+                json.dumps(env if isinstance(env, dict) else {}),
             )
-            answer = {}
-            if env_res.stdout and env_res.stdout.strip():
-                try:
-                    answer = json.loads(env_res.stdout)
-                except Exception as exc:
-                    log(f"{seat_id} envelope answer parse failed: {exc}")
-                    return None
+            if not env_res.stdout or not env_res.stdout.strip():
+                log(f"{seat_id} envelope check returned empty (agent bound to no seat): {env_res.stderr.strip()}")
+                return None
+            try:
+                answer = json.loads(env_res.stdout)
+            except Exception as exc:
+                log(f"{seat_id} envelope answer parse failed: {exc}")
+                return None
             if env_res.returncode != 0 and not answer.get("refusal"):
                 log(f"{seat_id} envelope check failed: {env_res.stderr.strip()}")
                 return None
             refusal = answer.get("refusal") or ""
             if not refusal:
-                admit_res = _run_sitting_write(
-                    ["-run", run_dir, "-phase", "admission", "-agent-id", agent_id]
+                admit_res = await asyncio.to_thread(
+                    _run_sitting_write,
+                    ["-run", run_dir, "-phase", "admission", "-agent-id", agent_id],
                 )
                 if admit_res.returncode != 0:
                     log(f"{seat_id} admission failed: {admit_res.stderr.strip()}")
+                    return None
                 out = dict(answer["envelope"]) if isinstance(answer.get("envelope"), dict) else (dict(env) if isinstance(env, dict) else {})
                 if isinstance(answer.get("record_read"), dict):
                     out["record_read"] = answer["record_read"]
@@ -309,7 +329,7 @@ async def sit(seat_id, prompt, schema, role_title):
                 return None
             log(f"{seat_id} envelope refused (retry {attempt + 1}): {refusal[:160]}")
             env = await seat_agent(
-                f"Your envelope was refused: {refusal}\n\nResolve this on the record and call `finish` again.",
+                f"Your envelope was refused: {refusal}\n\nResolve this on the record and return your envelope again.",
                 schema,
             )
         return None
@@ -326,10 +346,18 @@ async def sit(seat_id, prompt, schema, role_title):
         close_args = ["-run", run_dir, "-phase", "close", "-agent-id", agent_id, "-agent-type", agent_type]
         if transcript:
             close_args.extend(["-transcript", transcript])
-        close_res = _run_sitting_write(close_args)
+        close_res = await asyncio.to_thread(_run_sitting_write, close_args)
         if close_res.returncode != 0:
             log(f"{seat_id} sitting close failed: {close_res.stderr.strip()}")
-        for p in (seat_reg_path, seat_tr_path):
+        cleanup = [seat_reg_path, seat_tr_path, seat_bound_path, seat_conv_path]
+        if os.path.exists(seat_conv_path):
+            try:
+                cid = open(seat_conv_path).read().strip()
+                if cid:
+                    cleanup.append(os.path.join(agy_sittings_dir, f"conv-{cid}.json"))
+            except OSError:
+                pass
+        for p in cleanup:
             try:
                 os.remove(p)
             except OSError:
@@ -354,6 +382,8 @@ async def hear_owed(reads):
 
 async def run_debate():
     global halted, read_stop
+    os.makedirs(journal_dir, exist_ok=True)
+    log(f"Transcript dir: {journal_dir}")
     phase("Frontier")
     frontier_prompt = (
         f"Frontier reconnaissance — produce frontier hypotheses for topic: \"{topic}\". "
@@ -405,7 +435,7 @@ async def run_debate():
         epoch += 1
         chair_prompt = (
             f"Red chair, topic: \"{topic}\" (epoch {epoch}). Open the next epoch per your "
-            f"constitution, record the PASS if permitted or withhold it with your position, and return the relayed plan in your envelope.{record_clause('red-chair')}"
+            f"constitution, record the PASS if permitted or withhold it with your position, and return your envelope.{record_clause('red-chair')}"
         )
         plan = await sit("red-chair", chair_prompt, CHAIR_ENVELOPE, f"red-chair · ep{epoch}")
         if plan is None:

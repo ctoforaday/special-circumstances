@@ -35,14 +35,15 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if req.IsInterrupt {
 		return nil
 	}
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
+	applyAgySitting(&req, cwd)
 	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	agent := caller.ID
 	if agent == "" {
 		return nil
-	}
-	cwd := req.CWD
-	if cwd == "" {
-		cwd = cwdOf(req.Raw)
 	}
 	runDir := seatRunDir(cwd, caller, rec)
 	if runDir == "" {

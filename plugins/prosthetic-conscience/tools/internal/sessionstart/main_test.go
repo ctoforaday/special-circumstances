@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 var noon = time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
@@ -188,3 +190,61 @@ func TestTheVersionCheckSpeaksInTheOneResponse(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+func TestPreInvocationDrainsFailedRunCommandsIntoStrikesAndFlushesPending(t *testing.T) {
+	t.Cleanup(func() { ensure = hookfailures.Ensure })
+	ensure = func(string) (string, error) { return "", nil }
+
+	proj := t.TempDir()
+	pluginData := t.TempDir()
+	t.Setenv("PLUGIN_DATA", pluginData)
+
+	// Queue a pending feedback message (as sc-posttooluse does on Antigravity).
+	hookcore.QueueSay(pluginData, "conv-preinv-1", "QUEUED_SAY_MSG")
+
+	// Write a transcript with 3 failing run_command calls of the same command so the 3-strike
+	// rule trips on PreInvocation.
+	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+	tr := strings.Join([]string{
+		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+		`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+		`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-preinv-1",
+		"cwd":            proj,
+		"transcriptPath": tp,
+		"invocationNum":  1,
+	})
+	var stdout, stderr bytes.Buffer
+	unitRan := false
+	units := []hookunit.Unit{{
+		Name: "should-not-run",
+		Run: func(*hookunit.Ctx) hookunit.Result {
+			unitRan = true
+			return hookunit.Result{Stdout: "SESSIONSTART_ONLY"}
+		},
+	}}
+	code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), units)
+	if code != 0 {
+		t.Fatalf("PreInvocation exit %d, stderr=%s", code, stderr.String())
+	}
+	if unitRan {
+		t.Error("PreInvocation must not run SessionStart units")
+	}
+	outStr := stdout.String()
+	if !strings.Contains(outStr, "QUEUED_SAY_MSG") {
+		t.Errorf("PreInvocation did not flush queued Say: %s", outStr)
+	}
+	if !strings.Contains(outStr, "anti-spinning:") || !strings.Contains(outStr, "failed 3 times") {
+		t.Errorf("PreInvocation did not trip 3-strike warning from drained run_command failures: %s", outStr)
+	}
+}

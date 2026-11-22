@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,28 +23,37 @@ type FailedToolStep struct {
 	Output    string
 }
 
-var reCommandExitCode = regexp.MustCompile(`Command exited with code (\d+)\.`)
+var reCommandExitCode = regexp.MustCompile(`(?m)^Command exited with code (\d+)\.$`)
 
-// DrainFailedToolSteps scans req.TranscriptPath for newly completed Antigravity tool steps that
-// failed since the last PreInvocation watermark for this conversation, updating the watermark so
-// each failed step is returned at most once.
+// DrainFailedToolSteps scans req.TranscriptPath from the persisted byte-offset watermark for newly
+// completed Antigravity run_command steps that exited non-zero, updating the watermark so each
+// failed step is returned at most once without rescanning earlier turns.
 //
 // Antigravity's PostToolUse hook fires with error:"" and no result field when run_command exits
 // non-zero, and the GENERIC result step is not yet flushed to transcript_full.jsonl until the
-// following PreInvocation. Scanning on PreInvocation recovers non-zero run_command exits for both
-// FEOV's failure log and prosthetic-conscience's strike counter.
+// following PreInvocation. Backgrounded run_command calls (WaitMsBeforeAsync) yield no exit code
+// in their GENERIC step and are not reported here.
 func DrainFailedToolSteps(req Request) []FailedToolStep {
 	if req.Engine != EngineAntigravity || req.TranscriptPath == "" {
 		return nil
 	}
 	key := pendingQueueKey(req)
-	watermark := -1
+	watermarkStep := -1
+	var watermarkOffset int64
 	var wmPath string
 	if req.PluginDataDir != "" && key != "" {
 		wmPath = filepath.Join(req.PluginDataDir, "last_failed_step_"+key+".txt")
 		if b, err := os.ReadFile(wmPath); err == nil {
-			if n, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
-				watermark = n
+			fields := strings.Fields(strings.TrimSpace(string(b)))
+			if len(fields) >= 1 {
+				if n, err := strconv.Atoi(fields[0]); err == nil {
+					watermarkStep = n
+				}
+			}
+			if len(fields) >= 2 {
+				if off, err := strconv.ParseInt(fields[1], 10, 64); err == nil && off > 0 {
+					watermarkOffset = off
+				}
 			}
 		}
 	}
@@ -54,18 +64,29 @@ func DrainFailedToolSteps(req Request) []FailedToolStep {
 	}
 	defer f.Close()
 
+	if watermarkOffset > 0 {
+		if fi, err := f.Stat(); err == nil && fi.Size() >= watermarkOffset {
+			_, _ = f.Seek(watermarkOffset, io.SeekStart)
+		} else {
+			watermarkOffset = 0
+		}
+	}
+
 	type pendingCall struct {
 		toolName string
 		command  string
 	}
 	var pending []pendingCall
 	var failed []FailedToolStep
-	maxStep := watermark
+	maxStep := watermarkStep
+	curOffset := watermarkOffset
 
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
+		rawLine := sc.Bytes()
+		curOffset += int64(len(rawLine)) + 1 // +1 for '\n'
+		line := strings.TrimSpace(string(rawLine))
 		if line == "" {
 			continue
 		}
@@ -106,7 +127,7 @@ func DrainFailedToolSteps(req Request) []FailedToolStep {
 				call = pending[0]
 				pending = pending[1:]
 			}
-			if step.StepIndex <= watermark {
+			if step.StepIndex <= watermarkStep {
 				continue
 			}
 			if m := reCommandExitCode.FindStringSubmatch(step.Content); len(m) == 2 {
@@ -127,11 +148,14 @@ func DrainFailedToolSteps(req Request) []FailedToolStep {
 			}
 		}
 	}
+	if sc.Err() != nil {
+		return failed
+	}
 
-	if wmPath != "" && maxStep > watermark {
+	if wmPath != "" && (maxStep > watermarkStep || curOffset > watermarkOffset) {
 		_ = os.MkdirAll(req.PluginDataDir, 0o755)
 		tmp := wmPath + ".tmp"
-		if os.WriteFile(tmp, []byte(fmt.Sprintf("%d\n", maxStep)), 0o644) == nil {
+		if os.WriteFile(tmp, []byte(fmt.Sprintf("%d %d\n", maxStep, curOffset)), 0o644) == nil {
 			_ = os.Rename(tmp, wmPath)
 		}
 	}

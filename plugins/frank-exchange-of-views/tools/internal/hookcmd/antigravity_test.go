@@ -318,4 +318,48 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 	if len(logged) != 1 || !strings.HasPrefix(logged[0], "agy-0123456789abcdef|") || !strings.Contains(logged[0], "/missing/script.py") {
 		t.Fatalf("PreInvocation failed-step logs = %v, want 1 non-refusal entry for /missing/script.py", logged)
 	}
+
+	// Bound agy seat PostToolUse carrying a tool-level error (e.g. view_file error) routes through
+	// PostFailure with the bound agent id and redacts runDir to ".".
+	logged = nil
+	postErrPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PostToolUse",
+		"conversationId": childConv,
+		"cwd":            cwd,
+		"error":          "open " + filepath.Join(runDir, "missing.md") + ": no such file or directory",
+		"toolCall": map[string]any{
+			"id":   "call-read-err",
+			"name": "read_file",
+			"args": map[string]any{"Path": filepath.Join(runDir, "missing.md")},
+		},
+	})
+	out.Reset()
+	if err := Post(bytes.NewReader(postErrPayload), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if len(logged) != 1 || !strings.HasPrefix(logged[0], "agy-0123456789abcdef|") {
+		t.Fatalf("PostToolUse tool error logs = %v, want 1 entry for agy-0123456789abcdef", logged)
+	}
+	if strings.Contains(logged[0], runDir) {
+		t.Fatalf("PostToolUse failure log leaked runDir %q: %s", runDir, logged[0])
+	}
+
+	// Second conversation trying to claim the already-bound seat-red-chair is refused (O_EXCL).
+	hijackPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": "other-conv-hijack",
+		"cwd":            cwd,
+		"toolCall": map[string]any{
+			"id":   "call-hijack",
+			"name": "run_command",
+			"args": map[string]any{"CommandLine": "/bin/feov-record register --seat-id red-chair"},
+		},
+	})
+	out.Reset()
+	if err := Pre(bytes.NewReader(hijackPayload), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "FEOV_AGENT_ID='agy-0123456789abcdef'") {
+		t.Fatalf("second conversation hijacked already-bound seat: %s", out.String())
+	}
 }

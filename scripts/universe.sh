@@ -352,6 +352,53 @@ lend_access_token() {
   log "subscription access token lent for $left min; the run must finish inside it"
 }
 
+# ANTIGRAVITY EQUIVALENT OF lend_access_token (#1890): never copy refresh_token into a universe.
+# Renews the host's ~60 min OAuth access token when under 15 min remain, then writes a
+# refresh-token-stripped copy into the universe HOME (0600) that cmd_supervise deletes at exit.
+lend_agy_access_token() {
+  local host_tok="$HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token"
+  local dst_tok="$HOME/.gemini/antigravity-cli/antigravity-oauth-token"
+  [ -f "$host_tok" ] || die "no $host_tok — sign in with \`agy\` first"
+  local left
+  left="$(python3 - "$host_tok" <<'PY'
+import datetime, json, sys
+d = json.load(open(sys.argv[1]))
+exp = (d.get("token") or {}).get("expiry", "")
+if not exp:
+    print(-1); raise SystemExit(0)
+dt = datetime.datetime.fromisoformat(exp.replace("Z", "+00:00"))
+print(int((dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds() // 60))
+PY
+)"
+  if [ "$left" -lt 15 ]; then
+    log "antigravity access token has $left min left (< 15): renewing through the host login"
+    ( HOME="$HOST_HOME" XDG_CONFIG_HOME="$HOST_HOME/.config" XDG_CACHE_HOME="$HOST_HOME/.cache" XDG_DATA_HOME="$HOST_HOME/.local/share" \
+      agy -p "Reply with ok." --model "$AGY_MODEL" --output-format text --print-timeout 30s ) >/dev/null 2>&1 \
+      || die "failed to renew host antigravity access token"
+    left="$(python3 - "$host_tok" <<'PY'
+import datetime, json, sys
+d = json.load(open(sys.argv[1]))
+dt = datetime.datetime.fromisoformat(d["token"]["expiry"].replace("Z", "+00:00"))
+print(int((dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds() // 60))
+PY
+)"
+  fi
+  [ "$left" -ge 15 ] || die "antigravity access token still has only $left min after renewal"
+  mkdir -p "$(dirname "$dst_tok")"
+  python3 - "$host_tok" "$dst_tok" <<'PY' || die "could not write refresh-stripped antigravity token"
+import json, os, sys
+d = json.load(open(sys.argv[1]))
+if isinstance(d.get("token"), dict):
+    d["token"].pop("refresh_token", None)
+tmp = sys.argv[2] + ".tmp"
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    json.dump(d, f)
+os.replace(tmp, sys.argv[2])
+PY
+  log "antigravity access token lent (refresh_token stripped) for $left min"
+}
+
 # A SEAT'S IDENTITY AND RUN MUST NOT LEAK IN FROM THE PARENT. A shell that has FEOV_RUN set —
 # which any session that has touched a run does — makes the tool refuse a run directory it was
 # handed, and makes every test in this tree fail in a way that reads like a code defect. Measured:
@@ -421,10 +468,12 @@ cmd_build() {
     local agy_cli_dir="$HOME/.gemini/antigravity-cli"
     [ -f "$HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token" ] \
       || die "no $HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token — sign in with \`agy\` first"
-    for f in antigravity-oauth-token antigravity_state.pbtxt installation_id; do
+    # Never leave a credential copy in a built universe; cmd_run lends a refresh-stripped access token
+    # and cmd_supervise deletes it on exit.
+    rm -f "$agy_cli_dir/antigravity-oauth-token"
+    for f in antigravity_state.pbtxt installation_id; do
       [ -f "$HOST_HOME/.gemini/antigravity-cli/$f" ] && cp "$HOST_HOME/.gemini/antigravity-cli/$f" "$agy_cli_dir/$f"
     done
-    chmod 600 "$agy_cli_dir/antigravity-oauth-token" 2>/dev/null || true
     printf '{"toolPermission":"always-proceed"}\n' > "$agy_cli_dir/settings.json"
   else
     mkdir -p "$CLAUDE_CONFIG_DIR"
@@ -764,8 +813,7 @@ cmd_run() {
 
   guard_no_live_run "run"
   if [ "$HARNESS" = "agy" ]; then
-    [ -f "$HOME/.gemini/antigravity-cli/antigravity-oauth-token" ] \
-      || die "no antigravity-oauth-token in $WORKDIR — run \`universe.sh --harness agy build\` first"
+    lend_agy_access_token
   else
     lend_access_token
   fi
@@ -918,6 +966,9 @@ cmd_supervise() {
   # would go on writing to the record under a resume, and would read as a live run to process_state.
   trap '' TERM
   pkill -TERM -s "$$" 2>/dev/null
+  if [ "$HARNESS" = "agy" ]; then
+    rm -f "$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"
+  fi
 
   # BOTH ARMS, because they fail differently and the second one is the one that matters. claude's
   # status says the process produced an answer; the renderer's says the ENGINE RAN. A universe whose

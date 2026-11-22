@@ -1760,7 +1760,11 @@ func writeTarball(outPath string, transcripts []record.Transcript) error {
 		if err != nil {
 			return err
 		}
-		if err := tw.WriteHeader(&tar.Header{Name: filepath.Base(tr.Path), Mode: 0o644, Size: int64(len(b))}); err != nil {
+		name := filepath.Base(tr.Path)
+		if tr.AgentID != "" && !strings.Contains(name, tr.AgentID) {
+			name = fmt.Sprintf("agent-%s-%s", tr.AgentID, name)
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(b))}); err != nil {
 			return err
 		}
 		if _, err := tw.Write(b); err != nil {

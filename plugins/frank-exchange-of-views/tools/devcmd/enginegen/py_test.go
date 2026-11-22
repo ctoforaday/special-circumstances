@@ -27,7 +27,7 @@ compile(src, sys.argv[1], "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 	}
 
 	harness := `
-import asyncio, json, sys
+import asyncio, json, os, sys
 
 py_path = sys.argv[1]
 with open(py_path, "r") as f:
@@ -156,6 +156,10 @@ res = asyncio.run(ns["run_debate"]())
 assert res["verdict"] == "PASS" and res["epochs"] == 2, res
 assert phases == ["Frontier", "Blue", "Debate", "Assemble"], phases
 assert all(":" not in c["type_name"] for c in calls), calls
+journal_file = os.path.join(tmp_run, ".agy-workflow", "journal.jsonl")
+assert os.path.exists(journal_file) and len(open(journal_file).read().splitlines()) >= 6
+sittings_dir = os.path.join(tmp_run, ".agy-sittings")
+assert not os.listdir(sittings_dir), f"leftover sitting files: {os.listdir(sittings_dir)}"
 
 # 3. WorkflowError on lens returns None without crashing engine
 ns, _, _, logs = make_env("lens_error", base_args)

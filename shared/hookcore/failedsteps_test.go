@@ -44,8 +44,8 @@ func TestDrainFailedToolStepsExtractsNonZeroRunCommandOnce(t *testing.T) {
 		t.Fatalf("second drain = %+v, want empty", again)
 	}
 
-	// Append another failed step; third drain returns only the new one.
-	extra := `{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"exit 2\""}}]}` + "\n" +
+	// Append another failed step with a PLAIN (unquoted) CommandLine string; third drain returns only the new one.
+	extra := `{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"exit 2"}}]}` + "\n" +
 		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 2.\n\nCommand output:\nbad arg\n"}` + "\n"
 	f, err := os.OpenFile(tp, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
