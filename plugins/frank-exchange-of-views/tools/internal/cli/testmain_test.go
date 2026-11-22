@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 	"os"
 	"testing"
 
@@ -31,5 +32,5 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	testbuild.Main(m, recordtest.CheckOrphanedHandles)
+	testbuild.Main(m, nativehelpertest.CleanupAtExit(), recordtest.CheckOrphanedHandles)
 }
