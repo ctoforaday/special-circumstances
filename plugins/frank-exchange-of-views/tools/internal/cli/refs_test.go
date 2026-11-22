@@ -203,7 +203,7 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}
 }

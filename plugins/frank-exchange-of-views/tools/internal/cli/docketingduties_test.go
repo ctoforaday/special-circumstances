@@ -297,7 +297,7 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 
 	t.Run("verdict.go: the chair's PASS is refused naming the standing docketing", func(t *testing.T) {
 		runDir, d := impasseDocketed(t)
-		out, err := runAt(t, "verdict", "--as", "PASS", "--run", runDir, "--seat-id", "red-chair")
+		out, err := runAt(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 		if err == nil {
 			t.Fatalf("a PASS landed over docketing %s: %s", d, out)
 		}

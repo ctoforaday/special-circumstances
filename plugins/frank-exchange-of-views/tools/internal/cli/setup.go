@@ -29,7 +29,6 @@ func newSetup() *cobra.Command {
 		lanes                 string
 		k, kMax               int
 		maxEpochs             int
-		convergenceFraction   float64
 		binDir                string
 		runID, scriptPath     string
 		cites                 []string
@@ -49,25 +48,24 @@ func newSetup() *cobra.Command {
 			cwd, _ := os.Getwd()
 			home, _ := os.UserHomeDir()
 			cfg := setup.Config{
-				RunDir:              runDir,
-				Topic:               topic,
-				Bulk:                bulk,
-				Judgment:            judgment,
-				SeatOverrides:       seats,
-				SkipModelCheck:      skipModelCheck,
-				Cites:               cites,
-				Lanes:               lanes,
-				K:                   k,
-				KMax:                kMax,
-				ConvergenceFraction: convergenceFraction,
-				MaxEpochs:           maxEpochs,
-				MaxEpochsSet:        cmd.Flags().Changed(flags.MaxEpochs),
-				BinDir:              binDir,
-				RunID:               runID,
-				ScriptPath:          scriptPath,
-				Session:             seatenv.Session(),
-				Cwd:                 cwd,
-				Home:                home,
+				RunDir:         runDir,
+				Topic:          topic,
+				Bulk:           bulk,
+				Judgment:       judgment,
+				SeatOverrides:  seats,
+				SkipModelCheck: skipModelCheck,
+				Cites:          cites,
+				Lanes:          lanes,
+				K:              k,
+				KMax:           kMax,
+				MaxEpochs:      maxEpochs,
+				MaxEpochsSet:   cmd.Flags().Changed(flags.MaxEpochs),
+				BinDir:         binDir,
+				RunID:          runID,
+				ScriptPath:     scriptPath,
+				Session:        seatenv.Session(),
+				Cwd:            cwd,
+				Home:           home,
 			}
 			if code := setup.Run(cfg, cmd.OutOrStdout(), cmd.ErrOrStderr()); code != 0 {
 				os.Exit(code)
@@ -85,7 +83,6 @@ func newSetup() *cobra.Command {
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.IntVar(&k, flags.K, 0, "consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)")
 	f.IntVar(&kMax, flags.KMax, 0, "total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)")
-	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
 	f.IntVar(&maxEpochs, flags.MaxEpochs, 0, fmt.Sprintf("the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default %d; recorded in run-config.json)", record.DefaultParams.MaxEpochs))
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
 	// THE MARKER OUTLIVES THE WORKFLOW THAT WROTE IT, so it has to name how to continue.

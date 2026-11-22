@@ -1446,7 +1446,7 @@ positions table; no closing word or regrade of its own). One sitting per docketi
 no remand at grade movement (L40); epoch limit.
 
 - **Record [phase B2a; Part B's second DDL phase, epoch `main` + 3 (L16 amended)].**
-  - `Docketing` [NEW body; `Event` oneof arm `docketing = 66` — `Event`'s `reserved 66 to 80` (`record.proto:789`) shrinks to `reserved 67 to 80`, its comment gaining "66 for the docketing" (audit p7 NOTE); `EVENT_TYPE_DOCKETING = 47`, means "the
+  - `Docketing` [NEW body; `Event` oneof arm `docketing = 68` — `Event`'s reserve shrinks to `reserved 69 to 80`, its comment gaining "68 for the docketing" (audit p7 NOTE; renumbered from 66 at the 2026-11-22 merge of main, whose question part and its check hold 65–66 and event types 46–47 in archived records); `EVENT_TYPE_DOCKETING = 49`, means "the
     tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal
     its assignee did not accept; written by the dispatch, by no verb"]: `docketing_id` (required,
     unique, tool-assigned `NewID("docketing")`), `gap_id` (required, `references: "mint.gap_id"`),
@@ -2269,14 +2269,24 @@ re-measured by T-B26 and T-B31 on the replay).
     The estimator's 3 words → `not_a_defect` counted m29 G-c55e607d and G-237fed96, whose gaps are
     superseded.
   - **Written as no event, stated per run:** 17 rulings of a docketing a `Close` ended (m28 2, m29 1,
-    1565 5, m32 1, m35 4, mersenne 1, m37 3); 16 party and hand dockets and their 16 rulings (O2; source
-    events per run: a 2, b3 2, b6 4, wave-b 8, 07d 2, m35 4, mersenne 8, eiffel 11-04 2); 2 dispatch docketings left standing on a gap a successor superseded after them, with their
+    1565 5, m32 1, m35 4, mersenne 1, m37 3); 17 party and hand dockets and their 17 rulings (O2; source
+    events per run: a 2, b3 2, b6 4, wave-b 8, 07d 2, m35 4, mersenne 8, eiffel 11-04 2, is-91-prime-1883 2
+    — blue's docket ev 266 and its ruling ev 459, added at the 2026-11-22 merge of main); 2 dispatch docketings left standing on a gap a successor superseded after them, with their
     rulings (ruled 2026-11-22, the live write refuses that supersede: m29 G-c55e607d ev 351/426, m37
     G-584d152f ev 471/745); 41 bench opinions in 6 runs (ruled 2026-11-22, "Drop them": is-7-prime 2,
     is-7-prime-run2 7, sqlite-schema-source 2, research-loop-counterparts 3, sleeper-service-plan 10,
     quadratic-formula 17), 40 of whose gaps read open; 3 bench regrades (eiffel 11-11 ev 669, m38 ev
     427, 718); 5 spot-checks naming a gap a dropped bench act left open (sleeper ev 474, quadratic ev
-    542, 710, 766, wave-b ev 698). Eiffel 11-11 ev 711 replays.
+    542, 710, 766, wave-b ev 698); 1 inquiry check whose inquiry only such a gap holds wanting, which
+    the live write refuses (requireInquiryCheck): is-91-prime-1883 ev 489, the logic lens's check of
+    Q-a7933175 while G-62cc6a4a — closed by the dropped ruling ev 459 — reads open and material (added
+    at the 2026-11-22 merge of main; `DocketResidue.InquiryChecks`). Eiffel 11-11 ev 711 replays.
+  - **The two archives main added at the 2026-11-22 merge** (is-91-prime-1838 at epoch 72,
+    is-91-prime-1883 at epoch 78) replay with zero refusals once that check drops. Their Part A residue:
+    37 findings, 23 finding Anchors, 4 `found_by` links, 6 finding tokens in report text, 7 `repaired`
+    closes left bare, 12 finding ids in prose; 1 docket (1883's party docket) and its ruling; 1883's 2
+    closings on that docket are refused arguments (`argumentresidue_test.go`). Totals over 38 runs:
+    1074 findings, 737 Anchors, 483 links, 646 tokens, 33 bare repaired closes, 409 prose ids.
   - **Closings:** every closing the write refuses is written as no event (`refusedArgument`, which now
     calls `record.ClosingRefusal` — the party check and `requireClosingStatement`, the one function
     validate's closing arm calls); the per-run tally is `argumentresidue_test.go`'s.

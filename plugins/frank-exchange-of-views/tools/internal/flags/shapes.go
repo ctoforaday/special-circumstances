@@ -56,6 +56,7 @@ var (
 	citationShape      = sync.OnceValue(func() *regexp.Regexp { return idShape("citation") })
 	aboutAnchorShape   = sync.OnceValue(func() *regexp.Regexp { return idShape("citation", "computation") })
 	inquiryShape       = sync.OnceValue(func() *regexp.Regexp { return idShape("inquiry") })
+	questionPartShape  = sync.OnceValue(func() *regexp.Regexp { return idShape("question part") })
 	motionShape        = sync.OnceValue(func() *regexp.Regexp { return idShape("motion") })
 	positionShape      = sync.OnceValue(func() *regexp.Regexp { return idShape("position") })
 	docketingShape     = sync.OnceValue(func() *regexp.Regexp { return idShape("docketing") })
@@ -213,6 +214,12 @@ func AboutAnchor() *ShapedValue {
 func InquiryID() *ShapedValue {
 	return &ShapedValue{kind: "inquiry-id", re: inquiryShape(),
 		hint: "an inquiry id is Q- and eight hex, and is ASSIGNED when you propose the inquiry; `show inquiries` lists every one with its fate"}
+}
+
+// QuestionPartID refuses anything that is not a question part id.
+func QuestionPartID() *ShapedValue {
+	return &ShapedValue{kind: "question-part-id", re: questionPartShape(),
+		hint: "a question part id is S- and eight hex, and is ASSIGNED when the part is split out with `question split`; `show question` lists every part with its coverage"}
 }
 
 // MotionID refuses anything that is not a motion id.

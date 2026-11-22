@@ -2,115 +2,14 @@ package setup
 
 import (
 	"bytes"
-	"encoding/json"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
-
-// THE FIELD REACHES run-config.json AND COMES BACK OUT, which is a different question from whether
-// the observer works. hookprovenance's tests drive Observe directly; this one marshals the struct
-// the setup path actually writes and reads it with the reader run.md uses, so a field added to the
-// observer and never wired into record.RunConfig — or written under a key the reader does not ask for —
-// fails here rather than shipping as a fix nobody gets.
-//
-// It asserts the SHAPE reaches the file, not what a particular machine's cache holds: the value
-// depends on the developer's install state, and a test that asserted a version would pass or fail
-// on where it ran.
-func TestRunConfigCarriesHookProvenance(t *testing.T) {
-	hooks, err := json.Marshal(hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rc := record.RunConfig{Topic: "t", Hooks: hooks}
-	b, err := json.Marshal(rc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	back, ok, err := readProvenance(t, dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("run-config.json carries no provenance under the key the reader asks for — the provenance is " +
-			"observed and then dropped, which leaves the record exactly as silent about the hook side as before")
-	}
-	if back.State == "" {
-		t.Error("the hook provenance round-trips with an empty state, so a reader cannot tell " +
-			"'nothing was installed' from 'this binary did not look'")
-	}
-}
-
-// SETUP RECORDS THE RUN'S PLUGIN CACHE, NOT THE OPERATOR'S. An isolated universe sets
-// CLAUDE_CONFIG_DIR and CLAUDE_CODE_PLUGIN_CACHE_DIR; a setup that joined $HOME/.claude recorded the
-// host's four cached hook versions on a run whose own cache held one. Each location here holds a
-// different version, so the recorded one names the directory setup actually read — through Run and
-// run-config.json, so a call site that stops resolving fails as surely as a resolver that does.
-func TestSetupRecordsTheHookVersionsOfThePluginCacheClaudeCodeReads(t *testing.T) {
-	plant := func(t *testing.T, cache, version string) {
-		t.Helper()
-		dir := filepath.Join(cache, "sc", "frank-exchange-of-views", version, "hooks")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "hooks.json"), []byte(`{"hooks":{}}`), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, tc := range []struct {
-		name              string
-		configDir, plugin bool
-		want              string
-	}{
-		{"neither: the home default", false, false, "1.0.0"},
-		{"CLAUDE_CONFIG_DIR", true, false, "2.0.0"},
-		{"CLAUDE_CODE_PLUGIN_CACHE_DIR", false, true, "3.0.0"},
-		{"both: the plugin cache dir wins", true, true, "3.0.0"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			home, root := t.TempDir(), t.TempDir()
-			t.Setenv("HOME", home)
-			t.Setenv("CLAUDE_CONFIG_DIR", "")
-			t.Setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", "")
-			plant(t, filepath.Join(home, ".claude", "plugins", "cache"), "1.0.0")
-			plant(t, filepath.Join(root, "config", "plugins", "cache"), "2.0.0")
-			plant(t, filepath.Join(root, "plugins", "cache"), "3.0.0")
-			if tc.configDir {
-				t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(root, "config"))
-			}
-			if tc.plugin {
-				t.Setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", filepath.Join(root, "plugins"))
-			}
-			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-			var out, errb bytes.Buffer
-			if code := Run(cfg, &out, &errb); code != 0 {
-				t.Fatalf("setup exit %d:\n%s", code, errb.String())
-			}
-			p, ok, err := readProvenance(t, runDir)
-			if err != nil || !ok {
-				t.Fatalf("run-config.json carries no provenance (ok=%v, err=%v)", ok, err)
-			}
-			if len(p.Versions) != 1 || p.Versions[0] != tc.want {
-				t.Errorf("recorded hook versions %v (state %s: %s), want [%s] — setup read a plugin cache other than the one Claude Code resolves",
-					p.Versions, p.State, p.Why, tc.want)
-			}
-		})
-	}
-}
 
 // THE FILE SETUP WRITES IS THE FILE THE RECORD READS. Setup marshals record.RunConfig and the
 // record decodes it strictly, refusing a key it does not declare or anything after the object; this
@@ -137,10 +36,6 @@ func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 	}
 	if n, ok, err := record.LanesDeclared(run); !ok || n != 2 || err != nil {
 		t.Errorf("--lanes 2 reads back as (%d, %v, %v)", n, ok, err)
-	}
-	// `hooks` is held raw by the record and decoded by its owner.
-	if _, ok, err := readProvenance(t, runDir); !ok || err != nil {
-		t.Errorf("the provenance setup writes reads back as (%v, %v)", ok, err)
 	}
 }
 
@@ -246,24 +141,6 @@ func TestSetupRemovesItsStagedConfigurationWhenItCannotPutItInPlace(t *testing.T
 	requireNoStagedConfig(t, runDir, "a setup that could not put its configuration in place")
 }
 
-// A CONFIGURATION THAT CANNOT BE ENCODED IS SAID TO BE ONE, with a remedy that fixes it: making the
-// directory writable would not. JSON holds no infinite number, which --convergence-fraction parses
-// from "inf".
-func TestSetupSaysAConfigurationItCannotEncode(t *testing.T) {
-	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	cfg.ConvergenceFraction = math.Inf(1)
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code == 0 {
-		t.Fatalf("setup exited 0 over a configuration JSON cannot hold:\n%s", errb.String())
-	}
-	if msg := errb.String(); !strings.Contains(msg, "could not encode the run's configuration") || strings.Contains(msg, "writable") {
-		t.Errorf("the failure does not say the configuration could not be encoded, or gives the directory's remedy:\n%s", msg)
-	}
-	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
-		t.Error("setup wrote the cast for a run whose configuration it could not encode")
-	}
-}
-
 // A LANE COUNT THAT IS NOT A COUNT IS REFUSED BEFORE THE RUN EXISTS. Stored as typed, "two" would
 // cast no lanes while the configuration claimed some.
 func TestSetupRefusesALaneCountThatIsNotACount(t *testing.T) {
@@ -278,15 +155,4 @@ func TestSetupRefusesALaneCountThatIsNotACount(t *testing.T) {
 			t.Errorf("--lanes %q: setup laid down the run directory before refusing", bad)
 		}
 	}
-}
-
-// readProvenance reads the provenance as the report does: through the record's one reader of the
-// run's configuration.
-func readProvenance(t *testing.T, dir string) (hookprovenance.Provenance, bool, error) {
-	t.Helper()
-	rc, err := record.ReadRunConfig(runtest.Open(t, dir))
-	if err != nil || rc == nil {
-		return hookprovenance.Provenance{}, false, err
-	}
-	return hookprovenance.Decode(rc.Hooks)
 }

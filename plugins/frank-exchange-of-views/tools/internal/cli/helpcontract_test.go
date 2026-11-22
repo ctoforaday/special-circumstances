@@ -281,6 +281,8 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		return "G-00000000"
 	case "inquiry-id":
 		return "Q-00000000"
+	case "question-part-id":
+		return "S-00000000"
 	case "motion-id":
 		return "M-00000000"
 	case "citation-anchor":
@@ -469,7 +471,7 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 // paren; nothing else introduces one. Go's regexp has no lookbehind, so the boundary is a
 // non-capturing alternation and the NAME is group 1.
 //
-// Trailing punctuation is excluded by the character class, so `--as FAIL`, "`--quote`," and
+// Trailing punctuation is excluded by the character class, so `--as UNVERIFIED`, "`--quote`," and
 // "--id." all yield the bare name. A bare `--` is not a name: one name character is required.
 var flagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
 

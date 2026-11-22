@@ -79,7 +79,7 @@ func TestALowGradePlaceholderMintDoesNotHoldTheGate(t *testing.T) {
 				t.Fatalf("mint: %v", err)
 			}
 			chairSitsAgain(t, runDir)
-			_, err := run(t, "verdict", "--as", "PASS", "--run", runDir, "--seat-id", "red-chair")
+			_, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 			switch {
 			case c.passes && err != nil:
 				t.Fatalf("a PASS over one open low %s gap was refused: %v", c.class, err)

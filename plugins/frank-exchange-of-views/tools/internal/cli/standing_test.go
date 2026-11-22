@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // EVERY ACT SAYS WHERE THE SEAT NOW STANDS (#1122).
@@ -91,15 +97,20 @@ func TestTheStandingIsTheSameInBothForms(t *testing.T) {
 // seat handed "1 item blocks you" has to ask which, which is the call this feature exists to remove.
 func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 	runDir := seatRun(t)
-	// The chair's terminal act is missing until it records a verdict, which is a blocking item with
-	// text of its own — so this drives the blocked arm without inventing a board state.
-	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
+	// A chair sitting whose stored plan permits the PASS owes the PASS or a position withholding it, a
+	// blocking item with text of its own — so this drives the blocked arm on a board state a real
+	// sitting reaches: the plan `dispatch next` stores, then an act that is neither.
+	registerSeatOnce(t, runDir, "red-chair")
+	plan := record.Plan{Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{}, Exchanges: []record.ExchangeCount{},
+		Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}, PassPermitted: true}
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", "red-chair:plan:#1", &recordpb.Plan{Printed: proto.String(plan.WithKey().Printed())}))
+	out, err := run(t, "log", "--run", runDir, "--seat-id", "red-chair", "--type", "defect",
 		"--reason", "red's account of this epoch")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out, "STILL TO CLEAR") {
-		t.Fatalf("the chair owes its terminal act and was not told it is held:\n%s", out)
+		t.Fatalf("the chair owes the PASS or a position and was not told it is held:\n%s", out)
 	}
 	// THE TERMINAL AND THE HELD STATE MUST NOT BOTH READ AS PERMISSION. "ALL CLEAR" is the one
 	// sentence that grants it, and a held seat must not see it anywhere in the block.
@@ -132,14 +143,13 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	if strings.Contains(head, gapLine) || !strings.Contains(board, gapLine) {
 		t.Errorf("a gap its minter closes is counted in the chair's own debt, want it under the board's state:\n%s", out)
 	}
-	if !strings.Contains(head, "your terminal act is missing") {
-		t.Errorf("the chair's own item is not in its own count:\n%s", out)
-	}
 	if strings.Contains(out, "before you may end your turn") {
 		t.Errorf("the chair's PASS blockers are said to hold its turn:\n%s", out)
 	}
-	if !strings.Contains(head, "STILL TO CLEAR before the run can PASS") {
-		t.Errorf("the chair is not told its items hold a PASS:\n%s", out)
+	// The chair holds no item of its own beside another seat's material gap: its PASS-or-position item
+	// stands only where the plan permits the PASS (TestABlockedSeatIsToldWhatBlocksIt counts it).
+	if !strings.Contains(head, "NOTHING HERE IS YOURS TO CLEAR") {
+		t.Errorf("the chair is not told none of the board is its own to clear:\n%s", out)
 	}
 
 	// THE ENVELOPE SAYS THE SAME: `blocking` is the chair's own, and the rest is beside it.

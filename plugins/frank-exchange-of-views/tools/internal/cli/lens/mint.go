@@ -557,8 +557,8 @@ func (st *Statement) Register(c *cobra.Command) {
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.FlagRefusing(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a computation whose sentence you judged unsound; use instead of --quote", aboutGapRefusal)
-	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, or a computation whose sentence you judged unsound; use instead of --quote", aboutGapRefusal)
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
 }
 
 // Fill is the Mint the statement's flags state, with text as its argument and key as its --key, its

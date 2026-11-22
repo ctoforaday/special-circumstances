@@ -1,4 +1,4 @@
-prompt sha256: 055e4454ed107e45ec086dcf78035dffe94d09da0187fc130260fd54c4b3f975
+prompt sha256: e0c67cc0c7217358658049adc31a8d66eb1a3ab21513fd804a406c69a13acc65
 
 Red chair, topic "the seat prompt contract".
 You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.
@@ -33,9 +33,8 @@ Return your envelope empty or holding only notes, whatever its schema requires; 
 ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked: the plan stored last is the one that goes.
 Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY.
-When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak.
+When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or withhold it with your position, which argues why.
 Otherwise record no verdict this sitting.
-Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting ONLY THE CLOSINGS OWED ARE FILED AFTER YOU: decide on the board as it is.
 RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason.
 Accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.

@@ -136,7 +136,7 @@ func scenarios() []scenario {
 		},
 		{
 			name: "multi_nonce_terminal_event_wins", // oracle: the 8/50 duplicate-dispatch anomaly
-			cast: castOf("evidence"),                // the verdict folds the plan, and a plan needs a cast
+			cast: castOf("evidence"),                // the chair sits under a cast
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -146,7 +146,6 @@ func scenarios() []scenario {
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "b",
 					"--severity", "high", "--likelihood", "high", "--problem", "from the live dispatch",
 					"--impact", "high"), // a second gap
-				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},
 		},
 		{
@@ -412,8 +411,7 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "partial_control_coverage", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
 					"--quote", "A claim sits under S2.", "--problem", "the cited source does not say this"),
-				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: FAIL"),
-				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: the cited source does not say this"),
 			},
 		},
 	}

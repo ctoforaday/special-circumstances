@@ -158,7 +158,7 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 		if _, ok := old.Arms["inquiry"]; ok {
 			return nil, nil
 		}
-		// A GRADE MOTION TRANSLATES TO NO EVENT (EventSchema 79): the subject is gone, and a dispute
+		// A GRADE MOTION TRANSLATES TO NO EVENT (EventSchema 80): the subject is gone, and a dispute
 		// of a gap's grade is a docket motion proposing the regrade, which the grade motion — a
 		// dimension and a word, no regrade body — is no equivalent of. None ever moved a grade.
 		if _, ok := old.Arms["grade"]; ok {

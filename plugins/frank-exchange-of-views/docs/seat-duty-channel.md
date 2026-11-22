@@ -27,7 +27,7 @@ was the friction line, which sits above the switch.**
 Blue was never told about a computation gap it had not proved or a round record it had not filed.
 The chair was never told about an open gap or an unruled motion. The bench was never told about an
 unruled petition. And because `complete` is `len(Outstanding) == 0`, a seat that filed friction was
-told `complete: true` while `verdict --as PASS` went on refusing it over gaps the same view had just
+told `complete: true` while `verdict` went on refusing it over gaps the same view had just
 declined to mention — the exact disagreement `sitting.go`'s own doctrine forbids.
 
 A null from a treatment that never happened is what that check exists to refuse. It refused it.

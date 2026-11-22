@@ -1,7 +1,7 @@
 ---
 name: blue-lane
 description: A lane of the research debate — one of blue's parallel first passes at the report, written by one researcher under one method. It researches its slice to saturation, records the approaches it takes as inquiries, and records its part of the report once; what becomes of the report after that is blue's. The invoker feeds the topic, the run directory, the method and the hypothesis to take first.
-tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
+tools: [read_file, write_file, edit_file, find_by_name, list_dir, grep_search, run_command, search_web]
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
 maxTurns: 430
 ---
@@ -139,7 +139,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.
-  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.
@@ -154,8 +154,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
   - An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
-  - The verdict is the chair's PASS or FAIL on the board.
-  - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+  - The verdict is the chair's PASS on the board.
+  - The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERIFIED.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
@@ -166,6 +166,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with the fate that says what became of it — judged open while its fate is proposed or underway, which holds the PASS until blue settles it; wanting while an open material gap is about it; unchecked once settled with no check standing, which holds the PASS until the logic lens checks its latest fate; and sound while that check stands, which a new fate or any gap minted about it, material or not, unseats.
+  - A question part is one part of the question the run was asked — split out by blue in the subject's terms, recorded with its coverage: covered where the report answers it, not obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer — judged open while it has no coverage, which holds the PASS until blue records one, as a question split into no part does; wanting while an open material gap is about it; unchecked once covered with no check standing, which holds the PASS until the logic lens checks its latest coverage; and sound while that check stands, a PASS over any part not covered deriving QUALIFIED.
   - A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
   - A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
   - A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about and the later check of that anchor by the seat whose check the gap carries that holds.
@@ -181,7 +182,7 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 17 pages — every page below that carries no marker for it):
+§2 (the last block of 18 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -194,7 +195,7 @@ THE TEXT PRINTS ITS MARKUP: in an HTML page's text a list item opens with "- ", 
 §4 (on 2 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{inquiry_id,status,question,recorded,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§5 (on 14 pages):
+§5 (on 15 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -230,10 +231,10 @@ select only the gaps matching this regex (RE2, case-insensitive) — it matches 
 §12 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-§13 (on 3 pages):
+§13 (on 4 pages):
 it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. An alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§14 (on 3 pages):
+§14 (on 4 pages):
 it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ========
@@ -294,7 +295,7 @@ IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with
 
 THE REPORT'S OWN SECTIONS ONLY. A part holds research sections under headings of its own. These are the synthesizer's to write, and a part that carries one is refused with nothing recorded: the title line (`# …`), `## TL;DR`, `## The Catechism`, `## Open questions`. The file stands for you to take that line and what stands under it out.
 
-NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A part that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is recorded: the file stands for you to fix. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does; and it lists every section assembly composes. Assembly also composes Motions in judgments.md and Computations in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections.
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Not answered here, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, The question's coverage, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A part that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is recorded: the file stands for you to fix. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does; and it lists every section assembly composes. Assembly also composes Motions in judgments.md and Computations in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections.
 
 NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `[^1]`, `[^2]` … for citations and `[^K1]`, `[^K2]` … for computations. A footnote reference or definition typed into the report's text under a label of that shape — digits, or K and digits — is refused and nothing is recorded. Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a computation on the sentence it establishes. No note is typed by hand under a number, or under K and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word. Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there.
 
@@ -368,7 +369,7 @@ Enumerated values:
     underway   you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached
     confirmed  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
     refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this
-    deferred   left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
+    deferred   left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
     declined   you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
     abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========
@@ -458,8 +459,8 @@ propose a supersede of the gap — the corrected statement of the gap — the su
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §5
 
 Flags:
-      --about reference                          the reference --about-kind names: a section heading, an inquiry id, or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
-      --about-kind section|inquiry|anchor        anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a computation whose sentence you judged unsound; use instead of --quote
+      --about reference                          the reference --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
+      --about-kind about-kind-value              anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, or a computation whose sentence you judged unsound; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class class-value                        REQUIRED — the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover
@@ -476,9 +477,10 @@ Flags:
 
 Enumerated values:
   --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    inquiry  an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor
-    anchor   a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence
+    section   a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
+    inquiry   an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor
+    question  the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated
+    anchor    a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -547,6 +549,8 @@ Enumerated values:
     unclassified                            [by_grade] no other value fits this gap. The mint's reason names the nearest value and what it does not cover
     out_of_scope                            [always] an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research
                                               nearest: invalid_inference — does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?
+    coverage_misstated                      [always] the report's coverage of the question is misstated on the record: a question part's coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at all
+                                              nearest: out_of_scope — is the defect in what the record states of the question the run was asked — its parts and their coverage — or in an inquiry the research took up?
     claim_contradicts_source                [always] a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote
                                               nearest: citation_figure_misattribution — does the source say otherwise than the sentence, or not say it at all?
 ========
@@ -608,6 +612,7 @@ Available Commands:
   changes     HOW THE REPORT GOT THAT WAY — every edit and every retire of an evidence anchor off a sentence the report keeps, in record order, and with `--id <gap>` the fix red asked for beside the changes answering it. Written by blue's `edit` and `retire`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a computation, its bundle's files and the output it recorded. Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and `reproduce`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate, the reason for it, and the check that stands on it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
+  question    WHICH PARTS OF THE QUESTION THE REPORT ANSWERS — every question part with its coverage, the reason for it, and the check that stands on it. Written by blue's `question split` and `question cover` and the logic lens's `question check`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by a lane's `ingest`, one part a lane, and blue's `edit`, with anchors from blue's `cite`, the lens's `mint` and blue's `compute`
   source      WHERE THE CACHED SOURCES' TEXT SAYS SOMETHING — every place a pattern matches one source's text or every source's, or the passages a query ranks highest, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — a lens's one item at a time, with an index of the rest — except where your agent configuration seats several seats (blue-researcher's, blue-lane's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
@@ -691,12 +696,23 @@ Flags:
       --match regex   select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §13
       --quote text    select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §14
 ========
+$ feov-record show question --help
+the question the run was asked, split into question parts, read-only. The bare call lists each part with its judged state, its text, its latest coverage with the seat that recorded it and its reason, and the seat whose check stands on it. The coverage is the `coverage` key, one of covered, not_obtained, excluded — the meaning of each is on `question cover`'s page. --json gives the same parts: `part_id`, `text`, `proposed_by`, `coverage`, `reason` and `covered_by` of the latest coverage (absent while none is recorded), `checked_by` the seat of the check that stands (absent while none does), and `state` its judged state — open (no coverage: blue owes one), wanting (an open material gap is about it), unchecked (covered, not obtained or excluded, and no check stands) or sound (a check stands). A check stands until coverage is recorded on the part again or a gap is minted about it. A PASS over a part not covered derives QUALIFIED. Written by blue's `question split` and `question cover` and the logic lens's `question check`
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {parts:[{part_id,text,proposed_by,coverage,reason,covered_by,checked_by,state}]}
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §5
+
+Flags:
+      --match regex   select only the question parts (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §13
+      --quote text    select only the question parts (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §14
+========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE. TO LOOK ONE UP: `show evidence` resolves `<!--cite:C-…-->` and `<!--computation:K-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --quote takes the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. --search is not a selector: it RANKS the report's paragraphs by hybrid lexical and vector relevance to a query and returns the top few — a cut list, in which absence proves nothing — for when you do not know the report's wording. Written by the opening synthesis and blue's `edit`.
 
 --json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. Under --search, --json gives the ranked paragraphs instead, each `text` with its anchors out, and `search_scope` says the list is ranked and cut, how many it returned and of how many paragraphs: {chunks:[{index,heading,start_line,end_line,text,score,anchor,anchors:[string]}],search_scope:{ranked_and_cut,returned,searched_chunks,notice}}. The bare call is the form to READ; this is the form to select from.
 
-THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A lane's `ingest` and blue's `edit` refuse report text that carries one. What a composed section holds is on the record, read through the view that serves its source: `show board` (the gaps and their grades), `show inquiries`, `show evidence` (the citations and computations, every reading of them, and every retire) and `show changes` (the edits).
+THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Not answered here, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, The question's coverage, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A lane's `ingest` and blue's `edit` refuse report text that carries one. What a composed section holds is on the record, read through the view that serves its source: `show board` (the gaps and their grades), `show inquiries`, `show evidence` (the citations and computations, every reading of them, and every retire) and `show changes` (the edits).
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 

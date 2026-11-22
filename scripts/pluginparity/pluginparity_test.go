@@ -183,7 +183,7 @@ func TestCommittedBinariesRefusesToPassOnAnEmptyListing(t *testing.T) {
 	}
 }
 
-func TestAntigravityPluginsConfigAndManifestParity(t *testing.T) {
+func TestAntigravityManifestParityAndNoWorkspaceRegistration(t *testing.T) {
 	write := func(t *testing.T, root, rel, body string) {
 		t.Helper()
 		p := filepath.Join(root, filepath.FromSlash(rel))
@@ -197,7 +197,6 @@ func TestAntigravityPluginsConfigAndManifestParity(t *testing.T) {
 	healthy := func(t *testing.T) string {
 		t.Helper()
 		root := t.TempDir()
-		write(t, root, ".agents/plugins.json", `{"entries":[{"path":"plugins"}]}`)
 		for _, p := range []string{"alpha", "beta"} {
 			write(t, root, "plugins/"+p+"/.claude-plugin/plugin.json",
 				`{"name":"`+p+`","displayName":"D `+p+`","version":"1.0.0","description":"desc","author":{"name":"A"},"license":"MIT","keywords":["k"],"dependencies":["alpha"]}`)
@@ -211,32 +210,12 @@ func TestAntigravityPluginsConfigAndManifestParity(t *testing.T) {
 		t.Fatalf("healthy tree reported problems: %v", got)
 	}
 
-	t.Run("missing .agents/plugins.json", func(t *testing.T) {
+	t.Run("workspace registration .agents/plugins.json exists", func(t *testing.T) {
 		root := healthy(t)
-		_ = os.Remove(filepath.Join(root, ".agents", "plugins.json"))
+		write(t, root, ".agents/plugins.json", `{"entries":[{"path":"plugins"}]}`)
 		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
-		if !strings.Contains(got, ".agents/plugins.json: cannot read") {
-			t.Fatalf("want missing .agents/plugins.json error, got:\n%s", got)
-		}
-	})
-
-	t.Run("excluded plugin in .agents/plugins.json", func(t *testing.T) {
-		root := healthy(t)
-		write(t, root, ".agents/plugins.json", `{"entries":[{"path":"plugins","exclude":["beta"]}]}`)
-		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
-		if !strings.Contains(got, "never discovers beta") {
-			t.Fatalf("want never discovers beta error, got:\n%s", got)
-		}
-	})
-
-	t.Run("undeclared plugin directory under plugins/", func(t *testing.T) {
-		root := healthy(t)
-		if err := os.MkdirAll(filepath.Join(root, "plugins", "rogue"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
-		if !strings.Contains(got, "discovers rogue") {
-			t.Fatalf("want discovers rogue error, got:\n%s", got)
+		if !strings.Contains(got, ".agents/plugins.json: exists") {
+			t.Fatalf("want workspace registration refused, got:\n%s", got)
 		}
 	})
 

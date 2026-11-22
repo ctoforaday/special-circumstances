@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // mintAbout is lens's mint of gap about anchor, under check kind kind, graded material.
@@ -71,7 +72,9 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 			}
 			more := st.more()
 			run := more.blueRetiresIn("G1", c.anchor).register("red-chair").seed()
-			retiredAt := int64(len(st.evs) + len(more.evs) - 3) // the retire, before blue's admission, its stop and the chair's register
+			// the retire, before blue's admission, its stop and the chair's register; the first seed
+			// stored the settled question after the stage's own acts
+			retiredAt := int64(len(st.evs) + len(recordtest.SettledQuestion(t)) + len(more.evs) - 3)
 
 			after, err := PlanDispatch(run)
 			if err != nil {

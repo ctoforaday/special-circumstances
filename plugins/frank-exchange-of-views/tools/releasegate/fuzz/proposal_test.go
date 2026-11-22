@@ -163,6 +163,10 @@ func (r *runner) exchangeOn(t *testing.T) {
 	r.openUnderAgent = true
 	r.dispatchSits("blue", "blue-respond")
 	r.openUnderAgent = underAgent
+	// Blue's sitting ends admitted only with the question split and each part covered: each is a
+	// blocking item on blue-respond's list.
+	r.splitQuestion("blue-respond")
+	r.coverQuestionParts("blue-respond")
 	r.dispatchReturns("blue-respond", r.envelopeEnds("blue-respond"))
 }
 

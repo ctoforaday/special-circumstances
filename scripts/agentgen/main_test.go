@@ -107,3 +107,22 @@ func TestAGeneratedSkillNamesItsSourceUnderTheFrontmatter(t *testing.T) {
 		t.Error("a skill source with no frontmatter was rendered — the harness would load a skill with no description")
 	}
 }
+
+func TestToAntigravityToolsTranslatesAndRefusesUnknown(t *testing.T) {
+	in := []byte("---\nname: probe\ntools: [Read, Write, Glob, Bash, WebFetch, ToolSearch]\nskills: [a]\n---\n\nbody\n")
+	got, err := toAntigravityTools(in)
+	if err != nil {
+		t.Fatalf("toAntigravityTools: %v", err)
+	}
+	wantLine := "tools: [read_file, write_file, find_by_name, list_dir, run_command, read_url_content]"
+	if !strings.Contains(string(got), wantLine) {
+		t.Errorf("got:\n%s\nwant line %q", got, wantLine)
+	}
+	if !strings.HasSuffix(string(got), "\n\nbody\n") {
+		t.Errorf("body was altered:\n%s", got)
+	}
+	bad := []byte("---\nname: probe\ntools: [Read, InventedTool]\n---\n\nbody\n")
+	if _, err := toAntigravityTools(bad); err == nil || !strings.Contains(err.Error(), "InventedTool") {
+		t.Errorf("unknown tool was not refused: %v", err)
+	}
+}

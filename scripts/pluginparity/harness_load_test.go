@@ -5,7 +5,7 @@ package main
 // pluginparity proves the manifests agree with each other. That is not the same claim as "Claude
 // Code and Antigravity load all four plugins, every skill and every agent" — a manifest can agree
 // with its twin and still be skipped by the loader that reads it (Antigravity drops an agent whose
-// `tools:` is a scalar, and finds no workspace plugin without .agents/plugins.json). So these tests
+// `tools:` is a scalar). So these tests
 // stage the checkout into a temp tree, point the real `claude` and `agy` binaries at it under an
 // isolated HOME, and compare what each harness reports loading with what is on disk.
 //
@@ -61,7 +61,7 @@ type stagedPlugin struct {
 	hooks          int
 }
 
-// stage copies the files a harness loads — the marketplace, .agents/, and every plugin minus its
+// stage copies the files a harness loads — the marketplace and every plugin minus its
 // Go tools tree — into a temp directory, and rewrites each marketplace source to its relative path
 // so both harnesses install THIS checkout rather than the release the manifest pins.
 func stage(t *testing.T) (string, []stagedPlugin) {
@@ -70,7 +70,7 @@ func stage(t *testing.T) (string, []stagedPlugin) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := gitx.Run(root, "ls-files", "-co", "--exclude-standard", "--", ".claude-plugin", ".agents", "plugins")
+	out, err := gitx.Run(root, "ls-files", "-co", "--exclude-standard", "--", ".claude-plugin", "plugins")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,6 +207,11 @@ func isolatedEnv(home string) []string {
 		"XDG_CACHE_HOME="+filepath.Join(home, ".cache"),
 		"XDG_DATA_HOME="+filepath.Join(home, ".local", "share"),
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
+		// Each client's own updater switch. A client's updater replaces the running executable
+		// wherever it lives, whatever HOME says: `agy agents` alone swaps the developer's agy for
+		// the latest build. agy honours its variable only at the exact value "true".
+		"DISABLE_AUTOUPDATER=1",
+		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
 	)
 }
 
@@ -275,6 +280,32 @@ func allAgents(plugins []stagedPlugin) []string {
 // detailsLine matches one row of `claude plugin details`' component inventory.
 var detailsLine = regexp.MustCompile(`^\s*(Skills|Agents) \((\d+)\)\s*(.*)$`)
 
+// claudeValidateAgents parses the agent names `claude plugin validate --strict` reports under
+// "Provides: ... • agents: <plugin>:<name>, ...". Claude Code's `plugin details` only counts the
+// default agents/ directory and prints Agents (0) when `.claude-plugin/plugin.json` declares an
+// explicit `"agents"` array (such as `./agents-claude/*.md`), whereas `plugin validate --strict`
+// resolves and lists every declared agent.
+func claudeValidateAgents(out, pluginName string) []string {
+	ansi := regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+	clean := ansi.ReplaceAllString(out, "")
+	clean = strings.ReplaceAll(clean, "\r", "")
+	prefix := pluginName + ":"
+	re := regexp.MustCompile(`agents:\s*([^\n]+)`)
+	var names []string
+	for _, m := range re.FindAllStringSubmatch(clean, -1) {
+		for _, item := range strings.Split(m[1], ",") {
+			item = strings.TrimSpace(item)
+			if strings.HasPrefix(item, prefix) {
+				if name := strings.TrimPrefix(item, prefix); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 // claudeInventory parses the skill and agent names `claude plugin details` reports.
 func claudeInventory(t *testing.T, out string) (skills, agents []string) {
 	t.Helper()
@@ -311,8 +342,10 @@ func TestClaudeLoadsMarketplaceAndAllFourPlugins(t *testing.T) {
 	home := tempHome(t)
 
 	run(t, home, claude, "plugin", "validate", "--strict", repo)
+	validatedAgents := map[string][]string{}
 	for _, p := range plugins {
-		run(t, home, claude, "plugin", "validate", "--strict", filepath.Join(repo, "plugins", p.name))
+		vout := run(t, home, claude, "plugin", "validate", "--strict", filepath.Join(repo, "plugins", p.name))
+		validatedAgents[p.name] = claudeValidateAgents(vout, p.name)
 	}
 
 	run(t, home, claude, "plugin", "marketplace", "add", repo)
@@ -348,14 +381,31 @@ func TestClaudeLoadsMarketplaceAndAllFourPlugins(t *testing.T) {
 			t.Errorf("%s was read from %q, not the staged checkout %q — the test measured a published release", id, l.ReadFromFolder, want)
 		}
 
-		skills, agents := claudeInventory(t, run(t, home, claude, "plugin", "details", id))
+		skills, _ := claudeInventory(t, run(t, home, claude, "plugin", "details", id))
 		if !sameSet(skills, p.skills) {
 			t.Errorf("%s: Claude loaded skills %v, disk has %v", p.name, skills, p.skills)
 		}
-		if !sameSet(agents, p.agents) {
-			t.Errorf("%s: Claude loaded agents %v, disk has %v", p.name, agents, p.agents)
+		if !sameSet(validatedAgents[p.name], p.agents) {
+			t.Errorf("%s: Claude validated agents %v, disk has %v", p.name, validatedAgents[p.name], p.agents)
 		}
 	}
+
+	t.Run("strict validate rejects broken agents entry", func(t *testing.T) {
+		broken := copyTree(t, repo)
+		manifest := filepath.Join(broken, "plugins", "prosthetic-conscience", ".claude-plugin", "plugin.json")
+		b, err := os.ReadFile(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutated := bytes.Replace(b, []byte("./agents-claude/probe.md"), []byte("./agents-claude/does-not-exist.md"), 1)
+		if bytes.Equal(b, mutated) {
+			t.Fatalf("%s has no ./agents-claude/probe.md entry to break", manifest)
+		}
+		if err := os.WriteFile(manifest, mutated, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runMustFail(t, home, claude, "plugin", "validate", "--strict", filepath.Join(broken, "plugins", "prosthetic-conscience"))
+	})
 }
 
 type agyFinding struct {
@@ -387,8 +437,9 @@ func runMustFail(t *testing.T, home, bin string, args ...string) string {
 }
 
 // Antigravity: every plugin validates strictly against .antigravity-plugin/plugin.json and root
-// hooks.json, the workspace finds all four through .agents/plugins.json, a bulk install enables all
-// four at the manifest's version, and every skill and agent on disk loads.
+// hooks.json, installing each plugin directory enables all four at the manifest's version, and every
+// skill and agent on disk loads. Antigravity runs installed copies only: no workspace registration
+// loads a checkout's plugins (#1792), so every subtest installs into an isolated HOME.
 func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	agy := harnessCLI(t, "agy")
 	repo, plugins := stage(t)
@@ -498,20 +549,6 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		}
 	})
 
-	t.Run("workspace discovery through .agents/plugins.json", func(t *testing.T) {
-		if got := lines(run(t, tempHome(t), agy, "--add-dir", repo, "agents")); !sameSet(got, want) {
-			t.Errorf("agy --add-dir found agents %v, want %v", got, want)
-		}
-		// Negative control: without the registration file the workspace holds no plugin.
-		bare := copyTree(t, repo)
-		if err := os.Remove(filepath.Join(bare, ".agents", "plugins.json")); err != nil {
-			t.Fatal(err)
-		}
-		if got := lines(run(t, tempHome(t), agy, "--add-dir", bare, "agents")); len(got) != 0 {
-			t.Errorf("without .agents/plugins.json agy still found agents %v — this subtest cannot tell the file matters", got)
-		}
-	})
-
 	t.Run("a scalar tools field drops the agent", func(t *testing.T) {
 		// Negative control for the frontmatter gate: plant the scalar form in one agent and the
 		// harness must stop listing exactly that agent.
@@ -528,7 +565,9 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		if err := os.WriteFile(probe, re.ReplaceAll(b, []byte("tools: $1")), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		got := lines(run(t, tempHome(t), agy, "--add-dir", broken, "agents"))
+		home := tempHome(t)
+		installEach(t, home, agy, broken, plugins)
+		got := lines(run(t, home, agy, "agents"))
 		for _, a := range got {
 			if a == "probe" {
 				t.Fatalf("agy still loads probe with a scalar tools field — the frontmatter rule guards nothing: %v", got)
@@ -539,9 +578,9 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		}
 	})
 
-	t.Run("bulk install", func(t *testing.T) {
+	t.Run("install each plugin", func(t *testing.T) {
 		home := tempHome(t)
-		run(t, home, agy, "plugin", "install", repo)
+		installEach(t, home, agy, repo, plugins)
 		var listed []struct {
 			Name    string   `json:"name"`
 			Enabled bool     `json:"enabled"`
@@ -579,6 +618,143 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		}
 		if got := lines(run(t, home, agy, "agents")); !sameSet(got, want) {
 			t.Errorf("agy agents after install: %v, want %v", got, want)
+		}
+	})
+}
+
+// installEach installs every staged plugin directory into home with `agy plugin install`, one at a
+// time — the way sc-doctor -fix and a consumer install them.
+func installEach(t *testing.T, home, agy, root string, plugins []stagedPlugin) {
+	t.Helper()
+	for _, p := range plugins {
+		run(t, home, agy, "plugin", "install", filepath.Join(root, "plugins", p.name))
+	}
+}
+
+// TestLiveBothCLIsInstantiateAgentsWithValidTools exercises real executor construction on both
+// `agy -p --agent` and `claude -p --plugin-dir --agent`. Static `agy plugin validate --strict` and
+// `agy agents` only check YAML shape and never resolve `tools:` against the live tool registry;
+// this test proves every distinct toolset across both plugins instantiates cleanly on both CLIs
+// and includes a negative control planting a Claude tool name in an Antigravity agent.
+func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live dual-CLI agent instantiation test without HOOKCORE_LIVE=1")
+	}
+	agy := harnessCLI(t, "agy")
+	claude := harnessCLI(t, "claude")
+	repo, plugins := stage(t)
+
+	realHome, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	agyToken := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
+	if _, err := os.Stat(agyToken); err != nil {
+		t.Skipf("no agy credentials at %s", agyToken)
+	}
+	seedAgyHome := func(t *testing.T) string {
+		t.Helper()
+		home := tempHome(t)
+		dstDir := filepath.Join(home, ".gemini", "antigravity-cli")
+		if err := os.MkdirAll(dstDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"antigravity-oauth-token", "antigravity_state.pbtxt"} {
+			src := filepath.Join(realHome, ".gemini", "antigravity-cli", name)
+			if b, err := os.ReadFile(src); err == nil {
+				if err := os.WriteFile(filepath.Join(dstDir, name), b, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		return home
+	}
+
+	t.Run("agy instantiates agents across all distinct toolsets", func(t *testing.T) {
+		home := seedAgyHome(t)
+		installEach(t, home, agy, repo, plugins)
+		for _, agent := range []string{"probe", "plan-auditor", "blue-lane"} {
+			out := run(t, home, agy, "-p", "Reply with the single word OK.", "--agent", agent, "--model", "gemini-3.8-flash-low", "--output-format", "text")
+			if strings.Contains(out, "not found in registry") {
+				t.Errorf("agy -p --agent %s reported missing tool:\n%s", agent, out)
+			}
+		}
+	})
+
+	t.Run("agy negative control rejects Claude tool name in agents/probe.md", func(t *testing.T) {
+		broken := copyTree(t, repo)
+		probe := filepath.Join(broken, "plugins", "prosthetic-conscience", "agents", "probe.md")
+		b, err := os.ReadFile(probe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutated := bytes.Replace(b, []byte("read_file"), []byte("Read"), 1)
+		if bytes.Equal(b, mutated) {
+			t.Fatalf("%s has no read_file to replace with Read", probe)
+		}
+		if err := os.WriteFile(probe, mutated, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		home := seedAgyHome(t)
+		installEach(t, home, agy, broken, plugins)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, agy, "-p", "Reply OK.", "--agent", "probe", "--model", "gemini-3.8-flash-low", "--output-format", "text")
+		cmd.Env = isolatedEnv(home)
+		cmd.Dir = home
+		out, err := cmd.CombinedOutput()
+		if err == nil || !strings.Contains(string(out), `tool "Read" not found in registry`) {
+			t.Fatalf("expected agy -p --agent probe with Read to fail with registry error, got err=%v out:\n%s", err, string(out))
+		}
+	})
+
+	t.Run("claude instantiates agents-claude with Claude built-in tools", func(t *testing.T) {
+		cases := []struct {
+			plugin, agent string
+			wantTools     []string
+		}{
+			{"prosthetic-conscience", "probe", []string{"Read", "Write", "Bash"}},
+			{"prosthetic-conscience", "plan-auditor", []string{"Read", "Bash", "WebSearch", "WebFetch"}},
+			{"frank-exchange-of-views", "blue-lane", []string{"Read", "Write", "Edit", "Bash"}},
+		}
+		for _, tc := range cases {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			cmd := exec.CommandContext(ctx, claude,
+				"-p", "Reply with the single word OK.",
+				"--plugin-dir", filepath.Join(repo, "plugins", tc.plugin),
+				"--agent", tc.plugin+":"+tc.agent,
+				"--model", "haiku",
+				"--output-format", "stream-json",
+				"--verbose",
+			)
+			cmd.Dir = t.TempDir()
+			out, err := cmd.CombinedOutput()
+			cancel()
+			if err != nil {
+				t.Fatalf("claude -p --agent %s:%s failed: %v\n%s", tc.plugin, tc.agent, err, string(out))
+			}
+			var initTools []string
+			for _, line := range strings.Split(string(out), "\n") {
+				if !strings.Contains(line, `"subtype":"init"`) {
+					continue
+				}
+				var ev struct {
+					Tools []string `json:"tools"`
+				}
+				if json.Unmarshal([]byte(line), &ev) == nil {
+					initTools = ev.Tools
+					break
+				}
+			}
+			have := map[string]bool{}
+			for _, tl := range initTools {
+				have[tl] = true
+			}
+			for _, want := range tc.wantTools {
+				if !have[want] {
+					t.Errorf("claude %s:%s init tools = %v, missing %q", tc.plugin, tc.agent, initTools, want)
+				}
+			}
 		}
 	})
 }

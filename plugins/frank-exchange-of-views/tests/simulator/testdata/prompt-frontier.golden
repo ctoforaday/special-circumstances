@@ -1,4 +1,4 @@
-prompt sha256: 18c7953d203ed6a4cd54f4adf1c32a69cd16b9018d08432a38c27685d834e7c9
+prompt sha256: 4b381b83fe2af99b34d79eb474a64ea097e6ccc0bc22bb2e38fc69c246e811c7
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help.
@@ -8,6 +8,8 @@ A result you expect goes in the hypothesis, never in the question.
 ONE inquiry per hypothesis, and the tool assigns each an id.
 THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot check, cannot find wanting, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and a check, and the hypotheses opening a run are the ones that shape everything downstream.
+THEN SPLIT THE QUESTION INTO ITS QUESTION PARTS — the act is under a group of its own in your role's help: one question part for each part of the question a reader would ask answered, every standard, population, period or alternative the question names among them, each in the subject's terms.
+The report's coverage of the question is recorded part by part, the PASS waits for every question part's coverage and its check, and a part of the question never split out is one nothing holds the report to.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

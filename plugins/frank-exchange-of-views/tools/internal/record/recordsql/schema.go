@@ -233,7 +233,6 @@ END;
 // lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
 // because which questions get asked is a decision, not a derivation.
 const QueryIndexDDL = `
-CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
@@ -256,7 +255,9 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
+-- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read;
+-- and the gaps about the question, which the logic lens's item for a part's check and blue-respond's
+-- question item list (record.questionGapsAt).
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
@@ -280,6 +281,10 @@ CREATE INDEX "inquiry_question" ON "inquiry" ("question");
 CREATE INDEX "cite_label" ON "cite" ("label");
 CREATE INDEX "computation_id" ON "computation" ("computation_id");
 CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
+-- A question part's records and checks by its id, in order: its latest coverage and latest check
+-- (question_part_state, partCoveragesAtSQL, requireQuestionPartRef).
+CREATE INDEX "question_part_id" ON "question_part" ("part_id", "event_id");
+CREATE INDEX "question_part_check_id" ON "question_part_check" ("part_id", "event_id");
 -- A computation bundle's latest execution (requireNamedExecution).
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).

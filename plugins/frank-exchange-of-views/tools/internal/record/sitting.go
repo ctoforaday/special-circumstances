@@ -127,6 +127,11 @@ type sittingReads struct {
 	// exchanged: whether a gap has had the one exchange a proposal on it waits for
 	// (requireExchangedOn's count, on the list's snapshot); nil reads every gap as exchanged.
 	exchanged func(gap string) bool
+	// parts: the question parts (questionPartsAt), read on the list's snapshot.
+	parts []QuestionPartRow
+	// wholeQuestion: the gaps minted about the question as a whole since its latest split
+	// (wholeQuestionGapsOf), which blue-respond's question item lists.
+	wholeQuestion []string
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -347,6 +352,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if seatID == blueRespondSeat {
 			s.Open = append(s.Open, blueInquiryItemsOf(evs, win, seatID)...)
 		}
+		// THE QUESTION'S SPLIT AND EACH PART'S COVERAGE ARE BLUE'S (questionpart.go): the frontier owes
+		// the split, the synthesizer each part's coverage, blue-respond both while they hold the PASS.
+		if castOfEvents(evs) != nil {
+			s.Open = append(s.Open, blueQuestionItemsOf(seatID, reads.parts, reads.wholeQuestion)...)
+		}
 		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
 		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
 		// time this epoch.
@@ -367,7 +377,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
 		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found, reads.parts) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
@@ -379,12 +389,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
 		// (passBlockersOf), so `complete` agrees with the gate and nothing here blocks what the gate
 		// admits. Each item names the seat whose act clears it: an unruled petition still blocks a
-		// chair PASS, and the chair is told whose answer it is waiting for. The FAIL-only
-		// convergence refusal has no item: this list claims nothing about a FAIL.
+		// chair PASS, and the chair is told whose answer it is waiting for.
 		//
 		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
 		// is listed there too, as work that is not owed.
-		blockers := passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found)
+		blockers := passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found, reads.parts)
 		// EACH ITEM SAYS WHETHER THE CHAIR CLEARS IT, by the gate's own predicate (ChairOwned), so
 		// the digest counts as the chair's debt only what the chair can clear.
 		hold := func(b Blocker) {
@@ -415,13 +424,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				hold(b)
 			}
 		}
-		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
-			add(ItemVerdictOwed, nil, "your terminal act is missing — the run cannot say from its own record that it was ever verified")
-		}
-		// THE SITTING AFTER AN OVERRULED POSITION DECIDES THE PASS (gblock, 2026-10-30;
-		// positionheard.go): it owes a verdict, and a position here is refused.
+		// THE SITTING AFTER AN OVERRULED POSITION OWES THE PASS (gblock, 2026-10-30, 2026-11-13;
+		// positionheard.go): the bench's ruling binds, and a position here is refused.
+		//
+		// ANY OTHER SITTING OWES A VERDICT ONLY WHERE THE PASS IS THE CHAIR'S TO RECORD IN IT: this
+		// sitting's plan permits the PASS, every blocker left being the chair's own. There the chair
+		// owes the PASS or a position that withholds it, and either clears the item. Read off this
+		// sitting's acts, never the run's: a sitting whose plan permits no PASS owes none.
 		if id, owed := overruledVerdictOwed(evs, win); owed {
 			add(ItemVerdictOwed, about(SubjectMotion, id), overruledVerdictItem(id))
+		} else if passOrPositionOwed(evs, win) {
+			add(ItemVerdictOwed, nil, "your plan permits the PASS: record it, or withhold it with a position")
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: CHECKING A CITATION OR COMPUTATION IT OWNS
 	// (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS REACHED, THE GAP ABOUT A CHECK OF
@@ -453,7 +466,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// sitting opened after each, which is when the debt that readied it ends. A docketed gap is the
 		// bench's until it rules, and composedSourcesOf leaves it out.
 		s.Open = append(s.Open, composedItemsOf(evs, ids, win, blockerGapsOfStates(all), seatID)...)
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found, reads.parts) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
 			// sentence that holds, if it checks it again. A READING OF ITS THAT FINDS AGAINST IS ITS DEBT
@@ -478,6 +491,14 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// refused (requireInquiryCheck), so such a sitting does not list it; the next plan readies
 			// the lens.
 			if b.Kind == BlockerUncheckedInquiry {
+				if b.Owner == seatID && win.LatestSittingOf(seatID) > max(b.since, b.gapMint) {
+					s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
+				}
+				continue
+			}
+			// A QUESTION PART NO CHECK STANDS ON IS ITS OWNER'S TO JUDGE, on the same terms: in a sitting
+			// opened after its latest coverage and its latest gap (requireQuestionPartCheck).
+			if b.Kind == BlockerUncheckedPart {
 				if b.Owner == seatID && win.LatestSittingOf(seatID) > max(b.since, b.gapMint) {
 					s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 				}
@@ -520,7 +541,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				limited[g.ID] = g.remandLimit
 			}
 		}
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found, reads.parts) {
 			var key, what string
 			switch {
 			case b.Kind == BlockerDocketed:
@@ -596,20 +617,6 @@ func (s SittingJSON) HoldsPass() bool { return s.Role == "chair" }
 func (s SittingJSON) Blocked() bool {
 	for _, it := range s.Open {
 		if it.Blocks {
-			return true
-		}
-	}
-	return false
-}
-
-// seatDid reports whether this seat recorded an event of this type in this run.
-//
-// The type is an EventType rather than a string: a caller that mistypes `"spot_check"` for
-// `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
-// discharged when it was not, depending on which side of the comparison drifted.
-func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
-	for _, e := range evs {
-		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
 	}

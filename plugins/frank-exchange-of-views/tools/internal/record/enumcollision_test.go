@@ -1,7 +1,6 @@
 package record
 
 import (
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -13,7 +12,7 @@ import (
 // WHY THIS EXISTS. #95 listed four such collisions in July as "hazards". By August one of them
 // had caused a real defect and three had quietly stopped existing:
 //
-//	verdict     LIVE  — caused #410
+//	verdict     LIVE  — caused #410; GONE since the PASS is the verdict event itself
 //	class       GONE  — petition no longer uses the key
 //	disposition GONE  — the `dispose` verb was retired
 //	label       INERT — two writers, but all twelve readers are type-scoped
@@ -29,13 +28,6 @@ import (
 // check reports "not applicable" forever instead of failing. Identifier keys like `label` carry
 // no vocabulary, so a cross-type read yields a wrong value LOUDLY rather than a silent zero.
 var knownEnumKeyCollisions = map[string]string{
-	"verdict": "`verdict` events carry PASS|FAIL; `outcome` events carry the run's terminal " +
-		"stamp VERIFIED|CEILING|HALTED|UNVERIFIED. DISJOINT, so a reader pointed at the wrong " +
-		"type matches nothing and says so in words that read like a judgement. That is exactly " +
-		"what happened: verify's pass-closes-all-gaps scanned `outcome` for PASS and reported " +
-		"'gate not applicable' on every run ever recorded (#410). Any reader of this key MUST " +
-		"name its event type in a constant asserted against enum(), the way passClosesAllGaps " +
-		"does — see TestPassVerdictIsAWordItsEventTypeCanActuallyCarry.",
 	"closure_class": "`close` and `closing` both list ClosureClasses, the Disposition words that " +
 		"close a gap, so the vocabularies are the SAME set by construction. They are one concept: " +
 		"the word a gap closes with — written by the lens's close, or stated by blue's closing for " +
@@ -89,29 +81,6 @@ func TestNoClassifiedCollisionHasGoneAway(t *testing.T) {
 				"collisions had silently resolved themselves, which is why this check runs both "+
 				"ways.", key)
 		}
-	}
-}
-
-// The vocabularies of a shared key must be checked for DISJOINTNESS explicitly, because that is
-// what decides whether a wrong read is loud or silent. Overlapping vocabularies would make a
-// cross-type read return a plausible value; disjoint ones make it return nothing at all.
-func TestTheVerdictCollisionIsStillDisjoint(t *testing.T) {
-	outcome, ok1 := enum("outcome", "verdict")
-	verdict, ok2 := enum("verdict", "verdict")
-	if !ok1 || !ok2 {
-		t.Fatal("the verdict/outcome collision is classified but one side no longer declares the key")
-	}
-	for _, v := range verdict.Values {
-		if slices.Contains(Names(outcome.Values), v.Name) {
-			t.Errorf("`verdict` and `outcome` now share the value %q. They were disjoint, which "+
-				"is what made a cross-type read silent; if they overlap, the failure mode has "+
-				"CHANGED and every reader of this key needs re-reading.", v.Name)
-		}
-	}
-	// And the specific word the #67 gate switches on must belong to exactly one of them.
-	if slices.Contains(Names(outcome.Values), "PASS") || !slices.Contains(Names(verdict.Values), "PASS") {
-		t.Errorf("PASS must be a `verdict` word and not an `outcome` word; that asymmetry is the " +
-			"whole content of #410")
 	}
 }
 

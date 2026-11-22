@@ -60,14 +60,15 @@ Plugins resolve when a session starts, so a mid-session install applies to the *
 
 ### On Google Antigravity
 
-Clone the repository and install all four plugins through `.agents/plugins.json` (or import from an existing Claude Code installation):
+Antigravity runs the plugins installed under `~/.gemini/config/plugins/`, each with its official release binaries. Install prosthetic-conscience from a clone, fetch its binaries, then let its doctor install the rest at the release tags pinned in `.claude-plugin/marketplace.json`:
 
 ```text
 git clone https://github.com/ctoforaday/special-circumstances.git
-agy plugin install ./special-circumstances
+agy plugin install ./special-circumstances/plugins/prosthetic-conscience
+sh ~/.gemini/config/plugins/prosthetic-conscience/hooks/fetch-bin.sh fetch
 ```
 
-To update an existing Antigravity installation to the release tags pinned in `.claude-plugin/marketplace.json`, run `/prosthetic-conscience:doctor --fix` inside an Antigravity session (or `sc-doctor -fix` with a checkout of the repository available): `sc-doctor` checks each installed plugin under `~/.gemini/config/plugins/` against its pinned tag, reinstalls any stale or half-updated plugin whole via `agy plugin install`, and provisions the release binaries.
+Then, inside an Antigravity session, run `/prosthetic-conscience:doctor --fix` (or `sc-doctor -fix` with the clone available). It installs every plugin the marketplace lists that Antigravity lacks, reinstalls any stale or half-updated one whole from its pinned tag, and fetches each plugin's release binaries before it returns. Run it again after a release to update.
 
 ## Try it
 
@@ -108,8 +109,8 @@ It also ships `/prosthetic-conscience:plan-audit` — a binary PASS/FAIL auditor
 Give it a topic; it gives back a verified research report with the whole record of the debate preserved beside it. Three seats with genuinely different mandates:
 
 - **Blue** is *additive*. It researches, drafts, and synthesizes by **union, never summary** — its terminal goal is to be true *at the leaf node*, meaning every claim traces to a source somebody can open.
-- **Red** is *subtractive*, and **owns the PASS/FAIL gate**. It opens blue's citations at the source, grades **trust** (corroboration confidence) and **risk** (likelihood × impact × complexity), and files every defect as a tracked *gap*.
-- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates the run; passing is red's call alone.
+- **Red** is *subtractive*, and **owns the PASS gate**. It opens blue's citations at the source, grades **trust** (corroboration confidence) and **risk** (likelihood × impact × complexity), and files every defect as a tracked *gap*.
+- **The bench** (a `lead-judge` agent) rules only on the contested docket, in writing. It holds the terminal values — correctness > thoroughness > economy, safety above all — and assembles the final report. It never gates the run: the PASS is red's to record, and red withholds one the board permits only by a position the bench rules on, whose ruling binds.
 
 **Termination is judged, never counted.** A run ends on a red PASS or on detected deadlock. The epoch limit is a spending limit, not a definition of done — and a run that hits it is stamped CEILING-TERMINATED so nobody mistakes "ran out of budget" for "verified".
 

@@ -368,7 +368,7 @@ func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
 				dec := json.NewDecoder(bytes.NewReader([]byte(s)))
 				dec.DisallowUnknownFields()
 				switch event {
-				case "PreInvocation":
+				case "PreInvocation", "SessionStart":
 					var res struct {
 						InjectSteps []struct {
 							EphemeralMessage string `json:"ephemeralMessage"`
@@ -383,7 +383,7 @@ func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
 						TerminationBehavior string `json:"terminationBehavior"`
 					}
 					if err := dec.Decode(&res); err != nil {
-						t.Errorf("%s stdout failed strict PreInvocationHookResult: %v\n%s", event, err, s)
+						t.Errorf("%s stdout failed strict %sHookResult: %v\n%s", event, event, err, s)
 					}
 				case "PreToolUse":
 					var res struct {
@@ -400,6 +400,16 @@ func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
 					if err := dec.Decode(&res); err != nil {
 						t.Errorf("%s stdout failed strict PostToolHookResult: %v\n%s", event, err, s)
 					}
+				case "Stop":
+					var res struct {
+						Decision string `json:"decision"`
+						Reason   string `json:"reason"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict StopHookResult: %v\n%s", event, err, s)
+					}
+				default:
+					t.Errorf("unvalidated Antigravity hook event %q in hooks.json", event)
 				}
 			}
 		}

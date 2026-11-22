@@ -62,8 +62,8 @@ func TestAGavelResolvesToOneSeat(t *testing.T) {
 // THE PASS REFUSAL NAMES THE GAVEL, AND NAMES THE MOVE FOR A SEAT THAT DOES NOT HOLD IT.
 //
 // This is the wedge, stated as a test: a clean gap board plus an unruled PETITION. The chair
-// cannot rule it and cannot pass; the only legal act left is FAIL, and the seat learns that from
-// this message or not at all.
+// cannot rule it and cannot pass; it records no verdict this sitting, and the seat learns that the
+// bench holds the gavel from this message or not at all.
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, sid := range []string{"blue-respond", "red-chair"} {
@@ -89,8 +89,8 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	if !strings.Contains(msg, "bench") {
 		t.Errorf("the refusal does not say the BENCH holds this gavel, so a chair seat reads it as work it owes: %v", err)
 	}
-	if !strings.Contains(msg, "--as FAIL") {
-		t.Errorf("the refusal does not name the one act still open to a seat that cannot rule: %v", err)
+	if !strings.Contains(msg, "record no verdict this sitting") {
+		t.Errorf("the refusal does not say what a seat that cannot rule does instead: %v", err)
 	}
 	// And it must not name the ruler as though the reader were it: the wedge came from an
 	// instruction the seat could follow only into a second refusal.

@@ -25,6 +25,7 @@ func Verbs() []*cobra.Command {
 		newCompute(),
 		newRetire(),
 		newInquiry(),
+		newQuestion(),
 		newEngage(),
 		closingBlue(),
 		seat.Log(),

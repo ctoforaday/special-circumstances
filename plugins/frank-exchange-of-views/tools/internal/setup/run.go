@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -35,10 +33,9 @@ type Config struct {
 	SkipModelCheck bool
 	Cites          []string
 	Lanes          string
-	// The run's terms (plans/roundless.md §III.B.2): K, KMax and the convergence fraction. Zero means "setup's default", which is written out so the file always
+	// The run's terms (plans/roundless.md §III.B.2): K and KMax. Zero means "setup's default", which is written out so the file always
 	// states what bound the run.
-	K, KMax             int
-	ConvergenceFraction float64
+	K, KMax int
 	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
 	// operator passed it, and a value the operator passed below 1 is refused.
 	MaxEpochs    int
@@ -295,9 +292,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.KMax > 0 {
 		terms.KMax = cfg.KMax
 	}
-	if cfg.ConvergenceFraction > 0 {
-		terms.ConvergenceFraction = cfg.ConvergenceFraction
-	}
 	if cfg.MaxEpochs > 0 {
 		terms.MaxEpochs = cfg.MaxEpochs
 	}
@@ -308,25 +302,10 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
 		return 2
 	}
-	// AN ENCODING FAILURE IS NOT A DIRECTORY'S: nothing was written, and a writable directory would
-	// fail the same way. JSON holds no infinite or NaN number, which a float flag parses from "inf".
-	failEncode := func(err error) int {
-		fmt.Fprintf(stderr, "run-setup: could not encode the run's configuration (inputs/run-config.json): %v\n", err)
-		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: pass each flag a value JSON can hold (a finite number), then re-run setup")
-		return 2
-	}
-	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
-	if err != nil {
-		return failEncode(err)
-	}
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
-		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
-		Hooks:   hooks,
+		K: new(terms.K), KMax: new(terms.KMax), MaxEpochs: new(terms.MaxEpochs),
 		Billing: ReadBillingIdentity()}
-	b, err := marshalJSON(rc)
-	if err != nil {
-		return failEncode(err)
-	}
+	b := marshalJSON(rc)
 	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
 	// refuses a directory that already holds a run; writing the configuration in place first would
 	// overwrite that run's terms before the refusal. A staging write that fails leaves no cast, so
@@ -555,18 +534,6 @@ func orUnknown(s string) string {
 	return s
 }
 
-// homeDir is the home the plugin cache resolves against when neither CLAUDE_CODE_PLUGIN_CACHE_DIR nor
-// CLAUDE_CONFIG_DIR names it. It reads $HOME rather than os.UserHomeDir so the suite's own HOME
-// sandbox (testbuild) redirects it, which is what makes this testable at all — and what stops a test
-// reading the developer's real plugin cache and reporting a different answer on every machine.
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	h, _ := os.UserHomeDir()
-	return h
-}
-
 // refuseADecidedRun refuses setup while another run in the project has its outcome recorded and
 // was not captured, naming it and what closes it: capture when its assembly finished, a resume of
 // its assembly sitting when it did not (report.AssemblyWritten, which engine-stopped reads too).
@@ -704,11 +671,16 @@ func validateSeatModels(seats map[string]modeltier.SeatSpec, execFn ExecFunc) er
 			return fmt.Errorf("seat %s: Antigravity model %q not found in live `agy models` output:\n%s", seatID, spec.Model, strings.TrimSpace(res.Stdout))
 		}
 	}
+	ares := execFn("agy", []string{"agents"})
+	if ares.Err != nil || ares.Status != 0 {
+		return fmt.Errorf("could not query live Antigravity agents (`agy agents` status=%d err=%v): %s", ares.Status, ares.Err, strings.TrimSpace(ares.Stdout))
+	}
 	return nil
 }
 
 func parseAgyModels(out string) map[string]bool {
 	clean := ansiCSI.ReplaceAllString(out, "")
+	clean = strings.ReplaceAll(clean, "\r", "\n")
 	models := map[string]bool{}
 	for _, line := range strings.Split(clean, "\n") {
 		fields := strings.Fields(line)
@@ -716,7 +688,9 @@ func parseAgyModels(out string) map[string]bool {
 			continue
 		}
 		tok := fields[0]
-		if tok == "ID" || tok == "NAME" || tok == "Available" || strings.HasPrefix(tok, "-") || strings.HasPrefix(tok, "=") {
+		if tok == "ID" || tok == "NAME" || tok == "Available" || tok == "Fetching" ||
+			strings.HasPrefix(tok, "-") || strings.HasPrefix(tok, "=") ||
+			([]rune(tok)[0] >= 0x2800 && []rune(tok)[0] <= 0x28FF) {
 			continue
 		}
 		models[tok] = true

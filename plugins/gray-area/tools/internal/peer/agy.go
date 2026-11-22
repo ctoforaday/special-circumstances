@@ -10,7 +10,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
+	"sort"
+	"strings"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // The three variables Antigravity puts in the environment of an agent's shell commands.
@@ -20,13 +26,46 @@ const (
 	EnvToken        = "ANTIGRAVITY_CSRF_TOKEN"
 )
 
-// Server is the language server hosting one Antigravity conversation, as that conversation's own
-// shell reported it.
+// ServerIdentity identifies one Antigravity language-server process launch.
+// On Linux, PID + StartTime (field 22 of /proc/<pid>/stat, clock ticks since boot)
+// uniquely identifies a server launch even if a PID is reused after a restart.
+type ServerIdentity struct {
+	PID       int   `json:"pid,omitempty"`
+	StartTime int64 `json:"start_time,omitempty"`
+	Daemon    bool  `json:"daemon,omitempty"`
+}
+
+// Server is one Antigravity language server launch, stored keyed by server in the runtime
+// directory so any conversation that links on a restarted daemon makes every idle conversation
+// on that daemon wakeable.
 type Server struct {
-	Conversation string `json:"conversation"`
-	Address      string `json:"address"`
-	Token        string `json:"token"`
-	RegisteredAt int64  `json:"registered_at"` // when this server launch was first recorded
+	Key           string   `json:"key"`
+	PID           int      `json:"pid,omitempty"`
+	StartTime     int64    `json:"start_time,omitempty"`
+	Address       string   `json:"address"`
+	Token         string   `json:"token"`
+	Daemon        bool     `json:"daemon,omitempty"`
+	Conversations []string `json:"conversations,omitempty"`
+	RegisteredAt  int64    `json:"registered_at"` // when this server launch was first recorded
+}
+
+// ServerKey returns the filename-safe registry key for a language server launch.
+// When PID and StartTime are known, it keys on the process launch; otherwise it falls back to
+// a sanitised form of the listen address.
+func ServerKey(pid int, startTime int64, address string) string {
+	if pid > 0 && startTime > 0 {
+		return fmt.Sprintf("pid-%d-%d", pid, startTime)
+	}
+	var b strings.Builder
+	b.WriteString("addr-")
+	for _, r := range address {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '-' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
 }
 
 // RegistryDir is where server records live under a runtime directory ($XDG_RUNTIME_DIR): a
@@ -40,7 +79,7 @@ func RegistryDir(runtimeDir string) string {
 	return filepath.Join(runtimeDir, "gray-area", "antigravity-servers")
 }
 
-// Linked is what Register found.
+// Linked is what RegisterWith found.
 type Linked int
 
 const (
@@ -48,73 +87,107 @@ const (
 	NotAnAntigravityShell Linked = iota
 	// NoRuntimeDir: there is nowhere private to keep the record ($XDG_RUNTIME_DIR unset).
 	NoRuntimeDir
-	// AlreadyLinked: the record already names this server launch; nothing was written.
+	// AlreadyLinked: the record already names this server launch and conversation; nothing was written.
 	AlreadyLinked
 	// Recorded: the record was written.
 	Recorded
 )
 
-// Register records the server of the Antigravity conversation whose shell this process runs in,
-// once per server launch.
-//
-// The token is the server launch's identity: Antigravity mints a new one every time a server
-// starts, so a record holding the same address and token is this server already recorded, and a
-// record holding anything else is a server that has since gone. That is exact where a pid is not —
-// the shell's parent chain says nothing about which server answers the address.
-func Register(runtimeDir string, getenv func(string) string, now time.Time) (Server, Linked, error) {
-	s := Server{Conversation: getenv(EnvConversation), Address: getenv(EnvAddress), Token: getenv(EnvToken),
-		RegisteredAt: now.Unix()}
-	if s.Conversation == "" || s.Address == "" || s.Token == "" {
-		return s, NotAnAntigravityShell, nil
+// RegisterWith records the server of the Antigravity shell this process runs in, keyed by server,
+// using host to identify the server process launch.
+func RegisterWith(runtimeDir string, getenv func(string) string, host func() ServerIdentity, now time.Time) (Server, Linked, error) {
+	conv := getenv(EnvConversation)
+	addr := getenv(EnvAddress)
+	tok := getenv(EnvToken)
+	if conv == "" || addr == "" || tok == "" {
+		return Server{}, NotAnAntigravityShell, nil
 	}
 	dir := RegistryDir(runtimeDir)
 	if dir == "" {
-		return s, NoRuntimeDir, nil
+		return Server{}, NoRuntimeDir, nil
 	}
-	if !safeName(s.Conversation) {
-		return s, NotAnAntigravityShell, fmt.Errorf("%s %q is not a conversation id", EnvConversation, s.Conversation)
+	if !safeName(conv) {
+		return Server{}, NotAnAntigravityShell, fmt.Errorf("%s %q is not a conversation id", EnvConversation, conv)
 	}
-	if prev, err := LookupServer(runtimeDir, s.Conversation); err == nil && prev != nil &&
-		prev.Address == s.Address && prev.Token == s.Token {
-		return *prev, AlreadyLinked, nil
+	var id ServerIdentity
+	if host != nil {
+		id = host()
 	}
+	key := ServerKey(id.PID, id.StartTime, addr)
+	if !safeName(key) {
+		return Server{}, NotAnAntigravityShell, fmt.Errorf("server key %q is not a valid filename", key)
+	}
+
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(dir, 0o700); err != nil {
+			return Server{}, NotAnAntigravityShell, err
+		}
+	}
+
+	unlock, err := lockRegistry(dir)
+	if err != nil {
+		return Server{}, NotAnAntigravityShell, err
+	}
+	defer unlock()
+
+	s := Server{
+		Key:           key,
+		PID:           id.PID,
+		StartTime:     id.StartTime,
+		Address:       addr,
+		Token:         tok,
+		Daemon:        id.Daemon,
+		Conversations: []string{conv},
+		RegisteredAt:  now.Unix(),
+	}
+	if prev, err := LookupServerByKey(runtimeDir, key); err == nil && prev != nil &&
+		prev.Address == addr && prev.Token == tok {
+		if slices.Contains(prev.Conversations, conv) {
+			return *prev, AlreadyLinked, nil
+		}
+		s = *prev
+		s.Conversations = append(slices.Clone(prev.Conversations), conv)
+		if id.Daemon {
+			s.Daemon = true
+		}
+	}
+
 	b, err := json.Marshal(s)
 	if err != nil {
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
 	tmp, err := os.CreateTemp(dir, ".register-*")
 	if err != nil {
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
 	defer os.Remove(tmp.Name())
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
 	if _, err := tmp.Write(b); err != nil {
 		tmp.Close()
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
 	if err := tmp.Close(); err != nil {
-		return s, NotAnAntigravityShell, err
+		return Server{}, NotAnAntigravityShell, err
 	}
-	if err := os.Rename(tmp.Name(), filepath.Join(dir, s.Conversation+".json")); err != nil {
-		return s, NotAnAntigravityShell, err
+	if err := renameRecord(tmp.Name(), filepath.Join(dir, key+".json")); err != nil {
+		return Server{}, NotAnAntigravityShell, err
 	}
 	return s, Recorded, nil
 }
 
-// LookupServer reads a conversation's server record. A missing record is (nil, nil): the
-// conversation has not run telepathy since its server started, which is the ordinary case.
-func LookupServer(runtimeDir, conversation string) (*Server, error) {
+// LookupServerByKey reads one server record by its registry key. A missing record is (nil, nil).
+func LookupServerByKey(runtimeDir, key string) (*Server, error) {
 	dir := RegistryDir(runtimeDir)
-	if dir == "" || !safeName(conversation) {
+	if dir == "" || !safeName(key) {
 		return nil, nil
 	}
-	b, err := os.ReadFile(filepath.Join(dir, conversation+".json"))
+	b, err := os.ReadFile(filepath.Join(dir, key+".json"))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -123,9 +196,74 @@ func LookupServer(runtimeDir, conversation string) (*Server, error) {
 	}
 	var s Server
 	if err := json.Unmarshal(b, &s); err != nil {
-		return nil, fmt.Errorf("server record for %s is unreadable: %w", conversation, err)
+		return nil, fmt.Errorf("server record %s is unreadable: %w", key, err)
+	}
+	if s.Key == "" || s.Address == "" || s.Token == "" {
+		return nil, fmt.Errorf("server record %s is incomplete", key)
 	}
 	return &s, nil
+}
+
+// LookupDaemonServer reads the server record for the daemon identified by id.
+// Returns (nil, nil) when no conversation has linked on that daemon launch.
+func LookupDaemonServer(runtimeDir string, id ServerIdentity) (*Server, error) {
+	if runtimeDir == "" || id.PID <= 0 || id.StartTime <= 0 {
+		return nil, nil
+	}
+	return LookupServerByKey(runtimeDir, ServerKey(id.PID, id.StartTime, ""))
+}
+
+// ListServers returns every valid server record in runtimeDir, newest RegisteredAt first.
+func ListServers(runtimeDir string) ([]Server, error) {
+	dir := RegistryDir(runtimeDir)
+	if dir == "" {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out []Server
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		key := strings.TrimSuffix(e.Name(), ".json")
+		s, err := LookupServerByKey(runtimeDir, key)
+		if err != nil || s == nil {
+			continue
+		}
+		out = append(out, *s)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].RegisteredAt != out[j].RegisteredAt {
+			return out[i].RegisteredAt > out[j].RegisteredAt
+		}
+		return out[i].Key > out[j].Key
+	})
+	return out, nil
+}
+
+// LookupConversationServer returns the most recently registered server record that includes
+// conversation. A missing record is (nil, nil).
+func LookupConversationServer(runtimeDir, conversation string) (*Server, error) {
+	if runtimeDir == "" || !safeName(conversation) {
+		return nil, nil
+	}
+	servers, err := ListServers(runtimeDir)
+	if err != nil {
+		return nil, err
+	}
+	for i := range servers {
+		if slices.Contains(servers[i].Conversations, conversation) {
+			s := servers[i]
+			return &s, nil
+		}
+	}
+	return nil, nil
 }
 
 // AgyMessage is one message to an Antigravity conversation.
@@ -136,8 +274,8 @@ type AgyMessage struct {
 	Content   string
 }
 
-// SendAgyServer delivers m through the language server that hosts the recipient. It is the only
-// route that wakes an idle conversation.
+// SendAgyServer delivers m through the language server s. It wakes an idle conversation and, on a
+// restarted daemon, loads an unloaded conversation from disk and starts a turn.
 func SendAgyServer(client *http.Client, s Server, m AgyMessage) (Delivery, error) {
 	body, err := json.Marshal(map[string]string{
 		"recipient": m.Recipient, "content": m.Content, "senderId": m.Sender, "displayTitle": m.Title,
@@ -210,6 +348,15 @@ func EnqueueAgy(conversationDir string, m AgyMessage, now time.Time) (Delivery, 
 		return Delivery{}, err
 	}
 	return Delivery{Route: RouteAgyMailbox, Via: path}, nil
+}
+
+// lockRegistry serialises concurrent RegisterWith read-modify-write updates in dir.
+func lockRegistry(dir string) (func(), error) {
+	fl := flock.New(filepath.Join(dir, ".register.lock"), flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	if err := fl.Lock(); err != nil {
+		return nil, err
+	}
+	return func() { _ = fl.Unlock() }, nil
 }
 
 // safeName refuses an id that could name a path outside the directory it is joined to.

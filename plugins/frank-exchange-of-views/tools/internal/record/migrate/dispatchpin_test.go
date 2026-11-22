@@ -48,7 +48,7 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				return
 			}
 			man, dir := MigratedArchive(t, name)
-			// A SETTLED EDIT IS WRITTEN AS NO EVENT (EventSchema 78), and an edit's key is its seat's
+			// A SETTLED EDIT IS WRITTEN AS NO EVENT (EventSchema 80), and an edit's key is its seat's
 			// count of edits: every later edit of that seat is keyed one lower than its source.
 			settledBefore := func(src OldEvent) int {
 				n := 0

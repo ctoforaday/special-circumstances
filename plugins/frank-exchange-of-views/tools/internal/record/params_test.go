@@ -28,16 +28,16 @@ func TestRunParamsAreReadFromTheRunConfigWithLoudRefusals(t *testing.T) {
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p != unlimited {
 		t.Fatalf("no run-config.json: got (%+v, %v), want the defaults with no epoch limit", p, err)
 	}
-	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"convergenceFraction":0.5,"maxEpochs":9}`)
+	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"maxEpochs":9}`)
 	p, err := RunParams(mustRun(t, runDir))
-	if err != nil || p != (Params{K: 3, KMax: 8, ConvergenceFraction: 0.5, MaxEpochs: 9}) {
+	if err != nil || p != (Params{K: 3, KMax: 8, MaxEpochs: 9}) {
 		t.Fatalf("recorded terms: got (%+v, %v)", p, err)
 	}
 	writeRunConfig(t, runDir, `{"lanes":"3","k":3}`)
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p.K != 3 || p.KMax != DefaultParams.KMax || p.MaxEpochs != 0 {
 		t.Fatalf("a partial file keeps the defaults for what it does not state, and no epoch limit: (%+v, %v)", p, err)
 	}
-	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"convergenceFraction":1.5}`, `{"convergenceFraction":0}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
+	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
 		writeRunConfig(t, runDir, bad)
 		if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), "run-config.json") {
 			t.Errorf("%s was accepted or refused without naming the file: %v", bad, err)
@@ -116,9 +116,6 @@ func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	if _, err := paramsIn(dir); err == nil || !strings.Contains(err.Error(), "could not be read") {
 		t.Errorf("paramsIn over an unreadable run-config = %v, want the read error", err)
 	}
-	if _, err := convergenceFractionIn(dir); err == nil {
-		t.Error("convergenceFractionIn over an unreadable run-config answered the default")
-	}
 	// ONE OBJECT, AND NOTHING ELSE IS A CONFIGURATION: `null` decodes into a struct as no terms at
 	// all, which would read as a run that stated none. migrate's copy refuses the same files.
 	for body, want := range map[string]string{`null`: "it holds null", `[]`: "it holds an array", `"x"`: "it holds a string", `3`: "it holds a number", `true`: "it holds a boolean"} {
@@ -133,19 +130,10 @@ func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	}
 }
 
-// A VALUE ANOTHER PACKAGE OWNS IS NOT THE RECORD'S TO REFUSE. `hooks` is hookprovenance's shape, which
-// moves with no epoch bump, so a key that package adds or drops must not refuse the run's
-// configuration; the top-level key set stays strict, and `billing`, which the record owns, is typed.
-func TestTheRunConfigHoldsAnotherPackagesValueRaw(t *testing.T) {
+// A VALUE THE RECORD OWNS IS TYPED, TO ITS OWN KEYS. `billing` is BillingIdentity, so a key that
+// type does not declare refuses the run's configuration as a top-level one does.
+func TestTheRunConfigReadsBillingStrictly(t *testing.T) {
 	dir := t.TempDir()
-	writeRunConfig(t, dir, `{"k":2,"hooks":{"aFieldHookprovenanceMayAdd":1,"state":"x"}}`)
-	rc, err := readRunConfig(dir)
-	if err != nil {
-		t.Fatalf("a hooks value with a key the record does not declare refused the run's configuration: %v", err)
-	}
-	if !strings.Contains(string(rc.Hooks), "aFieldHookprovenanceMayAdd") {
-		t.Errorf("hooks read back as %s, want the value as written", rc.Hooks)
-	}
 	writeRunConfig(t, dir, `{"k":2,"billing":{"isolated":false,"notABillingField":1}}`)
 	if _, err := readRunConfig(dir); err == nil {
 		t.Error("a billing value with a key BillingIdentity does not declare read as a configuration")

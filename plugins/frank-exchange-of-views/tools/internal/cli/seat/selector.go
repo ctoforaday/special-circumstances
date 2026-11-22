@@ -432,6 +432,8 @@ func selectorNoun(view string) string {
 		return "motions"
 	case "inquiries":
 		return "inquiries"
+	case "question":
+		return "question parts"
 	}
 	return "entries"
 }

@@ -111,7 +111,9 @@ using Handler = std::function<Status(uint16_t op, const std::vector<std::string>
 
 // serve is a helper's main loop: claim, then answer the handshake (digest, then assets), the
 // self-test ops and the handler's ops until stdin ends, each under a Capture. It returns the
-// process exit status: 0 on EOF, non-zero on a protocol or descriptor error.
+// process exit status: 0 on EOF, non-zero on a protocol or descriptor error. With
+// NATIVE_HELPER_SELFTEST_STDOUT=1 in its environment it also writes to stdout, as selftest-stdout
+// does, before the first request and after each response, where no capture covers the write.
 int serve(const std::string& digest, const std::vector<std::string>& assets, const Handler& handler);
 
 }  // namespace frame

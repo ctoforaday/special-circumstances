@@ -916,7 +916,7 @@ func (r *runner) passRefusedOnReadingDebt(seatID string, plan map[string]any) {
 	if blockers[string(record.BlockerReadingDebt)] == 0 || len(r.readingDebts()) == 0 {
 		return
 	}
-	out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "PASS")
+	out, err := r.exec("--json", "verdict", "--seat-id", seatID)
 	switch {
 	case err == nil && len(r.readingDebts()) == 0:
 		noteEither([]string{"verdict"}, "a PASS over a reading debt another seat's act ended between the check and the verdict", true)

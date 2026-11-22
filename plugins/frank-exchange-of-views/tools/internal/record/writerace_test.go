@@ -91,24 +91,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			want: "PASS refused",
 		},
 		{
-			name: "a FAIL while the lens closes the last material gap",
-			stage: func(t *testing.T) Run {
-				st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-					register("red-chair").register(evLens).add(evLens, highMint("G1")).
-					add("red-chair", failVerdict()).register("red-chair").register(evLens)
-				low, _ := GradeOf("low")
-				st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-					CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
-					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
-				return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair").seed()
-			},
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, evLens, "race:close:G1", repairClose("G1"))}
-			},
-			seat: "red-chair", body: func() proto.Message { return failVerdict() },
-			want: "the board has converged",
-		},
-		{
 			name: "the outcome while a party petitions the bench",
 			stage: func(t *testing.T) Run {
 				return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().

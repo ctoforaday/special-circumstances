@@ -338,18 +338,11 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}
 
-	// NEVER-HARD-FAIL HAS NO ROW: the write path enforces it. A FAIL over a converged board is
-	// refused inside the write transaction (requireFailIsNotConvergent), so the only FAILs a
-	// record holds over one are the two the rule admits — one issued while another seat's blocker
-	// holds the PASS (#1202), and one a migration replays without re-judging. A card count of
-	// them reports the rule working as a loss-condition tripwire, and states nothing the record's
-	// verdicts and blockers do not.
-
 	// CITATION YIELD BY EPOCH HAS NO ROW. No record carries per-lens numbers to bucket by — a
 	// lens's area is its name — and no cap on citation lenses exists for it to retune. Gaps per
 	// area per epoch are the board's own rows.
 
-	rows = append(rows, Row{Clause: "Certification: earned PASS/FAIL", Metric: "gap_precision", Cls: "benchmark",
+	rows = append(rows, Row{Clause: "Certification: earned PASS", Metric: "gap_precision", Cls: "benchmark",
 		Note: "needs adjudication outcomes per gap; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})
 	return rows
 }

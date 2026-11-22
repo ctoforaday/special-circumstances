@@ -99,7 +99,7 @@ func TestAReadingDebtHoldsThePassUntilItsGap(t *testing.T) {
 	if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
+	_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair")
 	mustRefuse(t, err, "", "reading of citation "+b.c1, lensL)
 	out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--class", "claim_contradicts_source",
 		"--problem", "the source says otherwise than the sentence", "--fix", "the fix", "--check-kind", "document",

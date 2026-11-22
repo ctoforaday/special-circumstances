@@ -38,8 +38,8 @@ import (
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
 //
 // EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
-// actRows plus a hand-typed dozen, and `verdict --as` and `fetch --url` — refused when omitted,
-// unmarked — were neither probed nor exempt, so the gate was green over the defect it exists for.
+// actRows plus a hand-typed dozen, and `fetch --url` — refused when omitted, unmarked — was
+// neither probed nor exempt, so the gate was green over the defect it exists for.
 // TestEveryRunnableLeafIsProbedForItsMarkers is the census.
 
 // requiredProbe is one verb with an argument set that RUNS CLEAN on the act fixture.
@@ -97,6 +97,15 @@ func requiredProbes() map[string]requiredProbe {
 			args: func(v actVars) []string { return row.act(v, "the argument for this act") }}
 	}
 	fixed := func(args ...string) func(actVars) []string { return func(actVars) []string { return args } }
+	// THE LOGIC LENS CHECKS A COVERED PART, in a sitting opened after its coverage.
+	probes["lens question check"] = requiredProbe{seat: "red-lens-logic",
+		setup: func(t *testing.T, runDir string) actVars {
+			id := splitPart(t, runDir)
+			must(t, runDir, "question", "cover", "--seat-id", "blue-respond", "--id", id, "--as", "covered", "--reason", "the report answers it")
+			castTheLogicLens(t, runDir)
+			return actVars{"p": id}
+		},
+		args: func(v actVars) []string { return []string{"question", "check", "--id", v["p"]} }}
 	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
@@ -163,7 +172,9 @@ func requiredProbes() map[string]requiredProbe {
 			return nil
 		},
 		args: fixed("fetch", "--url", "https://src/f")}
-	probes["chair verdict"] = requiredProbe{seat: "red-chair", args: fixed("verdict", "--as", "FAIL")}
+	// THE FIXTURE'S BOARD HOLDS AN OPEN MATERIAL GAP, so the PASS is refused: the verb takes no flag,
+	// and none is marked required.
+	probes["chair verdict"] = requiredProbe{seat: "red-chair", args: fixed("verdict"), fullIsRefused: true}
 	// The fixture registers every seat; a second register is the bench's own again, under the
 	// occasion the bench alone is asked for.
 	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}

@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/gofrs/flock"
 )
 
 // readSharingDelete is os.ReadFile through openSharingDelete: the read never stops a writer
@@ -24,23 +26,21 @@ func readSharingDelete(path string) ([]byte, error) {
 // the name is restated.
 const markerLock = "run-live.json.lock"
 
-// readMarker reads .claude/run-live.json holding markerLock shared, as frank-exchange-of-views's
-// own readers do. A rename is not atomic to a concurrent open on Windows: an open landing while the
-// writer replaces the marker finds no file, and a guard reading that as "no run is live" fails
-// open mid-run. Under the lock no open overlaps a rename. No lock file means no writer has written
-// the marker; the reader never creates it.
+// readMarker reads .claude/run-live.json holding markerLock shared through gofrs/flock, the lock
+// frank-exchange-of-views's own readers and writers take on the same file, so the two interlock. A
+// rename is not atomic to a concurrent open on Windows: an open landing while the writer replaces
+// the marker finds no file, and a guard reading that as "no run is live" fails open mid-run. Under
+// the lock no open overlaps a rename. No lock file means no writer has written the marker; the
+// reader opens it read-only and never creates it.
 func readMarker(projectDir string) ([]byte, error) {
 	dir := filepath.Join(projectDir, ".claude")
-	lf, err := os.Open(filepath.Join(dir, markerLock))
-	switch {
+	fl := flock.New(filepath.Join(dir, markerLock), flock.SetFlag(os.O_RDONLY))
+	switch err := fl.RLock(); {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
 		return nil, err
 	default:
-		defer lf.Close() // closing the handle releases the lock
-		if err := lockFile(lf, false); err != nil {
-			return nil, err
-		}
+		defer fl.Close()
 	}
 	return readSharingDelete(filepath.Join(dir, "run-live.json"))
 }

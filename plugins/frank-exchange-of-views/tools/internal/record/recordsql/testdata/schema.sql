@@ -146,6 +146,8 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the ben
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair''s argument to the bench on what is about no one gap');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('question_part', 'a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('question_part_check', 'the logic lens''s judgement that a question part''s latest coverage stands as the report''s account of it — every part holds the PASS until one stands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_part', 'a lane''s part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them');
@@ -157,7 +159,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the ha
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('stale', 'the tool refusing a seat''s act on a gap that changed since the seat''s sitting opened, having shown the seat what changed — the seat''s next act on that gap in this sitting reads from here');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('tombstone', 'the tool marking a gap''s text final — a bench ruling but a remand on it, or blue''s verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act''s own transaction, by no verb');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'the chair''s verdict for its epoch: PASS or FAIL against the open board');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'the chair''s PASS, checked against the open board');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
 
 CREATE TABLE "enum_occasion" (
@@ -170,21 +172,15 @@ INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the 
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('position', 'hearing the chair''s position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close''s record_read reports a position unheard: in the turn that filed it, at no epoch');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
 
-CREATE TABLE "enum_verdict" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('fail', 'the board, as it stands, still stops you — refused over a converged board');
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word');
-
 CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation''s reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('qualified', 'red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report''s answer');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended with the question unanswered, and no ceiling or halt explains it');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board, and every question part is covered and checked');
 
 CREATE TABLE "enum_class_material" (
   "value" TEXT PRIMARY KEY,
@@ -203,6 +199,7 @@ INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('art
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about — minted on your own standing reading of the citation (`absent`, or a copy that is not the work)', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_own_record', 'the report and the run''s own record disagree: the report states what the record contradicts — an inquiry''s fate, method or reason, an edit, a computation''s result — or a record entry contradicts what the report shows was done', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('coverage_misstated', 'the report''s coverage of the question is misstated on the record: a question part''s coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at all', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('cross_section_contradiction', 'two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('derivation_status_overclaim', 'a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('doctrine_vs_implementation', 'what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow', 'by_grade');
@@ -275,6 +272,7 @@ CREATE TABLE "enum_about_kind" (
 ) STRICT;
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source''s defect names the citation, never the sentence');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s text or a computation contradicts. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('question', 'the question the run was asked, by a question part''s id, or by no id for a part the record does not hold: an objection to the part''s coverage as the record states it, or to a part of the question no part covers — class coverage_misstated');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
 CREATE TABLE "enum_check_kind" (
@@ -312,7 +310,7 @@ CREATE TABLE "enum_position_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld');
 INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue''s act on it and audited by its minting lens after — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
 
 CREATE TABLE "enum_ruling_binds" (
@@ -420,7 +418,7 @@ CREATE TABLE "enum_inquiry_status" (
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject''s terms, what the question still leaves unsettled; the method says what would settle it');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject''s terms, what the question still leaves unsettled; the method says what would settle it');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached');
@@ -443,6 +441,14 @@ CREATE TABLE "enum_log_source" (
 ) STRICT;
 INSERT INTO "enum_log_source" ("value", "means") VALUES ('seat', 'a seat filed this about its own sitting');
 INSERT INTO "enum_log_source" ("value", "means") VALUES ('tool', 'the tool emitted this itself, rather than a seat filing it');
+
+CREATE TABLE "enum_part_coverage" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_part_coverage" ("value", "means") VALUES ('covered', 'the report answers this part of the question');
+INSERT INTO "enum_part_coverage" ("value", "means") VALUES ('excluded', 'the report does not answer this part because it lies outside the answer the report gives — REQUIRES a reason saying why; report.md states the part lies outside its answer');
+INSERT INTO "enum_part_coverage" ("value", "means") VALUES ('not_obtained', 'the report does not answer this part because the sources that would answer it could not be obtained — REQUIRES a reason naming them and what was tried; report.md states the part is not answered here for that cause');
 
 CREATE TABLE "enum_tombstone_kind" (
   "value" TEXT PRIMARY KEY,
@@ -471,9 +477,7 @@ CREATE TABLE "register" (
 ) STRICT;
 
 CREATE TABLE "gate" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "verdict" TEXT,
-  FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id")
 ) STRICT;
 
 CREATE TABLE "outcome" (
@@ -1064,6 +1068,21 @@ CREATE TABLE "inquiry_check" (
   "reason" TEXT NOT NULL
 ) STRICT;
 
+CREATE TABLE "question_part" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "part_id" TEXT,
+  "text" TEXT,
+  "coverage" TEXT,
+  "supersedes_coverage" TEXT,
+  "reason" TEXT,
+  FOREIGN KEY ("coverage") REFERENCES "enum_part_coverage"("value")
+) STRICT;
+
+CREATE TABLE "question_part_check" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "part_id" TEXT NOT NULL
+) STRICT;
+
 CREATE TABLE "tombstone" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT NOT NULL,
@@ -1091,7 +1110,6 @@ CREATE TABLE "docketing" (
   FOREIGN KEY ("motion_id") REFERENCES "motion"("motion_id")
 ) STRICT;
 
-CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
@@ -1114,7 +1132,9 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
+-- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read;
+-- and the gaps about the question, which the logic lens's item for a part's check and blue-respond's
+-- question item list (record.questionGapsAt).
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
@@ -1138,6 +1158,10 @@ CREATE INDEX "inquiry_question" ON "inquiry" ("question");
 CREATE INDEX "cite_label" ON "cite" ("label");
 CREATE INDEX "computation_id" ON "computation" ("computation_id");
 CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
+-- A question part's records and checks by its id, in order: its latest coverage and latest check
+-- (question_part_state, partCoveragesAtSQL, requireQuestionPartRef).
+CREATE INDEX "question_part_id" ON "question_part" ("part_id", "event_id");
+CREATE INDEX "question_part_check_id" ON "question_part_check" ("part_id", "event_id");
 -- A computation bundle's latest execution (requireNamedExecution).
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
@@ -1188,8 +1212,8 @@ CREATE INDEX "reproduce_computation_id" ON "reproduce" ("computation_id", "event
 
 -- ONE ROW PER GAP: the gap view's columns that change after the mint, as the record now holds them.
 -- minted_event is the gap's mint event; closed_event is its first closing act, of any arm (a close, a
--- closing docket ruling, the mint that superseded it), which convergence_at and the window index ask
--- of a point in the record; every other column is the gap view's column of that name.
+-- closing docket ruling, the mint that superseded it), which the window index asks of a point in the
+-- record; every other column is the gap view's column of that name.
 CREATE TABLE "gap_state" (
   "minted_event"            INTEGER PRIMARY KEY,
   "gap_id"                  TEXT NOT NULL UNIQUE,
@@ -1595,55 +1619,6 @@ JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
 JOIN "events" e ON e."id" = mr."event_id"
 WHERE rp."ruling" = 'upheld';
 
--- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
--- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
--- they hold now). The row that holds at a point P is the one with from_seq <= P and until_seq NULL or
--- above P. convergence_at reads the row that held at each verdict; gap_refresh asks the stretch that
--- holds now of the regrade stamp directly, for the gap's current grades.
---
--- THE GRADES ARE STORED, NOT DERIVED HERE. A stretch begins at the mint and at each regrade, the
--- only points where a gap's grades can change: the mint's row carries the mint's grades, and a
--- regrade's row the result grades the write path stamped on it (recordsql.stampRegradeResult, the one
--- statement of the regrade overlay). LEAD over the stretches of one mint ends each at the next.
---
--- THE MATERIALITY RULE (recordsql.materialSQL, which gap_refresh renders too): the class's default
--- says 'always' or 'never', and a 'by_grade' class is material at a severity of medium (mass 2.0) and
--- above. A gap that is not material stays on the board, and blue may answer it when engaged for
--- something else, but it alone cannot spin the cycle (gblock, 2026-09-08).
---
--- "mass" is MASS[likelihood] * MASS[impact] and "severity_mass" MASS[severity] — a grade's weight is
--- a facet on the vocabulary (enum_grade.mass).
-CREATE VIEW "gap_grade" AS
-WITH "stretch" AS (
-  SELECT m."event_id" AS "minted_event", m."event_id" AS "from_seq", m."class_material" AS "class_material",
-         m."severity" AS "severity", m."likelihood" AS "likelihood", m."impact" AS "impact",
-         m."complexity_cost" AS "complexity_cost"
-  FROM "mint" m
-  UNION ALL
-  SELECT m."event_id", a."event_id", m."class_material",
-         a."result_severity", a."result_likelihood", a."result_impact", a."result_complexity_cost"
-  FROM "regrade" a
-  JOIN "mint" m ON m."gap_id" = a."gap_id"
-),
-"graded" AS (
-  SELECT s.*, LEAD(s."from_seq") OVER (PARTITION BY s."minted_event" ORDER BY s."from_seq") AS "until_seq"
-  FROM "stretch" s
-)
-SELECT g."minted_event"                                      AS "minted_event",
-       g."from_seq"                                          AS "from_seq",
-       g."until_seq"                                         AS "until_seq",
-       g."severity"                                          AS "severity",
-       g."likelihood"                                        AS "likelihood",
-       g."impact"                                            AS "impact",
-       g."complexity_cost"                                   AS "complexity_cost",
-       COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0)   AS "mass",
-       COALESCE(gs."mass", 0.0)                              AS "severity_mass",
-       (g."class_material" = 'always' OR (g."class_material" = 'by_grade' AND COALESCE(gs."mass", 0.0) >= 2.0))           AS "material"
-FROM "graded" g
-LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
-LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
-LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
-
 -- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
 -- a live one answers, the gap it was placed as the answer to, the act that placed it and the
 -- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
@@ -1744,8 +1719,9 @@ WHERE a."about_kind" = 'anchor';
 --   supersedes          the one gap the mint names in its supersedes, NULL for none.
 --   assignee            whose gap it is: its chain's origin (recordsql.assigneeSQL) — who owes its
 --                       closing, hears proposals on it first and may regrade or close it.
---   current_*, material the grades that stand now and the materiality rule over them: gap_grade's
---                       standing row. The plain severity columns are MINT-TIME grades.
+--   current_*, material the grades that stand now — the latest regrade's stamped result, else the
+--                       mint's — and the materiality rule over them (recordsql.materialSQL). The plain
+--                       severity columns are MINT-TIME grades.
 --   evidence_answered, awaiting_evidence  the live-answer demand, met, and an open gap whose check
 --                       kind demands one with none met: the debt list blue is handed.
 --   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
@@ -1815,87 +1791,6 @@ FROM "gap_state" s
 JOIN "mint" m ON m."event_id" = s."minted_event"
 JOIN "events" e ON e."id" = s."minted_event";
 
--- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the
--- record's newest event.
---
--- A verdict is judged on the board AS IT STOOD WHEN IT WAS ISSUED: the acts written at or before it,
--- and no other — one axis, events.id, for the regrades that grade a gap and the acts that close it
--- alike. The FAIL refusal at the write path reads the row at the newest event — the point a verdict
--- being written is judged at, where "as it stood" is "now".
---
--- The columns, each at the point:
---   mass                  gap_grade's mass summed over the gaps open at the point, on the grades that
---                         held there.
---   peak                  the largest mass at any point up to and including this one: the run's peak
---                         board as it stood then.
---   max_severity_mass     the top severity's mass among the open gaps; reported, decides nothing.
---   material_open         open gaps that are material on the grades that held at the point
---                         (gap_grade's rule — the same column the gap view reads now).
---   fresh_material_mints  gaps minted in the point's epoch at or before it, superseding nothing, and
---                         material at the point: new discovery, not a repair of known work.
---
--- A gap is open at a point until its first closing act of any arm (gap_state's closed_event), which
--- no later append moves, so the stored state answers the question at every point.
---
--- "peak" is a running maximum over the points in seq order, framed by ROWS: seq is unique, so the
--- default RANGE frame selects the same rows and only costs the peer comparison.
---
--- THE FRACTION IS NOT HERE. It is a term of the run (inputs/run-config.json, record.Params), not a
--- fact in the record, so the predicate over these columns is one Go function every reader calls
--- (record.Convergence) rather than a constant written into this view.
-CREATE VIEW "convergence_at" AS
-WITH "point" AS MATERIALIZED (
-  SELECT e."id" AS "seq", e."epoch" AS "epoch", v."verdict" AS "verdict"
-  FROM "events" e
-  LEFT JOIN "gate" v ON v."event_id" = e."id"
-  WHERE e."type" = 'verdict' OR e."id" = (SELECT MAX("id") FROM "events")
-),
-"minted" AS MATERIALIZED (
-  SELECT m."event_id" AS "minted_event", e."epoch" AS "minted_epoch",
-         st."supersedes" IS NULL AS "fresh", st."closed_event" AS "closed_event"
-  FROM "mint" m
-  JOIN "gap_state" st ON st."minted_event" = m."event_id"
-  JOIN "events" e ON e."id" = m."event_id"
-),
-"held" AS MATERIALIZED (
-  SELECT "minted_event", "from_seq", "until_seq", "mass", "severity_mass", "material" FROM "gap_grade"
-),
-"board" AS (
-  SELECT p."seq"                                    AS "seq",
-         b."minted_epoch"                           AS "minted_epoch",
-         b."fresh"                                  AS "fresh",
-         (b."closed_event" IS NULL OR b."closed_event" > p."seq") AS "open",
-         h."mass"                                   AS "mass",
-         h."severity_mass"                          AS "severity_mass",
-         h."material"                               AS "material"
-  FROM "point" p
-  JOIN "minted" b ON b."minted_event" <= p."seq"
-  JOIN "held" h ON h."minted_event" = b."minted_event" AND h."from_seq" <= p."seq"
-               AND (h."until_seq" IS NULL OR h."until_seq" > p."seq")
-),
-"at" AS (
-  SELECT p."seq"                                                              AS "seq",
-         p."epoch"                                                            AS "epoch",
-         p."verdict"                                                          AS "verdict",
-         COALESCE(SUM(CASE WHEN w."open" THEN w."mass" END), 0.0)             AS "mass",
-         COALESCE(MAX(CASE WHEN w."open" THEN w."severity_mass" END), 0.0)    AS "max_severity_mass",
-         COALESCE(SUM(w."open" AND w."material"), 0)                          AS "material_open",
-         COALESCE(SUM(w."minted_epoch" = p."epoch" AND w."fresh"
-                      AND w."material"), 0)                                   AS "fresh_material_mints"
-  FROM "point" p
-  LEFT JOIN "board" w ON w."seq" = p."seq"
-  GROUP BY p."seq"
-)
-SELECT a."seq"                                    AS "seq",
-       a."epoch"                                  AS "epoch",
-       a."verdict"                                AS "verdict",
-       a."mass"                                   AS "mass",
-       MAX(a."mass") OVER (ORDER BY a."seq" ROWS UNBOUNDED PRECEDING) AS "peak",
-       a."max_severity_mass"                      AS "max_severity_mass",
-       a."material_open"                          AS "material_open",
-       a."fresh_material_mints"                   AS "fresh_material_mints"
-FROM "at" a;
-
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
 --
@@ -1963,6 +1858,55 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "events" ce ON ce."id" =
   (SELECT MAX(c."event_id") FROM "inquiry_check" c WHERE c."inquiry_id" = p."inquiry_id");
+
+-- A QUESTION PART, whole, and its judged state (ruled by gblock 2026-11-11, E and J; 2026-11-14: a fact
+-- P5 derives is a view's, never a Go replay). One row per part, in proposal order:
+--   text            the proposal's: the part as a reader of the subject asks it.
+--   coverage, reason, coverage_seq, covered_by
+--                   the LATEST record of coverage — covered, not_obtained or excluded — with its
+--                   reason, event and seat; NULL while none is recorded, which is an open part.
+--   gap_seq         the latest gap minted about the part, material or not; NULL while none is.
+--   wanting         how many open material gaps are about the part: its check waits for their route.
+--   check_seq, checked_by
+--                   the latest check of the part.
+--   check_stands    1 where a check stands: the part has coverage, no open material gap is about it,
+--                   and its latest check is later than its latest coverage and than the latest gap
+--                   about it. A check is a judgement of the coverage as it stood, so a coverage
+--                   recorded again, or any gap minted about the part, unseats it.
+CREATE VIEW "question_part_state" AS
+SELECT
+  p."part_id"                                    AS "part_id",
+  pe."seat_id"                                   AS "proposed_by",
+  p."pid"                                        AS "proposed_seq",
+  fp."text"                                      AS "text",
+  cv."coverage"                                  AS "coverage",
+  cv."reason"                                    AS "reason",
+  cv."event_id"                                  AS "coverage_seq",
+  cve."seat_id"                                  AS "covered_by",
+  (SELECT MAX(m."event_id") FROM "mint" m
+    WHERE m."about_kind" = 'question' AND m."about_ref" = p."part_id") AS "gap_seq",
+  (SELECT COUNT(*) FROM "gap_state" gs JOIN "mint" m ON m."event_id" = gs."minted_event"
+    WHERE gs."open" AND gs."material" AND m."about_kind" = 'question' AND m."about_ref" = p."part_id") AS "wanting",
+  ce."id"                                        AS "check_seq",
+  ce."seat_id"                                   AS "checked_by",
+  CASE WHEN cv."event_id" IS NOT NULL AND ce."id" > cv."event_id"
+        AND ce."id" > COALESCE((SELECT MAX(m."event_id") FROM "mint" m
+                                 WHERE m."about_kind" = 'question' AND m."about_ref" = p."part_id"), 0)
+        AND NOT EXISTS (SELECT 1 FROM "gap_state" gs JOIN "mint" m ON m."event_id" = gs."minted_event"
+                         WHERE gs."open" AND gs."material" AND m."about_kind" = 'question' AND m."about_ref" = p."part_id")
+       THEN 1 ELSE 0 END                         AS "check_stands"
+FROM (SELECT a0."part_id" AS "part_id", MIN(a0."event_id") AS "pid"
+        FROM "question_part" a0
+        WHERE COALESCE(a0."part_id", '') != '' AND a0."supersedes_coverage" IS NULL
+        GROUP BY a0."part_id") p
+JOIN "question_part" fp ON fp."event_id" = p."pid"
+JOIN "events" pe ON pe."id" = p."pid"
+LEFT JOIN "question_part" cv ON cv."event_id" =
+  (SELECT MAX(x."event_id") FROM "question_part" x
+    WHERE x."part_id" = p."part_id" AND x."supersedes_coverage" IS NOT NULL)
+LEFT JOIN "events" cve ON cve."id" = cv."event_id"
+LEFT JOIN "events" ce ON ce."id" =
+  (SELECT MAX(c."event_id") FROM "question_part_check" c WHERE c."part_id" = p."part_id");
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
 -- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
@@ -2161,8 +2105,7 @@ SELECT
   mg."supersedes"                                                             AS "supersedes",
   (CASE WHEN mg."supersedes" IS NULL THEN me."seat_id"
         ELSE (SELECT st."assignee" FROM "gap_state" st WHERE st."gap_id" = mg."supersedes") END)                                             AS "assignee",
-  -- THE CURRENT GRADES: the latest regrade's stamped result, else the mint's (the stretch gap_grade
-  -- holds open now).
+  -- THE CURRENT GRADES: the latest regrade's stamped result, else the mint's.
   g."severity"                                                                AS "current_severity",
   g."likelihood"                                                              AS "current_likelihood",
   g."impact"                                                                  AS "current_impact",

@@ -38,6 +38,8 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 			return fmt.Sprintf("minted G-%08x", calls), nil
 		case len(args) > 1 && args[0] == "inquiry" && args[1] == "propose":
 			return fmt.Sprintf("inquiry Q-%08x recorded", calls), nil
+		case len(args) > 1 && args[0] == "question" && args[1] == "split":
+			return fmt.Sprintf("question part S-%08x recorded", calls), nil
 		case len(args) > 2 && args[0] == "motion" && args[2] == "file":
 			return fmt.Sprintf("motion M-%08x filed", calls), nil
 		}

@@ -138,13 +138,13 @@ func OccasionOf(prompt string) string {
 	return ""
 }
 
-// Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
+// Envelope is what a stubbed seat returns. debate.js branches on these fields — the PASS, the
 // gap list — so the backend supplying them decides which dispatch sites the
 // capture run reaches at all.
 type Envelope map[string]any
 
 // Relay is e carrying a chair's relay: the chair's envelope IS the plan, so each of the plan's
-// fields is a key of the envelope. A verdict the sitting recorded is the plan's `verdict`.
+// fields is a key of the envelope. A PASS the sitting recorded is the plan's `passed`.
 func (e Envelope) Relay(plan map[string]any) {
 	for k, v := range plan {
 		e[k] = v
@@ -247,7 +247,7 @@ type Config struct {
 // behaviours it wants to check, drives the real loop under each, and reads what it actually
 // decided. Nothing here restates a rule; every field is a value debate.js computed.
 type Outcome struct {
-	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED. debate.js
+	// Verdict is the terminal stamp: HALTED, VERIFIED, QUALIFIED, CEILING or UNVERIFIED. debate.js
 	// composes it from halted / red's verdict / the ceiling arm.
 	Verdict string
 	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).

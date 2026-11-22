@@ -348,6 +348,8 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
 		"2026-11-04_eiffel-tower-height.tar.gz":   8,
 		"2026-11-11_eiffel-tower-height.tar.gz":   3,
+		"2026-11-12_is-91-prime-1838.tar.gz":      7,
+		"2026-11-14_is-91-prime-1883.tar.gz":      8,
 	}
 	ledger, native, unsentenced, sentenced := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
@@ -522,7 +524,7 @@ func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 // argument stays as it was written; the act it describes keeps its id. Counted over every argument
 // field, per archive, as the migrated record holds them — a note carried to a second anchor counts
 // once per anchor. A finding's text held one in each of quadratic-formula, b, b4 and b7; a finding
-// translates to no event (EventSchema 78), so those four are not counted; nor is the one a
+// translates to no event (EventSchema 80), so those four are not counted; nor is the one a
 // quadratic-formula bench opinion's rationale held, since an opinion translates to no event
 // (EventSchema 80).
 func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
@@ -615,12 +617,13 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 			runs++
 		}
 	}
-	// Measured over the 36 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
+	// Measured over the 38 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
 	// over 30, before 1565, m35, m36, mersenne-31-prime-sum (11 acts on 3 bundles),
-	// 2026-11-04_eiffel-tower-height (4 acts on 2 bundles) and 2026-11-11_eiffel-tower-height (3 acts
-	// on 1 bundle) were archived.
-	if acts != 176 || bundles != 45 || runs != 29 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 176, 45, 29", acts, bundles, runs)
+	// 2026-11-04_eiffel-tower-height (4 acts on 2 bundles), 2026-11-11_eiffel-tower-height (3 acts
+	// on 1 bundle), 2026-11-12_is-91-prime-1838 (8 acts on 2 bundles) and
+	// 2026-11-14_is-91-prime-1883 (11 acts on 4 bundles) were archived.
+	if acts != 195 || bundles != 51 || runs != 31 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 195, 51, 31", acts, bundles, runs)
 	}
 }
 

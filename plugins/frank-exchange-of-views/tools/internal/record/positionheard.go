@@ -27,11 +27,11 @@ import (
 //     sitting opened after the ruling); each gap goes back for one more exchange on the direction —
 //     a remand, read off the same "remand" view as the docket's, so it is the gap's one remand at
 //     impasse and the second-remand refusal stays one rule.
-//   - OVERRULED: the chair's next sitting decides on the PASS. Its plan still permits the PASS; its
-//     work list holds the verdict as a blocking item (OverruledVerdictOwed); a position filed there
-//     while the PASS is permitted repeats the decided objection and is refused
-//     (requireNoRepeatedPosition); and a sitting that closes with no verdict is short
-//     (PositionVerdictMissing, which capture's record-parity audit fails).
+//   - OVERRULED: the bench's ruling binds (gblock, 2026-11-13), and the chair's next sitting owes the
+//     PASS. Its plan still permits the PASS; its work list holds the PASS as a blocking item
+//     (OverruledVerdictOwed); a position filed there while the PASS is permitted repeats the decided
+//     objection and is refused (requireNoRepeatedPosition); and a sitting that closes without the
+//     PASS is short (PositionVerdictMissing, which capture's record-parity audit fails).
 //   - AT THE EPOCH LIMIT the chair's final sitting convenes nobody, so the terminal bench hears the
 //     position at the exit and the run ends CEILING however it rules (epochLimitHeldTheBench).
 //
@@ -164,9 +164,7 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 
 // requireNoRepeatedPosition refuses the chair's position at its first sitting after the bench
 // overruled its last one, while that sitting's plan permits the PASS (gblock, 2026-10-30): the
-// objection is decided, and a second position would hold the PASS back on it again. Refused whether
-// or not the sitting has recorded its verdict yet: a FAIL there does not reopen the objection, and a
-// position after it would be heard again on the same withholding.
+// objection is decided, and a second position would hold the PASS back on it again.
 func requireNoRepeatedPosition(w writeView, seatID string) error {
 	if seatID != chairSeat {
 		return nil
@@ -177,28 +175,30 @@ func requireNoRepeatedPosition(w writeView, seatID string) error {
 	}
 	if id, permitted, _ := overruledFollowerAt(evs, win); permitted {
 		return feov.Errorf(feov.Conflict,
-			"the bench overruled your position %s, and this is your first sitting since: the objection is decided, and a position here would hold the PASS back on it again. Nothing was recorded. "+
-				"The sitting decides on the PASS with its verdict — the PASS, or a FAIL where the board as it stands still stops you", id)
+			"the bench overruled your position %s, and this is your first sitting since: the ruling binds, and a position here would hold the PASS back on the decided objection again. Nothing was recorded. "+
+				"This sitting owes the PASS your plan permits: `verdict`", id)
 	}
 	return nil
 }
 
 // OverruledVerdictOwed is the position the bench overruled where the chair's latest sitting is its
 // first since that ruling, the sitting's latest stored plan permits the PASS, and the sitting has
-// recorded no verdict: that sitting owes the verdict (gblock, 2026-10-30). "" and false otherwise.
+// not recorded the PASS: the bench's ruling binds, and that sitting owes the PASS (gblock,
+// 2026-10-30, 2026-11-13). "" and false otherwise.
 func OverruledVerdictOwed(evs []*Event, win WindowIndex) (string, bool) {
 	return overruledVerdictOwed(evs, win)
 }
 
 func overruledVerdictOwed(evs []*Event, win WindowIndex) (string, bool) {
-	id, permitted, verdict := overruledFollowerAt(evs, win)
-	return id, permitted && !verdict
+	id, permitted, passed := overruledFollowerAt(evs, win)
+	return id, permitted && !passed
 }
 
 // overruledFollowerAt reads the chair's latest sitting where it is the chair's first after the bench
 // overruled a position: that position's id, whether the sitting's latest stored plan permits the
-// PASS, and whether the sitting has recorded a verdict. "", false, false for any other sitting.
-func overruledFollowerAt(evs []*Event, win WindowIndex) (id string, permitted, verdict bool) {
+// PASS, and whether the sitting has recorded the PASS (chairSittingActs). "", false, false for any
+// other sitting.
+func overruledFollowerAt(evs []*Event, win WindowIndex) (id string, permitted, passed bool) {
 	latest := win.LatestSittingOf(chairSeat)
 	if latest == 0 {
 		return "", false, false
@@ -209,17 +209,8 @@ func overruledFollowerAt(evs []*Event, win WindowIndex) (id string, permitted, v
 	if !ok {
 		return "", false, false
 	}
-	for _, e := range thisSitting(evs, win, chairSeat) {
-		switch b := mustBodyOf(e).(type) {
-		case *recordpb.Gate:
-			verdict = true
-		case *recordpb.Plan:
-			if p, _, err := ReadPlan([]byte(b.GetPrinted())); err == nil {
-				permitted = p.PassPermitted
-			}
-		}
-	}
-	return id, permitted, verdict
+	acts := actsOfThisSitting(evs, win)
+	return id, acts.permitted, acts.passed
 }
 
 // upheldPositionBlockers is the gate list's upheld_position arm: each position the bench upheld
@@ -246,7 +237,7 @@ func upheldPositionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocke
 // overruledVerdictItem is the chair's work-list item in its first sitting after the bench overruled
 // its position.
 func overruledVerdictItem(positionID string) string {
-	return fmt.Sprintf("the bench overruled your position %s on the PASS you withheld: the objection is decided, and this sitting decides on the PASS with the verdict your plan permits — the PASS, or a FAIL where the board as it stands still stops you. A position here would withhold the PASS on the same objection again, and is refused", positionID)
+	return fmt.Sprintf("the bench overruled your position %s on the PASS you withheld, and its ruling binds: this sitting owes the PASS your plan permits. A position here would withhold the PASS on the decided objection again, and is refused", positionID)
 }
 
 // upheldAuditItem is the named lens's work-list item for an upheld position: its audit of its area.

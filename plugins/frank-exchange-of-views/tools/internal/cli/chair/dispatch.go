@@ -93,8 +93,8 @@ func (r dispatchResult) Human() string {
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)
 	}
-	if r.Verdict != "" {
-		fmt.Fprintf(&b, "  your verdict this sitting: %s — the workflow reads it off this plan\n", r.Verdict)
+	if r.Passed {
+		fmt.Fprintf(&b, "  your verdict this sitting: PASS — the workflow reads it off this plan\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

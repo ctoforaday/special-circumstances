@@ -627,6 +627,10 @@ func verdictGloss(o *recordpb.Outcome) string {
 		// THE MEANING IS THE ENUM'S, AND THE CAUSE IS THE DERIVATION'S: the record's own reason for THIS
 		// ceiling (verdictWhy, below) is the one cause the lead states.
 		lead = "**CEILING-TERMINATED** — " + meaningOf(o.GetVerdict()) + "."
+	// QUALIFIED NAMES ITS CAUSE: the meaning is the enum's, and the parts not covered are the
+	// derivation's reason (verdictWhy, below); report.md states each in the subject's voice.
+	case recordpb.RunOutcome_RUN_OUTCOME_QUALIFIED:
+		lead = "**QUALIFIED** — " + meaningOf(o.GetVerdict()) + "."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
@@ -1167,7 +1171,7 @@ func regradeHistory(g *record.Gap) string {
 // debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
 // to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
 // the ask. record.Motions performs that join.
-func debate(fam record.Family) string {
+func debate(fam record.Family, coverage partsAt) string {
 	// BUCKETED BY EPOCH — the chair's sittings, as the record holds each act in one (fam.At), never
 	// a number a seat stamped. The act that opens the chair's sitting is the first row of its epoch.
 	var order []int
@@ -1193,24 +1197,24 @@ func debate(fam record.Family) string {
 		// THE RECORDED VERDICT, RENDERED BESIDE THE PROSE THAT CLAIMS ONE.
 		//
 		// A seat's position is prose, and prose can say "my verdict is PASS" while the epoch's
-		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
+		// STRUCTURED record — the one the board and every audit read — holds no PASS. That is not
 		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
-		// exactly that, `round_verdict` holds fail for all five epochs, and this document rendered
-		// only the sentence. A reader of debate.md alone concluded the opposite of the record.
+		// exactly that, the record holds no PASS for any of its five epochs, and this document
+		// rendered only the sentence. A reader of debate.md alone concluded the opposite of the record.
 		//
 		// The fix is not to detect the contradiction — that would be a string match on prose, and
 		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
 		// reader sees both and needs no inference.
-		recordedVerdict := ""
+		passed := false
 		for _, l := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
-				recordedVerdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
+				passed = true
 			}
 		}
 		redHead := "### RED"
 		switch {
-		case recordedVerdict != "":
-			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
+		case passed:
+			redHead = "### RED — recorded verdict: PASS"
 		default:
 			// ABSENCE IS ITS OWN FACT. An epoch where red spoke and recorded no verdict is not an
 			// epoch that passed; it is one whose gate never closed, and silence renders the same
@@ -1314,7 +1318,7 @@ func debate(fam record.Family) string {
 			continue
 		}
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
-			disp = append(disp, "**Certification** — "+ownBlock(c.GetStatement())+"\n\n"+countsAtCertification(fam, e))
+			disp = append(disp, "**Certification** — "+ownBlock(c.GetStatement())+"\n\n"+countsAtCertification(fam, e, coverage))
 			continue
 		}
 		// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
@@ -1380,7 +1384,7 @@ func debate(fam record.Family) string {
 // counts as it stood at that certify event e (record.Family.CountsAt), composed here and stored
 // nowhere. The statement is the bench's prose and a count typed into it is the bench's memory; this
 // line is the record's, so a reader holds the two side by side.
-func countsAtCertification(fam record.Family, e *record.Event) string {
+func countsAtCertification(fam record.Family, e *record.Event, parts partsAt) string {
 	c := fam.CountsAt(fam.At.Of(e).ID)
 	retired := func(n int) string {
 		if n == 0 {
@@ -1388,8 +1392,35 @@ func countsAtCertification(fam record.Family, e *record.Event) string {
 		}
 		return fmt.Sprintf(" (%d retired)", n)
 	}
-	return fmt.Sprintf("The record at this certification, counted by the tool — gaps: %d minted · %d closed · %d open; citations: %d%s; readings: %d; computations: %d%s.",
-		c.GapsMinted, c.GapsClosed, c.GapsOpen(), c.Citations, retired(c.CitationsRetired), c.Readings, c.Computations, retired(c.ComputationsRetired))
+	return fmt.Sprintf("The record at this certification, counted by the tool — gaps: %d minted · %d closed · %d open; citations: %d%s; readings: %d; computations: %d%s%s.",
+		c.GapsMinted, c.GapsClosed, c.GapsOpen(), c.Citations, retired(c.CitationsRetired), c.Readings, c.Computations, retired(c.ComputationsRetired),
+		partsClause(parts, fam.At.Of(e).ID))
+}
+
+// partsAt is the question parts by coverage at a point (record.PartCoveragesAt), or nil where the
+// caller reads none.
+type partsAt func(point int64) (record.PartCoverages, error)
+
+// partsClause is a certification's count of the question parts by coverage as the record stood at it:
+// "" where the caller reads none or the record held no part there.
+func partsClause(parts partsAt, point int64) string {
+	if parts == nil {
+		return ""
+	}
+	n, err := parts(point)
+	if err != nil {
+		return "; question parts: not counted (" + err.Error() + ")"
+	}
+	total := 0
+	for _, k := range n {
+		total += k
+	}
+	if total == 0 {
+		return ""
+	}
+	return fmt.Sprintf("; question parts: %d — %d covered · %d not obtained · %d excluded · %d with no coverage", total,
+		n[recordpb.Word(recordpb.PartCoverage_PART_COVERAGE_COVERED)], n[recordpb.Word(recordpb.PartCoverage_PART_COVERAGE_NOT_OBTAINED)],
+		n[recordpb.Word(recordpb.PartCoverage_PART_COVERAGE_EXCLUDED)], n[""])
 }
 
 // logSection surfaces what the seats told the operator — log events, recorded through the log

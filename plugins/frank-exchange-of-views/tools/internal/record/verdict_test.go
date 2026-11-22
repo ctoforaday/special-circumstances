@@ -39,7 +39,7 @@ func vev(t *testing.T, seat string, round int, body proto.Message) *Event {
 
 // A PASS on the record is VERIFIED, without anyone saying so.
 func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
-	dir := runWith(t, "3", []*Event{vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
+	dir := runWith(t, "3", []*Event{vev(t, "red-chair", 1, &recordpb.Gate{})})
 	got, why, ok, err := DeriveVerdict(mustRun(t, dir))
 	if err != nil || !ok || got != "VERIFIED" {
 		t.Errorf("got %q (ok=%v, err=%v) — want VERIFIED: %s", got, ok, err, why)
@@ -50,7 +50,7 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 // passing, however clean the board looked when it stopped.
 func TestHaltOutranksAPass(t *testing.T) {
 	dir := runWith(t, "3", []*Event{
-		vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+		vev(t, "red-chair", 1, &recordpb.Gate{}),
 		vev(t, "judge", 1, &recordpb.Halt{Opinion: proto.String("consent gate")}),
 	})
 	got, _, ok, err := DeriveVerdict(mustRun(t, dir))

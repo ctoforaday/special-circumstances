@@ -55,6 +55,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [scorecard](#scorecard) | lens, chair, blue, lane, bench, operator |
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, lane, bench, operator |
+| [question part](#question-part) | lens, chair, blue, lane, bench, operator |
 | [reopened](#reopened) | lens, chair, blue, lane, operator |
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
@@ -168,10 +169,6 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 **Delivered to:** operator
 
-**Collisions:**
-
-- **FAIL (a verdict)** — the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing
-
 ## exchange
 
 An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
@@ -208,7 +205,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -384,7 +381,7 @@ A computation is a program blue ran and recorded as evidence: its bundle, stored
 
 ## verdict
 
-The verdict is the chair's PASS or FAIL on the board.
+The verdict is the chair's PASS on the board.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -397,7 +394,7 @@ The verdict is the chair's PASS or FAIL on the board.
 
 ## outcome
 
-The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
+The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERIFIED.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -446,7 +443,7 @@ A reading is a lens's recorded account of what one source did for one sentence o
 **Collisions:**
 
 - **reading (OCR)** — the OCR reading is the machine's reading of a scanned document's page images (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a recorded check of a source against a sentence, and a page's OCR reading may be what a lens's reading finds wrong
-- **verdict** — the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that reads nothing is never called a verdict
+- **verdict** — the verdict is the chair's PASS; a reading has an outcome, and a reading that reads nothing is never called a verdict
 - **report read** — a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence
 
 ## retire
@@ -595,6 +592,12 @@ A sitting's occasion is what it was convened to do — the question put to the s
 ## inquiry
 
 An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with the fate that says what became of it — judged open while its fate is proposed or underway, which holds the PASS until blue settles it; wanting while an open material gap is about it; unchecked once settled with no check standing, which holds the PASS until the logic lens checks its latest fate; and sound while that check stands, which a new fate or any gap minted about it, material or not, unseats.
+
+**Delivered to:** lens, chair, blue, lane, bench, operator
+
+## question part
+
+A question part is one part of the question the run was asked — split out by blue in the subject's terms, recorded with its coverage: covered where the report answers it, not obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer — judged open while it has no coverage, which holds the PASS until blue records one, as a question split into no part does; wanting while an open material gap is about it; unchecked once covered with no check standing, which holds the PASS until the logic lens checks its latest coverage; and sound while that check stands, a PASS over any part not covered deriving QUALIFIED.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

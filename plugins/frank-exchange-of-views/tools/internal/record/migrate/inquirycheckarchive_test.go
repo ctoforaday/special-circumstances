@@ -17,7 +17,8 @@ type archivedInquiryRun struct {
 	archive                     string
 	reviews, rulings, filings   int // inquiry_review rows; motion_rule rows ruling on an inquiry; motion_inquiry rows
 	inquiries, acts             int // distinct inquiry ids; inquiry acts, proposals and fates
-	outcomes, gates             []string
+	outcomes                    []string
+	passes                      int // the archive's gates recording `pass`; the migrated record's gates
 	motionRules, motionsArchive int
 	// docketRulings and dockets are the archive's docket rulings and docket motions that come forward
 	// as no ruling and no motion (EventSchema 80): a dispatch's docket is a Docketing, any other docket
@@ -30,11 +31,11 @@ type archivedInquiryRun struct {
 // review and every ruling on an inquiry is gone, every other ruling and motion arrives but the dockets
 // Translations 3 and 4 carry (a docketing, or no event), every inquiry
 // arrives with each of its acts under the fate it was filed with, and the run's stored outcome and
-// gate verdicts are the archive's. m35's engine died before a verdict, so it has neither.
+// PASSes are the archive's. m35's engine died before a verdict, so it has neither.
 func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 	for _, c := range []archivedInquiryRun{
 		{archive: "2026-10-29_is-91-prime-m36.tar.gz", reviews: 1, rulings: 5, inquiries: 5, acts: 12,
-			outcomes: []string{"verified"}, gates: []string{"pass"}, motionRules: 5},
+			outcomes: []string{"verified"}, passes: 1, motionRules: 5},
 		{archive: "2026-10-27_is-91-prime-m35.tar.gz", reviews: 1, rulings: 6, inquiries: 7, acts: 22,
 			motionRules: 13, motionsArchive: 8, docketRulings: 6, dockets: 8},
 	} {
@@ -48,11 +49,11 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 				inquiries:      countOf(t, src, `SELECT count(DISTINCT "inquiry_id") FROM "inquiry"`),
 				acts:           countOf(t, src, `SELECT count(*) FROM "inquiry"`),
 				outcomes:       wordsOf(t, src, `SELECT "verdict" FROM "outcome" ORDER BY "event_id"`),
-				gates:          wordsOf(t, src, `SELECT "verdict" FROM "gate" ORDER BY "event_id"`),
+				passes:         countOf(t, src, `SELECT count(*) FROM "gate" WHERE "verdict" = 'pass'`),
 				motionRules:    countOf(t, src, `SELECT count(*) FROM "motion_rule"`),
 				motionsArchive: countOf(t, src, `SELECT count(*) FROM "motion"`),
 			}
-			if !slices.Equal(got.outcomes, c.outcomes) || !slices.Equal(got.gates, c.gates) ||
+			if !slices.Equal(got.outcomes, c.outcomes) || got.passes != c.passes ||
 				got.reviews != c.reviews || got.rulings != c.rulings || got.filings != c.filings ||
 				got.inquiries != c.inquiries || got.acts != c.acts || got.motionRules != c.motionRules || got.motionsArchive != c.motionsArchive {
 				t.Fatalf("the archive holds %+v, this test was written against %+v", got, c)
@@ -95,8 +96,8 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 			if o := wordsOf(t, ddb, `SELECT "verdict" FROM "outcome" ORDER BY "event_id"`); !slices.Equal(o, c.outcomes) {
 				t.Errorf("the migrated outcome(s) %v, the archive's %v", o, c.outcomes)
 			}
-			if g := wordsOf(t, ddb, `SELECT "verdict" FROM "gate" ORDER BY "event_id"`); !slices.Equal(g, c.gates) {
-				t.Errorf("the migrated gate verdict(s) %v, the archive's %v", g, c.gates)
+			if n := countOf(t, ddb, `SELECT count(*) FROM "gate"`); n != c.passes {
+				t.Errorf("the migrated record holds %d gate(s), the archive %d PASS(es)", n, c.passes)
 			}
 		})
 	}

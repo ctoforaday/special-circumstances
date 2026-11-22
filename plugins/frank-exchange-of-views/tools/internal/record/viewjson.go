@@ -1015,6 +1015,11 @@ type workReads struct {
 	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
 	found   []locatedReading
 	remands map[string][]remandRow
+	// parts is every question part (questionPartsAt), on the list's snapshot.
+	parts []QuestionPartRow
+	// wholeQuestion is the gaps minted about the question as a whole since its latest split
+	// (wholeQuestionGapsOf), on the same snapshot.
+	wholeQuestion []string
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1075,6 +1080,14 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			return r, err
 		}
 	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
+	}
+	minted, err := questionGapsAt(q)
+	if err != nil {
+		return r, err
+	}
+	r.wholeQuestion = wholeQuestionGapsOf(r.parts, minted)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1455,7 +1468,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		return WorkJSON{}, err
 	}
 	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found,
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
 		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
@@ -1645,12 +1658,11 @@ type DebateOutcomeJSON struct {
 // believed the help — `.red_closings | map(.gap_id)` — was told it could not iterate over null.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
-	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
-	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// Passed is the epoch's RECORDED PASS, and it is here because `red` is PROSE. A position may
+	// say "my verdict is PASS" while the record holds none — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
-	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch,
-	// which is a different fact from a verdict of fail and must not read as one.
-	Verdict      string              `json:"verdict"`
+	// concluded the opposite of the record. False means no PASS was recorded for this epoch.
+	Passed       bool                `json:"passed"`
 	Red          []string            `json:"red"`
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
@@ -1752,8 +1764,8 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
 			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}, Served: []DebateServedJSON{}}
 		for _, e := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
-				rj.Verdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+				rj.Passed = true
 			}
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both

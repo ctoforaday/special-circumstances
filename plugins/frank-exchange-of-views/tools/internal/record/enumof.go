@@ -1,8 +1,6 @@
 package record
 
 import (
-	"strings"
-
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -77,20 +75,6 @@ func PetitionClassOf(word string) (recordpb.PetitionClass, bool) {
 // declare a fate before it had one.
 func InquiryStatusOf(word string) (recordpb.InquiryStatus, bool) {
 	return enumOf[recordpb.InquiryStatus](recordpb.InquiryStatus(0).Descriptor(), word)
-}
-
-// VerdictOf resolves red's epoch verdict. PASS is checked against the open board by exact match,
-// so any other spelling would skip the check entirely and record an unadjudicated pass — which is
-// why this refuses rather than returning the zero.
-//
-// THE WORD IS THE SURFACE'S, EXACTLY: the schema's word in capitals (loud), as the help renders it.
-// `pass`, `Pass` and ` PASS ` are refused rather than folded — the tool does not decide which word
-// a seat meant.
-func VerdictOf(word string) (recordpb.Verdict, bool) {
-	if word != strings.ToUpper(word) {
-		return 0, false
-	}
-	return enumOf[recordpb.Verdict](recordpb.Verdict(0).Descriptor(), strings.ToLower(word))
 }
 
 // DispositionOf resolves HOW A GAP ENDED — one vocabulary for both closing verbs (#342), which

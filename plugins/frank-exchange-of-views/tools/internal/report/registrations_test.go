@@ -1,8 +1,6 @@
 package report
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,9 +15,8 @@ import (
 // hook_version and run_via, each "" for a field the register does not carry.
 type stamped [4]string
 
-// stampedRun seeds a run with the registers and, when config is not "", writes it as the run's
-// inputs/run-config.json. It returns the run.md the run assembles to.
-func stampedRun(t *testing.T, config string, regs ...stamped) string {
+// stampedRun seeds a run with the registers and returns the run.md the run assembles to.
+func stampedRun(t *testing.T, regs ...stamped) string {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	var evs []*record.Event
@@ -37,14 +34,6 @@ func stampedRun(t *testing.T, config string, regs ...stamped) string {
 		evs = append(evs, recordtest.Event(t, r[0], reg))
 	}
 	recordtest.Seed(t, dir, evs...)
-	if config != "" {
-		if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), []byte(config), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
 	docs, err := shippedDocs(runtest.Open(t, dir))
 	if err != nil {
 		t.Fatal(err)
@@ -70,42 +59,38 @@ func buildsLine(t *testing.T, runMD string) string {
 	return "**Builds and hooks" + strings.TrimRight(body, "\n ")
 }
 
-const installedOne = `{"hooks":{"state":"installed","versions":["1.73.0"],"binaries":{"1.73.0":["feov-pretooluse"]},"missing":{"1.73.0":[]},"why":""}}`
-
-// A UNIFORM RUN IS ONE LINE. Every seat on one build, one hook build and the hook's route, with
-// setup's provenance beside it: nothing to read past the sentence that says so.
+// A UNIFORM RUN IS ONE LINE. Every seat on one build, served by a hook of that same build, by the
+// hook's route: nothing to read past the sentence that says so, and nothing about what was installed.
 func TestAUniformRunStatesItsBuildsAndHooksInOneLine(t *testing.T) {
-	got := buildsLine(t, stampedRun(t, installedOne,
-		stamped{"blue-lane-1", "abc1234", "def5678", "injected"},
-		stamped{"red-lens-evidence", "abc1234", "def5678", "injected"},
-		stamped{"red-chair", "abc1234", "def5678", "injected"},
+	got := buildsLine(t, stampedRun(t,
+		stamped{"blue-lane-1", "abc1234", "abc1234", "injected"},
+		stamped{"red-lens-evidence", "abc1234", "abc1234", "injected"},
+		stamped{"red-chair", "abc1234", "abc1234", "injected"},
 	))
 	want := "**Builds and hooks.** All 3 registrations, from 3 seats, carry one stamp: feov-record build `abc1234`, " +
-		"hook build `def5678`, run directory from the hook. Setup found the hooks installed, cached as version 1.73.0."
+		"hook build `abc1234`, run directory from the hook."
 	if got != want {
 		t.Errorf("the uniform run's line is\n%s\nwant\n%s", got, want)
 	}
 }
 
 // SEATS THAT DISAGREE ARE NAMED, with what differs in bold — the diagnosis #751 had to make by
-// tabulating the database by hand. A mixed binary, a seat no hook reached that typed its --run, and a seat
-// that found the run by inference are each a line, and setup's "installed" beside an unstamped registration is
-// called out as the contradiction it is.
+// tabulating the database by hand. A mixed binary, a seat no hook reached that typed its --run, and a
+// seat that found the run by inference are each a line.
 func TestSeatsThatDisagreeOnTheirStampAreNamed(t *testing.T) {
-	got := buildsLine(t, stampedRun(t, installedOne,
-		stamped{"blue-lane-1", "abc1234", "def5678", "injected"},
-		stamped{"red-chair", "abc1234", "def5678", "injected"},
-		stamped{"red-lens-evidence", "9999999", "def5678", "injected"},
+	got := buildsLine(t, stampedRun(t,
+		stamped{"blue-lane-1", "abc1234", "abc1234", "injected"},
+		stamped{"red-chair", "abc1234", "abc1234", "injected"},
+		stamped{"red-lens-evidence", "9999999", "abc1234", "injected"},
 		stamped{"blue-lane-2", "abc1234", "", "flag"},
-		stamped{"red-lens-logic", "abc1234", "0000000", "inferred"},
-		stamped{"red-lens-logic", "abc1234", "0000000", "inferred"},
+		stamped{"red-lens-logic", "abc1234", "abc1234", "inferred"},
+		stamped{"red-lens-logic", "abc1234", "abc1234", "inferred"},
 	))
 	for _, want := range []string{
-		"**Builds and hooks — NOT UNIFORM.** 2 of 6 registrations carry the run's most common stamp: feov-record build `abc1234`, hook build `def5678`, run directory from the hook.",
-		"- `red-lens-evidence`: **feov-record build `9999999`**, hook build `def5678`, run directory from the hook",
+		"**Builds and hooks — NOT UNIFORM, MIXED BUILDS.** 2 of 6 registrations carry the run's most common stamp: feov-record build `abc1234`, hook build `abc1234`, run directory from the hook.",
+		"- `red-lens-evidence`: **feov-record build `9999999`**, hook build `abc1234`, run directory from the hook",
 		"- `blue-lane-2`: feov-record build `abc1234`, **no hook stamp — no hook served the seat, or one too old to stamp it**, **run directory from a `--run` the seat typed**",
-		"- `red-lens-logic` (2 registrations): feov-record build `abc1234`, **hook build `0000000`**, **run directory found by inference — the hook did not supply it**",
-		"**Yet 1 of 6 registrations carry no hook stamp.**",
+		"- `red-lens-logic` (2 registrations): feov-record build `abc1234`, hook build `abc1234`, **run directory found by inference — the hook did not supply it**",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the disagreement does not state %q:\n%s", want, got)
@@ -116,41 +101,69 @@ func TestSeatsThatDisagreeOnTheirStampAreNamed(t *testing.T) {
 	}
 }
 
-// SETUP'S PROVENANCE AND THE STAMPS ARE SET SIDE BY SIDE, and each way they can contradict says so.
-func TestSetupsHookProvenanceIsComparedWithTheStamps(t *testing.T) {
-	for name, c := range map[string]struct {
-		config string
-		want   string
-	}{
-		"setup saw no hooks, a hook stamped the seats": {
-			`{"hooks":{"state":"absent","versions":[],"binaries":{},"missing":{},"why":"no cached copy of frank-exchange-of-views"}}`,
-			"**Setup found the hooks absent:** no cached copy of frank-exchange-of-views. **Yet 2 of 2 registrations were stamped by a hook**",
-		},
-		"a cached version lacks a binary it registers": {
-			`{"hooks":{"state":"installed","versions":["1.72.0","1.73.0"],"binaries":{},"missing":{"1.72.0":[],"1.73.0":["feov-pretooluse"]},"why":""}}`,
-			"cached as versions 1.72.0 and 1.73.0; which of them served a seat is not something setup can see. **A cached version registers hook binaries it does not ship:** 1.73.0 registers feov-pretooluse.",
-		},
-		"no provenance in the configuration": {
-			`{"topic":"t"}`,
-			"**Setup recorded nothing about the installed hooks**",
-		},
-		"no configuration": {
-			"",
-			"**Setup recorded nothing about the installed hooks**",
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			got := buildsLine(t, stampedRun(t, c.config,
-				stamped{"blue-lane-1", "abc1234", "def5678", "injected"},
-				stamped{"red-chair", "abc1234", "def5678", "injected"},
-			))
-			if !strings.Contains(got, c.want) {
-				t.Errorf("run.md does not state %q:\n%s", c.want, got)
-			}
-			if !strings.Contains(got, "NOT UNIFORM") {
-				t.Errorf("a contradiction with setup's provenance does not mark the stamps as not uniform:\n%s", got)
-			}
-		})
+// A REGISTRATION WHOSE HOOK BUILD IS NOT ITS FEOV-RECORD BUILD IS NAMED, by seat and registration
+// (#751): the record binary and the hooks came from different builds. The registration that agrees
+// with itself is not named, and a registration no hook stamped has no hook build to compare.
+func TestARegistrationWhoseHookBuildDiffersFromItsRecordBuildIsNamed(t *testing.T) {
+	got := buildsLine(t, stampedRun(t,
+		stamped{"blue-lane-1", "abc1234", "abc1234", "injected"},
+		stamped{"red-chair", "abc1234", "abc1234", "injected"},
+		stamped{"red-lens-evidence", "9999999", "abc1234", "injected"},
+		stamped{"red-lens-evidence", "9999999", "abc1234", "injected"},
+		stamped{"blue-lane-2", "abc1234", "", "flag"},
+	))
+	want := "2 of 5 registrations ran a hook build other than their own feov-record build, so the hooks and the record binary came from different builds:\n\n" +
+		"- `red-lens-evidence` (2 registrations): feov-record build `9999999`, hook build `abc1234`"
+	if !strings.HasSuffix(got, want) {
+		t.Errorf("the section does not end naming the one seat whose hook build differs from its record build:\n%s\nwant it to end\n%s", got, want)
+	}
+	if !strings.HasPrefix(got, "**Builds and hooks — NOT UNIFORM, MIXED BUILDS.**") {
+		t.Errorf("the mixed registration does not head the section as MIXED BUILDS:\n%s", got)
+	}
+}
+
+// THE MIXED-ROOTS RUN #751 FOUND AGREES WITH ITSELF: every seat ran one record binary and one hook,
+// from two builds. No registration differs from another, so only the comparison of each
+// registration's two builds says so.
+func TestARunWhoseEveryRegistrationMixesBuildsIsNamed(t *testing.T) {
+	got := buildsLine(t, stampedRun(t,
+		stamped{"blue-lane-1", "abc1234+dirty", "def5678", "injected"},
+		stamped{"red-chair", "abc1234+dirty", "def5678", "injected"},
+	))
+	want := "**Builds and hooks — MIXED BUILDS.** All 2 registrations, from 2 seats, carry one stamp: feov-record build `abc1234+dirty`, hook build `def5678`, run directory from the hook.\n\n" +
+		"2 of 2 registrations ran a hook build other than their own feov-record build, so the hooks and the record binary came from different builds:\n\n" +
+		"- `blue-lane-1`: feov-record build `abc1234+dirty`, hook build `def5678`\n" +
+		"- `red-chair`: feov-record build `abc1234+dirty`, hook build `def5678`"
+	if got != want {
+		t.Errorf("the mixed-roots run reads\n%s\nwant\n%s", got, want)
+	}
+}
+
+// AN UNSTAMPED RECORD BINARY UNDER A STAMPED HOOK IS A MIX. `unknown` is a build with no commit
+// stamp, and a hook that carries one is another build: the 09-10 b3 run's evidence lens ran a
+// record binary built outside a git tree under the run's hook.
+func TestAnUnstampedRecordBuildUnderAStampedHookIsNamed(t *testing.T) {
+	got := buildsLine(t, stampedRun(t,
+		stamped{"red-chair", "5679a6e+dirty", "5679a6e+dirty", "injected"},
+		stamped{"red-lens-evidence", "unknown", "5679a6e+dirty", "injected"},
+	))
+	want := "- `red-lens-evidence`: feov-record build `unknown`, hook build `5679a6e+dirty`"
+	if !strings.HasSuffix(got, want) || !strings.Contains(got, "MIXED BUILDS") {
+		t.Errorf("an unknown record build under a stamped hook is not named as a mix:\n%s\nwant it to end\n%s", got, want)
+	}
+}
+
+// A RUN NO HOOK STAMPED COMPARES NO BUILDS. Its registrations say they carry no hook stamp, and the
+// section claims neither agreement nor a mix.
+func TestARunNoHookStampedComparesNoBuilds(t *testing.T) {
+	got := buildsLine(t, stampedRun(t,
+		stamped{"blue-lane-1", "abc1234", "", "flag"},
+		stamped{"red-chair", "abc1234", "", "flag"},
+	))
+	want := "**Builds and hooks.** All 2 registrations, from 2 seats, carry one stamp: feov-record build `abc1234`, " +
+		"no hook stamp — no hook served the seat, or one too old to stamp it, run directory from a `--run` the seat typed."
+	if got != want {
+		t.Errorf("the unstamped run reads\n%s\nwant\n%s", got, want)
 	}
 }
 
@@ -158,7 +171,7 @@ func TestSetupsHookProvenanceIsComparedWithTheStamps(t *testing.T) {
 // `unknown`, so a run where every seat says `unknown` has shown nothing about whether its binaries
 // matched, and the line says so.
 func TestAnUnstampedBuildIsSaidToProveNothingAboutAgreement(t *testing.T) {
-	got := buildsLine(t, stampedRun(t, installedOne,
+	got := buildsLine(t, stampedRun(t,
 		stamped{"blue-lane-1", "unknown", "unknown", "injected"},
 		stamped{"red-chair", "unknown", "unknown", "injected"},
 	))

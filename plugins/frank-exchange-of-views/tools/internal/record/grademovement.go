@@ -13,15 +13,15 @@ import (
 
 // GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH (gblock, 2026-10-20).
 //
-// Each regrade is the minting lens's own act. Nothing reviewed the movement IN TOTAL, and the total is what games the gate: a gap regraded
-// below medium stops holding a PASS, and gaps regraded up keep a converged board out of the FAIL
-// refusal. The round-loop engine docketed the cumulative magnitude of a round's accepted grade
+// Each regrade is the minting lens's own act. Nothing reviewed the movement IN TOTAL, and the total
+// is what games the gate: a gap regraded below medium stops holding a PASS, and one regraded to
+// medium or above starts to. The round-loop engine docketed the cumulative magnitude of a round's accepted grade
 // changes past 2 mass units for the judge (debate.js ACCEPTED_DELTA_DOCKET_THRESHOLD, removed with the
 // round loop in ac2be0d1, and nothing replaced it). Here the record computes it.
 //
 // WHAT COUNTS. Every regrade: on the archived m28, m29 and m30 runs every grade that moved was a
 // lens's own regrade, so a guard over motions alone measures nothing. Both directions, as the old guard did:
-// deflation clears a PASS, inflation escapes the convergence refusal. The axes the gate reads —
+// deflation clears a PASS, inflation holds one. The axes the gate reads —
 // severity (materiality) and likelihood and impact (mass) — each weighed |mass(new) - mass(old)| on
 // the Grade enum's mass annotation; complexity_cost is optional on a mint and no gate reads it.
 // Summed per axis per regrade, so a grade moved down and back up is two movements, as two accepted

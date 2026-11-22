@@ -89,7 +89,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: blue proposes closing G2, its assignee lets the window pass, the dispatch dockets the
 		// proposal, the bench rules it for blue, red closes G1 and passes.
 		recordtest.Event(t, "blue-respond", closeProposalOn(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)("G2")),
@@ -111,7 +110,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		// The chair's spot-check, read against the archive the closes replay (debate).
 		recordtest.At(t, "red-chair", "red-chair:spot_check:#9", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
 			Ids: []string{"G1"}, Reason: str("the area reads clean")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		// The bench's run-level disposition (debate): a halt, a certification a later one supersedes,
 		// and the outcome.
 		recordtest.Event(t, "judge", &recordpb.Halt{Opinion: str("the consent gate failed")}),
@@ -190,15 +189,14 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	}
 }
 
-// THE RECORDED VERDICT IS EACH EPOCH'S, on the run path. An empty verdict means none was recorded,
+// THE RECORDED PASS IS EACH EPOCH'S, on the run path. passed false means none was recorded,
 // so a debate read that did not load the gates printed that for every epoch of every run (#1243).
 func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 	)
 	b, err := DebateJSONBytes(mustRun(t, dir))
 	if err != nil {
@@ -208,13 +206,13 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	if err := json.Unmarshal(b, &dj); err != nil {
 		t.Fatal(err)
 	}
-	got := map[int]string{}
+	got := map[int]bool{}
 	for _, e := range dj.Epochs {
-		got[e.Epoch] = e.Verdict
+		got[e.Epoch] = e.Passed
 	}
-	for epoch, want := range map[int]string{1: "fail", 2: "pass"} {
+	for epoch, want := range map[int]bool{1: false, 2: true} {
 		if got[epoch] != want {
-			t.Errorf("epoch %d: verdict %q, the record holds %q\n%s", epoch, got[epoch], want, b)
+			t.Errorf("epoch %d: passed %v, the record holds %v\n%s", epoch, got[epoch], want, b)
 		}
 	}
 }
@@ -548,7 +546,7 @@ func TestTheDerivedVerdictNeverReadsAPassPastTheHaltBesideIt(t *testing.T) {
 	whileCommitting(t, 20, uncastStage(t), func() []*Event {
 		return []*Event{
 			recordtest.At(t, "judge", "judge:halt", &recordpb.Halt{Opinion: proto.String("consent gate")}),
-			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{}),
 		}
 	}, func(round int, run Run) {
 		verdict, why, _, err := DeriveVerdict(run)
@@ -570,7 +568,7 @@ func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T)
 	whileCommitting(t, 20, uncastStage(t), func() []*Event {
 		return []*Event{
 			recordtest.At(t, "judge", "judge:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("ended")}),
-			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{}),
 		}
 	}, func(round int, run Run) {
 		v, err := TerminalVerdict(run)

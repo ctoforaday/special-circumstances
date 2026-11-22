@@ -88,16 +88,16 @@ type Manifest struct {
 	DroppedPlanBlockers int `json:"dropped_plan_blockers"`
 	// QuotelessReadings is the source id of each reading whose quote held nothing but a finding's
 	// token and a dropped label's, written as no event: with the tokens gone it quotes no report text
-	// (EventSchema 78). A stated empty list where there is none.
+	// (EventSchema 80). A stated empty list where there is none.
 	QuotelessReadings []int64 `json:"quoteless_readings"`
 	// SettledEdits is the source id of each edit written as no event because its change already
 	// stands: a finding's token had held a terminator outside an earlier edit's span, this edit removed
 	// it, and without the token the earlier edit took it, so no stray stands for it to remove
-	// (EventSchema 78). A stated empty list where there is none.
+	// (EventSchema 80). A stated empty list where there is none.
 	SettledEdits []int64 `json:"settled_edits"`
 	// UnowedEngagements is the source id of each blue engagement written as no event because its
 	// sitting owes no successor: the successors it engaged were named by a cross-seat lineage link,
-	// which is dropped (EventSchema 79). A stated empty list where there is none.
+	// which is dropped (EventSchema 80). A stated empty list where there is none.
 	UnowedEngagements []int64 `json:"unowed_engagements"`
 	// Dockets is Translations 3 and 4's residue (EventSchema 80): the source ids written as no event
 	// because the bench convenes on a docketing the dispatch writes and sides with a party's stated
@@ -259,4 +259,7 @@ type DocketResidue struct {
 	// SpotChecks is each spot-check naming a gap the bench's dropped close had closed, which is open
 	// on the migrated record.
 	SpotChecks []int64 `json:"spot_checks"`
+	// InquiryChecks is each inquiry check whose inquiry only gaps the bench's dropped closes had closed
+	// hold wanting on the migrated record, which refuses a check while one stands.
+	InquiryChecks []int64 `json:"inquiry_checks"`
 }

@@ -47,9 +47,9 @@ type Result struct {
 	ReportOrder         string                        // what became of the order of the report's text (order.go)
 	ProseRewrites       []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
-	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 78)
-	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 78)
-	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 79)
+	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 80)
+	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 80)
+	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 80)
 	Dockets             migration.DocketResidue       // Translations 3 and 4's residue: the source ids written as no event (EventSchema 80)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
@@ -136,7 +136,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
 	labelled := labelSources(evs, rm)
-	// A FINDING IS WRITTEN AS NO EVENT (EventSchema 78), and every name it carries leaves the id
+	// A FINDING IS WRITTEN AS NO EVENT (EventSchema 80), and every name it carries leaves the id
 	// lists and the token fields of the record (remap.dropped). The names are read off the SOURCE
 	// stream: no translated body carries them.
 	rm.dropFindings(findingNames(evs))
@@ -250,7 +250,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// refusal's read point, a report read's head and a stored plan's ids that named such an act each
 	// translate to it, so the act's absence moves no read point past an act the seat had not seen.
 	// The acts left out this way are an act on a superseded gap (actOnSupersededGap), a finding
-	// (EventSchema 78) and a quoteless reading; a settled edit is headBefore's. An act the write REFUSED is not one of
+	// (EventSchema 80) and a quoteless reading; a settled edit is headBefore's. An act the write REFUSED is not one of
 	// them, nor is a dropped Anchor, which no archived pin names: a pin naming either is refused,
 	// below, since the record never held what it read.
 	pinBefore := func(oldID int64) error {
@@ -465,7 +465,8 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			// THE BENCH SIDES WITH A STATED POSITION, AND NOTHING ELSE (EventSchema 80, docketing.go): a
 			// ruling of a docketing a Close ended first, a regrade of the bench's own, and a spot-check of
-			// a gap a dropped bench act left open are written as no event, each stated.
+			// a gap a dropped bench act left open, and an inquiry check such a gap alone holds wanting, are
+			// written as no event, each stated.
 			if ended, err := endedRuling(batch.Querier(), body); err != nil {
 				return nil, err
 			} else if ended {
@@ -486,6 +487,15 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				return nil, err
 			} else if drop {
 				res.Dockets.SpotChecks = append(res.Dockets.SpotChecks, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if drop, err := reopenedInquiryCheck(batch.Querier(), body, reopened); err != nil {
+				return nil, err
+			} else if drop {
+				res.Dockets.InquiryChecks = append(res.Dockets.InquiryChecks, old.ID)
 				if err := pinBefore(old.ID); err != nil {
 					return nil, err
 				}
@@ -539,6 +549,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
 			// and TranslateReadingBlockers carries an archived reading blocker to its reading debt.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanVerdict(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
@@ -557,7 +571,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
+				if err := CarryPlanPass(pl, batch.Querier()); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
@@ -738,7 +752,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	res.UnowedEngagements = statedIDs(res.UnowedEngagements)
 	d := &res.Dockets
 	d.Opinions, d.PartyDockets, d.Superseded = statedIDs(d.Opinions), statedIDs(d.PartyDockets), statedIDs(d.Superseded)
-	d.EndedRulings, d.BenchRegrades, d.SpotChecks = statedIDs(d.EndedRulings), statedIDs(d.BenchRegrades), statedIDs(d.SpotChecks)
+	d.EndedRulings, d.BenchRegrades, d.SpotChecks, d.InquiryChecks = statedIDs(d.EndedRulings), statedIDs(d.BenchRegrades), statedIDs(d.SpotChecks), statedIDs(d.InquiryChecks)
 	return res, nil
 }
 

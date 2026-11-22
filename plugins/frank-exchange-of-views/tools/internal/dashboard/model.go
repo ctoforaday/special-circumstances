@@ -74,9 +74,6 @@ type Judiciary struct {
 	MigDown       int
 	MigUp         int
 	MigFlat       int
-	LatestVerdict string
-	// VerdictEpoch is the epoch whose recorded gate delivered LatestVerdict.
-	VerdictEpoch int
 }
 
 // CostRow is one seat-epoch-tier cost bucket for the dashboard's per-seat-epoch breakdown.
@@ -455,8 +452,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 }
 
 // buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
-// the latest recorded verdict, and how long arguments live over supersedes
-// chains (union-find), with grade migration.
+// and how long arguments live over supersedes chains (union-find), with grade migration.
 //
 // THE RECORD, NOT THE JOURNAL. The record holds every input as a field a writer can refuse —
 // docket motions with their rulings, the chair's gate, each gap's mint and close epoch,
@@ -485,11 +481,6 @@ func buildJudiciary(fam record.Family) Judiciary {
 	// A chair that has just sat opens an epoch nothing has happened in yet, and a gap has not
 	// lived through it.
 	current := fam.At.CurrentEpoch(fam.Events)
-	for _, ep := range record.DebateJSONOfFamily(fam).Epochs {
-		if ep.Verdict != "" {
-			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
-		}
-	}
 
 	// A gap lives from its mint epoch to its close epoch, or to the current epoch while open. Its
 	// first mass is the grades it was minted at; its last is the grades it holds now.

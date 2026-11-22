@@ -284,6 +284,14 @@ var runConfigDrops = map[string]struct{}{
 	// served model other than the configured tier, which went at epoch 75: nothing read it, and
 	// capture's tier audit fails a substitution in either direction.
 	"allowModelSubstitution": {},
+	// A SOURCE BEFORE EPOCH 78 MAY STATE `convergenceFraction`, the board-mass fraction below which
+	// the chair's FAIL over a converged board was refused, which went with the FAIL at epoch 78: the
+	// verdict is the PASS alone.
+	"convergenceFraction": {},
+	// A SOURCE UP TO EPOCH 79 MAY STATE `hooks`, setup's observation of the plugin install cache. The
+	// cache is not the tree a session loads for every install, so the observation went: each
+	// registration's tool_version and hook_version say which builds ran.
+	"hooks": {},
 }
 
 // translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops

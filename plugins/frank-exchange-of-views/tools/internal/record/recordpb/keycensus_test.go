@@ -44,8 +44,8 @@ func loadKeyCensus(t *testing.T) []string {
 // unexplained absence is indistinguishable from one nobody noticed, which is the whole defect
 // class this migration exists to remove.
 var notFields = map[string]string{
-	"dimension":   "RETIRED at epoch 79 with the grade motion, the one body that carried it: a dispute of a gap is a docket motion proposing an act on it; migrate translates a grade motion to no event",
-	"proposed":    "RETIRED at epoch 79 with the grade motion, the one body that carried it: a dispute of a gap is a docket motion proposing an act on it; migrate translates a grade motion to no event",
+	"dimension":   "RETIRED at epoch 80 with the grade motion, the one body that carried it: a dispute of a gap is a docket motion proposing an act on it; migrate translates a grade motion to no event",
+	"proposed":    "RETIRED at epoch 80 with the grade motion, the one body that carried it: a dispute of a gap is a docket motion proposing an act on it; migrate translates a grade motion to no event",
 	"access_date": "RETIRED at epoch 73 from Cite and Verify: a source's accessed date is when its copy was fetched, Cite.fetched_at, stamped from the fetch index; the cite's own clock reading and the seat's typed date are not carried, and migrate drops both",
 	"row":         "RETIRED at epoch 65 with blue's repair receipt, the one body that carried it: a repair's record is its edit, which names the gap it answers; migrate translates a receipt to no event",
 	"reproduced":  "REPLACED at epoch 28 by Reproduce.rerun: a bool read false both where the script printed something else and where nothing re-ran it; migrate's reproduce entry translates true to reproduced and false to differs",

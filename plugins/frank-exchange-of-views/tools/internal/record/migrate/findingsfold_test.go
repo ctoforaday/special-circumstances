@@ -123,7 +123,7 @@ func TestALensFindingLeavesAnArchivedRun(t *testing.T) {
 		t.Errorf("the acts a finding's absence settled, by archive:\n%v\nwant:\n%v", stated, want)
 	}
 	got := [8]int{runs, findings, anchors, foundBy, tokens, repairedBare, reopenedBare, retireBare}
-	if want := [8]int{36, 1037, 714, 479, 640, 26, 138, 2}; got != want {
+	if want := [8]int{38, 1074, 737, 483, 646, 33, 138, 2}; got != want {
 		t.Errorf("the residue over the archives: runs, findings, finding Anchors, found_by links, tokens in report text, "+
 			"repaired closes left bare, edits left with an empty reopened, claim retires left bare = %v, want %v", got, want)
 	}
@@ -152,11 +152,11 @@ func TestNoMigratedArchiveHoldsAFindingIDOrToken(t *testing.T) {
 			})
 		}
 	}
-	// 397: the two in grade rulings' opinions (sleeper-service-plan, b9) leave with those rulings
-	// (EventSchema 79), and the 47 in bench opinions, party dockets' rulings and the rulings of ended
+	// 409, the 1838 and 1883 archives' 12 among them: the two in grade rulings' opinions (sleeper-service-plan, b9) leave with those rulings
+	// (EventSchema 80), and the 47 in bench opinions, party dockets' rulings and the rulings of ended
 	// docketings leave with them (EventSchema 80): each translates to no event.
-	if prose != 397 {
-		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 397", prose)
+	if prose != 409 {
+		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 409", prose)
 	}
 }
 
@@ -276,7 +276,7 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 			}
 		}
 	}
-	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{39, 38, 54, 5}; got != want {
+	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{40, 39, 56, 5}; got != want {
 		t.Errorf("dockets, rulings, written as no event, finding tokens = %v, want %v", got, want)
 	}
 }

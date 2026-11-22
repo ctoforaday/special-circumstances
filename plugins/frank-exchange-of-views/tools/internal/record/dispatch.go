@@ -18,7 +18,7 @@ import (
 // failed check of its own, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry, or to split the question or record a question part's coverage; empty for the logic lens readied to check a settled inquiry or a question part's coverage; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -66,7 +66,7 @@ type Plan struct {
 	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
-	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed"`
 	// Head is the events.id of the latest blue_edit or report_part — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -132,39 +132,34 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
-	// Verdict is the verdict the chair recorded in the sitting that asked, absent while it has
-	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
-	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
-	// chair's restatement of it. It says what the asking sitting did, not what the board decides,
-	// so the key leaves it out — a FAIL recorded in one sitting and not the next is no movement on
-	// the board.
-	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
+	// Passed is true when the chair recorded the PASS in the sitting that asked, absent while it has
+	// not (chairPassedOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's envelope is
+	// this plan: the PASS reaches the engine as the record's fact, never as the chair's restatement
+	// of it. It says what the asking sitting did, not what the board decides, so the key leaves it
+	// out.
+	Passed bool `json:"passed,omitempty" key:"-" desc:"true when the chair recorded the PASS in this sitting; absent while it has not"`
 }
 
-// ChairVerdictAt is the verdict the chair recorded in its latest sitting on the record q reads: the
-// plan's `verdict` as `dispatch next` prints it there. migrate carries it onto a stored plan written
-// before the plan held the field.
-func ChairVerdictAt(q recordsql.Querier) (PlanVerdict, error) {
+// ChairPassedAt says whether the chair recorded the PASS in its latest sitting on the record q
+// reads: the plan's `passed` as `dispatch next` prints it there. migrate carries it onto a stored
+// plan written before the plan held the field.
+func ChairPassedAt(q recordsql.Querier) (bool, error) {
 	evs, win, err := eventsAt(q)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	return chairVerdictOf(evs, win), nil
+	return chairPassedOf(evs, win), nil
 }
 
-// PlanVerdict is a chair's recorded verdict as the plan prints it: the verdict verb's word.
-type PlanVerdict string
-
-// chairVerdictOf is the verdict the chair recorded in its latest sitting — the one asking for the
-// plan — and "" where it recorded none. A sitting holds one verdict.
-func chairVerdictOf(evs []*Event, win WindowIndex) PlanVerdict {
-	var v PlanVerdict
+// chairPassedOf says whether the chair recorded the PASS in its latest sitting — the one asking for
+// the plan.
+func chairPassedOf(evs []*Event, win WindowIndex) bool {
 	for _, e := range thisSitting(evs, win, chairSeat) {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
-			v = PlanVerdict(strings.ToUpper(recordpb.Word(g.GetVerdict())))
+		if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+			return true
 		}
 	}
-	return v
+	return false
 }
 
 // closingsAwaitedWhy is the plan's reason for a docketed gap whose parties' closings are awaited: due,
@@ -285,6 +280,8 @@ type planReads struct {
 	// found is every located reading (locatedReadingsAt), on the same snapshot: the reading debt's input.
 	found   []locatedReading
 	remands map[string][]remandRow
+	// parts is every question part (questionPartsAt), on the same snapshot: the question's blockers.
+	parts []QuestionPartRow
 }
 
 // planReadsAt reads the plan's answers off q. A record with no cast stops at the cast: the plan
@@ -310,6 +307,9 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.found, err = locatedReadingsAt(q, r.evs, r.win); err != nil {
 		return r, err
 	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
+	}
 	r.remands, err = remandRulingsOf(q)
 	return r, err
 }
@@ -328,7 +328,7 @@ func foldPlan(params Params, r planReads) Plan {
 	plan := emptyPlan()
 	plan.Head = r.head
 	evs, win, fresh := r.evs, r.win, r.fresh
-	plan.Verdict = chairVerdictOf(evs, win)
+	plan.Passed = chairPassedOf(evs, win)
 
 	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
 	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
@@ -338,7 +338,7 @@ func foldPlan(params Params, r planReads) Plan {
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found, r.parts)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax: the epoch this sitting opens, and
 	// whether it is the run's last (isFinalEpoch) or the last that dispatches a lens (blueHeldOut).
@@ -612,7 +612,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// ready the run ended UNVERIFIED over the citation (the release fuzz's forced-VERIFIED seed). The
 	// owner is ready until it sits through a sitting opened after the cause, and one reason names every
 	// anchor it is readied for.
-	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh, r.found)
+	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh, r.found, r.parts)
 	uncheckedFor := map[string][]string{}
 	var uncheckedOwners []string
 	for _, b := range blockers {
@@ -663,6 +663,46 @@ func foldPlan(params Params, r planReads) Plan {
 			ready = blueHeldOutClause
 		}
 		plan.Why = append(plan.Why, fmt.Sprintf("%s: inquiry %s open, with no fate that settles it — %s", blueRespondSeat, strings.Join(openInquiries, ", "), ready))
+	}
+	// THE QUESTION OWES ITS PARTS AND THEIR CHECKS (questionpart.go), as an inquiry owes its fate and
+	// its check: a question with no part, or a part with no coverage, readies blue-respond for as long
+	// as it stands; a part with coverage and no standing check readies its owner once per cause — its
+	// latest coverage, or the latest gap about it.
+	partCheckFor := map[string][]string{}
+	var partCheckOwners, openParts []string
+	unsplit := false
+	for _, b := range blockers {
+		switch {
+		case b.Kind == BlockerUncheckedPart && seatclass.RoleOfSeat(b.Owner) == "lens":
+			if _, sat := firstAfter(ends.through[b.Owner], b.placed); sat {
+				continue
+			}
+			if partCheckFor[b.Owner] == nil {
+				partCheckOwners = append(partCheckOwners, b.Owner)
+			}
+			partCheckFor[b.Owner] = append(partCheckFor[b.Owner], b.Subject)
+		case b.Kind == BlockerOpenPart:
+			openParts = append(openParts, b.Subject)
+		case b.Kind == BlockerQuestionUnsplit:
+			unsplit = true
+		}
+	}
+	for _, owner := range partCheckOwners {
+		engage(owner)
+		plan.Why = append(plan.Why, fmt.Sprintf("%s owns the check of question part %s, covered or put in question since the last sitting it sat through, and no check of its latest coverage stands — ready, to check each", owner, strings.Join(partCheckFor[owner], ", ")))
+	}
+	if unsplit || len(openParts) > 0 {
+		engage(blueRespondSeat)
+		ready := "ready, to split it"
+		owed := "the question is split into no question part"
+		if !unsplit {
+			ready = "ready, to record the coverage of each"
+			owed = "question part " + strings.Join(openParts, ", ") + " has no coverage recorded"
+		}
+		if heldOut {
+			ready = blueHeldOutClause
+		}
+		plan.Why = append(plan.Why, fmt.Sprintf("%s: %s — %s", blueRespondSeat, owed, ready))
 	}
 	for _, b := range blockers {
 		switch {
@@ -884,7 +924,7 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 		word := recordpb.Word(subj)
 		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and after this sitting only the closings owed are filed — no assignee window or exchange follows. "+
 			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
-			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
+			"At the final sitting the chair records the PASS where the plan permits one, or no verdict, and the run's outcome is derived from the record as it stands. "+
 			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
 	})
 }

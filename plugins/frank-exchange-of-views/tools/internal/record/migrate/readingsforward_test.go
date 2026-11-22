@@ -136,7 +136,7 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 					citeURLs[u] = true
 				}
 			}
-			// A QUOTELESS READING AND A SETTLED EDIT ARE WRITTEN AS NO EVENT (EventSchema 78); every
+			// A QUOTELESS READING AND A SETTLED EDIT ARE WRITTEN AS NO EVENT (EventSchema 80); every
 			// other one comes forward.
 			man, _ := MigratedArchive(t, la.name)
 			quoteless := map[int64]bool{}

@@ -280,7 +280,7 @@ func TestAnArchivedReviewTranslatesToNoEvent(t *testing.T) {
 // quadratic-formula and m20 spell the ruling's column with two different earlier words, the shard
 // era's run2 ruled on subject `inquiry` with a flat ruling word, and m36 wrote the `inquiry` column
 // itself. The chair's word on an inquiry has no equivalent: exactly the archive's rulings on an
-// inquiry translate to none, beside its rulings on a grade motion (EventSchema 79), and no migrated
+// inquiry translate to none, beside its rulings on a grade motion (EventSchema 80), and no migrated
 // ruling is on an inquiry.
 func TestAnArchivedInquiryRulingTranslatesToNoEvent(t *testing.T) {
 	for _, c := range []struct {

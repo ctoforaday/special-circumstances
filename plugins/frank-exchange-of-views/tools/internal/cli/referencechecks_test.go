@@ -64,6 +64,9 @@ var referenceChecks = []struct {
 		extra: []string{"--anchor", "C-00000001", "--reason", "r"}},
 	{verb: []string{"inquiry", "record"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
+	{verb: []string{"question", "cover"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009",
+		extra: []string{"--as", "covered", "--reason", "r"}},
+	{verb: []string{"question", "check"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009"},
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
 	// which deliberately carries no checker because each of these verbs already resolves its id and the
 	// two rulings resolve it more strictly than existence would. They are here because the behaviour
@@ -200,7 +203,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 				t.Errorf("%s refused without naming %s — the seat that typed it is told about some other flag:\n\n%v", name, c.flag, err)
 			}
 			// The prose OUTSIDE backtick spans speaks about the verb the seat ran, so every flag it
-			// names is that verb's. A span may name another verb's flags (`verdict --as`);
+			// names is that verb's. A span may name another verb's flags (`outcome --as`);
 			// the harness reads spans against the seat's tree, in assertRefusalSpeaksToItsSeat.
 			verb := cmdAt(NewRootFor(holder), c.verb)
 			for _, m := range flagToken.FindAllStringSubmatch(backtickSpan.ReplaceAllString(err.Error(), ""), -1) {

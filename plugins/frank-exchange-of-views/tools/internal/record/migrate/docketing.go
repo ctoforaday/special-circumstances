@@ -32,7 +32,8 @@ import (
 // position, so its gap reads as the opinion found it. A dispatch's docket left standing on a gap a
 // successor superseded is written as no event with its ruling: the live write refuses that supersede.
 // A spot-check of a gap whose close one of these drops took away names an open gap, which the write
-// refuses, and is written as no event too. Each drop is stated in the manifest
+// refuses, and is written as no event too; so is an inquiry check whose inquiry such a gap alone
+// holds wanting, which the write refuses as well (requireInquiryCheck). Each drop is stated in the manifest
 // (migration.DocketResidue).
 
 // archivedDockets is the source pre-pass: which archived docket motions the dispatch filed, and the
@@ -255,4 +256,24 @@ func reopenedSpotCheck(q recordsql.Querier, body proto.Message, reopened map[str
 		}
 	}
 	return false, nil
+}
+
+// reopenedInquiryCheck reports whether body is an inquiry check whose inquiry is wanting on the record
+// replayed so far only by gaps in reopened — ones whose close a dropped bench act took away. A check
+// any other open material gap holds wanting is not dropped: the write refuses it at its place.
+func reopenedInquiryCheck(q recordsql.Querier, body proto.Message, reopened map[string]bool) (bool, error) {
+	c, ok := body.(*recordpb.InquiryCheck)
+	if !ok {
+		return false, nil
+	}
+	wanting, err := record.OpenMaterialGapsAboutInquiry(q, c.GetInquiryId())
+	if err != nil || len(wanting) == 0 {
+		return false, err
+	}
+	for _, g := range wanting {
+		if !reopened[g] {
+			return false, nil
+		}
+	}
+	return true, nil
 }

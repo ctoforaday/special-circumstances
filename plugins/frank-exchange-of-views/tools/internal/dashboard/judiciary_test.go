@@ -55,11 +55,9 @@ func docketRuled(t *testing.T, docketing string, d recordpb.Disposition, princip
 }
 
 // judiciaryRun is a record holding every fact the Judiciary table shows: a docket sitting with
-// two rulings, a FAIL gate in epochs 1 and 2 and an epoch
-// 3 the chair has opened and nothing has happened in, and a chain — G2 supersedes G1, which was
-// minted HIGH/HIGH and regraded LOW/LOW and is still open — beside a gap the bench closed in the
-// epoch it was minted. A PASS would make the run terminal and put the final verdict in the tile,
-// so the latest one here is a FAIL.
+// two rulings, an epoch 3 the chair has opened and nothing has happened in, and a chain — G2
+// supersedes G1, which was minted HIGH/HIGH and regraded LOW/LOW and is still open — beside a gap
+// the bench closed in the epoch it was minted.
 func judiciaryRun(t *testing.T) string {
 	t.Helper()
 	hi, med, lo := recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_MEDIUM, recordpb.Grade_GRADE_LOW
@@ -67,7 +65,6 @@ func judiciaryRun(t *testing.T) string {
 	recordtest.Seed(t, dir,
 		registered(t, "red-chair", "C1"), // opens epoch 1
 		judMint(t, "red-lens-evidence", "G1", hi, hi),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		registered(t, "red-chair", "C2"), // opens epoch 2
 		judMint(t, "red-lens-logic", "G2", med, med, "G1"),
 		judMint(t, "red-lens-logic", "G3", lo, lo),
@@ -77,7 +74,6 @@ func judiciaryRun(t *testing.T) string {
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 		docketRuled(t, "M1", recordpb.Disposition_DISPOSITION_REMANDED, "a deferral names its reporter", "remanded to the lane that owns it"),
 		docketRuled(t, "M2", recordpb.Disposition_DISPOSITION_REPAIRED, "a repair is read at the leaf", "the repair holds"),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		registered(t, "red-chair", "C3"), // opens epoch 3: the chair sits, no verdict yet
 	)
 	return dir
@@ -101,11 +97,6 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 			t.Errorf("Rulings = %v, want %v", j.Rulings, want)
 		}
 	})
-	t.Run("latest verdict", func(t *testing.T) {
-		if j.LatestVerdict != "FAIL" || j.VerdictEpoch != 2 {
-			t.Errorf("verdict = %q at epoch %d, want FAIL at epoch 2", j.LatestVerdict, j.VerdictEpoch)
-		}
-	})
 	// AN OPEN GAP LIVES TO THE CURRENT EPOCH, the last with work in it. Epoch 3 is a chair
 	// register and nothing else, and counting it would lengthen every open chain by one.
 	t.Run("argument chains", func(t *testing.T) {
@@ -120,7 +111,7 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 	})
 	t.Run("the page shows them", func(t *testing.T) {
 		h := RenderHTML(m)
-		for _, want := range []string{"latest verdict (epoch 2)", "remanded: 1", "2 chains"} {
+		for _, want := range []string{"<b>—</b><span>final verdict</span>", "remanded: 1", "2 chains"} {
 			if !strings.Contains(h, want) {
 				t.Errorf("the rendered page lacks %q", want)
 			}
@@ -180,7 +171,7 @@ func TestTheJudiciaryOnAnUnreadRecordIsNotMeasured(t *testing.T) {
 		t.Fatal("Judiciary.Measured with no record to read")
 	}
 	h := RenderHTML(m)
-	for _, want := range []string{"<b>not measured</b><span>latest verdict</span>", "not measured — the record could not be read"} {
+	for _, want := range []string{"<b>not measured</b><span>final verdict</span>", "not measured — the record could not be read"} {
 		if !strings.Contains(h, want) {
 			t.Errorf("the rendered page lacks %q", want)
 		}

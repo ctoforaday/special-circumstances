@@ -51,3 +51,22 @@ func GapOpen(q recordsql.Querier, id string) (bool, error) {
 	}
 	return open, nil
 }
+
+// OpenMaterialGapsAboutInquiry is the open material gaps about inquiry id on q, in mint order: what
+// holds its check wanting (requireInquiryCheck refuses a check while one stands).
+func OpenMaterialGapsAboutInquiry(q recordsql.Querier, id string) ([]string, error) {
+	rows, err := q.Query(`SELECT "gap_id" FROM "gap" WHERE "open" AND "material" AND "about_kind" = 'inquiry' AND "about_ref" = ? ORDER BY "minted_event"`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}

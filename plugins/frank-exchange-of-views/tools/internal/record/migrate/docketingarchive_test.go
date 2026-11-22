@@ -63,7 +63,7 @@ func docketingsOfMigrated(t *testing.T, name string) (*migration.Manifest, []arc
 
 // docketResidue is the stated residue a run's manifest carries, per list (migration.DocketResidue).
 type docketResidue struct {
-	opinions, party, superseded, ended, benchRegrades, spotChecks []int64
+	opinions, party, superseded, ended, benchRegrades, spotChecks, inquiryChecks []int64
 }
 
 // wantDocketResidue is the measured residue of Translations 3 and 4 per run (probe of 2026-11-22,
@@ -90,6 +90,7 @@ var wantDocketResidue = map[string]docketResidue{
 	"2026-10-30_mersenne-31-prime-sum.tar.gz":        {party: []int64{541, 542, 667, 668, 780, 836, 881, 882}, ended: []int64{792}},
 	"2026-11-04_eiffel-tower-height.tar.gz":          {party: []int64{777, 885}},
 	"2026-11-11_eiffel-tower-height.tar.gz":          {benchRegrades: []int64{669}},
+	"2026-11-14_is-91-prime-1883.tar.gz":             {party: []int64{266, 459}, inquiryChecks: []int64{489}},
 	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {superseded: []int64{471, 745}, ended: []int64{971, 1196, 1197}},
 	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {benchRegrades: []int64{427, 718}},
 }
@@ -114,7 +115,7 @@ var wantDocketings = map[string][]string{
 // docket the dispatch filed (O3, structural) is a Docketing at its place; its ruling names that
 // docketing and no motion; every other docket and its ruling are written as no event (O2), with the
 // opinion era's pairs, the dispatch's dockets left standing on a gap a successor superseded, and the
-// spot-checks of a gap those drops left open — each stated in the manifest. No migrated record holds a
+// spot-checks of a gap those drops left open, and the inquiry checks only such a gap holds wanting — each stated in the manifest. No migrated record holds a
 // docket motion, and none is refused.
 func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 	total := map[string]int{}
@@ -134,6 +135,7 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 			{"ended rulings", res.Dockets.EndedRulings, want.ended},
 			{"bench regrades", res.Dockets.BenchRegrades, want.benchRegrades},
 			{"spot-checks", res.Dockets.SpotChecks, want.spotChecks},
+			{"inquiry checks", res.Dockets.InquiryChecks, want.inquiryChecks},
 		} {
 			if l.got == nil {
 				t.Errorf("%s: the manifest's %s list is null, not a stated list", name, l.what)
@@ -186,8 +188,8 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 		}
 	}
 	t.Logf("written as no event: %v; docketings written: %d", total, total["docketings"])
-	for what, want := range map[string]int{"opinions": 41, "party dockets": 32, "superseded dockets": 4, "ended rulings": 17,
-		"bench regrades": 3, "spot-checks": 5, "docketings": 25} {
+	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "superseded dockets": 4, "ended rulings": 17,
+		"bench regrades": 3, "spot-checks": 5, "inquiry checks": 1, "docketings": 25} {
 		if total[what] != want {
 			t.Errorf("census: %s %d, want %d", what, total[what], want)
 		}

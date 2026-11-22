@@ -85,7 +85,7 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					labels[l] = true
 				}
 			}
-			// A QUOTELESS READING IS WRITTEN AS NO EVENT (EventSchema 78): its quote was only the
+			// A QUOTELESS READING IS WRITTEN AS NO EVENT (EventSchema 80): its quote was only the
 			// tokens the fold takes out, so it is neither a verify nor a corroboration of the record.
 			man, dir := MigratedArchive(t, name)
 			quoteless := map[int64]bool{}
