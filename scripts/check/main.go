@@ -81,7 +81,12 @@ func main() {
 	}
 	// os.Exit runs no deferred call, and a directory left in tmpfs is RAM until reboot.
 	code := report(results)
-	releaseTmp()
+	if err := releaseTmp(); err != nil {
+		fmt.Fprintln(os.Stderr, "check: the gates' temp directory survived:", err)
+		if code == 0 {
+			code = 1
+		}
+	}
 	os.Exit(code)
 }
 

@@ -217,19 +217,37 @@ func isolatedEnv(home string) []string {
 
 // tempHome creates an isolated HOME directory and retries removal on cleanup so a harness child
 // process (such as Antigravity's language server) flushing its logs as it exits does not fail
-// t.TempDir()'s RemoveAll.
+// t.TempDir()'s RemoveAll. A home that still will not go fails the test.
+//
+// A DETACHED UPDATER IN THE HOME FAILS THE TEST. agy without its updater switch starts
+// `agy --bg-updater` in the background; it outlives the test, writes
+// .gemini/antigravity-cli/updater/ after the removal, and the directory is left in TMPDIR — 56 of
+// them on 2026-11-22. Its lock file is there by the time the command that started it exits, so
+// the check at cleanup sees what the removal would otherwise race.
 func tempHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Cleanup(func() {
+		if updaterStarted(home) {
+			t.Errorf("agy started its background updater in the test HOME %s; it outlives the test and "+
+				"re-creates the directory after removal — isolatedEnv must switch it off", home)
+		}
+		var err error
 		for range 20 {
-			if err := os.RemoveAll(home); err == nil {
+			if err = os.RemoveAll(home); err == nil {
 				return
 			}
 			time.Sleep(50 * time.Millisecond)
 		}
+		t.Errorf("the test HOME survived its removal: %v", err)
 	})
 	return home
+}
+
+// updaterStarted reports whether agy's background updater has run under home.
+func updaterStarted(home string) bool {
+	_, err := os.Stat(filepath.Join(home, ".gemini", "antigravity-cli", "updater"))
+	return err == nil
 }
 
 // run executes a harness command and returns its stdout; a non-zero exit fails the test with
