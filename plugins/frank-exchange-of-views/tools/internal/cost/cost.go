@@ -89,8 +89,9 @@ var Prices = map[string]Card{
 	},
 	"claude-haiku-4-5": {Rate: Rate{1, 5, 0.10, 1.25, 2}, Window: 200_000},
 	// Google Gemini published standard-tier API rates (https://ai.google.dev/gemini-api/docs/pricing,
-	// recorded 2026-11-22; cache reads 0.1x input). Unverified against a billed invoice; gemini-4-*
-	// models are not yet priced and intentionally report as unpriced.
+	// recorded 2026-11-22; cache reads 0.1x input). Unverified against a billed invoice; although
+	// the pricing page lists Gemini 4 tier names (Carbon/Argon/Neon/Hydrogen), gemini-4-* models
+	// are intentionally left unpriced until their served-model-id to tier mapping is confirmed.
 	"gemini-3.5-flash-lite":   {Rate: Rate{0.30, 2.50, 0.03, 0, 0}, Window: 1_000_000},
 	"gemini-3.1-flash-lite":   {Rate: Rate{0.25, 1.50, 0.025, 0, 0}, Window: 1_000_000},
 	"gemini-2.5-flash-lite":   {Rate: Rate{0.10, 0.40, 0.01, 0, 0}, Window: 1_000_000},

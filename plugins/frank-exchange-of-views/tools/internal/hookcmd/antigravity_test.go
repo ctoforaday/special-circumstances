@@ -394,7 +394,16 @@ func TestAntigravitySittingRefusesDecidedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Both fast-path (conv-*.json) and first-bind (--seat-id) must refuse to bind a decided run.
+	// Both fast-path (conv-*.json) and first-bind (--seat-id) must refuse to bind a decided run,
+	// without creating .bound / conv-*.json and without PostToolUse logging under the decided agent.
+	var logged []string
+	prevFail := recordFailure
+	recordFailure = func(_, agentID, text string) error {
+		logged = append(logged, agentID+"|"+text)
+		return nil
+	}
+	t.Cleanup(func() { recordFailure = prevFail })
+
 	for _, tc := range []struct {
 		name string
 		conv string
@@ -420,5 +429,69 @@ func TestAntigravitySittingRefusesDecidedRun(t *testing.T) {
 		if strings.Contains(out.String(), "FEOV_AGENT_ID='agy-decided00000001'") {
 			t.Fatalf("%s bound a decided run: %s", tc.name, out.String())
 		}
+	}
+	if _, err := os.Stat(filepath.Join(sdir, "seat-red-lens-logic.bound")); err == nil {
+		t.Fatalf("first-bind on a decided run created seat-red-lens-logic.bound")
+	}
+	if _, err := os.Stat(filepath.Join(sdir, "conv-fresh-conv.json")); err == nil {
+		t.Fatalf("first-bind on a decided run created conv-fresh-conv.json")
+	}
+	postErr, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PostToolUse",
+		"conversationId": "already-bound",
+		"cwd":            cwd,
+		"error":          "boom",
+		"toolCall": map[string]any{
+			"id":   "call-decided-post",
+			"name": "read_file",
+			"args": map[string]any{"Path": "x.md"},
+		},
+	})
+	var postOut bytes.Buffer
+	if err := Post(bytes.NewReader(postErr), &postOut, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if len(logged) != 0 {
+		t.Fatalf("PostToolUse on decided run logged under decided agent: %v", logged)
+	}
+}
+
+func TestAntigravityPreInvocationDrainErrorRecorded(t *testing.T) {
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	cwd, runDir := hookRun(t)
+	sdir := filepath.Join(runDir, agySittingsDir)
+	if err := os.MkdirAll(sdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	seatRec, _ := json.Marshal(agySitting{
+		AgentID:     "agy-drainerr000001",
+		AgentType:   "frank-exchange-of-views:red-lens-logic",
+		SeatID:      "red-lens-logic",
+		RunDir:      runDir,
+		LeadSession: testLead,
+	})
+	if err := os.WriteFile(filepath.Join(sdir, "conv-drain-conv.json"), seatRec, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+	tr := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"unrecognized bash exit format\n"}` + "\n"
+	if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "drain-conv",
+		"cwd":            cwd,
+		"transcriptPath": tp,
+		"invocationNum":  1,
+	})
+	rec := testRecorder()
+	var out bytes.Buffer
+	if err := Pre(bytes.NewReader(payload), &out, rec); err != nil {
+		t.Fatal(err)
+	}
+	if !rec.Failed() {
+		t.Fatalf("expected unrecognized Bash GENERIC on PreInvocation to record StageFailedStepDrain failure")
 	}
 }

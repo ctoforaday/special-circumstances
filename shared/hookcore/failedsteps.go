@@ -24,7 +24,7 @@ type FailedToolStep struct {
 	Output    string
 }
 
-var reCommandExitCode = regexp.MustCompile(`(?m)^Command exited with code (\d+)\.$`)
+var reCommandExitCode = regexp.MustCompile(`(?m)^(?:The )?[Cc]ommand exited with code (\d+)\.$`)
 
 type pendingToolCall struct {
 	ToolName string `json:"tool_name"`
@@ -56,11 +56,17 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	var wmPath string
 	if req.PluginDataDir != "" && key != "" {
 		wmPath = filepath.Join(req.PluginDataDir, "last_failed_step_"+key+".json")
-		if b, err := os.ReadFile(wmPath); err == nil {
-			var loaded drainWatermark
-			if json.Unmarshal(b, &loaded) == nil {
-				wm = loaded
+		b, err := os.ReadFile(wmPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("read drain watermark %s: %w", wmPath, err)
 			}
+		} else {
+			var loaded drainWatermark
+			if err := json.Unmarshal(b, &loaded); err != nil {
+				return nil, fmt.Errorf("corrupt drain watermark %s (refusing full replay): %w", wmPath, err)
+			}
+			wm = loaded
 		}
 	}
 
@@ -74,12 +80,15 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	defer f.Close()
 
 	if wm.Offset > 0 {
-		if fi, err := f.Stat(); err == nil && fi.Size() >= wm.Offset {
-			if _, err := f.Seek(wm.Offset, io.SeekStart); err != nil {
-				return nil, fmt.Errorf("seek transcript %s: %w", req.TranscriptPath, err)
-			}
-		} else {
-			wm = drainWatermark{Step: -1}
+		fi, err := f.Stat()
+		if err != nil {
+			return nil, fmt.Errorf("stat transcript %s: %w", req.TranscriptPath, err)
+		}
+		if fi.Size() < wm.Offset {
+			return nil, fmt.Errorf("transcript %s shrank (%d < watermark offset %d; refusing full replay)", req.TranscriptPath, fi.Size(), wm.Offset)
+		}
+		if _, err := f.Seek(wm.Offset, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("seek transcript %s: %w", req.TranscriptPath, err)
 		}
 	}
 
@@ -175,26 +184,51 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 		}
 	}
 
+	var errs []string
 	if wmPath != "" && (maxStep > wm.Step || curOffset > wm.Offset) {
-		_ = os.MkdirAll(req.PluginDataDir, 0o755)
-		nextWM := drainWatermark{Step: maxStep, Offset: curOffset, Pending: pending}
-		if b, err := json.Marshal(nextWM); err == nil {
-			tmp := wmPath + ".tmp"
-			if os.WriteFile(tmp, b, 0o644) == nil {
-				_ = os.Rename(tmp, wmPath)
-			}
+		if err := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: maxStep, Offset: curOffset, Pending: pending}); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
 	if len(parseWarns) > 0 {
-		return failed, errors.New(strings.Join(parseWarns, "; "))
+		const maxSamples = 3
+		shown := parseWarns
+		suffix := ""
+		if len(parseWarns) > maxSamples {
+			shown = parseWarns[:maxSamples]
+			suffix = fmt.Sprintf(" (+%d more, %d unmatched total)", len(parseWarns)-maxSamples, len(parseWarns))
+		}
+		errs = append(errs, strings.Join(shown, "; ")+suffix)
+	}
+	if len(errs) > 0 {
+		return failed, errors.New(strings.Join(errs, "; "))
 	}
 	return failed, nil
+}
+
+func writeDrainWatermark(wmPath, dir string, wm drainWatermark) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create drain watermark dir %s: %w", dir, err)
+	}
+	b, err := json.Marshal(wm)
+	if err != nil {
+		return fmt.Errorf("marshal drain watermark: %w", err)
+	}
+	tmp := wmPath + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return fmt.Errorf("write drain watermark %s: %w", tmp, err)
+	}
+	if err := os.Rename(tmp, wmPath); err != nil {
+		return fmt.Errorf("rename drain watermark %s: %w", wmPath, err)
+	}
+	return nil
 }
 
 func isKnownNonExitRunCommand(content string) bool {
 	return strings.Contains(content, "Tool is running as a background task") ||
 		strings.Contains(content, "tool call denied by pre-tool hook") ||
-		strings.Contains(content, "Command was canceled")
+		strings.Contains(content, "Command was canceled") ||
+		strings.Contains(content, "Encountered error in step execution:")
 }
 
 func unquoteJSONString(s string) string {

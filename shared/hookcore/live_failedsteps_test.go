@@ -82,6 +82,9 @@ func TestLiveAntigravityFailedRunCommandDrainedOnPreInvocation(t *testing.T) {
 		if err != nil {
 			continue
 		}
+		if strings.Contains(string(data), "HOOKCORE_DRAIN_ERR:") {
+			t.Fatalf("DrainFailedToolSteps returned an error in live agy transcript:\n%s", string(data))
+		}
 		if strings.Contains(string(data), "HOOKCORE_FAILED_STEP_CODE_2:") {
 			found = true
 			break

@@ -202,12 +202,12 @@ assert any("sitting open failed" in l for l in logs), logs
 ns, _, _, logs = make_env("envelope_empty", base_args)
 res = asyncio.run(ns["run_debate"]())
 assert res["verdict"] == "PASS", res
-assert any("envelope check returned empty" in l for l in logs), logs
+assert any("agent bound to no seat or record error" in l for l in logs), logs
 
-# 8. admission returning non-zero -> sit() returns None
+# 8. admission returning non-zero -> sit() returns None (tested directly so reverting return None fails)
 ns, _, _, logs = make_env("admission_fail", base_args)
-res = asyncio.run(ns["run_debate"]())
-assert res["verdict"] == "PASS", res
+sit_res = asyncio.run(ns["sit"]("red-lens-logic", "audit prompt", ns["LENS_FINISH_ENVELOPE"], "Red Lens Logic"))
+assert sit_res is None, f"expected sit() to return None on admission failure, got {sit_res!r}"
 assert any("admission failed" in l for l in logs), logs
 
 # 9. refusal cap exhausted -> sit() returns None after ENVELOPE_REFUSAL_RETRIES + 1 attempts
@@ -228,6 +228,22 @@ try:
 finally:
     if prev_agy_conv is not None:
         os.environ["ANTIGRAVITY_CONVERSATION_ID"] = prev_agy_conv
+
+# 11. stale .bound / .conv / .transcript / conv-<old>.json are cleared BEFORE open runs
+ns, _, _, _ = make_env("open_fail", base_args)
+os.makedirs(sittings_dir, exist_ok=True)
+stale_bound = os.path.join(sittings_dir, "seat-red-lens-logic.bound")
+stale_conv = os.path.join(sittings_dir, "seat-red-lens-logic.conv")
+stale_tr = os.path.join(sittings_dir, "seat-red-lens-logic.transcript")
+stale_conv_json = os.path.join(sittings_dir, "conv-old-dead-conv.json")
+open(stale_bound, "w").write("old-dead-conv\n")
+open(stale_conv, "w").write("old-dead-conv")
+open(stale_tr, "w").write("/old/tr")
+open(stale_conv_json, "w").write("{}")
+sit_res = asyncio.run(ns["sit"]("red-lens-logic", "audit prompt", ns["LENS_FINISH_ENVELOPE"], "Red Lens Logic"))
+assert sit_res is None, sit_res
+for p in (stale_bound, stale_conv, stale_tr, stale_conv_json):
+    assert not os.path.exists(p), f"stale binding file survived sit() republish: {p}"
 
 print("ALL_PY_SIM_OK")
 `

@@ -1029,10 +1029,13 @@ cmd_watch() {
 
 cmd_shell() {
   universe_env; clear_seat_env
+  guard_no_live_run "open a shell"
   local src="$WORKDIR/src"; mkdir -p "$src"
   if [ "$HARNESS" = "agy" ]; then
     local agy_tok="$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"
-    trap 'rm -f "$WORKDIR/shell.pid" "$agy_tok"' EXIT
+    local cleanup_cmd
+    printf -v cleanup_cmd 'rm -f %q %q' "$WORKDIR/shell.pid" "$agy_tok"
+    trap "$cleanup_cmd" EXIT
     lend_agy_access_token
     printf '%s\n' "$$" > "$WORKDIR/shell.pid"
     ( cd "$src" && agy )
@@ -1040,7 +1043,9 @@ cmd_shell() {
   fi
   lend_access_token
   printf '%s\n' "$$" > "$WORKDIR/shell.pid"
-  trap 'rm -f "$WORKDIR/shell.pid"' EXIT
+  local cleanup_cmd
+  printf -v cleanup_cmd 'rm -f %q' "$WORKDIR/shell.pid"
+  trap "$cleanup_cmd" EXIT
   ( cd "$src" && exec claude )
 }
 

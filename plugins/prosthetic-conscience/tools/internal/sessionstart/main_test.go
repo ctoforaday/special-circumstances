@@ -248,3 +248,171 @@ func TestPreInvocationDrainsFailedRunCommandsIntoStrikesAndFlushesPending(t *tes
 		t.Errorf("PreInvocation did not trip 3-strike warning from drained run_command failures: %s", outStr)
 	}
 }
+
+func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
+	t.Cleanup(func() {
+		ensure = hookfailures.Ensure
+		hostProcessID = defaultHostProcessID
+	})
+	ensure = func(string) (string, error) { return "", nil }
+
+	makeUnits := func(cpCalls, nudgeCalls *int) []hookunit.Unit {
+		return []hookunit.Unit{
+			{
+				Name: "toolchain-nudge",
+				Run: func(*hookunit.Ctx) hookunit.Result {
+					*nudgeCalls++
+					return hookunit.Result{Name: "toolchain-nudge", Stdout: "NUDGE_BODY"}
+				},
+			},
+			{
+				Name: "sc-checkpoint-restore",
+				Run: func(*hookunit.Ctx) hookunit.Result {
+					*cpCalls++
+					return hookunit.Result{Name: "sc-checkpoint-restore", Stdout: "CHECKPOINT_RESTORED_BODY"}
+				},
+			},
+		}
+	}
+
+	fireAgy := func(t *testing.T, proj, event, conv string, invNum int, units []hookunit.Unit) (string, string) {
+		t.Helper()
+		m := map[string]any{
+			"hookEventName":  event,
+			"conversationId": conv,
+			"cwd":            proj,
+		}
+		if event == "PreInvocation" {
+			m["invocationNum"] = invNum
+		}
+		payload, _ := json.Marshal(m)
+		var stdout, stderr bytes.Buffer
+		code := run([]string{"-event", event}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), units)
+		if code != 0 {
+			t.Fatalf("%s exit %d stderr=%s", event, code, stderr.String())
+		}
+		return stdout.String(), stderr.String()
+	}
+
+	// 1. Fresh start: SessionStart marks (conv, hostA); first PreInvocation under hostA must NOT double-restore.
+	t.Run("FreshStartDoesNotDoubleRestore", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "1001:55555" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		fireAgy(t, proj, "SessionStart", "conv-fresh", 0, units)
+		if cpCalls != 1 || nudgeCalls != 1 {
+			t.Fatalf("SessionStart calls: cp=%d nudge=%d, want 1, 1", cpCalls, nudgeCalls)
+		}
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-fresh", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("PreInvocation after SessionStart double-restored checkpoint (cpCalls=%d, out=%s)", cpCalls, out)
+		}
+		if nudgeCalls != 1 {
+			t.Fatalf("PreInvocation must not run toolchain-nudge (nudgeCalls=%d)", nudgeCalls)
+		}
+	})
+
+	// 2. Resume: no SessionStart fired; first PreInvocation (invocationNum 0) restores ONCE,
+	// subsequent PreInvocation (invocationNum 0 or 1) in the same process does not re-restore.
+	t.Run("ResumeRestoresOnceOnFirstPreInvocation", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "2002:66666" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-resume", 0, units)
+		if cpCalls != 1 || !strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("resume PreInvocation(0) did not restore checkpoint: cpCalls=%d out=%s", cpCalls, out)
+		}
+		if nudgeCalls != 0 {
+			t.Fatalf("resume PreInvocation must not run toolchain-nudge (nudgeCalls=%d)", nudgeCalls)
+		}
+		// Next turn (invocationNum 0) and mid-turn (invocationNum 1) in same process must not re-restore.
+		fireAgy(t, proj, "PreInvocation", "conv-resume", 0, units)
+		fireAgy(t, proj, "PreInvocation", "conv-resume", 1, units)
+		if cpCalls != 1 {
+			t.Fatalf("subsequent PreInvocation re-restored checkpoint: cpCalls=%d, want 1", cpCalls)
+		}
+	})
+
+	// 3. Daemon restart: SessionStart ran under hostA; PreInvocation(0) under hostB restores ONCE.
+	t.Run("DaemonRestartRestoresOnceForNewHost", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "3003:77777" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		fireAgy(t, proj, "SessionStart", "conv-daemon", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("SessionStart cpCalls=%d, want 1", cpCalls)
+		}
+		// Simulate language server / daemon restart (new PID + start time).
+		hostProcessID = func() string { return "4004:88888" }
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-daemon", 0, units)
+		if cpCalls != 2 || !strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("post-restart PreInvocation(0) did not restore checkpoint: cpCalls=%d out=%s", cpCalls, out)
+		}
+		// Second PreInvocation under hostB must not re-restore.
+		fireAgy(t, proj, "PreInvocation", "conv-daemon", 0, units)
+		if cpCalls != 2 {
+			t.Fatalf("second PreInvocation under new host re-restored: cpCalls=%d, want 2", cpCalls)
+		}
+	})
+
+	// 4. Unreadable/unwritable marker fails loudly (rec.Fail -> stderr & Say), never silent skip.
+	t.Run("BrokenMarkerFailsLoudly", func(t *testing.T) {
+		proj := t.TempDir()
+		pluginData := t.TempDir()
+		t.Setenv("PLUGIN_DATA", pluginData)
+		hostProcessID = func() string { return "5005:99999" }
+		// Create a directory at the marker file path so both ReadFile and WriteFile fail.
+		if err := os.MkdirAll(resumeMarkerPath(pluginData, "conv-broken"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, stderr := fireAgy(t, proj, "PreInvocation", "conv-broken", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("broken marker should fail-safe to restoring checkpoint: cpCalls=%d", cpCalls)
+		}
+		if !strings.Contains(stderr, "resume marker") && !strings.Contains(out, "resume marker") {
+			t.Fatalf("broken marker failed silently: stdout=%s stderr=%s", out, stderr)
+		}
+	})
+
+	// 5. Unrecognized Bash GENERIC prose records stageFailedStepDrain loudly in stderr/Say,
+	// and a subsequent clean PreInvocation does not fail.
+	t.Run("DrainErrorRecordedAndCleared", func(t *testing.T) {
+		proj := t.TempDir()
+		pluginData := t.TempDir()
+		t.Setenv("PLUGIN_DATA", pluginData)
+		hostProcessID = func() string { return "6006:11111" }
+		tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+		tr := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
+			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"unrecognized bash format\n"}` + "\n"
+		if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreInvocation",
+			"conversationId": "conv-drain-err",
+			"cwd":            proj,
+			"transcriptPath": tp,
+			"invocationNum":  1,
+		})
+		var stdout, stderr bytes.Buffer
+		code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil)
+		if code != 0 {
+			t.Fatalf("PreInvocation exit %d", code)
+		}
+		if !strings.Contains(stderr.String(), "failed-step drain:") {
+			t.Fatalf("drain error not recorded on stderr: stdout=%s stderr=%s", stdout.String(), stderr.String())
+		}
+	})
+}

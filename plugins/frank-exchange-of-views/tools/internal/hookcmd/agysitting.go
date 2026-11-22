@@ -33,8 +33,13 @@ type agySitting struct {
 const agySittingsDir = ".agy-sittings"
 
 // StageAgyBind is recorded when a second Antigravity conversation tries to bind an already-claimed
-// seat sitting, instead of silently ignoring the conflict.
+// seat sitting, instead of silently ignoring the conflict. Cleared on the next successful bind.
 const StageAgyBind hookfailures.Stage = "agy-sitting-bind"
+
+// StageFailedStepDrain is recorded when Antigravity's PreInvocation failed-step transcript drain
+// encounters a corrupt watermark, shrunken transcript, or unrecognized Bash GENERIC format.
+// Cleared on the next clean drain.
+const StageFailedStepDrain hookfailures.Stage = "failed-step-drain"
 
 // applyAgySitting populates req's AgentID, AgentType and SessionID from an active Antigravity
 // run_workflow sitting when applicable. Used uniformly by Pre, Post, PostFailure, and PreInvocation.
@@ -101,6 +106,9 @@ func resolveAgySitting(req hookcore.Request, cwd string, rec *hookfailures.Recor
 		}
 		_, _ = bf.WriteString(req.SessionID + "\n")
 		_ = bf.Close()
+		if rec != nil {
+			rec.OKIn(StageAgyBind, markerDir)
+		}
 
 		if b, err := json.Marshal(s); err == nil {
 			_ = writeFileAtomic(filepath.Join(sdir, "conv-"+req.SessionID+".json"), b, 0o600)
@@ -192,7 +200,9 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	}
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
-		rec.Fail(StageFailureLog, "failed-step drain: "+drainErr.Error())
+		rec.Fail(StageFailedStepDrain, "failed-step drain: "+drainErr.Error())
+	} else {
+		rec.OK(StageFailedStepDrain)
 	}
 	for _, st := range failed {
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})

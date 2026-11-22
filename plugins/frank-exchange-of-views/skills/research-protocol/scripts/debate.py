@@ -262,8 +262,17 @@ async def sit(seat_id, prompt, schema, role_title):
     seat_tr_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.transcript")
     seat_bound_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.bound")
     seat_conv_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.conv")
-    # Clear any stale binding left behind by a killed debate.py before republishing this seat.
-    for stale in (seat_bound_path, seat_conv_path, seat_tr_path):
+    # Clear any stale binding left behind by a killed debate.py before republishing this seat,
+    # including the previous conv-<id>.json so a dead conversation cannot stay bound.
+    stale_paths = [seat_bound_path, seat_conv_path, seat_tr_path]
+    try:
+        with open(seat_conv_path) as cf:
+            old_conv = cf.read().strip()
+        if old_conv:
+            stale_paths.append(os.path.join(agy_sittings_dir, f"conv-{old_conv}.json"))
+    except OSError:
+        pass
+    for stale in stale_paths:
         try:
             os.remove(stale)
         except OSError:
