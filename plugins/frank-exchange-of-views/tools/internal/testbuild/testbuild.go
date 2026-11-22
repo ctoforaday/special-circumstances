@@ -55,6 +55,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,13 +107,26 @@ func Main(m *testing.M, after ...func() error) {
 	}
 	restoreClient, err := stubClient()
 	if err != nil {
-		restore()
+		if rerr := restore(); rerr != nil {
+			fmt.Fprintln(os.Stderr, "testbuild:", rerr)
+		}
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
 		os.Exit(1)
 	}
 	code := m.Run()
-	restoreClient()
-	restore()
+	// A DIRECTORY THIS PACKAGE MADE AND COULD NOT REMOVE FAILS THE PACKAGE. `go test` prints a
+	// passing package's stderr only under -v, so a printed warning on a green run is read by
+	// nobody: the sandbox HOME leaked a read-only module cache on every run that way, hundreds
+	// of directories and 30 GB, until the disk filled. A non-zero exit is the one report a
+	// green run cannot hide.
+	for _, undo := range []func() error{restoreClient, restore, Cleanup} {
+		if err := undo(); err != nil {
+			fmt.Fprintln(os.Stderr, "testbuild:", err)
+			if code == 0 {
+				code = 1
+			}
+		}
+	}
 	for _, check := range after {
 		if err := check(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -121,13 +135,12 @@ func Main(m *testing.M, after ...func() error) {
 			}
 		}
 	}
-	Cleanup()
 	os.Exit(code)
 }
 
 // stubClient puts a `claude` first on PATH that prints a version and nothing else: `setup` refuses a
 // client it cannot read, and CI has none. A test of that refusal injects its own Exec.
-func stubClient() (func(), error) {
+func stubClient() (func() error, error) {
 	dir, err := os.MkdirTemp("", "sc-testclient-")
 	if err != nil {
 		return nil, fmt.Errorf("no directory for the stub client: %w", err)
@@ -145,13 +158,13 @@ func stubClient() (func(), error) {
 		_ = os.RemoveAll(dir)
 		return nil, fmt.Errorf("putting the stub client on PATH: %w", err)
 	}
-	return func() {
+	return func() error {
 		if had {
 			_ = os.Setenv("PATH", old)
 		} else {
 			_ = os.Unsetenv("PATH")
 		}
-		_ = os.RemoveAll(dir)
+		return removeTree(dir)
 	}, nil
 }
 
@@ -209,24 +222,86 @@ func ClearDispatch() {
 	}
 }
 
-func sandboxHome() (func(), error) {
+func sandboxHome() (func() error, error) {
 	h, err := os.MkdirTemp("", "sc-testhome-")
 	if err != nil {
 		return nil, fmt.Errorf("no temp HOME: %w", err)
 	}
+	unpin := keepGoCaches()
 	key := homeKey()
 	if err := os.Setenv(key, h); err != nil {
-		_ = os.RemoveAll(h)
+		unpin()
+		_ = removeTree(h)
 		return nil, fmt.Errorf("setting %s: %w", key, err)
 	}
-	return func() {
+	return func() error {
 		if realHomeSet {
 			_ = os.Setenv(key, realHome)
 		} else {
 			_ = os.Unsetenv(key)
 		}
-		_ = os.RemoveAll(h)
+		unpin()
+		return removeTree(h)
 	}, nil
+}
+
+// keepGoCaches pins GOMODCACHE and GOCACHE, for every `go` this process starts, to where they
+// resolve NOW — before HOME moves — and returns the undo.
+//
+// THE SANDBOX IS FOR THE COMMAND UNDER TEST, NOT FOR THE TOOLCHAIN; buildEnv states the same
+// for the builds this package runs, and this extends it to every other `go` a test starts
+// (nativehelpertest builds its fake helper with the inherited environment). Unpinned, such a
+// build resolves GOPATH to $HOME/go under the sandbox, downloads the module graph into
+// $HOME/go/pkg/mod — which Go writes READ-ONLY — and the sandbox could not be removed: one
+// directory per test binary, up to 430 MB each, 30 GB on 2026-11-22 before the disk filled.
+//
+// A value the caller already set is left alone, and a machine with no `go` on PATH is left as
+// it was: a test that needs one says so itself. The prosthetic-conscience plugin's hooktest
+// pins the same two variables for the same reason.
+func keepGoCaches() (undo func()) {
+	out, err := exec.Command("go", "env", "GOMODCACHE", "GOCACHE").Output()
+	if err != nil {
+		return func() {}
+	}
+	paths := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var set []string
+	for i, k := range []string{"GOMODCACHE", "GOCACHE"} {
+		if i >= len(paths) || strings.TrimSpace(paths[i]) == "" || os.Getenv(k) != "" {
+			continue
+		}
+		if os.Setenv(k, strings.TrimSpace(paths[i])) == nil {
+			set = append(set, k)
+		}
+	}
+	return func() {
+		for _, k := range set {
+			_ = os.Unsetenv(k)
+		}
+	}
+}
+
+// removeTree removes dir and everything under it, and says so when it cannot.
+//
+// os.RemoveAll alone fails on a tree holding a directory without write permission — the module
+// cache Go writes is exactly that — and the error used to be discarded, so the directory stayed
+// and nothing said so. Write permission is restored on every directory first, so a read-only
+// tree a test left behind still goes; whatever survives that is returned.
+func removeTree(dir string) error {
+	if err := os.RemoveAll(dir); err == nil {
+		return nil
+	}
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
+			if info, ierr := d.Info(); ierr == nil {
+				_ = os.Chmod(p, info.Mode().Perm()|0o700)
+			}
+		}
+		return nil
+	})
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("could not remove %s: %w", dir, err)
+	}
+	return nil
 }
 
 // buildEnv is the environment for `go build`: this process's, with HOME put back to the real
@@ -257,10 +332,11 @@ func buildEnv() []string {
 // Called from Main after m.Run has returned, so every test goroutine that could read dir has
 // finished — which is what makes the unsynchronized read here safe, and why this is not
 // exported for use at any other moment.
-func Cleanup() {
+func Cleanup() error {
 	if dir != "" {
-		_ = os.RemoveAll(dir)
+		return removeTree(dir)
 	}
+	return nil
 }
 
 // ExeName is the file name a built command must have on THIS platform.

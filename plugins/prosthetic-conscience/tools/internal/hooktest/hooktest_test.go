@@ -63,3 +63,26 @@ func TestACacheTheCallerSetIsLeftAlone(t *testing.T) {
 		t.Errorf("GOCACHE = %q after keepGoCaches, want the caller's %q", got, chosen)
 	}
 }
+
+// The isolation directory goes at exit even when a test left a read-only tree in it, as Go's
+// module cache is written; a plain RemoveAll fails on that and used to fail in silence.
+func TestARemovalSurvivesAReadOnlyTree(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "isolated")
+	locked := filepath.Join(dir, "go", "pkg", "mod", "m@v1.0.0")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "go.mod"), []byte("module m\n"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	if err := removeTree(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("%s is still there (stat: %v)", dir, err)
+	}
+}
