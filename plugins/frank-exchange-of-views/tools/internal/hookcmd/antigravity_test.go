@@ -3,6 +3,9 @@ package hookcmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
@@ -208,5 +211,75 @@ func TestAntigravityPostRunCommandQueuesNextItemForPreInvocation(t *testing.T) {
 	}
 	if len(res.InjectSteps) != 1 || res.InjectSteps[0].EphemeralMessage != "NEXT ITEM: gap-42" {
 		t.Fatalf("expected queued next item on PreInvocation, got %+v", res)
+	}
+}
+
+func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testing.T) {
+	cwd, runDir := hookRun(t)
+	sdir := filepath.Join(runDir, agySittingsDir)
+	if err := os.MkdirAll(sdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	seatRec, _ := json.Marshal(agySitting{
+		AgentID:     "agy-0123456789abcdef",
+		AgentType:   "frank-exchange-of-views:red-chair",
+		SeatID:      "red-chair",
+		RunDir:      runDir,
+		LeadSession: testLead,
+	})
+	if err := os.WriteFile(filepath.Join(sdir, "seat-red-chair.json"), seatRec, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// First call from run_workflow child conversation: NO parentConversationId and NO agentName.
+	// Carrying --seat-id red-chair binds conv-<conversationId>.json and injects FEOV_RUN/FEOV_AGENT_ID/FEOV_AGENT_TYPE.
+	const childConv = "child-wf-conv-1"
+	const childTranscript = "/tmp/brain/child-wf-conv-1/transcript_full.jsonl"
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": childConv,
+		"cwd":            cwd,
+		"transcriptPath": childTranscript,
+		"toolCall": map[string]any{
+			"id":   "call-1",
+			"name": "run_command",
+			"args": map[string]any{
+				"CommandLine": "/bin/feov-record register --run " + runDir + " --seat-id red-chair",
+			},
+		},
+	})
+	var out bytes.Buffer
+	if err := Pre(bytes.NewReader(payload), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"FEOV_RUN=", "FEOV_AGENT_ID='agy-0123456789abcdef'", "FEOV_AGENT_TYPE='frank-exchange-of-views:red-chair'"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("first run_command PreToolUse missing %q:\n%s", want, got)
+		}
+	}
+	if tr, err := os.ReadFile(filepath.Join(sdir, "seat-red-chair.transcript")); err != nil || string(tr) != childTranscript {
+		t.Fatalf("transcript file = %q err=%v, want %q", string(tr), err, childTranscript)
+	}
+
+	// Subsequent call in the same conversation WITHOUT --seat-id still resolves via conv-<id>.json.
+	payload2, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": childConv,
+		"cwd":            cwd,
+		"toolCall": map[string]any{
+			"id":   "call-2",
+			"name": "run_command",
+			"args": map[string]any{
+				"CommandLine": "echo hello",
+			},
+		},
+	})
+	out.Reset()
+	if err := Pre(bytes.NewReader(payload2), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "FEOV_AGENT_ID='agy-0123456789abcdef'") {
+		t.Fatalf("subsequent call did not resolve via bound conv file:\n%s", out.String())
 	}
 }

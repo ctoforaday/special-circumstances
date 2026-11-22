@@ -205,6 +205,11 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if cwd == "" {
 		cwd = cwdOf(req.Raw)
 	}
+	if s, ok := resolveAgySitting(req, cwd); ok {
+		in.AgentID = s.AgentID
+		in.AgentType = s.AgentType
+		in.SessionID = s.LeadSession
+	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
 	if isEnvelopeTool(in.ToolName, req.Engine) {

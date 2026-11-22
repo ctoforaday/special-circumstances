@@ -61,9 +61,12 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKDIR="${WORKDIR:-$HOME/.claude/scratch/universe}"
+HOST_HOME="$HOME"
+WORKDIR="${WORKDIR:-$HOST_HOME/.claude/scratch/universe}"
 MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
+HARNESS="${HARNESS:-claude}"
+AGY_MODEL="${AGY_MODEL:-gemini-3.8-flash-low}"
 # SMOKE IS THE DEFAULT, AND IT HAS TO BE SAID RATHER THAN IMPLIED.
 #
 # A run that sets the tiers and the lane count to smoke values and leaves --k-max at the engine's
@@ -75,8 +78,8 @@ PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area
 # a deliberate act; either way the mode is printed beside the tiers, so a log says which experiment
 # it was.
 SMOKE="${SMOKE:-1}"
-BULK="${BULK:-haiku}"
-JUDGMENT="${JUDGMENT:-haiku}"
+BULK="${BULK:-}"
+JUDGMENT="${JUDGMENT:-}"
 SEAT_OVERRIDES="${SEAT_OVERRIDES:-}"
 LANES="${LANES:-1}"
 # THE WORKFLOW ENGINE'S CONCURRENCY IS min(16, cpu_cores - 2), AND THAT HEURISTIC IS WRONG FOR
@@ -116,14 +119,28 @@ FORCE=0
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    -d|--dir)   WORKDIR="${2:?--dir needs a path}"; shift 2 ;;
-    --dir=*)    WORKDIR="${1#--dir=}"; shift ;;
-    --force)    FORCE=1; shift ;;
-    --no-follow) FOLLOW=0; shift ;;
-    *)          ARGS+=("$1"); shift ;;
+    -d|--dir)      WORKDIR="${2:?--dir needs a path}"; shift 2 ;;
+    --dir=*)       WORKDIR="${1#--dir=}"; shift ;;
+    --harness)     HARNESS="${2:?--harness needs claude|agy}"; shift 2 ;;
+    --harness=*)   HARNESS="${1#--harness=}"; shift ;;
+    --force)       FORCE=1; shift ;;
+    --no-follow)   FOLLOW=0; shift ;;
+    *)             ARGS+=("$1"); shift ;;
   esac
 done
 set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+case "$HARNESS" in
+  claude)
+    BULK="${BULK:-haiku}"
+    JUDGMENT="${JUDGMENT:-haiku}"
+    ;;
+  agy)
+    BULK="${BULK:-antigravity:flash_lite}"
+    JUDGMENT="${JUDGMENT:-antigravity:flash_lite}"
+    ;;
+  *) die "unsupported --harness '$HARNESS' (want claude or agy)" ;;
+esac
 
 WORKDIR="${WORKDIR%/}"
 [[ "$WORKDIR" != /* ]] && WORKDIR="$PWD/$WORKDIR"
@@ -241,9 +258,17 @@ guard_no_live_run() {
 
 # THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these.
 universe_env() {
+  export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
+  if [ "$HARNESS" = "agy" ]; then
+    export HOME="$WORKDIR/home"
+    export XDG_CONFIG_HOME="$WORKDIR/home/.config"
+    export XDG_CACHE_HOME="$WORKDIR/home/.cache"
+    export XDG_DATA_HOME="$WORKDIR/home/.local/share"
+    mkdir -p "$HOME/.gemini/antigravity-cli" "$HOME/.gemini/config/plugins" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
+    return
+  fi
   export CLAUDE_CONFIG_DIR="$WORKDIR/config"
   export CLAUDE_CODE_PLUGIN_CACHE_DIR="$WORKDIR/plugins"
-  export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
   mkdir -p "$CLAUDE_CONFIG_DIR" "$CLAUDE_CODE_PLUGIN_CACHE_DIR"
   # No credential file in the universe, link or copy: one would be a refresh token it could rotate.
   rm -f "$CLAUDE_CONFIG_DIR/.credentials.json"
@@ -355,11 +380,13 @@ clear_seat_env() {
 # loud, local to the call, and it sends the seat to the path it was given.
 #
 hermetic_path() {
-  local host_cache="$HOME/.claude/plugins/cache" out="" p dropped=0
+  local host_claude_cache="$HOST_HOME/.claude/plugins/cache"
+  local host_agy_plugins="$HOST_HOME/.gemini/config/plugins"
+  local out="" p dropped=0
   local IFS=:
   for p in $PATH; do
     case "$p" in
-      "$host_cache"/*) dropped=$((dropped + 1)); continue ;;
+      "$host_claude_cache"/*|"$host_agy_plugins"/*) dropped=$((dropped + 1)); continue ;;
     esac
     out="${out:+$out:}$p"
   done
@@ -371,12 +398,16 @@ hermetic_path() {
 }
 
 cmd_build() {
-  command -v claude >/dev/null || die "claude CLI not on PATH"
+  if [ "$HARNESS" = "agy" ]; then
+    command -v agy >/dev/null || die "agy CLI not on PATH"
+  else
+    command -v claude >/dev/null || die "claude CLI not on PATH"
+  fi
   guard_no_live_run "build"
   command -v go >/dev/null     || die "go not on PATH — the hook binaries cannot be built"
   universe_env; clear_seat_env
 
-  log "isolated universe at $WORKDIR"
+  log "isolated universe at $WORKDIR (harness=$HARNESS)"
   # THE BUILD RECORDS THE COMMIT IT BUILT, and builds only a commit: a smoke is bound to what it ran.
   [ -z "$(git -C "$REPO" status --porcelain 2>/dev/null)" ] || die "the checkout has uncommitted changes — a universe is built from a commit"
   rm -f "$WORKDIR/built-from"
@@ -384,9 +415,20 @@ cmd_build() {
 
   # Delete any existing local release before staging, and write SC_RELEASE_BASE_URL to settings.json
   rm -rf "$WORKDIR.release"
-  mkdir -p "$CLAUDE_CONFIG_DIR"
-  local settings="$CLAUDE_CONFIG_DIR/settings.json"
-  python3 - "$settings" "$WORKDIR.release" <<'PY'
+  local settings=""
+  if [ "$HARNESS" = "agy" ]; then
+    local agy_cli_dir="$HOME/.gemini/antigravity-cli"
+    [ -f "$HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token" ] \
+      || die "no $HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token — sign in with \`agy\` first"
+    for f in antigravity-oauth-token antigravity_state.pbtxt installation_id; do
+      [ -f "$HOST_HOME/.gemini/antigravity-cli/$f" ] && cp "$HOST_HOME/.gemini/antigravity-cli/$f" "$agy_cli_dir/$f"
+    done
+    chmod 600 "$agy_cli_dir/antigravity-oauth-token" 2>/dev/null || true
+    printf '{"toolPermission":"always-proceed"}\n' > "$agy_cli_dir/settings.json"
+  else
+    mkdir -p "$CLAUDE_CONFIG_DIR"
+    settings="$CLAUDE_CONFIG_DIR/settings.json"
+    python3 - "$settings" "$WORKDIR.release" <<'PY'
 import json, os, sys
 p, rel = sys.argv[1], sys.argv[2]
 d = json.load(open(p)) if os.path.exists(p) else {}
@@ -394,6 +436,7 @@ d.setdefault("env", {})["SC_RELEASE_BASE_URL"] = f"file://{rel}"
 os.makedirs(os.path.dirname(p), exist_ok=True)
 json.dump(d, open(p, "w"), indent=2)
 PY
+  fi
 
   # A STAGED MANIFEST, BECAUSE THE REAL ONE PINS RELEASES.
   mkdir -p "$WORKDIR"
@@ -410,17 +453,25 @@ PY
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
     || die "could not stage the local-path manifest"
 
-  if ( cd "$WORKDIR" && claude plugin marketplace list --json 2>/dev/null ) | grep -q "\"$MARKETPLACE_NAME\""; then
-    log "marketplace known — refreshing it from this checkout"
-    ( cd "$WORKDIR" && claude plugin marketplace remove "$MARKETPLACE_NAME" ) >/dev/null 2>&1
-  fi
-  ( cd "$WORKDIR" && claude plugin marketplace add "$mkt" ) || die "could not add marketplace from $mkt"
+  if [ "$HARNESS" = "agy" ]; then
+    for p in "${PLUGINS[@]}"; do
+      [ -d "$mkt/plugins/$p" ] || continue
+      log "installing $p (agy)"
+      ( cd "$WORKDIR" && agy plugin install "$mkt/plugins/$p" ) >/dev/null || die "agy plugin install failed: $p"
+    done
+  else
+    if ( cd "$WORKDIR" && claude plugin marketplace list --json 2>/dev/null ) | grep -q "\"$MARKETPLACE_NAME\""; then
+      log "marketplace known — refreshing it from this checkout"
+      ( cd "$WORKDIR" && claude plugin marketplace remove "$MARKETPLACE_NAME" ) >/dev/null 2>&1
+    fi
+    ( cd "$WORKDIR" && claude plugin marketplace add "$mkt" ) || die "could not add marketplace from $mkt"
 
-  for p in "${PLUGINS[@]}"; do
-    [ -d "$mkt/plugins/$p" ] || continue
-    log "installing $p"
-    ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
-  done
+    for p in "${PLUGINS[@]}"; do
+      [ -d "$mkt/plugins/$p" ] || continue
+      log "installing $p"
+      ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
+    done
+  fi
 
   # Build the local release into $WORKDIR.release
   local rel="$WORKDIR.release"
@@ -431,6 +482,9 @@ PY
   host_os="$(go env GOOS)"
   host_arch="$(go env GOARCH)"
   [ "$host_os" = "windows" ] && ext=".exe"
+  # Keep Go build/module cache and native helper cache under HOST_HOME so isolated HOME=agy builds reuse them.
+  export GOCACHE="${GOCACHE:-$HOST_HOME/.cache/go-build}"
+  export GOMODCACHE="${GOMODCACHE:-$HOST_HOME/go/pkg/mod}"
 
   local first_tools
   first_tools="$(find "$REPO/plugins" -maxdepth 2 -type d -name tools -print -quit 2>/dev/null)"
@@ -480,7 +534,7 @@ PY
         [ "${#nd[@]}" -gt 0 ] && digest="$("${nd[@]}" -print "$helper" 2>/dev/null)"
         [ -n "$digest" ] || die "could not compute digest for $helper"
 
-        local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/sc-universe/native/$helper/$digest"
+        local cache_dir="$HOST_HOME/.cache/sc-universe/native/$helper/$digest"
         local helper_bin_name="${helper}_${host_os}_${host_arch}${ext}"
         # The files this helper puts in the release: its binary, and each ASSETS line's pinned
         # export for this arch, as nativedigest -assets resolves them (the one reader of ASSETS and
@@ -528,14 +582,17 @@ PY
   done
 
   # Install from local release via fetch-bin.sh
+  local active_plugins_dir="$mkt/plugins"
+  [ "$HARNESS" = "agy" ] && active_plugins_dir="$HOME/.gemini/config/plugins"
+
   for p in "${PLUGINS[@]}"; do
-    local staged_root="$mkt/plugins/$p"
+    local staged_root="$active_plugins_dir/$p"
     [ -d "$staged_root" ] || continue
     [ -f "$staged_root/hooks/fetch-bin.sh" ] || continue
 
     rm -rf "${staged_root:?}/bin" "${staged_root:?}/.fetch"
     mkdir -p "$staged_root/.fetch"
-    if ! CLAUDE_PLUGIN_ROOT="$staged_root" sh "$staged_root/hooks/fetch-bin.sh" fetch </dev/null >>"$staged_root/.fetch/log" 2>&1; then
+    if ! CLAUDE_PLUGIN_ROOT="$staged_root" PLUGIN_ROOT="$staged_root" sh "$staged_root/hooks/fetch-bin.sh" fetch </dev/null >>"$staged_root/.fetch/log" 2>&1; then
       local failed_cause=""
       [ -f "$staged_root/.fetch/failed" ] && failed_cause="$(cat "$staged_root/.fetch/failed")"
       [ -z "$failed_cause" ] && [ -f "$staged_root/.fetch/log" ] && failed_cause="$(cat "$staged_root/.fetch/log")"
@@ -565,11 +622,11 @@ PY
     fi
   done
 
-  # Assert ensure is silent on every staged root
-  for root in "$mkt/plugins"/*/; do
+  # Assert ensure is silent on every active plugin root
+  for root in "$active_plugins_dir"/*/; do
     [ -f "$root/hooks/fetch-bin.sh" ] || continue
     local out
-    out=$(CLAUDE_PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart </dev/null 2>&1)
+    out=$(CLAUDE_PLUGIN_ROOT="$root" PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart </dev/null 2>&1)
     if [ -n "$out" ]; then
       die "the self-heal still fires in $(basename "$root"): $out
 A stamped root must make \`ensure\` a no-op. If it does not, this universe's binaries can be
@@ -578,8 +635,9 @@ replaced by the release's at any session start, and the run would be measuring t
   done
   log "self-heal checked: silent on every staged root"
 
-  # Enable plugins in settings.json
-  python3 - "$settings" "$WORKDIR.release" <<'PY'
+  if [ "$HARNESS" != "agy" ]; then
+    # Enable plugins in settings.json
+    python3 - "$settings" "$WORKDIR.release" <<'PY'
 import json, os, sys
 p, rel = sys.argv[1], sys.argv[2]
 d = json.load(open(p)) if os.path.exists(p) else {}
@@ -592,7 +650,7 @@ json.dump(d, open(p, "w"), indent=2)
 print(f"[universe] enabled {len(d['enabledPlugins'])} plugin(s) in {p}")
 PY
 
-  python3 - "$settings" "$mkt" <<'PY' || die "the universe's marketplace path is not the one just staged"
+    python3 - "$settings" "$mkt" <<'PY' || die "the universe's marketplace path is not the one just staged"
 import json, os, sys
 settings, staged = sys.argv[1], sys.argv[2]
 d = json.load(open(settings))
@@ -606,6 +664,7 @@ if not os.path.isdir(path):
     raise SystemExit(1)
 print(f"[universe] marketplace source resolves: {path}")
 PY
+  fi
   cmd_doctor
   log "the marketplace source lives at $mkt"
   log "the local release lives at $WORKDIR.release"
@@ -615,14 +674,15 @@ PY
 
 cmd_doctor() {
   universe_env; clear_seat_env
-  local mkt="${WORKDIR}.marketplace"
-  log "marketplace: $mkt"
-  for plugin_dir in "$mkt/plugins"/*/; do
+  local active_dir="${WORKDIR}.marketplace/plugins"
+  [ "$HARNESS" = "agy" ] && active_dir="$HOME/.gemini/config/plugins"
+  log "plugins ($HARNESS): $active_dir"
+  for plugin_dir in "$active_dir"/*/; do
     [ -d "$plugin_dir" ] || continue
     local n; n=$(find "$plugin_dir/bin" -maxdepth 1 -type f 2>/dev/null | wc -l)
     printf '  %-56s binaries=%s\n' "$(basename "$plugin_dir")" "$n"
   done
-  local rec=("$mkt/plugins/frank-exchange-of-views/bin/feov-record"*)
+  local rec=("$active_dir/frank-exchange-of-views/bin/feov-record"*)
   for r in "${rec[@]}"; do
     [ -x "$r" ] && log "feov-record: schema epoch $("$r" --schema 2>/dev/null), build $("$r" --version 2>/dev/null | awk '{print $NF}')"
   done
@@ -645,7 +705,7 @@ launch_detached() {
   command -v setsid >/dev/null || die "setsid not on PATH: a run cannot be detached from its launcher"
   rm -f "$PID_FILE"
   ln -sfn "run-$stamp.log" "$CURRENT_LOG"
-  setsid "${BASH:-bash}" "${BASH_SOURCE[0]}" --dir "$WORKDIR" _supervise "$stamp" "$mode" "$session" \
+  setsid "${BASH:-bash}" "${BASH_SOURCE[0]}" --dir "$WORKDIR" --harness "$HARNESS" _supervise "$stamp" "$mode" "$session" \
     </dev/null >>"$WORKDIR/run-$stamp.log" 2>&1 &
   local tries=0
   until [ -s "$PID_FILE" ]; do
@@ -702,7 +762,12 @@ cmd_run() {
   universe_env; clear_seat_env
 
   guard_no_live_run "run"
-  lend_access_token
+  if [ "$HARNESS" = "agy" ]; then
+    [ -f "$HOME/.gemini/antigravity-cli/antigravity-oauth-token" ] \
+      || die "no antigravity-oauth-token in $WORKDIR — run \`universe.sh --harness agy build\` first"
+  else
+    lend_access_token
+  fi
   local src="$WORKDIR/src"
   mkdir -p "$src"
 
@@ -710,16 +775,23 @@ cmd_run() {
   local out="$WORKDIR/run-$stamp.log"
 
   # The header goes to the log only: the follow below prints the log from its first line.
-  log "topic: $topic" >> "$out"
+  log "topic: $topic (harness=$HARNESS)" >> "$out"
   # --smoke SETS THE TIERS ITSELF, so asking for it alongside a different tier is two instructions
   # and one of them has to lose silently. Refused instead: the operator says which experiment they
   # meant. (Matching values are not a conflict — the defaults here ARE smoke's.)
   smoke_flag=""
   if [ "$SMOKE" = "1" ]; then
-    if [ "$BULK" != "haiku" ] || [ "$JUDGMENT" != "haiku" ] || [ "$LANES" != "1" ] || [ -n "$SEAT_OVERRIDES" ]; then
-      die "SMOKE=1 sets bulk=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+    if [ "$HARNESS" = "agy" ]; then
+      if [ "$BULK" != "antigravity:flash_lite" ] || [ "$JUDGMENT" != "antigravity:flash_lite" ] || [ "$LANES" != "1" ] || [ -n "$SEAT_OVERRIDES" ]; then
+        die "SMOKE=1 (agy) sets bulk=antigravity:flash_lite judgment=antigravity:flash_lite lanes=1 (and --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 or drop the overrides."
+      fi
+      smoke_flag=" --k-max 2"
+    else
+      if [ "$BULK" != "haiku" ] || [ "$JUDGMENT" != "haiku" ] || [ "$LANES" != "1" ] || [ -n "$SEAT_OVERRIDES" ]; then
+        die "SMOKE=1 sets bulk=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+      fi
+      smoke_flag=" --smoke"
     fi
-    smoke_flag=" --smoke"
   fi
   seat_flags=""
   for s in $SEAT_OVERRIDES; do
@@ -817,9 +889,14 @@ cmd_supervise() {
   # tool that outlives a killed claude holds no pipe here either: the tail ends when claude does, so
   # the EXIT line does not wait on it.
   : > "$raw"
-  CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS="$CONCURRENT_AGENTS" \
-    claude -p "${resume_args[@]+"${resume_args[@]}"}" "$prompt" \
-      --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null >>"$raw" &
+  if [ "$HARNESS" = "agy" ]; then
+    agy -p "$prompt" --model "$AGY_MODEL" \
+      --output-format stream-json --dangerously-skip-permissions --print-timeout 0 </dev/null >>"$raw" &
+  else
+    CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS="$CONCURRENT_AGENTS" \
+      claude -p "${resume_args[@]+"${resume_args[@]}"}" "$prompt" \
+        --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null >>"$raw" &
+  fi
   local claude_pid=$!
   # A signal to this process ends the run with its line written, rather than leaving claude behind
   # with nobody to report it. `wait` returns early on a trapped signal, hence the loop.

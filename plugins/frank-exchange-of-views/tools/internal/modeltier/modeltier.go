@@ -49,6 +49,19 @@ func Recognized(m string) bool {
 	return false
 }
 
+// AntigravityTiers are the model tiers Antigravity's run_workflow agent() primitive accepts.
+var AntigravityTiers = []string{"inherit", "flash_lite", "flash", "pro"}
+
+// RecognizedAntigravity reports whether m is one of the model tiers run_workflow's agent() accepts.
+func RecognizedAntigravity(m string) bool {
+	for _, t := range AntigravityTiers {
+		if m == t {
+			return true
+		}
+	}
+	return false
+}
+
 // Rank is a tier's position on the ladder. A tier not on it ranks dearest, matching Of's fallback.
 func Rank(tier string) int {
 	for i, k := range Order {

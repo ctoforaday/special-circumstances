@@ -7,6 +7,8 @@ native run_workflow primitives (agent, parallel, phase, log).
 import json
 import os
 import re
+import subprocess
+import uuid
 
 a = json.loads(args) if isinstance(args, str) else (args or {})
 if "maxRounds" in a or "max_rounds" in a:
@@ -70,17 +72,18 @@ LENS_ENVELOPE = json.loads("{\"additionalProperties\":false,\"properties\":{\"re
 EMPTY_ENVELOPE = {
     "type": "object",
     "additionalProperties": False,
-    "properties": {"record_read": RECORD_READ},
+    "properties": {},
 }
 CHAIR_ENVELOPE = {
-    **PLAN,
-    "description": "The tool writes every field of the plan into this call. Return it empty, or holding only notes.",
-    "properties": {**PLAN["properties"], "notes": {"type": "string"}, "record_read": RECORD_READ},
+    "type": "object",
+    "additionalProperties": False,
+    "description": "The orchestrator reads the authoritative plan from the record after your sitting. Return it empty, or holding only notes.",
+    "properties": {"notes": {"type": "string"}},
 }
 BLUE_ENVELOPE = {
     "type": "object",
     "additionalProperties": False,
-    "properties": {"notes": {"type": "string"}, "record_read": RECORD_READ},
+    "properties": {"notes": {"type": "string"}},
 }
 BENCH_ENVELOPE = {
     "type": "object",
@@ -88,8 +91,12 @@ BENCH_ENVELOPE = {
     "properties": {
         "halt_opinion": {"type": "string"},
         "notes": {"type": "string"},
-        "record_read": RECORD_READ,
     },
+}
+LENS_FINISH_ENVELOPE = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {},
 }
 
 LANE_METHODS = [
@@ -101,8 +108,22 @@ LANE_METHODS = [
 ]
 
 NO_PROGRESS_EPOCHS = 3
+ENVELOPE_REFUSAL_RETRIES = 5
 slug = os.path.basename(os.path.normpath(run_dir)) or "run"
-feov_record_bin = os.path.join(bin_dir, "feov-record")
+feov_record_bin = os.path.join(bin_dir, "feov-record.exe" if os.name == "nt" else "feov-record")
+feov_sitting_write_bin = os.path.join(bin_dir, "feov-sitting-write.exe" if os.name == "nt" else "feov-sitting-write")
+agy_sittings_dir = os.path.join(run_dir, ".agy-sittings")
+lead_session = globals().get("CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or ""
+
+
+def _run_sitting_write(args_list, stdin_text=None):
+    return subprocess.run(
+        [feov_sitting_write_bin, *args_list],
+        input=stdin_text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
 
 def role_of_seat(seat_id):
@@ -218,17 +239,91 @@ def require_plan(plan, epoch):
 
 async def sit(seat_id, prompt, schema, role_title):
     type_name, model = dispatch_spec(seat_id)
-    try:
-        return await agent(
-            prompt=prompt,
-            schema=schema,
-            role=role_title,
-            type_name=type_name,
-            model=model,
+    agent_id = f"agy-{uuid.uuid4().hex[:16]}"
+    agent_type = f"frank-exchange-of-views:{type_name}"
+    os.makedirs(agy_sittings_dir, exist_ok=True)
+    seat_reg_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.json")
+    seat_tr_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.transcript")
+    with open(seat_reg_path, "w") as f:
+        json.dump(
+            {
+                "agent_id": agent_id,
+                "agent_type": agent_type,
+                "seat_id": seat_id,
+                "run_dir": run_dir,
+                "lead_session": lead_session,
+            },
+            f,
         )
+
+    open_res = _run_sitting_write(
+        ["-run", run_dir, "-phase", "open", "-agent-id", agent_id, "-agent-type", agent_type]
+    )
+    if open_res.returncode != 0:
+        log(f"{seat_id} sitting open failed: {open_res.stderr.strip()}")
+    work_list = (open_res.stdout or "").strip()
+    full_prompt = f"{prompt}\n\n{work_list}" if work_list else prompt
+
+    seat_agent = agent(role=role_title, type_name=type_name, model=model)
+    try:
+        env = await seat_agent(full_prompt, schema)
+        for attempt in range(ENVELOPE_REFUSAL_RETRIES + 1):
+            env_res = _run_sitting_write(
+                ["-run", run_dir, "-phase", "envelope", "-agent-id", agent_id],
+                stdin_text=json.dumps(env if isinstance(env, dict) else {}),
+            )
+            answer = {}
+            if env_res.stdout and env_res.stdout.strip():
+                try:
+                    answer = json.loads(env_res.stdout)
+                except Exception as exc:
+                    log(f"{seat_id} envelope answer parse failed: {exc}")
+                    return None
+            if env_res.returncode != 0 and not answer.get("refusal"):
+                log(f"{seat_id} envelope check failed: {env_res.stderr.strip()}")
+                return None
+            refusal = answer.get("refusal") or ""
+            if not refusal:
+                admit_res = _run_sitting_write(
+                    ["-run", run_dir, "-phase", "admission", "-agent-id", agent_id]
+                )
+                if admit_res.returncode != 0:
+                    log(f"{seat_id} admission failed: {admit_res.stderr.strip()}")
+                out = dict(answer["envelope"]) if isinstance(answer.get("envelope"), dict) else (dict(env) if isinstance(env, dict) else {})
+                if isinstance(answer.get("read"), dict):
+                    out["record_read"] = answer["read"]
+                return out
+            if attempt >= ENVELOPE_REFUSAL_RETRIES:
+                log(f"{seat_id} envelope refused {attempt + 1} times: {refusal}")
+                return None
+            log(f"{seat_id} envelope refused (retry {attempt + 1}): {refusal[:160]}")
+            env = await seat_agent(
+                f"Your envelope was refused: {refusal}\n\nResolve this on the record and call `finish` again.",
+                schema,
+            )
+        return None
     except Exception as exc:
         log(f"{seat_id} sitting failed: {exc}")
         return None
+    finally:
+        transcript = ""
+        if os.path.exists(seat_tr_path):
+            try:
+                transcript = open(seat_tr_path).read().strip()
+            except OSError:
+                transcript = ""
+        close_args = ["-run", run_dir, "-phase", "close", "-agent-id", agent_id, "-agent-type", agent_type]
+        if transcript:
+            close_args.extend(["-transcript", transcript])
+        close_res = _run_sitting_write(close_args)
+        if close_res.returncode != 0:
+            log(f"{seat_id} sitting close failed: {close_res.stderr.strip()}")
+        for p in (seat_reg_path, seat_tr_path):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        del seat_agent
 
 
 async def hear_owed(reads):
@@ -335,7 +430,7 @@ async def run_debate():
                     f"Engaged gaps: {', '.join(gaps) if gaps else 'none'}.{record_clause(sid)} "
                     "Return the lens envelope."
                 )
-                return sid, await sit(sid, prompt, LENS_ENVELOPE, f"{sid} · ep{epoch}")
+                return sid, await sit(sid, prompt, LENS_FINISH_ENVELOPE, f"{sid} · ep{epoch}")
 
             lens_envs = await parallel(red_parties, run_lens)
             reads = [read_of(sid, env) for sid, env in lens_envs if env is not None]
