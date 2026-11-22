@@ -88,6 +88,26 @@ var Prices = map[string]Card{
 		Window:    1_000_000,
 	},
 	"claude-haiku-4-5": {Rate: Rate{1, 5, 0.10, 1.25, 2}, Window: 200_000},
+	// Google Gemini published API rates (Google AI Studio / Vertex AI standard tier; cache reads 0.1x input).
+	"gemini-3.5-flash-lite":  {Rate: Rate{0.30, 2.50, 0.03, 0, 0}, Window: 1_000_000},
+	"gemini-3.1-flash-lite":  {Rate: Rate{0.25, 1.50, 0.025, 0, 0}, Window: 1_000_000},
+	"gemini-2.5-flash-lite":  {Rate: Rate{0.10, 0.40, 0.01, 0, 0}, Window: 1_000_000},
+	"gemini-2.5-flash":       {Rate: Rate{0.30, 2.50, 0.03, 0, 0}, Window: 1_000_000},
+	"gemini-3.8-flash-low":   {Rate: Rate{0.75, 3.75, 0.075, 0, 0}, Window: 1_000_000},
+	"gemini-3.8-flash-medium": {Rate: Rate{0.75, 3.75, 0.075, 0, 0}, Window: 1_000_000},
+	"gemini-3.8-flash-high":  {Rate: Rate{0.75, 3.75, 0.075, 0, 0}, Window: 1_000_000},
+	"gemini-2.5-pro": {
+		Rate:      Rate{1.25, 10.00, 0.125, 0, 0},
+		LongAbove: 200_000,
+		Long:      Rate{2.50, 15.00, 0.25, 0, 0},
+		Window:    1_000_000,
+	},
+	"gemini-3.1-pro": {
+		Rate:      Rate{2.00, 12.00, 0.20, 0, 0},
+		LongAbove: 200_000,
+		Long:      Rate{4.00, 18.00, 0.40, 0, 0},
+		Window:    1_000_000,
+	},
 }
 
 // unpricedRate is what a model with no row is charged: the dearest figure of every row, component by
@@ -229,14 +249,14 @@ func ScanTranscript(txt string) Row {
 			if t.Prompt()+t.Output > 0 {
 				unpriced["antigravity (model unreported)"] = true
 			}
-		case recognized(m):
-			usd, ok := Price(t, m)
-			if !ok && t.Prompt()+t.Output > 0 {
-				unpriced[m] = true
-			}
-			row.Cost += usd
 		default:
-			if t.Prompt()+t.Output > 0 {
+			if _, known := CardOf(m); known || recognized(m) {
+				usd, ok := Price(t, m)
+				if !ok && t.Prompt()+t.Output > 0 {
+					unpriced[m] = true
+				}
+				row.Cost += usd
+			} else if t.Prompt()+t.Output > 0 {
 				unpriced[m] = true
 			}
 		}

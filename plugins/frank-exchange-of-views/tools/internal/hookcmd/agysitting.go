@@ -2,12 +2,15 @@ package hookcmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // agySitting is a seat sitting registered by debate.py under <runDir>/.agy-sittings/.
@@ -123,4 +126,40 @@ func sanitizeSeatID(raw string) string {
 		return ""
 	}
 	return s
+}
+
+// logAgyFailedToolSteps drains newly completed non-zero run_command steps from an Antigravity
+// seat's transcript on PreInvocation and logs each as LOG_TYPE_FAILURE. Antigravity fires
+// PostToolUse with error:"" on non-zero shell exits, so PreInvocation is the first hook point
+// where the exit code is visible on disk.
+func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, rec *hookfailures.Recorder) {
+	if req.Engine != hookcore.EngineAntigravity {
+		return
+	}
+	failed := hookcore.DrainFailedToolSteps(req)
+	if len(failed) == 0 {
+		return
+	}
+	caller := callerAgent(in)
+	if caller.ID == "" {
+		return
+	}
+	runDir := seatRunDir(cwd, caller, rec)
+	if runDir == "" {
+		return
+	}
+	for _, st := range failed {
+		summary := fmt.Sprintf("`%s` exited %d on `%s`", st.ToolName, st.ExitCode, strings.TrimSpace(st.Command))
+		if out := strings.TrimSpace(st.Output); out != "" {
+			if len(out) > 240 {
+				out = out[:240] + "…"
+			}
+			summary += " — " + strings.ReplaceAll(out, "\n", " ")
+		}
+		if err := recordFailure(runDir, caller.ID, summary); err != nil {
+			rec.Fail(StageFailureLog, "a seat's call failed and could not be logged: "+err.Error())
+		} else {
+			rec.OK(StageFailureLog)
+		}
+	}
 }

@@ -113,7 +113,17 @@ slug = os.path.basename(os.path.normpath(run_dir)) or "run"
 feov_record_bin = os.path.join(bin_dir, "feov-record.exe" if os.name == "nt" else "feov-record")
 feov_sitting_write_bin = os.path.join(bin_dir, "feov-sitting-write.exe" if os.name == "nt" else "feov-sitting-write")
 agy_sittings_dir = os.path.join(run_dir, ".agy-sittings")
+journal_dir = os.path.join(run_dir, ".agy-workflow")
+journal_path = os.path.join(journal_dir, "journal.jsonl")
 lead_session = globals().get("CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or ""
+
+
+def _append_journal(seat_id, agent_id, envelope):
+    if not isinstance(envelope, dict):
+        return
+    os.makedirs(journal_dir, exist_ok=True)
+    with open(journal_path, "a") as jf:
+        jf.write(json.dumps({"seat_id": seat_id, "agent_id": agent_id, "result": envelope}) + "\n")
 
 
 def _run_sitting_write(args_list, stdin_text=None):
@@ -292,6 +302,7 @@ async def sit(seat_id, prompt, schema, role_title):
                 out = dict(answer["envelope"]) if isinstance(answer.get("envelope"), dict) else (dict(env) if isinstance(env, dict) else {})
                 if isinstance(answer.get("record_read"), dict):
                     out["record_read"] = answer["record_read"]
+                _append_journal(seat_id, agent_id, out)
                 return out
             if attempt >= ENVELOPE_REFUSAL_RETRIES:
                 log(f"{seat_id} envelope refused {attempt + 1} times: {refusal}")
@@ -487,4 +498,6 @@ async def run_debate():
 
 
 result = await run_debate()
+log(f"Transcript dir: {journal_dir}")
+print(f"Transcript dir: {journal_dir}")
 print(json.dumps(result))

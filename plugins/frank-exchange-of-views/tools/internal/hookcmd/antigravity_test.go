@@ -282,4 +282,36 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 	if !strings.Contains(out.String(), "FEOV_AGENT_ID='agy-0123456789abcdef'") {
 		t.Fatalf("subsequent call did not resolve via bound conv file:\n%s", out.String())
 	}
+
+	// PreInvocation drains a failed run_command step from transcript_full.jsonl and logs it via recordFailure,
+	// AND flushes a PostToolUse-queued NextItem under the same bound agy agent id.
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+	trData := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"/missing/feov-record register\""}}]}` + "\n" +
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 127.\n\nCommand output:\nbash: /missing/feov-record: No such file or directory\n"}` + "\n"
+	if err := os.WriteFile(tp, []byte(trData), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var loggedAgent, loggedText string
+	prevFail := recordFailure
+	recordFailure = func(_, agentID, text string) error {
+		loggedAgent, loggedText = agentID, text
+		return nil
+	}
+	t.Cleanup(func() { recordFailure = prevFail })
+
+	preInvPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": childConv,
+		"cwd":            cwd,
+		"transcriptPath": tp,
+		"invocationNum":  1,
+	})
+	out.Reset()
+	if err := Pre(bytes.NewReader(preInvPayload), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if loggedAgent != "agy-0123456789abcdef" || !strings.Contains(loggedText, "exited 127") {
+		t.Fatalf("PreInvocation failed-step log = (%q, %q), want agy-0123456789abcdef + exited 127", loggedAgent, loggedText)
+	}
 }

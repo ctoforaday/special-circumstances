@@ -31,6 +31,7 @@
 package sessionstart
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -42,6 +43,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikecounter"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchainnudge"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -125,6 +128,41 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// announces it.
 		rec.Persist()
 		return 0
+	}
+
+	if eventName == "PreInvocation" && req.Engine == hookcore.EngineAntigravity {
+		var feedbackParts []string
+		for _, st := range hookcore.DrainFailedToolSteps(req) {
+			if ctx.ProjectDir == "" {
+				continue
+			}
+			path := strikes.Path(ctx.ProjectDir)
+			state, err := strikes.Load(os.ReadFile, path)
+			if err != nil {
+				rec.FailIn(strikecounter.StageStrikesRead, ctx.ProjectDir, err.Error()+" — strikes are counted from zero until it can be read")
+			} else {
+				rec.OKIn(strikecounter.StageStrikesRead, ctx.ProjectDir)
+			}
+			rawInput, _ := json.Marshal(map[string]any{"command": st.Command})
+			key := strikes.Key(st.ToolName, rawInput)
+			count, tripped := strikes.Record(&state, key, now)
+			if err := strikes.Save(path, state); err != nil {
+				rec.FailIn(strikecounter.StageStrikesWrite, ctx.ProjectDir, "cannot write "+path+": "+err.Error()+
+					" — strikes are not being kept, so the 3-strike rule cannot trip")
+			} else {
+				rec.OKIn(strikecounter.StageStrikesWrite, ctx.ProjectDir)
+			}
+			if tripped {
+				errSummary := fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
+				feedbackParts = append(feedbackParts, strikecounter.Message(st.ToolName, errSummary, key, count))
+			}
+		}
+		said := strings.TrimSpace(hookfailures.JoinMessages(healed, rec.Settle()))
+		resp := hookcore.Response{
+			Feedback: strings.Join(feedbackParts, "\n\n"),
+			Say:      said,
+		}
+		return hookcore.Respond(req, resp, stdout, stderr, nil)
 	}
 
 	if len(units) == 0 {

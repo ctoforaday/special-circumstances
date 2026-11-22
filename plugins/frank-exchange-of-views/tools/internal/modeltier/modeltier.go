@@ -62,6 +62,12 @@ func RecognizedAntigravity(m string) bool {
 	return false
 }
 
+// RecognizedAntigravityServed reports whether a served model id maps to a known Antigravity tier
+// (flash_lite, flash, or pro).
+func RecognizedAntigravityServed(served string) bool {
+	return SameModel("flash_lite", served) || SameModel("flash", served) || SameModel("pro", served)
+}
+
 // Rank is a tier's position on the ladder. A tier not on it ranks dearest, matching Of's fallback.
 func Rank(tier string) int {
 	for i, k := range Order {

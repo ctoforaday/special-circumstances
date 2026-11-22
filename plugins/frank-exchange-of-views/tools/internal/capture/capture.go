@@ -1854,11 +1854,14 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 	// not compared instead of reading an empty list as a clean pass.
 	journalPresent := true
 	src := filepath.Join(transcriptDir, "journal.jsonl")
+	dst := filepath.Join(run.Dir(), "trajectories", "journal.jsonl")
 	if _, serr := os.Stat(src); os.IsNotExist(serr) {
 		journalPresent = false
 		lines = append(lines, "journal: none at "+src+" — this run was not driven by the Workflow tool, or its journal was never written; the relayed plans are NOT COMPARED with the record")
-	} else if err = copyFile(src, filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
-		return nil, "", false, err
+	} else if !samePathFile(src, dst) {
+		if err = copyFile(src, dst); err != nil {
+			return nil, "", false, err
+		}
 	}
 	var onRecord *record.Family
 	if f, ferr := record.FamilyOf(run); ferr == nil {
@@ -2060,6 +2063,12 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, b, 0o644)
+}
+
+func samePathFile(a, b string) bool {
+	fa, errA := os.Stat(a)
+	fb, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(fa, fb)
 }
 
 // ---- record archive ----

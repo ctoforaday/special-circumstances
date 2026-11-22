@@ -189,10 +189,9 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageInput)
-	if req.HookEventName == "PreInvocation" {
-		req.Event = "PreInvocation"
-		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
-		return nil
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
 	}
 	in := hookgate.Input{
 		AgentID:   req.AgentID,
@@ -201,14 +200,19 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		ToolName:  req.ToolName,
 		ToolInput: req.ToolInput,
 	}
-	cwd := req.CWD
-	if cwd == "" {
-		cwd = cwdOf(req.Raw)
-	}
 	if s, ok := resolveAgySitting(req, cwd); ok {
 		in.AgentID = s.AgentID
 		in.AgentType = s.AgentType
 		in.SessionID = s.LeadSession
+		req.AgentID = s.AgentID
+		req.AgentType = s.AgentType
+		req.SessionID = s.LeadSession
+	}
+	if req.HookEventName == "PreInvocation" {
+		req.Event = "PreInvocation"
+		logAgyFailedToolSteps(req, in, cwd, rec)
+		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
+		return nil
 	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
