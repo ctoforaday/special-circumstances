@@ -145,3 +145,35 @@ func TestAGoChildLeavesNothingThatOutlivesTheRemoval(t *testing.T) {
 		}
 	}
 }
+
+// fakeM stands in for *testing.M: its Run is the suite.
+type fakeM func() int
+
+func (f fakeM) Run() int { return f() }
+
+// RUN REMOVES THE HOME AND FAILS THE PACKAGE ON WHAT IT COULD NOT DO. A green suite with a
+// failed check after it exits non-zero: a warning on a passing package is printed to nobody.
+func TestRunRemovesTheHomeAndFailsOnACheck(t *testing.T) {
+	for _, k := range append([]string{"GOMODCACHE", "GOCACHE"}, Keys...) {
+		t.Setenv(k, os.Getenv(k))
+	}
+	var home string
+	suite := fakeM(func() int {
+		home = os.Getenv("HOME")
+		lockedTree(t, home)
+		return 0
+	})
+	if code := Run(suite, "testhome-test-"); code != 0 {
+		t.Fatalf("Run = %d over a passing suite", code)
+	}
+	if _, err := os.Stat(home); !os.IsNotExist(err) {
+		t.Fatalf("the home %s survived Run (stat: %v)", home, err)
+	}
+	failing := func() error { return os.ErrInvalid }
+	if code := Run(fakeM(func() int { return 0 }), "testhome-test-", failing); code == 0 {
+		t.Error("Run = 0 with a post-suite check that failed")
+	}
+	if code := Run(fakeM(func() int { return 3 }), "testhome-test-"); code != 3 {
+		t.Errorf("Run = %d, want the suite's own failing code 3", code)
+	}
+}
