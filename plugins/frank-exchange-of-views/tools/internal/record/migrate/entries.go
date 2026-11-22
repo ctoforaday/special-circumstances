@@ -44,6 +44,11 @@ func Entries() Registry {
 		// (findingIDs, remap.dropped). A seat's prose keeps the id it wrote, which names nothing in the
 		// migrated record. The manifest counts each in events_in and none in events_out.
 		"finding": {Translate: toNoEvent},
+		// A TOMBSTONE ROW TRANSLATES TO NO EVENT (EventSchema 80). The replay's write path writes each
+		// row again after the act that owes it (record.writeTombstones), so a source written at this
+		// epoch would otherwise carry each row twice. The manifest counts the source's rows in
+		// events_in and the rewritten ones in events_out, equal on a source at the binary's rule.
+		"tombstone": {Translate: toNoEvent},
 		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
 		// the proposal's text, which the record calls its question.
 		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),

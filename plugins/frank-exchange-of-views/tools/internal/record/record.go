@@ -1790,8 +1790,8 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
 	return feov.Errorf(feov.Validation,
-		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
-			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
+		"%s is assigned to %s — the lens that minted its chain's first gap — and only its assignee %ss it; %s cannot. "+
+			"If the gap needs acting on, the chair's `dispatch next` engages its assignee; if it needs the bench, it is docketed at impasse",
 		gapID, assignee, act, seatID)
 }
 

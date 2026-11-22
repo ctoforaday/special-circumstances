@@ -521,18 +521,18 @@ func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 	}
 	regrade := &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Basis: proto.String("b")}
 	for _, other := range []string{"red-chair", "red-lens-logic"} {
-		if _, err := Append(Identity{Run: run, SeatID: other}, regrade); err == nil || !strings.Contains(err.Error(), "minted by "+evLens) {
+		if _, err := Append(Identity{Run: run, SeatID: other}, regrade); err == nil || !strings.Contains(err.Error(), "assigned to "+evLens) {
 			t.Errorf("%s regraded another lens's gap: %v", other, err)
 		}
-		if _, err := Append(Identity{Run: run, SeatID: other}, closeG1()); err == nil || !strings.Contains(err.Error(), "originator") {
+		if _, err := Append(Identity{Run: run, SeatID: other}, closeG1()); err == nil || !strings.Contains(err.Error(), "only its assignee closes it") {
 			t.Errorf("%s closed another lens's gap: %v", other, err)
 		}
 	}
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, regrade); err != nil {
-		t.Fatalf("the originator's regrade was refused: %v", err)
+		t.Fatalf("the assignee's regrade was refused: %v", err)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, closeG1()); err != nil {
-		t.Fatalf("the originator's close was refused: %v", err)
+		t.Fatalf("the assignee's close was refused: %v", err)
 	}
 	// The chair may carry the closure the archive now holds.
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {

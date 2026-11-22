@@ -30,9 +30,12 @@ func quoteImpasseBoard(t *testing.T, runDir string) {
 func quoteImpasseBoardWith(t *testing.T, runDir string, edit func(*recordpb.Mint)) {
 	t.Helper()
 	n := 0
+	// Each event carries the stamp the write path writes, so the board migrates as a live record does
+	// (TestAMigratedRecordWritesEachTombstoneOnce).
 	at := func(seat string, body proto.Message) *record.Event {
 		n++
-		return recordtest.At(t, seat, fmt.Sprintf("%s:qboard:%d", seat, n), body)
+		return recordtest.Stamped(recordtest.At(t, seat, fmt.Sprintf("%s:qboard:%d", seat, n), body),
+			fmt.Sprintf("2026-01-01T00:00:%02d.000000000Z", n))
 	}
 	mint := &recordpb.Mint{Location: proto.String(ruledSentence), GapId: proto.String(boardGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
