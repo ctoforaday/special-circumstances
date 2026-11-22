@@ -675,19 +675,28 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					return nil, err
 				}
 				if a != nil {
-					if _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a, ts); err != nil {
+					if _, _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a, ts); err != nil {
 						res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: "admitting the sitting this close ends: " + err.Error()})
 						continue
 					}
 					res.Out[admissionWord]++
 				}
 			}
-			ev, err := batch.Write(id, body, ts)
+			ev, actID, err := batch.Write(id, body, ts)
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			// THE ROWS THE WRITE PATH WROTE BESIDE THE ACT (record.writeTombstones): every event above the
+			// act's own id is one, written in its savepoint.
+			var rows int
+			if err := batch.Querier().QueryRow(`SELECT count(*) FROM "events" WHERE "id" > ?`, actID).Scan(&rows); err != nil {
+				return nil, fmt.Errorf("counting the tombstone rows written after source event %d: %w", old.ID, err)
+			}
+			if rows > 0 {
+				res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_TOMBSTONE)] += rows
+			}
 			if translatedSlug != "" {
 				classMints[translatedSlug]++
 			}
@@ -719,9 +728,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 			}
 			if _, seen := newID[old.ID]; !seen {
-				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
-					return nil, fmt.Errorf("reading the id of the event written from source event %d: %w", old.ID, err)
-				}
+				// THE ACT'S OWN ID, as the write returns it: after a placing or ending act the newest
+				// event is the tombstone row the write path wrote beside it (record.writeTombstones),
+				// which no pin, plan id or reading ref names.
+				wrote = actID
 				// Every link of a chain is the one act written here.
 				for _, k := range links[1:] {
 					newID[byKey[k].ID] = wrote
@@ -730,7 +740,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
-				if _, err := batch.Write(record.Identity{Run: dst, SeatID: seatID}, anchorAfter, ts); err != nil {
+				if _, _, err := batch.Write(record.Identity{Run: dst, SeatID: seatID}, anchorAfter, ts); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
@@ -850,7 +860,7 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Replay, dst r
 		return false, nil // nothing registered: nothing to admit, and nothing will register
 	}
 	sort.Strings(cast)
-	_, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast}, at)
+	_, _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast}, at)
 	return err == nil, err
 }
 

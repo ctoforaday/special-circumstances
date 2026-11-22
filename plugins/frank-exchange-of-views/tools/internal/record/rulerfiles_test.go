@@ -75,6 +75,10 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 				// A seat's docket filing waits on the gap's standing proposal and its first exchange:
 				// the bench answers M1 on docketing D1, and blue sits on G1 engaged and sits again.
 				mustAppend(t, sit(t, run, benchSeat), heldBy(actRule("M1", false, benchSeat), "D1"))
+				// The ruling's tombstone bars a proposal on G1 until blue's reword ends it; the end row
+				// that reword's write path writes stands in for it here.
+				recordtest.Seed(t, run.Dir(), recordtest.At(t, blueRespondSeat, "blue-respond:tombstone:end-G1", &recordpb.Tombstone{
+					GapId: proto.String("G1"), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), Ends: proto.Bool(true)}))
 				exchangeOn(t, run, "G1")
 			}
 			mustAppend(t, sit(t, run, filer), filingBy(subj))

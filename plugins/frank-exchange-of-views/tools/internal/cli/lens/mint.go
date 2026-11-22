@@ -497,7 +497,7 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 	//
 	// A FOUND-SOURCE 32 IS A QUOTE MINT AND MEETS THE GUARD LIKE ANY GAP (gblock, 2026-11-06, F4
 	// (a)): red mints --supersedes the prescribing gap, as the refusal says. A reword of the applied
-	// text by blue ends the estoppel (record.estoppingPrescriptions).
+	// text by blue writes the row that ends the estoppel (record.writeTombstones).
 	guards = append(guards, record.Check(func(l *record.Landing) error {
 		return requireNotEstopped(l, quote, p.GetSupersedes())
 	}))

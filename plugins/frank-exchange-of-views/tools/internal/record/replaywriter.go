@@ -75,46 +75,47 @@ func BeginReplay(run Run) (*Replay, error) {
 	return &Replay{run: run, tx: tx}, nil
 }
 
-// Write writes one act inside the replay, stamped at: the shape check every writer runs, the key and
+// Write writes one act inside the replay, stamped at, and returns its event and the id it took — the
+// act's own, never a row the write path wrote after it (writeTombstones): the shape check every writer runs, the key and
 // the insert. A refusal of the act rolls its savepoint back and is returned; the replay takes the
 // next act. An error wrapping ErrReplayFailed is the replay's own failure, and every later call
 // returns it.
 //
 // id.Run must be the replay's run: a write addressed to another run is refused, never written here.
-func (b *Replay) Write(id Identity, body proto.Message, at time.Time) (*Event, error) {
+func (b *Replay) Write(id Identity, body proto.Message, at time.Time) (*Event, int64, error) {
 	if b.err != nil {
-		return nil, b.err
+		return nil, 0, b.err
 	}
 	if b.done {
-		return nil, fmt.Errorf("this replay is already committed or rolled back")
+		return nil, 0, fmt.Errorf("this replay is already committed or rolled back")
 	}
 	if id.Run != b.run {
-		return nil, feov.Errorf(feov.Internal,
+		return nil, 0, feov.Errorf(feov.Internal,
 			"this act is addressed to the run at %s, and the replay writes the run at %s — an act lands on the run it names or nowhere",
 			id.Run.Dir(), b.run.Dir())
 	}
 	if err := b.savepoint("SAVEPOINT " + actSavepoint); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	ts := at.UTC().Format(stampLayout)
-	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil,
+	ev, actID, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil,
 		writeMode{stamp: func() string { return ts }})
 	if err != nil {
 		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
-			return ev, ferr
+			return ev, 0, ferr
 		}
 		// The rolled-back act's ids are free again, so a stream read before the rollback is not a
 		// prefix of the next read.
 		b.tx.ForgetReads()
 		if ferr := b.savepoint("RELEASE " + actSavepoint); ferr != nil {
-			return ev, ferr
+			return ev, 0, ferr
 		}
-		return ev, err
+		return ev, 0, err
 	}
 	if err := b.savepoint("RELEASE " + actSavepoint); err != nil {
-		return ev, err
+		return ev, 0, err
 	}
-	return ev, nil
+	return ev, actID, nil
 }
 
 // savepoint runs one savepoint statement. A failure ends the replay: past it, the savepoints no

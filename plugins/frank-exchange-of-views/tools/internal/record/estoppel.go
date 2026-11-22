@@ -3,12 +3,15 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // ESTOPPEL — red is bound by the fix it prescribed.
@@ -31,11 +34,11 @@ import (
 // EVERY `--quote` MINT MEETS THE GUARD, a found source's claim_contradicts_source included (gblock,
 // 2026-11-06, F4 (a)): red mints --supersedes the prescribing gap, as the refusal says.
 //
-// A REWORD ENDS IT (gblock, 2026-11-10, F12). An applied-verbatim prescription estops while the latest
-// edit touching its gap is the verbatim one; an edit after it that lists the gap in `reopened` —
-// the verbatim edit placed the gap's token in the fixed sentence, so an edit that rewords that
-// sentence names the gap — makes the span blue's, and a later verbatim edit of the same gap binds red
-// again (estoppingPrescriptions). Derived from BlueEdit.reopened, no new field.
+// THE BAR IS A WRITTEN ROW (#1695 §III.B12): the verbatim edit's transaction holds an ESTOPPEL
+// tombstone on the gap whose prescription it applied, and a later edit whose reopened names that gap —
+// blue reworded the sentence the fix placed the gap's token in — ends it (tombstone.go). A later
+// verbatim application places it again. A cut ends nothing, and a fix spanning several sentences
+// carries the token in one, so a reword of another of its sentences leaves the bar standing.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
@@ -57,45 +60,15 @@ const minEstoppelOverlap = 40
 // those bytes from the mint, so it holds by construction and no transcription slip can cost it.
 // `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
 func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
-	return verbatimPrescriptions(evs, gaps, false)
-}
-
-// estoppingPrescriptions is the gaps whose prescription still estops red: those whose LATEST edit
-// touching the gap is a verbatim one (F12). Walking the edits in event order, an edit with
-// applied_verbatim answering gap G sets G's prescription; an edit AFTER it whose `reopened` lists G —
-// blue reworded the sentence the fix placed G's token in — deletes it (the verbatim edit's OWN
-// `reopened` lists G, since it changed the sentence, and does not count); a later verbatim edit
-// answering G sets it again. Residue, stated: a fix spanning several sentences carries the token in
-// one, so a reword of another of its sentences lists nothing and the whole prescription still estops;
-// a gap with no token is never reopened and estops as before.
-func estoppingPrescriptions(evs []*Event, gaps map[string]*Gap) map[string]string {
-	return verbatimPrescriptions(evs, gaps, true)
-}
-
-// verbatimPrescriptions is the two folds above: every verbatim application, or, with reworded true,
-// only those no later reword ended.
-func verbatimPrescriptions(evs []*Event, gaps map[string]*Gap, reworded bool) map[string]string {
 	out := map[string]string{}
 	for _, e := range evs {
-		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
-		// test selected, and it cannot go stale against the enum the way a second reading of the
-		// type could.
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok {
+		// The bench's application of red's closing text on a for-red answer is no offer blue took.
+		if !ok || !ed.GetAppliedVerbatim() || seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
 			continue
 		}
-		id := ed.GetAnswers()
-		if ed.GetAppliedVerbatim() {
-			if g, ok := gaps[id]; ok && g.Mint != nil && g.Mint.GetFixNew() != "" {
-				out[id] = g.Mint.GetFixNew()
-			}
-			continue
-		}
-		if !reworded {
-			continue
-		}
-		for _, r := range ed.GetReopened() {
-			delete(out, r)
+		if g, ok := gaps[ed.GetAnswers()]; ok && g.Mint != nil && g.Mint.GetFixNew() != "" {
+			out[ed.GetAnswers()] = g.Mint.GetFixNew()
 		}
 	}
 	return out
@@ -105,7 +78,8 @@ func verbatimPrescriptions(evs []*Event, gaps map[string]*Gap, reworded bool) ma
 // that gap — the author of the prescription — and the prescribed text.
 type Estoppel struct{ Gap, PrescribedBy, Text string }
 
-// EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one.
+// EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one:
+// a gap an ESTOPPEL tombstone stands on at the end of f.Events, with its mint's fix_new.
 //
 // RED IS THE PARTY BOUND, NOT THE LENS THAT WROTE IT. The guard was written when one red seat minted
 // every gap, so "red's prescription" and "the minting seat's prescription" were the same set; with the
@@ -123,7 +97,13 @@ func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
 	if len(q) == 0 {
 		return Estoppel{}, false
 	}
-	for id, fixNew := range estoppingPrescriptions(f.Events, GapsByID(f.Gaps)) {
+	gaps := GapsByID(f.Gaps)
+	for _, id := range slices.Sorted(maps.Keys(standingTombstonesIn(f.Events)[recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL])) {
+		g, ok := gaps[id]
+		if !ok || g.Mint == nil || g.Mint.GetFixNew() == "" {
+			continue
+		}
+		fixNew := g.Mint.GetFixNew()
 		p := anchortext.Visible(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue

@@ -191,7 +191,7 @@ func standingReadingOf(evs []*Event, win WindowIndex, found []locatedReading, se
 // whose claim no longer locates once is LOST: it stands behind no mint until the seat reads the
 // sentence as it now stands, and where it finds against, the debt stands with the edit that took the
 // claim out named (lost), its sentence's tokens read as of the report before the loss (the as-of join),
-// unless that edit removed the sentence (removed) or applied red's text verbatim (estopped).
+// unless that edit removed the sentence (removed) or red's applied text stands estopped there (estopped).
 type locatedReading struct {
 	ev   *Event
 	v    *recordpb.Verify
@@ -222,8 +222,8 @@ type locatedReading struct {
 	// reword, named or not.
 	removed  bool
 	reworded string
-	// estopped is whether the chain's last edit applied red's prescription verbatim over a span that
-	// meets the estoppel floor: red wrote the sentence the report now holds.
+	// estopped is whether the chain's last edit meets the estoppel floor and an estoppel tombstone
+	// stands on the gap it answered: red wrote the sentence the report now holds.
 	estopped bool
 }
 
@@ -411,8 +411,8 @@ func editsOf(evs []*Event, win WindowIndex) []editAt {
 // reworded sentence out in turn rewords it again, or removes it, and the debt is judged against the
 // chain's CURRENT sentence — the lens's re-read of it replaces the reading (lostReadingReplaced), a gap
 // quoting it at any link of the chain, or on report as it stands, discharges (the joins are unioned),
-// and the LAST link's applied_verbatim is the estoppel: a reword of red's applied text ends it, and a
-// later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
+// and the LAST link's gap's standing estoppel tombstone is the estoppel: a reword of red's applied text
+// ends it, and a later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
 // reworded twice stood against a sentence the report no longer held, and nothing the lens did cleared
 // it.
 //
@@ -458,8 +458,18 @@ func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win Window
 		if at, ok := sentenceByWords(k.before, words); ok {
 			l.joinSentence(k.before, at)
 		}
-		l.reworded, l.removed, l.estopped = k.reworded, k.removed, k.bounded && k.m.ed.GetAppliedVerbatim()
+		l.reworded, l.removed = k.reworded, k.removed
 		words = k.reworded
+	}
+	// THE ESTOPPEL IS THE WRITTEN ROW: the chain's last link estops where it meets the floor and an
+	// estoppel tombstone stands on the gap it answered — the verbatim application placed it, and a
+	// reword of that sentence ended it (tombstone.go).
+	if last := links[len(links)-1]; last.bounded && last.m.ed.GetAnswers() != "" {
+		stands, err := tombstoneStands(q, recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, last.m.ed.GetAnswers())
+		if err != nil {
+			return l, err
+		}
+		l.estopped = stands
 	}
 	if !l.removed {
 		if at, ok := sentenceByWords(report, words); ok {

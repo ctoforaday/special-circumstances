@@ -84,3 +84,90 @@ func TestTheLockedAxesAreTheWindowsMovedAxes(t *testing.T) {
 		t.Errorf("severity after a second ruling = %+v (first locked at %d), want re-locked at the second ruling's place at medium", again[0], first)
 	}
 }
+
+// The fold under T-B36's reword rows (the rows themselves are driven through the verbs by internal/cli's
+// TestNoLaterDocketingOverturnsARuling): A RULING'S LOCK ENDS WITH ITS TOMBSTONE (gblock 2026-11-21, "Ends
+// with the tombstone"). R1 (--keep) locks severity and likelihood, R2 (for blue on a regrade proposal)
+// re-locks severity; the row that ends G1's ruling tombstone — blue's reword's — ends every lock a
+// ruling on G1 set, and a successor's inherited lock with them; a later ruling's placement revives no
+// ended lock, and a later grade ruling locks afresh.
+func TestARulingsLockEndsWithItsTombstone(t *testing.T) {
+	const lens = "red-lens-logic"
+	sev := recordtest.P(recordpb.Grade_GRADE_HIGH)
+	keep := func(d string) *recordpb.MotionRule {
+		return &recordpb.MotionRule{Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String(d), MovedGrades: recordpb.MovedGrades_MOVED_GRADES_KEPT.Enum(),
+			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}}
+	}
+	movement := func(d string) *recordpb.Docketing {
+		return &recordpb.Docketing{DocketingId: proto.String(d), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT.Enum(), Basis: proto.String("grades moved")}
+	}
+	stone := func(d string, ends bool) *recordpb.Tombstone {
+		s := &recordpb.Tombstone{GapId: proto.String("G1"), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum()}
+		if ends {
+			s.Ends = proto.Bool(true)
+		} else {
+			s.DocketingId = proto.String(d)
+		}
+		return s
+	}
+	b := newStage(t)
+	b.register(lens).add(lens, liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_LOW))
+	b.register(lens).add(lens, &recordpb.Regrade{GapId: proto.String("G1"), Severity: sev, Likelihood: sev, Basis: proto.String("b")})
+	b.register("red-chair").add("red-chair", movement("D1"))
+	b.register("judge").add("judge", keep("D1")).add("judge", stone("D1", false))
+	b.register(lens).add(lens, &recordpb.Regrade{GapId: proto.String("G1"), Impact: sev, Basis: proto.String("b")})
+	b.register("red-chair").add("red-chair", movement("D2"))
+	b.register("judge").add("judge", keep("D2")).add("judge", stone("D2", false))
+	b.register(lens).add(lens, func() *recordpb.Mint {
+		m := liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
+		m.Supersedes = proto.String("G1")
+		return m
+	}())
+	b.register("blue-respond").add("blue-respond", stone("", true))
+	b.register("red-chair").add("red-chair", &recordpb.Docketing{DocketingId: proto.String("D3"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse")})
+	b.register("judge").add("judge", &recordpb.MotionRule{Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+		DocketingId: proto.String("D3"), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
+		Final: proto.Bool(true), Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}}).
+		add("judge", stone("D3", false))
+	b.seed()
+
+	db, err := openRunForRead(mustRun(t, b.runDir))
+	if err != nil || db == nil {
+		t.Fatalf("open: %v", err)
+	}
+	evs, win, err := eventsAt(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := win.IDs(evs)
+	end := 0
+	for evs[end].GetTombstone() == nil || !evs[end].GetTombstone().GetEnds() {
+		end++
+	}
+	locked := func(axes [4]axisGrade) []string {
+		var out []string
+		for k, ax := range axes {
+			if ax.benchAt != 0 {
+				out = append(out, recordpb.Word(gradeAxes[k]))
+			}
+		}
+		return out
+	}
+	before := benchSetAxesOf(evs[:end], ids[:end])
+	if got := locked(before["G1"]); len(got) != 3 {
+		t.Fatalf("before the end, G1's locked axes = %v, want severity, likelihood (R1) and impact (R2)", got)
+	}
+	if got := locked(before["G2"]); len(got) != 3 {
+		t.Fatalf("before the end, the successor G2 inherits %v, want G1's three", got)
+	}
+	after := benchSetAxesOf(evs, ids)
+	if got := locked(after["G1"]); len(got) != 0 {
+		t.Errorf("after the end row and a later closing ruling, G1's locked axes = %v, want none: the lock ended with its tombstone and a ruling on no grade revives none", got)
+	}
+	if got := locked(after["G2"]); len(got) != 0 {
+		t.Errorf("after the end row, the successor's inherited lock = %v, want none", got)
+	}
+}

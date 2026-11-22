@@ -54,11 +54,11 @@ func TestAReplayUndoesARefusedActWrittenPastItsEventsRow(t *testing.T) {
 	events, logs := countRowsIn(t, run, "events"), countRowsIn(t, run, "log")
 	b := mustBegin(t, run)
 
-	first, err := b.Write(blue, seatLog("first"), replayAt)
+	first, _, err := b.Write(blue, seatLog("first"), replayAt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.Write(blue, failsAfterTheEventsRow(), replayAt)
+	_, _, err = b.Write(blue, failsAfterTheEventsRow(), replayAt)
 	if err == nil || errors.Is(err, ErrReplayFailed) {
 		t.Fatalf("the act whose body breaks a constraint was answered %v; want its refusal, the replay still usable", err)
 	}
@@ -67,7 +67,7 @@ func TestAReplayUndoesARefusedActWrittenPastItsEventsRow(t *testing.T) {
 	if !strings.Contains(err.Error(), "FOREIGN KEY") || strings.Contains(err.Error(), "recording the event") {
 		t.Fatalf("the act was refused by %q; this test needs a refusal after the events row is written", err)
 	}
-	second, err := b.Write(blue, seatLog("second"), replayAt)
+	second, _, err := b.Write(blue, seatLog("second"), replayAt)
 	if err != nil {
 		t.Fatalf("the replay refused the act after a refused one: %v", err)
 	}
@@ -97,12 +97,12 @@ func TestAReplayTakesTheActAfterOneTheShapeRefused(t *testing.T) {
 	blue := sit(t, run, "blue-respond")
 	chair := sit(t, run, "red-chair")
 	b := mustBegin(t, run)
-	_, err := b.Write(chair, &recordpb.Position{PositionId: proto.String(NewID("position"))}, replayAt)
+	_, _, err := b.Write(chair, &recordpb.Position{PositionId: proto.String(NewID("position"))}, replayAt)
 	mustRefuse(t, err, "requires --reason")
 	if errors.Is(err, ErrReplayFailed) {
 		t.Fatalf("a refused act was reported as the replay's failure: %v", err)
 	}
-	if _, err := b.Write(blue, seatLog("after"), replayAt); err != nil {
+	if _, _, err := b.Write(blue, seatLog("after"), replayAt); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Commit(); err != nil {
@@ -122,7 +122,7 @@ func TestASavepointFailurePoisonsTheReplay(t *testing.T) {
 			blue := sit(t, run, "blue-respond")
 			events := countRowsIn(t, run, "events")
 			b := mustBegin(t, run)
-			if _, err := b.Write(blue, seatLog("before"), replayAt); err != nil {
+			if _, _, err := b.Write(blue, seatLog("before"), replayAt); err != nil {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { SavepointTestHook = nil })
@@ -137,11 +137,11 @@ func TestASavepointFailurePoisonsTheReplay(t *testing.T) {
 			if strings.HasPrefix(stmt, "ROLLBACK") {
 				body = failsAfterTheEventsRow()
 			}
-			if _, err := b.Write(blue, body, replayAt); !errors.Is(err, ErrReplayFailed) {
+			if _, _, err := b.Write(blue, body, replayAt); !errors.Is(err, ErrReplayFailed) {
 				t.Fatalf("a failed %s answered %v; want ErrReplayFailed", stmt, err)
 			}
 			SavepointTestHook = nil
-			if _, err := b.Write(blue, seatLog("after"), replayAt); !errors.Is(err, ErrReplayFailed) {
+			if _, _, err := b.Write(blue, seatLog("after"), replayAt); !errors.Is(err, ErrReplayFailed) {
 				t.Errorf("an act after the failure answered %v; want ErrReplayFailed", err)
 			}
 			if err := b.Commit(); !errors.Is(err, ErrReplayFailed) {
@@ -162,7 +162,7 @@ func TestAReplayRefusesAnActAddressedToAnotherRun(t *testing.T) {
 	elsewhere := sit(t, other, "blue-respond")
 	b := mustBegin(t, run)
 	for _, id := range []Identity{elsewhere, {SeatID: "blue-respond"}} {
-		_, err := b.Write(id, seatLog("misaddressed"), replayAt)
+		_, _, err := b.Write(id, seatLog("misaddressed"), replayAt)
 		mustRefuse(t, err, "an act lands on the run it names or nowhere")
 	}
 	if err := b.Commit(); err != nil {
@@ -190,7 +190,7 @@ func TestTheReplayStampsEachActWithTheTimeItIsHanded(t *testing.T) {
 	b := mustBegin(t, run)
 	first, second := replayAt, replayAt.Add(-time.Hour) // an archive's stamps need not rise with the ids
 	for _, at := range []time.Time{first, second} {
-		ev, err := b.Write(blue, seatLog(at.String()), at)
+		ev, _, err := b.Write(blue, seatLog(at.String()), at)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func TestTheReplayAsksNoActJudgement(t *testing.T) {
 		t.Fatalf("live, a bridge with no kind: %v, want it refused", err)
 	}
 	b := mustBegin(t, run)
-	if _, err := b.Write(lens, body(), replayAt); err != nil {
+	if _, _, err := b.Write(lens, body(), replayAt); err != nil {
 		t.Fatalf("the replay refused a bridge with no kind: %v", err)
 	}
 	if err := b.Commit(); err != nil {
@@ -231,7 +231,7 @@ func TestTheReplayAsksNoActJudgement(t *testing.T) {
 func replayed(t *testing.T, id Identity, body proto.Message) (*Event, error) {
 	t.Helper()
 	b := mustBegin(t, id.Run)
-	ev, err := b.Write(id, body, Now())
+	ev, _, err := b.Write(id, body, Now())
 	if cerr := b.Commit(); cerr != nil {
 		t.Fatal(cerr)
 	}

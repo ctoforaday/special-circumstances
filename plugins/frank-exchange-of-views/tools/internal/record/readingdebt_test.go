@@ -550,6 +550,9 @@ func TestAnEstoppedEditDischargesTheDebt(t *testing.T) {
 	wantDebts(t, runOf(b.register("red-chair")), evLens+":"+dbFirst)
 	// A quote gap's token is placed at the quote's end, after the sentence's stop.
 	b.blueEdit(dbFirst+anchor.Token("G-00000009"), fixed+anchor.Token("G-00000009"), true, "G-00000009")
+	// The stage seeds its events past the write path, so the estoppel row writeTombstones writes beside
+	// the verbatim edit is seeded with it.
+	b.add("blue-respond", &recordpb.Tombstone{GapId: proto.String("G-00000009"), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()})
 	wantDebts(t, runOf(b.register("red-chair")))
 	b.readFound(evLens, dbURL, fixed, refutes)
 	wantDebts(t, runOf(b.register("red-chair")), evLens+":"+fixed)

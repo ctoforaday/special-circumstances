@@ -96,6 +96,13 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
+	// The readers of the standing rows: the proposal arm, the class arm's held set and the work list's
+	// protected gaps, the successor a supersede ruling stored among them.
+	if db, err := openRunForRead(run); err == nil && db != nil {
+		_ = requireNotEstoppedOn(db, "G1")
+		_, _ = withRuledGapsOfClassAt(db, nil, recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION)
+		_, _ = rulingsProtectingAll(db)
+	}
 
 	// Whether red's closing takes text where a proposal stands on an open gap about no inquiry or
 	// section reads the proposal's act.

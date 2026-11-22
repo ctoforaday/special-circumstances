@@ -90,7 +90,7 @@ func TestASuccessorCarriesTheLiveAnswerDemandOfTheGapItSupersedes(t *testing.T) 
 
 	// THE REPLAY ASKS NO ACT JUDGEMENT: an archived document successor of unanswered G3 is written as recorded.
 	b := mustBegin(t, run)
-	if _, err := b.Write(chair, demandMint("G6", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G3"), replayAt); err != nil {
+	if _, _, err := b.Write(chair, demandMint("G6", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G3"), replayAt); err != nil {
 		t.Fatalf("the replay refused an archived supersede of another check kind: %v", err)
 	}
 	if err := b.Commit(); err != nil {

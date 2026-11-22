@@ -22,7 +22,7 @@ func archived(t *testing.T, runDir, seatID string, body proto.Message) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Write(record.Identity{Run: run, SeatID: seatID}, body, time.Now()); err != nil {
+	if _, _, err := b.Write(record.Identity{Run: run, SeatID: seatID}, body, time.Now()); err != nil {
 		_ = b.Rollback()
 		t.Fatalf("replaying %s/%T: %v", seatID, body, err)
 	}

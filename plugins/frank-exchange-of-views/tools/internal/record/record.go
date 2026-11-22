@@ -287,7 +287,7 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	}
 	sitting := held.sitting
 	if !found {
-		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil, stamp); err != nil {
+		if _, err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil, stamp); err != nil {
 			return 0, "", err
 		}
 		// The row just written is the newest: the transaction holds the write lock.
@@ -687,7 +687,7 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 	}
 	var out []*Event
 	for _, a := range acts {
-		ev, err := appendAct(id, a.Body, begin, a.Guards, liveWrite)
+		ev, _, err := appendAct(id, a.Body, begin, a.Guards, liveWrite)
 		out = append(out, ev)
 		if err != nil {
 			return out, err
@@ -719,7 +719,7 @@ type writeMode struct {
 // liveWrite is every writer's mode but the replay's: stamped from Now, and the act judged.
 var liveWrite = writeMode{stamp: stamp, judge: true}
 
-// appendAct is one act's write, whoever holds the transaction: the checks every act passes, then
+// appendAct is one act's write, whoever holds the transaction, and the id the act took (writeIn): the checks every act passes, then
 // the write itself inside the transaction begin hands it — the verb's guards (Guard) first, against
 // that transaction, then validation, the act judgements where mode judges, the key and the insert.
 // Append's begin opens the record and a transaction of its own; a Replay's hands over the replay's
@@ -728,44 +728,44 @@ var liveWrite = writeMode{stamp: stamp, judge: true}
 //
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for.
-func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode) (*Event, int64, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
 	// somewhere nobody reads.
 	if !run.Valid() {
-		return nil, feov.Errorf(feov.MissingField,
+		return nil, 0, feov.Errorf(feov.MissingField,
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
 	// A CAPTURED RUN TAKES NOTHING (captured.go), asked before anything is opened.
 	if err := requireRunNotCaptured(run); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	tx, err := begin()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	files := filesOf(run)
 	// THE RECORD'S OWN REFUSAL OF A SEAT ACT COMES BEFORE THE VERB'S GUARDS (outcomeclosed.go): an
 	// act after the outcome is told the run ended, not what a guard finds wrong with it. writeIn asks
 	// it again, which costs one query and keeps it first for the writers that hold no guards.
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
-		return ev, err
+		return ev, 0, err
 	}
 	if err := guardsAt(writeView{q: tx, files: files}, guards, false); err != nil {
-		return ev, err
+		return ev, 0, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
+	actID, err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
 		w := writeView{q: tx, files: files}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
@@ -779,10 +779,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 			}
 		}
 		return guardsAt(w, guards, true)
-	}, mode.stamp); err != nil {
-		return ev, err
+	}, mode.stamp)
+	if err != nil {
+		return ev, 0, err
 	}
-	return ev, nil
+	return ev, actID, nil
 }
 
 // WriteBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
@@ -812,22 +813,22 @@ var WriteBegins = func() {}
 //
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
-func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error, at func() string) error {
+func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error, at func() string) (int64, error) {
 	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS, AND ITS OUTCOME IS THE ASSEMBLY SITTING'S
 	// (outcomeclosed.go), asked FIRST: an act after the outcome is told the run ended, not what else
 	// is wrong with it. appendAct asks it before its guards as well; this covers every other writer
 	// (RegisterSeat, DispatchNext, a migration's Replay).
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
-		return err
+		return 0, err
 	}
 	if check != nil {
 		if err := check(tx); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	key, err := deriveKey(tx, seatID, typ, body)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// THE ONCE-PER-SITTING DUTY IS ASKED HERE, NOT LEFT TO THE KEY. The key carries the seat's
 	// stored sitting count, so a repair's act shares the ordinal of the sitting it repairs and
@@ -835,15 +836,16 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	// (oncepersitting.go). It runs before the insert and inside the same transaction, which holds
 	// the write lock from its BEGIN.
 	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
-		return err
+		return 0, err
 	}
 	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings
 	// racing each other resolve to one answer and one refusal (motion.go).
 	if err := requireUnanswered(tx, seatID, body); err != nil {
-		return err
+		return 0, err
 	}
 	envelope(ev, at(), seatID, key)
-	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+	actID, err := recordsql.InsertTx(tx, ev)
+	if err != nil {
 		// A KEY COLLISION IS A SEAT REPEATING A LABELLED ACT, and the raw constraint text teaches
 		// nothing about that. The shard record met this by DEDUPING — two events with one key, one
 		// of them silently discarded on read — so a seat that filed the same row twice never
@@ -861,14 +863,19 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 			if a := SupersedingAnswer(seatID, typ, body); a != "" {
 				tail = " " + a
 			}
-			return feov.Errorf(feov.Validation,
+			return 0, feov.Errorf(feov.Validation,
 				"%s has already recorded a %s on %q this sitting — the record keeps your first one "+
 					"rather than quietly replacing it (a retried write lands on the same key on purpose).%s",
 				seatID, recordpb.Word(typ), keyLabel(body), tail)
 		}
-		return err
+		return 0, err
 	}
-	return nil
+	// THE TOMBSTONES THE ACT OWES, written in its transaction, under its identity and stamp, right
+	// after it (tombstone.go): every writer shares this line, the replay's included.
+	if err := writeTombstones(tx, ev, seatID, body, at); err != nil {
+		return 0, err
+	}
+	return actID, nil
 }
 
 // validate mirrors the oracle's append-time checks: anchors, lineage existence, the gap class's

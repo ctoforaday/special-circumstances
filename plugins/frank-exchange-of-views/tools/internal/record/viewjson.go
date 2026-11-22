@@ -155,6 +155,11 @@ type GapJSON struct {
 	// retire that left none of them live, while no closing act other than a carry follows it; null
 	// on every other gap, never omitted. The closure stands; its lens is told.
 	AnswersRetiredEvent *int64 `json:"answers_retired_event"`
+	// RulingTombstone is the standing bench ruling this gap is under — the ruled gap's own, or, on the
+	// successor a supersede accept wrote, the ruled gap's (`on`) — and EstoppelTombstone the standing
+	// estoppel on its prescription; each absent where none stands. Read from tombstone_standing.
+	RulingTombstone   *RulingTombstone   `json:"ruling_tombstone,omitempty"`
+	EstoppelTombstone *EstoppelTombstone `json:"estoppel_tombstone,omitempty"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
@@ -375,6 +380,14 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 	}
 
+	rulings, err := rulingsProtectingAll(q)
+	if err != nil {
+		return out, err
+	}
+	estoppels, err := estoppelsStandingAt(q)
+	if err != nil {
+		return out, err
+	}
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
@@ -419,6 +432,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			EvidenceAnswered: answered, AnswersRetiredEvent: nullInt64(answersRetired),
 			Backing: []GapBackingJSON{},
 		}
+		gj.RulingTombstone, gj.EstoppelTombstone = tombstonesOn(id, rulings, estoppels)
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
 		locateGap(located, &g)
 		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
@@ -838,6 +852,9 @@ type WorkGapJSON struct {
 	// carries (its class, else graded medium or above). The chair's PASS lists the ones that do
 	// not by class; a seat reading its work list sees which is which without re-deriving it.
 	Material bool `json:"material"`
+	// RulingTombstone and EstoppelTombstone: see GapJSON.
+	RulingTombstone   *RulingTombstone   `json:"ruling_tombstone,omitempty"`
+	EstoppelTombstone *EstoppelTombstone `json:"estoppel_tombstone,omitempty"`
 }
 
 // EstoppedJSON is a BENCH-RULED closure: a gap this seat may not re-raise.
@@ -902,11 +919,15 @@ type EstoppedJSON struct {
 	ArtifactState string `json:"artifact_state"`
 	// Settled, ReopensOn and Final are the ruling's own answers, off the ruling the bench recorded:
 	// the proposition the losing party may no longer assert (empty where the ruling barred none),
-	// and what would reopen the gap — the condition, or Final where nothing would. A docket motion
-	// on the gap is a reconsideration, admitted on new grounds only (requireNewGrounds).
+	// and what would reopen the gap — the condition, or Final where nothing would. A proposal on the
+	// gap is refused while the ruling's tombstone stands (requireNotEstoppedOn).
 	Settled   string `json:"settled"`
 	ReopensOn string `json:"reopens_on,omitempty"`
 	Final     bool   `json:"final"`
+	// Ruling is the standing ruling tombstone that bars the gap: the docketing, the ruling's event and
+	// word, and on a successor the ruled gap it stands on. Ends is the act that ends it.
+	Ruling RulingTombstone `json:"ruling"`
+	Ends   string          `json:"ends"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -987,10 +1008,11 @@ type WorkGapState struct {
 	// item on a docket motion says so before it rules.
 	remandLimit int64
 	Fate        string // the last closer's word; closed gaps only
-	// benchRuling is the bench's closing ruling the gap view names (`bench_close_event`); nil where
-	// the bench never closed the gap. Its settled, reopens_on and final reach the estopped row.
-	benchRuling                      *recordpb.DocketRuling
-	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
+	// rulingTombstone and estoppelTombstone are GapJSON's, read from tombstone_standing.
+	rulingTombstone                  *RulingTombstone
+	estoppelTombstone                *EstoppelTombstone
+	tombstoneEnds                    string // what ends rulingTombstone, in words
+	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	Supersedes                       string // the one gap this gap replaces, "" for none
 	// Material and ClassMaterial are the view's columns the PASS gate reads, so the chair's work
@@ -1020,6 +1042,10 @@ type workReads struct {
 	// wholeQuestion is the gaps minted about the question as a whole since its latest split
 	// (wholeQuestionGapsOf), on the same snapshot.
 	wholeQuestion []string
+	// rulings and estoppels are the standing tombstones by the gap they protect (rulingsProtectingAll,
+	// estoppelsStandingAt).
+	rulings   map[string]RulingTombstone
+	estoppels map[string]int64
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1088,6 +1114,12 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.wholeQuestion = wholeQuestionGapsOf(r.parts, minted)
+	if r.rulings, err = rulingsProtectingAll(q); err != nil {
+		return r, err
+	}
+	if r.estoppels, err = estoppelsStandingAt(q); err != nil {
+		return r, err
+	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1153,13 +1185,17 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	for _, row := range r.gaps {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
+		g.rulingTombstone, g.estoppelTombstone = tombstonesOn(g.ID, r.rulings, r.estoppels)
+		if t := g.rulingTombstone; t != nil {
+			g.tombstoneEnds = strings.TrimSuffix(strings.TrimSuffix(tombstoneEnds(r.ruledAbout(t.ruled())), ","), " —")
+		}
 		locateGap(located, &g)
 		c, err := closeStateOf(g.ID, row.closure, byID, r.win)
 		if err != nil {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
 		if c != nil {
-			g.Fate, g.closedEpoch, g.benchRuling = c.reason(), c.closedEpoch, c.lastBenchClosure
+			g.Fate, g.closedEpoch = c.reason(), c.closedEpoch
 		}
 		out = append(out, g)
 	}
@@ -1298,27 +1334,31 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
-				Material: g.Material,
+				Material:        g.Material,
+				RulingTombstone: g.rulingTombstone, EstoppelTombstone: g.estoppelTombstone,
 			}
 			if g.FixNew != "" {
 				item.FixOld, item.FixNew = g.FixOld, g.FixNew
 			}
 			out.Open = append(out.Open, item)
-			continue
 		}
-		// RED'S OWN CLOSURES ARE NOT A BAR, so they are not here. A seat may reopen what it closed;
-		// what it may not do is re-raise what the bench ruled — and the bench's ruling bars it when it
-		// is the later act, the lens's close before it or not.
-		if !g.benchClosedLast {
+		// THE ESTOPPED ROWS ARE THE STANDING RULING TOMBSTONES (#1695 §III.B12): one per gap a ruling's
+		// row protects — the ruled gap, and the successor a supersede accept left standing — open or
+		// closed. A lens's own closure is no bar, and a ruling whose tombstone ended bars nothing.
+		t := g.rulingTombstone
+		if t == nil {
 			continue
 		}
 		ci := EstoppedJSON{ID: g.ID, LocationState: g.LocationState, Location: g.Location,
 			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate,
-			Settled: g.benchRuling.GetSettled(), ReopensOn: g.benchRuling.GetReopensOn(), Final: g.benchRuling.GetFinal()}
-		if s, ok := ArtifactStateOf(ci.Fate); ok {
-			ci.ArtifactState = string(s)
-		} else {
-			ci.ArtifactState = "inherits:" + g.Supersedes
+			Settled: t.settled, ReopensOn: t.reopensOn, Final: t.final,
+			Ruling: *t, Ends: g.tombstoneEnds}
+		if g.Fate != "" {
+			if s, ok := ArtifactStateOf(ci.Fate); ok {
+				ci.ArtifactState = string(s)
+			} else {
+				ci.ArtifactState = "inherits:" + g.Supersedes
+			}
 		}
 		out.Estopped = append(out.Estopped, ci)
 	}
@@ -2033,4 +2073,15 @@ func (l *locatedReport) spans() ([]string, [][2]int) {
 		l.bare, l.sentences, l.read = claimcount.BareAnchorIDs(l.text), anchor.Sentences(l.text), true
 	}
 	return l.bare, l.sentences
+}
+
+// ruledAbout is the about kind and ref of gap on the list's rows, which say what ends its ruling's
+// tombstone; "" for a gap the rows do not hold.
+func (r workReads) ruledAbout(gap string) (string, string) {
+	for _, g := range r.gaps {
+		if g.ID == gap {
+			return g.AboutKind, g.AboutRef
+		}
+	}
+	return "", ""
 }

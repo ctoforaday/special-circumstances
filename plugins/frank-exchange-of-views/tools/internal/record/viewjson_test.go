@@ -261,6 +261,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 				Final:       proto.Bool(true),
 			}},
 		}),
+		// The row the write path writes beside the ruling; the shard is written past it.
+		recordtest.At(t, "judge", "judge:tombstone:D1", &recordpb.Tombstone{GapId: proto.String("G9"),
+			Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), DocketingId: proto.String("D1")}),
 	})
 	w, err := WorkJSONOfRun(mustRun(t, runDir))
 	if err != nil {
@@ -268,6 +271,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	}
 	if len(w.Estopped) != 1 || w.Estopped[0].ID != "G9" {
 		t.Fatalf("a bench ruling is not on the estoppel register: %+v", w.Estopped)
+	}
+	if r := w.Estopped[0].Ruling; r.Docketing != "D1" || r.Word != "repaired" || r.Event == 0 || w.Estopped[0].Ends == "" {
+		t.Errorf("the estopped row names ruling %+v, ends %q; want docketing D1, its event, its word and what ends it", r, w.Estopped[0].Ends)
 	}
 	// NO CLOSER ON THE ROW: every row is the bench's word by what the register is, and `show board`
 	// answers who ended the gap (closed_by_bench) — a lens's close the bench ruled after reads false

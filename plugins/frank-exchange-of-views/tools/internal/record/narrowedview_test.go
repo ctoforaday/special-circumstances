@@ -455,8 +455,13 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	var acts []*Event
 	for i := 1; i <= gaps; i++ {
 		g, d := fmt.Sprintf("G%d", i), fmt.Sprintf("D%d", i)
+		// THE RULING'S TOMBSTONE ROW is inserted before the ruling here, each on its own commit: the
+		// write path writes it after the ruling in one transaction, and in this order no instant leaves
+		// the closed gap off the list while the reads straddle the commits.
 		acts = append(acts,
 			recordtest.At(t, "red-chair", "red-chair:docketing:"+d, docketing(d, g)),
+			recordtest.At(t, "judge", "judge:tombstone:"+d, &recordpb.Tombstone{GapId: proto.String(g),
+				Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), DocketingId: proto.String(d)}),
 			recordtest.At(t, "judge", "judge:motion-rule:"+d, benchClosing(d)))
 	}
 	check := func(who string, w WorkJSON) {
@@ -465,7 +470,7 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 			on[g.ID] = true
 		}
 		for _, g := range w.Estopped {
-			if g.Fate == "" {
+			if g.Fate == "" && !on[g.ID] {
 				t.Fatalf("%s: %s is estopped with no fate — the ruling that closed it is not among the loaded events", who, g.ID)
 			}
 			on[g.ID] = true

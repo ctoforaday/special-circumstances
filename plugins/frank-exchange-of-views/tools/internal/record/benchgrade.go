@@ -25,8 +25,11 @@ import (
 //   - a mint superseding the gap whose grade differs on it is refused: the lock follows the lineage,
 //     so a successor carries the ruled grade and the lens cannot escape it by re-minting.
 //
-// No move lifts a lock. A later ruling on the axis re-locks it at its own grade; the lock ends with the
-// ruling's tombstone (§III.B14), whose end rows nothing writes yet, so a ruled grade holds for the run.
+// No move lifts a lock. A later ruling on the axis re-locks it at its own grade. The lock ends with the
+// ruling's tombstone (gblock 2026-11-21, "Ends with the tombstone"): the Tombstone row that ends the
+// ruled gap's RULING tombstone — blue's reword of its sentence, or whatever act the rule says ends it
+// (tombstone.go) — ends the lock of every axis a ruling on that gap decided, the successor's inherited
+// lock included. The fold reads the rows the write path wrote; it keeps no end list of its own.
 
 // gradeAxes is the four axes in the order the folds below index them.
 var gradeAxes = [4]recordpb.GradeDimension{
@@ -75,6 +78,7 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 		cause       recordpb.DocketingCause
 	}
 	docketings := map[string]docketed{}
+	rulingsOn := map[string]map[int64]bool{} // a gap -> the places of the grade rulings on it that locked an axis
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
@@ -146,10 +150,34 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 				if d {
 					cur[ax].benchAt = ids[i]
 					m[ax] = false
+					if rulingsOn[k.gap] == nil {
+						rulingsOn[k.gap] = map[int64]bool{}
+					}
+					rulingsOn[k.gap][ids[i]] = true
 				}
 			}
 			moved[k.gap] = m
 			out[k.gap] = cur
+		case *recordpb.Tombstone:
+			// THE RULING'S TOMBSTONE ENDS, AND EVERY LOCK A RULING ON ITS GAP SET ENDS WITH IT, wherever
+			// the lineage carried it.
+			if !b.GetEnds() || b.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_RULING || len(rulingsOn[b.GetGapId()]) == 0 {
+				continue
+			}
+			ended := rulingsOn[b.GetGapId()]
+			delete(rulingsOn, b.GetGapId())
+			for g, axes := range out {
+				changed := false
+				for k := range axes {
+					if ended[axes[k].benchAt] {
+						axes[k].benchAt = 0
+						changed = true
+					}
+				}
+				if changed {
+					out[g] = axes
+				}
+			}
 		}
 	}
 	return out

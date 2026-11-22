@@ -528,6 +528,10 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "title", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution", "fetched_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
+== stmt 78e11ba09433
+-- INSERT INTO "cite" ("event_id", "label", "url", "title", "cite_key", "source_text_origin", "work_status", "source_completeness", "copy_substitution", "fetched_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
 == stmt f14b06b2a0f9
 -- INSERT INTO "cite" ("event_id", "label", "url", "title", "location", "cite_key") VALUES (?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
@@ -1683,6 +1687,10 @@
 -- INSERT INTO "regrade" ("event_id", "gap_id", "severity", "impact", "basis", "result_severity", "result_likelihood", "result_impact", "result_complexity_cost") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 400439cdc799
+-- INSERT INTO "regrade" ("event_id", "gap_id", "severity", "likelihood", "basis", "result_severity", "result_likelihood", "result_impact") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 3d6a88c1e3bc
 -- INSERT INTO "regrade" ("event_id", "gap_id", "severity", "likelihood", "basis", "result_severity", "result_likelihood", "result_impact", "result_complexity_cost") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -2007,6 +2015,12 @@
     SEARCH st USING INDEX sqlite_autoindex_gap_state_1 (gap_id=?)
   USE TEMP B-TREE FOR ORDER BY
 
+== stmt 2c69f40c914d
+-- SELECT "assignee" FROM "gap" WHERE "gap_id" = ?
+  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
   SEARCH computation USING INDEX sqlite_autoindex_computation_1 (computation_id=?)
@@ -2077,6 +2091,10 @@
 -- SELECT "filing_case" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1
   SEARCH motion USING INDEX sqlite_autoindex_motion_1 (motion_id=?)
 
+== stmt ccc5c934f0a4
+-- SELECT "fix_new" FROM "mint" WHERE "gap_id" = ?
+  SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+
 == stmt e418ba2e08e9
 -- SELECT "gap_id" FROM "docketing" WHERE "docketing_id" = ?
   SEARCH docketing USING INDEX sqlite_autoindex_docketing_1 (docketing_id=?)
@@ -2098,6 +2116,10 @@
 -- SELECT "gap_id" FROM "mint"
   SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1
 
+== stmt f0d67a25c37d
+-- SELECT "gap_id" FROM "mint" WHERE "about_kind" = ? AND "about_ref" = ? ORDER BY "event_id"
+  SEARCH mint USING INDEX mint_about (about_kind=? AND about_ref=?)
+
 == stmt 48c975ca52c2
 -- SELECT "gap_id", "anchor", "reached", "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id"
   SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
@@ -2115,6 +2137,12 @@
 == stmt db2b96db6ea3
 -- SELECT "gap_id", "closed_event" FROM "gap_state"
   SCAN gap_state
+
+== stmt 64c7783733bb
+-- SELECT "gap_id", "event_id" FROM "tombstone_standing" WHERE "kind" = 'estoppel'
+  SEARCH t USING INDEX tombstone_kind_gap (kind=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
 
 == stmt 871cb5d73146
 -- SELECT "gap_id", "event_id", "sitting_id", COALESCE("direction", '') FROM "remand" ORDER BY "event_id"
@@ -2208,6 +2236,10 @@
 
 == stmt 2cf609eaea68
 -- SELECT "problem", "required_fix", "acceptance_check", "location", "fix_new", "fix_basis" FROM "mint" WHERE "gap_id" = ?
+  SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+
+== stmt 562c273a9b85
+-- SELECT "problem", COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "mint" WHERE "gap_id" = ? AND "class" = ?
   SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
 
 == stmt 458afa9f844d
@@ -2320,6 +2352,10 @@
 -- SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1
   SEARCH inquiry USING COVERING INDEX inquiry_id (inquiry_id=?)
 
+== stmt 0c4c5f8c9680
+-- SELECT 1 FROM "mint" WHERE "gap_id" = ?
+  SEARCH mint USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+
 == stmt 70f9c23b05b7
 -- SELECT 1 FROM "motion_rule_docket" WHERE "docketing_id" = ?
   SEARCH motion_rule_docket USING COVERING INDEX sqlite_autoindex_motion_rule_docket_1 (docketing_id=?)
@@ -2337,6 +2373,12 @@
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 4711da26ccb7
+-- SELECT 1 FROM "tombstone_standing" WHERE "kind" = ? AND "gap_id" = ?
+  SEARCH t USING INDEX tombstone_kind_gap (kind=? AND gap_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
+
 == stmt daf98a95eedc
 -- SELECT 1 FROM (SELECT "gap_id" "id" FROM "mint" UNION ALL SELECT "anchor_id" FROM "evidence_anchor") WHERE "id" = ? LIMIT 1
   COMPOUND QUERY
@@ -2348,6 +2390,10 @@
           SEARCH x USING COVERING INDEX sqlite_autoindex_cite_1 (label=?)
         UNION ALL
           SEARCH x USING COVERING INDEX sqlite_autoindex_computation_1 (computation_id=?)
+
+== stmt 97ea8bbd800d
+-- SELECT COALESCE("about_kind", ''), COALESCE("about_ref", '') FROM "mint" WHERE "gap_id" = ?
+  SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
 
 == stmt 786d2d1df45c
 -- SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?
@@ -2977,6 +3023,36 @@
 == stmt a874699cf98f
 -- SELECT t."event_id", t."verdict", t."prose", t."verdict_why", t."verdict_basis" FROM "outcome" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
+== stmt b0a317e526c7
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling'
+  SEARCH t USING INDEX tombstone_kind_gap (kind=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
+  SEARCH md USING INDEX sqlite_autoindex_motion_rule_docket_1 (docketing_id=?)
+  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?) LEFT-JOIN
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+
+== stmt a3252613a8ba
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND s."gap_id" = ?
+  SEARCH s USING COVERING INDEX sqlite_autoindex_motion_supersede_1 (gap_id=?)
+  SEARCH t USING INDEX tombstone_kind_gap (kind=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
+  SEARCH md USING INDEX sqlite_autoindex_motion_rule_docket_1 (docketing_id=?)
+  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?) LEFT-JOIN
+
+== stmt fdd639e5d9b4
+-- SELECT t."gap_id", t."docketing_id", md."event_id", md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", '') FROM "tombstone_standing" t JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id" JOIN "motion_rule" r ON r."event_id" = md."event_id" LEFT JOIN "motion" m ON m."motion_id" = r."motion_id" LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id" WHERE t."kind" = 'ruling' AND t."gap_id" = ?
+  SEARCH t USING INDEX tombstone_kind_gap (kind=? AND gap_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH l USING COVERING INDEX tombstone_kind_gap (kind=? AND gap_id=? AND event_id>?)
+  SEARCH md USING INDEX sqlite_autoindex_motion_rule_docket_1 (docketing_id=?)
+  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?) LEFT-JOIN
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt 0ec2182bfcb8
 -- SELECT v."value" FROM "cast_lane_seat_ids" v WHERE v."event_id" = (SELECT MAX("event_id") FROM "cast") ORDER BY v."ord"

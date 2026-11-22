@@ -160,16 +160,12 @@ func lastDocketRuling(t *testing.T, runDir string) *recordpb.MotionRule {
 	return nil
 }
 
-// requireRulingTombstone fails unless a ruling tombstone on gap names docketing. It skips on a record
-// holding no tombstone row at all: the write site, writeTombstones in writeIn, is phase B3's.
+// requireRulingTombstone fails unless a ruling tombstone on gap names docketing.
 func requireRulingTombstone(t *testing.T, runDir, gap, docketing string) {
 	t.Helper()
 	evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_TOMBSTONE)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(evs) == 0 {
-		t.Skip("B3: no tombstone row on the record — writeTombstones in writeIn is not built")
 	}
 	for _, e := range evs {
 		if s, ok := recordpb.BodyAs[*recordpb.Tombstone](e); ok && s.GetKind() == recordpb.TombstoneKind_TOMBSTONE_KIND_RULING && s.GetGapId() == gap {

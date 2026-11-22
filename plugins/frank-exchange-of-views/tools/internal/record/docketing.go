@@ -198,7 +198,7 @@ func docketStandingProposals(tx *sql.Tx, files runFiles, seatID string) error {
 		if err != nil {
 			return err
 		}
-		if err := writeIn(tx, ev, seatID, typ, body, func(*sql.Tx) error {
+		if _, err := writeIn(tx, ev, seatID, typ, body, func(*sql.Tx) error {
 			return validateAct(writeView{q: tx, files: files}, seatID, typ, body)
 		}, stamp); err != nil {
 			return fmt.Errorf("docketing proposal %s at the exit: %w", m.ID, err)

@@ -40,7 +40,7 @@ func docketByDispatchAs(t *testing.T, run Run, id, gap string, cause recordpb.Do
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := writeIn(tx.Tx, ev, chairSeat, typ, d, func(*sql.Tx) error {
+	if _, err := writeIn(tx.Tx, ev, chairSeat, typ, d, func(*sql.Tx) error {
 		return validateAct(writeView{q: tx, files: filesOf(run)}, chairSeat, typ, d)
 	}, stamp); err != nil {
 		return "", err

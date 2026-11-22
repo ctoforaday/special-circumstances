@@ -181,12 +181,14 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			s.close(accepted, "red's close")
 			s.epoch().carry("1", repaired)
 		}, closureWant{epoch: 2, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", closureProse: "carried"}},
+		// THE RULING STILL BARS: its tombstone stands until the act that ends it, whatever closing act
+		// follows it (#1695 §III.B12), so the estopped row stands under the carry's fate.
 		{"e: red closes, the bench rules, the chair carries", func(s *closureStage) {
 			s.close(accepted, "red's close")
 			s.epoch().rule(s.docketedArchived(), notADefect)
 			s.epoch().carry("1", repaired)
 		}, closureWant{epoch: 3, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", benchDispo: "not_a_defect",
-			closureProse: "carried"}},
+			closureProse: "carried", estopped: true}},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
@@ -276,7 +278,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			case w.estopped && (len(wj.Estopped) != 1 || wj.Estopped[0].ID != "G1" || wj.Estopped[0].Fate != w.fate):
 				t.Errorf("work: estopped = %+v, want G1 with fate %q", wj.Estopped, w.fate)
 			case !w.estopped && len(wj.Estopped) != 0:
-				t.Errorf("work: estopped = %+v, want none — the bench's is not G1's last closing act", wj.Estopped)
+				t.Errorf("work: estopped = %+v, want none — no ruling tombstone stands on G1", wj.Estopped)
 			}
 		})
 	}

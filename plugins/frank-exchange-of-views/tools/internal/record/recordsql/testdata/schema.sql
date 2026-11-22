@@ -1153,7 +1153,7 @@ CREATE INDEX "cite_key" ON "cite" ("cite_key");
 CREATE INDEX "computation_key" ON "computation" ("key");
 CREATE INDEX "inquiry_question" ON "inquiry" ("question");
 -- The anchors an act names, each checked to exist: a citation by its label and a computation by
--- its id (requireAboutAnchor, requireComputationAnchor, requireNewGrounds), an inquiry by its id
+-- its id (requireAboutAnchor, requireComputationAnchor), an inquiry by its id
 -- (requireInquiry, requireInquiryRef, requireClosureAnchors).
 CREATE INDEX "cite_label" ON "cite" ("label");
 CREATE INDEX "computation_id" ON "computation" ("computation_id");

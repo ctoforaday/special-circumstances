@@ -59,7 +59,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 // the gap that prescribed it, the seat that minted that gap, and the text.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 	mint := recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String("G1")})
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{mint, edit(t, "G1", true)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{mint, edit(t, "G1", true), stone(t, "G1", false)})
 
 	est, ok := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
 	if !ok || est.Gap != "G1" {
@@ -76,7 +76,7 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
 	if est, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); est.Gap != "G1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", est.Gap)
 	}
@@ -94,7 +94,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // Text red never prescribed is auditable, obviously — the guard must not become a general
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
 	if est, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); est.Gap != "" {
 		t.Errorf("an unrelated mint was estopped by gap %q — the guard is over-broad", est.Gap)
 	}
@@ -103,7 +103,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
 // real defect is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
-	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true)})
+	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
 	if est, _ := EstoppelConflict(b, "7 is prime."); est.Gap != "" {
 		t.Errorf("a %d-character prescription estopped a mint (gap %q); the floor is %d",
 			len("7 is prime."), est.Gap, minEstoppelOverlap)
@@ -183,44 +183,42 @@ func TestNoRejectionsCountsZero(t *testing.T) {
 	}
 }
 
-// reword is blue's ordinary edit whose sentence change reopened the anchors named (BlueEdit.reopened):
-// a reword of the sentence red's fix placed its gap's token in lists that gap.
-func reword(t *testing.T, reopened ...string) *Event {
+// stone is the estoppel tombstone row the write path writes on gap beside a verbatim edit, or, ends
+// true, beside the act that ends it.
+func stone(t *testing.T, gap string, ends bool) *Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("x"), New: proto.String("y"), Text: proto.String("r"), Reopened: reopened})
+	b := &recordpb.Tombstone{GapId: proto.String(gap), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()}
+	if ends {
+		b.Ends = proto.Bool(true)
+	}
+	return recordtest.Event(t, "blue-respond", b)
 }
 
-// A REWORD ENDS ESTOPPEL (gblock, 2026-11-10, F12; T27). An applied-verbatim prescription estops
-// while the latest edit touching its gap is the verbatim one: (i) the verbatim edit's own `reopened`
-// listing the gap does not end it; (ii) a later edit rewording the sentence — listing the gap in
-// `reopened`, keeping 40 or more characters of fix_new — ends it, and DeclineStatsOf still counts the
-// edit blue took as applied; (iii) a later verbatim edit of the same gap binds red again; (iv) a
-// reword of another sentence, listing nothing, leaves the prescription estopping (the residue, pinned).
-func TestARewordEndsEstoppel(t *testing.T) {
-	verbatim := func(t *testing.T) *Event {
-		e := edit(t, "G1", true)
-		e.GetBlueEdit().Reopened = []string{"G1"}
-		return e
-	}
+// THE BAR IS THE STANDING ROW (#1695 §III.B12). EstoppelConflict reads the estoppel tombstones standing
+// at the end of the stream, never the edits: (i) a verbatim edit with its placing row estops; (ii) the
+// end row a reword writes ends it, and DeclineStatsOf still counts the edit blue took as applied;
+// (iii) a placing row after the end binds red again; (iv) a verbatim edit beside which the write path
+// wrote no row estops nothing. Which acts write the rows is the rule's (TestTheStoredTombstonesAreTheRule).
+func TestEstoppelReadsTheStandingRow(t *testing.T) {
 	estops := func(t *testing.T, evs ...*Event) bool {
 		t.Helper()
 		est, ok := EstoppelConflict(board(t, map[string]string{"G1": prescribed}, evs), prescribed)
 		return ok && est.Gap == "G1"
 	}
-	if !estops(t, verbatim(t)) {
-		t.Error("(i) the verbatim edit's own reopened ended its estoppel")
+	if !estops(t, edit(t, "G1", true), stone(t, "G1", false)) {
+		t.Error("(i) a standing estoppel row did not estop")
 	}
-	if estops(t, verbatim(t), reword(t, "G1")) {
-		t.Error("(ii) a reword of the applied sentence left red estopped from text blue now authored")
+	if estops(t, edit(t, "G1", true), stone(t, "G1", false), stone(t, "G1", true)) {
+		t.Error("(ii) an ended estoppel row still estopped")
 	}
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{verbatim(t), reword(t, "G1")})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false), stone(t, "G1", true)})
 	if _, applied, _ := DeclineStatsOf(b.Events, GapsByID(b.Gaps)); applied != 1 {
-		t.Errorf("(ii) applied = %d after the reword, want 1 — an edit blue took is taken", applied)
+		t.Errorf("(ii) applied = %d after the end, want 1 — an edit blue took is taken", applied)
 	}
-	if !estops(t, verbatim(t), reword(t, "G1"), verbatim(t)) {
-		t.Error("(iii) re-applying red's text did not bind red again")
+	if !estops(t, edit(t, "G1", true), stone(t, "G1", false), stone(t, "G1", true), stone(t, "G1", false)) {
+		t.Error("(iii) a placing row after the end did not bind red again")
 	}
-	if !estops(t, verbatim(t), reword(t, "G2")) {
-		t.Error("(iv) a reword of another sentence ended the estoppel")
+	if estops(t, edit(t, "G1", true)) {
+		t.Error("(iv) a verbatim edit with no row estopped: the bar is the row")
 	}
 }

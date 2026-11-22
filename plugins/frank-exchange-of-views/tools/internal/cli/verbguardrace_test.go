@@ -163,7 +163,10 @@ func TestEstoppelIsAskedOfTheRecordTheMintLandsOn(t *testing.T) {
 	tok := anchor.Token(g1)
 	accept := recordtest.At(t, "blue-lane-1", "race:accept", &recordpb.BlueEdit{Old: proto.String(was + tok), New: proto.String(fix + tok),
 		Answers: proto.String(g1), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Text: proto.String("red's text is right")})
-	err = runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{accept}, func() error {
+	// Overtaken inserts past the write path, so the estoppel row writeTombstones writes beside the
+	// accept goes in with it, in its transaction.
+	stone := recordtest.At(t, "blue-lane-1", "race:tombstone", &recordpb.Tombstone{GapId: proto.String(g1), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()})
+	err = runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{accept, stone}, func() error {
 		_, err := mintQuote(t, runDir, "G2", was)
 		return err
 	})

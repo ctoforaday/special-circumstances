@@ -1833,7 +1833,7 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 // every one was since reworded, or every one that still estops has lost its words.
 //
 // THE WORDS, NOT ONLY THE STANDING. A gap whose token a retire took out is never reopened, so it
-// estops as long as the run lasts (record.estoppingPrescriptions' residue) while blue's edits of the
+// estops as long as the run lasts (a cut ends no tombstone) while blue's edits of the
 // sentence, which can no longer name it, swap its words away; taken first by id, it held the drive
 // on one gap whose text was gone for 36 sittings of the estoppel seed's run (CI run 42935559070), the
 // run's four later verbatim applications behind it, and the seed drove no estoppel at all.
@@ -1876,11 +1876,12 @@ func (r *runner) isVerbatimGap(gapID string) bool {
 	return ok
 }
 
-// stillEstops reports whether gapID's applied prescription still estops red, as the record folds it
-// (record.estoppingPrescriptions, F12): the latest blue edit naming gapID — in `answers` with
-// applied_verbatim, or in `reopened` — is a verbatim one. A later edit that rewords the sentence
-// the fix placed the gap's token in lists the gap reopened and makes the span blue's, whether or not
-// the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
+// stillEstops reports whether gapID's applied prescription still estops red, by the rule the record's
+// estoppel tombstone rows follow (record.tombstoneArms), folded here from the edits alone: the latest
+// blue edit naming gapID — in `answers` with applied_verbatim, or in `reopened` — is a verbatim
+// application of gapID. A later edit that rewords the sentence the fix placed the gap's token in lists
+// the gap reopened and ends the bar, a verbatim application answering another gap included (L24),
+// whether or not the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
 // before it expects an estoppel refusal, since blue's ordinary edits of the fixture sentence reword
 // it under the sweep.
 func (r *runner) stillEstops(gapID string) bool {
@@ -1894,10 +1895,8 @@ func (r *runner) stillEstops(gapID string) bool {
 		if !isE {
 			continue
 		}
-		if ed.GetAppliedVerbatim() {
-			if ed.GetAnswers() == gapID {
-				estops = true
-			}
+		if ed.GetAppliedVerbatim() && ed.GetAnswers() == gapID {
+			estops = true
 			continue
 		}
 		if slices.Contains(ed.GetReopened(), gapID) {
@@ -8405,8 +8404,9 @@ var verbsWithEvents = []string{
 	// The whole report served to a lens: its pin. A lens sitting reads the report whole most of the
 	// time (the red-lens arm of the dispatch), so every seed reaches it.
 	"report_read",
-	// The tool's record of what ends a gap's standing — a ruling or an estoppel — written beside
-	// that act and never by a seat. Exempted below while no act the sweep drives writes one.
+	// The tool's tombstone row — a bench ruling's or a verbatim application's bar, and the row that
+	// ends one — written beside that act and never by a seat: the sweep's bench rulings and verbatim
+	// edits write it.
 	"tombstone",
 	// The tool putting a gap before the bench — written by the dispatch, never by a seat. Exempted
 	// below while no drive of the sweep writes one.
@@ -8425,9 +8425,6 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
-	// NO ACT THE SWEEP DRIVES WRITES A TOMBSTONE YET: the tool writes it beside the act that ends a
-	// gap's standing, and no verb carries that act. The exemption goes when one does.
-	"tombstone": true,
 	// NO DRIVE OF THE SWEEP WRITES A DOCKETING YET: the dispatch writes it, and the sweep's dispatch
 	// drive files the docket motion. The exemption goes when the dispatch writes docketings.
 	"docketing": true,

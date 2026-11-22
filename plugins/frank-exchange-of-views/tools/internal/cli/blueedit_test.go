@@ -617,8 +617,29 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		}
 	}
 	tok := "<!--gap:" + prior + "-->"
+	// rowsAre fails unless the record's estoppel rows on prior are want, in order: "place" or "end",
+	// each right after a blue edit.
+	rowsAre := func(stage string, want ...string) {
+		t.Helper()
+		rows, after := tombstoneRows(t, runDir)
+		var got []string
+		for i, r := range rows {
+			if r.GetGapId() != prior || r.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL || after[i] != "*recordpb.BlueEdit" {
+				t.Fatalf("%s: row %v after %s, want an estoppel row on %s after a blue edit", stage, r, after[i], prior)
+			}
+			if r.GetEnds() {
+				got = append(got, "end")
+			} else {
+				got = append(got, "place")
+			}
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("%s: estoppel rows %v, want %v", stage, got, want)
+		}
+	}
 
-	// (a) red's text applied verbatim estops.
+	// (a) red's text applied verbatim writes P's estoppel row, and estops.
+	rowsAre("(a) applied", "place")
 	estopped("(a) applied", mint("R1", "risk_coverage_omission"))
 
 	// (b) blue rewords the sentence the fix placed the gap's token in; the mint lands.
@@ -627,6 +648,7 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		t.Fatalf("the applied sentence %q is not in the report:\n%s", applied, readReport(t, runDir))
 	}
 	editAt("W1", applied, quote+", on every input tried"+tok+".")
+	rowsAre("(b) reworded", "place", "end")
 	if err := mint("R2", "risk_coverage_omission"); err != nil {
 		t.Fatalf("(b) reworded: a mint of the text blue reworded was refused — a reword ends estoppel: %v", err)
 	}
@@ -647,6 +669,7 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		anchors.WriteString(anchor.Token(id))
 	}
 	editAt("W2", reworded, "Five independent verification approaches agree"+anchors.String()+".")
+	rowsAre("(b) a second reword, nothing standing", "place", "end")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all"); err != nil {
 		t.Fatalf("(c) blue's re-application of red's text: %v\n%s", err, readReport(t, runDir))
@@ -654,7 +677,66 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Fatal("(c) the re-application is not recorded as verbatim")
 	}
+	rowsAre("(c) re-applied", "place", "end", "place")
 	estopped("(c) re-applied", mint("R3", "false_universal"))
+
+	// (d) a keyed retry of the re-application is answered at its own key — the act it names, no second
+	// edit — and writes no row; one with another reason is refused there. Place, end and place again
+	// stood in blue's one sitting, each under its own key.
+	edits := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all")
+	if err != nil || !strings.Contains(out, "nothing was written") {
+		t.Errorf("(d) the identical keyed retry was not answered at its key: %v\n%s", err, out)
+	}
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A2", "--answers", prior, "--accept", "--reason", "another reason"); err == nil {
+		t.Error("(d) a keyed retry with another reason landed")
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
+		t.Errorf("(d) the keyed retries wrote %d edits", n-edits)
+	}
+	rowsAre("(d) retried", "place", "end", "place")
+}
+
+// T-B19 (14), the cut: an edit that takes the applied sentence out and leaves P's token bare writes
+// no row, and a mint quoting red's applied text stays refused — a cut ends nothing.
+func TestACutOfAnEstoppedSentenceEndsNothing(t *testing.T) {
+	runDir := newRun(t)
+	prior := seedProposalApplied(t, runDir)
+	const other = "red-lens-logic"
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	const quote = "Five verification approaches agree, all sharing one definition of primality"
+	tok := "<!--gap:" + prior + "-->"
+	report := readReport(t, runDir)
+	at := strings.Index(report, quote)
+	if at < 0 {
+		t.Fatalf("the applied sentence is not in the report:\n%s", report)
+	}
+	end := strings.Index(report[at:], tok+".") + len(tok+".")
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "CUT", "--quote", report[at:at+end],
+		"--new", tok, "--reason", "the sentence goes"); err != nil {
+		t.Fatalf("blue's cut: %v\n%s", err, readReport(t, runDir))
+	}
+	if rows, _ := tombstoneRows(t, runDir); len(rows) != 1 || rows[0].GetEnds() {
+		t.Fatalf("the cut wrote estoppel rows: %v", rows)
+	}
+	if !strings.Contains(readReport(t, runDir), tok) || strings.Contains(readReport(t, runDir), quote) {
+		t.Fatalf("the cut left %q, want the sentence gone and the token bare", readReport(t, runDir))
+	}
+	// The text is gone from the report, so the mint is asked of a sentence holding red's words again.
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "BACK", "--quote", "Sieve costs grow with the bound.",
+		"--new", "Sieve costs grow with the bound. "+quote+", on every input.", "--reason", "blue's own sentence"); err != nil {
+		t.Fatalf("blue's own sentence: %v\n%s", err, readReport(t, runDir))
+	}
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other, "--key", "M", "--class", "risk_coverage_omission", "--quote", quote,
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+	if err == nil || !strings.Contains(err.Error(), "estoppel") || !strings.Contains(err.Error(), prior) {
+		t.Errorf("after the cut, a mint quoting red's applied text was not refused by %s's estoppel: %v", prior, err)
+	}
 }
 
 // --- blue edit --accept: the tool supplies red's text so blue cannot mis-transcribe it -------

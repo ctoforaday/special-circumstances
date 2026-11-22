@@ -178,6 +178,9 @@ func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 			"gap %s is yours — you are its assignee — and a proposal on it asks you to accept your own act. Take the act yourself: regrade it, close it, or mint its successor with --supersedes %s. Nothing was recorded",
 			g, g)
 	}
+	if err := requireNotEstoppedOn(q, g); err != nil {
+		return err
+	}
 	if err := requireNoDocketingOnFiling(q, g); err != nil {
 		return err
 	}
@@ -367,4 +370,28 @@ func StoredAct(m *recordpb.Motion) proto.Message {
 		return s
 	}
 	return nil
+}
+
+// requireNotEstoppedOn refuses a proposal on a gap a standing ruling tombstone protects: the ruled gap
+// itself, or the successor a supersede accept left standing (F-J). A bench ruling but a remand is final
+// for the ruled gap's text while its tombstone stands, whoever files; the dispatch files no proposal,
+// so its docketings are not barred.
+func requireNotEstoppedOn(q recordsql.Querier, g string) error {
+	t, found, err := rulingProtecting(q, g)
+	if err != nil || !found {
+		return err
+	}
+	var aboutKind, aboutRef string
+	if _, err := queryRowAt(q, []any{&aboutKind, &aboutRef},
+		`SELECT COALESCE("about_kind", ''), COALESCE("about_ref", '') FROM "mint" WHERE "gap_id" = ?`, t.ruled()); err != nil {
+		return err
+	}
+	on := ""
+	if t.On != "" {
+		on = fmt.Sprintf(", and %s is the successor that ruling left standing", g)
+	}
+	return feov.Errorf(feov.Conflict,
+		"the bench ruled gap %s %s on docketing %s (event %d)%s; its tombstone stands, and a ruling is final for the ruled gap's text while it does: a proposal on %s relitigates it. "+
+			"%s ends it; blue's evidence belongs in the exchange before the bench rules. Nothing was recorded",
+		t.ruled(), t.Word, t.Docketing, t.Event, on, g, capitalized(tombstoneEnds(aboutKind, aboutRef)))
 }
