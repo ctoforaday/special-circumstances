@@ -200,7 +200,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		ToolName:  req.ToolName,
 		ToolInput: req.ToolInput,
 	}
-	if s, ok := resolveAgySitting(req, cwd); ok {
+	if s, ok := resolveAgySitting(req, cwd, rec); ok {
 		in.AgentID = s.AgentID
 		in.AgentType = s.AgentType
 		in.SessionID = s.LeadSession

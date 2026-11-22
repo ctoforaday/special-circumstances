@@ -262,6 +262,12 @@ async def sit(seat_id, prompt, schema, role_title):
     seat_tr_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.transcript")
     seat_bound_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.bound")
     seat_conv_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.conv")
+    # Clear any stale binding left behind by a killed debate.py before republishing this seat.
+    for stale in (seat_bound_path, seat_conv_path, seat_tr_path):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
     tmp_reg = f"{seat_reg_path}.tmp.{os.getpid()}"
     with open(tmp_reg, "w") as f:
         json.dump(
@@ -300,7 +306,7 @@ async def sit(seat_id, prompt, schema, role_title):
                 json.dumps(env if isinstance(env, dict) else {}),
             )
             if not env_res.stdout or not env_res.stdout.strip():
-                log(f"{seat_id} envelope check returned empty (agent bound to no seat): {env_res.stderr.strip()}")
+                log(f"{seat_id} envelope check returned empty (agent bound to no seat or record error): {env_res.stderr.strip()}")
                 return None
             try:
                 answer = json.loads(env_res.stdout)

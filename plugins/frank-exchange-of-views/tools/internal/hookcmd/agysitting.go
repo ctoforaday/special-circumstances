@@ -32,10 +32,14 @@ type agySitting struct {
 
 const agySittingsDir = ".agy-sittings"
 
+// StageAgyBind is recorded when a second Antigravity conversation tries to bind an already-claimed
+// seat sitting, instead of silently ignoring the conflict.
+const StageAgyBind hookfailures.Stage = "agy-sitting-bind"
+
 // applyAgySitting populates req's AgentID, AgentType and SessionID from an active Antigravity
 // run_workflow sitting when applicable. Used uniformly by Pre, Post, PostFailure, and PreInvocation.
-func applyAgySitting(req *hookcore.Request, cwd string) (agySitting, bool) {
-	s, ok := resolveAgySitting(*req, cwd)
+func applyAgySitting(req *hookcore.Request, cwd string, rec *hookfailures.Recorder) (agySitting, bool) {
+	s, ok := resolveAgySitting(*req, cwd, rec)
 	if !ok {
 		return agySitting{}, false
 	}
@@ -45,7 +49,7 @@ func applyAgySitting(req *hookcore.Request, cwd string) (agySitting, bool) {
 	return s, true
 }
 
-func resolveAgySitting(req hookcore.Request, cwd string) (agySitting, bool) {
+func resolveAgySitting(req hookcore.Request, cwd string, rec *hookfailures.Recorder) (agySitting, bool) {
 	if req.Engine != hookcore.EngineAntigravity || req.AgentID != "" || req.SessionID == "" {
 		return agySitting{}, false
 	}
@@ -90,6 +94,9 @@ func resolveAgySitting(req hookcore.Request, cwd string) (agySitting, bool) {
 		boundPath := filepath.Join(sdir, "seat-"+seatID+".bound")
 		bf, err := os.OpenFile(boundPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err != nil {
+			if rec != nil {
+				rec.FailIn(StageAgyBind, markerDir, fmt.Sprintf("conversation %s tried to bind already-claimed seat %q (%v)", req.SessionID, seatID, err))
+			}
 			continue
 		}
 		_, _ = bf.WriteString(req.SessionID + "\n")
@@ -183,7 +190,10 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	if runDir == "" {
 		return
 	}
-	failed := hookcore.DrainFailedToolSteps(req)
+	failed, drainErr := hookcore.DrainFailedToolSteps(req)
+	if drainErr != nil {
+		rec.Fail(StageFailureLog, "failed-step drain: "+drainErr.Error())
+	}
 	for _, st := range failed {
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)

@@ -54,7 +54,8 @@ func main() {
 		ctxMsg := "HOOKCORE_CONTEXT_NOTICE"
 		if req.Event == "PreInvocation" {
 			var parts []string
-			for _, st := range hookcore.DrainFailedToolSteps(req) {
+			failed, _ := hookcore.DrainFailedToolSteps(req)
+			for _, st := range failed {
 				parts = append(parts, fmt.Sprintf("HOOKCORE_FAILED_STEP_CODE_%d:%s", st.ExitCode, st.Command))
 			}
 			if len(parts) > 0 {

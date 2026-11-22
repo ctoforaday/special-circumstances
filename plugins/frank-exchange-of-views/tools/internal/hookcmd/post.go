@@ -34,7 +34,7 @@ func Post(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		rec.Fail(StageAdmission, "cannot read or parse the PostToolUse payload — a seat's accepted envelope was not recorded as admitted")
 		return nil
 	}
-	applyAgySitting(&req, cwdOfRequest(req))
+	applyAgySitting(&req, cwdOfRequest(req), rec)
 	if req.Engine == hookcore.EngineAntigravity && req.ToolError != "" {
 		return PostFailure(bytes.NewReader(req.Raw), stdout, rec)
 	}

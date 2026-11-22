@@ -353,8 +353,12 @@ lend_access_token() {
 }
 
 # ANTIGRAVITY EQUIVALENT OF lend_access_token (#1890): never copy refresh_token into a universe.
-# Renews the host's ~60 min OAuth access token when under 15 min remain, then writes a
-# refresh-token-stripped copy into the universe HOME (0600) that cmd_supervise deletes at exit.
+# Google OAuth access tokens have ~60 min lifetime and cannot be renewed inside the universe;
+# AGY_TOKEN_MIN_MINUTES (default 15) bounds the minimum remaining lifetime at launch.
+# Renews the host token when under AGY_TOKEN_MIN_MINUTES remain, strips refresh_token fail-closed
+# (asserting no refresh_token key exists anywhere in the output), and cmd_supervise/cmd_shell
+# delete the lent file via an EXIT trap.
+AGY_TOKEN_MIN_MINUTES="${AGY_TOKEN_MIN_MINUTES:-15}"
 lend_agy_access_token() {
   local host_tok="$HOST_HOME/.gemini/antigravity-cli/antigravity-oauth-token"
   local dst_tok="$HOME/.gemini/antigravity-cli/antigravity-oauth-token"
@@ -370,8 +374,8 @@ dt = datetime.datetime.fromisoformat(exp.replace("Z", "+00:00"))
 print(int((dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds() // 60))
 PY
 )"
-  if [ "$left" -lt 15 ]; then
-    log "antigravity access token has $left min left (< 15): renewing through the host login"
+  if [ "$left" -lt "$AGY_TOKEN_MIN_MINUTES" ]; then
+    log "antigravity access token has $left min left (< $AGY_TOKEN_MIN_MINUTES): renewing through the host login"
     ( HOME="$HOST_HOME" XDG_CONFIG_HOME="$HOST_HOME/.config" XDG_CACHE_HOME="$HOST_HOME/.cache" XDG_DATA_HOME="$HOST_HOME/.local/share" \
       agy -p "Reply with ok." --model "$AGY_MODEL" --output-format text --print-timeout 30s ) >/dev/null 2>&1 \
       || die "failed to renew host antigravity access token"
@@ -383,20 +387,29 @@ print(int((dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds() //
 PY
 )"
   fi
-  [ "$left" -ge 15 ] || die "antigravity access token still has only $left min after renewal"
+  [ "$left" -ge "$AGY_TOKEN_MIN_MINUTES" ] || die "antigravity access token still has only $left min after renewal (need >= $AGY_TOKEN_MIN_MINUTES)"
   mkdir -p "$(dirname "$dst_tok")"
   python3 - "$host_tok" "$dst_tok" <<'PY' || die "could not write refresh-stripped antigravity token"
 import json, os, sys
 d = json.load(open(sys.argv[1]))
-if isinstance(d.get("token"), dict):
-    d["token"].pop("refresh_token", None)
+if not isinstance(d, dict) or not isinstance(d.get("token"), dict) or not d["token"].get("access_token"):
+    raise SystemExit("unexpected antigravity-oauth-token structure")
+d["token"].pop("refresh_token", None)
+def has_refresh(obj):
+    if isinstance(obj, dict):
+        return "refresh_token" in obj or any(has_refresh(v) for v in obj.values())
+    if isinstance(obj, list):
+        return any(has_refresh(v) for v in obj)
+    return False
+if has_refresh(d):
+    raise SystemExit("refresh_token still present after strip")
 tmp = sys.argv[2] + ".tmp"
 fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
 with os.fdopen(fd, "w") as f:
     json.dump(d, f)
 os.replace(tmp, sys.argv[2])
 PY
-  log "antigravity access token lent (refresh_token stripped) for $left min"
+  log "antigravity access token lent (refresh_token stripped) for $left min; the run must finish inside it"
 }
 
 # A SEAT'S IDENTITY AND RUN MUST NOT LEAK IN FROM THE PARENT. A shell that has FEOV_RUN set —
@@ -812,7 +825,11 @@ cmd_run() {
   universe_env; clear_seat_env
 
   guard_no_live_run "run"
+  local agy_tok="$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"
   if [ "$HARNESS" = "agy" ]; then
+    # Clean up the lent token if pre-launch validation or launch_detached fails; once launched,
+    # cmd_supervise owns its own EXIT trap for the token.
+    trap 'rm -f "$agy_tok"' EXIT
     lend_agy_access_token
   else
     lend_access_token
@@ -859,6 +876,8 @@ cmd_run() {
     > "$WORKDIR/prompt-$stamp.txt"
   ln -sfn "stream-$stamp.jsonl" "$ORIGIN_STREAM"
   launch_detached "$stamp" run
+  # Supervisor is live and now owns token cleanup on its EXIT trap.
+  trap - EXIT
   report_launch "$stamp"
 }
 
@@ -870,6 +889,7 @@ cmd_run() {
 # REFUSED UNLESS THE PROCESS IS MEASURED DEAD. A second lead on a live run writes two debates into
 # one record, and an unknown process state is not evidence of a dead one.
 cmd_resume() {
+  [ "$HARNESS" != "agy" ] || die "resume is not supported for --harness agy (Antigravity run_workflow has no resumeFromRunId)"
   universe_env; clear_seat_env
   case "$(process_state)" in
     running)
@@ -905,6 +925,9 @@ cmd_resume() {
 # byte offset.
 cmd_supervise() {
   local stamp="$1" mode="$2" session="${3:-}"
+  if [ "$HARNESS" = "agy" ]; then
+    trap 'rm -f "$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"' EXIT
+  fi
   local raw="$WORKDIR/stream-$stamp.jsonl" out="$WORKDIR/run-$stamp.log"
   local prompt; prompt="$(cat "$WORKDIR/prompt-$stamp.txt")"
   printf '%s\n' "$$" > "$PID_FILE.tmp"
@@ -1007,6 +1030,14 @@ cmd_watch() {
 cmd_shell() {
   universe_env; clear_seat_env
   local src="$WORKDIR/src"; mkdir -p "$src"
+  if [ "$HARNESS" = "agy" ]; then
+    local agy_tok="$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"
+    trap 'rm -f "$WORKDIR/shell.pid" "$agy_tok"' EXIT
+    lend_agy_access_token
+    printf '%s\n' "$$" > "$WORKDIR/shell.pid"
+    ( cd "$src" && agy )
+    return $?
+  fi
   lend_access_token
   printf '%s\n' "$$" > "$WORKDIR/shell.pid"
   trap 'rm -f "$WORKDIR/shell.pid"' EXIT

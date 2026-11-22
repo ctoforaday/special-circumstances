@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 func TestAntigravityFinishEnvelopeUnwrapsAndRewrapsResult(t *testing.T) {
@@ -344,7 +345,8 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 		t.Fatalf("PostToolUse failure log leaked runDir %q: %s", runDir, logged[0])
 	}
 
-	// Second conversation trying to claim the already-bound seat-red-chair is refused (O_EXCL).
+	// Second conversation trying to claim the already-bound seat-red-chair is refused (O_EXCL)
+	// and records a StageAgyBind failure on the recorder.
 	hijackPayload, _ := json.Marshal(map[string]any{
 		"hookEventName":  "PreToolUse",
 		"conversationId": "other-conv-hijack",
@@ -356,10 +358,67 @@ func TestAntigravityRunWorkflowSittingBindingInjectsRunAndAgentIdentity(t *testi
 		},
 	})
 	out.Reset()
-	if err := Pre(bytes.NewReader(hijackPayload), &out, testRecorder()); err != nil {
+	hijackRec := testRecorder()
+	if err := Pre(bytes.NewReader(hijackPayload), &out, hijackRec); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(out.String(), "FEOV_AGENT_ID='agy-0123456789abcdef'") {
 		t.Fatalf("second conversation hijacked already-bound seat: %s", out.String())
+	}
+	if !hijackRec.Failed() {
+		t.Fatalf("expected O_EXCL conflict to record a failure on recorder")
+	}
+}
+
+func TestAntigravitySittingRefusesDecidedRun(t *testing.T) {
+	cwd, runDir := hookRun(t)
+	sdir := filepath.Join(runDir, agySittingsDir)
+	if err := os.MkdirAll(sdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	seatRec, _ := json.Marshal(agySitting{
+		AgentID:     "agy-decided00000001",
+		AgentType:   "frank-exchange-of-views:red-lens-logic",
+		SeatID:      "red-lens-logic",
+		RunDir:      runDir,
+		LeadSession: testLead,
+	})
+	if err := os.WriteFile(filepath.Join(sdir, "seat-red-lens-logic.json"), seatRec, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sdir, "conv-already-bound.json"), seatRec, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Mark the run decided so runlive.StateOf returns RowDecided for red-lens-logic.
+	if err := os.WriteFile(filepath.Join(runDir, runlive.OutcomeMark), []byte(`{"agent_id":"other-agent"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both fast-path (conv-*.json) and first-bind (--seat-id) must refuse to bind a decided run.
+	for _, tc := range []struct {
+		name string
+		conv string
+		cmd  string
+	}{
+		{"fast-path", "already-bound", "echo hi"},
+		{"first-bind", "fresh-conv", "/bin/feov-record register --seat-id red-lens-logic"},
+	} {
+		payload, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreToolUse",
+			"conversationId": tc.conv,
+			"cwd":            cwd,
+			"toolCall": map[string]any{
+				"id":   "call-" + tc.name,
+				"name": "run_command",
+				"args": map[string]any{"CommandLine": tc.cmd},
+			},
+		})
+		var out bytes.Buffer
+		if err := Pre(bytes.NewReader(payload), &out, testRecorder()); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if strings.Contains(out.String(), "FEOV_AGENT_ID='agy-decided00000001'") {
+			t.Fatalf("%s bound a decided run: %s", tc.name, out.String())
+		}
 	}
 }

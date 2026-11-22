@@ -39,7 +39,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if cwd == "" {
 		cwd = cwdOf(req.Raw)
 	}
-	applyAgySitting(&req, cwd)
+	applyAgySitting(&req, cwd, rec)
 	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	agent := caller.ID
 	if agent == "" {

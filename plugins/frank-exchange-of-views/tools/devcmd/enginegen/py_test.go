@@ -36,7 +36,7 @@ with open(py_path, "r") as f:
 # Strip top-level await run_debate() invocation so we can inject mock primitives and test scenarios.
 body = src.split("result = await run_debate()")[0]
 
-def make_env(scenario, args_dict):
+def make_env(scenario, args_dict, conv_id="lead-conv-sim"):
     logs = []
     phases = []
     calls = []
@@ -70,10 +70,21 @@ def make_env(scenario, args_dict):
         if phase_name == "open":
             at = args_list[args_list.index("-agent-type") + 1]
             agent_types[agent_id] = at
+            if scenario == "open_fail" and at.endswith("red-lens-logic"):
+                return _FakeCompleted(stderr="open boom", returncode=1)
             return _FakeCompleted(stdout="WORK LIST")
+        if phase_name == "admission":
+            at = agent_types.get(agent_id, "")
+            if scenario == "admission_fail" and at.endswith("red-lens-logic"):
+                return _FakeCompleted(stderr="admit boom", returncode=1)
+            return _FakeCompleted()
         if phase_name == "envelope":
             at = agent_types.get(agent_id, "")
             rr = {"event": 10, "bench_owed": [], "halted": False}
+            if scenario == "envelope_empty" and at.endswith("red-lens-logic"):
+                return _FakeCompleted(stdout="")
+            if scenario == "refusal_cap" and at.endswith("red-lens-logic"):
+                return _FakeCompleted(stdout=json.dumps({"refusal": "still blocked"}))
             if scenario == "missing_read" and at.endswith("blue-synthesizer"):
                 return _FakeCompleted(stdout=json.dumps({}))
             if scenario == "refusal_retry" and at.endswith("red-lens-logic") and not refusal_once["done"]:
@@ -129,7 +140,7 @@ def make_env(scenario, args_dict):
     def log(*a):
         logs.append(" ".join(str(x) for x in a))
 
-    ns = {"args": args_dict, "agent": agent, "parallel": parallel, "phase": phase, "log": log, "WorkflowError": WorkflowError, "CONVERSATION_ID": "lead-conv-sim"}
+    ns = {"args": args_dict, "agent": agent, "parallel": parallel, "phase": phase, "log": log, "WorkflowError": WorkflowError, "CONVERSATION_ID": conv_id}
     exec(compile(body, py_path, "exec"), ns)
     ns["_run_sitting_write"] = fake_sitting_write
     return ns, phases, calls, logs
@@ -179,6 +190,45 @@ ns, _, _, logs = make_env("no_progress", base_args)
 res = asyncio.run(ns["run_debate"]())
 assert res["verdict"] == "UNVERIFIED" and res["epochs"] == 3, res
 assert any("no-progress valve" in l for l in logs), logs
+
+# 6. open returning non-zero -> sit() returns None without calling agent()
+ns, _, calls, logs = make_env("open_fail", base_args)
+res = asyncio.run(ns["run_debate"]())
+assert res["verdict"] == "PASS", res
+assert not any(c["type_name"] == "red-lens-logic" for c in calls), calls
+assert any("sitting open failed" in l for l in logs), logs
+
+# 7. envelope returning empty stdout -> sit() returns None and logs both causes
+ns, _, _, logs = make_env("envelope_empty", base_args)
+res = asyncio.run(ns["run_debate"]())
+assert res["verdict"] == "PASS", res
+assert any("envelope check returned empty" in l for l in logs), logs
+
+# 8. admission returning non-zero -> sit() returns None
+ns, _, _, logs = make_env("admission_fail", base_args)
+res = asyncio.run(ns["run_debate"]())
+assert res["verdict"] == "PASS", res
+assert any("admission failed" in l for l in logs), logs
+
+# 9. refusal cap exhausted -> sit() returns None after ENVELOPE_REFUSAL_RETRIES + 1 attempts
+ns, _, calls, logs = make_env("refusal_cap", base_args)
+res = asyncio.run(ns["run_debate"]())
+assert res["verdict"] == "PASS", res
+assert sum(1 for c in calls if c["type_name"] == "red-lens-logic") == 6, calls
+assert any("envelope refused 6 times" in l for l in logs), logs
+
+# 10. empty CONVERSATION_ID fails loud at exec time
+prev_agy_conv = os.environ.pop("ANTIGRAVITY_CONVERSATION_ID", None)
+try:
+    try:
+        make_env("pass", base_args, conv_id="")
+        raise AssertionError("expected RuntimeError on empty CONVERSATION_ID")
+    except RuntimeError as e:
+        assert "CONVERSATION_ID" in str(e), e
+finally:
+    if prev_agy_conv is not None:
+        os.environ["ANTIGRAVITY_CONVERSATION_ID"] = prev_agy_conv
+
 print("ALL_PY_SIM_OK")
 `
 	harnessPath := filepath.Join(t.TempDir(), "sim.py")
