@@ -36,7 +36,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -105,8 +104,12 @@ func walk(events []*record.Event) *groundTruth {
 	// given. `motion_rule.motion_id` carries no foreign key and a seeded record can present a
 	// ruling first, so the pairing is built before the walk — an oracle that quietly counted
 	// nothing would agree with a broken board, which is the one thing it must never do.
+	// A BENCH RULING'S GAP RIDES ITS DOCKETING (record.DocketRulingGap's rule): the docketing's gap,
+	// else, for the assignee's accept, its motion's filing's.
 	docketGap := map[string]string{}
 	docketSupersede := map[string]bool{} // the docket motions proposing a supersede
+	docketingGap := map[string]string{}
+	docketingMotion := map[string]string{}
 	for _, e := range events {
 		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
@@ -115,6 +118,10 @@ func walk(events []*record.Event) *groundTruth {
 					docketSupersede[id] = f.GetSupersede() != nil
 				}
 			}
+		}
+		if k, ok := recordpb.BodyAs[*recordpb.Docketing](e); ok && k.GetDocketingId() != "" {
+			docketingGap[k.GetDocketingId()] = k.GetGapId()
+			docketingMotion[k.GetDocketingId()] = k.GetMotionId()
 		}
 	}
 
@@ -228,9 +235,14 @@ func walk(events []*record.Event) *groundTruth {
 			// The write path refuses this today (`motion docket rule` rejects a motion id no
 			// filing created). That is exactly why it belongs here: the oracle's value is over
 			// records assembled some OTHER way, where the write path never ran.
-			gapID, paired := docketGap[m.GetMotionId()]
+			key := m.GetMotionId()
+			gapID, paired := docketGap[key]
+			if k := d.Docket.GetDocketingId(); k != "" {
+				key = k
+				gapID, paired = docketingGap[k]
+			}
 			if !paired || gapID == "" {
-				gt.unpairedDocket = append(gt.unpairedDocket, m.GetMotionId())
+				gt.unpairedDocket = append(gt.unpairedDocket, key)
 				continue
 			}
 			g := gt.gaps[gapID]
@@ -239,11 +251,13 @@ func walk(events []*record.Event) *groundTruth {
 				continue
 			}
 			w := recordpb.Word(d.Docket.GetDisposition())
-			// AN ANSWER TO A PROPOSED ACT closes nothing here, but one: the bench's accept of a proposed
-			// supersede, which closes the gap as the bench — read by the ruling event's role — with the
-			// fate a supersession gives. Neither is a word the bench carried.
-			if d.Docket.Accepted != nil {
-				if !d.Docket.GetAccepted() || !docketSupersede[m.GetMotionId()] || seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+			// A RULING WITH NO CLOSING WORD closes nothing here, but one: the bench siding with a proposed
+			// supersede its docketing holds, which closes the gap as the bench with the fate a
+			// supersession gives. The assignee's accept names no docketing, and closes through its act.
+			if d.Docket.Disposition == nil {
+				side := d.Docket.GetSidedWith()
+				held := docketingMotion[d.Docket.GetDocketingId()]
+				if (side != recordpb.SidedWith_SIDED_WITH_BLUE && side != recordpb.SidedWith_SIDED_WITH_FILER) || held == "" || !docketSupersede[held] {
 					continue
 				}
 				w = record.ClosedSuperseded

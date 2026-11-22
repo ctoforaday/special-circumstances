@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -33,21 +34,17 @@ import (
 // the shape this suite exists to remove.
 var MotionSubjects = []string{"petition", "docket", "position"}
 
-// MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
-// flag is `--as` on every one of them, which is the point: §I of the plan names
-// `ruling`/`ruling`/`response` as the structural defect, and a collapse that kept three
-// spellings would have reproduced it inside the new group.
+// MotionVerdicts are the rulings, per subject that rules with a word. The KEY is `ruling` on each and the
+// flag is `--as`, which is the point: §I of the plan names `ruling`/`ruling`/`response` as the
+// structural defect, and a collapse that kept three spellings would have reproduced it inside the new
+// group. THE DOCKET SUBJECT HAS NONE: the bench answers a docketing by naming a side of its pair, a
+// grade answer or a remand, and the tool writes the closing word from the side's statement (#1695
+// §III.B14), so no flag of the bench's chooses a word.
 var MotionVerdicts = map[string][]EnumValue{
 	// FROM THE SCHEMA, not typed here: each ruling word and its sentence is the `(means)` on the
 	// subject's ruling enum, in declaration order.
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
 	"position": evsOf(recordpb.PositionRuling(0).Descriptor()),
-	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
-	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
-	// means. Copying the words here would be the second list that drifts, and an August draft of
-	// this change did exactly that: it printed a set taken from the bench's CONSTITUTION rather
-	// than from the code, and got it wrong in both directions.
-	"docket": Dispositions,
 }
 
 // MotionFields are the ENUMERATED payload fields a subject's filing carries, beyond the verdict.
@@ -214,10 +211,18 @@ type Motion struct {
 	// ruled is the place (motionsAt's seq) of the ruling the motion carries. Zero for an unruled
 	// motion, or one read through MotionsOf.
 	ruled int64
+	// pos is the stream position (1-based) of the motion's filing, and ended that of the non-carry
+	// Close of its gap written after the filing that ended a docket motion unruled; zero for none.
+	pos, ended int
 }
 
 // Ruled reports whether the motion has an answer.
 func (m Motion) Ruled() bool { return m.Ruling != "" }
+
+// Standing reports whether a docket motion stands as a proposal: unruled, and no non-carry Close of
+// its gap written after its filing ended it — gap_state.unruled_docket_motion's rule. A petition or a
+// position stands while it is unruled.
+func (m Motion) Standing() bool { return !m.Ruled() && m.ended == 0 }
 
 // MotionsOf is Motions over the events themselves — the stream is all the join ever read, and
 // the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
@@ -291,6 +296,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				if seq != nil {
 					m.filed = seq[i]
 				}
+				m.pos = i + 1
 			}
 			w := win.Of(e)
 			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.Subject()), e.GetSeatId(), w.Epoch, w.Sitting
@@ -368,6 +374,22 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		}
 	}
 
+	// PASS 3: A CLOSE ENDS A PROPOSAL (§III.B14, L42). A non-carry Close of a docket motion's gap
+	// written after its filing ends it unruled; a carry restates an earlier epoch's closure and answers
+	// nothing.
+	for i, e := range evs {
+		c, ok := recordpb.BodyAs[*recordpb.Close](e)
+		if !ok || c.GetCarriedFrom() != "" {
+			continue
+		}
+		for _, id := range order {
+			m := byID[id]
+			if m.GapID == c.GetGapId() && !m.Ruled() && m.ended == 0 && m.pos != 0 && m.pos <= i {
+				m.ended = i + 1
+			}
+		}
+	}
+
 	out := make([]*Motion, 0, len(order))
 	for _, id := range order {
 		out = append(out, byID[id])
@@ -416,6 +438,9 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 // the run's handle.
 func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject, id string) (filed string, err error) {
 	if id == "" {
+		if subject == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+			return "", fmt.Errorf("--id is required — a docket ruling names the docketing it answers, and through it the proposal the docketing holds, if any")
+		}
 		return "", fmt.Errorf("--id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
 	// A heard position has no filing event — the position is the filing — so an id that resolves to
@@ -491,11 +516,31 @@ func requireSubjectMatches(q recordsql.Querier, subject recordpb.MotionSubject, 
 // the writing transaction (writeIn's), which takes the write lock at BEGIN. Read before the
 // transaction it is check-then-insert: every seat that reads "unanswered" before the first answer
 // commits lands its own, and the record holds two answers to one motion.
+//
+// A DOCKETING IS ANSWERED ONCE TOO: the bench answers it, and its gap comes before the bench again only
+// on a new docketing. One holding a proposal is refused as its motion's second answer; one holding none
+// names no motion, so its second answer is asked of the docketing, in words rather than by the
+// column's key.
 func requireUnanswered(q rowQuerier, seatID string, body proto.Message) error {
-	if b, ok := body.(*recordpb.MotionRule); ok {
-		return RequireUnruledMotion(q, b.GetMotionId(), SupersedingAnswer(seatID, recordpb.EventType_EVENT_TYPE_MOTION_RULE, b))
+	b, ok := body.(*recordpb.MotionRule)
+	if !ok {
+		return nil
 	}
-	return nil
+	if d := b.GetDocket().GetDocketingId(); d != "" && b.GetMotionId() == "" {
+		var gap string
+		found, err := rowOf(q, []any{&gap},
+			`SELECT k."gap_id" FROM "motion_rule_docket" r JOIN "docketing" k ON k."docketing_id" = r."docketing_id" WHERE r."docketing_id" = ?`, d)
+		if err != nil {
+			return err
+		}
+		if found {
+			return feov.Errorf(feov.Conflict, "docketing %s is already ruled: the bench answers a docketing once, and gap %s comes before it again only on a new docketing. Nothing was recorded", d, gap)
+		}
+	}
+	if b.GetMotionId() == "" {
+		return nil
+	}
+	return RequireUnruledMotion(q, b.GetMotionId(), SupersedingAnswer(seatID, recordpb.EventType_EVENT_TYPE_MOTION_RULE, b))
 }
 
 // RequireUnruledMotion refuses a SECOND ruling on a motion already answered.

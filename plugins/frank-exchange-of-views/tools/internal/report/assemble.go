@@ -1181,9 +1181,9 @@ func debate(fam record.Family) string {
 	}
 
 	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
-	// motion's FILING, so the join is computed once here — record.DocketGapByMotion is the one place
-	// it lives, and recovering it a second way is how two renderers come to disagree.
-	docketGapOf := record.DocketGapByMotion(fam.Events)
+	// docketing, so the join is computed once here — record.DocketRulingGap is the one place it
+	// lives, and recovering it a second way is how two renderers come to disagree.
+	docketGapOf := record.DocketRulingGap(fam.Events)
 	archive := record.ArchiveOf(fam.Gaps)
 	kept := record.KeptGrades(fam.Events, fam.At)
 
@@ -1283,12 +1283,12 @@ func debate(fam record.Family) string {
 			// `--reason` LANDS ON `MotionRule.opinion` — the ruler's prose channel, declared in
 			// recordpb/required.go ("a disposition with no stated reasoning is
 			// indistinguishable from a default"). THE GAP IS NOT ON THE RULING: it rides the
-			// docket motion's filing, so it comes from the join built above.
+			// docketing, so it comes from the join built above.
 			lead = append(lead, "- "+fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 				// The vocabulary's word, not the generated constant name — see view.go's
 				// disposition renderer, where the same substitution was needed for the same
 				// reason.
-				docketGapOf[mr.GetMotionId()], record.RulingWord(mr),
+				docketGapOf(mr), record.RulingWord(mr),
 				oneLine(d.Docket.GetPrinciple()), oneLine(d.Docket.GetTension()), oneLine(d.Docket.GetReviewFlag()))+"\n"+ownBlock(mr.GetOpinion()))
 		}
 		if len(lead) > 0 {

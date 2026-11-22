@@ -52,7 +52,12 @@ func TestTheSmokesMetGapsCloseThroughTheCLI(t *testing.T) {
 			t.Fatalf("a docket motion on %s precedes the retire at %d", m.GetDocket().GetGapId(), through)
 		}
 	}
-	dir := recordtest.RequireArchive(t, name)
+	// The prefix is seeded into the migrated run, whose inputs are the translated ones the write path
+	// reads (the archive's run-config.json holds keys the run's configuration no longer has).
+	dir := migrated
+	if err := recordsql.CloseUnder(dir); err != nil {
+		t.Fatal(err)
+	}
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {
 		if err := os.Remove(filepath.Join(dir, "records", f)); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)

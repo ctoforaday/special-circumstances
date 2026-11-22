@@ -95,7 +95,7 @@ func (r *runner) disputeMovedGap(seatID string) {
 		minter := r.minter[id]
 		own, sitting := minter == seatID, r.unreturned[minter] > 0
 		r.mu.Unlock()
-		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && len(r.unruledDocketMotions(id)) == 0 && r.exchanged(id) {
+		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && !r.beforeTheBench(id) && r.exchanged(id) {
 			gap = id
 		}
 	}

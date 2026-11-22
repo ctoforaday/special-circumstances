@@ -271,17 +271,15 @@ func (r *runner) carryingOf() (map[string][]string, bool) {
 	return out, true
 }
 
-// remandRulings is the position of the bench's latest remand of each gap: a docket ruled remanded,
-// and an upheld position naming the gap, which the engine reads as the same remand (blueanswered.go).
+// remandRulings is the position of the bench's latest remand of each gap: a docketing ruled remanded,
+// its gap the docketing's (record.DocketRulingGap), and an upheld position naming the gap, which the
+// engine reads as the same remand (blueanswered.go).
 func remandRulings(evs []*record.Event) map[string]int {
-	docketGap := map[string]string{} // docket motion id → its gap
+	gapOf := record.DocketRulingGap(evs)
 	out := map[string]int{}
 	for i, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && m.GetDocket().GetGapId() != "" {
-			docketGap[m.GetMotionId()] = m.GetDocket().GetGapId()
-		}
 		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket().GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
-			if g := docketGap[r.GetMotionId()]; g != "" {
+			if g := gapOf(r); g != "" {
 				out[g] = i
 			}
 		}

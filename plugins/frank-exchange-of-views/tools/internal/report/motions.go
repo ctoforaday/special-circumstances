@@ -15,25 +15,56 @@ import (
 // It reads through record.Motions, the one read of the one motion vocabulary.
 func motions(fam record.Family) string {
 	ms := record.MotionsOf(fam.Events, fam.At)
-	if len(ms) == 0 {
+	ds := record.DocketingsOf(fam.Events)
+	if len(ms) == 0 && len(ds) == 0 {
 		return ""
 	}
 	var rows []string
 	unruled := 0
+	// A DOCKETING IS THE TOOL'S ROW PUTTING A GAP BEFORE THE BENCH, and the bench's ruling answers it.
+	// One that holds a proposal is answered on that proposal's row, below; every other is a row of its
+	// own, its basis the question and the ruling its answer.
+	for _, d := range ds {
+		if d.MotionID == "" {
+			rows = append(rows, docketingRow(d, &unruled))
+		}
+	}
 	for _, m := range ms {
 		rows = append(rows, motionRow(m, &unruled))
 	}
-	out := "Every contested question and how it was answered: docket motions, petitions, rulings on proposed inquiries, and the chair's positions on a PASS it withheld. One mechanism, one id — an ask and its answer are one row.\n\n" +
+	out := "Every contested question and how it was answered: the gaps put before the bench and its rulings on them, docket motions, petitions, rulings on proposed inquiries, and the chair's positions on a PASS it withheld. One id each — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
 	if unruled > 0 {
-		out += fmt.Sprintf("\n\n**%d motion(s) received no ruling.** A motion is answered before the debate moves on; a filing with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)
+		out += fmt.Sprintf("\n\n**%d question(s) received no ruling.** A docketing or a motion is answered before the debate moves on; one with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)
 	}
 	return out
 }
 
+// docketingRow is a docketing's row: the gap, why it is before the bench, the basis, and the ruling —
+// or, where a Close of the gap ended it first, that, or that it stands unruled.
+func docketingRow(d *record.Docketing, unruled *int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "- **%s** · docketing %s · cause %s", d.ID, d.GapID, recordpb.Word(d.Cause))
+	if d.Basis != "" {
+		fmt.Fprintf(&b, "\n  - asked: %s", inItem(d.Basis, "    "))
+	}
+	switch {
+	case d.Ruled():
+		fmt.Fprintf(&b, "\n  - **ruled %s** by %s", d.Word(), d.RulingSeat)
+		if o := d.Ruling.GetOpinion(); o != "" {
+			fmt.Fprintf(&b, " — %s", inItem(o, "    "))
+		}
+	case d.Standing():
+		*unruled++
+		b.WriteString("\n  - **NOT RULED.** The gap is before the bench and no answer is on the record.")
+	default:
+		b.WriteString("\n  - ended unruled: a close of the gap was written after it, before the bench ruled.")
+	}
+	return b.String()
+}
+
 // atSitting names a writer and the sitting it acted in. A writer that sits in no sitting — the
-// harness, which files the docket motion migrate translates from a bench opinion — has no
-// sitting number, and none is printed.
+// harness — has no sitting number, and none is printed.
 func atSitting(who string, sitting int) string {
 	if sitting == 0 {
 		return who

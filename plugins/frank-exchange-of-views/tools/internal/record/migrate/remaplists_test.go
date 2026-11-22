@@ -85,11 +85,11 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("mints names %s, which is not in the id list", field)
 		}
 	}
-	if motionArms != 7 {
-		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 7 — the walk stopped at the top-level bodies", motionArms)
+	if motionArms != 8 {
+		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 8 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "35 41 64" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 35 41 64", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "39 42 66" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 39 42 66", got)
 	}
 }
 

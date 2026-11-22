@@ -620,19 +620,18 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
 		}),
 	})
-	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the LEAD row needs both halves:
-	// the gap comes from the FILING through record.Motions, the disposition from the RULING.
-	// Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
+	// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, and the LEAD row needs both halves:
+	// the gap comes from the DOCKETING through record.DocketRulingGap, the disposition from the
+	// RULING. Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle G1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		recordtest.At(t, merge, merge+":docketing:M1", &recordpb.Docketing{
+			DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("red cannot settle G1"),
 		}),
 		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),

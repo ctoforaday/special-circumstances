@@ -90,7 +90,7 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 	docket := []string{"motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide"}
 	petition := []string{"motion", "petition", "file", "--class", "safety", "--relief", "halt", "--reason", "a consent gate is missing"}
 	docketRule := func(m string) []string {
-		return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
+		return []string{"motion", "docket", "rule", "--id", m, "--remand", "--principle", "thoroughness over speed",
 			"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "one more exchange"}
 	}
 
@@ -124,8 +124,9 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		d := fresh(t)
 		g := handleText(t, d.run, "G1")
 		m := docketFile(t, d.run, "red-chair", g, "red cannot settle G1")
+		k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 		conveneBench(t, d.run, g)
-		d.admitted("the bench's ruling", "judge", docketRule(m)...)
+		d.admitted("the bench's ruling", "judge", docketRule(k)...)
 	})
 	for _, filer := range []string{"blue-respond", lensSeat, "red-chair"} {
 		t.Run("a petition filed by "+filer+" is ruled by the bench", func(t *testing.T) {
@@ -150,8 +151,9 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 			d := fresh(t)
 			g := handleText(t, d.run, "G1")
 			m := docketFile(t, d.run, filer, g, "the bench should decide G1")
+			k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(t, d.run, g)
-			d.admitted("the bench's ruling", "judge", docketRule(m)...)
+			d.admitted("the bench's ruling", "judge", docketRule(k)...)
 		})
 	}
 }

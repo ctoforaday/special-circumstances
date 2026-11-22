@@ -13,3 +13,5 @@ EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or c
 A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taking a citation that a computation still in the report names as its method is refused, naming each such computation — whether the retire names the citation alone or takes it with a claim: retired, the citation would be in no document while the computation points at it. Retire or recompute each computation first, or take it with the citation in the same claim retire.
 
 Name what replaces it where something does.
+
+A STATEMENT STANDING ON A GAP HOLDS UNTIL ITS RULING. While a docketing or a proposal stands on a gap, the text the gap's lens states in its closing there, and the quote and fix of a supersede proposed on it, are what the bench applies when it sides with them: an retire after which one of them no longer applies to the report is refused, naming that docketing or proposal, and nothing is recorded. An retire that leaves each of them applying lands.

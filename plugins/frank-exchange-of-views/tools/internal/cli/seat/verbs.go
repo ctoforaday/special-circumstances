@@ -212,24 +212,32 @@ type positionResult struct {
 
 func (r positionResult) Human() string { return "position " + r.ID + " recorded" }
 
-// Closing is a party's argument to the bench on one docketed gap: the gap's minting lens's, and
-// blue-respond's. The write path refuses it from any other seat, and on a gap no unruled docket
-// motion stands on (record.ClosingRefusal).
-func Closing(key string) *cobra.Command {
+// Closing is a party's argument to the bench on one docketed gap, and its statement there (#1695
+// §III.B14): red's (the assignee's) text, blue's word. The write path refuses it from any other seat,
+// and on a gap no docketing or proposal owes it on (record.ClosingRefusal). register mounts the side's
+// statement flags; state fills the statement from them and returns the guards that check it against
+// the record the closing lands on.
+func Closing(key string, register func(*cobra.Command), state func(s Context, cmd *cobra.Command, body *recordpb.Closing) ([]record.Guard, error)) *cobra.Command {
 	c := Prose(NewKeyed("closing", key, closingResult{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.Closing{
+		body := &recordpb.Closing{
 			GapId: proto.String(Str(cmd, flags.ID)),
 			Text:  proto.String(text),
-		}); err != nil {
+		}
+		guards, err := state(s, cmd, body)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), body, guards...); err != nil {
 			return nil, err
 		}
 		return closingResult{GapID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
+	register(c)
 	// validate refuses a closing that names no gap — "a receipt naming no gap cannot be audited".
 	return SaysRequired(c, flags.ID)
 }
@@ -288,7 +296,7 @@ var views = []struct {
 	inquest bool
 }{
 	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by a lane's `ingest`, one part a lane, and blue's `edit`, with anchors from blue's `cite`, the lens's `mint` and blue's `compute`", reportLong, "", false, record.ReportJSON{}, false},
-	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — the bench regrades a gap it is hearing. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.\n\n" + record.LocationStates + ".\n\nWritten by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`", "", true, record.BoardJSON{}, false},
+	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — an axis a bench ruling on the gap's grade decided (a regrade proposal's ruling, `--keep` or `--restore`) it may not move back. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.\n\n" + record.LocationStates + ".\n\nWritten by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`", "", true, record.BoardJSON{}, false},
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — a lens's one item at a time, with an index of the rest — except where your agent configuration seats several seats (blue-researcher's, blue-lane's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`", viewLong("work", "", ""), "*", true, record.WorkJSON{}, false},
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion` and `rule`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file` and `rule`", "", true, record.MotionsJSON{}, true},
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade, and the bench's `motion docket rule`, `halt`, `certify` and `outcome`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade (`### RED KEEPS THE GRADE`; `red_keeps` in --json), and the bench's `motion docket rule`. " +

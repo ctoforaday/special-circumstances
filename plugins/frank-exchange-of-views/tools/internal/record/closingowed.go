@@ -11,10 +11,10 @@ import (
 // ONE IS SAID (gblock, 2026-10-20).
 //
 // A gap's dispute has two parties: the lens that minted it, which holds it from mint to close, and
-// blue's responding seat, which answers it. Once the gap is docketed — the dispatch files the docket
-// motion at impasse or for its grade movement, or a party files one — the bench rules it on the two
-// parties' closings, the transcript and the artifacts as they stand, so each party owes one closing
-// for each docketing. The chair is party to no dispute and files none. A lens's regrade that keeps
+// blue's responding seat, which answers it. Once the gap is docketed — the dispatch writes a docketing
+// at impasse, for its grade movement, or for a proposal its assignee did not accept — the bench rules it
+// on the two parties' closings, the transcript and the artifacts as they stand, so each party owes one
+// closing for each docketing. The chair is party to no dispute and files none. A lens's regrade that keeps
 // its grade is its move while the dispute runs; the closing is its brief once the gap is before the
 // bench.
 //
@@ -23,9 +23,11 @@ import (
 // convenes the bench only once no party is awaited, the work list blocks the party, and the lens
 // stays unretired — and capture's record-parity audit.
 //
-// A CLOSING ANSWERS ONE DOCKETING: a closing of the party's on the gap filed after the docket motion
-// and before its ruling. The write path refuses one on a gap no unruled docket motion stands on, so
-// one filed for an earlier docketing, before a remand, answers that docketing and no later one.
+// A CLOSING ANSWERS ONE DOCKETING: a closing of the party's on the gap filed after the docketing and
+// before its ruling. A PROPOSAL docketing's span opens at the proposal's filing (L30), so the closing
+// its assignee files in its window sitting answers it. The write path refuses a closing on a gap no
+// docketing and no proposal stands on, so one filed for an earlier docketing, before a remand, answers
+// that docketing and no later one.
 //
 // OWED BY EACH PARTY, WITH TWO EXCEPTIONS, each a state of its own (ClosingNotOwed):
 //   - the gap closed after the docketing, which an archived run's lens could do and the write now
@@ -35,7 +37,7 @@ import (
 //     chair — so there is no minting party to dispatch, and blue's closing is the only one owed.
 //
 // AWAITED AND MISSING ARE APART BY WHETHER THE PARTY HAS SAT SINCE THE DOCKETING. A party that has
-// sat through no sitting opened after the motion was filed is awaited: the plan readies it, and the
+// sat through no sitting opened after the docketing's span opened is awaited: the plan readies it, and the
 // bench waits. One that sat through such a sitting and filed none is missing: the plan readies it no
 // more for this docketing (once per cause, as for every blocker another seat owes), the bench sits
 // on the record as it stands, the item stays on the party's work list until the bench rules, and
@@ -62,14 +64,18 @@ const (
 // ClosingDuty is one party's closing on one docketing.
 type ClosingDuty struct {
 	GapID string
-	// Motion is the docket motion's id; Ruled whether the bench has ruled it.
-	Motion string
-	Ruled  bool
-	Party  string
-	State  ClosingState
+	// Docketing is the docketing's id; Ruled whether the bench has ruled it. Proposal is the proposal
+	// in its assignee's window a row of no docketing yet is owed for ("" on a docketing's row).
+	Docketing string
+	Proposal  string
+	Ruled     bool
+	Party     string
+	State     ClosingState
 	// NotOwedWhy is the exception that holds, for ClosingNotOwed; "" otherwise.
 	NotOwedWhy string
-	// filed and ruled are the motion's places (ruled 0 while unruled).
+	// filed is where the docketing's span opens — its row, or for a PROPOSAL docketing the proposal's
+	// filing — and ruled its ruling's place, or the place of the Close that ended it unruled (0 while
+	// it stands).
 	filed, ruled int64
 }
 
@@ -95,94 +101,134 @@ func IsClosingParty(seatID, assignee string) bool {
 	return seatID == blueRespondSeat || (seatID == assignee && seatclass.RoleOfSeat(seatID) == "lens")
 }
 
-// ClosingDuties is one row per party per docket motion on the record, in the motions' order, read
-// off the whole stream: the reading capture audits after the run.
+// ClosingDuties is one row per party per docketing on the record, in the docketings' order, read off
+// the whole stream: the reading capture audits after the run.
 func ClosingDuties(evs []*Event, win WindowIndex) []ClosingDuty {
 	return closingDutiesOf(evs, win.IDs(evs), win)
 }
 
-// closingDutiesOf is ClosingDuties over evs and its places ids.
-func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
-	cast := castOfEvents(evs)
-	assignees := assigneeOf(evs) // the red party of a gap's closings is its assignee
-	minter := map[string]string{}
-	closedAt := map[string]int64{}
-	type filing struct {
-		seat, gap string
-		at        int64
-	}
-	var closings []filing
+// closingReads is what every closing duty is read against: the cast, each gap's assignee, where each
+// gap first closed, the closings filed, and the sittings each seat sat through.
+type closingReads struct {
+	cast      []string
+	assignees map[string]string
+	closedAt  map[string]int64
+	closings  []closingFiled
+	through   map[string][]int64
+}
+
+type closingFiled struct {
+	seat, gap string
+	at        int64
+}
+
+// closingReadsOf reads closingReads off evs and its places ids.
+func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
+	r := closingReads{cast: castOfEvents(evs), assignees: assigneeOf(evs), closedAt: map[string]int64{}}
 	for i, e := range evs {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
-		case *recordpb.Mint:
-			minter[b.GetGapId()] = assignees[b.GetGapId()]
 		case *recordpb.Close:
-			if _, seen := closedAt[b.GetGapId()]; !seen {
-				closedAt[b.GetGapId()] = ids[i]
+			if _, seen := r.closedAt[b.GetGapId()]; !seen {
+				r.closedAt[b.GetGapId()] = ids[i]
 			}
 		case *recordpb.Closing:
-			closings = append(closings, filing{seat: e.GetSeatId(), gap: b.GetGapId(), at: ids[i]})
+			r.closings = append(r.closings, closingFiled{seat: e.GetSeatId(), gap: b.GetGapId(), at: ids[i]})
 		}
 	}
 	// A SUPERSESSION IS THE LENS'S CLOSING ACT TOO: the successor's mint closed the gap where no
 	// close came first.
 	for g, i := range supersessionsOf(evs) {
-		if at, seen := closedAt[g]; !seen || ids[i] < at {
-			closedAt[g] = ids[i]
+		if at, seen := r.closedAt[g]; !seen || ids[i] < at {
+			r.closedAt[g] = ids[i]
 		}
 	}
 	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
-	var out []ClosingDuty
-	for _, m := range motionsAt(evs, ids, win) {
-		if m == nil || m.Subject != "docket" || m.GapID == "" {
-			continue
-		}
-		// before is the place the docketing ends at: its ruling, or nowhere while it stands.
-		before := func(at int64) bool { return at > m.filed && (m.ruled == 0 || at < m.ruled) }
-		row := func(party string) ClosingDuty {
-			d := ClosingDuty{GapID: m.GapID, Motion: m.ID, Ruled: m.Ruled(), Party: party, filed: m.filed, ruled: m.ruled}
-			for _, c := range closings {
-				if c.seat == party && c.gap == m.GapID && before(c.at) {
-					d.State = ClosingFiled
-					return d
-				}
-			}
-			if at, closed := closedAt[m.GapID]; closed && before(at) {
-				d.State, d.NotOwedWhy = ClosingNotOwed, closingGapClosed
+	r.through = satThroughOf(evs, ids, win, openings).through
+	return r
+}
+
+// dutiesOn is the closing rows of one span on gapID — from its opening place to end (0 while it
+// stands) — for the docketing id (the gap's minting lens's row where the cast seats it, then blue's).
+func (r closingReads) dutiesOn(gapID, docketing string, from, end int64, ruled bool) []ClosingDuty {
+	within := func(at int64) bool { return at > from && (end == 0 || at < end) }
+	row := func(party string) ClosingDuty {
+		d := ClosingDuty{GapID: gapID, Docketing: docketing, Ruled: ruled, Party: party, filed: from, ruled: end}
+		for _, c := range r.closings {
+			if c.seat == party && c.gap == gapID && within(c.at) {
+				d.State = ClosingFiled
 				return d
 			}
-			d.State = ClosingAwaited
-			if o, sat := firstAfter(ends.through[party], m.filed); sat && (m.ruled == 0 || o < m.ruled) {
-				d.State = ClosingMissing
-			}
+		}
+		// The Close that ended the docketing unruled is the span's end, and owes nothing after it.
+		if at, closed := r.closedAt[gapID]; closed && at > from && (end == 0 || at <= end) {
+			d.State, d.NotOwedWhy = ClosingNotOwed, closingGapClosed
 			return d
 		}
-		if lens, ok := closingPartiesOf(cast, minter[m.GapID]); ok {
-			out = append(out, row(lens))
-		} else {
-			out = append(out, ClosingDuty{GapID: m.GapID, Motion: m.ID, Ruled: m.Ruled(), Party: minter[m.GapID],
-				State: ClosingNotOwed, NotOwedWhy: closingMinterNoLens, filed: m.filed, ruled: m.ruled})
+		d.State = ClosingAwaited
+		if o, sat := firstAfter(r.through[party], from); sat && (end == 0 || o < end) {
+			d.State = ClosingMissing
 		}
-		out = append(out, row(blueRespondSeat))
+		return d
+	}
+	var out []ClosingDuty
+	if lens, ok := closingPartiesOf(r.cast, r.assignees[gapID]); ok {
+		out = append(out, row(lens))
+	} else {
+		out = append(out, ClosingDuty{GapID: gapID, Docketing: docketing, Ruled: ruled, Party: r.assignees[gapID],
+			State: ClosingNotOwed, NotOwedWhy: closingMinterNoLens, filed: from, ruled: end})
+	}
+	return append(out, row(blueRespondSeat))
+}
+
+// closingDutiesOf is ClosingDuties over evs and its places ids: per docketing, its span from its row —
+// for a PROPOSAL docketing from the proposal's filing (L30) — to its ruling, or to the Close that ended
+// it unruled.
+func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
+	r := closingReadsOf(evs, ids, win)
+	filed := map[string]int64{}
+	for _, m := range motionsAt(evs, ids, win) {
+		if m != nil && m.Subject == "docket" {
+			filed[m.ID] = m.filed
+		}
+	}
+	var out []ClosingDuty
+	docketed := map[string]bool{} // the proposals a docketing holds
+	for _, d := range docketingsAt(evs, ids) {
+		from := d.at
+		if f, ok := filed[d.MotionID]; ok && d.MotionID != "" {
+			from = f
+			docketed[d.MotionID] = true
+		}
+		end := d.ruled
+		if end == 0 {
+			end = d.ended
+		}
+		out = append(out, r.dutiesOn(d.GapID, d.ID, from, end, d.Ruled())...)
+	}
+	// A PROPOSAL IN ITS ASSIGNEE'S WINDOW OWES THE CLOSINGS ITS DOCKETING WILL: that docketing's span
+	// opens at the filing (L30), so the window sitting is the closing sitting. Rows of no docketing yet,
+	// for the standing proposal alone; one its assignee accepted was answered with no docketing, and owes
+	// none.
+	_, ended := proposalStates(evs, ids, win)
+	for _, m := range motionsAt(evs, ids, win) {
+		if m == nil || m.Subject != "docket" || m.Ruled() || docketed[m.ID] || ended[m.ID] {
+			continue
+		}
+		for _, d := range r.dutiesOn(m.GapID, "", m.filed, 0, false) {
+			d.Proposal = m.ID
+			out = append(out, d)
+		}
 	}
 	return out
 }
 
-// standingClosingDuties is the duties of each gap's standing docketing: its newest unruled docket
-// motion — the filing the bench's sitting for the gap is keyed on (the gap view's
-// `unruled_docket_filed`, benchSatFor). A closing filed after it answers every older one as well.
+// standingClosingDuties is the duties of each gap's standing docketing: one docketing stands per gap,
+// and one ended by a Close owes nothing more.
 func standingClosingDuties(duties []ClosingDuty) []ClosingDuty {
-	newest := map[string]int64{}
-	for _, d := range duties {
-		if !d.Ruled && d.filed > newest[d.GapID] {
-			newest[d.GapID] = d.filed
-		}
-	}
 	var out []ClosingDuty
 	for _, d := range duties {
-		if !d.Ruled && d.filed == newest[d.GapID] {
+		if !d.Ruled && d.ruled == 0 {
 			out = append(out, d)
 		}
 	}
@@ -198,7 +244,11 @@ func closingBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 		if !open[d.GapID] || (d.State != ClosingAwaited && d.State != ClosingMissing) {
 			continue
 		}
-		out = append(out, Blocker{Kind: BlockerClosingOwed, Subject: d.GapID, Owner: d.Party, Detail: d.Motion, About: d.GapID, since: d.filed,
+		before := "docketing " + d.Docketing
+		if d.Docketing == "" {
+			before = "proposal " + d.Proposal + " in its assignee's window"
+		}
+		out = append(out, Blocker{Kind: BlockerClosingOwed, Subject: d.GapID, Owner: d.Party, Detail: before, About: d.GapID, since: d.filed,
 			awaited: d.State == ClosingAwaited})
 	}
 	return out

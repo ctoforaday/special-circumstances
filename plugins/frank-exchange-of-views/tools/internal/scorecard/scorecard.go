@@ -32,7 +32,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -355,15 +354,15 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	return rows
 }
 
-// docketRulings are the bench's live docket rulings on the record: every docket motion with a
-// ruling that stands. The record refuses a disposition outside the vocabulary at the write, so
-// each word here is one the reader knows.
-func docketRulings(fam *record.Family) []*record.Motion {
-	var out []*record.Motion
-	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act is its own act, not a ruling.
-		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) == "bench" {
-			out = append(out, m)
+// docketRulings are the bench's docket rulings on the record: every docketing with its ruling
+// (record.DocketingsOf). A gap's assignee accepting a proposed act is its own act, and answers no
+// docketing. The record refuses an answer outside the vocabulary at the write, so each word here is
+// one the reader knows.
+func docketRulings(fam *record.Family) []*record.Docketing {
+	var out []*record.Docketing
+	for _, d := range record.DocketingsOf(fam.Events) {
+		if d.Ruled() {
+			out = append(out, d)
 		}
 	}
 	return out
@@ -378,13 +377,13 @@ func benchRows(fam *record.Family) []Row {
 	const unread = "the record could not be read — not measured"
 
 	// remanded_share
-	var rulings []*record.Motion
+	var rulings []*record.Docketing
 	if fam != nil {
 		rulings = docketRulings(fam)
 	}
 	remanded := 0
 	for _, r := range rulings {
-		if r.Ruling == record.DispositionRemanded {
+		if r.Word() == record.DispositionRemanded {
 			remanded++
 		}
 	}
@@ -411,7 +410,7 @@ func benchRows(fam *record.Family) []Row {
 		declaredReads := 0
 		decl := regexp.MustCompile(`(?i)trajector|inspect|tool call`)
 		for _, r := range rulings {
-			if decl.MatchString(r.Opinion + " " + r.Principle) {
+			if decl.MatchString(r.Ruling.GetOpinion() + " " + r.Docket().GetPrinciple()) {
 				declaredReads++
 			}
 		}

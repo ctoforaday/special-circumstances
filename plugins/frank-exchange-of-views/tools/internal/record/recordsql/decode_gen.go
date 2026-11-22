@@ -45,6 +45,7 @@ var bodyTables = map[string]func() bodyTable{
 	"envelope_admitted": func() bodyTable { return &envelopeAdmittedTable{} },
 	"inquiry_check":     func() bodyTable { return &inquiryCheckTable{} },
 	"tombstone":         func() bodyTable { return &tombstoneTable{} },
+	"docketing":         func() bodyTable { return &docketingTable{} },
 }
 
 // registerTable reads the "register" table's rows past an event id, with its lists and oneof arms, keyed by event.
@@ -883,8 +884,10 @@ func (t *motionRuleTable) load(q Querier, after int64) error {
 			var c5 sql.NullString
 			var c6 sql.NullInt64
 			var c7 sql.NullString
-			var c8 sql.NullInt64
-			if err := scanRows(q, "motion_rule_docket", `SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction", t."accepted" FROM "motion_rule_docket" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
+			var c8 sql.NullString
+			var c9 sql.NullString
+			var c10 sql.NullString
+			if err := scanRows(q, "motion_rule_docket", `SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction", t."docketing_id", t."sided_with", t."moved_grades" FROM "motion_rule_docket" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10}, func() {
 				m := &recordpb.DocketRuling{}
 				if c0.Valid {
 					if v, err := wordOf[recordpb.Disposition]("motion_rule_docket.disposition", c0.String); err != nil {
@@ -915,7 +918,21 @@ func (t *motionRuleTable) load(q Querier, after int64) error {
 					m.Direction = ref(c7.String)
 				}
 				if c8.Valid {
-					m.Accepted = ref(c8.Int64 != 0)
+					m.DocketingId = ref(c8.String)
+				}
+				if c9.Valid {
+					if v, err := wordOf[recordpb.SidedWith]("motion_rule_docket.sided_with", c9.String); err != nil {
+						t.rulingDocketBad = refuse(t.rulingDocketBad, id, err)
+					} else {
+						m.SidedWith = ref(v)
+					}
+				}
+				if c10.Valid {
+					if v, err := wordOf[recordpb.MovedGrades]("motion_rule_docket.moved_grades", c10.String); err != nil {
+						t.rulingDocketBad = refuse(t.rulingDocketBad, id, err)
+					} else {
+						m.MovedGrades = ref(v)
+					}
 				}
 				t.rulingDocket[id] = m
 			}); err != nil {
@@ -1225,13 +1242,37 @@ func (t *closingTable) load(q Querier, after int64) error {
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text" FROM "closing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
+		var c2 sql.NullString
+		var c3 sql.NullString
+		var c4 sql.NullInt64
+		var c5 sql.NullString
+		var c6 sql.NullInt64
+		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text", t."location", t."fix_new", t."retire", t."closure_class", t."no_text" FROM "closing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
 			m := &recordpb.Closing{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
 			}
 			if c1.Valid {
 				m.Text = ref(c1.String)
+			}
+			if c2.Valid {
+				m.Location = ref(c2.String)
+			}
+			if c3.Valid {
+				m.FixNew = ref(c3.String)
+			}
+			if c4.Valid {
+				m.Retire = ref(c4.Int64 != 0)
+			}
+			if c5.Valid {
+				if v, err := wordOf[recordpb.Disposition]("closing.closure_class", c5.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ClosureClass = ref(v)
+				}
+			}
+			if c6.Valid {
+				m.NoText = ref(c6.Int64 != 0)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -2579,7 +2620,7 @@ func (t *tombstoneTable) load(q Querier, after int64) error {
 		var c1 sql.NullString
 		var c2 sql.NullString
 		var c3 sql.NullInt64
-		if err := scanRows(q, "tombstone", `SELECT t."event_id", t."gap_id", t."kind", t."motion_id", t."ends" FROM "tombstone" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3}, func() {
+		if err := scanRows(q, "tombstone", `SELECT t."event_id", t."gap_id", t."kind", t."docketing_id", t."ends" FROM "tombstone" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3}, func() {
 			m := &recordpb.Tombstone{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -2592,7 +2633,7 @@ func (t *tombstoneTable) load(q Querier, after int64) error {
 				}
 			}
 			if c2.Valid {
-				m.MotionId = ref(c2.String)
+				m.DocketingId = ref(c2.String)
 			}
 			if c3.Valid {
 				m.Ends = ref(c3.Int64 != 0)
@@ -2614,5 +2655,61 @@ func (t *tombstoneTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_Tombstone{Tombstone: m}
+	return nil
+}
+
+// docketingTable reads the "docketing" table's rows past an event id, with its lists and oneof arms, keyed by event.
+type docketingTable struct {
+	rows map[int64]*recordpb.Docketing
+	bad  map[int64]error
+}
+
+func (t *docketingTable) load(q Querier, after int64) error {
+	t.rows = map[int64]*recordpb.Docketing{}
+	{
+		var id int64
+		var c0 sql.NullString
+		var c1 sql.NullString
+		var c2 sql.NullString
+		var c3 sql.NullString
+		var c4 sql.NullString
+		if err := scanRows(q, "docketing", `SELECT t."event_id", t."docketing_id", t."gap_id", t."cause", t."motion_id", t."basis" FROM "docketing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4}, func() {
+			m := &recordpb.Docketing{}
+			if c0.Valid {
+				m.DocketingId = ref(c0.String)
+			}
+			if c1.Valid {
+				m.GapId = ref(c1.String)
+			}
+			if c2.Valid {
+				if v, err := wordOf[recordpb.DocketingCause]("docketing.cause", c2.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Cause = ref(v)
+				}
+			}
+			if c3.Valid {
+				m.MotionId = ref(c3.String)
+			}
+			if c4.Valid {
+				m.Basis = ref(c4.String)
+			}
+			t.rows[id] = m
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *docketingTable) attach(ev *recordpb.Event, id int64) error {
+	m := t.rows[id]
+	if m == nil {
+		return noBody(id, "docketing")
+	}
+	if err := t.bad[id]; err != nil {
+		return err
+	}
+	ev.Body = &recordpb.Event_Docketing{Docketing: m}
 	return nil
 }

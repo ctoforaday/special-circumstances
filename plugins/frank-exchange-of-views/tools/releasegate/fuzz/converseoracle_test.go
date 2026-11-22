@@ -31,6 +31,10 @@ const (
 	// redClosesAndWithholdsWithRoom is redClosesAndWithholds two epochs before the limit: room for a
 	// lens's audit before the final sitting.
 	redClosesAndWithholdsWithRoom
+	// redHoldsATrifleAndWithholds is redClosesAndWithholds one epoch later: at the epoch between, the
+	// lens mints a gap of a class never material and holds it open (mintHeldTrifle), so the chair's last
+	// sitting withholds the PASS over a board holding it.
+	redHoldsATrifleAndWithholds
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
@@ -43,7 +47,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	const sentence = "A § fuzz sentence to anchor findings."
 	maxEpochs := 2
 	switch path {
-	case redClosesAndWithholdsEarly:
+	case redClosesAndWithholdsEarly, redHoldsATrifleAndWithholds:
 		maxEpochs = 3
 	case benchCloses:
 		// blue's exchange on the gap before its proposal, and the parties' closings before the bench.
@@ -91,7 +95,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		t.Fatalf("the board holds %v open after one mint, want one gap", open)
 	}
 	switch path {
-	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly, redClosesAndWithholdsWithRoom:
+	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly, redClosesAndWithholdsWithRoom, redHoldsATrifleAndWithholds:
 		must("--seat-id", converseLens, "close", "--id", open[0], "--as", "not_a_defect", "--reason", "fuzz: the argument held",
 			"--verified-by", converseLens, "--verified-with", "fuzz", "--verified-against", "the report")
 		if path == redClosesAndPetitions {
@@ -115,9 +119,17 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchReturns("judge", false)
 	}
 
+	// THE EPOCH BEFORE THE LIMIT, where a lens still audits: the final sitting admits closings alone.
+	if path == redHoldsATrifleAndWithholds {
+		r.chairPlans(t)
+		r.forcePosition, r.forceVerified = "gaps", true
+		r.dispatchSits("lens", converseLens)
+		r.mintHeldTrifle(converseLens)
+		r.dispatchReturns(converseLens, false)
+	}
 	r.dispatchSits("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
-	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly || path == redClosesAndWithholdsWithRoom {
+	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly || path == redClosesAndWithholdsWithRoom || path == redHoldsATrifleAndWithholds {
 		must("--json", "position", "--seat-id", "red-chair", "--reason", "fuzz: the PASS is withheld, the core claim rests on one source")
 		out = must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	}

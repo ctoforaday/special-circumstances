@@ -30,12 +30,12 @@ func TestGapHoleHeuristic(t *testing.T) {
 			"OPEN":       {ID: "OPEN", Open: true, Mint: mint()},
 		},
 		Events: []*record.Event{
-			// A DOCKET MOTION FILED AND NEVER RULED. A fixture in a vocabulary nothing writes leaves
+			// A DOCKETING FILED AND NEVER RULED. A fixture in a vocabulary nothing writes leaves
 			// the counters at zero for every run and the hole detector unable to fire, while the
 			// test goes on passing.
-			recordtest.Event(t, "red-chair", &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("UNANSWERED")}},
+			recordtest.Event(t, "red-chair", &recordpb.Docketing{
+				DocketingId: proto.String("M1"), GapId: proto.String("UNANSWERED"),
+				Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse"),
 			}),
 		},
 	}
@@ -107,7 +107,7 @@ func TestRuledDocketMotionIsNotAHole(t *testing.T) {
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("the grade was argued and holds"),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(true)}},
+				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum()}},
 			}),
 		},
 	}
@@ -140,16 +140,16 @@ func recordedMint(id string) *recordpb.Mint {
 // The three cases are one test because the middle one is what makes the first meaningful: a
 // detector that flags everything is not a detector.
 func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
-	docket := func(gapID, motionID string, ruled bool) []*record.Event {
-		evs := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{
-			MotionId: proto.String(motionID),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
+	docket := func(gapID, docketingID string, ruled bool) []*record.Event {
+		evs := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Docketing{
+			DocketingId: proto.String(docketingID), GapId: proto.String(gapID),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse"),
 		})}
 		if ruled {
 			evs = append(evs, recordtest.Event(t, "judge", &recordpb.MotionRule{
-				MotionId: proto.String(motionID),
-				Opinion:  proto.String("heard"),
+				Opinion: proto.String("heard"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String(docketingID),
 					// CARRIED, so the gap stays OPEN. Ruled-and-still-open is the case that
 					// separates "the bench answered" from "the gap closed" — a closing
 					// disposition would make this pass for the wrong reason.

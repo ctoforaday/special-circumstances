@@ -32,6 +32,7 @@ func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
 		"gap-id":             GapID,
 		"motion-id":          MotionID,
+		"docketing-id":       DocketingID,
 		"inquiry-id":         InquiryID,
 		"anchor":             AnchorID,
 		"citation-anchor":    CitationAnchor,
@@ -54,6 +55,7 @@ var minted = []struct {
 	{"gap", []string{"anchor", "gap-id"}},
 	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
+	{"docketing", []string{"docketing-id"}},
 }
 
 // mint spells a fresh id of a kind exactly as the record's one minter does: the kind's row of the

@@ -12,10 +12,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// THE BENCH'S DISPOSITION IS A PROPOSED ACT AND ITS ANSWER. A seat files the act it wants on a gap
-// (`motion docket file regrade|close|supersede`) once the gap has had one exchange; the bench, in the
-// docket sitting the dispatch convenes for it, accepts, rejects or remands it. These helpers let the
-// fixtures below read as one act: the exchange, the filing, the convening, the ruling.
+// A SEAT FILES THE ACT IT WANTS ON A GAP (`motion docket file regrade|close|supersede`) once the gap
+// has had one exchange; once it is docketed, the bench, in the docket sitting the dispatch convenes for
+// it, sides with the filer or the other party, or remands it. These helpers let the fixtures below read
+// as one act: the exchange, the filing, the docketing, the convening, the ruling.
 
 // exchangeOn gives gap its one counted exchange, the cheapest the record counts: the chair engages
 // blue on it, and blue sits and sits again having recorded nothing on it — a null turn, which ends
@@ -104,38 +104,44 @@ func conveneBench(t *testing.T, runDir string, gaps ...string) {
 	}
 }
 
-// benchRuleArgs is the ruling half's invocation, less the run and the seat. `as` is the
-// disposition; the rest is the reasoning a bench owes with it. A remand states its direction; every
-// other disposition says nothing would reopen the gap.
-func benchRuleArgs(motionID, as, principle string) []string {
-	reopen := []string{"--final"}
-	if as == "remanded" {
-		reopen = []string{"--direction", "a reproduction on the shipped binary"}
+// benchRuleArgs is the ruling half's invocation, less the run and the seat: answer is the answer
+// flag without its dashes — a side of the docketing's pair, `keep`, `restore` or `remand` — and the
+// rest is the reasoning a bench owes with it. A remand states its direction; a grade answer closes
+// nothing and says nothing of reopening; every other answer here says nothing would reopen the gap.
+func benchRuleArgs(docketing, answer, principle string) []string {
+	var tail []string
+	switch answer {
+	case "remand":
+		tail = []string{"--direction", "a reproduction on the shipped binary"}
+	case "keep", "restore":
+	default:
+		tail = []string{"--final"}
 	}
-	return append([]string{"motion", "docket", "rule", "--id", motionID, "--as", as,
+	return append([]string{"motion", "docket", "rule", "--id", docketing, "--" + answer,
 		"--principle", principle,
 		"--tension", "thoroughness against ceremony",
 		"--review-flag", "no — the ruling is mechanical",
 		"--settled", "the proposition this ruling bars",
-		"--reason", "the ruling as reasoned"}, reopen...)
+		"--reason", "the ruling as reasoned"}, tail...)
 }
 
 // benchDisposes is the whole act: the gap's exchange, the chair's proposal of a close with the
-// disposition as (a remand is ruled on a not_a_defect proposal), the bench convened on it, and its
-// ruling — accepting the close it proposes, or remanding it.
+// disposition as (a remand is ruled on a not_a_defect proposal), its docketing, the bench convened on
+// it, and its ruling — for the chair's side, which applies the close it proposes, or a remand.
 func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 	t.Helper()
-	class := as
+	class, answer := as, "for-filer"
 	if as == "remanded" {
-		class = "not_a_defect"
+		class, answer = "not_a_defect", "remand"
 	}
 	exchangeOn(t, runDir, gapID)
 	id := proposeClose(t, runDir, "red-chair", gapID, class, "contested, and not mine to close")
+	d := docketNow(t, runDir, gapID, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, id)
 	conveneBench(t, runDir, gapID)
-	args := append([]string{}, benchRuleArgs(id, as, principle)...)
+	args := benchRuleArgs(d, answer, principle)
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := runAt(t, args...); err != nil {
-		t.Fatalf("motion docket rule %s on %s: %v", as, gapID, err)
+		t.Fatalf("motion docket rule --%s on %s: %v", answer, gapID, err)
 	}
 }
 

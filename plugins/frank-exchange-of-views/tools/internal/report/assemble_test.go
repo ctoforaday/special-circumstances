@@ -686,17 +686,16 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "G1: remanded"
-		// line is a JOIN across both events: the gap is on the filing, the word on the ruling.
-		recordtest.Event(t, "red-chair", &recordpb.Motion{
-			MotionId: proto.String("M2"),
-			Basis:    proto.String("red cannot settle G1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, and the transcript's "G1: remanded"
+		// line is a JOIN across both events: the gap is on the docketing, the word on the ruling.
+		recordtest.Event(t, "red-chair", &recordpb.Docketing{
+			DocketingId: proto.String("M2"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("red cannot settle G1"),
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
-			MotionId: proto.String("M2"),
-			Opinion:  proto.String("needs a probe"),
+			Opinion: proto.String("needs a probe"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("M2"),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"),
 				ReviewFlag: proto.String("false"),

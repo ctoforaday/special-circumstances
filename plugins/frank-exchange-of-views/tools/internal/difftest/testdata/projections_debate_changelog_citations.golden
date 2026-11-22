@@ -93,7 +93,7 @@ exit 0
 stdout:
 motion MOTION001 filed (docket, proposing a close)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 $ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
 exit 0
@@ -106,6 +106,30 @@ $ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
 exit 0
 stdout:
 closing filed for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence (dispatch 3 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-chair
@@ -123,7 +147,7 @@ TWO CONSEQUENCES:
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
 
 $ dispatch next --run {RUN} --seat-id red-chair
 exit 0
@@ -131,14 +155,15 @@ stdout:
 dispatch against head 3:
   red-lens-evidence — audits the report (its state is in the reasons below)
   judge — GAP001
-  · red-lens-evidence: never sat — audits the report at head 3
+  docketed GAP001 for the bench
+  · red-lens-evidence: no sitting it sat through was served the whole report, behind head 3 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)
   · GAP001: docketed and unruled — the bench is ready, no party's closing being awaited
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · gap GAP001 is docketed for the bench (docketing DOCKETING001, proposal) and the bench has not ruled it — PASS is refused while it stands
 
 $ register --run {RUN} --seat-id judge --occasion docket
 exit 0
@@ -151,12 +176,12 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · motion MOTION001 (docket, ruled by the bench seat) is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands
+  · docketing DOCKETING001 puts gap GAP001 before the bench (proposal): blue-respond proposes to close GAP001, and its assignee red-lens-evidence did not accept it in its window; the bench owes a ruling. The proposal's basis: the figure stands as stated, and the bench should say so — the gavel is yours and this sitting is convened to rule it; the run cannot end in a verdict while it stands
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --direction the figure recomputed from its source --reason the rationale body
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --remand --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --direction the figure recomputed from its source --reason the rationale body
 exit 0
 stdout:
-motion MOTION001 ruled remanded
+docketing DOCKETING001 ruled remanded
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
@@ -182,13 +207,16 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"blue-respond:motion:#1","motion":{"basis":"the figure stands as stated, and the bench should say so","close":{"anchor_seat":"blue-respond","anchor_target":"report.md#S2","anchor_tool":"the report read","closure_class":"DISPOSITION_NOT_A_DEFECT","gap_id":"GAP001","prose":"the figure stands as stated, and the bench should say so"},"docket":{"gap_id":"GAP001"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":13,"type":"EVENT_TYPE_MOTION"}
 {"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#1:GAP001","seat_id":"red-lens-evidence","ts":14,"type":"EVENT_TYPE_CLOSING"}
 {"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#2:GAP001","seat_id":"blue-respond","ts":15,"type":"EVENT_TYPE_CLOSING"}
-{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_REGISTER"}
-{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#3","seat_id":"red-chair","ts":17,"type":"EVENT_TYPE_DISPATCH"}
-{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"judge"},"key":"red-chair:dispatch:#4","seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_DISPATCH"}
-{"key":"red-chair:plan:#2","plan":{"printed":"{\"key\":\"PLANKEY002\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"judge\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":1,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"unruled_motion\",\"subject\":\"MOTION001\",\"owner\":\"judge\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: docketed and unruled — the bench is ready, no party's closing being awaited\"]}"},"seat_id":"red-chair","ts":19,"type":"EVENT_TYPE_PLAN"}
-{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":20,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION001","opinion":"the rationale body"},"seat_id":"judge","ts":21,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":22,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#3","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_REGISTER"}
+{"docketing":{"basis":"blue-respond proposes to close GAP001, and its assignee red-lens-evidence did not accept it in its window; the bench owes a ruling. The proposal's basis: the figure stands as stated, and the bench should say so","cause":"DOCKETING_CAUSE_PROPOSAL","docketing_id":"DOCKETING001","gap_id":"GAP001","motion_id":"MOTION001"},"key":"red-chair:docketing:#1","seat_id":"red-chair","ts":19,"type":"EVENT_TYPE_DOCKETING"}
+{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#3","seat_id":"red-chair","ts":20,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"judge"},"key":"red-chair:dispatch:#4","seat_id":"red-chair","ts":21,"type":"EVENT_TYPE_DISPATCH"}
+{"key":"red-chair:plan:#2","plan":{"printed":"{\"key\":\"PLANKEY002\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"judge\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[\"GAP001\"],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":1,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"docketed\",\"subject\":\"GAP001\",\"owner\":\"judge\"}],\"why\":[\"red-lens-evidence: no sitting it sat through was served the whole report, behind head 3 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)\",\"GAP001: docketed and unruled — the bench is ready, no party's closing being awaited\"]}"},"seat_id":"red-chair","ts":22,"type":"EVENT_TYPE_PLAN"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":23,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","docketing_id":"DOCKETING001","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION001","opinion":"the rationale body"},"seat_id":"judge","ts":24,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":25,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- inquiries

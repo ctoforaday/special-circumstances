@@ -1,11 +1,12 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // ONE MECHANISM, ONE ID — the thing three verb pairs could not do.
@@ -26,8 +27,9 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	if !strings.Contains(out, handleText(t, runDir, "M1")) {
 		t.Fatalf("the tool must assign the id, got %q", out)
 	}
+	k := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, handleText(t, runDir, "M1"))
 	conveneBench(t, runDir, gap)
-	rule := benchRuleArgs("M1", "remanded", "correctness")
+	rule := benchRuleArgs(k, "remand", "correctness")
 	if _, err := runAt(t, append([]string{rule[0], rule[1], rule[2], "--run", runDir, "--seat-id", "judge"}, rule[3:]...)...); err != nil {
 		t.Fatalf("rule: %v", err)
 	}

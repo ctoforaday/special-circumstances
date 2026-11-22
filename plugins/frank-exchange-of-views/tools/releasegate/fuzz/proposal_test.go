@@ -7,9 +7,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A DOCKET MOTION PROPOSES ONE ACT on its gap — a regrade, a close or a supersede — and the bench
-// answers the act: --accept or --reject, a remand, or, on a proposed close, the closing word it
-// proposes. A motion the dispatch filed proposes none, and is ruled with a disposition.
+// A PROPOSAL PROPOSES ONE ACT on its gap — a regrade, a close or a supersede — and its assignee accepts
+// it in its window, or the dispatch dockets it. THE BENCH ANSWERS A DOCKETING, never a motion: it names
+// a side of the docketing's pair — `--for-red | --for-blue`, `--for-filer | --for-assignee` on a red
+// seat's proposal on another red seat's gap, `--keep | --restore` at grade movement — or remands, and
+// the tool applies that side's statement. A side wins only by what it stated (record.Positions.Stated).
 
 // proposeCloseArgs is a seat's `motion docket file close` on gapID: class is the disposition the close
 // proposes, and the verification triple is the filer's own.
@@ -17,17 +19,6 @@ func proposeCloseArgs(seatID, gapID, class, reason string) []string {
 	return []string{"motion", "docket", "file", "close", "--seat-id", seatID, "--id", gapID, "--as", class,
 		"--verified-by", seatID, "--verified-with", "fuzz: the record read",
 		"--verified-against", "fuzz: the gap as it stands", "--reason", reason}
-}
-
-// proposedCloseClass is the disposition a fallback filing proposes for the bench's disposition: the
-// disposition itself where a proposed close can carry it, and not_a_defect where it cannot — a
-// remand closes nothing, and the regression a repair caused is the assignee's own act.
-func proposedCloseClass(disposition string) string {
-	switch disposition {
-	case "remanded", "repaired_with_regression":
-		return "not_a_defect"
-	}
-	return disposition
 }
 
 // actOf is the act motionID proposes, read off the record: "" for a motion that proposes none, with
@@ -44,39 +35,122 @@ func (r *runner) actOf(motionID string) (act, closeClass, gapID string) {
 	return act, "", p.GapID
 }
 
-// docketAnswer is the bench's answer to motionID, for the disposition its scenario wants, with the
-// ruling's own flags in extra:
-//
-//   - a motion that proposes no act, and any remand: the disposition itself;
-//   - a proposed close: the closing word it proposes — `--accept`, or that word typed with --as, on a
-//     coin, so both spellings of the one ruling are driven;
-//   - a proposed regrade or supersede: --accept where the gap's scenario is a dispute red loses the
-//     argument on to blue (dirDisputeWon), --reject otherwise. Neither closes the gap, so --final and
-//     --reopens-on leave the ruling.
-func (r *runner) docketAnswer(motionID, disposition string, extra []string) []string {
-	act, class, gapID := r.actOf(motionID)
-	switch {
-	case act == "" || disposition == "remanded":
-		return append([]string{"--as", disposition}, extra...)
-	case act == "close" && r.coin(50):
-		return append([]string{"--accept"}, extra...)
-	case act == "close":
-		return append([]string{"--as", class}, extra...)
+// docketings is every docketing on the record, in the order written, with the ruling that answers each
+// and the close that ended each unruled.
+func (r *runner) docketings() []*record.Docketing {
+	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_DOCKETING,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE, recordpb.EventType_EVENT_TYPE_CLOSE)
+	if err != nil {
+		r.noteActErr("the record's docketings could not be read: " + err.Error())
+		return nil
 	}
-	out := []string{"--reject"}
-	if r.scenarioOf(gapID) == dirDisputeWon {
-		out = []string{"--accept"}
-	}
-	for i := 0; i < len(extra); i++ {
-		switch extra[i] {
-		case "--final":
-		case "--reopens-on":
-			i++
-		default:
-			out = append(out, extra[i])
+	return record.DocketingsOf(evs)
+}
+
+// standingDocketings is each docketing standing before the bench — unruled, and ended by no close of its
+// gap — on gapID, or on every gap for "", in the order the record wrote them.
+func (r *runner) standingDocketings(gapID string) []*record.Docketing {
+	var out []*record.Docketing
+	for _, d := range r.docketings() {
+		if d.Standing() && (gapID == "" || d.GapID == gapID) {
+			out = append(out, d)
 		}
 	}
 	return out
+}
+
+// standingOn is the ids of what holds gapID for the bench: each docketing standing on it, and each
+// proposal on it that awaits its assignee's window or its docketing.
+func (r *runner) standingOn(gapID string) []string {
+	var ids []string
+	for _, d := range r.standingDocketings(gapID) {
+		ids = append(ids, d.ID)
+	}
+	return append(ids, r.unruledDocketMotions(gapID)...)
+}
+
+// beforeTheBench reports whether anything holds gapID for the bench (standingOn).
+func (r *runner) beforeTheBench(gapID string) bool { return len(r.standingOn(gapID)) > 0 }
+
+// docketAnswer is the bench's answer to docketing id, for the outcome its scenario wants (want), with
+// the ruling's own flags in extra. It reports whether the answer is a remand.
+//
+//   - want "remanded": --remand, with extra's --direction; a docketing at grade movement takes no remand,
+//     and is answered as below;
+//   - at grade movement: --keep or --restore, on a coin;
+//   - otherwise a side of the pair: on a held proposal, the filer's where the proposal is a close or the
+//     gap's scenario is a dispute red loses the argument on to blue (dirDisputeWon), the other side
+//     otherwise; at impasse, red's where want is `repaired`, blue's otherwise. A side that stated
+//     nothing is not named: the other side is.
+//
+// --final and --reopens-on stay on an answer that closes the gap by its own word (AnswerWord), and leave
+// every other; an answer that closes the gap with neither in extra states --final.
+func (r *runner) docketAnswer(id, want string, extra []string) (answer []string, remand bool) {
+	p, found, err := record.PositionsOf(r.run(), id)
+	switch {
+	case err != nil:
+		r.noteActErr("docketing " + id + "'s positions could not be read: " + err.Error())
+		return nil, false
+	case !found:
+		r.noteActErr("docketing " + id + " is not on the record")
+		return nil, false
+	}
+	gradeMovement := p.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT
+	if want == "remanded" && !gradeMovement {
+		return append([]string{"--remand"}, extra...), true
+	}
+	closes := false
+	switch {
+	case gradeMovement:
+		answer = []string{"--keep"}
+		if r.coin(50) {
+			answer = []string{"--restore"}
+		}
+	default:
+		other := func(s recordpb.SidedWith) recordpb.SidedWith {
+			if s == p.Pair[0] {
+				return p.Pair[1]
+			}
+			return p.Pair[0]
+		}
+		var side recordpb.SidedWith
+		switch {
+		case p.FilerSide != 0:
+			side = p.FilerSide
+			if _, isClose := p.Act.(*recordpb.Close); !isClose && r.scenarioOf(p.GapID) != dirDisputeWon {
+				side = other(side)
+			}
+		case want == "repaired":
+			side = p.Pair[0]
+		default:
+			side = p.Pair[1]
+		}
+		if !p.Stated(side) {
+			side = other(side)
+		}
+		answer = []string{"--for-" + recordpb.Word(side)}
+		closes = p.AnswerWord(side) != nil
+	}
+	reopens := false
+	for i := 0; i < len(extra); i++ {
+		switch extra[i] {
+		case "--final":
+			if closes {
+				answer, reopens = append(answer, extra[i]), true
+			}
+		case "--reopens-on", "--direction":
+			if closes && extra[i] == "--reopens-on" {
+				answer, reopens = append(answer, extra[i], extra[i+1]), true
+			}
+			i++
+		default:
+			answer = append(answer, extra[i])
+		}
+	}
+	if closes && !reopens {
+		answer = append(answer, "--final")
+	}
+	return answer, false
 }
 
 // exchangeOn is one counted exchange on the gaps the chair's plan engages blue on: the chair plans,
@@ -160,4 +234,22 @@ func (r *runner) partiesClose(t *testing.T, lens string) {
 		r.dispatchReturns(p.seat, false)
 	}
 	r.chairPlans(t)
+}
+
+// chairPlans is the chair's sitting that asks the dispatch for the plan and returns.
+func (r *runner) chairPlans(t *testing.T) {
+	t.Helper()
+	r.dispatchSits("chair", "red-chair")
+	r.mustExec(t, "--json", "dispatch", "next", "--seat-id", "red-chair")
+	r.dispatchReturns("red-chair", false)
+}
+
+// mustExec is exec failing the test on a refusal.
+func (r *runner) mustExec(t *testing.T, args ...string) string {
+	t.Helper()
+	out, err := r.exec(args...)
+	if err != nil {
+		t.Fatalf("%v: %v\n%s", args, err, out)
+	}
+	return out
 }

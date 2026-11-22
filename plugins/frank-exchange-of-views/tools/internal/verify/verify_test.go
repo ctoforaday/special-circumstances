@@ -198,18 +198,17 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
-			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
+			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the docketing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.
-			recordtest.Event(t, "red-chair", &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Basis:    proto.String("put G2 to the bench"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
+			recordtest.Event(t, "red-chair", &recordpb.Docketing{
+				DocketingId: proto.String("M1"), GapId: proto.String("G2"),
+				Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("put G2 to the bench"),
 			}),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Opinion:  proto.String("the repair holds"),
+				Opinion: proto.String("the repair holds"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
 					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 					Principle:   proto.String("a claim rests on its weakest citation"),
 					Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),

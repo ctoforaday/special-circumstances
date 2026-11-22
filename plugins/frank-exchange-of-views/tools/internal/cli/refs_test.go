@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -30,13 +31,13 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		name, wants string
 		args        []string
 	}{
-		// THE GAP REFERENCE MOVED TO THE FILING. `bench opinion --id` named the gap; the bench's
-		// ruling names the MOTION, so the dangling-gap case this row has always pinned is now
-		// `motion docket file --id`, and the dangling-motion case is the row below it.
+		// The gap reference is the filing's; the bench's ruling names the DOCKETING, so the
+		// dangling-gap case is `motion docket file --id`, and the dangling-docketing case the row
+		// below it.
 		{"motion docket file --id", "no mint event created", append([]string{"motion", "docket", "file", "close", "--seat-id", "red-chair",
 			"--id", "G99", "--reason", "escalating a gap nobody minted"}, closeFlags("not_a_defect")...)},
-		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
-			"--id", "M9", "--as", "remanded", "--principle", "p", "--tension", "t",
+		{"motion docket rule --id", "no docketing", []string{"motion", "docket", "rule", "--seat-id", "judge",
+			"--id", "D9", "--for-blue", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
@@ -78,12 +79,13 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	first := mintGap(t, runDir, "first", "spec_underspecification")
 	second := mintGap(t, runDir, "second", "spec_underspecification")
 
-	// The bench's two references — the gap on the filing, the motion on the ruling — both
+	// The bench's two references — the gap on the filing, the docketing on the ruling — both
 	// resolve, which is the converse of the two rows above.
 	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
+	k := docketNow(t, runDir, first, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 	conveneBench(t, runDir, first)
 	for _, c := range [][]string{
-		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
+		{"motion", "docket", "rule", "--seat-id", "judge", "--id", k, "--remand",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", "the ruling"},
 		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired_with_regression",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},

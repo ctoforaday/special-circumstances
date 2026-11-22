@@ -101,7 +101,7 @@ func AssemblyWritten(run record.Run) (bool, error) {
 }
 
 // AssembleShipped is the run's report set as it ships (shipSet), under the run's title. It writes
-// nothing; Write does that. A document with an empty body is not in the set — a run with no motions
+// nothing; Write does that. A document with an empty body is not in the set — a run with no docketing and no motion
 // has no judgments.md, and no empty heading standing in for one.
 func AssembleShipped(run record.Run) (Shipped, error) {
 	rd := stdReaders()
@@ -184,7 +184,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, red's spot-checks, and the bench's terminal disposition", Body: body[FileDebate].String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
-			Blurb: "every contested question and how it was answered: docket motions, petitions, and the bench's opinions", Body: body[FileJudgments].String()},
+			Blurb: "every contested question and how it was answered: the gaps put before the bench and its rulings, docket motions, petitions, and the bench's opinions", Body: body[FileJudgments].String()},
 		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
 			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling, then each of the chair's reads of the report against them, with its reason", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",

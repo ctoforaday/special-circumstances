@@ -2,8 +2,12 @@ package record
 
 import (
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -30,7 +34,49 @@ func validateAct(w writeView, seatID string, typ recordpb.EventType, body proto.
 	if err := validate(w, seatID, typ, body); err != nil {
 		return err
 	}
+	if err := requireClosingsOnlySitting(w, seatID, typ); err != nil {
+		return err
+	}
 	return judgeAct(w, seatID, body)
+}
+
+// requireClosingsOnlySitting refuses a party's act other than its closing in the sittings that admit
+// closings alone (L44′): every party seat's — blue's and the lenses' — once the record is at the run's
+// final epoch (isFinalEpoch), and blue's in the epoch that holds it out (blueHeldOut). No lens audits an
+// act there, so a party sits for the closings it owes on a docketed gap and nothing else. A seat's
+// bookkeeping (recordsql.NotActs) and blue's engage row are no acts and land; the chair's verdict and
+// the bench's rulings are no party's acts. Keyed on the epoch the record has reached and the run's
+// terms, the two the plan reads (HeardInTime reads the same).
+func requireClosingsOnlySitting(w writeView, seatID string, typ recordpb.EventType) error {
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "lens" && role != "blue" && role != seatclass.Lane.Role {
+		return nil
+	}
+	if typ == recordpb.EventType_EVENT_TYPE_CLOSING || typ == recordpb.EventType_EVENT_TYPE_DISPATCH || slices.Contains(recordsql.NotActs, typ) {
+		return nil
+	}
+	epochs, err := epochsAt(w.q)
+	if err != nil || len(epochs) == 0 {
+		return err
+	}
+	params, err := w.files.params()
+	if err != nil {
+		return err
+	}
+	epoch := epochs[len(epochs)-1]
+	switch {
+	case isFinalEpoch(params, epoch):
+		return feov.Errorf(feov.Conflict,
+			"the record is at epoch %d, the run's last under its epoch limit of %d: this is the final sitting, and a party sits in it for the closings it owes and nothing else — no lens audits an act after it. "+
+				"Nothing was recorded; file your closing on each docketed gap your work list names",
+			epoch, params.MaxEpochs)
+	case role != "lens" && blueHeldOut(params, epoch):
+		return feov.Errorf(feov.Conflict,
+			"the record is at epoch %d, the last that dispatches a lens under the run's epoch limit of %d: blue is held out of it, and sits for the closings it owes and nothing else — no lens would audit any other act of blue's. "+
+				"Nothing was recorded; file your closing on each docketed gap your work list names",
+			epoch, params.MaxEpochs)
+	}
+	return nil
 }
 
 // judgeAct asks the act judgements of a body the shape check (validate) has admitted. It runs inside
@@ -39,36 +85,13 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	q := w.q
 	switch b := body.(type) {
 	case *recordpb.Mint:
-		// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
-		// retired since replays as it was made, so this is the act's rule, not the record's shape.
-		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
-			return err
-		}
-		// A MINT OF A CLASS A READING DEFINES STANDS ON THE SEAT'S OWN STANDING READING of its subject
-		// (standingreading.go), asked after the anchor is known live and before the one-gap rule: a
-		// mint refused for its ground is not first told about a held subject.
 		// THE ACTING SEAT'S CHECKS: the bench writes a Mint only as an accepted proposal's successor,
 		// and its reading and one-gap checks are asked of the assignee whose chain it continues (L5).
 		acting, err := mintActingSeat(q, seatID, b)
 		if err != nil {
 			return err
 		}
-		if err := requireOwnStandingReading(w, acting, b); err != nil {
-			return err
-		}
-		if err := requireOneGapPerClassAndSubject(w, acting, b); err != nil {
-			return err
-		}
-		if err := requireSupersededOffDocket(q, b); err != nil {
-			return err
-		}
-		// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
-		// ancestor's only answer can commit between the verb's read and this write. An archived
-		// supersede replays as it was recorded.
-		if err := requireSuccessorCarriesDemand(q, b); err != nil {
-			return err
-		}
-		return refuseMintReportVoice(b)
+		return judgeMint(w, acting, b, "")
 	case *recordpb.Computation:
 		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it
 		// racing the compute cannot both land; universe records that cite a citation retired later
@@ -146,6 +169,37 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		}
 	}
 	return nil
+}
+
+// judgeMint is judgeAct's Mint arm, asked as acting: the mint's own seat, or G's assignee for a
+// successor the bench writes (mintActingSeat) or a proposal states (requireSuccessorMintable). except
+// is the proposal stating it, whose own standing on the superseded gap the mint does not meet.
+func judgeMint(w writeView, acting string, b *recordpb.Mint, except string) error {
+	q := w.q
+	// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
+	// retired since replays as it was made, so this is the act's rule, not the record's shape.
+	if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		return err
+	}
+	// A MINT OF A CLASS A READING DEFINES STANDS ON THE SEAT'S OWN STANDING READING of its subject
+	// (standingreading.go), asked after the anchor is known live and before the one-gap rule: a
+	// mint refused for its ground is not first told about a held subject.
+	if err := requireOwnStandingReading(w, acting, b); err != nil {
+		return err
+	}
+	if err := requireOneGapPerClassAndSubject(w, acting, b); err != nil {
+		return err
+	}
+	if err := requireSupersededOffDocket(q, b, except); err != nil {
+		return err
+	}
+	// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
+	// ancestor's only answer can commit between the verb's read and this write. An archived
+	// supersede replays as it was recorded.
+	if err := requireSuccessorCarriesDemand(q, b); err != nil {
+		return err
+	}
+	return refuseMintReportVoice(b)
 }
 
 // citeLocated is whether a cite carries any part of a located span.

@@ -267,6 +267,12 @@ var EnumFields = map[string][]EnumField{
 	// vocabulary it already has. The check carries the inquiry's id and prose, nothing else.
 	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
 	// express, and live in record/motion.go.
+	// `closing`: blue's word at an impasse docketing, the closing word a ruling for blue writes. The
+	// same set as a close's (#1695 L34); the write refuses the two words no ruling carries.
+	"closing": {{
+		Key: "closure_class", Flag: flags.As, Values: ClosureClasses, Optional: true,
+		Why: "blue's statement at an impasse docketing: the closing word a ruling for blue writes, where blue's text stands as `not_a_defect` without one",
+	}},
 	"close": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
 		// Optional per this file's own rule: closing a SET is not the same decision as making

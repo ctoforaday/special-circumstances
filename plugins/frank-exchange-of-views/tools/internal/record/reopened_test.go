@@ -536,7 +536,7 @@ func TestACitationPlacedAfterItsOwnerSatReadiesItOnce(t *testing.T) {
 // F5, F12: a CEILING over a standing reopened anchor names it, and nothing else on the board. With
 // none standing, the reason is the sentence it is without this rule.
 func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
-	const term = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
+	const term = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched beyond the closings they owed and PASS is not permitted"
 	why := func(b *stage, maxEpochs string) string {
 		t.Helper()
 		run := b.seed()

@@ -61,10 +61,16 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsGradeDimension[:]
 	case "feov.record.v1.PetitionClass":
 		return annotationsPetitionClass[:]
+	case "feov.record.v1.SidedWith":
+		return annotationsSidedWith[:]
+	case "feov.record.v1.MovedGrades":
+		return annotationsMovedGrades[:]
 	case "feov.record.v1.RulingBinds":
 		return annotationsRulingBinds[:]
 	case "feov.record.v1.Occasion":
 		return annotationsOccasion[:]
+	case "feov.record.v1.DocketingCause":
+		return annotationsDocketingCause[:]
 	case "feov.record.v1.TombstoneKind":
 		return annotationsTombstoneKind[:]
 	}
@@ -106,6 +112,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
 	{Name: "EVENT_TYPE_TOMBSTONE", Means: "the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb"},
+	{Name: "EVENT_TYPE_DOCKETING", Means: "the tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal its assignee did not accept; written by the dispatch, by no verb"},
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
 }
 
@@ -248,7 +255,7 @@ var annotationsInquiryStatus = [...]ValueAnnotations{
 var annotationsMotionSubject = [...]ValueAnnotations{
 	{Name: "MOTION_SUBJECT_UNSPECIFIED"},
 	{Name: "MOTION_SUBJECT_PETITION", Means: "you ask the bench to intervene — the constitutional short-circuit available to any party seat", RuledBy: "bench"},
-	{Name: "MOTION_SUBJECT_DOCKET", Means: "a gap put to its assignee and then the bench, with the act the filer proposes: the assignee may accept it at its next sitting, else the bench accepts or rejects it, or rules a motion with no act by its word", RuledBy: "bench"},
+	{Name: "MOTION_SUBJECT_DOCKET", Means: "a party's proposed act on a gap: its assignee may accept it at its next sitting, else the bench answers it on the gap's docketing", RuledBy: "bench"},
 	{Name: "MOTION_SUBJECT_POSITION", Means: "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", RuledBy: "bench"},
 }
 
@@ -346,6 +353,20 @@ var annotationsPetitionClass = [...]ValueAnnotations{
 	{Name: "PETITION_CLASS_CONSTITUTIONAL", Means: "the instruction itself conflicts with the rules the run is bound by"},
 }
 
+var annotationsSidedWith = [...]ValueAnnotations{
+	{Name: "SIDED_WITH_UNSPECIFIED"},
+	{Name: "SIDED_WITH_RED", Means: "red's position: the text red's closing states, applied as the bench's edit of the gap's text"},
+	{Name: "SIDED_WITH_BLUE", Means: "blue's position: its text as it stands, with its closing's word, or the proposal blue filed"},
+	{Name: "SIDED_WITH_FILER", Means: "the filing red seat's position: the proposal it filed on another red seat's gap"},
+	{Name: "SIDED_WITH_ASSIGNEE", Means: "the gap's assignee's position against another red seat's proposal: the text its closing states, applied as the bench's edit"},
+}
+
+var annotationsMovedGrades = [...]ValueAnnotations{
+	{Name: "MOVED_GRADES_UNSPECIFIED"},
+	{Name: "MOVED_GRADES_KEPT", Means: "the window's moved grades stand"},
+	{Name: "MOVED_GRADES_RESTORED", Means: "the gap's recorded prior grades are restored, by a bench regrade the tool writes in the ruling's transaction"},
+}
+
 var annotationsRulingBinds = [...]ValueAnnotations{
 	{Name: "RULING_BINDS_UNSPECIFIED"},
 	{Name: "RULING_BINDS_BLUE", Means: "the relief binds the response seat — what blue must do, or must not, in its coming sitting"},
@@ -360,6 +381,13 @@ var annotationsOccasion = [...]ValueAnnotations{
 	{Name: "OCCASION_TERMINAL", Means: "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"},
 	{Name: "OCCASION_ASSEMBLE", Means: "assembling the final report by union-copy. The last step of the run"},
 	{Name: "OCCASION_POSITION", Means: "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch"},
+}
+
+var annotationsDocketingCause = [...]ValueAnnotations{
+	{Name: "DOCKETING_CAUSE_UNSPECIFIED"},
+	{Name: "DOCKETING_CAUSE_IMPASSE", Means: "the gap's exchanges reached k stalled or k-max in all"},
+	{Name: "DOCKETING_CAUSE_GRADE_MOVEMENT", Means: "the open gaps' grade movement passed its threshold"},
+	{Name: "DOCKETING_CAUSE_PROPOSAL", Means: "a party's proposal its assignee did not accept in its window"},
 }
 
 var annotationsTombstoneKind = [...]ValueAnnotations{

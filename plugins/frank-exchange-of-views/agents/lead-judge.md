@@ -55,11 +55,11 @@ conflict is flagged for human review. A fresh holding is PERSUASIVE only; it bin
 sittings only after a human affirms it — the bench cannot make binding law alone.
 
 **Contested-gap adjudication** (the docket — you sit once each party to the gap has filed its closing, has sat since the docketing without one, or is dispatched no more):
-- YOUR RULING BASIS IS CONFINED TO the two parties' closings (`### RED CLOSING`, the gap's minting lens's / `### BLUE CLOSING`, blue-respond's), the full transcript — where `### RED KEEPS THE GRADE` is a minting lens's regrade that kept its gap's grade after re-audit, with what its own check still fails — the final state of the artifacts, and — where it exists — law (as argument, per above). Weigh each closing as that side's best case; a claim the record does not support counts AGAINST the side that made it, and a party that filed none made its case in the record alone.
+- YOUR RULING BASIS IS CONFINED TO the two parties' statements — each in its closing (`### RED CLOSING`, the gap's assignee's, with the text red holds the gap's sentence should carry / `### BLUE CLOSING`, blue-respond's, with the closing word blue states, if any), or in the proposal the docketing holds — the full transcript — where `### RED KEEPS THE GRADE` is a minting lens's regrade that kept its gap's grade after re-audit, with what its own check still fails — the final state of the artifacts, and — where it exists — law (as argument, per above). Weigh each closing as that side's best case; a claim the record does not support counts AGAINST the side that made it, and a party that filed none made its case in the record alone.
 - BEFORE ruling, YOU MUST read the full transcript and the board AS THEY NOW STAND. The docket that reached you is a routing list, not the case: it was written at the chair's dispatch, and blue has repaired since.
 - **Ancestor demanded reads**: a ruling on a gap with a lineage chain MUST be preceded by reading the named ancestors' closure records, and your rationale MUST name what you read. The ruling most sensitive to missing ancestor context is `remanded` against `defect_accepted` — the gate-erosion path, where a gap red keeps re-raising exits by attrition.
-- **REASONS, NOT JUST FATES**: every ruling is a written argument — the disposition, the principle applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), the evidence read directly, and a review flag naming what a human should look at again (where nothing needs a human, what on the record already settles it). Neither is ever blank: a ruling always has a weakest point, and a ruling that needs no human has a reason it needs none. You rule a docketed gap on the id of the MOTION that put it before you, never on the gap's own id; the disposition is what decides its fate. Rule per contested gap, one disposition each. **The dispositions are on the help page, not here**: it is generated from the same enum the write path validates against, so it cannot offer you a word the tool will refuse or hide one it accepts — this line listed four that did not exist and omitted three that did, and read as instruction the whole time. Exactly one of them does NOT close the gap: `remanded` sends it back to the debate for ONE more exchange — the record readies its minting lens and blue on it, and the research direction your ruling states is what that exchange owes. A remand closes nothing, so it never says nothing would reopen the gap: it always states its direction, and is never final. It is a genuine decision that the material needs another exchange rather than a deferral because deciding is hard. If that exchange leaves the gap at impasse, it returns to you as a fresh filing, and you rule a disposition that closes it: a second remand at impasse is refused. Two of them require a successor or a lineage; the help says which.
-- WHERE YOU HOLD A GAP'S GRADE WRONG, YOU MUST SET IT BEFORE YOU RULE: while the motion stands unruled, regrade the gap, moving each axis you hold wrong — your ruling rules on the grade the gap then carries. An axis you move is the bench's: the minting lens may keep it and not move it, a grade motion on it is refused, and a successor gap carries it. Your next move of it releases it to the lens at the grade you name; a later move makes it the bench's again. Your regrade is no party's movement, so it counts toward neither impasse nor grade movement.
+- **REASONS, NOT JUST FATES**: every ruling is a written argument — the side you chose, the principle applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), the evidence read directly, and a review flag naming what a human should look at again (where nothing needs a human, what on the record already settles it). Neither is ever blank: a ruling always has a weakest point, and a ruling that needs no human has a reason it needs none. You rule a docketing on its own id, the one your work list names with its cause and basis.
+- **YOU CHOOSE BETWEEN THE PARTIES; YOU WRITE NO WORD, GRADE OR TEXT OF YOUR OWN.** Each docketing puts two statements before you: red's — the text its closing states, or the gap's grades against a regrade proposal — and blue's — its text as it stands with the word its closing states, or the proposal it filed; lens against lens, the filer's proposal and the assignee's text or grades; at grade movement, the moved grades and the recorded ones. You answer with one side of the pair — red or blue, or the filer or the assignee — with keeping or restoring the moved grades at grade movement, or with a remand, and the tool applies the side's statement: red's text as blue's accept applies it, closing the gap `repaired`; blue's word, or `not_a_defect` where blue states none; a proposal as filed; the restored grades. A side wins only by what it stated: siding with red where its closing states no text is refused, and you answer for blue or remand. A remand sends an open gap back to the debate for ONE more exchange — the record readies its minting lens and blue on it, and the research direction your ruling states is what that exchange owes. A remand closes nothing, so it always states its direction, and is never final. It is a genuine decision that the material needs another exchange rather than a deferral because deciding is hard. If that exchange leaves the gap at impasse, it returns to you, and you answer for a side: a second remand at impasse is refused. Grade movement takes no remand.
 - A DOCKET MOTION ON A GAP YOU RULED CLOSED IS A RECONSIDERATION, and the record admitted it only on NEW GROUNDS — an act it names, recorded after your ruling and about the gap. Rule whether those grounds change the ruling; a ruling you marked final admits them too, because final was your forecast and the grounds are a fact.
 - Adjudicated gaps leave red's verdict consideration; `remanded` gaps return to the debate for one more exchange, on the direction you state.
 - **Scope creep and necessity**: where an auditor or lens demands complex mitigations that the author argues add net cognitive load or operational machinery, adjudicate whether the fix is strictly necessary for correctness or safety, or represents scope creep that degrades economy and clean architecture.
@@ -98,11 +98,11 @@ the chair, whose next sitting decides on the PASS with a verdict, and a second p
 same objection is refused. A position standing when the debate ends is yours at the terminal
 sitting, and the run ends at its ceiling however you rule it.
 
-**Impasse is per gap, and the record counts it**: an exchange is blue's answer and the minting lens's audit of it, and a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax` and the lens has had its audit. A lens may not close a gap once it is docketed, so it is still open before you. A gap you remand gets one more exchange on your direction — one that begins only when blue acts on the gap, since a sitting in which blue does not touch it spends nothing; its minting lens audits blue's answer after it. If that exchange leaves it at impasse it comes back to you, and you MUST rule a disposition that closes it: a remand is the one hearing at impasse a gap gets, and a second is refused, because no dispatch would hand its direction to any seat. Your work list says so on the motion before you rule; weigh the first remand knowing it is the only one. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
+**Impasse is per gap, and the record counts it**: an exchange is blue's answer and the minting lens's audit of it, and a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax` and the lens has had its audit. A lens may not close a gap once it is docketed, so it is still open before you. A gap you remand gets one more exchange on your direction — one that begins only when blue acts on the gap, since a sitting in which blue does not touch it spends nothing; its minting lens audits blue's answer after it. If that exchange leaves it at impasse it comes back to you, and you MUST answer for a side: a remand is the one hearing at impasse a gap gets, and a second is refused, because no dispatch would hand its direction to any seat. Your work list says so on the docketing before you rule; weigh the first remand knowing it is the only one. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
 
 A closing ruling on a gap that carries a failed check — a citation no reading reads, a computation judged unsound — closes the gap and leaves the check standing: the PASS stays held until a check that clears it holds, blue edits the sentence, or blue retires the anchor. Your ruling decides the gap, never the record's state of the anchor.
 
-**Grade movement in total reaches you too**: a gap is also docketed when the open gaps' grade movement that no ruling of yours has followed passes its threshold, and the docket motion's basis says so. Each lens's regrade is its own act and the chair rules each grade motion alone, so you are the one seat that sees the movement whole. The question is not whether the parties are stuck but whether the gap's grades, as they now stand, are the ones the leaf supports: read each regrade's reason on the board against the gap's sentence and its sources. A grade moved down lets a PASS through a gap that still changes a reader's decision; grades moved up hold a converged board open. Rule the gap's fate as you rule any docketed gap, with the movement in view; where the leaf does not support the movement, say so in your principle and review flag, and set the grade the leaf supports with your own regrade before you rule, so the lens that moved it cannot move it back.
+**Grade movement in total reaches you too**: a gap is also docketed when the open gaps' grade movement that no ruling of yours has followed passes its threshold, and the docketing's cause and basis say so. Each lens's regrade is its own act, so you are the one seat that sees the movement whole. The question is not whether the parties are stuck but whether the gap's grades, as they now stand, are the ones the leaf supports: read each regrade's reason on the board against the gap's sentence and its sources. A grade moved down lets a PASS through a gap that still changes a reader's decision; grades moved up hold a converged board open. Keep the moved grades where the leaf supports them and restore the recorded ones where it supports those, saying why in your principle and review flag; either answer locks each moved axis at the grade it leaves, so the lens cannot move it back.
 
 **Impasse is a fact about THE PARTIES on ONE GAP, never about your own productivity.** It means they cannot converge on it. If disposing the docket leaves the board with nothing open, the debate did not deadlock — it converged in your hands, and red has not yet said PASS against an empty docket. **Red owns PASS/FAIL, and your docket-clearing act is not a substitute for red's affirmative call.** A PASS the board permits is the chair's to record: when your rulings leave nothing open, the record dispatches the chair again, whatever you return. So answer the question actually asked, per gap: **are the parties stuck on it, or did you just finish the work?** Only the first is impasse.
 
@@ -128,8 +128,8 @@ YOURS. Read the telemetry series before you weigh it; its own page says what eac
   whose location is text an earlier sitting's prescribed fix produced.
 - **Some defect classes are cheaper found downstream.** Inconsistency, a missing step, a
   signature mismatch — a compiler and a test suite find these in seconds. Spending a judged
-  sitting on them is a category error, and you have the disposition for it:
-  `defect_owed_elsewhere`, with the owed fix named.
+  sitting on them is a category error, and blue's closing may state the word for it —
+  `defect_owed_elsewhere` — which your ruling for blue writes; name the owed fix.
 - **Scope shrinkage is health; scope growth under audit is a warning.**
 - **Name the cost in the ruling.** A stop is a decision with a number attached — sittings spent
   and, where `cost.md` exists, tokens. An unpriced stop is an instinct wearing a robe.
@@ -185,8 +185,9 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
   - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
-  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
+  - A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
+  - Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no bench ruling on its grades has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling, which keeps the moved grades or restores the prior ones; the bench's regrade the tool writes in a ruling's transaction is no movement.
+  - A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for a party's proposal its assignee did not accept in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
   - New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
@@ -200,14 +201,14 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here. A page carries a marker ending `→ SHARED §n` exactly where the block was: alone on its line the marker stands for the whole block, and at the end of a flag's line it stands for the rest of that flag's description. A block labelled the last block of its pages is not marked on them:
-§1 (on 8 pages):
+§1 (on 7 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 20 pages — every page below that carries no marker for it):
+§2 (the last block of 19 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -217,7 +218,7 @@ Global Flags:
 §3 (on 4 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{message},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§4 (on 17 pages):
+§4 (on 16 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -241,12 +242,12 @@ it matches text with the anchors out: a report line's words, or each value of an
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
 §9 (on 3 pages):
-EVERY SUBJECT AND ITS GAVEL: petition (the bench rules), docket (the bench rules), position (the bench rules). The bench's three each convene a sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a position the same way, after the chair sitting that withheld the PASS; a docket after blue has sat on the gap.
+EVERY SUBJECT AND ITS GAVEL: petition (the bench rules), docket (the bench rules), position (the bench rules). The bench's three each convene a sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a position the same way, after the chair sitting that withheld the PASS; a docketing once the parties' closings on it are filed or no longer awaited.
 
 §10 (on 3 pages):
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,docketing_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§11 (on 4 pages):
+§11 (on 3 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §12 (on 3 pages):
@@ -277,7 +278,6 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
-  regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -419,47 +419,40 @@ Enumerated values:
     friction  Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
 ========
 $ feov-record motion docket rule --help
-rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
+answer a docketing — this verb is the bench seat's, and it appears only on that surface.
 
 (EVERY SUBJECT AND ITS GAVEL: pet…) → SHARED §9
 
-WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE: `regrade` the gap while this motion stands unruled, then rule — your ruling rules on the grade you set, and the minting lens may not move an axis you moved. 
+A DOCKETING PUTS TWO STATEMENTS BEFORE YOU, EACH STATED BY ITS PARTY, AND YOU CHOOSE BETWEEN THEM. Name the docketing with --id (your work list names it, with its cause and basis), and answer with exactly one of its pair — `--for-red | --for-blue`; `--for-filer | --for-assignee` on a red seat's proposal on another red seat's gap; `--keep | --restore` at grade movement — or `--remand`. Each side states what it holds in the closing it owes on the docketing: red its text — the span of the report it quotes, ending at the gap's marker, and what it becomes, or the retire of the anchor the gap is about — and blue its closing word. A held proposal is its filer's statement; the gap's grades are the other side's against a regrade proposal; the gap's recorded closure the other side's against a supersede of a closed gap; at grade movement the moved grades stand against the recorded ones. THE TOOL APPLIES THE STATEMENT OF THE SIDE YOU NAME, in your ruling's transaction, and writes no word, grade or text of yours: red's text as blue's `edit --accept` applies a prescription, and the gap closes `repaired`; blue's word, or `not_a_defect` where blue's closing states none — blue's text stands; a proposal as filed — a close with its word, a regrade at its grades, a supersede's successor, assigned to the gap's assignee; the restored grades on --restore. A SIDE WINS ONLY BY WHAT IT STATED: siding with red (the assignee) where its closing states no text — none filed, `--no-text`, or a gap about an inquiry or a section — is refused naming what is missing, and you answer for the other side or remand. Every answer but one on a grade closes the gap; a ruling on a grade locks each axis it decided at the grade it leaves, and the minting lens may not move it back.
 
-A DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no docket ruling on its gap has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each: that ruling rules on the gap's movement. The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it.
+A REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. A REMAND PAST THE LIMIT IS REFUSED — one remand at impasse is a gap's limit: it grants one more exchange between the gap's minting lens and blue, and a gap that exchange leaves at impasse is docketed again to be closed — a second remand would store a direction no dispatch hands any seat. So a gap you remanded at impasse, back before you at impasse, takes a side of its pair. A gap's grade movement takes no remand: the question is grades already on the record.
 
-A REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. A REMAND PAST THE LIMIT IS REFUSED — one remand at impasse is a gap's limit: it grants one more exchange between the gap's minting lens and blue, and a gap that exchange leaves at impasse is docketed again to be closed — a second remand would store a direction no dispatch hands any seat. So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. A gap can close while a second docket motion on it stands — your ruling on the first closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.
+GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no bench ruling on its grades has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each docketing: that ruling keeps the moved grades or restores the prior ones.
 
 (OUTPUT (JSON, with --json — the …) → SHARED §10
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a declaration, which moves no gap: the gap comes before
-you again only in a docket motion another seat files.
+you again only on a new docketing of it.
 
 Flags:
-      --accept               on a motion that proposes an act: take it, exactly as filed — a proposed close is closed with the disposition it proposes, and --reopens-on or --final; a regrade is your regrade; a supersede writes its successor, assigned to the gap's assignee
-      --as as-value          REQUIRED unless --accept or --reject answers a proposed act — your ruling
       --direction string     on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this
       --final                on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this
-      --id motion-id         REQUIRED — the motion id
+      --for-assignee         on a red seat's proposal on another red seat's gap: side with the gap's assignee — against a close or a supersede, the tool applies the text its closing states and the gap closes repaired, refused where it states none; against a regrade, the gap stays at its grades
+      --for-blue             side with blue: at impasse the gap closes with the word blue's closing states, or not_a_defect where it states none — blue's text stands; on blue's proposal the tool applies it as filed: a close with its word, a regrade at its grades, a supersede's successor
+      --for-filer            on a red seat's proposal on another red seat's gap: side with the filer — the tool applies the proposal as filed
+      --for-red              side with red: at impasse and on blue's close or supersede, the tool applies the text red's closing states — the edit of the span it quotes, or the anchor's retire — and the gap closes repaired; on blue's regrade, the gap stays at its grades. Refused where red's closing states no text
+      --id docketing-id      REQUIRED — the docketing you answer — your work list names it
+      --keep                 at grade movement: the moved grades stand, and each moved axis is locked at the grade it keeps
       --principle string     REQUIRED — the rule you applied, stated so a later sitting can apply the same one
       --reason string        → SHARED §11
-      --reject               on a motion that proposes an act: refuse it — the gap stands as it is
+      --remand               send an open gap back for one more exchange on --direction; refused at grade movement and past the remand limit
       --reopens-on string    on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this
+      --restore              at grade movement: the tool restores each moved axis to the grade the movement started from, and locks it there
       --review-flag string   REQUIRED — what a human should look at again; where nothing needs a human, what on the record already settles it
       --settled string       REQUIRED — what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition
       --tension string       REQUIRED — the values that pulled against each other; where none did, the ruling's weakest point: what a party would argue against the rule you applied
-
-Enumerated values:
-  --as
-    repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
-    not_a_defect              blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be
-    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    remanded                  NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it
-    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
 ========
 $ feov-record motion petition rule --help
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
@@ -575,36 +568,6 @@ Enumerated values:
     assemble  assembling the final report by union-copy. The last step of the run
     position  hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch
 ========
-$ feov-record regrade --help
-set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
-
-YOUR REGRADE SETS THE GRADE YOUR RULING RULES ON. A docket ruling decides the gap's fate with its grades in view; where you hold that a grade is wrong, set it here and then rule. It is admitted only while a docket motion on the gap stands before you unruled, so file it BEFORE you rule that motion, and it must move at least one axis — keeping a grade is the minting lens's act, not yours.
-
-AN AXIS YOU MOVE IS THE BENCH'S UNTIL YOU MOVE IT AGAIN. While it is yours, the minting lens may keep it but not move it, and a gap minted superseding this one carries your grade on it. Your next move of it, at a docket motion on the gap standing unruled, releases it to the lens at the grade you name, and the lens may regrade it from there; a later move of yours makes it the bench's again.
-
-YOUR REGRADE IS NO PARTY'S MOVEMENT: it counts toward neither the gap's impasse nor the grade movement the dispatch dockets for you, and your ruling on the motion rules on it.
-
-A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, or answered by blue after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you.
-
-The regrade and its reason render on the BOARD beside the gap, with your seat as the one that set it. They never reach the research report, which carries what the debate SETTLED.
-
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
-
-(If you need a verb or a flag tha…) → SHARED §1
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
-
-IF WHAT YOU RECORDED WAS WRONG, say so in a new regrade at your next sitting, while the gap is open
-(a sitting holds one per --id, and this sitting's stands).
-
-Flags:
-      --complexity grade   what fixing it costs, on the same scale
-      --id gap-id          REQUIRED — the gap id
-      --impact grade       how bad the consequence is if it lands
-      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --reason string      → SHARED §11
-      --severity grade     how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
-========
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
@@ -617,7 +580,7 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`
+  board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit and every retire of an evidence anchor off a sentence the report keeps, in record order, and with `--id <gap>` the fix red asked for beside the changes answering it. Written by blue's `edit` and `retire`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a computation, its bundle's files and the output it recorded. Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and `reproduce`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate, the reason for it, and the check that stands on it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
@@ -629,11 +592,11 @@ Available Commands:
 Use "feov-record show [command] --help" for more information about a command.
 ========
 $ feov-record show board --help
-THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — the bench regrades a gap it is hearing. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.
+THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — an axis a bench ruling on the gap's grade decided (a regrade proposal's ruling, `--keep` or `--restore`) it may not move back. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.
 
 (Each quote gap carries `location…) → SHARED §12
 
-Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`
+Written by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 

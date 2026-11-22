@@ -582,11 +582,11 @@ func debateMD(in Input) []byte {
 	}
 	sort.Ints(epochOrder)
 
-	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docket motion's
-	// FILING, never its ruling, so this indexes the gap by motion id once and the LEAD lines
-	// below name it without recomputing the join per event. The twin in record/viewjson.go
+	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docketing, never
+	// its ruling, so this builds the join once (record.DocketRulingGap) and the LEAD lines below name
+	// it without recomputing it per event. The twin in record/viewjson.go
 	// (DebateJSONOf) builds the same map for the same reason.
-	docketGapOf := record.DocketGapByMotion(in.Events)
+	docketGapOf := record.DocketRulingGap(in.Events)
 	archive := record.ArchiveOf(in.Gaps)
 	kept := record.KeptGrades(in.Events, in.At)
 
@@ -704,7 +704,7 @@ func debateMD(in Input) []byte {
 						// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing
 						// made this a rendering bug that no longer announces itself as a type
 						// error.
-						docketGapOf[t.GetMotionId()], record.RulingWord(t),
+						docketGapOf(t), record.RulingWord(t),
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+t.GetOpinion())
 					continue
 				}

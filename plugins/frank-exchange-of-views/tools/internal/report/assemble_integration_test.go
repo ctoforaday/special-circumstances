@@ -110,20 +110,20 @@ func TestAssembleEndToEnd(t *testing.T) {
 		InquiryId: proto.String("Q3"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED),
 		Question: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
 	})
-	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
-	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
-	// the filing, so the ruling alone would be a disposition of nothing.
-	archived(t, runDir, "red-chair", &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("red cannot settle G1 without the model-check"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+	// THE BENCH OPINES ON A DOCKETING, and through the production write path both are refusable:
+	// the gap red cannot settle is DOCKETED, and the bench RULES on that docketing. The gap rides
+	// the docketing, so the ruling alone would be a disposition of nothing.
+	archived(t, runDir, "red-chair", &recordpb.Docketing{
+		DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(),
+		Basis: proto.String("red cannot settle G1 without the model-check"),
 	})
 	// BLUE ARGUES THE DOCKETED GAP in its closing before the bench rules.
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
 	add("judge", &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("a model-check is owed before this closes"),
+		Opinion: proto.String("a model-check is owed before this closes"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
 			ReviewFlag: proto.String("false"),
@@ -213,13 +213,12 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("README.md missing %q\n---\n%s", want, index)
 		}
 	}
-	// THE BENCH'S DISPOSITION IS A MOTION NOW, so this run DOES file one and judgments.md is
-	// written. That inverts what this assertion used to say — the old fixture wrote a `bench
-	// opinion`, which was not a motion, so the judgments document was legitimately empty.
+	// THE BENCH RULES A DOCKETING, so judgments.md is written with the docketing's row: the gap, its
+	// cause, the basis and the ruling.
 	judgments := read(FileJudgments)
-	for _, want := range []string{"## Motions", "**M1** · docket G1", "**ruled remanded** by judge"} {
+	for _, want := range []string{"## Motions", "**M1** · docketing G1 · cause impasse", "**ruled remanded** by judge"} {
 		if !strings.Contains(judgments, want) {
-			t.Errorf("judgments.md missing %q — the bench's disposition is a docket motion, and the "+
+			t.Errorf("judgments.md missing %q — the bench's ruling answers a docketing, and the "+
 				"section whose promise is \"an ask and its answer are one row\" must carry it\n---\n%s", want, judgments)
 		}
 	}
@@ -434,13 +433,14 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	})
 	// And a computation anchored from the transcript, so debate.md must define K1 for itself too: blue's
 	// closing on the docketed gap.
-	archived(t, runDir, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
+	archived(t, runDir, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("the bench's to settle")})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"),
 		Text: proto.String("the interleaving is model-checked<!--computation:K-00000001--> and G1 does not stand"),
 	})
-	add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("the model check settles it"),
+	add("judge", &recordpb.MotionRule{Opinion: proto.String("the model check settles it"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"), ReviewFlag: proto.String("false"),
 			Settled:   proto.String("the claim as it stood may not be re-asserted"),

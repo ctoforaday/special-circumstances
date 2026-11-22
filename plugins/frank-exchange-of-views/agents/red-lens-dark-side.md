@@ -50,7 +50,7 @@ Safety, failure modes, likelihood × impact × complexity grading, security and 
 THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT: a refusal; a verb, flag or field you reached for that was not there; an output shape you misread; a harness guard; a workaround; an act the tooling made you set aside. Each entry's TYPE says which kind it is, and the log's own page defines each type. A MISTAKE THE SURFACE INVITED IS STILL FRICTION: the name you guessed is the operator's signal that something taught you to expect it, and absorbing it as your own error is what keeps this channel empty. The tool records by itself every refusal it gives you, with the flags you typed and never their values, and every tool call of yours that fails; your entry adds what only you know — what you expected, and where the expectation came from. A sitting where nothing cost you anything files nothing. YOU MUST NOT silently degrade, work around a missing capability, or force the material to fit: a silent workaround destroys the signal that would get you retooled.
 Say what you CONCLUDED, never what you did: the record already holds every act of this sitting, in order.
 - AFTER blue has acted on a gap you minted that the bench remanded, YOU MUST re-audit blue's answer against the research direction the ruling states, then close the gap, move its grade, or keep its grade with a regrade that says what your check still finds failing. The ONE exchange the remand grants begins with blue's act, so the record readies you on the gap only after it; a sitting of yours before it owes the gap nothing.
-- A GAP OF YOURS THE RECORD HAS NOT READIED YOU ON ASKS NOTHING OF YOU THIS SITTING: its row's `your_turn` says so, your turn on it comes with something to audit, and blue's silence is not yours to report. ONCE A GAP OF YOURS IS DOCKETED IT IS THE BENCH'S: you may not close it, and your closing is the one act you owe on it until the bench rules. A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
+- A GAP OF YOURS THE RECORD HAS NOT READIED YOU ON ASKS NOTHING OF YOU THIS SITTING: its row's `your_turn` says so, your turn on it comes with something to audit, and blue's silence is not yours to report. ONCE A GAP OF YOURS IS DOCKETED IT IS THE BENCH'S: you may not close it, and your closing is the one act you owe on it until the bench rules. A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. RED ALWAYS PROVIDES THE TEXT: where the gap is docketed at impasse, or for a close or a supersede proposed on it, your closing states the text you hold its sentence should carry — the span ending at the gap's marker and what it becomes, or the retire of the anchor the gap is about — and a ruling for you applies it; with no road you can state, you say so, and the bench can only side with blue or remand. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 - AFTER your sitting's last act, YOU MUST end the sitting by returning your envelope. It carries nothing: what you found, minted, regraded, closed and judged is on the record, and every seat after you reads it there.
 
 <!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->
@@ -91,8 +91,9 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
   - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting that never closed is not one it sat through and counts neither way.
   - A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
-  - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
+  - A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
+  - Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no bench ruling on its grades has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling, which keeps the moved grades or restores the prior ones; the bench's regrade the tool writes in a ruling's transaction is no movement.
+  - A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for a party's proposal its assignee did not accept in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
   - New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
@@ -121,8 +122,8 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
-§3 (on 4 pages):
-THE LIVE-ANSWER DEMAND IS ASKED OF EVERY CLOSE, before anything else, under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A check clearing does not meet it: a `source` gap's fix that rewords the sentence leaves it unanswered until blue cites on the reworded sentence as that gap's answer, and another lens's check meets nothing. A demand you no longer hold is not yours to end: another seat proposes ending the gap in a docket motion, or the dispatch puts it before the bench at impasse, and the bench's closing ruling is not held to the demand.
+§3 (on 2 pages):
+THE LIVE-ANSWER DEMAND IS ASKED OF EVERY CLOSE, before anything else, under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A check clearing does not meet it: a `source` gap's fix that rewords the sentence leaves it unanswered until blue cites on the reworded sentence as that gap's answer, and another lens's check meets nothing. A demand you no longer hold is not yours to end: another seat proposes ending the gap, or the dispatch puts it before the bench at impasse, and the bench's closing ruling is not held to the demand.
 
 §4 (on 20 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -271,7 +272,7 @@ Enumerated values:
 §22 (on 3 pages):
 A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades, close it, or supersede it with a corrected statement — each with that act's own flags, the gap named by --id and your argument in --reason. Its assignee may accept it, and the act is then applied exactly as you filed it; otherwise the bench accepts it, rejects it — the gap stands as it is — or remands it. A proposal is admitted once the gap has had one exchange, one at a time on a gap, never on your own gap (take the act yourself), and on a closed gap only as a supersede. It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting — and on a gap a successor superseded, naming the successor: propose on the successor.
 
-A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
+A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: after that sitting only the closings owed are filed, and no assignee window or exchange follows, so no ruling on the motion can change how the run ends.
 
 §23 (on 4 pages):
 A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, or answered by blue after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you.
@@ -291,22 +292,25 @@ THE REPORT HOLDS NO SENTENCE FOR AN ANCHOR that is not in the report (blue retir
 
 A CHECK OF A SENTENCE THAT CHANGES BEFORE IT IS RECORDED — reworded, cut to leave the anchor bare, or retired with its citation or computation — is refused, and nothing is recorded: read the sentence as it now stands and check it again.
 
-§27 (on 3 pages):
+§27 (on 2 pages):
+THE LIVE-ANSWER DEMAND IS ASKED OF EVERY CLOSE, before anything else, under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A check clearing does not meet it: a `source` gap's fix that rewords the sentence leaves it unanswered until blue cites on the reworded sentence as that gap's answer, and another lens's check meets nothing. A demand you no longer hold is not yours to end: another seat proposes ending the gap in a docket motion, or the dispatch puts it before the bench at impasse, and the bench's closing ruling is not held to the demand.
+
+§28 (on 3 pages):
 Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none.
 
-§28 (on 4 pages):
+§29 (on 4 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
-§29 (on 2 pages):
+§30 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. An alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§30 (on 2 pages):
+§31 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-§31 (on 3 pages):
+§32 (on 3 pages):
 it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. An alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§32 (on 3 pages):
+§33 (on 3 pages):
 it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ========
@@ -321,7 +325,7 @@ Usage:
 
 Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
-  closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
+  closing     your closing argument on a docketed gap of yours, with your text — owed once per docketing, before the bench rules it
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -348,7 +352,7 @@ close a gap with the verification you did THIS sitting, naming what you checked 
 
 THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-A gap with a docket motion standing unruled on it is refused: it is the bench's to dispose of, and what you found goes in your closing.
+A gap a docketing or a proposal stands on is refused: a docketed gap is the bench's to dispose of, a proposal is answered by accepting it, and what you found goes in your closing.
 
 A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
@@ -382,9 +386,15 @@ Flags:
 (Enumerated values:) → SHARED §8
 ========
 $ feov-record closing --help
-your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
+your closing argument on a docketed gap of yours, with your text — owed once per docketing, before the bench rules it
 
-It renders as a ### RED CLOSING section in the epoch it is filed in, one entry per docketed gap. Each gap you minted that is docketed owes one closing from you, filed after its docketing and before the bench's ruling; the bench sits on the gap once you and blue-respond have each filed, and your work list names each closing you owe. A gap another lens minted is not yours to argue, and is refused.
+It renders as a ### RED CLOSING section in the epoch it is filed in, one entry per docketed gap. Each gap you are the assignee of that is docketed — or that a proposal stands on in your window — owes one closing from you, filed after the docketing (or the proposal) and before the bench's ruling; the bench sits on the gap once you and blue-respond have each filed, and your work list names each closing you owe. A gap another lens is the assignee of is not yours to argue, and is refused.
+
+RED ALWAYS PROVIDES THE TEXT. Where the gap is docketed at impasse, or for a close or a supersede proposed on it, your closing states the text you hold the gap's sentence should carry — one road: the span of the report as it stands, ending at the gap's marker, and what it becomes; or, on a gap about a citation or a computation, that anchor's retire, its sentence kept word for word. The pair is planned as blue's accept of a prescription plans one, on the report your closing lands on: a pair the accept would refuse is refused here, and nothing is recorded. When the bench sides with you the tool applies your text as its own edit, and the gap closes `repaired`.
+
+YOUR TEXT IS ESTOPPED AS A MINT IS. A road whose span is text a red lens prescribed and blue applied verbatim is refused, naming that prescription, exactly where a mint of the same quote is refused; the bench's answer for you asks it again when it rules, so text you could not mint is never applied through the bench. FROM YOUR CLOSING ON, YOUR TEXT HOLDS: an edit or a retire of blue's after which your pair no longer applies is refused until the bench answers the docketing or proposal you argue, so the bench applies the text you stated.
+
+WHERE NO ROAD CAN BE STATED — an anchor stands inside every span you can quote, so the accept refuses every pair, or a standing estoppel refuses every road you can state — your closing says it states no text: it discharges what you owe, and the bench sides with blue or remands. A closing there that states neither a road nor that it states none is refused. On a gap about an inquiry or a section, on a regrade proposal (your statement is the gap's grades), at grade movement and on a closed gap, your closing states no road.
 
 The bench rules on the closings, the transcript, and the final state of the artifacts. This is your case, and material the record does not carry cannot help it.
 
@@ -399,7 +409,11 @@ holds one per --id, and this sitting's stands).
 
 Flags:
       --id gap-id       REQUIRED — the gap id this closing argues
+      --new string      red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with red. With --quote
+      --no-text         red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with blue or remands
+      --quote string    red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-red ruling replaces. With --new
       --reason string   REQUIRED — your closing argument on this gap — your THINKING, not your process. → SHARED §10
+      --retire          red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with red
 ========
 $ feov-record fetch --help
 fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — quote THAT text, not the raw bytes; a seat that reads sources searches it with `show source` (by the summary's sha256), which reads it as a citation is located in it and needs no PDF or HTML tooling.
@@ -481,7 +495,7 @@ ONE GAP PER CLASS ON ONE SENTENCE, INQUIRY OR CITATION. A mint is REFUSED where 
 
 READ THE BOARD BEFORE YOU MINT: beyond that rule, whether it already holds your defect is your judgement, made by reading it — `show board` prints every gap, open and closed, with its problem. If an open gap IS your defect, do not mint it again. If yours replaces it, mint it as that gap's successor. A candidate that is a closed gap's defect is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
-A MINT NAMING AN OPEN GAP AS ITS ANCESTOR CLOSES THAT GAP IN THE SAME ACT, its purpose passing to your gap: a close, carry, regrade or docket of it is then refused, naming yours. Only its minter supersedes an open gap, and not while a docket motion stands unruled on it. An open ancestor whose check kind is `source` or `computation` and that nothing answers yet passes its live-answer demand to your gap, which carries the same check kind: a mint at another check kind is refused — meet the demand on the ancestor first, or put the ancestor before the bench. What would have met the ancestor's demand meets your gap's too: a retire of the anchor it is about, made after your mint, or that anchor's check again by its own seat after your mint, which holds. Naming a closed gap carries lineage and closes nothing.
+A MINT NAMING AN OPEN GAP AS ITS ANCESTOR CLOSES THAT GAP IN THE SAME ACT, its purpose passing to your gap: a close, carry, regrade or docket of it is then refused, naming yours. Only its minter supersedes an open gap, and not while a docketing or a proposal stands on it. An open ancestor whose check kind is `source` or `computation` and that nothing answers yet passes its live-answer demand to your gap, which carries the same check kind: a mint at another check kind is refused — meet the demand on the ancestor first, or put the ancestor before the bench. What would have met the ancestor's demand meets your gap's too: a retire of the anchor it is about, made after your mint, or that anchor's check again by its own seat after your mint, which holds. Naming a closed gap carries lineage and closes nothing.
 
 A CHECK OF YOURS THAT FAILED HOLDS THE PASS. An unread or unsound check owes its gap: a computation you judge unsound, until it is judged sound again or retired; a citation whose source your reading could not read (`unreachable`, or a copy that is not the work), when yours is the first such reading since its sentence last changed, until a lens reads the source or blue retires the citation. Mint the gap about the anchor, by its id, in the sitting the check failed, with the fix blue must make — for a citation, retire it or cite a source a lens can read. A gap minted in that sitting, before or after the check, carries it. Your close of a gap that carries a failed check is refused while the check stands; a closing ruling of the bench closes it, and the check still holds the PASS. A gap about a retired citation or computation is refused, naming its retire: a retired anchor is in no document, so a defect still in its sentence is a gap about that sentence.
 
@@ -530,7 +544,7 @@ accept the act a docket motion proposes on a gap you are the assignee of — the
 
 ONE TRANSACTION: your answer to the motion, then the act — the regrade, the close, or the successor the proposal states, its id assigned at filing — written as your own act, through that act's own write and every check it meets. A refusal of the act records nothing, and the motion stands for the bench. Read the proposal on your work list before you accept: a close is attested by the anchors your sitting read. If you do not accept it, your closing on the gap is your argument, and the bench rules.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,docketing_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
@@ -662,11 +676,11 @@ The gap keeps its identity and its history rather than being closed and re-minte
 
 A REGRADE THAT NAMES NO GRADE KEEPS THE GRADE, and so does one that names only the grades the gap already has. It is how you say, on the record, that a gap of yours still stands after you re-audited it — after blue answered it, or another seat argued about it — and its reason is what your acceptance check still fails. It moves nothing. Where the dispatch engaged you on the gap, your sitting ends the exchange on it, and one that moved nothing counts toward the gap's impasse; where it did not, no exchange is counted by it. Blue reads its reason on its work list beside the gap until it answers the gap again, and the bench reads it in the debate transcript.
 
-AN AXIS THE BENCH SET IS NOT YOURS TO MOVE WHILE IT STANDS. While a docket motion on your gap stands before the bench, the bench may set a grade by a regrade of its own, and the axis it moves is the bench's. While it is, your regrade that moves that axis is refused, naming the grade the bench set — one that keeps it is yours to file — and a gap you mint superseding this one carries the bench's grade on it. When the bench moves that axis again, it releases it to you at the new grade, and you may regrade it from there; a later move by the bench sets it again.
+AN AXIS A RULING DECIDED IS NOT YOURS TO MOVE BACK. A bench ruling on your gap's grade — on a regrade proposal, for either side, or on the gap's grade movement, kept or restored — locks each axis it decided at the grade it leaves. While it does, your regrade that moves that axis is refused, naming the ruling — one that keeps it is yours to file — and a gap you mint superseding this one carries the ruled grade on it. A later ruling on the axis locks it at its own grade.
 
 (A GAP THAT CHANGED AFTER YOUR SI…) → SHARED §23
 
-GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no docket ruling on its gap has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each: that ruling rules on the gap's movement.
+GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no bench ruling on its grades has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each docketing: that ruling keeps the moved grades or restores the prior ones.
 
 The regrade and its reason render on the BOARD beside the gap, so a grade argued down over three sittings shows the argument, not only the final number. They never reach the research report, which carries what the debate SETTLED.
 
@@ -725,7 +739,7 @@ YOUR LATEST VERDICT ON A SENTENCE IS YOURS; ANOTHER LENS'S DOES NOT REPLACE IT. 
 
 AN `unsound` THAT STANDS HOLDS THE PASS until the sentence is judged sound again — by your own later verdict, or by one from a sitting opened after blue's edit — or blue retires the computation. You owe the gap that carries it to blue — a gap about this computation's anchor, minted in this sitting, with the fix blue must make. Blue is readied to fix the computation or retire it, and you are readied until the gap is minted. Your close of that gap is refused while the judgement stands; a closing ruling of the bench closes it, and the judgement still holds the PASS. Your own later `sound` judgement of the computation meets the `computation` demand of the gap you minted about it; another lens's judgement does not.
 
-(THE LIVE-ANSWER DEMAND IS ASKED …) → SHARED §3
+(THE LIVE-ANSWER DEMAND IS ASKED …) → SHARED §27
 
 AN `unsound` YOUR GAP CARRIES IS NOT RECORDED AGAIN. While your `unsound` of a sentence stands — the sentence has not changed since, because an edit reopens the computation — and a gap you minted about the computation since that judgement is open, judging the sentence `unsound` again is REFUSED and nothing is recorded: the refusal names the gap, which already carries the judgement to blue, and no second gap is owed. A `sound` verdict is recorded as ever, and clears the judgement. A judgement from a sitting opened after blue's edit is a fresh one, and is recorded whatever it finds.
 
@@ -764,7 +778,7 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`
+  board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit and every retire of an evidence anchor off a sentence the report keeps, in record order, and with `--id <gap>` the fix red asked for beside the changes answering it. Written by blue's `edit` and `retire`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a computation, its bundle's files and the output it recorded. Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and `reproduce`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate, the reason for it, and the check that stands on it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
@@ -777,13 +791,13 @@ Available Commands:
 Use "feov-record show [command] --help" for more information about a command.
 ========
 $ feov-record show board --help
-THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — the bench regrades a gap it is hearing. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.
+THE BOARD — open and closed gaps with grades, closures, anchors, counts, and any replay anomalies. Each gap's `assignee` is whose gap it is — the seat that minted its chain's first gap — the one seat that may close it, and the one party that may regrade it — an axis a bench ruling on the gap's grade decided (a regrade proposal's ruling, `--keep` or `--restore`) it may not move back. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. `awaiting_evidence` is whether an open gap still owes the live answer its check kind demands, and `answer_kind` what it is owed in — a `citation` for a `source` gap, a `computation` for a `computation` gap, empty for a `document` gap; `evidence_answered` is whether that demand is met, which `mint --help` states under the check kinds. `answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told. JSON by default; --format markdown gives the human-verification rendering.
 
-(Each quote gap carries `location…) → SHARED §27
+(Each quote gap carries `location…) → SHARED §28
 
-Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`
+Written by the lens's `mint`, `close` and `regrade`, the bench's rulings, and blue's `retire`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §28
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §29
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,soundness,verified_by,event}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_evidence,answer_kind,evidence_answered,answers_retired_event,fix_basis,fix_old,fix_new,assignee,supersedes,superseded_by,material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,soundness,verified_by,event}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_evidence,answer_kind,evidence_answered,answers_retired_event,fix_basis,fix_old,fix_new,assignee,supersedes,superseded_by,material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],counts:{open,closed,closed_by_bench,anomalies,citations,citations_authored},anomalies:[string]}
 
@@ -791,8 +805,8 @@ OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,
 
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it) (default "json")
-      --match regex     → SHARED §29
-      --quote text      → SHARED §30
+      --match regex     → SHARED §30
+      --quote text      → SHARED §31
 ========
 $ feov-record show changes --help
 every recorded change to the report, in record order — each edit, and each citation or computation blue retired from a sentence the report keeps, named by its kind; add --id <gap> to put red's required_fix and the changes answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit` and `retire`
@@ -803,8 +817,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,prob
 
 Flags:
       --id gap-id     scope this projection to one gap — red's required_fix beside the edits and the retires of evidence anchors answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --match regex   select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §31
-      --quote text    select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §32
+      --match regex   select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §32
+      --quote text    select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §33
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `source_text` is WHAT THE SOURCE SAYS where blue quoted it: blue's span, the same words as the source holds them (`matched`), and the source's own text `before` and `after` them, copied from the cached text when blue cited it — read the sentence against this. `blue_reason` is blue's account of why the source backs the sentence: blue's words, not the source's. A source the tool holds no text for (`source_text_origin` none) has no `source_text`. `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a gap to mint however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` holds the PDF page the tool found its span on: check the span against that page's image, not against the reading. Every computation keyed by its `<!--computation:K-…-->` anchor — the id the lens's `reproduce --anchor` takes — with its bundle's sha256, its command and red's checks of it — each judgement carries `claim`, the sentence it was of, as each verification does; a judgement whose `claim` is not the sentence the report carries now is of an earlier wording — and red's verified claims with their confidence.
@@ -815,7 +829,7 @@ WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by
 
 A SOURCE'S AND A COMPUTATION'S ROW ARE LOCATED AS A QUOTE GAP IS, by the anchor's token, and `location` and `location_state` read as the board's.
 
-(Each quote gap carries `location…) → SHARED §27
+(Each quote gap carries `location…) → SHARED §28
 
 A COMPUTATION'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES. `rerun` is THIS ACT's comparison against its bundle's standing re-run — one bundle can back several computations, it is executed once, and each computation on it is compared against that execution with its own recorded output, exit and out/: `reproduced`, `differs`, `calls_the_tool` (the bundle calls this tool, which refuses every call made while a checker runs it, so nothing it printed is a result); `not_compared`: the bundle was re-run and nobody compared this act; `not_rerun`: the bundle was never re-run. `bundle_bases`, on a row whose bundle backs computations recorded with different bases, lists those bases: the bundle's output moved for one and not another. `soundness` is THIS ANCHOR's sentence: `sound`, `unsound`, `not_judged`, or `reopened` (an edit changed the sentence after it was judged). `verified` is true when this act's comparison reproduced AND this sentence is judged sound. A standing `unsound` from any lens reads `unsound` until that lens judges the sentence again or an edit reopens it; `checks` lists every judgement of the anchor, each marked `standing` or not. `counts.computations_unverified` is how many computations are not verified: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level. `counts.sources_unverified` is how many citations no reading of the sentence the report carries has reached: unchecked, or checked and nothing read.
 
@@ -827,7 +841,7 @@ A retired anchor is in no document, and in none of these lists or counts: `sourc
 
 THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--gap:G-…-->` is a gap's, which `show board` resolves. `retires` IS EVERY RETIRE ON THE RECORD, in record order: the claim as it stood, blue's `reason`, what `superseded_by` it, and the `anchors` it took out. `claim_kept` true is a citation or computation taken off a sentence that stays; false is a claim that left the report, and `removal_basis` says how far the record shows it leaving — `verified` (the claim is in the old span of a recorded edit) or `asserted` (it is absent now, and nothing on the record shows it was ever present). Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and `reproduce`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §28
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §29
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,fetched_at,copy_captured_at,location,location_state,blue_reason,seat_id,epoch,source_text_origin,work_status,source_completeness,copy_substitution,copy_url,source_text:{span,before,matched,after,start,end,text_sha},pages:[number],ocr_engine,ocr_text_sha,verified:[{claim,anchor,outcome,bridge,confidence,text,url,title,seat_id,epoch,page,page_render_sha,reading_render_sha,source_completeness,copy_substitution,copy_url,standing}]}],computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,location,location_state,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,claim,note,seat_id,epoch}]}],independent:[{claim,anchor,outcome,bridge,confidence,text,url,title,seat_id,epoch,page,page_render_sha,reading_render_sha,source_completeness,copy_substitution,copy_url,standing}],unchecked:[{anchor,edit,last_check}],retires:[{event,seat_id,epoch,claim,reason,superseded_by,claim_kept,anchors:[string],removal_basis}],counts:{sources,computations,computations_unverified,sources_unverified,verifications}}
 
@@ -837,8 +851,8 @@ OUTPUT WITH --anchor (JSON — `source` or `computation`, whichever the anchor n
 
 Flags:
       --anchor id     read the ONE entry at this anchor id rather than the table — a computation's (K-…) with its bundle's files and recorded output, or a source's (C-…); a retired one with the retire that took it out
-      --match regex   select only the citations and computations matching this regex (RE2, case-insensitive) — → SHARED §31
-      --quote text    select only the citations and computations containing this text LITERALLY (case-insensitive) — → SHARED §32
+      --match regex   select only the citations and computations matching this regex (RE2, case-insensitive) — → SHARED §32
+      --quote text    select only the citations and computations containing this text LITERALLY (case-insensitive) — → SHARED §33
 ========
 $ feov-record show inquiries --help
 the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and the fates recorded on it. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with its epoch, seat, reason and method) and the check that stands on it with its reason, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` its epoch, `history` each fate recorded on it, in order, as {`epoch`, `status`, `reason`, `method`, `seat_id`}, `seat_id` the seat that recorded the latest, `state` its judged state — open (proposed or underway: blue owes a fate that settles it), wanting (an open material gap is about it, listed in `wanting`), unchecked (settled, and no check stands on it) or sound (a check stands) — and `check` and `checked_by` the reason and the seat of the check that stands, empty while none does. A check stands until a fate is recorded on the inquiry again or a material gap is minted about it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
@@ -848,8 +862,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §31
-      --quote text    select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §32
+      --match regex   select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §32
+      --quote text    select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §33
 ========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE. TO LOOK ONE UP: `show evidence` resolves `<!--cite:C-…-->` and `<!--computation:K-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --quote takes the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. --search is not a selector: it RANKS the report's paragraphs by hybrid lexical and vector relevance to a query and returns the top few — a cut list, in which absence proves nothing — for when you do not know the report's wording. Written by the opening synthesis and blue's `edit`.
@@ -888,7 +902,7 @@ WITH NEITHER --sha NOR --anchor, --match and --quote print across sources (JSON)
 
 UNDER --search (JSON), on one source: {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,score}],search_scope:{ranked_and_cut,returned,searched_chunks,notice}}; across sources: {hits:[{sha256,url,source_text_origin,text_sha,page,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,start,end,score}],search_scope:{ranked_and_cut,returned,searched_chunks,notice,searched_sources,unsearched_sources:[{sha256,url,reason}]}}
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §28
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §29
 
 OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched}}
 
@@ -914,7 +928,7 @@ FOR EACH GAP OF YOURS WHOSE TURN HAS COME, an item says what you have to audit: 
 
 `open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `assignee` and `yours_to_close` — only a gap's assignee may close it or regrade it, and the bench, hearing it, regrades it too. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. `your_turn` is whether the dispatch engages YOU on the gap now; false on a gap of yours says nothing is asked of you on it this sitting.
 
-(Each quote gap carries `location…) → SHARED §27
+(Each quote gap carries `location…) → SHARED §28
 
 `edited_since` lists the edits that changed a gap's sentence since you last sat.
 
@@ -932,15 +946,15 @@ WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old`
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`, `motion petition rule` and `declare`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §28
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §29
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears,kind,subject:{…}}],last_read:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,soundness,verified_by,event}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,assignee,yours_to_close,your_turn,check_kind,awaiting_evidence,answer_kind,remanded,docket_direction,docket_settled,remand_stage,material}],closings_owed:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,soundness,verified_by,event}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,assignee,yours_to_close,your_turn,check_kind,awaiting_evidence,answer_kind,remanded,docket_direction,docket_settled,remand_stage,material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,soundness,verified_by,event}],class,fate,artifact_state,settled,reopens_on,final}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate,successors:[string]}],successors_owed:[string]},declarations:[{holding,epoch,gaps:[{id,status,fate,closed_by,closed_epoch}]}],relief:[{motion,petitioner,binds,relief,epoch}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   → SHARED §29
-      --quote text    → SHARED §30
+      --match regex   → SHARED §30
+      --quote text    → SHARED §31
 ========
 $ feov-record verify --help
 read a source against a report sentence — a citation blue made, or a source you found — and record what it did
@@ -960,7 +974,7 @@ A READING THAT FINDS THE SOURCE AGAINST ITS SENTENCE IS YOUR DEBT. A `refutes` o
 ONE READING OF A SUBJECT PER SITTING. A second reading of yours of the same citation in one sitting is refused, naming the first, and so is a second reading of the same source for the same sentence. Read it again in a later sitting, as the sentence then stands.
 
 
-(THE LIVE-ANSWER DEMAND IS ASKED …) → SHARED §3
+(THE LIVE-ANSWER DEMAND IS ASKED …) → SHARED §27
 
 
 A SOURCE NAMED BY ITS URL is read against the sentence you quote, which the report must hold once; a quote it holds more than once is refused. A backing reading of a sentence a citation or computation already marks is refused, naming that anchor — read that citation by its anchor instead; `refutes` and `absent` are recorded on any sentence. Your source places no citation and reaches neither the report's citations nor its Bibliography: blue cites, and a lens reads blue's citation. In one sitting you may read several sources against one sentence and one source against several sentences, and each is recorded. How you found the source goes in your reason.

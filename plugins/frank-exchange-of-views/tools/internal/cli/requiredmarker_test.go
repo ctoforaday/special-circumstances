@@ -57,8 +57,9 @@ type requiredProbe struct {
 // oneOfAnother are flags the verb accepts in place of each other, with what stands in. Omitting
 // one while the other is present runs clean, and omitting both is refused naming both — a
 // requirement no single-flag marker states, so these are exempt from the marker check and the
-// help carries the alternative in prose. `motion docket rule` answers what follows its ruling with one
-// of three, chosen by --as: --direction on a remand, else --reopens-on or --final. `motion position
+// help carries the alternative in prose. `motion docket rule` answers with one flag of the docketing's
+// pair or --remand, and answers what follows its ruling with one of three: --direction on a remand,
+// else --reopens-on or --final. `motion position
 // rule` names an upheld ruling's work one of two ways: --lens or --ids. `verify` names its subject one
 // of two ways, a flag group cobra refuses at the parse: --anchor (a citation) or --url (a source the
 // lens found).
@@ -68,6 +69,7 @@ var oneOfAnother = map[string]string{
 	"reopens-on": "final",
 	"final":      "reopens-on",
 	"direction":  "final",
+	"remand":     "for-blue",
 	"lens":       "ids",
 	"ids":        "lens",
 	"anchor":     "url",
@@ -81,7 +83,7 @@ var oneOfAnother = map[string]string{
 // held to the marker like any other.
 var verbsWithAOneOf = map[string][]string{
 	"mint":                 {"problem", "reason"},
-	"motion docket rule":   {"reopens-on", "final", "direction"},
+	"motion docket rule":   {"reopens-on", "final", "direction", "remand"},
 	"motion position rule": {"lens", "ids"},
 	"verify":               {"anchor", "url"},
 }

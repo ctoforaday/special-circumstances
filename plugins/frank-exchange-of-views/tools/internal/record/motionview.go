@@ -110,6 +110,7 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_DOCKETING,
 	recordpb.EventType_EVENT_TYPE_POSITION,
 	recordpb.EventType_EVENT_TYPE_PLAN,
 	recordpb.EventType_EVENT_TYPE_VERDICT)

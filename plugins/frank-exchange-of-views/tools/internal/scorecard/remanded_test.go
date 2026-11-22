@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// benchSatOn seeds one docket motion per disposition, each ruled by the bench with a principle
+// benchSatOn seeds one docketing per disposition, each ruled by the bench with a principle
 // and an opinion — the shape the write requires of every docket ruling.
 func benchSatOn(t *testing.T, opinions []string, ds ...recordpb.Disposition) *record.Family {
 	t.Helper()
@@ -29,18 +29,20 @@ func benchSatOn(t *testing.T, opinions []string, ds ...recordpb.Disposition) *re
 	return famSeededT(t, evs)
 }
 
-func docketFiling(t *testing.T, motion, gap string) *record.Event {
+func docketFiling(t *testing.T, docketing, gap string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "red-chair", &recordpb.Motion{
-		MotionId: proto.String(motion),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+	return recordtest.Event(t, "red-chair", &recordpb.Docketing{
+		DocketingId: proto.String(docketing), GapId: proto.String(gap),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse"),
 	})
 }
 
-func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion string) *record.Event {
+// docketRuling answers a docketing: a closing word applies red's text (sides with red), a remand
+// sides with no one.
+func docketRuling(t *testing.T, docketing string, d recordpb.Disposition, opinion string) *record.Event {
 	t.Helper()
 	r := &recordpb.DocketRuling{
-		Disposition: recordtest.P(d), Principle: proto.String("a ruling states its principle"),
+		DocketingId: proto.String(docketing), Disposition: recordtest.P(d), Principle: proto.String("a ruling states its principle"),
 		Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 	}
 	// A ruling states what reopens the gap or that it is final, never both.
@@ -48,11 +50,11 @@ func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion s
 		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
+		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RED.Enum()
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
-		MotionId: proto.String(motion),
-		Opinion:  proto.String(opinion),
-		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
+		Opinion: proto.String(opinion),
+		Ruling:  &recordpb.MotionRule_Docket{Docket: r},
 	})
 }
 
@@ -117,12 +119,12 @@ func TestABenchThatDidNotSitSaysSo(t *testing.T) {
 	}
 }
 
-// ONE RULING PER MOTION, ON BOTH ROWS. The write refuses a second ruling on a motion, so this
-// seeds one past it: a motion ruled in one sitting and again in a later one is one ruling — its
-// FIRST, the rule MotionsOf states. remanded_share and undeclared_inspection_risk count over the
-// same rulings, so the opinion share and the remand share have one denominator.
-func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
-	rem, rep := recordpb.Disposition_DISPOSITION_REMANDED, recordpb.Disposition_DISPOSITION_REPAIRED
+// ONE RULING PER DOCKETING, ON BOTH ROWS. The docketing_id column is unique, so a docketing holds
+// one ruling and no second can be seeded; a later sitting that rules nothing adds nothing.
+// remanded_share and undeclared_inspection_risk count over the same rulings, so the opinion share
+// and the remand share have one denominator.
+func TestADocketingIsOneRulingOnBothRows(t *testing.T) {
+	rem := recordpb.Disposition_DISPOSITION_REMANDED
 	const traj = "read off the trajectory of the lens's tool calls"
 	fam := famSeededT(t, []*record.Event{
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
@@ -131,14 +133,13 @@ func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 		docketFiling(t, "M2", "G2"),
 		docketRuling(t, "M2", rem, "heard"),
 		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J2"), Occasion: recordpb.Occasion_OCCASION_TERMINAL.Enum()}),
-		docketRuling(t, "M1", rep, traj),
 	})
 	rows := benchRows(fam)
 	if r := rowByMetric(rows, "remanded_share"); r == nil || r.Value != 1.0 || !strings.HasPrefix(r.Note, "2/2") {
-		t.Errorf("remanded_share = %+v, want 1 at 2/2: M1's first ruling remanded it, and so did M2's", r)
+		t.Errorf("remanded_share = %+v, want 1 at 2/2: M1's ruling remanded it, and so did M2's", r)
 	}
 	if r := rowByMetric(rows, "undeclared_inspection_risk"); r == nil || !strings.HasPrefix(r.Note, "1 opinion(s)") {
-		t.Errorf("undeclared_inspection_risk = %+v, want 1 opinion: M1 is one ruling however often it was ruled", r)
+		t.Errorf("undeclared_inspection_risk = %+v, want 1 opinion: M1's, the one naming the trajectory", r)
 	}
 }
 
@@ -148,9 +149,9 @@ func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
 	fam := famSeededT(t, []*record.Event{
 		docketFiling(t, "M1", "G1"),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("heard"),
+			Opinion: proto.String("heard"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("a claim about a tool call is checked against the tool call"),
 				Tension:     proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), Final: proto.Bool(true),

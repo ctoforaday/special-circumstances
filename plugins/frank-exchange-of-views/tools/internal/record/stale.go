@@ -115,13 +115,14 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 			add(ids[i], "regraded "+gapID)
 		}
 	}
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Ruled() && d.GapID == gapID {
+			add(d.ruled, "the bench ruled "+gapID+" "+d.Word()+" in "+d.ID)
+		}
+	}
 	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID {
-			if seatclass.RoleOfSeat(m.RulingBy) == "bench" {
-				add(m.ruled, "the bench ruled "+gapID+" "+m.Ruling+" in "+m.ID)
-			} else {
-				add(m.ruled, m.RulingBy+" accepted motion "+m.ID+"'s "+m.Act+" of "+gapID)
-			}
+		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID && seatclass.RoleOfSeat(m.RulingBy) != "bench" {
+			add(m.ruled, m.RulingBy+" accepted motion "+m.ID+"'s "+m.Act+" of "+gapID)
 		}
 		if slices.Contains(upheldPositionGaps(m), gapID) {
 			add(m.ruled, "the bench remanded "+gapID+" upholding position "+m.ID)

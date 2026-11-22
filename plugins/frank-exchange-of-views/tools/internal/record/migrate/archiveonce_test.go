@@ -97,7 +97,7 @@ func archiveStoreDir(name string) (string, error) {
 		archiveStore.root = root
 	}
 	dir := filepath.Join(archiveStore.root, name)
-	return dir, os.Mkdir(dir, 0o755)
+	return dir, os.MkdirAll(dir, 0o755)
 }
 
 // ArchiveMigrations is how many times the store has migrated each archive it was asked for.

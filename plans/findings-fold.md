@@ -320,7 +320,7 @@ the 36; the issue's "34 archives" and `early-dockets.md`'s "37 runs" (8 scratch 
 | `F-` ids in prose columns | 2738 in 30 runs: `events.key` 1407, `blue_edit` old/new 279 each, `report_checkpoint.text` 162, `mint.mint_reason` 109, `log.text` 64, `regrade.basis` 59, `close.prose` 37, `motion_rule.opinion` 35, `motion_rule_docket.review_flag` 12, rest smaller | audit p3-A, `audit-p3a/scripts/` |
 | Docket grounds (`DocketMotion.grounds`, `grounds_quote`) | **0** set in 36 runs: the columns exist only in the two eiffel runs (4 dockets, 0 set); every earlier run predates the fields (2026-10-30). One gap holds two dockets (m35 G-18a9b00c: chair ev 363, dark-side ev 404), both filed before either ruling (ev 583, 584, `repaired`): **0** archived filings after a non-remand bench ruling | `python3 -I` over `audit-p3a/x/*/records/record.db`, `~/.claude/scratch/1695/p4/` |
 | `motion_docket` rows | 39 (m35 8, 1565 5, mersenne 5, wave-b 4, m29 4, …); the 38 of `ce31/motions-residue.txt` missed one | audit p3-A |
-| Dockets by O3's structural rule; their rulings; bench regrades (pre-replay, amendment 2) | 39 = 23 the dispatch's (22 ruled: 19 closing words, 3 remands; 1 unruled; amendment 5: 16 of the 19 end at their assignee's own `Close` before the ruling, `amend5/sweep.py`) + 7 chair dockets in four runs holding no `plan` row + 5 minter's own + 4 blue; `ce31/archives.txt` omits `2026-11-11_eiffel-tower-height` (its 1 docket is the 39th). Bench rulings 38: closing words 35 (repaired 18, repaired_with_regression 6, defect_owed_elsewhere 6, carried 2, defect_accepted 1, not_a_defect 1, moot 1), remands 3; bench `Regrade` events **1** (eiffel 11-11 ev 669) | `~/.claude/scratch/1695/amend2/scripts/dockets.py` → `amend2/dockets.json` (§III.B14) |
+| Dockets by O3's structural rule; their rulings; bench regrades (pre-replay, amendment 2) | **Measured on B2a's replay (2026-11-22), with bundle-store m37/m38: 25 docketings written, 7 rulings kept, 17 ended rulings, 16 + 16 party docket events, 2 superseded docketings and rulings, 41 opinions, 3 bench regrades, 5 spot-checks written as no event; §III.B14.** Pre-replay: 39 = 23 the dispatch's (22 ruled: 19 closing words, 3 remands; 1 unruled; amendment 5: 16 of the 19 end at their assignee's own `Close` before the ruling, `amend5/sweep.py`) + 7 chair dockets in four runs holding no `plan` row + 5 minter's own + 4 blue; `ce31/archives.txt` omits `2026-11-11_eiffel-tower-height` (its 1 docket is the 39th). Bench rulings 38: closing words 35 (repaired 18, repaired_with_regression 6, defect_owed_elsewhere 6, carried 2, defect_accepted 1, not_a_defect 1, moot 1), remands 3; bench `Regrade` events **1** (eiffel 11-11 ev 669) | `~/.claude/scratch/1695/amend2/scripts/dockets.py` → `amend2/dockets.json` (§III.B14) |
 
 ### II.5 Names
 
@@ -1611,7 +1611,9 @@ no remand at grade movement (L40); epoch limit.
   own drops (O2), so the dispatch's is its one docketing, ended by the assignee's close ev 517, and its
   ruling ev 583 drops (§III.B14, amendment 5); T-B26 asserts the case by name. **Residue, stated:** the party's text on a translated motion (`basis`,
   `relief` where set) beyond what moves to `basis`; `Motion` ids no longer on the record (no reader
-  joins an archived docket motion's id but its ruling and closings, both translated). T-B12 becomes
+  joins an archived docket motion's id but its ruling and closings, both translated); the bench opinions,
+  the dispatch's dockets left standing on a gap a successor superseded, and the spot-checks of a gap
+  those drops left open, each written as no event (measured, §III.B14). T-B12 becomes
   `TestAnArchivedDocketBecomesADocketing`; T-B20's ruling-tombstone counts name docketings.
 - **Tests [NEW].**
   - T-B22 `TestADocketedGapTakesNoProposalAtEveryKMax` (`internal/cli`, as seats run it), for k-max
@@ -2200,7 +2202,8 @@ re-measured by T-B26 and T-B31 on the replay).
   bench `Regrade`, eiffel 11-11 ev 669, drops), so L35′'s locks and amendment 6's re-lock move no
   count, and T-B31 asserts that no migrated ruling sets a lock; the freeze's edit arm. NOT MEASURED until B2a's
   replay: each docketing's live cause (by `basis` all 22 ruled are `IMPASSE`; T-B31 prints the live
-  cause beside it and fails on any difference, which stops B2a for gblock), and the replay itself
+  cause beside it; the one difference, m29 G-6f6f47fb, ruled 2026-11-22 for the live cause — measured
+  below), and the replay itself
   (T-B26: zero refusals).
 - **16 rulings drop** (ruled 2026-11-21, "Drop the 16 rulings", agent wording): in 16 of the 22 ruled,
   G's assignee's own non-carry `Close` (all 16 by G's minter, all `repaired`) lies between D's row and
@@ -2243,6 +2246,44 @@ re-measured by T-B26 and T-B31 on the replay).
   none; the pair check and word admission admit each translated ruling by construction. No archived
   blue closing states a word, no archived ruling holds a proposal, so no archived `accepted`
   translates.
+- **MEASURED ON B2a's REPLAY (2026-11-22; the figures above are the pre-replay estimator's).** Over the
+  36 tarballs of `run-archive/` and bundle-store m37, m38 (`migrate/docketingarchive_test.go`: T-B26
+  `TestAnArchivedDocketBecomesADocketing`, T-B31 `TestAnArchivedBenchWordTakesItsSide`; manifest field
+  `dockets`, `migration.DocketResidue`, one list per reason): **zero refusals**.
+  - **25 docketings written** (24 `IMPASSE`, 1 `GRADE_MOVEMENT`): m28 2, m29 1, 1565 5, m32 1, m35 6,
+    mersenne 1, eiffel 11-04 2, eiffel 11-11 1, m37 4, m38 2. The estimator's 23 omits m37/m38 (8
+    dispatch dockets); of the 31 dispatch dockets, 4 are acts on a gap superseded before them
+    (`actOnSupersededGap`: m29 G-bde527eb, G-237fed96; m30 G-97b44713; m37 G-8405d5e1) and 2 stand on a
+    gap a successor superseded after them, before any ruling or close (below).
+  - **Cause (ruled 2026-11-22: the live cause stands):** m29 G-6f6f47fb ev 550 — basis said impasse; the
+    live rule reads grade movement (lens regrade at ev 540). Its ruling ev 576 drops as ended (its
+    assignee's close ev 561); its only closing, the chair's ev 555, is refused either way. T-B31 asserts
+    it `GRADE_MOVEMENT` and every other `IMPASSE`. **The cause is the plan's two-way rule (grade
+    movement, else impasse), not the dispatch's full route** (accepted 2026-11-22): `routeOf` sends 18
+    of the 27 dispatch dockets written before the superseded drop to the minting lens first, or the
+    debate (m38 G-ca807516), and writes no docketing there — the archive docketed before the lens's
+    re-audit that `lensGoesFirst` now asks for, which T-B33's `EarlyDockets` names.
+  - **Kept rulings 7:** 5 remands (m35 G-91f0c8e6, eiffel 11-04 G-72aab1f2, eiffel 11-11 G-6e7c400f,
+    m37 G-deced912, m38 G-845422d8), neither `sided_with` nor `moved_grades`; 2 for-blue
+    `{BLUE, not_a_defect}` (eiffel 11-04 G-42584956, m38 G-ca807516). No migrated ruling sets a lock.
+    The estimator's 3 words → `not_a_defect` counted m29 G-c55e607d and G-237fed96, whose gaps are
+    superseded.
+  - **Written as no event, stated per run:** 17 rulings of a docketing a `Close` ended (m28 2, m29 1,
+    1565 5, m32 1, m35 4, mersenne 1, m37 3); 16 party and hand dockets and their 16 rulings (O2; source
+    events per run: a 2, b3 2, b6 4, wave-b 8, 07d 2, m35 4, mersenne 8, eiffel 11-04 2); 2 dispatch docketings left standing on a gap a successor superseded after them, with their
+    rulings (ruled 2026-11-22, the live write refuses that supersede: m29 G-c55e607d ev 351/426, m37
+    G-584d152f ev 471/745); 41 bench opinions in 6 runs (ruled 2026-11-22, "Drop them": is-7-prime 2,
+    is-7-prime-run2 7, sqlite-schema-source 2, research-loop-counterparts 3, sleeper-service-plan 10,
+    quadratic-formula 17), 40 of whose gaps read open; 3 bench regrades (eiffel 11-11 ev 669, m38 ev
+    427, 718); 5 spot-checks naming a gap a dropped bench act left open (sleeper ev 474, quadratic ev
+    542, 710, 766, wave-b ev 698). Eiffel 11-11 ev 711 replays.
+  - **Closings:** every closing the write refuses is written as no event (`refusedArgument`, which now
+    calls `record.ClosingRefusal` — the party check and `requireClosingStatement`, the one function
+    validate's closing arm calls); the per-run tally is `argumentresidue_test.go`'s.
+  - **Standing at the run's end: 1** — m35 G-650ee728.
+  - **Freeze cost:** planguard clean; on m37 (1048 migrated events) `standingRoadsAt` 0.76 ms and
+    `standingSupersedesAt` 0.40 ms a call (`eventsAt` 0.65 ms), quadratic-formula 0.40 ms and 0.20 ms —
+    no index added.
 
 **Tests [NEW] (each in `internal/cli`, driven through the command tree as seats run it, unless
 stated).**
@@ -2342,8 +2383,8 @@ stated).**
   `Docketing{PROPOSAL}` rows hold exactly the proposals standing. Fails if a proposal is admitted while
   a docketing stands, or one filed before a non-remand ruling is answered after it.
 - T-B31 `TestAnArchivedBenchWordTakesItsSide` (`internal/record/migrate`): per archived dispatch
-  docketing, the live rule's cause printed beside the archived basis's cause (the test fails on any
-  difference: B2a stops for gblock); the 16 docketings a `Close` ended, their rulings written as no
+  docketing, the live rule's cause printed beside the archived basis's cause (the one difference, m29
+  G-6f6f47fb, ruled 2026-11-22: the live cause, `GRADE_MOVEMENT`, asserted); the 16 docketings a `Close` ended, their rulings written as no
   event and each G closed by its assignee's `repaired` close (named per run); each of the 3 kept closing
   words a for-blue answer at impasse, `{sided_with: BLUE, disposition: not_a_defect}` (the 3 × 2 matrix
   printed); the 3 remands unchanged (`remanded`, neither field); m35 G-650ee728 standing; the 26 closings
@@ -2540,7 +2581,7 @@ check 5 leaves only the appendix's O lines.
 | R22 | The bench writes a word or grade of its own through a path the deletion missed, or the tool's word or restored grade differs from the row's; or grade movement leaves the window through a ruling that did not decide it | M×H×L | no bench flag or verb chooses either (M17 DELETE rows); validate's `DocketRuling` arm compares the word with the row's (`not_a_defect`, `repaired`, the stored word) and the bench `Regrade` with the stored or restored grades; the window restarts only at a grade-movement ruling, and per axis at a regrade proposal's ruling naming it (L41, L41′); T-B27, T-B28; oracle `bench_grade_of_its_own` |
 | R28 | A non-remand ruling is overturned by a later docketing on G (audit p8 gap 2), or a docketing has no answer that lands | M×H×L | the winner's statement applies, so every non-remand answer closes G but a grade ruling; a closed G is re-docketed only by an F8 proposal the tombstone bars; a grade ruling locks the axes it decided and every later grade ruling re-locks them, no bench move lifting a lock (L35′, amendment 6), and restarts their window (L41′); blue's (the filer's) side always states one, and a supersede's lands because its successor is checked at the filing and its inputs frozen (§III.B14, L48); T-B36, T-B38; oracles `ruling_overturned`, `open_after_ruling` |
 | R29 | A red closing re-prescribes estopped text through the bench (audit p8 gap 3), or a closing party sits at the final sitting and lands an act no lens audits | M×M×L | the road is checked by `EstoppelConflict` at the closing and at the ruling; L44′ admits only the closing in the final closing sitting and in held-out blue's; a red closing no road admits is filed `--no-text` (L49), so no duty is blocking or missing; T-B29, T-B37; gates `closing_road_estopped`, `final_sitting_closings` |
-| R23 | Translation 4 cascades or misreads its cause: a rewritten closing word, a live-rule cause that is not the archived basis's, or the dropped bench regrade leaves a later archived act refused or a fate moved | M×M×L | re-derived against every B2a rule (amendment 5: `amend5/sweep.py`, 16 rulings a `Close` ended dropped, 26 closings dropped, 3 words → `not_a_defect`, 0 fates reopened; previously measured before B2a: 19 of 19 at impasse by basis, 19 words → `not_a_defect`, 0 fates reopened; 1 regrade, whose later lens regrade ev 711 is the one candidate); T-B31 fails on a live cause differing from the basis's; T-B26 zero refusals; a refusal stops B2a and goes to gblock as residue (O2's rule) |
+| R23 | Translation 4 cascades or misreads its cause: a rewritten closing word, a live-rule cause that is not the archived basis's, or the dropped bench regrade leaves a later archived act refused or a fate moved | M×M×L | re-derived against every B2a rule (amendment 5: `amend5/sweep.py`, 16 rulings a `Close` ended dropped, 26 closings dropped, 3 words → `not_a_defect`, 0 fates reopened; previously measured before B2a: 19 of 19 at impasse by basis, 19 words → `not_a_defect`, 0 fates reopened; 1 regrade, whose later lens regrade ev 711 is the one candidate); T-B31 asserts the live cause (m29 G-6f6f47fb `GRADE_MOVEMENT`, ruled 2026-11-22) and every other `IMPASSE`; T-B26 zero refusals (measured on B2a's replay) |
 
 ## V. Phases and Verification Plan
 

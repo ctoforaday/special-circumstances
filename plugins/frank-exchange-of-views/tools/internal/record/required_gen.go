@@ -15,6 +15,8 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredComputation
 	case "dispatch":
 		return requiredDispatch
+	case "docketing":
+		return requiredDocketing
 	case "envelope_admitted":
 		return requiredEnvelopeAdmitted
 	case "halt":
@@ -70,6 +72,11 @@ var (
 		{Key: "pin", Flag: "pin"},
 		{Key: "seat_id", Flag: "seat"},
 	}
+	requiredDocketing = []RequiredField{
+		{Key: "docketing_id", Flag: "docketing-id"},
+		{Key: "gap_id", Flag: "gap-id"},
+		{Key: "cause", Flag: "cause"},
+	}
 	requiredEnvelopeAdmitted = []RequiredField{
 		{Key: "agent_id", Flag: "agent-id"},
 	}
@@ -113,7 +120,6 @@ var (
 		{Key: "class_material", Flag: "class-material", Arm: "supersede"},
 	}
 	requiredMotionRule = []RequiredField{
-		{Key: "motion_id", Flag: "id"},
 		{Key: "opinion", Flag: "reason"},
 		{Key: "ruling", Flag: "as", Arm: "position"},
 	}

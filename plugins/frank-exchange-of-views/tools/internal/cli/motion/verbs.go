@@ -50,7 +50,7 @@ func finalSittingSays(subject string) string {
 	if subj, ok := record.MotionSubjectEnum(subject); ok && record.HeardAtTheExit(subj) {
 		return "Filed at the run's final sitting — the sitting whose plan says `final_sitting` — a " + subject + " is heard by the bench at the exit, which may halt the run on it; until it is ruled it holds the PASS."
 	}
-	return "A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends."
+	return "A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: after that sitting only the closings owed are filed, and no assignee window or exchange follows, so no ruling on the motion can change how the run ends."
 }
 
 func newFile(actingRole, subject string, required []string) *cobra.Command {
@@ -230,12 +230,6 @@ var ruleDetail = map[string]string{
 		"`A-` id your work list names with the chair's argument, which is what you rule on. A position filed at any other sitting is not before you, and its id is refused. " +
 		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
 		"`overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.",
-	"docket": "\n\nWHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE: `regrade` the gap while this motion stands unruled, then rule — your ruling rules on the grade you set, and the minting lens may not move an axis you moved. " +
-		"\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
-		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
-		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. " +
-		"A REMAND PAST THE LIMIT IS REFUSED — " + record.RemandLimitRule + ". So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. " +
-		"A gap can close while a second docket motion on it stands — your ruling on the first closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
 }
 
 func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
@@ -257,7 +251,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's three each convene a " +
 			"sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a " +
-			"position the same way, after the chair sitting that withheld the PASS; a docket after blue has sat on the gap." + ruleDetail[subject],
+			"position the same way, after the chair sitting that withheld the PASS; a docketing once the parties' closings on it are filed or no longer awaited." + ruleDetail[subject],
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -299,69 +293,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
-			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-				accept, _ := cmd.Flags().GetBool(flags.Accept)
-				reject, _ := cmd.Flags().GetBool(flags.Reject)
-				dr := &recordpb.DocketRuling{
-					// AN OMITTED FLAG STAYS ABSENT, so the write refuses omission with the schema's
-					// own `why` — after the subject, which is asked first above — rather than
-					// receiving it as the same "" a passed blank is (#1234). Where `allow_empty`
-					// makes "" an answer, that blank is the only thing keeping the two apart.
-					Principle:  seat.OptStr(cmd, flags.Principle),
-					Tension:    seat.OptStr(cmd, flags.Tension),
-					ReviewFlag: seat.OptStr(cmd, flags.ReviewFlag),
-					Settled:    seat.OptStr(cmd, flags.Settled),
-				}
-				// A CLOSING RULING STATES EXACTLY ONE OF --reopens-on AND --final, A REMAND ITS
-				// --direction AND NEITHER OF THEM; the schema refuses every other state. Set only
-				// what was passed: an empty `reopens_on` written as present would satisfy the
-				// "at least one" check while saying nothing, which is the shape --final exists
-				// to make sayable.
-				if seat.Given(cmd, flags.ReopensOn) {
-					// GIVEN EMPTY IS NOT ABSENT: an empty --reopens-on read as no flag let --final
-					// stand alone over a value the seat typed.
-					r := seat.Str(cmd, flags.ReopensOn)
-					if strings.TrimSpace(r) == "" {
-						return nil, feov.Errorf(feov.Validation, "--reopens-on is empty: state the evidence or condition that would reopen the gap, or pass --final instead to say nothing would")
-					}
-					dr.ReopensOn = proto.String(r)
-				}
-				if fin, _ := cmd.Flags().GetBool(flags.Final); fin {
-					dr.Final = proto.Bool(true)
-				}
-				dr.Direction = seat.OptStr(cmd, flags.Direction)
-				body.Ruling = &recordpb.MotionRule_Docket{Docket: dr}
-				// THE ANSWER TO A PROPOSED ACT: --accept takes it, through the act's own write after
-				// the ruling; --reject leaves the gap as it stands. Accepting a proposed close IS its
-				// closing ruling, with the disposition it proposes.
-				switch {
-				case accept || reject:
-					if reject {
-						dr.Accepted = proto.Bool(false)
-						break
-					}
-					p, found, err := record.DocketProposalOf(run, id)
-					if err != nil {
-						return nil, err
-					}
-					if c := p.Motion.GetClose(); found && c != nil {
-						dr.Disposition = c.ClosureClass
-						break
-					}
-					dr.Accepted = proto.Bool(true)
-					if found && p.Motion.GetAct() != nil {
-						if err := applyAccepted(s, run, id, record.Act{Body: body}); err != nil {
-							return nil, err
-						}
-						return ruled{ID: id, Ruling: "accepted"}, nil
-					}
-				default:
-					d, ok := record.DispositionOf(word)
-					if !ok {
-						return nil, feov.Errorf(feov.Validation, "--as %q is not a disposition", word)
-					}
-					dr.Disposition = &d
-				}
 			case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
 				v, ok := enumOf[recordpb.PositionRuling](recordpb.PositionRuling(0).Descriptor(), word)
 				if !ok {
@@ -399,16 +330,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	seat.Returns(c, ruled{})
 	seat.Prose(c)
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
+	// THE RULING NAMES WHAT IT ANSWERS: the column requires no motion id, since a bench ruling of a
+	// docketing holding no proposal names none, so the verb requires it.
+	seat.Require(c, flags.ID)
 	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
 	enumhelp.Flag(c, flags.As, e, "your ruling")
-	if subject == "docket" {
-		c.Flags().Bool(flags.Accept, false, "on a motion that proposes an act: take it, exactly as filed — a proposed close is closed with the disposition it proposes, and --reopens-on or --final; a regrade is your regrade; a supersede writes its successor, assigned to the gap's assignee")
-		c.Flags().Bool(flags.Reject, false, "on a motion that proposes an act: refuse it — the gap stands as it is")
-		c.MarkFlagsMutuallyExclusive(flags.Accept, flags.Reject, flags.As)
-		seat.RequiredUnless(c, flags.As, "unless --accept or --reject answers a proposed act")
-	} else {
-		seat.Require(c, flags.As)
-	}
+	seat.Require(c, flags.As)
 	for _, f := range ruleFlags {
 		help := ruleFlagHelp[f]
 		if h, ok := positionFlagHelp[f]; ok && subject == "position" {
@@ -428,10 +355,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	}
 	if subject == "position" {
 		seat.RequiredUnless(c, flags.Direction, "unless --as overruled")
-	}
-	if subject == "docket" {
-		// The bench's opinion: validate refuses a bench ruling without any of the four.
-		seat.SaysRequired(c, flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled)
 	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "on a grant, and required there: whom --relief binds")
@@ -483,20 +406,21 @@ func (r filed) Human() string {
 }
 
 type ruled struct {
-	ID     string `json:"motion_id"`
-	Ruling string `json:"ruling"`
+	ID string `json:"motion_id,omitempty"`
+	// Docketing is the docketing a docket ruling answers; absent on every other ruling.
+	Docketing string `json:"docketing_id,omitempty"`
+	Ruling    string `json:"ruling"`
 }
 
-func (r ruled) Human() string { return "motion " + r.ID + " ruled " + r.Ruling }
-
-// rulingSaid is a ruling's word as the record reads it: a disposition, or accepted | rejected.
-func rulingSaid(r *recordpb.MotionRule) string {
-	if d := r.GetDocket(); d != nil && d.Accepted != nil {
-		if d.GetAccepted() {
-			return "accepted"
-		}
-		return "rejected"
+func (r ruled) Human() string {
+	if r.Docketing != "" {
+		return "docketing " + r.Docketing + " ruled " + r.Ruling
 	}
+	return "motion " + r.ID + " ruled " + r.Ruling
+}
+
+// rulingSaid is a ruling's word as the record reads it (record.RulingWord).
+func rulingSaid(r *recordpb.MotionRule) string {
 	return record.RulingWord(r)
 }
 

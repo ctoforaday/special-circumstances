@@ -60,7 +60,9 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:motion:M1", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Basis:    proto.String("red cannot settle G1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+				Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the harm needs two failures")}}}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:log:#1", &recordpb.Log{Text: proto.String("the tool refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		registersUnder(t, "blue-respond", "B1", "#1"), // blue sitting 1, epoch 2

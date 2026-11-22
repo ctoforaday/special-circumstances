@@ -81,7 +81,7 @@ var (
 	namedLens    = regexp.MustCompile(`^red-lens-r\d+-([a-z]+(?:-[a-z]+)*)$`)
 	roundedSeat  = regexp.MustCompile(`^(red-merge|red-chair|blue-respond|judge)-r\d+$`)
 	// currentID is an id already in the one shape, which a source written at this epoch carries.
-	currentID = regexp.MustCompile(`^(?:` + anchor.IDPattern("citation", "computation", "gap", "inquiry", "motion", "position") + `|` + findingID + `)$`)
+	currentID = regexp.MustCompile(`^(?:` + anchor.IDPattern("citation", "computation", "docketing", "gap", "inquiry", "motion", "position") + `|` + findingID + `)$`)
 	// hexID is an archived id whose eight hex are kept: an era's lower-case id, and a proof's `P-`
 	// id, which a source before epoch 49 carries and which is a computation's `K-` id with the same
 	// hex.
@@ -117,14 +117,15 @@ var (
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers Cite.answers
 		Motion.motion_id DocketMotion.gap_id
 		InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.motion_id
+		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.docketing_id
+		Docketing.docketing_id Docketing.gap_id Docketing.motion_id DocketRuling.docketing_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Cite.text
 		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryCheck.reason BlueEdit.text Retire.reason
-		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
+		Log.text Motion.basis Motion.relief Docketing.basis DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction PositionHearing.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
@@ -133,7 +134,7 @@ var (
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from
-		Dispatch.seat_id PositionHearing.lens Plan.printed Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
+		Dispatch.seat_id PositionHearing.lens Plan.printed Inquiry.supersedes_status Mint.fix_basis Mint.fix_new Closing.location Closing.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
 		Register.agent_id Register.agent_type
@@ -406,4 +407,13 @@ func (r *remap) respellIDs(field, v string) string {
 		return b.String()
 	}
 	return v
+}
+
+// respelled is the id the migrated record carries for an archived id the stream minted, else the id
+// as given.
+func (r *remap) respelled(old string) string {
+	if nv, ok := r.ids[old]; ok {
+		return nv
+	}
+	return old
 }

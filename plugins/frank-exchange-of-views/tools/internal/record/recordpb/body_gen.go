@@ -153,6 +153,10 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Tombstone, true
 		}
+	case *Event_Docketing:
+		if b != nil {
+			return b.Docketing, true
+		}
 	}
 	return nil, false
 }

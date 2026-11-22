@@ -314,7 +314,7 @@ test('CEILING: the reason names each kind of STANDING_CLAUSES once, in table ord
   }
   const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('Q-0a1b2c3d', 'blue-respond', 'open_inquiry'), blocker('Q-4e5f6a7b', 'red-lens-logic', 'unchecked_inquiry'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'reading_debt'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('K-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
-  const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
+  const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched beyond the closings they owed"
   const clause = '; unchecked: C-706fda63, K-cd9f4c5a; on a failed check: C-0b0e0d0a; on a reading debt: C-0b0e0d0a; inquiries open: Q-0a1b2c3d; inquiries unchecked: Q-4e5f6a7b'
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
@@ -443,12 +443,27 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
 
 })
 
-test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches nobody, whatever parties it still lists', async () => {
-  const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan({ parties: [party('red-lens-evidence'), party('blue-respond', 'G-00000001')] })) }))
+// THE PARTIES A PLAN AT THE LIMIT STILL LISTS ARE THE CLOSING PARTIES (amendment 5): the record keeps
+// exactly the parties owing closings on docketed gaps, engaged on no gap. They sit once, for those
+// closings alone, and then nobody further is dispatched.
+test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches the closing parties it lists once, for their closings alone, then nobody', async () => {
+  const closings = [blocker('G-00000001', 'red-lens-evidence', 'closing_owed'), blocker('G-00000001', 'blue-respond', 'closing_owed'), blocker('G-00000001', 'judge', 'docketed')]
+  const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan({ final_sitting: true, epoch: 4, parties: [party('red-lens-evidence'), party('blue-respond')], docket: ['G-00000001'], blockers: closings })) }))
   const out = await world.run(script, ARGS)
-  assert.deepEqual([out.verdict, out.epochs], ['CEILING', 4])
-  assert.equal(labelsOf(world, 'red-lens-evidence').length, 3, 'three epochs dispatched the lens; the fourth dispatched nobody')
-  assert.equal(labelsOf(world, 'blue-respond').length, 3)
+  assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached], ['CEILING', 4, true])
+  const lens = labelsOf(world, 'red-lens-evidence')
+  const blue = labelsOf(world, 'blue-respond')
+  assert.equal(lens.length, 4, 'three epochs dispatched the lens, and the fourth dispatched it for its closing')
+  assert.equal(blue.length, 4, 'three epochs dispatched blue, and the fourth dispatched it for its closing')
+  for (const c of [lens.at(-1), blue.at(-1)]) {
+    assert.ok(/THIS SITTING IS FOR YOUR CLOSINGS ALONE/.test(c.prompt) && /A CLOSING ARGUMENT IS OWED FROM YOU/.test(c.prompt), `${c.opts.label} is not told its sitting is for its closings alone`)
+  }
+  for (const c of [lens[0], blue[0]]) assert.ok(!/THIS SITTING IS FOR YOUR CLOSINGS ALONE/.test(c.prompt), 'a sitting before the limit is told it is for closings alone')
+  assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached — .* sit for the closings they owe/.test(m)), 'the log does not name the closing parties at the limit')
+  assert.ok(world.logs.some((m) => /epoch 4: the closings owed at the limit are filed — nobody further is dispatched/.test(m)))
+  const terminal = labelsOf(world, 'judge · terminal')[0]
+  const asm = labelsOf(world, 'judge · assemble')[0]
+  assert.ok(terminal && blue.at(-1).n < terminal.n && terminal.n < asm.n, 'the terminal bench does not sit after the closings and before assembly')
 })
 
 // BLUE IS HELD OUT OF THE LAST EPOCH THAT DISPATCHES A LENS: the record's plan there names the lenses
@@ -474,6 +489,29 @@ test('EPOCH LIMIT: the epoch before the last dispatches the lenses its plan name
   assert.ok(early.logs.some((m) => /epoch 3: the epoch limit \(4\) is reached/.test(m)))
 })
 
+// T-B37 (the engine): RED GETS ITS CLOSING AT THE FINAL SITTING, AND HELD-OUT BLUE ITS OWN. A docketing
+// standing at the plan that holds blue out readies blue for its closing alone: blue sits, told its
+// sitting is for its closings, the lens is not, and the bench sits after them. At the final sitting the
+// parties owing closings sit for them before the terminal bench (the EPOCH LIMIT test above).
+test('T-B37: held-out blue sits for its closing alone, the lens as ever, and the terminal bench after them', async () => {
+  const owed = [blocker('G-00000001', 'red-lens-evidence', 'closing_owed'), blocker('G-00000001', 'blue-respond', 'closing_owed'), blocker('G-00000001', 'judge', 'docketed')]
+  const chair = [...[11, 12].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head, max_epochs: 4 }) })),
+    chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond')], { head: 13, max_epochs: 4, epoch: 3, docket: ['G-00000001'], blockers: owed }) }),
+    chairEnv({ plan: limitPlan({ epoch: 4, final_sitting: true, blockers: [blocker('G-00000001', 'judge', 'docketed')] }) }), passChair()]
+  const world = makeWorld(makeResponder({ chair }))
+  await world.run(script, ARGS)
+  const blue = labelsOf(world, 'blue-respond')
+  const lens = labelsOf(world, 'red-lens-evidence')
+  assert.equal(blue.length, 3, 'blue sat in the first two epochs and, held out, for its closing in the third')
+  assert.ok(/THIS SITTING IS FOR YOUR CLOSINGS ALONE/.test(blue[2].prompt) && /A CLOSING ARGUMENT IS OWED FROM YOU/.test(blue[2].prompt), 'held-out blue is not told its sitting is for its closings alone')
+  assert.ok(!/THIS SITTING IS FOR YOUR CLOSINGS ALONE/.test(blue[0].prompt), 'blue before the held-out epoch is told its sitting is for closings alone')
+  assert.ok(!/THIS SITTING IS FOR YOUR CLOSINGS ALONE/.test(lens.at(-1).prompt), 'the lens in the held-out epoch is told its sitting is for closings alone')
+  // THE BENCH SITS ON THE DOCKETING ONCE NO CLOSING IS AWAITED: the plan opening the final epoch owes no
+  // closing and holds the docketing, so the terminal bench rules it, after held-out blue's closing.
+  const terminal = labelsOf(world, 'judge · terminal')[0]
+  assert.ok(terminal && terminal.n > blue[2].n, 'the bench does not sit after held-out blue\'s closing')
+})
+
 test('a chair that records PASS ends the debate even if it relayed parties; a FAIL with parties continues', async () => {
   const passing = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')]), verdict: 'PASS' })] }))
   const out = await passing.run(script, ARGS)
@@ -486,13 +524,20 @@ test('a chair that records PASS ends the debate even if it relayed parties; a FA
 })
 
 test('the terminal bench sitting fires only when the last plan holds a blocker the bench owns, and before assembly', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M-00000001', 'judge'), blocker('M-00000003', 'judge'), blocker('M-00000002', 'red-chair')] }) })] }))
+  // A DOCKETING (owner the bench), A PETITION (the bench's motion) AND A PROPOSAL IN ITS ASSIGNEE'S
+  // WINDOW (a lens's) each convene it: at the exit the bench's register dockets the proposal (L29).
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G-00000004', 'judge', 'docketed'), blocker('M-00000001', 'judge'), blocker('M-00000003', 'red-lens-evidence'), blocker('M-00000002', 'red-chair')] }) })] }))
   await world.run(script, ARGS)
   const terminal = labelsOf(world, 'judge · terminal')[0]
   const asm = labelsOf(world, 'judge · assemble')[0]
   assert.ok(terminal, 'the terminal sitting fired')
   assert.ok(terminal.n < asm.n, 'disposition precedes assembly')
-  assert.ok(/2 motion\(s\) whose gavel is yours stand unruled on the record: M-00000001, M-00000003/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt))
+  assert.ok(/3 docketing\(s\) and motion\(s\) stand unruled on the record: G-00000004, M-00000001, M-00000003 — your register dockets every proposal standing/.test(terminal.prompt) && /NOTHING CAN BE REMANDED AT A TERMINAL EXIT/.test(terminal.prompt), terminal.prompt.slice(0, 600))
+  for (const [kind, subject, owner] of [['docketed', 'G-00000004', 'judge'], ['unruled_motion', 'M-00000003', 'red-lens-evidence']]) {
+    const alone = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker(subject, owner, kind)] }) })] }))
+    await alone.run(script, ARGS)
+    assert.ok(labelsOf(alone, 'judge · terminal').length, `a ${kind} blocker owned by ${owner} alone did not convene the terminal bench`)
+  }
   // A motion whose gavel is the chair's never convenes it: the bench has no verb to rule one.
   const chairOnly = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M-00000002', 'red-chair')] }) })] }))
   await chairOnly.run(script, ARGS)
@@ -654,7 +699,7 @@ test('a plan that engages blue alone on a gap sits no lens, and the lens sits on
 
 test('blue is engaged on named gaps, works from the report and its work list, and files the closings its work list names', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
-    { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
+    { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'docketed', subject: 'G-00000002', owner: 'judge' }]
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { docket: ['G-00000002'], blockers: owed }) }), chairEnv({ plan: plan([party('blue-respond', 'G-00000003')], { docket: ['G-00000003'] }) }), passChair()],
   }))
@@ -677,7 +722,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   // WHICH CLOSINGS ARE OWED IS THE WORK LIST'S, read live: the prompt is composed from the plan at the
   // epoch's start, which a seat sitting earlier in the epoch can already have overtaken (#1663 smoke,
   // ev530, ev608). The dispatch sends a seat the plan holds one owed by to its list, and names no gap.
-  assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED/.test(first), 'blue is not sent to its list for its closing')
+  assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is before the bench/.test(first), 'blue is not sent to its list for its closing')
   assert.ok(!/A CLOSING ARGUMENT IS OWED/.test(second), 'a plan that holds blue to no closing tells it of one')
   for (const prompt of [first, second]) assert.ok(!/OWED ON/.test(prompt) && !/G-00000002/.test(prompt), 'the dispatch names a gap a closing is owed on')
   for (const seat of ['blue-researcher', 'red-lens-logic']) {
@@ -695,10 +740,10 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
   assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
-  for (const want of ['YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
-    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
-    'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {
+  for (const want of ['YOUR WORK LIST NAMES THE DOCKETINGS BEFORE YOU', 'its cause and basis say why', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
+    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'A REMAND closes nothing and is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
+    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and grade movement takes none', 'EACH SIDE STATES WHAT IT HOLDS, AND YOU CHOOSE', 'a side that stated nothing cannot win', 'The record applies the side you choose, writing nothing of yours',
+    'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
   const schema = labelsOf(world, 'judge')[0].opts.schema

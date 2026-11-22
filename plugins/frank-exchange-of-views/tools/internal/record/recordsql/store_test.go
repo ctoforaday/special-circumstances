@@ -355,7 +355,7 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String(id),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}, Act: regradeAct(gap),
 		})); err != nil {
 			t.Fatal(err)
 		}
@@ -365,8 +365,7 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
-			Final:       proto.Bool(true),
+			SidedWith: recordpb.SidedWith_SIDED_WITH_FILER.Enum(),
 		}},
 		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
 		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
@@ -425,7 +424,7 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Basis:    proto.String("red cannot settle this one"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
@@ -455,31 +454,33 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 	}
 }
 
-// AN ANSWER TO A DOCKET MOTION IS A WORD OR AN ACCEPTANCE, AND THE DATABASE SAYS SO ON ITS OWN. The
-// write path refuses the wrong one per motion; the DocketRuling CHECKs hold when anything else
-// inserts. Each refused case is refused by one CHECK alone, so deleting any one of them turns its
-// case green: neither and both (the exclusivity check), and an accept carrying what belongs to a
-// closing word or a remand (the accept's own check, which the rewritten NULL-explicit checks above
-// it no longer pass by a NULL comparison).
+// AN ANSWER IS EXACTLY ONE OF A SIDE, A GRADE ANSWER AND A REMAND, AND THE DATABASE SAYS SO ON ITS
+// OWN. The write path refuses the wrong one per docketing; the DocketRuling CHECKs hold when anything
+// else inserts. Each refused case is refused by one CHECK alone, so deleting any one of them turns its
+// case green: neither and both (the exactly-one check), a grade answer ruled final (a closing word's
+// own check), a closing word stating neither --reopens-on nor --final, and a side with a direction.
 func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
 	notADefect := recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
+	blue := recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+	kept := recordpb.MovedGrades_MOVED_GRADES_KEPT.Enum()
 	for _, c := range []struct {
 		name        string
-		accepted    *bool
+		side        *recordpb.SidedWith
+		moved       *recordpb.MovedGrades
 		disposition *recordpb.Disposition
 		reopensOn   *string
 		final       *bool
 		direction   *string
 		refused     bool
 	}{
-		{"neither an acceptance nor a word", nil, nil, nil, nil, nil, true},
-		{"both an acceptance and a word", proto.Bool(true), notADefect, nil, nil, nil, true},
-		{"an accept that reopens on", proto.Bool(true), nil, proto.String("new evidence"), nil, nil, true},
-		{"an accept ruled final", proto.Bool(true), nil, nil, proto.Bool(true), nil, true},
-		{"a reject with a direction", proto.Bool(false), nil, nil, nil, proto.String("research more"), true},
-		{"an accept", proto.Bool(true), nil, nil, nil, nil, false},
-		{"a reject", proto.Bool(false), nil, nil, nil, nil, false},
-		{"a closing word", nil, notADefect, nil, proto.Bool(true), nil, false},
+		{"neither a side, a grade answer nor a remand", nil, nil, nil, nil, nil, nil, true},
+		{"both a side and a grade answer", blue, kept, nil, nil, nil, nil, true},
+		{"a grade answer ruled final", nil, kept, nil, nil, proto.Bool(true), nil, true},
+		{"a closing word stating neither", blue, nil, notADefect, nil, nil, nil, true},
+		{"a side with a direction", blue, nil, nil, nil, nil, proto.String("research more"), true},
+		{"a side", blue, nil, nil, nil, nil, nil, false},
+		{"a grade answer", nil, kept, nil, nil, nil, nil, false},
+		{"a side with its closing word", blue, nil, notADefect, nil, proto.Bool(true), nil, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			db := store(t)
@@ -487,7 +488,7 @@ func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
 			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Basis:    proto.String("the gap is moot"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
@@ -495,7 +496,7 @@ func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("stated"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					Accepted: c.accepted, Disposition: c.disposition,
+					SidedWith: c.side, MovedGrades: c.moved, Disposition: c.disposition,
 					ReopensOn: c.reopensOn, Final: c.final, Direction: c.direction,
 				}},
 			}))
@@ -562,18 +563,19 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			})); err != nil {
 				t.Fatal(err)
 			}
-			// TWO ROWS, BECAUSE THE GAP RIDES THE FILING. The `gap` view joins the ruling
-			// back to its docket motion to learn which gap was disposed of, so a fixture
-			// that inserts only the ruling leaves the join empty — and an empty join reports
-			// the gap still open, which is exactly the wrong answer this test exists to catch.
-			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Basis:    proto.String("red cannot settle this one"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			// TWO ROWS, BECAUSE THE GAP RIDES THE DOCKETING. The `gap` view joins the ruling
+			// back to its docketing to learn which gap was disposed of, so a fixture that inserts
+			// only the ruling leaves the join empty — and an empty join reports the gap still open,
+			// which is exactly the wrong answer this test exists to catch.
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_DOCKETING, &recordpb.Docketing{
+				DocketingId: proto.String("K1"), GapId: proto.String("G1"),
+				Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("red cannot settle this one"),
 			})); err != nil {
-				t.Fatalf("the record refused a docket motion: %v", err)
+				t.Fatalf("the record refused a docketing: %v", err)
 			}
 			dr := &recordpb.DocketRuling{
+				DocketingId: proto.String("K1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
 				Disposition: c.as.Enum(),
 				Principle:   proto.String("correctness over economy"),
 				Tension:     proto.String("the repair costs a round"),
@@ -583,12 +585,11 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 			// A remand states the direction its exchange owes, never final.
 			if c.as == recordpb.Disposition_DISPOSITION_REMANDED {
-				dr.Final, dr.Direction = nil, proto.String("a reproduction on the shipped binary")
+				dr.Final, dr.SidedWith, dr.Direction = nil, nil, proto.String("a reproduction on the shipped binary")
 			}
 			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Opinion:  proto.String("stated"),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
+				Opinion: proto.String("stated"),
+				Ruling:  &recordpb.MotionRule_Docket{Docket: dr},
 			})); err != nil {
 				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
 			}
@@ -731,7 +732,7 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 		{"docketed to the bench", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Basis:    proto.String("escalating a gap nobody minted"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 	} {
 		t.Run(c.what, func(t *testing.T) {

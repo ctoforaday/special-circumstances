@@ -117,3 +117,9 @@ func (r *runner) staleRefusals(seatID, gapID string) int {
 	}
 	return n
 }
+
+// steadySource draws n on every Intn(100): its 31-bit draw is n, below every rejection bound.
+type steadySource int64
+
+func (s steadySource) Int63() int64 { return int64(s) << 32 }
+func (steadySource) Seed(int64)     {}

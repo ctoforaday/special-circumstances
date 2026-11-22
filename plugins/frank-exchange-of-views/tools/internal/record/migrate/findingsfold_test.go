@@ -152,10 +152,11 @@ func TestNoMigratedArchiveHoldsAFindingIDOrToken(t *testing.T) {
 			})
 		}
 	}
-	// 444: the two in grade rulings' opinions (sleeper-service-plan, b9) leave with the rulings,
-	// which translate to no event (EventSchema 79).
-	if prose != 444 {
-		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 444", prose)
+	// 397: the two in grade rulings' opinions (sleeper-service-plan, b9) leave with those rulings
+	// (EventSchema 79), and the 47 in bench opinions, party dockets' rulings and the rulings of ended
+	// docketings leave with them (EventSchema 80): each translates to no event.
+	if prose != 397 {
+		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 397", prose)
 	}
 }
 
@@ -194,11 +195,12 @@ func stringsOf(old OldEvent) []string {
 }
 
 // AN ARCHIVED DOCKET IS UNCHANGED BY THE FOLD (T-A6) but for the finding tokens its text held. Every
-// archived docket motion and every ruling on one that comes forward holds every text the archive did,
-// tokens and ids aside, and no docket's grounds named a finding, so nothing of a docket leaves with
-// the findings. The 39 archived dockets and their 38 rulings are counted, and so are the 4 dockets
-// and 4 rulings left out as acts on a gap a mint had superseded (actOnSupersededGap), which the fold
-// does not touch, and the finding tokens the dockets' and rulings' text held.
+// archived docket that comes forward — as the dispatch's Docketing (Translation 3), its basis the
+// motion's — and every ruling that comes forward holds every text the archive did, tokens and ids
+// aside, and no docket's grounds named a finding, so nothing of a docket leaves with the findings. The
+// 39 archived dockets and their 38 rulings are counted, and so are those Translations 3 and 4 and
+// actOnSupersededGap write as no event, which the fold does not touch, and the finding tokens the
+// dockets' and rulings' text held.
 func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 	var dockets, rulings, leftOut, tokens int
 	for _, name := range archivedRuns(t) {
@@ -206,22 +208,23 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 		names := findingNamesOf(evs)
 		man, _ := MigratedArchive(t, name)
 		bodies, _, _ := migratedBodies(t, name)
-		migrated := map[string][]string{} // migrated motion id -> the texts of the motion and its rulings
+		held := map[string]bool{} // every text a migrated docket ruling holds, and each docketing's gap and basis
 		for _, b := range bodies {
-			var id string
 			switch x := b.(type) {
-			case *recordpb.Motion:
-				id = x.GetMotionId()
+			case *recordpb.Docketing:
+				held[x.GetGapId()+"|"+docketText(x.GetBasis())] = true
 			case *recordpb.MotionRule:
-				id = x.GetMotionId()
+				if x.GetDocket() == nil {
+					continue
+				}
 			default:
 				continue
 			}
 			eachString(b.(proto.Message).ProtoReflect(), func(field, v string) {
 				if findingTokenOld.MatchString(v) {
-					t.Errorf("%s: %s of motion %s holds a finding token", name, field, id)
+					t.Errorf("%s: %s of a docketing or its ruling holds a finding token", name, field)
 				}
-				migrated[id] = append(migrated[id], docketText(v))
+				held[docketText(v)] = true
 			})
 		}
 		docket := map[string]bool{} // archived motion ids filed on the docket
@@ -236,40 +239,45 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 			if !docket[id] || (old.Word != "motion" && (old.Word != "motion_rule" || old.Arms["docket"] == nil)) {
 				continue
 			}
+			for _, v := range stringsOf(old) {
+				tokens += len(findingTokenOld.FindAllString(v, -1))
+			}
 			if old.Word == "motion" {
 				dockets++
 				if g, _ := old.Arms["docket"]["grounds"].(string); names[g] {
 					t.Errorf("%s: docket motion %s names finding %s in its grounds", name, id, g)
 				}
-			} else {
-				rulings++
-			}
-			for _, v := range stringsOf(old) {
-				tokens += len(findingTokenOld.FindAllString(v, -1))
-			}
-			to := man.IDs[id]
-			if to == "" {
-				to = id
-			}
-			held, ok := migrated[to]
-			if !ok {
-				leftOut++
+				// A docketing carries the motion's gap and basis, and nothing else of it (Translation 3's
+				// residue).
+				basis, _ := old.Fields["basis"].(string)
+				gap, _ := old.Arms["docket"]["gap_id"].(string)
+				if to := man.IDs[gap]; to != "" {
+					gap = to
+				}
+				if !held[gap+"|"+docketText(basis)] {
+					leftOut++
+				}
 				continue
 			}
-			for _, v := range stringsOf(old) {
-				want := docketText(v)
-				found := false
-				for _, h := range held {
-					found = found || h == want
+			rulings++
+			texts := stringsOf(old)
+			kept := 0
+			for _, v := range texts {
+				if held[docketText(v)] {
+					kept++
 				}
-				if !found {
-					t.Errorf("%s: archived %s %d on motion %s held text the migrated act does not:\n%.300s", name, old.Word, old.ID, id, want)
-				}
+			}
+			switch kept {
+			case 0:
+				leftOut++
+			case len(texts):
+			default:
+				t.Errorf("%s: archived %s %d on motion %s comes forward with %d of its %d texts", name, old.Word, old.ID, id, kept, len(texts))
 			}
 		}
 	}
-	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{39, 38, 8, 5}; got != want {
-		t.Errorf("dockets, rulings, left out as acts on a superseded gap, finding tokens = %v, want %v", got, want)
+	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{39, 38, 54, 5}; got != want {
+		t.Errorf("dockets, rulings, written as no event, finding tokens = %v, want %v", got, want)
 	}
 }
 

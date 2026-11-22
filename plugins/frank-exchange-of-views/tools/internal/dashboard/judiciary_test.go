@@ -28,27 +28,29 @@ func judMint(t *testing.T, seat, id string, l, i recordpb.Grade, supersedes ...s
 	})
 }
 
-func docketFiled(t *testing.T, motion, gap string) *recordpb.Event {
+func docketFiled(t *testing.T, docketing, gap string) *recordpb.Event {
 	t.Helper()
-	return recordtest.Event(t, "red-chair", &recordpb.Motion{
-		MotionId: proto.String(motion),
-		Basis:    proto.String("impasse"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+	return recordtest.Event(t, "red-chair", &recordpb.Docketing{
+		DocketingId: proto.String(docketing), GapId: proto.String(gap),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(),
+		Basis: proto.String("impasse"),
 	})
 }
 
-func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle, opinion string) *recordpb.Event {
+// docketRuled answers a docketing: a closing word applies red's text (sides with red), a remand
+// sides with no one.
+func docketRuled(t *testing.T, docketing string, d recordpb.Disposition, principle, opinion string) *recordpb.Event {
 	t.Helper()
-	r := &recordpb.DocketRuling{Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"), Settled: proto.String("whether the gap stands")}
+	r := &recordpb.DocketRuling{DocketingId: proto.String(docketing), Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"), Settled: proto.String("whether the gap stands")}
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
 		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
+		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RED.Enum()
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
-		MotionId: proto.String(motion),
-		Opinion:  proto.String(opinion),
-		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
+		Opinion: proto.String(opinion),
+		Ruling:  &recordpb.MotionRule_Docket{Docket: r},
 	})
 }
 

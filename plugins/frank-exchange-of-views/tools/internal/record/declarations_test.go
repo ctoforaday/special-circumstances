@@ -75,9 +75,9 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 
 	mustAppend(t, lens, &recordpb.Close{GapId: proto.String(byLens), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("verified")})
-	mustFileByDispatch(t, run, docketMotion("M1", byBench))
+	d := mustDocketByDispatch(t, run, byBench)
 	bench = convene(t, run, byBench)
-	mustAppend(t, bench, docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
+	mustAppend(t, bench, docketRuling(d, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
 	mustAppend(t, bench, &recordpb.Declare{Holding: proto.String(laterOne)})
 
 	for _, s := range seats {

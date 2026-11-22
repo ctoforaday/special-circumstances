@@ -122,12 +122,12 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 			Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}})); err != nil {
 		t.Fatal(err)
 	}
-	// TWO rulings — the state the write guard refuses, seeded by raw insert. The answer to a proposed
-	// act reads as its word: the first, a reject, is "rejected".
-	for i, accepted := range []bool{false, true} {
+	// TWO rulings — the state the write guard refuses, seeded by raw insert. A side reads as its word:
+	// the first, for the assignee, is "for assignee".
+	for i, side := range []recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_ASSIGNEE, recordpb.SidedWith_SIDED_WITH_FILER} {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"),
-			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(accepted)}}})
+			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: side.Enum()}}})
 		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)
@@ -145,7 +145,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		Scan(&ruling, &by); err != nil {
 		t.Fatal(err)
 	}
-	if ruling != "rejected" || by != "judge" {
+	if ruling != "for assignee" || by != "judge" {
 		t.Errorf("(ruling, ruled_by) = (%q, %q), want the FIRST ruling — the second does not overturn it", ruling, by)
 	}
 }

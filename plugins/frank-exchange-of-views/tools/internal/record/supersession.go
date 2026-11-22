@@ -23,18 +23,32 @@ import (
 
 // supersessionsOf is, for each gap a mint closed by superseding it, the index in evs of that mint:
 // the first mint naming the gap in `supersedes` while no close and no closing docket ruling of the
-// gap precedes it. It is gap_refresh's supersede_event, read over a stream.
+// gap precedes it — a closing word, or the bench siding with the supersede its docketing holds. It is gap_refresh's supersede_event, read over a stream.
 func supersessionsOf(evs []*Event) map[string]int {
-	docketGap := DocketGapByMotion(evs)
+	docketGap := DocketRulingGap(evs)
+	held := map[string]string{}    // docketing → the proposal it holds
+	supersede := map[string]bool{} // the proposals proposing a supersede
 	closed := map[string]bool{}
 	out := map[string]int{}
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
+		case *recordpb.Docketing:
+			held[b.GetDocketingId()] = b.GetMotionId()
+		case *recordpb.Motion:
+			supersede[b.GetMotionId()] = b.GetSupersede() != nil
 		case *recordpb.Close:
 			closed[b.GetGapId()] = true
 		case *recordpb.MotionRule:
-			if d := b.GetDocket(); d != nil && recordpb.Closes(d.GetDisposition()) {
-				closed[docketGap[b.GetMotionId()]] = true
+			// A CLOSING RULING: a closing word, or the bench siding with the supersede its docketing
+			// holds (gap_refresh's bench arms).
+			d := b.GetDocket()
+			if d == nil {
+				continue
+			}
+			s := d.GetSidedWith()
+			if recordpb.Closes(d.GetDisposition()) || (d.GetDocketingId() != "" && supersede[held[d.GetDocketingId()]] &&
+				(s == recordpb.SidedWith_SIDED_WITH_BLUE || s == recordpb.SidedWith_SIDED_WITH_FILER)) {
+				closed[docketGap(b)] = true
 			}
 		case *recordpb.Mint:
 			if anc := b.GetSupersedes(); anc != "" && !closed[anc] {
@@ -97,23 +111,41 @@ func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) e
 	return nil
 }
 
-// requireSupersededOffDocket refuses a mint superseding an open gap a docket motion stands unruled
-// on, as a close of it is refused (requireNoStandingDocket): the bench disposes of a docketed gap. An
-// act judgement (judgeAct): an archived lens that superseded a docketed gap superseded it.
-func requireSupersededOffDocket(q recordsql.Querier, m *recordpb.Mint) error {
-	if anc := m.GetSupersedes(); anc != "" {
-		var motion string
-		if _, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ? AND "open"`, anc); err != nil {
+// requireSupersededOffDocket refuses a mint superseding an open gap a docketing or a proposal stands on,
+// as a close of it is refused (requireNoStandingDocket): the bench disposes of a docketed gap, and the
+// assignee answers a proposal in its window by accepting it. An act judgement (judgeAct): an archived
+// lens that superseded a docketed gap superseded it. except is a proposal whose own standing — in its
+// window, or held by its PROPOSAL docketing — the mint does not meet: the successor that proposal states.
+func requireSupersededOffDocket(q recordsql.Querier, m *recordpb.Mint, except string) error {
+	anc := m.GetSupersedes()
+	if anc == "" {
+		return nil
+	}
+	open, err := recordHasAt(q, `SELECT 1 FROM "gap" WHERE "gap_id" = ? AND "open"`, anc)
+	if err != nil || !open {
+		return err
+	}
+	docketing, proposal, err := standingOnGap(q, anc)
+	if err != nil {
+		return err
+	}
+	standing := map[bool]string{true: "docketing " + docketing, false: "proposal " + proposal}[docketing != ""]
+	if docketing == "" && proposal == "" {
+		return nil
+	}
+	if except != "" && proposal == except {
+		return nil
+	}
+	if except != "" && docketing != "" {
+		k, _, err := docketingAt(q, docketing)
+		if err != nil || k.MotionID == except {
 			return err
 		}
-		if motion != "" {
-			return feov.Errorf(feov.Conflict,
-				"--supersedes names %s, which is docketed for the bench: motion %s stands unruled on it, and a mint superseding an open gap closes it, while a docketed gap is the bench's to dispose of until it rules. "+
-					"Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
-				anc, motion, anc)
-		}
 	}
-	return nil
+	return feov.Errorf(feov.Conflict,
+		"--supersedes names %s, and %s stands on it: a mint superseding an open gap closes it, while a docketed gap is the bench's to dispose of until it rules, and a proposal is answered by accepting it. "+
+			"Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
+		anc, standing, anc)
 }
 
 // requireNotSuperseded refuses an act on a gap a supersession closed, naming its successor.

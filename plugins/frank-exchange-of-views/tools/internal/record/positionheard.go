@@ -131,11 +131,12 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 			"a remand sends a gap back for one more exchange, begun by blue's act on it and audited by its minting lens after, and a closed gap has none to have"); err != nil {
 			return err
 		}
-		var filed int64
-		if found, err := queryRowAt(w.q, []any{&filed}, `SELECT COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, g); err != nil {
+		docketing, _, err := standingOnGap(w.q, g)
+		if err != nil {
 			return err
-		} else if found && filed > 0 {
-			return fmt.Errorf("--ids %s stands docketed with a motion you have not ruled: it is before you already, and its docket motion is where its fate is decided", g)
+		}
+		if docketing != "" {
+			return fmt.Errorf("--ids %s stands docketed (docketing %s) and you have not ruled it: it is before you already, and its docketing is where its fate is decided", g, docketing)
 		}
 	}
 	p, err := w.files.params()

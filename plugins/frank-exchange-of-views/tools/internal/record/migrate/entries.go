@@ -18,7 +18,7 @@ func Entries() Registry {
 		"friction":      {Translate: frictionEntry},
 		"log":           {Translate: logEntry},
 		"friction_none": {Translate: frictionNoneEntry},
-		"opinion":       {Translate: opinionEntry},
+		"opinion":       {Translate: toNoEvent}, // Translations 3 and 4 (docketing.go): written as no event, stated
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
 		// A SITTING'S ENDS KEEP WHAT THE RECORD READS. A source before epoch 32 copied the hook payload
@@ -454,107 +454,4 @@ func frictionNoneEntry(old OldEvent) ([]proto.Message, error) {
 		}
 	}
 	return nil, nil
-}
-
-// opinionEntry is the one CONCEPT translation: the bench opinion was retired (fd9e6970) for
-// a docket MOTION naming the gap and a docket RULING carrying the bench's answer. One old
-// event becomes two, both stamped with the opinion's own ts. The ruling is the bench's, under the
-// opinion's seat; the motion is filed under the harness (opinionFiler), because the bench rules a
-// docket motion and files none (rulerfiles.go).
-func opinionEntry(old OldEvent) ([]proto.Message, error) {
-	// UNIQUE BY CONSTRUCTION. The pair is named for the opinion's own event id, which no other
-	// event shares and no motion the archive filed is spelled like; the remap then gives that
-	// name its id in the one shape, as it does every archived id.
-	id := fmt.Sprintf("M-mig-%d", old.ID)
-	docket := &recordpb.DocketMotion{}
-	motion := &recordpb.Motion{
-		MotionId: proto.String(id),
-		Filing:   &recordpb.Motion_Docket{Docket: docket},
-	}
-	ruling := &recordpb.DocketRuling{}
-	rule := &recordpb.MotionRule{
-		MotionId: proto.String(id),
-		Ruling:   &recordpb.MotionRule_Docket{Docket: ruling},
-	}
-	for col, v := range old.Fields {
-		switch col {
-		case "gap_id":
-			docket.GapId = proto.String(v.(string))
-		case "disposition":
-			w := v.(string)
-			if to, ok := dispositionRename[w]; ok { // the a1e8e260 rename, for shard-era opinions
-				w = to
-			}
-			num, err := enumValue(recordpb.Disposition(0).Descriptor(), w)
-			if err != nil {
-				return nil, fmt.Errorf("opinion.disposition: %w", err)
-			}
-			ruling.Disposition = recordpb.Disposition(num).Enum()
-		case "principle":
-			ruling.Principle = proto.String(v.(string))
-		case "tension":
-			ruling.Tension = proto.String(v.(string))
-		case "review_flag":
-			ruling.ReviewFlag = proto.String(v.(string))
-		case "settled":
-			ruling.Settled = proto.String(v.(string))
-		case "reopens_on":
-			ruling.ReopensOn = proto.String(v.(string))
-		case "final":
-			n, ok := v.(int64)
-			if !ok || (n != 0 && n != 1) {
-				return nil, fmt.Errorf("opinion.final holds %v (%T), not a 0/1 bool", v, v)
-			}
-			if n == 1 {
-				ruling.Final = proto.Bool(true)
-			}
-		case "rationale", "reason": // `reason` is the shard era's spelling of the rationale
-			// The old free-prose rationale is the ruling's own words — MotionRule.opinion,
-			// which (the name is the history) is where ruling prose lives now.
-			rule.Opinion = proto.String(v.(string))
-		default:
-			return nil, fmt.Errorf("old column opinion.%s has no place on the docket pair — extend the opinion entry", col)
-		}
-	}
-	// THE STATED MISS, for rulings that predate a requirement. The earliest opinions carry
-	// neither `settled` nor the reopens_on/final pair — the era had not asked yet. An empty
-	// string would read as "answered: nothing" and a forged `final` would decide what nobody
-	// decided; a value that SAYS it was never recorded is the one honest shape
-	// ([[facts-are-fields]]: make the miss loud, or a stated "not measured"). Filled only
-	// where absent — a ruling that answered keeps its answer.
-	if ruling.Settled == nil {
-		ruling.Settled = proto.String("not stated: this ruling predates the settled requirement (migrated from a bench opinion)")
-	}
-	if ruling.Tension == nil {
-		ruling.Tension = proto.String("not stated: this ruling predates the tension requirement (migrated from a bench opinion)")
-	}
-	if ruling.ReviewFlag == nil {
-		ruling.ReviewFlag = proto.String("not stated: this ruling predates the review-flag requirement (migrated from a bench opinion)")
-	}
-	if ruling.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && ruling.ReopensOn == nil {
-		ruling.ReopensOn = proto.String("not stated: this remand predates the direction requirement (migrated from a bench opinion)")
-	}
-	if ruling.ReopensOn == nil && ruling.Final == nil {
-		ruling.ReopensOn = proto.String("not stated: this ruling predates the reopens-on/final requirement (migrated from a bench opinion)")
-	}
-	remandDirection(ruling)
-	// The motion's ask, in the only words the record has for it: the engine put the gap before
-	// the bench, and no seat filed it. Synthesized text says so rather than posing as a seat's filing.
-	motion.Basis = proto.String("migrated from a bench opinion: the engine put this gap before the bench, before seats filed docket motions")
-	return []proto.Message{motion, rule}, nil
-}
-
-// opinionFiler is the seat a body translated from src is written under, where that is not src's
-// own: the docket motion an opinion translates to is filed under the harness (record.HarnessSeat).
-//
-// THE OPINION ERA HAD NO DOCKETING PARTY. Before fd9e6970 a gap came before the bench because the
-// engine convened it on the board's open gaps; no seat filed anything to put it there, and no
-// archive holds a docket motion on a gap before the opinion that rules it. The harness is the
-// writer that is no party (outcomeclosed.go), so the filing asserts no seat's act, and the bench —
-// which rules the subject — files nothing on it.
-func opinionFiler(src OldEvent, body proto.Message) (string, bool) {
-	if _, motion := body.(*recordpb.Motion); src.Word != "opinion" || !motion {
-		return "", false
-	}
-	return record.HarnessSeat, true
 }

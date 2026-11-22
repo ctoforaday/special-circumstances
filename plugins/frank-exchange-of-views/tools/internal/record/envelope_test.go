@@ -43,70 +43,70 @@ func itemsOn(t *testing.T, run Run, role, seat, sub string) (blocking, open []It
 	return blocking, open
 }
 
-// twinDocket stages a gap with two docket motions standing on it (the record admits the second while
-// the first stands) and the bench sitting the docket the chair convened it for, then build's acts.
+// twinDocket stages two gaps, each with its docketing standing — D1 on G1 and D2 on G2, one per gap —
+// and the bench sitting the docket the chair convened it for on both, then build's acts.
 func twinDocket(t *testing.T, build func(b *stage)) Run {
 	t.Helper()
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).
-		mint(evLens, "G1", "low").
-		docketMotion("blue-respond", "M1", "G1").docketMotion("blue-respond", "M2", "G1").
-		dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
+		mint(evLens, "G1", "low").mint(evLens, "G2", "low").
+		docketMotion("blue-respond", "D1", "G1").docketMotion("blue-respond", "D2", "G2").
+		dispatch(2, benchSeat, "G1", "G2").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
 	build(b)
 	return b.seed()
 }
 
 // EVERY SEAT'S ENVELOPE IS REFUSED WHILE A BLOCKING ITEM ITS OWN ACT CLEARS STANDS, NAMING EACH
-// (gblock's ruling, 2026-10-24). The bench's items are the motions its current sitting is convened to
-// rule (benchHeld): the plan keys its sitting for a gap on the newest unruled filing, and hears a
-// petition at one petition sitting, so a motion it leaves is one no later plan convenes it for.
+// (gblock's ruling, 2026-10-24). The bench's items are the docketings its current sitting is convened
+// to rule (benchHeld): the plan keys its sitting for a gap on the standing docketing, and hears a
+// petition at one petition sitting, so an ask it leaves is one no later plan convenes it for.
 func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 	t.Run("docket: both twins hold it, and the refusal names each", func(t *testing.T) {
 		run := twinDocket(t, func(*stage) {})
 		refusal := refusalOf(t, run, benchSeat)
-		if !strings.Contains(refusal, "2 blocking item(s)") || !strings.Contains(refusal, "motion M1 ") || !strings.Contains(refusal, "motion M2 ") {
+		if !strings.Contains(refusal, "2 blocking item(s)") || !strings.Contains(refusal, "docketing D1 ") || !strings.Contains(refusal, "docketing D2 ") {
 			t.Fatalf("the refusal does not name both twins: %q", refusal)
 		}
 	})
 	t.Run("docket: one twin ruled, the refusal names only the other", func(t *testing.T) {
 		run := twinDocket(t, func(b *stage) {
-			b.add(benchSeat, docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
+			b.add(benchSeat, docketRuling("D1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
 		})
 		refusal := refusalOf(t, run, benchSeat)
-		if !strings.Contains(refusal, "motion M2 ") || strings.Contains(refusal, "M1") {
-			t.Fatalf("want M2 alone named: %q", refusal)
+		if !strings.Contains(refusal, "docketing D2 ") || strings.Contains(refusal, "D1") {
+			t.Fatalf("want D2 alone named: %q", refusal)
 		}
 	})
 	t.Run("docket: both ruled, admitted", func(t *testing.T) {
 		run := twinDocket(t, func(b *stage) {
-			b.add(benchSeat, docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
-				add(benchSeat, docketRuling("M2", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
+			b.add(benchSeat, docketRuling("D1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
+				add(benchSeat, docketRuling("D2", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
 		})
 		if r := refusalOf(t, run, benchSeat); r != "" {
 			t.Errorf("both twins ruled, the envelope is refused: %q", r)
 		}
 	})
-	t.Run("docket: a motion on a gap the sitting is not convened on is listed, not blocking", func(t *testing.T) {
+	t.Run("docket: a docketing on a gap the sitting is not convened on is listed, not blocking", func(t *testing.T) {
 		run := twinDocket(t, func(b *stage) {
-			b.add(benchSeat, docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
-				add(benchSeat, docketRuling("M2", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
-				mint(evLens, "G2", "low").docketMotion("blue-respond", "M3", "G2")
+			b.add(benchSeat, docketRuling("D1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
+				add(benchSeat, docketRuling("D2", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).
+				mint(evLens, "G3", "low").docketMotion("blue-respond", "D3", "G3")
 		})
 		if r := refusalOf(t, run, benchSeat); r != "" {
-			t.Errorf("a motion on G2, which no row convened this sitting on, refuses the envelope: %q", r)
+			t.Errorf("a docketing on G3, which no row convened this sitting on, refuses the envelope: %q", r)
 		}
-		if blocking, open := itemsOn(t, run, "bench", benchSeat, "motion M3 "); len(blocking) != 0 || len(open) != 1 {
-			t.Errorf("M3 should be listed and not block: blocking %+v, open %+v", blocking, open)
+		if blocking, open := itemsOn(t, run, "bench", benchSeat, "docketing D3 "); len(blocking) != 0 || len(open) != 1 {
+			t.Errorf("D3 should be listed and not block: blocking %+v, open %+v", blocking, open)
 		}
 	})
 	t.Run("docket: a later sitting is held by its own gaps, not an earlier one's", func(t *testing.T) {
 		run := twinDocket(t, func(b *stage) {
-			b.mint(evLens, "G2", "low").docketMotion("blue-respond", "M3", "G2").
-				dispatch(3, evLens, "G1").dispatch(3, benchSeat, "G2").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
+			b.mint(evLens, "G3", "low").docketMotion("blue-respond", "D3", "G3").
+				dispatch(3, evLens, "G1").dispatch(3, benchSeat, "G3").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
 		})
 		refusal := refusalOf(t, run, benchSeat)
-		if !strings.Contains(refusal, "motion M3 ") || strings.Contains(refusal, "M1") || strings.Contains(refusal, "M2") {
-			t.Errorf("the sitting convened on G2 is held by %q, want M3 alone", refusal)
+		if !strings.Contains(refusal, "docketing D3 ") || strings.Contains(refusal, "D1") || strings.Contains(refusal, "D2") {
+			t.Errorf("the sitting convened on G3 is held by %q, want D3 alone", refusal)
 		}
 	})
 	petition := func(t *testing.T, build func(b *stage)) Run {
@@ -130,29 +130,29 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 	t.Run("petition: one filed during the sitting waits for its own, and a docket does not hold it", func(t *testing.T) {
 		run := petition(t, func(b *stage) {
 			b.add(benchSeat, petitionRuling("P1")).add("blue-respond", petitionMotion("P2")).
-				mint(evLens, "G1", "low").docketMotion("blue-respond", "M1", "G1")
+				mint(evLens, "G1", "low").docketMotion("blue-respond", "D1", "G1")
 		})
 		if r := refusalOf(t, run, benchSeat); r != "" {
-			t.Errorf("a petition filed while it sat, or a docket, refuses the petition sitting: %q", r)
+			t.Errorf("a petition filed while it sat, or a docketing, refuses the petition sitting: %q", r)
 		}
 	})
 	t.Run("petition: a docket's row standing owes its register to the next sitting, not this one", func(t *testing.T) {
 		run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").
-			add("blue-respond", petitionMotion("P1")).docketMotion("blue-respond", "M1", "G1").
+			add("blue-respond", petitionMotion("P1")).docketMotion("blue-respond", "D1", "G1").
 			benchDispatch(2, []string{"G1"}).
 			benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("P1")).seed()
 		if r := refusalOf(t, run, benchSeat); r != "" {
 			t.Errorf("the petition sitting is refused over the docket sitting's register: %q", r)
 		}
 	})
-	t.Run("terminal: every bench motion holds it", func(t *testing.T) {
+	t.Run("terminal: every bench motion and docketing holds it", func(t *testing.T) {
 		run := petition(t, func(b *stage) {
-			b.mint(evLens, "G1", "low").docketMotion("blue-respond", "M1", "G1").
+			b.mint(evLens, "G1", "low").docketMotion("blue-respond", "D1", "G1").
 				add("blue-respond", petitionMotion("P2")).benchRegister(recordpb.Occasion_OCCASION_TERMINAL)
 		})
 		r := refusalOf(t, run, benchSeat)
-		for _, m := range []string{"motion P1 ", "motion P2 ", "motion M1 "} {
+		for _, m := range []string{"motion P1 ", "motion P2 ", "docketing D1 "} {
 			if !strings.Contains(r, m) {
 				t.Errorf("the terminal sitting is not held by %s: %q", m, r)
 			}
@@ -241,7 +241,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	t.Run("a closing it owes holds it; filing admits it", func(t *testing.T) {
 		b := docketed(t).register(evLens)
 		run := b.seed()
-		if r := refusalOf(t, run, evLens); !strings.Contains(r, "gap G1 is docketed") {
+		if r := refusalOf(t, run, evLens); !strings.Contains(r, "gap G1 is before the bench") {
 			t.Fatalf("the owed closing does not hold the lens's envelope: %q", r)
 		}
 		run = b.more().closing(evLens, "G1").seed()

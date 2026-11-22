@@ -74,7 +74,7 @@ const (
 // the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. Nothing
 // sits above the bench, so it answers its own ruling on a docket motion as it answers one on a
 // petition, in a declaration: a holding every seat is given, which moves no gap — the gap is before
-// the bench again when another seat files a docket motion on it, and the row says so.
+// the bench again only on a new docketing of it, and the row says so.
 var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}: {act: "a new record of the inquiry's fate"},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}: {act: "a new certification", own: true},
@@ -87,7 +87,7 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                 {act: "a new halt", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                  {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
-		"the gap comes before you again only in a docket motion another seat files"},
+		"the gap comes before you again only on a new docketing of it"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket, role: "lens"}: {act: "your own next act on the gap, " +
 		"which the accept made yours: a regrade at your next sitting while the gap is open, or a successor naming it in --supersedes once it is closed"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},

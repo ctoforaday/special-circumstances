@@ -189,15 +189,15 @@ func (m *nonceMapper) observe(recordsDir string) {
 	}
 }
 
-// idRe matches a record id of any of the six kinds. The letters are written here rather than read
+// idRe matches a record id of any of the seven kinds. The letters are written here rather than read
 // from the tool: a kind this harness does not know stays raw in a transcript, and a raw random id
 // is a golden that differs on every run — the loud failure, not a silent one.
-var idRe = regexp.MustCompile(`\b[CKGQMA]-[0-9a-f]{8}\b`)
+var idRe = regexp.MustCompile(`\b[CKGQMAD]-[0-9a-f]{8}\b`)
 
-var idKindNames = map[byte]string{'C': "CITATION", 'K': "COMPUTATION", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION", 'A': "POSITION"}
+var idKindNames = map[byte]string{'C': "CITATION", 'K': "COMPUTATION", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION", 'A': "POSITION", 'D': "DOCKETING"}
 
 // placeholderRe matches what normalize writes, which is what a script writes to name an id.
-var placeholderRe = regexp.MustCompile(`\b(?:CITATION|COMPUTATION|GAP|INQUIRY|MOTION|POSITION)\d{3,}\b`)
+var placeholderRe = regexp.MustCompile(`\b(?:CITATION|COMPUTATION|GAP|INQUIRY|MOTION|POSITION|DOCKETING)\d{3,}\b`)
 
 // normalize replaces every id in s with its placeholder, ASSIGNING one to an id it has not seen.
 // The order strings reach it in is therefore the numbering: each command's stdout, then its

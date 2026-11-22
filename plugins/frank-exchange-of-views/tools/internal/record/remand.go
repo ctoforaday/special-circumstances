@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -159,41 +158,44 @@ func remandsOwedOf(evs []*Event, ids []int64, win WindowIndex, remands map[strin
 	return out
 }
 
-// remandedClosedGapSQL is the gap a docket motion is about when that gap is CLOSED, with the act
-// that closed it last — the lens's close or the bench's closing ruling, whichever is later — and
-// that act's seat; no row when the gap is open.
-const remandedClosedGapSQL = `SELECT md."gap_id", e."id", e."seat_id"
-  FROM "motion" mo
-  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-  JOIN "gap" g ON g."gap_id" = md."gap_id"
+// remandedClosedGapSQL is a gap when it is CLOSED, with the act that closed it last — the lens's
+// close or the bench's closing ruling, whichever is later — and that act's seat; no row when the gap
+// is open.
+const remandedClosedGapSQL = `SELECT e."id", e."seat_id"
+  FROM "gap" g
   JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0), COALESCE(g."supersede_event", 0))
-  WHERE mo."motion_id" = ? AND NOT g."open"`
+  WHERE g."gap_id" = ? AND NOT g."open"`
 
-// requireRemandOfOpenGap refuses a remand of a docket motion whose gap is closed (gblock,
-// 2026-10-24). A gap may close while a second docket motion on it stands — the bench's ruling on the
-// first closed it, and the bench rules the other on the record as it stands — but a remand sends the
-// gap back for one more exchange between its minting lens and blue, and a closed gap has none to have: the
-// obligation would stand with no seat able to discharge it, as the remand of a run's closed gap did
-// on universe-m33, stored and never acted on while the run passed. The tool does not reopen the gap
-// either; the refusal names the close, and the bench rules with a disposition that closes.
-func requireRemandOfOpenGap(q recordsql.Querier, motionID string) error {
-	if motionID == "" {
+// remandSubject is what a remand answers, as its refusals name it: the docketing, or the motion.
+func remandSubject(r *recordpb.MotionRule) string {
+	if id := r.GetDocket().GetDocketingId(); id != "" {
+		return "docketing " + id
+	}
+	return "motion " + r.GetMotionId()
+}
+
+// requireRemandOfOpenGap refuses a remand whose gap is closed (gblock, 2026-10-24): what names the
+// docketing (or motion) the remand answers. A gap may be closed while a docketing on it stands — a
+// proposal docketed on a gap already closed (F8) — but a remand sends the gap back for one more
+// exchange between its minting lens and blue, and a closed gap has none to have: the obligation would
+// stand with no seat able to discharge it, as the remand of a run's closed gap did on universe-m33,
+// stored and never acted on while the run passed. The tool does not reopen the gap either; the refusal
+// names the close, and the bench answers with a side of the docketing's pair.
+func requireRemandOfOpenGap(q recordsql.Querier, gapID, what string) error {
+	if gapID == "" {
 		return nil
 	}
-	var gapID, seat string
+	var seat string
 	var closed int64
-	found, err := queryRowAt(q, []any{&gapID, &closed, &seat}, remandedClosedGapSQL, motionID)
+	found, err := queryRowAt(q, []any{&closed, &seat}, remandedClosedGapSQL, gapID)
 	if err != nil || !found {
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"motion %s is about gap %s, which is CLOSED — %s closed it at event %d. A remand sends a gap back for one more exchange between its minting lens and blue, and a closed gap has none to have, so nobody could discharge it; the record does not reopen a gap. "+
-			"Nothing was recorded; rule the motion with a disposition that closes, on the record as it stands",
-		motionID, gapID, seat, closed)
+		"%s is about gap %s, which is CLOSED — %s closed it at event %d. A remand sends a gap back for one more exchange between its minting lens and blue, and a closed gap has none to have, so nobody could discharge it; the record does not reopen a gap. "+
+			"Nothing was recorded; answer with a side of the docketing's pair, on the record as it stands",
+		what, gapID, seat, closed)
 }
-
-// docketGapSQL is the gap a docket motion is about; no row for a motion that is no docket.
-const docketGapSQL = `SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = ?`
 
 // requireRemandWithinLimit refuses a remand that would be the gap's second at impasse (gblock,
 // 2026-10-25), naming the dispositions that close it. The bench's first remand at impasse grants
@@ -203,14 +205,9 @@ const docketGapSQL = `SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" m
 //
 // seatID is the ruling seat: a remand in the sitting that already remanded the gap is the same
 // hearing (remandSittingsOf), and is admitted.
-func requireRemandWithinLimit(w writeView, seatID, motionID string) error {
-	if motionID == "" {
+func requireRemandWithinLimit(w writeView, seatID, gapID, what string) error {
+	if gapID == "" {
 		return nil
-	}
-	var gapID string
-	found, err := queryRowAt(w.q, []any{&gapID}, docketGapSQL, motionID)
-	if err != nil || !found {
-		return err
 	}
 	p, err := w.files.params()
 	if err != nil {
@@ -230,18 +227,9 @@ func requireRemandWithinLimit(w writeView, seatID, motionID string) error {
 		return nil
 	}
 	return feov.Errorf(feov.Conflict,
-		"motion %s is about gap %s, which the bench already remanded at impasse (event %d) — "+RemandLimitRule+". "+
-			"Nothing was recorded; %s",
-		motionID, gapID, at, pastRemandAnswers(w.q, motionID))
-}
-
-// pastRemandAnswers is what the bench may answer a motion past its gap's remand limit: accept or
-// reject the act it proposes, or, on a motion that proposes none, a disposition that closes the gap.
-func pastRemandAnswers(q recordsql.Querier, motionID string) string {
-	if p, found, err := docketProposalAt(q, motionID); err == nil && found && p.Motion.GetAct() != nil {
-		return "answer the " + ActWord(p.Motion) + " the motion proposes: --accept or --reject"
-	}
-	return "rule the motion with a disposition that closes the gap: " + strings.Join(ClosingDispositions(), ", ")
+		"%s is about gap %s, which the bench already remanded at impasse (event %d) — "+RemandLimitRule+". "+
+			"Nothing was recorded; answer with a side of the docketing's pair (`--for-red | --for-blue`, or `--for-filer | --for-assignee` on a red seat's proposal)",
+		what, gapID, at)
 }
 
 // RemandLimitRule is why a second remand at impasse is refused, in the words the refusal, the
@@ -308,7 +296,8 @@ type gapRoute int
 
 const (
 	routeNobody        gapRoute = iota // not material, nothing docketed, no remand's exchange owed: readies nobody
-	routeBench                         // a docket motion on it stands unruled: the bench's
+	routeBench                         // a docketing stands on it: the bench's, once the closings owed on it are in
+	routeProposal                      // a proposal stands on it and no docketing: its assignee's window, then the docketing
 	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
 	routeDebate                        // below its limits: blue, and its minting lens when its turn has come (lensTurnOn)
 	routeLensFirst                     // at its limits with the lens's audit still to come (lensGoesFirst): its minting lens alone, and any docket after it
@@ -334,22 +323,28 @@ func stageOnRoute(route gapRoute, counted remandStage) remandStage {
 	return notRemanded
 }
 
-// routeOf is the route for an open gap: material is the class's answer, unruledDocket whether a
-// docket motion on it stands unruled, moved whether its grade
-// movement is docketed (gradeMovement.docketed) — whatever its materiality, because a gap regraded
-// below medium is the movement the bench rules on — and x its exchanges.
+// routeOf is the route for an open gap: material is the class's answer, docketed whether a docketing
+// stands on it, proposal whether a party's proposal stands on it, moved whether its grade movement is
+// past the threshold (gradeMovement.docketed) — whatever its materiality, because a gap regraded below
+// medium is the movement the bench rules on — and x its exchanges.
+//
+// A PROPOSAL IN ITS ASSIGNEE'S WINDOW OUTRANKS IMPASSE AND GRADE MOVEMENT (L28): the window is one
+// sitting, and the assignee may still take the act. A docketing holds a proposal exactly when its cause
+// is PROPOSAL, so a docketed gap routes to the bench whatever stands on it.
 //
 // THE BENCH'S REMAND OUTRANKS MATERIALITY (gblock, 2026-10-24). A gap that is not material readies
 // nobody — until the bench remands it: then blue is readied for the one more exchange the remand
 // grants, as for any remand, and once that exchange has been had it readies nobody again. Whether the bench ruled it at impasse does not matter here: a gap that is not material is
-// never docketed for impasse, so its remand came from a party's motion or its grade movement.
+// never docketed for impasse, so its remand came from a party's proposal or its grade movement.
 //
 // THE LENS GOES FIRST (lensGoesFirst, ruled by gblock 2026-10-31), and it outranks both routes to a
-// docket: no docket is filed on a gap whose lens has an audit still to come.
-func routeOf(material, unruledDocket, moved bool, x *GapExchanges) gapRoute {
+// docketing: no gap is docketed while its lens has an audit still to come.
+func routeOf(material, docketed, proposal, moved bool, x *GapExchanges) gapRoute {
 	switch {
-	case unruledDocket:
+	case docketed:
 		return routeBench
+	case proposal:
+		return routeProposal
 	case moved && (x.lensFirst || x.lensAudit):
 		return routeLensFirst
 	case moved:

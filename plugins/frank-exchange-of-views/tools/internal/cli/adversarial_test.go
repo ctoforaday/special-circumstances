@@ -82,17 +82,17 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "a petition cannot be ruled through the docket subgroup",
 			setup:   []seatStep{filePetition},
-			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--as", "repaired", "--reason", "ruling a petition as if it were a docket motion"},
-			refused: "was filed as a petition motion and you are ruling it as a docket",
+			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--for-blue", "--reason", "ruling a petition as if it were a docket motion"},
+			refused: "a docketing id is D-",
 			guards: "THE ONE THAT WAS ACCEPTED AND REACHED THE REPORT. The subject came from the " +
-				"command tree, so the caller chose the gavel (the chair answering what only the " +
-				"bench may answer) AND the verdict set (`accepted`, not a petition ruling at all).",
+				"command tree, so the caller chose the gavel AND the answer set. A docket ruling " +
+				"names a docketing, so a petition's id is refused by its shape before any answer is read.",
 		},
 		{
 			name:    "the wrong subgroup is named before the verb's own refusals",
 			setup:   []seatStep{filePetition},
-			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--as", "repaired", "--reason", ""},
-			refused: "was filed as a petition motion and you are ruling it as a docket",
+			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--for-blue", "--reason", ""},
+			refused: "a docketing id is D-",
 			guards: "ORDER IS THE MESSAGE. The verb refuses an unreasoned ruling itself, before the " +
 				"write; asked first, that would send the chair to write a reason for a ruling it " +
 				"cannot make. The subject is established before anything phrased in its terms.",
@@ -181,7 +181,7 @@ func adversarialCases() []adversarialCase {
 			name:     "the gavel holds even with the right subject",
 			setup:    []seatStep{mint},
 			proposed: []seatStep{fileDocket},
-			act:      seatStep{"motion", "docket", "rule", "--seat-id", "blue-respond", "--id", "M1", "--as", "repaired", "--reason", "ruling my own motion"},
+			act:      seatStep{"motion", "docket", "rule", "--seat-id", "blue-respond", "--id", "M1", "--for-blue", "--reason", "ruling my own motion"},
 			refused:  "is ruled by the bench",
 			guards: "Filed by any seat, ruled by one. The asymmetry IS the mechanism, and blue " +
 				"answering its own ask would make the exchange a monologue.",

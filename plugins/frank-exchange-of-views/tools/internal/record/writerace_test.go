@@ -51,12 +51,12 @@ func overtaken(t *testing.T, run Run, acts []*Event, write func() error) error {
 
 // raceStage is a run every guard below can be asked on: the cast, the report, and a chair, a lens,
 // blue and the bench each in a sitting, with G1 and G2 minted by the lens (both medium) and G1
-// docketed as M1.
+// docketed as D1.
 func raceStage(t *testing.T) Run {
 	b := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
 		mint(evLens, "G1", "medium").mint(evLens, "G2", "medium").
-		docketMotion("red-chair", "M1", "G1").
+		docketMotion("red-chair", "D1", "G1").
 		register("blue-respond").register("judge").register("red-lens-logic")
 	return b.seed()
 }
@@ -124,19 +124,19 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 		},
 
 		{
-			name:  "a close while a docket motion on the gap lands",
+			name:  "a close while a docketing of the gap lands",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "blue-respond", "race:docket:G2", docketMotion("M9", "G2"))}
+				return []*Event{recordtest.At(t, "red-chair", "race:docketing:G2", docketing("D9", "G2"))}
 			},
 			seat: evLens, body: func() proto.Message { return repairClose("G2") },
-			want: "motion M9 stands unruled on it",
+			want: "docketing D9 stands on it",
 		},
 		{
 			name:  "a close superseded by a gap the bench closes",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
+				return []*Event{recordtest.At(t, "judge", "race:rule:D1", benchClosing("D1"))}
 			},
 			seat: evLens, body: func() proto.Message {
 				c := repairClose("G2")
@@ -150,7 +150,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			name:  "a regrade while the bench's ruling closes the gap",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
+				return []*Event{recordtest.At(t, "judge", "race:rule:D1", benchClosing("D1"))}
 			},
 			seat: evLens, body: func() proto.Message {
 				return &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}

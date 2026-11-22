@@ -58,6 +58,7 @@ var (
 	inquiryShape       = sync.OnceValue(func() *regexp.Regexp { return idShape("inquiry") })
 	motionShape        = sync.OnceValue(func() *regexp.Regexp { return idShape("motion") })
 	positionShape      = sync.OnceValue(func() *regexp.Regexp { return idShape("position") })
+	docketingShape     = sync.OnceValue(func() *regexp.Regexp { return idShape("docketing") })
 	computationShape   = sync.OnceValue(func() *regexp.Regexp { return idShape("computation") })
 	closureAnchorShape = sync.OnceValue(func() *regexp.Regexp {
 		return regexp.MustCompile(`^(?:` + anchor.IDPattern() + `|` + anchor.IDPattern("inquiry") + `)$`)
@@ -218,6 +219,12 @@ func InquiryID() *ShapedValue {
 func MotionID() *ShapedValue {
 	return &ShapedValue{kind: "motion-id", re: motionShape(),
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
+}
+
+// DocketingID refuses anything that is not a docketing id.
+func DocketingID() *ShapedValue {
+	return &ShapedValue{kind: "docketing-id", re: docketingShape(),
+		hint: "a docketing id is D- and eight hex, and is assigned when the tool puts a gap before the bench; your work list names each docketing before you"}
 }
 
 // PositionID refuses anything that is not a position id.

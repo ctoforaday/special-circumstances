@@ -8,13 +8,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE ARCHIVE THAT HOLDS THE OLD WORD. is-7-prime-run2's bench deferred gap R1-1 under the
-// disposition's earlier spelling, "carried", through the shard era's opinion — the one archived
-// deferral on the record. Migrated, it must read as the current word, and verify must hold.
+// THE ARCHIVE THAT HELD THE OLD WORD. is-7-prime-run2's bench deferred gap R1-1 under the
+// disposition's earlier spelling, "carried", through the shard era's opinion. An opinion is written as
+// no event (EventSchema 80), so its seven opinions are the manifest's stated residue, no docket ruling
+// is on the migrated record, R1-1 reads open as the opinion found it, and verify holds.
+// TestAnIdentityRowHoldingTheOldDispositionMigrates holds the old word's respelling.
 func TestIs7PrimeRun2Archive(t *testing.T) {
 	res, dst := migrateArchive(t, "2026-08-22_is-7-prime-run2.tar.gz")
 	if len(res.Refusals) != 0 {
 		t.Fatalf("refusals: %+v", res.Refusals)
+	}
+	if len(res.Dockets.Opinions) != 7 || res.In["opinion"] != 7 {
+		t.Fatalf("%d opinion(s) in, %v stated as no event; want 7 and 7", res.In["opinion"], res.Dockets.Opinions)
 	}
 	gap := res.IDs["R1-1"]
 	if gap == "" {
@@ -24,27 +29,13 @@ func TestIs7PrimeRun2Archive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gapOf := map[string]string{}
 	for _, e := range fam.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			gapOf[m.GetMotionId()] = m.GetDocket().GetGapId()
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket() != nil {
+			t.Errorf("the migrated record holds docket ruling %s", e.GetKey())
 		}
 	}
-	remanded := 0
-	for _, e := range fam.Events {
-		r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || r.GetDocket() == nil {
-			continue
-		}
-		if r.GetDocket().GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
-			remanded++
-			if gapOf[r.GetMotionId()] != gap {
-				t.Errorf("the remanded ruling answers %s, which docketed %q; want R1-1's %s", r.GetMotionId(), gapOf[r.GetMotionId()], gap)
-			}
-		}
-	}
-	if remanded != 1 {
-		t.Errorf("%d remanded ruling(s) on the migrated record, want the archive's one", remanded)
+	if g := fam.Gap(gap); g == nil || !g.Open {
+		t.Errorf("R1-1 (%s) does not read open with its opinion gone", gap)
 	}
 	assertVerifies(t, dst)
 }

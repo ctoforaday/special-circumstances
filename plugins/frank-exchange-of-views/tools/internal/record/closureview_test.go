@@ -2,6 +2,7 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -18,6 +19,7 @@ type closureStage struct {
 	run                Run
 	chair, lens, bench Identity
 	motions            int
+	docketing          string // the latest docketing docketed wrote
 }
 
 func newClosureStage(t *testing.T) *closureStage {
@@ -56,16 +58,29 @@ func (s *closureStage) carry(from string, word recordpb.Disposition) *Event {
 		CarriedFrom: proto.String(from), Prose: proto.String("carried")})
 }
 
-func docketRuling(motion string, word recordpb.Disposition) *recordpb.MotionRule {
-	d := &recordpb.DocketRuling{Disposition: recordtest.P(word),
+// bluesWord is blue's closing on gap stating word, which a ruling for blue writes: blue sits and
+// files it. A remand or not_a_defect owes none — for blue without a word writes not_a_defect.
+func bluesWord(t *testing.T, run Run, gap string, word recordpb.Disposition) {
+	t.Helper()
+	if word == recordpb.Disposition_DISPOSITION_REMANDED || word == recordpb.Disposition_DISPOSITION_NOT_A_DEFECT {
+		return
+	}
+	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Closing{GapId: proto.String(gap), ClosureClass: recordtest.P(word),
+		Text: proto.String("blue's position")})
+}
+
+// docketRuling is the bench's ruling of docketing, holding no proposal: a remand, or for blue with
+// word, which bluesWord has blue state first.
+func docketRuling(docketing string, word recordpb.Disposition) *recordpb.MotionRule {
+	d := &recordpb.DocketRuling{DocketingId: proto.String(docketing), Disposition: recordtest.P(word),
 		Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}
 	if word == recordpb.Disposition_DISPOSITION_REMANDED {
 		d.Direction = proto.String("new evidence")
 	} else {
 		d.Final = proto.Bool(true)
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
 	}
-	return &recordpb.MotionRule{MotionId: proto.String(motion),
-		Opinion: proto.String("because"), Ruling: &recordpb.MotionRule_Docket{Docket: d}}
+	return &recordpb.MotionRule{Opinion: proto.String("because"), Ruling: &recordpb.MotionRule_Docket{Docket: d}}
 }
 
 // ruled is the pair a bench disposition is: the chair dockets G1, the bench sits and rules it word.
@@ -75,13 +90,11 @@ func (s *closureStage) ruled(word recordpb.Disposition) *Event {
 }
 
 // docketed is the dispatch putting G1 before the bench, and rule the bench, convened on G1, ruling
-// that motion — apart, for the record where the gap closes between the two.
+// that docketing — apart, for the record where the gap closes between the two.
 func (s *closureStage) docketed() string {
 	s.t.Helper()
-	s.motions++
-	id := "M" + string(rune('0'+s.motions))
-	mustFileByDispatch(s.t, s.run, docketMotion(id, "G1"))
-	return id
+	s.docketing = mustDocketByDispatch(s.t, s.run, "G1")
+	return s.docketing
 }
 
 // docketedArchived is a docket motion on G1 that an archived record holds where the live write
@@ -90,8 +103,9 @@ func (s *closureStage) docketed() string {
 func (s *closureStage) docketedArchived() string {
 	s.t.Helper()
 	s.motions++
-	id := "M" + string(rune('0'+s.motions))
-	if _, err := replayed(s.t, s.chair, docketMotion(id, "G1")); err != nil {
+	id := fmt.Sprintf("D-archived-%d", s.motions)
+	if _, err := replayed(s.t, s.chair, &recordpb.Docketing{DocketingId: proto.String(id), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String(impasseBasis("G1"))}); err != nil {
 		s.t.Fatal(err)
 	}
 	return id
@@ -99,6 +113,7 @@ func (s *closureStage) docketedArchived() string {
 
 func (s *closureStage) rule(motion string, word recordpb.Disposition) *Event {
 	s.t.Helper()
+	bluesWord(s.t, s.run, "G1", word)
 	s.bench = convene(s.t, s.run, "G1")
 	return mustAppend(s.t, s.bench, docketRuling(motion, word))
 }
@@ -140,18 +155,20 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			s.epoch().rule(s.docketedArchived(), notADefect)
 		}, closureWant{epoch: 2, fate: "not_a_defect", bodyClass: "repaired", benchDispo: "not_a_defect",
 			closureProse: "red's close", estopped: true}},
-		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391), the lens
-		// closes it repaired (ev440), and the bench rules the docket repaired (ev488) to clear the
-		// PASS. The lens closed it; the ruling's word stands and bars re-raising it. The write refuses
-		// that close now, and an archived record holds it.
-		{"f: an archived lens closed a gap a docket motion stands on, and the bench rules the motion after", func(s *closureStage) {
-			m := s.docketed()
+		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391) and the lens
+		// closes it repaired (ev440). The write refuses that close now, and an archived record holds it.
+		// A close of the gap written after its docketing ends the docketing unruled, so the bench has
+		// nothing left to rule on G1, and the lens's close is the gap's closure.
+		{"f: an archived lens closed a gap a docketing stands on, which ends the docketing unruled", func(s *closureStage) {
+			d := s.docketed()
 			if _, err := replayed(s.t, s.lens, closureOf(repaired, "red's close")); err != nil {
 				s.t.Fatal(err)
 			}
-			s.rule(m, repaired)
-		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "repaired", benchDispo: "repaired",
-			closureProse: "red's close", estopped: true}},
+			s.bench = convene(s.t, s.run, "G1")
+			if _, err := Append(s.bench, docketRuling(d, notADefect)); err == nil || !strings.Contains(err.Error(), "docketing "+d+" is not before this sitting") {
+				s.t.Errorf("the bench ruling docketing %s, which the lens's close of G1 after it ended = %v, want refused as before no sitting", d, err)
+			}
+		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "repaired", closureProse: "red's close"}},
 		{"b: the bench remands", func(s *closureStage) {
 			s.ruled(remanded)
 		}, closureWant{open: true, closureAbsent: true}},
@@ -319,38 +336,36 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")})
-	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING (#681 Scope 2), so each of these is a
-	// PAIR: red files the gap to the bench, the bench rules. The gap rides the FILING, which is
-	// why both halves have to be on the record for either projection to attribute the closure.
-	// The live write refuses both pairs — G3 is closed (F8), and red-chair is G2's own assignee
-	// (F1) — so the record is an archived one, seeded through the replay writer: the board reads
-	// what such a record holds.
+	// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, so each of these is a PAIR: the dispatch
+	// dockets the gap for the bench, the bench rules. The gap rides the DOCKETING, which is why both
+	// halves have to be on the record for either projection to attribute the closure. G3 is docketed
+	// after red closed it, and the bench rules it in a later epoch; the stage seeds both pairs through
+	// the replay writer, and the board reads what such a record holds.
 	replay := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := replayed(t, id, body); err != nil {
 			t.Fatal(err)
 		}
 	}
-	docket := func(motionID, gapID string, rule *recordpb.DocketRuling) {
+	docket := func(docketingID, gapID string, rule *recordpb.DocketRuling) {
 		t.Helper()
-		replay(red, &recordpb.Motion{MotionId: proto.String(motionID),
-			Basis:  proto.String("red cannot settle " + gapID),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		replay(red, docketing(docketingID, gapID))
 		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
 		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
 		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
-		replay(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
-			Opinion: proto.String("ra"),
-			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
+		rule.DocketingId = proto.String(docketingID)
+		replay(judge2, &recordpb.MotionRule{Opinion: proto.String("ra"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: rule}})
 	}
-	docket("M1", "G3", &recordpb.DocketRuling{
+	docket("D1", "G3", &recordpb.DocketRuling{
+		SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
 		Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), Final: proto.Bool(true)})
 	// A CARRIED ruling on an open gap closes NOTHING — the vocabulary's own facet decides.
-	docket("M2", "G2", &recordpb.DocketRuling{
+	docket("D2", "G2", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), Direction: proto.String("new evidence")})

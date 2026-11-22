@@ -6,6 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // DID BLUE ANSWER THIS GAP, AND CAN THE RECORD SAY? (#1122)
@@ -236,7 +237,8 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 			// old != new is the same substantive-movement test exchangesOf applies: an edit that
 			// replaced a span with itself is an act and not an answer.
-			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() && after(g, e) {
+			// The bench's edit is red's text applied by a ruling, not blue's answer.
+			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() && after(g, e) && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				a := out[g]
 				a.editedAt, a.inquiry = win.Of(e).ID, inquiryOf[g]
 				out[g] = a

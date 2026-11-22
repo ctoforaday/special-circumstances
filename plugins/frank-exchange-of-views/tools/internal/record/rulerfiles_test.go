@@ -17,7 +17,7 @@ func filingBy(subj recordpb.MotionSubject) proto.Message {
 	m := &recordpb.Motion{MotionId: proto.String("M9"), Basis: proto.String("the ask")}
 	switch subj {
 	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-		m.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}
+		return regradeMotion("M9", "G1", "the ask")
 	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 		m.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}
 	case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
@@ -72,9 +72,9 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 		t.Run(word+", filed by another seat", func(t *testing.T) {
 			run := motionGuardRun(t)
 			if subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-				// A seat's docket filing waits on the gap's standing motion and its first exchange:
-				// the bench answers M1, and blue sits on G1 engaged and sits again.
-				mustAppend(t, sit(t, run, benchSeat), actRule("M1", false, benchSeat))
+				// A seat's docket filing waits on the gap's standing proposal and its first exchange:
+				// the bench answers M1 on docketing D1, and blue sits on G1 engaged and sits again.
+				mustAppend(t, sit(t, run, benchSeat), heldBy(actRule("M1", false, benchSeat), "D1"))
 				exchangeOn(t, run, "G1")
 			}
 			mustAppend(t, sit(t, run, filer), filingBy(subj))

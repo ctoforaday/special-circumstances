@@ -99,6 +99,10 @@ type Manifest struct {
 	// sitting owes no successor: the successors it engaged were named by a cross-seat lineage link,
 	// which is dropped (EventSchema 79). A stated empty list where there is none.
 	UnowedEngagements []int64 `json:"unowed_engagements"`
+	// Dockets is Translations 3 and 4's residue (EventSchema 80): the source ids written as no event
+	// because the bench convenes on a docketing the dispatch writes and sides with a party's stated
+	// position. Each list is stated empty where there is none.
+	Dockets DocketResidue `json:"dockets"`
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
@@ -233,4 +237,26 @@ func ReadManifest(runDir string) (*Manifest, error) {
 		return nil, fmt.Errorf("%s is present and unreadable — a run that claims to be a migration and cannot say of what must not read as native: %w", ManifestName, err)
 	}
 	return &m, nil
+}
+
+// DocketResidue is the archived bench acts and arguments Translations 3 and 4 write as no event, by
+// source id, one list per reason (EventSchema 80).
+type DocketResidue struct {
+	// Opinions is each bench opinion: the engine convened the bench there and no party stated a
+	// position the bench could side with, so its gap reads as the opinion found it.
+	Opinions []int64 `json:"opinions"`
+	// PartyDockets is each docket motion no dispatch filed (a chair's by hand, a minter's own, blue's)
+	// and its ruling: a motion stores an act, and these stored none.
+	PartyDockets []int64 `json:"party_dockets"`
+	// Superseded is each docket the dispatch filed, and its ruling, on a gap a successor superseded
+	// after it with no ruling or Close between: the live write refuses that supersede, so the
+	// docketing would stand on a gap holding no state of its own.
+	Superseded []int64 `json:"superseded"`
+	// EndedRulings is each ruling of a docketing a Close of its gap had ended before it.
+	EndedRulings []int64 `json:"ended_rulings"`
+	// BenchRegrades is each regrade the bench wrote of its own: the bench writes no grade of its own.
+	BenchRegrades []int64 `json:"bench_regrades"`
+	// SpotChecks is each spot-check naming a gap the bench's dropped close had closed, which is open
+	// on the migrated record.
+	SpotChecks []int64 `json:"spot_checks"`
 }

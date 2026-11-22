@@ -73,6 +73,8 @@ var otherIDs = []kind{
 	{name: "motion", prefix: "M-"},
 	// A position is the chair's argument to the bench: A for argument.
 	{name: "position", prefix: "A-"},
+	// A docketing is the tool's row putting a gap before the bench: D for docketing.
+	{name: "docketing", prefix: "D-"},
 }
 
 // lifecycle is what Label says of every kind alike, because every kind lives the same way; an evidence

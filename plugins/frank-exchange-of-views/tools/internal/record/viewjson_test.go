@@ -40,20 +40,17 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, blue, blue+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue closes r1")}),
 	})
-	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
-	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events, b.At)) and the RULING
-	// carries the disposition and the bench's prose. Seeding only the ruling would leave the
-	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
+	// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, and it takes two events: the DOCKETING
+	// carries the gap (that is the join the Lead rows read) and the RULING carries the disposition and
+	// the bench's prose. Seeding only the ruling would leave the Lead row naming no gap, which is
+	// exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle this one"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
-		}),
-		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+		recordtest.At(t, merge, merge+":docketing:D1", docketing("D1", "G1")),
+		recordtest.At(t, judge, judge+":motion-rule:D1", &recordpb.MotionRule{
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RED.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),
@@ -250,15 +247,12 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 		}),
-		recordtest.At(t, m, m+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle this one"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G9")}},
-		}),
-		recordtest.At(t, "judge", "judge:motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+		recordtest.At(t, m, m+":docketing:D1", docketing("D1", "G9")),
+		recordtest.At(t, "judge", "judge:motion-rule:D1", &recordpb.MotionRule{
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RED.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),

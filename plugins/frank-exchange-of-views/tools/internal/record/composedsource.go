@@ -64,11 +64,18 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 		})
 	}
 	// A DOCKETED GAP LEAVES THE PARTIES' LISTS UNTIL THE BENCH RULES IT (gblock 2026-10-31), the voice
-	// lens's composed sources included: it is the bench's while its docket motion stands unruled, and
-	// a remand returns it, owed again where the lens has not sat through a sitting since its mint.
+	// lens's composed sources included: it is the bench's while a docketing stands on it, and frozen while
+	// a proposal does (F9); a remand returns it, owed again where the lens has not sat through a sitting
+	// since its mint.
 	docketed := map[string]bool{}
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Standing() {
+			docketed[d.GapID] = true
+		}
+	}
+	held, ended := proposalStates(evs, ids, win)
 	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && !m.Ruled() {
+		if m.Subject == "docket" && !m.Ruled() && !held[m.ID] && !ended[m.ID] {
 			docketed[m.GapID] = true
 		}
 	}

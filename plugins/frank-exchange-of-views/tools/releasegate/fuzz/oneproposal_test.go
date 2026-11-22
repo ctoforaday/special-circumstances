@@ -74,8 +74,8 @@ func TestAGapHoldsOneProposalAndTheBenchRulesIt(t *testing.T) {
 	if r.actErr != "" {
 		t.Fatalf("the bench's ruling: %s", r.actErr)
 	}
-	if left := r.unruledDocketMotions(gapID); len(left) > 0 {
-		t.Errorf("the bench sat for %s and left docket motion(s) %v standing", gapID, left)
+	if left := r.standingOn(gapID); len(left) > 0 {
+		t.Errorf("the bench sat for %s and left %v standing", gapID, left)
 	}
 	r.dispatchReturns("judge", r.envelopeEnds("judge"))
 	requireEveryDispatchReturned(t, r)

@@ -92,8 +92,8 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, lens := partyOf(plan, evLens); lens || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || len(plan.ToFile) != 0 {
-		t.Fatalf("one null turn: blue alone is ready again, nothing docketed: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if _, lens := partyOf(plan, evLens); lens || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || len(docketGaps(plan)) != 0 {
+		t.Fatalf("one null turn: blue alone is ready again, nothing docketed: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 	if x, _ := Exchanges(once, DefaultParams); x["G1"].Exchanges != 1 || x["G1"].Stalled != 1 {
 		t.Errorf("one null turn is one stalled exchange: %+v", x["G1"])
@@ -104,8 +104,8 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(docketed.ToFile, []string{"G1"}) || slices.Contains(gapsOf(docketed, evLens), "G1") || slices.Contains(gapsOf(docketed, "blue-respond"), "G1") {
-		t.Errorf("two null turns stall G1 to impasse, and it is docketed rather than debated: to file %v, parties %+v, why %q", docketed.ToFile, docketed.Parties, docketed.Why)
+	if !slices.Equal(docketGaps(docketed), []string{"G1"}) || slices.Contains(gapsOf(docketed, evLens), "G1") || slices.Contains(gapsOf(docketed, "blue-respond"), "G1") {
+		t.Errorf("two null turns stall G1 to impasse, and it is docketed rather than debated: to file %v, parties %+v, why %q", docketGaps(docketed), docketed.Parties, docketed.Why)
 	}
 }
 

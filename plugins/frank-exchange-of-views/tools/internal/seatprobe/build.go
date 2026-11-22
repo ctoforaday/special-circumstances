@@ -80,7 +80,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return tool(args...)
 	}
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
-	closingsOf := map[string][]struct{ seat, text string }{}
+	closingsOf := map[string][]closingOf{}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
 	//
 	// Staging a board needs registered seats — a motion names its filer, a ruling names its ruler,
@@ -144,7 +144,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		staged[ref] = gapID
 		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
 		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
-		for _, c := range []struct{ seat, text string }{{minter, g.RedClosing}, {"blue-respond", g.BlueClosing}} {
+		for _, c := range []closingOf{{minter, g.RedClosing, g.Location, g.RedText}, {"blue-respond", g.BlueClosing, "", ""}} {
 			if c.text != "" {
 				closingsOf[ref] = append(closingsOf[ref], c)
 			}
@@ -240,8 +240,11 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// the null closings, ruled on artifact state instead, and asked for a human check.
 		if m.Subject == "docket" {
 			for _, c := range closingsOf[m.GapID] {
-				if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
-					"--id", m.GapID, "--reason", c.text); err != nil {
+				args := []string{"closing", "--run", run.Dir(), "--seat-id", c.seat, "--id", m.GapID, "--reason", c.text}
+				if c.new != "" {
+					args = append(args, "--quote", c.quote, "--new", c.new)
+				}
+				if _, err := exec(args...); err != nil {
 					return fmt.Errorf("closing %s by %s: %w", m.GapID, c.seat, err)
 				}
 			}
@@ -257,13 +260,12 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
+		// A DOCKET PROPOSAL IS RULED ON ITS DOCKETING, which the dispatch writes once the assignee's window
+		// ends; a board stages the proposal standing, and rules petitions alone.
 		if m.Subject == "docket" {
-			if _, err := exec("register", "--run", run.Dir(), "--seat-id", "judge", "--occasion", "docket"); err != nil {
-				return fmt.Errorf("register judge: %w", err)
-			}
+			return fmt.Errorf("motion %d: a board stages a docket proposal standing — its ruling answers the docketing the dispatch writes, for a side", i+1)
 		}
-		ruler := map[string]string{"petition": "judge", "docket": "judge"}[m.Subject]
-		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
+		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", "judge",
 			"--id", staged[fmt.Sprintf("M%d", i+1)], "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
@@ -518,3 +520,7 @@ func splitFrame(text string) (frame, part string, err error) {
 	at := tldr + 1 + next + 1
 	return text[:at], text[at:], nil
 }
+
+// closingOf is one party's closing a board stages: its seat and argument, and red's text — the span it
+// quotes and what it becomes — where its closing states one.
+type closingOf struct{ seat, text, quote, new string }

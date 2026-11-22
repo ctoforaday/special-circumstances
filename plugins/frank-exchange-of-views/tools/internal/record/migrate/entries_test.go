@@ -1,66 +1,24 @@
 package migrate_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// The one CONCEPT translation, stated as data: an opinion's fields in, the docket pair out.
-// The bench raised the question and the bench answered it — one old event, two new ones,
-// sharing the opinion's identity.
-func TestOpinionBecomesTheDocketPair(t *testing.T) {
+// A BENCH OPINION IS WRITTEN AS NO EVENT (EventSchema 80). The opinion era's engine convened the bench
+// with no party stating a position, and the bench sides with a party's stated position or remands; an
+// opinion is neither, so it translates to nothing, whatever columns it holds, and the replay states it
+// in the manifest (migration.DocketResidue.Opinions).
+func TestAnOpinionIsWrittenAsNoEvent(t *testing.T) {
 	old := migrate.OldEvent{
 		ID: 7, SeatID: "bench", Round: 2, TS: ts1, Word: "opinion",
-		Fields: map[string]any{
-			"gap_id":      "R1-1",
-			"disposition": "carried",
-			"principle":   "correctness outranks economy",
-			"tension":     "",
-			"review_flag": "",
-			"rationale":   "the computation is unproved",
-			"settled":     "",
-			"reopens_on":  "blue reports the reproduction",
-		},
+		Fields: map[string]any{"gap_id": "R1-1", "disposition": "carried", "rationale": "why"},
 	}
 	bodies, err := migrate.Entries()["opinion"].Translate(old)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(bodies) != 2 {
-		t.Fatalf("an opinion is a motion AND its ruling: got %d bodies", len(bodies))
-	}
-	motion, ok := bodies[0].(*recordpb.Motion)
-	if !ok {
-		t.Fatalf("first body is %T, want Motion", bodies[0])
-	}
-	rule, ok := bodies[1].(*recordpb.MotionRule)
-	if !ok {
-		t.Fatalf("second body is %T, want MotionRule", bodies[1])
-	}
-	if motion.GetMotionId() == "" || motion.GetMotionId() != rule.GetMotionId() {
-		t.Fatalf("the pair must share a minted id: motion %q rule %q", motion.GetMotionId(), rule.GetMotionId())
-	}
-	if motion.GetDocket().GetGapId() != "R1-1" {
-		t.Errorf("the motion does not name the opinion's gap: %q", motion.GetDocket().GetGapId())
-	}
-	if !strings.Contains(motion.GetBasis(), "migrated") {
-		t.Errorf("a synthesized filing must say it was synthesized, not pose as a filing: %q", motion.GetBasis())
-	}
-	d := rule.GetDocket()
-	if d.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED {
-		t.Errorf("disposition: %v", d.GetDisposition())
-	}
-	if d.GetPrinciple() != "correctness outranks economy" || d.GetDirection() != "blue reports the reproduction" || d.ReopensOn != nil {
-		t.Errorf("ruling fields did not carry, or a remand's direction stayed a reopen condition: %+v", d)
-	}
-	if rule.GetOpinion() != "the computation is unproved" {
-		t.Errorf("the old rationale is the ruling's prose (MotionRule.opinion): %q", rule.GetOpinion())
-	}
-	if d.GetFinal() {
-		t.Errorf("final=0 must stay absent/false — the direction is the answer this remand gave")
+	if err != nil || len(bodies) != 0 {
+		t.Fatalf("an opinion translates to %v (%v), want no event", bodies, err)
 	}
 }
 
@@ -84,8 +42,7 @@ func TestASpotCheckMigratesWithoutItsEmptinessClaim(t *testing.T) {
 
 // A REMAND'S REOPENS_ON IS ITS DIRECTION (#1253). A source states a remand's research direction in
 // the one column it has for what follows a ruling, `reopens_on`; the migrated ruling carries it as
-// the direction, and a ruling that closes the gap keeps it as what would reopen it. Both eras that
-// write a docket ruling are held to it: an opinion, and a motion_rule with a docket arm.
+// the direction, and a ruling that closes the gap keeps it as what would reopen it.
 func TestARemandsReopensOnMigratesAsItsDirection(t *testing.T) {
 	ruling := func(disposition string) map[string]any {
 		return map[string]any{"disposition": disposition, "principle": "p", "tension": "t",
@@ -102,13 +59,6 @@ func TestARemandsReopensOnMigratesAsItsDirection(t *testing.T) {
 			old  migrate.OldEvent
 			word string
 		}{
-			{"opinion", migrate.OldEvent{ID: 7, SeatID: "judge", TS: ts1, Word: "opinion",
-				Fields: func() map[string]any {
-					f := ruling(c.disposition)
-					f["gap_id"] = "G1"
-					f["rationale"] = "why"
-					return f
-				}()}, "opinion"},
 			{"motion_rule", migrate.OldEvent{ID: 8, SeatID: "judge", TS: ts1, Word: "motion_rule",
 				Fields: map[string]any{"motion_id": "M1", "opinion": "why"},
 				Arms:   map[string]map[string]any{"docket": ruling(c.disposition)}}, "motion_rule"},
@@ -132,18 +82,6 @@ func TestARemandsReopensOnMigratesAsItsDirection(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-// An opinion field this entry does not place refuses by name — the same contract the
-// identity default holds kept words to.
-func TestOpinionEntryRefusesAColumnItCannotPlace(t *testing.T) {
-	old := migrate.OldEvent{
-		ID: 7, SeatID: "bench", Round: 2, TS: ts1, Word: "opinion",
-		Fields: map[string]any{"gap_id": "R1-1", "disposition": "carried", "gavel_weight": "heavy"},
-	}
-	if _, err := migrate.Entries()["opinion"].Translate(old); err == nil || !strings.Contains(err.Error(), "opinion.gavel_weight") {
-		t.Fatalf("want a refusal naming opinion.gavel_weight, got %v", err)
 	}
 }
 

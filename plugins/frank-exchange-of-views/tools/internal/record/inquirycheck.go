@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // AN INQUIRY IS JUDGED FOR QUALITY, AS A CITATION AND A COMPUTATION ARE (ruled by gblock 2026-11-01:
@@ -136,10 +137,17 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 			moved(t.GetGapId(), ids[k])
 		}
 	}
+	// THE ASSIGNEE'S ACCEPT APPLIES THE ACT IT ACCEPTS; A BENCH RULING MOVES ITS GAP BY WHAT ITS
+	// TRANSACTION WROTE (Docketing.movesGap): a ruling for the gap as it stands, and grades kept, move
+	// nothing the inquiry's owner reads again.
 	for _, m := range motionsAt(evs, ids, win) {
-		// A REJECT LEAVES THE GAP AS IT WAS, and moves nothing the inquiry's owner reads again.
-		if m.Subject == "docket" && m.Ruled() && m.Ruling != "rejected" {
+		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) != "bench" {
 			moved(m.GapID, m.ruled)
+		}
+	}
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Ruled() && d.movesGap() {
+			moved(d.GapID, d.ruled)
 		}
 	}
 	return out

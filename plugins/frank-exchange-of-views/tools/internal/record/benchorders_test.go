@@ -56,7 +56,7 @@ func TestAGrantStatesItsOrderAndADenialOrdersNothing(t *testing.T) {
 	t.Run("a docket ruling orders nothing beyond its ruling", func(t *testing.T) {
 		s := newClosureStage(t)
 		m := s.docketed()
-		r := docketRuling(m, recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED)
+		r := docketRuling(m, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
 		r.Relief = proto.String(orderedRelief)
 		_, err := Append(sit(t, s.run, "judge"), r)
 		mustRefuse(t, err, "a granted petition's order", "a docket ruling orders nothing beyond its ruling")
@@ -94,6 +94,7 @@ func TestAnEstoppedRowStatesWhatTheRulingSettled(t *testing.T) {
 				r.GetDocket().Final = nil
 				r.GetDocket().ReopensOn = proto.String(c.reopensOn)
 			}
+			bluesWord(t, s.run, "G1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED)
 			mustAppend(t, convene(t, s.run, "G1"), r)
 			w, err := WorkOfSeat(s.run, "blue", "blue-respond")
 			if err != nil {
@@ -133,28 +134,35 @@ const (
 	certn  = recordpb.Grade_GRADE_CERTAIN
 )
 
-// benchSetSeverity is G1 (minted medium on every axis) docketed, and the bench hearing it setting its
-// severity high.
-func benchSetSeverity(t *testing.T) *closureStage {
+// benchRuledSeverity is G1 (minted medium on every axis) with the chair's proposal M1 to regrade its
+// severity low docketed, and the bench ruling for the filer: the tool writes the proposal's regrade as
+// the bench's, and the ruling after it decides the severity.
+func benchRuledSeverity(t *testing.T) *closureStage {
 	t.Helper()
 	s := newClosureStage(t)
-	s.docketed()
-	s.bench = sit(t, s.run, "judge")
-	mustAppend(t, s.bench, regradeOf("G1", sev, high))
+	fileProposal(t, s.run, regradeMotion("M1", "G1", "severity is overstated"))
+	s.docketing = docketProposal(t, s.run, "G1", "M1")
+	s.bench = convene(t, s.run, "G1")
+	mustAppend(t, s.bench, regradeOf("G1", sev, low))
+	mustAppend(t, s.bench, ruling(s.docketing, "M1", func(d *recordpb.DocketRuling) {
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_FILER.Enum()
+	}))
 	return s
 }
 
-func TestTheBenchSetsAGradeWhileItHearsTheGap(t *testing.T) {
-	t.Run("not before a docket motion stands", func(t *testing.T) {
+// THE BENCH'S REGRADE IS A RULING'S STATEMENT: it stands on a docketing standing unruled, moves an
+// axis, and the ruling after it applies it or is refused.
+func TestTheBenchsRegradeIsARulingsStatement(t *testing.T) {
+	t.Run("not before a docketing stands", func(t *testing.T) {
 		s := newClosureStage(t)
 		_, err := Append(sit(t, s.run, "judge"), regradeOf("G1", sev, high))
-		mustRefuse(t, err, "no docket motion on gap G1 stands before you unruled")
+		mustRefuse(t, err, "no docketing on gap G1 stands unruled")
 	})
-	t.Run("not after the motion is ruled", func(t *testing.T) {
+	t.Run("not after the docketing is ruled", func(t *testing.T) {
 		s := newClosureStage(t)
 		s.epoch().ruled(recordpb.Disposition_DISPOSITION_REMANDED)
 		_, err := Append(sit(t, s.run, "judge"), regradeOf("G1", sev, high))
-		mustRefuse(t, err, "no docket motion on gap G1 stands before you unruled")
+		mustRefuse(t, err, "no docketing on gap G1 stands unruled")
 	})
 	t.Run("not to keep a grade", func(t *testing.T) {
 		s := newClosureStage(t)
@@ -162,44 +170,43 @@ func TestTheBenchSetsAGradeWhileItHearsTheGap(t *testing.T) {
 		_, err := Append(sit(t, s.run, "judge"), regradeOf("G1", sev, medium))
 		mustRefuse(t, err, "this regrade moves no axis of gap G1")
 	})
-	t.Run("a move is admitted, and is the grade every reader reads", func(t *testing.T) {
-		s := benchSetSeverity(t)
+	t.Run("a ruling that applies none of it is refused", func(t *testing.T) {
+		s := newClosureStage(t)
+		s.docketed()
+		s.bench = convene(t, s.run, "G1")
+		mustAppend(t, s.bench, regradeOf("G1", sev, high))
+		_, err := Append(s.bench, docketRuling(s.docketing, recordpb.Disposition_DISPOSITION_REMANDED))
+		mustRefuse(t, err, "the bench writes no grade of its own")
+	})
+	t.Run("the applied grade is the grade every reader reads", func(t *testing.T) {
+		s := benchRuledSeverity(t)
 		w, err := WorkOfSeat(s.run, "lens", evLens)
 		if err != nil {
 			t.Fatal(err)
 		}
 		for _, g := range w.Open {
-			if g.ID == "G1" && g.Severity != "high" {
-				t.Errorf("G1's severity on the lens's list is %q, want the bench's high", g.Severity)
+			if g.ID == "G1" && g.Severity != "low" {
+				t.Errorf("G1's severity on the lens's list is %q, want the ruled low", g.Severity)
 			}
 		}
 	})
 }
 
-func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
+// AN AXIS A RULING DECIDED IS NOT MOVED BACK: the lens may not move it, a successor carries it, and
+// another axis stays the lens's.
+func TestAnAxisARulingDecidedStaysDecided(t *testing.T) {
 	t.Run("a lens regrade moving it is refused", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, low))
-		mustRefuse(t, err, "gap G1's severity is high, which the bench set at event", "only the bench moves it while it stands; the bench moving it again releases it to you")
+		s := benchRuledSeverity(t)
+		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, high))
+		mustRefuse(t, err, "gap G1's severity is low, which the bench's ruling at event", "a ruled grade is not moved back")
 	})
 	t.Run("a lens regrade keeping it, or moving another axis, is admitted", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		lens := sit(t, s.run, evLens)
-		mustAppend(t, lens, regradeOf("G1", sev, high))
+		s := benchRuledSeverity(t)
+		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", sev, low))
 		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", impact, low))
 	})
-	// A SUCCESSOR CLOSES ITS ANCESTOR, so it waits on the docket: the bench disposes of a docketed
-	// gap. Its remand leaves the gap open, and the bench's axis stands.
-	t.Run("a successor is refused while the docket stands", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		m := corrMint("G2")
-		m.Supersedes, m.Severity = proto.String("G1"), high.Enum()
-		_, err := Append(sit(t, s.run, evLens), m)
-		mustRefuse(t, err, "--supersedes names G1, which is docketed for the bench: motion M1 stands unruled on it")
-	})
-	t.Run("a successor carries the bench's grade", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		s.rule("M1", recordpb.Disposition_DISPOSITION_REMANDED)
+	t.Run("a successor carries the ruled grade", func(t *testing.T) {
+		s := benchRuledSeverity(t)
 		lens := sit(t, s.run, evLens)
 		successor := func(g recordpb.Grade) *recordpb.Mint {
 			m := corrMint("G2")
@@ -207,43 +214,11 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 			return m
 		}
 		_, err := Append(lens, successor(medium))
-		mustRefuse(t, err, "--supersedes names G1", "mint it at --severity high")
-		mustAppend(t, lens, successor(high))
-		// THE LOCK FOLLOWS THE LINEAGE: the successor's severity is the bench's too.
-		_, err = Append(sit(t, s.run, evLens), regradeOf("G2", sev, low))
-		mustRefuse(t, err, "gap G2's severity is high, which the bench set at event")
-	})
-	// THE LOCK RETURNS TO THE LENS (gblock, 2026-10-30): the bench moving a locked axis lifts the
-	// lock at its new grade, and the lens may move it from there.
-	t.Run("the bench moves it again, and the lens may regrade it from the new grade", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
-		w, err := WorkOfSeat(s.run, "lens", evLens)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, g := range w.Open {
-			if g.ID == "G1" && g.Severity != "certain" {
-				t.Errorf("G1's severity after the bench's second move is %q, want the bench's certain", g.Severity)
-			}
-		}
-		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", sev, low))
-	})
-	t.Run("a third bench move locks it again", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		bench := sit(t, s.run, "judge")
-		mustAppend(t, bench, regradeOf("G1", sev, certn))
-		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, low))
-		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, medium))
-		mustRefuse(t, err, "gap G1's severity is low, which the bench set at event")
-	})
-	t.Run("a successor of a released axis is minted at any grade", func(t *testing.T) {
-		s := benchSetSeverity(t)
-		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
-		s.rule("M1", recordpb.Disposition_DISPOSITION_REMANDED)
-		m := corrMint("G2")
-		m.Supersedes, m.Severity = proto.String("G1"), medium.Enum()
-		mustAppend(t, sit(t, s.run, evLens), m)
+		mustRefuse(t, err, "--supersedes names G1", "mint it at --severity low")
+		mustAppend(t, lens, successor(low))
+		// THE LOCK FOLLOWS THE LINEAGE: the successor's severity is the ruling's too.
+		_, err = Append(sit(t, s.run, evLens), regradeOf("G2", sev, high))
+		mustRefuse(t, err, "gap G2's severity is low, which the bench's ruling at event")
 	})
 }
 

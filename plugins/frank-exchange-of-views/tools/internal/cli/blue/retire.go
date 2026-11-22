@@ -145,7 +145,7 @@ func newRetire() *cobra.Command {
 			return nil
 		}
 
-		if _, err := record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error { return guard(l) })); err != nil {
+		if _, err := record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error { return guard(l) }), roadsHold); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil
@@ -191,8 +191,19 @@ func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.R
 	if !anchor.Backs(id) {
 		return nil, feov.Errorf(feov.Validation, "--anchor alone retires an evidence anchor — a citation or computation — and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out with the anchor in both the quote and the replacement, then retire it with --quote", id, anchor.Kind(id))
 	}
+	noun := record.EvidenceNoun(id)
+	if _, err := record.Append(s.Identity(), body, record.Check(RetireAnchor(body, id)), roadsHold); err != nil {
+		return nil, err
+	}
+	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, ClaimKept: true, Noun: noun, Answers: body.GetAnswers()}, nil
+}
+
+// RetireAnchor is the guard of an evidence anchor's retire that keeps its sentence: it reads the
+// sentence holding id's token in the report the retire lands on into body, and refuses an anchor on
+// no sentence or standing bare. The bench's answer for red applies a closing's --retire through it.
+func RetireAnchor(body *recordpb.Retire, id string) func(*record.Landing) error {
 	noun, tok := record.EvidenceNoun(id), anchor.Token(id)
-	guard := func(l *record.Landing) error {
+	return func(l *record.Landing) error {
 		md, err := l.Report()
 		if err != nil {
 			return feov.Wrap(feov.Internal, err, "the report could not be read from the record to find the sentence %s %s stands on, so nothing is recorded: %v", noun, id, err)
@@ -209,10 +220,6 @@ func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.R
 		body.ClaimKept = proto.Bool(true)
 		return nil
 	}
-	if _, err := record.Append(s.Identity(), body, record.Check(guard)); err != nil {
-		return nil, err
-	}
-	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, ClaimKept: true, Noun: noun, Answers: body.GetAnswers()}, nil
 }
 
 // leftByTheCut is every marker that stood on this claim in an edit that took it out (heldAt), with

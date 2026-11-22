@@ -74,7 +74,7 @@ func TestM38ASupersededAncestorHoldsNoVerdict(t *testing.T) {
 // ONLY A GAP'S MINTER SUPERSEDES IT WHILE IT IS OPEN, AND NOT WHILE THE BENCH HAS IT. A mint
 // superseding an open gap closes it, so another lens's is refused naming its assignee and the proposal
 // the lens may file instead, and the minter's
-// own is refused while a docket motion stands unruled on the gap. Once the gap is closed, a mint
+// own is refused while a docketing or a proposal stands on the gap. Once the gap is closed, a mint
 // naming it is lineage and closes nothing, whoever writes it.
 func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 	const logic = "red-lens-logic"
@@ -89,10 +89,17 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 		t.Errorf("the minter superseding its own open G1 = %v, want it admitted", err)
 	}
 
-	docketed := mintedOn(t).add("red-chair", docketMotion("M1", "G1")).register("red-chair").seed()
+	docketed := mintedOn(t).add("red-chair", docketing("D1", "G1")).register("red-chair").seed()
 	err = validateRun(docketed, evLens, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1"))
-	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, which is docketed for the bench: motion M1 stands unruled on it") {
-		t.Errorf("the minter superseding its docketed G1 = %v, want it refused naming the motion", err)
+	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, and docketing D1 stands on it") ||
+		!strings.Contains(err.Error(), "a docketed gap is the bench's to dispose of until it rules") {
+		t.Errorf("the minter superseding its docketed G1 = %v, want it refused naming the docketing", err)
+	}
+	proposed := mintedOn(t).add("red-chair", docketMotion("M1", "G1")).register("red-chair").seed()
+	err = validateRun(proposed, evLens, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1"))
+	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, and proposal M1 stands on it") ||
+		!strings.Contains(err.Error(), "a proposal is answered by accepting it") {
+		t.Errorf("the minter superseding its G1 while a proposal stands on it = %v, want it refused naming the proposal", err)
 	}
 
 	closed := mintedOn(t).add(evLens, repairClose("G1")).register("red-chair").seed()

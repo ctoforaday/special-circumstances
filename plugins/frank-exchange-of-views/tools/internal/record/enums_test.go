@@ -110,11 +110,9 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	if len(closeSet) != 1 {
 		t.Fatal("`merge close` must declare exactly one closed set")
 	}
-	// THE BENCH'S SET IS KEYED ON (SUBJECT, RULING) NOW, so it is read from the motion table
-	// rather than from EnumFields — `bench opinion` was its own event type with its own entry,
-	// and the disposition is a docket motion's ruling. Read through the same accessor the CLI's
-	// help and the write check use, so a set this test agrees with is the set a seat is offered.
-	benchSet := MotionVerdictEnum("docket").Values
+	// THE BENCH'S SET IS THE DOCKET RULING'S DISPOSITION: the bench chooses a side and the word is
+	// the side's statement, so the set is read off the ruling's field rather than a menu.
+	benchSet := evsOf((&recordpb.DocketRuling{}).ProtoReflect().Descriptor().Fields().ByName("disposition").Enum())
 	if len(benchSet) == 0 {
 		t.Fatal("the bench's docket vocabulary is empty — an empty set would pass every check below without comparing anything")
 	}
@@ -254,16 +252,21 @@ func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
 	for i := 0; i < od.Fields().Len(); i++ {
 		fd := od.Fields().Get(i)
 		subject := string(fd.Name())
-		// EVERY ARM HAS A SET, the docket's included: the write's refusal of an unrecognized ruling
-		// offers MotionVerdicts[subject] back, and a subject with no set there offers an empty list.
+		// EVERY ARM BUT THE DOCKET'S HAS A SET: the write's refusal of an unrecognized ruling offers
+		// MotionVerdicts[subject] back, and a subject with no set there offers an empty list. The
+		// docket's word is the side's statement, so no menu offers it.
 		vs, ok := MotionVerdicts[subject]
+		if subject == "docket" {
+			if ok {
+				t.Errorf("MotionVerdicts offers a menu for %q, whose ruling word is the side's statement", subject)
+			}
+			continue
+		}
 		if !ok || len(vs) == 0 {
 			t.Errorf("MotionRule rules on %q and MotionVerdicts carries no set for it", subject)
 			continue
 		}
 		if fd.Kind() != protoreflect.EnumKind {
-			// `docket` is a message, and its disposition is the shared Disposition set, which
-			// TestBothClosureSetsShareOneVocabulary already holds to the descriptor.
 			continue
 		}
 		ed := fd.Enum()
@@ -297,17 +300,23 @@ func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
 	}
 }
 
-// narrowedBy names the ONE set that lists fewer words than its enum carries, and the facet that
-// says why: red closes a gap with a Disposition that `closes`, and `remanded` is declared not to.
+// narrowedBy names the sets that list fewer words than their enum carries, and the facet that says
+// why: red closes a gap with a Disposition that `closes`, blue's closing states one for a ruling to
+// write, and `remanded` is declared not to close.
 // A narrowing that no facet declares is a hand-restated set, and the coverage check above refuses it.
 var narrowedBy = map[[2]string]func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool{
-	{"close", "closure_class"}: func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
-		closes, declared, err := recordpb.Facet(vd, "closes")
-		if err != nil || !declared {
-			t.Fatalf("Disposition %s declares no `closes` facet: %v", vd.Name(), err)
-		}
-		return !closes
-	},
+	{"close", "closure_class"}:   notAClosure,
+	{"closing", "closure_class"}: notAClosure,
+}
+
+// notAClosure is the `closes` facet's narrowing: a word that closes no gap is no closure_class red
+// closes with or blue states for a ruling to write.
+func notAClosure(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
+	closes, declared, err := recordpb.Facet(vd, "closes")
+	if err != nil || !declared {
+		t.Fatalf("Disposition %s declares no `closes` facet: %v", vd.Name(), err)
+	}
+	return !closes
 }
 
 // tableCarries answers whether the table lists this schema value, under the schema's spelling or

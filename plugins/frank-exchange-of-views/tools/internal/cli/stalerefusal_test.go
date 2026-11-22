@@ -172,13 +172,14 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 				sit(t, runDir, c.seat)
 			}
 			// The move is another seat's: the minting lens's regrade, or, where the act is the minting
-			// lens's own, the bench's ruling on a docket motion on the gap.
+			// lens's own, the bench's ruling on a docketing of the gap.
 			moved := lensSeat + ": regraded " + gap
 			if c.seat == lensSeat {
 				m := proposeClose(t, runDir, "red-chair", gap, "not_a_defect", "the lens and blue have exchanged twice and neither moved")
+				k := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 				conveneBench(t, runDir, gap)
-				ruleDocket(t, runDir, m, "remanded")
-				moved = "the bench ruled " + gap + " remanded in " + m
+				ruleDocket(t, runDir, k, "remand")
+				moved = "the bench ruled " + gap + " remanded in " + k
 			} else if err := regrade(t, runDir, lensSeat, gap, "high"); err != nil {
 				t.Fatal(err)
 			}

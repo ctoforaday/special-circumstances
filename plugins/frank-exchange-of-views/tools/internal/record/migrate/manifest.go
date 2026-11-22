@@ -49,6 +49,7 @@ func NewManifest(sourcePath string, files []migration.SourceFile, unclassified [
 		QuotelessReadings:   res.QuotelessReadings,
 		SettledEdits:        res.SettledEdits,
 		UnowedEngagements:   res.UnowedEngagements,
+		Dockets:             res.Dockets,
 		Unclassified:        unclassified,
 	}
 }

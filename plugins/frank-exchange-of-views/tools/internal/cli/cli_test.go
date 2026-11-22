@@ -469,12 +469,6 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
-			if other == "bench" && board == "regrade" {
-				if !verbs[other][board] {
-					t.Errorf("the bench role is missing %q — a ruling would rule on a grade it holds wrong, with no act to set it", board)
-				}
-				continue
-			}
 			if verbs[other][board] {
 				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
 			}
@@ -1041,11 +1035,8 @@ func TestBlueVerbContracts(t *testing.T) {
 // The bench rules with reasons or it does not rule: each field the verb enforces is refused when
 // omitted, and the refusal names the missing flag.
 //
-// IT IS `motion docket rule` NOW. The contract is the deleted `bench opinion`'s, unchanged: the
-// same six words, the same "name the flag a seat can type" duty. What moved is the carrier and
-// what `--id` MEANS — it named the gap on the old verb and names the MOTION here, because the
-// gap rides the filing. That is why the fixture files a docket motion first: without it the
-// refusal under test would be the dangling-motion one.
+// `--id` names the DOCKETING, which carries the gap: the fixture files a docket motion and the
+// tool dockets it, so the refusal under test is the omitted field's, not the dangling-docketing one.
 func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "judge"
@@ -1061,7 +1052,8 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	}
 	g := onlyID(t, runDir, "G")
 	exchangeOn(t, runDir, g)
-	proposeClose(t, runDir, "red-chair", g, "not_a_defect", "contested, and not mine to close")
+	m := proposeClose(t, runDir, "red-chair", g, "not_a_defect", "contested, and not mine to close")
+	k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 	conveneBench(t, runDir, g)
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
@@ -1070,7 +1062,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	//
 	// --tension, --review-flag and --settled are required by PRESENCE (#1234): an omitted one is
 	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
-	full := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
+	full := map[string]string{"id": k, "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair C-65ca0a9e"}
 	// THE FOUR DocketRuling FIELDS ARE REFUSED BY THE RECORD WRITE, with the schema's own `why`,
@@ -1088,7 +1080,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 			// Without it the record refuses on the direction first, and only a refusal that carried
 			// the verb's whole help page could still name the omitted flag.
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-				"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
+				"--reason", "the rationale", "--remand", "--direction", "a reproduction on a clean tree"}
 			for k, v := range full {
 				if k != missing {
 					args = append(args, "--"+k, v)
@@ -1121,7 +1113,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		for k, v := range full {
 			args = append(args, "--"+k, v)
 		}
-		args = append(args, "--direction", "a reproduction on a clean tree")
+		args = append(args, "--remand", "--direction", "a reproduction on a clean tree")
 		if _, err := runAt(t, args...); err == nil {
 			t.Fatal("a ruling with no reasoning was accepted — a verdict the losing party cannot answer")
 		} else if !strings.Contains(err.Error(), "reason") {
@@ -1130,7 +1122,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	})
 
 	args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-		"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
+		"--reason", "the rationale", "--remand", "--direction", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
@@ -1138,7 +1130,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, handleText(t, runDir, "motion M1 ruled remanded")) {
+	if !strings.Contains(out, "docketing "+k+" ruled remanded") {
 		t.Errorf("the docket ruling said %q", out)
 	}
 	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling
@@ -1165,7 +1157,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 	}
 	rule := func(t *testing.T, runDir, m string, set map[string]string, final bool) error {
 		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-			"--id", m, "--as", "remanded", "--principle", "correctness first", "--reason", "the rationale"}
+			"--id", m, "--remand", "--principle", "correctness first", "--reason", "the rationale"}
 		for _, f := range []string{"--tension", "--review-flag", "--settled", "--direction", "--reopens-on"} {
 			if v, ok := set[f]; ok {
 				args = append(args, f, v)
@@ -1188,8 +1180,9 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		}
 		g := onlyID(t, runDir, "G")
 		m := docketFile(t, runDir, "red-chair", g, "contested, and not mine to close")
+		k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 		conveneBench(t, runDir, g)
-		return runDir, m
+		return runDir, k
 	}
 	// with is the stated set with f answered v; omitting is the stated set with f never passed.
 	with := func(f, v string) map[string]string {
@@ -1211,13 +1204,13 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		{"whitespace --tension", "requires --tension to say something", with("--tension", "  \t "), false},
 		{"blank --review-flag", "requires --review-flag to say something", with("--review-flag", ""), false},
 		{"whitespace --review-flag", "requires --review-flag to say something", with("--review-flag", "\n "), false},
-		{"remand with --final", "--as remanded requires --direction", omitting("--direction"), true},
-		{"remand with a direction and --final", "--as remanded requires --direction, and never --reopens-on or --final", stated, true},
-		{"remand with a direction and --reopens-on", "--as remanded requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
-		{"remand with neither", "--as remanded requires --direction", omitting("--direction"), false},
+		{"remand with --final", "a remand requires --direction", omitting("--direction"), true},
+		{"remand with a direction and --final", "a remand requires --direction, and never --reopens-on or --final", stated, true},
+		{"remand with a direction and --reopens-on", "a remand requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
+		{"remand with neither", "a remand requires --direction", omitting("--direction"), false},
 		{"a blank --reopens-on is not an absent one", "--reopens-on is empty", with("--reopens-on", ""), false},
-		{"remand with a blank direction", "--as remanded requires --direction", with("--direction", ""), false},
-		{"remand with a whitespace direction", "--as remanded requires --direction", with("--direction", " \t"), false},
+		{"remand with a blank direction", "a remand requires --direction", with("--direction", ""), false},
+		{"remand with a whitespace direction", "a remand requires --direction", with("--direction", " \t"), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir, m := docket(t)
@@ -1245,11 +1238,10 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 	})
 }
 
-// THE SUBJECT IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
-// required docket field omitted, is refused for the subject: the field's refusal would send the
-// seat to supply a flag for a ruling it cannot make under this subgroup at all (#1236). A
-// parse-time requirement on the flag would answer first, which is why the four are refused at the
-// write instead (#1234).
+// WHAT IS ANSWERED IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
+// required docket field omitted, is refused for its id: the field's refusal would send the seat to
+// supply a flag for a ruling it cannot make on that id at all (#1236). A parse-time requirement on
+// the flag would answer first, which is why the four are refused at the write instead (#1234).
 func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	runDir := newRun(t)
 	registerLensOnce(t, runDir)
@@ -1258,7 +1250,7 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
 		t.Run("omitted --"+omit, func(t *testing.T) {
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-				"--id", m, "--as", "remanded", "--direction", "a reproduction on the shipped binary", "--reason", "the rationale"}
+				"--id", m, "--remand", "--direction", "a reproduction on the shipped binary", "--reason", "the rationale"}
 			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "r", "settled": "s"} {
 				if k != omit {
 					args = append(args, "--"+k, v)
@@ -1268,8 +1260,8 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 			if err == nil {
 				t.Fatal("a docket ruling on a petition motion was accepted")
 			}
-			if !strings.Contains(err.Error(), "filed as a petition motion") || strings.Contains(err.Error(), "--"+omit) {
-				t.Errorf("the refusal is not the subject's, first and alone: %v", err)
+			if !strings.Contains(err.Error(), "a docketing id is D-") || strings.Contains(err.Error(), "--"+omit) {
+				t.Errorf("the refusal is not the id's, first and alone: %v", err)
 			}
 		})
 	}

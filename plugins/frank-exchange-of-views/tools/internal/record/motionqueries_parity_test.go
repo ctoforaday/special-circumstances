@@ -66,12 +66,14 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
 
-	if _, err := Append(convene(t, run, "G1"), actRule("M1", false, "judge")); err != nil {
+	// The assignee lets its window pass, the dispatch dockets the proposal, and the bench rules for red.
+	d := docketProposal(t, run, "G1", "M1")
+	if _, err := Append(convene(t, run, "G1"), forRed(heldBy(actRule("M1", false, "judge"), d))); err != nil {
 		t.Fatal(err)
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
 	err = RequireUnruledMotion(db, "M1", "")
-	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by judge`) {
+	if err == nil || !strings.Contains(err.Error(), `ruled "for red" by judge`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 }

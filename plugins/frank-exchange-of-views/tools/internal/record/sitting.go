@@ -134,11 +134,11 @@ type sittingReads struct {
 // nil reads every anchor as checkable.
 type unverifiableFunc func(anchor string) string
 
-// undocketed is gaps without the ones a docket motion stands unruled on, open or closed.
+// undocketed is gaps without the ones a docketing or a proposal stands on, open or closed (the freeze, F9).
 func undocketed(gaps []WorkGapState) []WorkGapState {
 	out := make([]WorkGapState, 0, len(gaps))
 	for _, g := range gaps {
-		if !g.unruledDocket {
+		if !g.unruledDocket && !g.docketed {
 			out = append(out, g)
 		}
 	}
@@ -445,7 +445,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
 		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
 		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
-		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
+		// reads the undocketed gaps: a docketing or a proposal standing on the gap holds it off the list
 		// until the bench rules, as every other item on a docketed gap is held.
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID)...)
 		// THE COMPOSED SOURCES THE VOICE LENS HAS NOT HAD (composedsource.go): not blocking, as the audit
@@ -502,17 +502,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 		}
 	case "bench":
-		// THE BENCH'S MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every unruled motion
-		// whose gavel the schema gives the bench, the same set the outcome refusal names
-		// (requireBenchMotionsRuled). A second walk of the motions here could disagree with that
+		// THE BENCH'S DOCKET AND MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every standing
+		// docketing, and every unruled motion whose gavel the schema gives the bench — the same set the
+		// outcome refusal names (requireBenchMotionsRuled). A second walk here could disagree with that
 		// refusal, which is the drift the one list exists to end (#1202).
 		//
 		// ONLY WHAT THIS SITTING IS CONVENED TO RULE BLOCKS (benchHeld): a blocking item refuses the
-		// sitting's envelope (EnvelopeRefusal), and a motion another sitting is convened for — a docket
-		// on a gap whose closings this sitting was not convened on, a petition filed while it sat — is
-		// not this sitting's to rule. It stays on the list, holding the outcome.
+		// sitting's envelope (EnvelopeRefusal), and what another sitting is convened for — a docketing on
+		// a gap this sitting was not convened on, a petition filed while it sat — is not this sitting's to
+		// rule. It stays on the list, holding the outcome.
 		held := benchHeld(evs, ids, win)
-		// A REMAND PAST THE LIMIT IS REFUSED (requireRemandWithinLimit), and the motion's item says so
+		// A REMAND PAST THE LIMIT IS REFUSED (requireRemandWithinLimit), and the docketing's item says so
 		// before the bench rules, by the write's own predicate (remandPastLimit, WorkGapState.remandLimit).
 		limited := map[string]int64{}
 		for _, g := range gaps {
@@ -521,23 +521,24 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 		}
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found) {
-			if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
-				continue
-			}
-			limit := ""
-			if at, ok := limited[b.About]; ok && b.motionSubject == "docket" {
-				answer := "rule a disposition that closes it (" + strings.Join(ClosingDispositions(), ", ") + ")"
-				if b.act != "" {
-					answer = "accept or reject the " + b.act + " it proposes"
+			var key, what string
+			switch {
+			case b.Kind == BlockerDocketed:
+				key = b.Detail
+				what = fmt.Sprintf("docketing %s puts gap %s before the bench (%s): %s", b.Detail, b.About, b.cause, b.basis)
+				if at, ok := limited[b.About]; ok {
+					what += fmt.Sprintf(" — a remand of %s is refused: you remanded it at event %d, and %s; rule it for a side", b.About, at, RemandLimitRule)
 				}
-				limit = fmt.Sprintf(" — a remand of %s is refused: you remanded it at impasse at event %d, and %s; %s",
-					b.About, at, RemandLimitRule, answer)
-			}
-			if held[b.Subject] {
-				s.Open = append(s.Open, b.asItem("motion "+b.Subject+" ("+b.Detail+") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands"+limit, true))
+			case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
+				key, what = b.Subject, "motion "+b.Subject+" ("+b.Detail+") is unruled"
+			default:
 				continue
 			}
-			s.Open = append(s.Open, b.asItem("motion "+b.Subject+" ("+b.Detail+") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands"+limit, false))
+			if held[key] {
+				s.Open = append(s.Open, b.asItem(what+" — the gavel is yours and this sitting is convened to rule it; the run cannot end in a verdict while it stands", true))
+				continue
+			}
+			s.Open = append(s.Open, b.asItem(what+" — the gavel is yours; it waits for the sitting convened for it, and the run cannot end in a verdict while it stands", false))
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read

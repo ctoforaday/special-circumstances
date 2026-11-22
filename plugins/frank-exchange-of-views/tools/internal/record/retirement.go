@@ -229,27 +229,39 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 			out = append(out, gapNews{gap: g.id, at: a.metAt, item: "blue's retire of " + a.met.anchor + ", " + a.met.how(g.id)})
 		}
 	}
-	// A BENCH RULING THAT LEAVES A MATERIAL GAP OPEN IS NEWS, IN ITS OWN WORD: a remand, the bench's
-	// regrade on accepting a proposal, or its rejection of one — every closing word closes the gap.
-	// Only a gap that is material carries it back into the debate (routeOf); the bench's ruling on
-	// any other leaves it where it was, readying nobody. The assignee's own accept is its own act, and
-	// no news to it.
+	// A BENCH RULING THAT LEAVES A MATERIAL GAP OPEN IS NEWS, IN ITS OWN WORD: a remand, the act of a
+	// proposal it sided with, its ruling against one, or its keeping or restoring of the moved grades
+	// — every closing word closes the gap. Only a gap that is material carries it back into the debate
+	// (routeOf); the bench's ruling on any other leaves it where it was, readying nobody. The bench's
+	// rulings are its docketings' (docketingsAt); the assignee's own accept is its own act, and no news
+	// to it.
 	held := map[string]bool{}
 	for _, g := range gaps {
 		held[g.id] = g.material
 	}
+	act := map[string]string{}
 	for _, m := range motions {
-		if m.Subject != "docket" || !m.Ruled() || !held[m.GapID] || seatclass.RoleOfSeat(m.RulingBy) != "bench" {
+		act[m.ID] = m.Act
+	}
+	for _, d := range docketingsAt(evs, ids) {
+		if !d.Ruled() || !held[d.GapID] {
 			continue
 		}
-		item := "the bench's remand of " + m.GapID + " in " + m.ID
-		switch m.Ruling {
-		case "accepted":
-			item = "the bench's " + m.Act + " of " + m.GapID + " on " + m.ID
-		case "rejected":
-			item = "the bench's rejection of the " + m.Act + " " + m.ID + " proposed on " + m.GapID
+		r := d.Docket()
+		item := "the bench's remand of " + d.GapID + " in " + d.ID
+		switch {
+		case r.GetMovedGrades() == recordpb.MovedGrades_MOVED_GRADES_RESTORED:
+			item = "the bench's restore of " + d.GapID + "'s moved grades on " + d.ID
+		case r.GetMovedGrades() == recordpb.MovedGrades_MOVED_GRADES_KEPT:
+			item = "the bench's keeping of " + d.GapID + "'s moved grades on " + d.ID
+		case d.appliesProposal():
+			item = "the bench's " + act[d.MotionID] + " of " + d.GapID + " on " + d.MotionID
+		case r.SidedWith != nil && d.MotionID != "":
+			item = "the bench's ruling against the " + act[d.MotionID] + " " + d.MotionID + " proposed on " + d.GapID
+		case r.SidedWith != nil:
+			item = "the bench's ruling " + d.Word() + " on " + d.GapID + " in " + d.ID
 		}
-		out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: item})
+		out = append(out, gapNews{gap: d.GapID, at: d.ruled, item: item})
 	}
 	return out
 }

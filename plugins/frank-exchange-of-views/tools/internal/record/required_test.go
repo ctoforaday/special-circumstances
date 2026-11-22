@@ -27,9 +27,9 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	// `review_flag` is a STRING field carrying the seat's answer; "false" is an answer, and the
 	// requirement is satisfied by the field holding text, whatever that text reads as.
 	o := &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("r"),
+		Opinion: proto.String("r"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("D1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("false"),

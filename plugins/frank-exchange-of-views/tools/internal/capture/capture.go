@@ -671,7 +671,11 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 		owed++
 	}
 	for _, d := range duties {
-		name := fmt.Sprintf("%s's closing on %s (docket motion %s)", d.Party, d.GapID, d.Motion)
+		before := "docketing " + d.Docketing
+		if d.Docketing == "" {
+			before = "proposal " + d.Proposal
+		}
+		name := fmt.Sprintf("%s's closing on %s (%s)", d.Party, d.GapID, before)
 		switch d.State {
 		case record.ClosingNotOwed:
 			notOwed++
@@ -1426,12 +1430,12 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 		}
 	}
 
-	// THE GAP A DISPOSITION SETTLES RIDES THE FILING, never the ruling — a `motion-rule` carries
-	// the ask's id and nothing else that identifies its subject matter. record.DocketGapByMotion is
-	// that filing join, the one gap_refresh's bench arm makes in SQL; harvesting the gap any other way keys every
-	// disposition on the empty string, which is the shape of the defect this function was written
-	// to escape.
-	docketGapOf := record.DocketGapByMotion(evs)
+	// THE GAP A DISPOSITION SETTLES RIDES THE DOCKETING, never the ruling — a `motion-rule` carries
+	// the docketing's id (or, for the assignee's accept, the ask's) and nothing else that identifies
+	// its subject matter. record.DocketRulingGap is that join, the one gap_refresh's bench arm makes in
+	// SQL; harvesting the gap any other way keys every disposition on the empty string, which is the
+	// shape of the defect this function was written to escape.
+	docketGapOf := record.DocketRulingGap(evs)
 
 	var out []ruling
 	for _, e := range evs {
@@ -1471,7 +1475,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 				// join above, because the ruling does not hold it.
 				out = append(out, ruling{
 					kind:        "docket",
-					gapID:       docketGapOf[r.GetMotionId()],
+					gapID:       docketGapOf(r),
 					disposition: record.RulingWord(r),
 					rationale:   r.GetOpinion(),
 				})

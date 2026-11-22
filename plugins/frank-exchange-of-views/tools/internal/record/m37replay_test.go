@@ -12,23 +12,25 @@ import (
 )
 
 // m37Archive is universe-m37: 1263 events, CEILING at epoch 12 under k-max 2, six dockets filed by the
-// dispatch and six rulings on them, five of each on the migrated record (TestM37DocketsComeAfterTheLensHasRead). It holds the bundle store (computations/<bundle>/), which the
+// dispatch and six rulings on them, four docketings on the migrated record
+// (TestM37DocketsComeAfterTheLensHasRead). It holds the bundle store (computations/<bundle>/), which the
 // migrate package's archive census does not read as the proof store of every run in run-archive/, so
 // it stands in a directory of its own.
 const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 
-// UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's dockets is folded again on the
-// record as it stood before the plan that filed it. On every one the plan now files nothing and
+// UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's docketings is folded again on
+// the record as it stood before the plan that wrote it. On every one the plan now files nothing and
 // readies the gap's minting lens alone. What that lens did next is the run's own record: on four it
 // closed the gap, each within minutes, so no docket exists and the bench has nothing to rule. On
 // G-deced912's first docket it kept its grade, and that docket and its remand stand a sitting later:
 // the one ruling that decided anything.
 //
-// The run filed six; the migrated record holds five. G-8405d5e1's successor G-07884fea was minted
+// The run filed six; the migrated record holds four. G-8405d5e1's successor G-07884fea was minted
 // superseding it while it was open, which closes it (ruled by gblock 2026-11-04), so its docket and
-// its ruling are acts on a closed gap and are left out of the migration.
+// its ruling are acts on a closed gap and are left out of the migration. G-584d152f's lens minted a
+// successor superseding it while its docket stood unruled, which the live write refuses, so that
+// docket and its ruling are written as no event (EventSchema 80, ruled 2026-11-22).
 //
-//   - G-584d152f: blue's fix landed under G-07884fea's name; the edit's `reopened` gives the lens its turn.
 //   - G-c3f84f98: blue's computation answered the kept grade; the lens reads it before any docket.
 //   - G-deced912, first: the lens audits blue's answer, and keeps. The dispute is real.
 //   - G-deced912, second: blue obeyed the remand with a computation, and no wording changed. The re-audit
@@ -39,24 +41,24 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 	want := []struct {
 		gap     string
 		remains bool
-	}{{"G-584d152f", false}, {"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
+	}{{"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
 	minted := assigneeOf(whole)
 	k, remain := 0, 0
 	for i, e := range whole {
-		m, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok || m.GetDocket().GetGapId() == "" {
+		m, ok := recordpb.BodyAs[*recordpb.Docketing](e)
+		if !ok {
 			continue
 		}
 		if k == len(want) {
-			t.Fatalf("a sixth docket motion on the record: %s", m.GetMotionId())
+			t.Fatalf("a fifth docketing on the record: %s", m.GetDocketingId())
 		}
-		g := m.GetDocket().GetGapId()
+		g := m.GetGapId()
 		if g != want[k].gap {
-			t.Fatalf("docket %d is on %s, want %s", k, g, want[k].gap)
+			t.Fatalf("docketing %d is on %s, want %s", k, g, want[k].gap)
 		}
 		start := i
 		for start > 0 {
-			if p, ok := recordpb.BodyAs[*recordpb.Motion](whole[start-1]); !ok || p.GetDocket().GetGapId() == "" {
+			if _, ok := recordpb.BodyAs[*recordpb.Docketing](whole[start-1]); !ok {
 				break
 			}
 			start--
@@ -66,8 +68,8 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			t.Fatal(err)
 		}
 		lens := minted[g]
-		if slices.Contains(plan.ToFile, g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
-			t.Errorf("docket %s on %s: the plan must file nothing and ready %s alone on it: to file %v, parties %+v", m.GetMotionId(), g, lens, plan.ToFile, plan.Parties)
+		if slices.Contains(docketGaps(plan), g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
+			t.Errorf("docketing %s on %s: the plan must write nothing and ready %s alone on it: to file %v, parties %+v", m.GetDocketingId(), g, lens, docketGaps(plan), plan.Parties)
 		}
 		// WHAT THE LENS DID NEXT, off the run itself.
 		closed := false
@@ -79,7 +81,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 				closed = true
 				break
 			}
-			// A mint of the lens's superseding the gap closes it in that act (G-584d152f's, at 556).
+			// A mint of the lens's superseding the gap closes it in that act.
 			if mt := f.GetMint(); mt != nil && mt.GetSupersedes() == g {
 				closed = true
 				break
@@ -89,7 +91,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			}
 		}
 		if closed == want[k].remains {
-			t.Errorf("docket %s on %s: the lens closed it next = %v, want %v", m.GetMotionId(), g, closed, !want[k].remains)
+			t.Errorf("docketing %s on %s: the lens closed it next = %v, want %v", m.GetDocketingId(), g, closed, !want[k].remains)
 		}
 		if !closed {
 			remain++
@@ -97,7 +99,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 		k++
 	}
 	if k != len(want) || remain != 1 {
-		t.Errorf("%d docket(s), %d ruling(s) remaining, want %d and 1", k, remain, len(want))
+		t.Errorf("%d docketing(s), %d ruling(s) remaining, want %d and 1", k, remain, len(want))
 	}
 	// CAPTURE NAMES THEM.
 	early, err := EarlyDockets(archiveAt(t, m37Archive, whole, len(whole)))
@@ -132,8 +134,8 @@ func TestTheLastAuditReadiesTheLensAloneAndTheDocketWaits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("the second answer's audit reaches k-max: the lens alone is ready, and nothing is filed: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+	if len(docketGaps(plan)) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("the second answer's audit reaches k-max: the lens alone is ready, and nothing is filed: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 	}
 	if !whyMentions(plan, "G1: 1 exchange(s) (0 stalled) — this audit by "+evLens+" comes before any docket") {
 		t.Errorf("the reason does not say the audit reaches the limit: %q", plan.Why)
@@ -160,8 +162,8 @@ func TestARealDisputeReachesTheBenchWithinKMax(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(plan.ToFile, []string{"G1"}) {
-		t.Errorf("two audits under k-max 2, and the lens kept: the gap is docketed: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+	if !slices.Equal(docketGaps(plan), []string{"G1"}) {
+		t.Errorf("two audits under k-max 2, and the lens kept: the gap is docketed: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 	}
 	x, err := Exchanges(run, Params{K: 2, KMax: 2})
 	if err != nil || x["G1"].Exchanges != 2 {
@@ -186,12 +188,12 @@ func TestAnEditEveryEpochDoesNotHoldTheDocketOff(t *testing.T) {
 		}
 		switch n {
 		case 0:
-			if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") {
-				t.Fatalf("an edit moved G1's sentence after its last audit, so the lens has one more: to file %v, parties %+v", plan.ToFile, plan.Parties)
+			if len(docketGaps(plan)) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") {
+				t.Fatalf("an edit moved G1's sentence after its last audit, so the lens has one more: to file %v, parties %+v", docketGaps(plan), plan.Parties)
 			}
 		case 1:
-			if !slices.Equal(plan.ToFile, []string{"G1"}) {
-				t.Fatalf("the lens has had its audit past the limit, and the docket comes however the sentence moved: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+			if !slices.Equal(docketGaps(plan), []string{"G1"}) {
+				t.Fatalf("the lens has had its audit past the limit, and the docket comes however the sentence moved: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 			}
 			return
 		}
@@ -283,8 +285,8 @@ func TestACompliantRemandAnswerIsNotRedocketed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("blue complied: the lens alone re-audits, and nothing is filed: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+	if len(docketGaps(plan)) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("blue complied: the lens alone re-audits, and nothing is filed: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 	}
 	audited := st.more()
 	audited.dispatch(2, evLens, "G1").registerAs(evLens, "lens-re-audits").served(evLens, 2).stop("lens-re-audits").register("red-chair").seed()
@@ -292,8 +294,8 @@ func TestACompliantRemandAnswerIsNotRedocketed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(after.ToFile) != 0 || !slices.Contains(gapsOf(after, "blue-respond"), "G1") {
-		t.Errorf("the remand's exchange moved G1, so it is below its limits: to file %v, parties %+v, why %q", after.ToFile, after.Parties, after.Why)
+	if len(docketGaps(after)) != 0 || !slices.Contains(gapsOf(after, "blue-respond"), "G1") {
+		t.Errorf("the remand's exchange moved G1, so it is below its limits: to file %v, parties %+v, why %q", docketGaps(after), after.Parties, after.Why)
 	}
 }
 
@@ -309,8 +311,8 @@ func TestASupersededGapAtItsLimitsIsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(plan.ToFile, "G1") || slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("a superseded gap is closed, and the plan must name it nowhere: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+	if slices.Contains(docketGaps(plan), "G1") || slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("a superseded gap is closed, and the plan must name it nowhere: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 	}
 	err = validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1"))
 	if err == nil || !strings.Contains(err.Error(), "G1, which closed when G2 was minted superseding it") || !strings.Contains(err.Error(), "Act on G2") {
@@ -327,11 +329,11 @@ func TestADocketedGapLeavesTheListsButForItsClosing(t *testing.T) {
 	demand := highMint("G2")
 	demand.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	st.add(evLens, demand)
-	st.docketMotion("red-chair", "M1", "G1").docketMotion("red-chair", "M2", "G2")
+	st.docketMotion("red-chair", "D1", "G1").docketMotion("red-chair", "D2", "G2")
 	run := st.seed()
 
 	err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1"))
-	if err == nil || !strings.Contains(err.Error(), "motion M1 stands unruled") || !strings.Contains(err.Error(), "closing argument") {
+	if err == nil || !strings.Contains(err.Error(), "docketing D1 stands on it") || !strings.Contains(err.Error(), "closing argument") {
 		t.Errorf("the close of a docketed gap: %v", err)
 	}
 	if feov.CodeOf(err) != string(feov.Conflict) {
@@ -536,7 +538,7 @@ func TestGradeMovementWaitsOnTheLensToo(t *testing.T) {
 		{"its audit spent", GapExchanges{lensTurn: true}, routeGradeMovement},
 		{"no turn", GapExchanges{}, routeGradeMovement},
 	} {
-		if got := routeOf(true, false, true, &c.x); got != c.want {
+		if got := routeOf(true, false, false, true, &c.x); got != c.want {
 			t.Errorf("%s: route %v, want %v", c.name, got, c.want)
 		}
 	}
@@ -560,8 +562,8 @@ func TestAHearingIsNoTurnInAnExchange(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-			t.Fatalf("a hearing spent the lens's audit: the lens alone is ready and nothing is filed: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+		if len(docketGaps(plan)) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+			t.Fatalf("a hearing spent the lens's audit: the lens alone is ready and nothing is filed: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 		}
 		kept := heard.more()
 		kept.dispatch(2, evLens, "G1").registerAs(evLens, "lens-keeps-again").served(evLens, 2).keepGrade(evLens, "G1", keptReason).stop("lens-keeps-again")
@@ -570,8 +572,8 @@ func TestAHearingIsNoTurnInAnExchange(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(after.ToFile, []string{"G1"}) {
-			t.Errorf("the lens kept at its last audit, and a hearing followed: the gap is docketed: to file %v, parties %+v, why %q", after.ToFile, after.Parties, after.Why)
+		if !slices.Equal(docketGaps(after), []string{"G1"}) {
+			t.Errorf("the lens kept at its last audit, and a hearing followed: the gap is docketed: to file %v, parties %+v, why %q", docketGaps(after), after.Parties, after.Why)
 		}
 		if x, err := Exchanges(run, Params{K: 2, KMax: 2}); err != nil || x["G1"].Exchanges != 2 {
 			t.Errorf("two exchanges had, and a hearing is neither: %+v (%v)", x["G1"], err)

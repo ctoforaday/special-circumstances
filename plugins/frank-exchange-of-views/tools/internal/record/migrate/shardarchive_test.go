@@ -26,13 +26,13 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("refusals: %+v", res.Refusals)
 		}
-		// 2 opinions -> 2 docket pairs; friction -> log; the era's inquiry -> inquiry; its
+		// 2 opinions -> no event, stated (EventSchema 80); friction -> log; the era's inquiry -> inquiry; its
 		// review -> no event, as an inquiry review translates.
 		//
 		// friction_none CONTRIBUTES NOTHING. It was the explicit empty form, and the type that
 		// carried it is retired: clean is derived from a bracketed sitting that filed nothing, so
 		// the old rows carry forward as an absence rather than as entries nobody can act on.
-		if res.Out["motion"] != res.In["motion"]+res.In["opinion"] ||
+		if res.Out["motion"] != res.In["motion"] || len(res.Dockets.Opinions) != res.In["opinion"] ||
 			res.Out["inquiry"] != res.In["line_of_inquiry"] ||
 			res.In["inquiry_support"] == 0 || res.Out["inquiry_support"] != 0 || res.Out["inquiry_review"] != 0 ||
 			res.Out["log"] != res.In["friction"] {

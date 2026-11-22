@@ -69,13 +69,13 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 		if !slices.Contains(gapsOf(plan, adversary), section) {
 			t.Errorf("blue changed fates in a sitting engaged on %s, and the plan does not ready %s to re-audit them: parties %+v, why %q", section, adversary, plan.Parties, plan.Why)
 		}
-		docket := slices.IndexFunc(evs, func(e *Event) bool { return e.GetMotion().GetDocket().GetGapId() == section })
+		docket := slices.IndexFunc(evs, func(e *Event) bool { return e.GetDocketing().GetGapId() == section })
 		if docket < 0 {
-			t.Fatalf("the archive holds no docket on %s", section)
+			t.Fatalf("the archive holds no docketing on %s", section)
 		}
 		start := docket
 		for start > 0 {
-			if p, ok := recordpb.BodyAs[*recordpb.Motion](evs[start-1]); !ok || p.GetDocket().GetGapId() == "" {
+			if _, ok := recordpb.BodyAs[*recordpb.Docketing](evs[start-1]); !ok {
 				break
 			}
 			start--
@@ -84,8 +84,8 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if slices.Contains(before.ToFile, section) {
-			t.Errorf("the plan dockets %s with %s's audit of blue's answer still to come: to file %v, why %q", section, adversary, before.ToFile, before.Why)
+		if slices.Contains(docketGaps(before), section) {
+			t.Errorf("the plan dockets %s with %s's audit of blue's answer still to come: to file %v, why %q", section, adversary, docketGaps(before), before.Why)
 		}
 		// CAPTURE NAMES IT.
 		early, err := EarlyDockets(archiveAt(t, m38Archive, whole, len(whole)))
@@ -93,7 +93,7 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !slices.ContainsFunc(early, func(d EarlyDocket) bool {
-			return d.GapID == section && d.Motion == evs[docket].GetMotion().GetMotionId()
+			return d.GapID == section && d.Docketing == evs[docket].GetDocketing().GetDocketingId()
 		}) {
 			t.Errorf("capture's docket-order audit does not name the docket on %s: %+v", section, early)
 		}

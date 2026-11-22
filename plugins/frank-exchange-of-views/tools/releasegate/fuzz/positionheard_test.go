@@ -678,18 +678,19 @@ func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 	for _, form := range []string{"lens", "gaps", "overruled"} {
 		t.Run(form, func(t *testing.T) {
-			r, _ := converseRun(t, redClosesAndWithholds)
-			r.forcePosition = form
 			// THE GAPS RUN'S LENS HOLDS A GAP OPEN for the bench to name: one of a class never
-			// material, minted at a sitting after the first where it holds none of its own.
+			// material, minted at a sitting after the first where it holds none of its own, and before
+			// the final sitting, which admits closings alone. A forced-VERIFIED run's mint is one blue
+			// repairs and its lens closes.
+			path := redClosesAndWithholds
 			if form == "gaps" {
-				// A forced-VERIFIED run's mint is one blue repairs and its lens closes.
-				r.forceVerified = true
-				r.dispatchSits("lens", converseLens)
-				r.mintHeldTrifle(converseLens)
-				r.dispatchReturns(converseLens, false)
+				path = redHoldsATrifleAndWithholds
+			}
+			r, _ := converseRun(t, path)
+			r.forcePosition = form
+			if form == "gaps" {
 				if !r.heldTrifle || len(r.openGaps()) != 1 {
-					t.Fatalf("the lens held %v open (minted: %t; %s), want the one gap it mints for the bench to name", r.openGaps(), r.heldTrifle, r.actErr)
+					t.Fatalf("the lens held %v open (minted: %t; %s; refused %q), want the one gap it mints for the bench to name", r.openGaps(), r.heldTrifle, r.actErr, r.trifleRefusals)
 				}
 				bs, err := record.PassBlockers(r.run())
 				if err != nil {
@@ -723,18 +724,6 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 				t.Errorf("the oracle's failure carries no evidence of the named gap's route: %q", m)
 			case form != "gaps" && m != "":
 				t.Errorf("the oracle fired over a %s ruling: %s", form, m)
-			}
-			// AND THE LENS'S TURN CLOSES IT: blue has answered the named gap, and its minting lens,
-			// readied on that news rather than engaged on the gap, audits the answer and closes it.
-			if form == "gaps" {
-				g := r.positionNamedGaps[0]
-				r.presented.add(g)
-				r.dispatchSits("lens", converseLens)
-				r.closeNamedOnTurn(converseLens, nil)
-				r.dispatchReturns(converseLens, false)
-				if m := r.forcedPositionOracle(); m != "" || r.actErr != "" {
-					t.Errorf("the lens's turn left the named gap open: %s %s", m, r.actErr)
-				}
 			}
 		})
 	}

@@ -66,13 +66,14 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(convene(t, mustRun(t, runDir), "G1"), actRule("M1", false, "judge")); err != nil {
+	d := docketProposal(t, mustRun(t, runDir), "G1", "M1")
+	if _, err := Append(convene(t, mustRun(t, runDir), "G1"), forRed(heldBy(actRule("M1", false, "judge"), d))); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
 	j = motionsJSONOf(b.Events, b.At)
 	m = j.Motions[0]
-	if !m.Ruled || m.Ruling != "rejected" || m.Opinion == "" {
+	if !m.Ruled || m.Ruling != "for red" || m.Opinion == "" {
 		t.Fatalf("ruling not projected: %+v", m)
 	}
 	if m.Basis != basis {

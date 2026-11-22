@@ -115,7 +115,7 @@ exit 0
 stdout:
 motion MOTION001 filed (docket, proposing a regrade)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ═══ EVENTS ═══
 {"cast":{"lane_seat_ids":["blue-lane-1"],"seat_ids":["red-lens-evidence","red-chair","blue-lane-1","blue-synthesize","blue-respond","frontier","judge"]},"key":"harness:setup:cast","seat_id":"harness","ts":0,"type":"EVENT_TYPE_CAST"}

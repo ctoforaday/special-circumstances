@@ -3,31 +3,33 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE BENCH'S ORDERS, ACROSS SEATS, THROUGH THE COMMANDS EACH SEAT TYPES (gblock, 2026-10-30): the
-// bench regrades a gap it is hearing and the minting lens may not move that axis; the bench rules the
-// gap closed.
+// THE BENCH'S ORDERS, ACROSS SEATS, THROUGH THE COMMANDS EACH SEAT TYPES: the bench has no grade of
+// its own; it sides with blue's regrade proposal, the tool applies the proposal's grade in the
+// ruling's transaction, and the minting lens may not move the axis the ruling decided.
 func TestTheBenchSetsAGradeTheLensMayNotMove(t *testing.T) {
 	runDir := seatRun(t)
 	g := mintGap(t, runDir, "bench-orders", "spec_underspecification")
 	exchangeOn(t, runDir, g)
-	motion := proposeClose(t, runDir, "red-chair", g, "defect_accepted", "contested, and the bench's to settle")
+	sit(t, runDir, "blue-respond")
+	motion := motionID(t, runDir, "motion", "docket", "file", "regrade", "--seat-id", "blue-respond", "--id", g,
+		"--severity", "low", "--reason", "the defect is cosmetic")
+	d := docketsUnaccepted(t, runDir, lensSeat, g)
+	if d.GetMotionId() != motion {
+		t.Fatalf("the docketing holds %q, want the proposal %s", d.GetMotionId(), motion)
+	}
 	conveneBench(t, runDir, g)
-
-	if _, err := runAt(t, "regrade", "--run", runDir, "--seat-id", "judge", "--id", g, "--severity", "high",
-		"--reason", "the defect misleads every reader of the section"); err != nil {
-		t.Fatalf("the bench's regrade of a gap it is hearing: %v", err)
+	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-blue"); err != nil {
+		t.Fatalf("the bench's ruling for blue's regrade proposal: %v\n%s", err, out)
 	}
-	_, err := runAt(t, "regrade", "--run", runDir, "--seat-id", lensSeat, "--id", g, "--severity", "low",
-		"--reason", "the lens disagrees")
-	if err == nil || !strings.Contains(err.Error(), "which the bench set at event") {
-		t.Fatalf("the minting lens moved the axis the bench set: %v", err)
+	if got := lastBody(t, runDir, &recordpb.Regrade{}); got.GetSeverity() != recordpb.Grade_GRADE_LOW {
+		t.Fatalf("the ruling applied severity %s, want the proposal's low", recordpb.Word(got.GetSeverity()))
 	}
-
-	args := benchRuleArgs(motion, "defect_accepted", "proportionality")
-	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
-	if _, err := runAt(t, args...); err != nil {
-		t.Fatalf("motion docket rule: %v", err)
+	_, err := lensRegrade(t, runDir, g, "severity", "high")
+	if err == nil || !strings.Contains(err.Error(), "which the bench's ruling at event") {
+		t.Fatalf("the minting lens moved the axis the ruling decided: %v", err)
 	}
 }

@@ -49,33 +49,34 @@ func redClose(t *testing.T, seat string, id string, class recordpb.Disposition) 
 // fixture with only the ruling gives the oracle a ruling that settles no gap — and an oracle
 // that quietly counts nothing agrees with every broken board there is.
 
-// docketed is the FILING half: a seat that cannot settle a gap puts it before the bench.
-func docketed(t *testing.T, seat string, motionID, gapID string) *recordpb.Event {
+// docketed is the FILING half: the chair puts a gap a seat cannot settle before the bench.
+func docketed(t *testing.T, seat string, docketingID, gapID string) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, seat+":motion:"+motionID, &recordpb.Motion{
-		MotionId: proto.String(motionID),
-		Basis:    proto.String("red cannot settle this one"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
+	return recordtest.At(t, seat, seat+":docketing:"+docketingID, &recordpb.Docketing{
+		DocketingId: proto.String(docketingID), GapId: proto.String(gapID),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(),
+		Basis: proto.String("red cannot settle this one"),
 	})
 }
 
-// benchRule is the RULING half: the disposition, and the reasoning that travels with it.
-func benchRule(t *testing.T, seat string, motionID string, d recordpb.Disposition) *recordpb.Event {
+// benchRule is the RULING half: the disposition, and the reasoning that travels with it. A closing
+// word sides with blue; a remand sides with no one.
+func benchRule(t *testing.T, seat string, docketingID string, d recordpb.Disposition) *recordpb.Event {
 	t.Helper()
 	dr := &recordpb.DocketRuling{
+		DocketingId: proto.String(docketingID), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
 		Disposition: d.Enum(),
 		Principle:   proto.String("correctness first"), Tension: proto.String("economy"),
 		ReviewFlag: proto.String("none: the acceptance check settles it"),
 		Settled:    proto.String("the claim as it stood"), Final: proto.Bool(true),
 	}
-	// A remand states the direction its exchange owes, never --final.
+	// A remand states the direction its exchange owes, never --final, and sides with no one.
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
-		dr.Final, dr.Direction = nil, proto.String("a reproduction on the shipped binary")
+		dr.Final, dr.Direction, dr.SidedWith = nil, proto.String("a reproduction on the shipped binary"), nil
 	}
-	return recordtest.At(t, seat, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
-		MotionId: proto.String(motionID),
-		Opinion:  proto.String("ruled on the merits"),
-		Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
+	return recordtest.At(t, seat, seat+":motion-rule:"+docketingID, &recordpb.MotionRule{
+		Opinion: proto.String("ruled on the merits"),
+		Ruling:  &recordpb.MotionRule_Docket{Docket: dr},
 	})
 }
 

@@ -15,15 +15,15 @@ import (
 //
 // An id is minted at random, so a table row written before its run exists cannot spell one. A row
 // names its subject by POSITION instead — G1 is the first gap the run minted, M2 the second motion
-// filed, Q1 the first inquiry proposed — and the driver resolves the handle against the record at
+// filed, Q1 the first inquiry proposed, D1 the first docketing the tool wrote — and the driver resolves the handle against the record at
 // the moment the step runs. The handle never reaches the tool: what the verb is handed is the id
 // the record minted.
 
 // handleArg is an argument that is nothing but handles: one, or a comma list of them.
-var handleArg = regexp.MustCompile(`^[GMQ][0-9]+(,[GMQ][0-9]+)*$`)
+var handleArg = regexp.MustCompile(`^[GMQD][0-9]+(,[GMQD][0-9]+)*$`)
 
 // handleWord is a handle standing as a word in prose.
-var handleWord = regexp.MustCompile(`\b[GMQ][0-9]+\b`)
+var handleWord = regexp.MustCompile(`\b[GMQD][0-9]+\b`)
 
 // mintedIDs are the ids the record minted, by letter, in the order they were minted.
 func mintedIDs(t *testing.T, runDir string) map[string][]string {
@@ -43,6 +43,9 @@ func mintedIDs(t *testing.T, runDir string) map[string][]string {
 		}
 		if a, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 			add("Q", a.GetInquiryId())
+		}
+		if d, ok := recordpb.BodyAs[*recordpb.Docketing](e); ok {
+			add("D", d.GetDocketingId())
 		}
 	}
 	return ids

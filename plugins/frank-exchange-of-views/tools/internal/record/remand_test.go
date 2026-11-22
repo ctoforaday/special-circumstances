@@ -17,10 +17,10 @@ import (
 const remandDirection = "re-derive the figure from the primary table rather than the press summary"
 
 // remandRuling is the bench remanding a docket motion with direction as its stated research direction.
-func remandRuling(motion, direction string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(motion),
+func remandRuling(docketing, direction string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{
 		Opinion: proto.String("the record cannot settle this yet"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
+			DocketingId: proto.String(docketing), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}
 }
 
@@ -146,8 +146,8 @@ func TestARemandReadiesBlueForOneMoreExchange(t *testing.T) {
 	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Fatalf("a remanded gap readies blue on it, and not its minting lens before blue has acted; parties %+v, why %q", plan.Parties, plan.Why)
 	}
-	if _, bench := partyOf(plan, benchSeat); bench || len(plan.ToFile) != 0 {
-		t.Errorf("the remand's exchange is owed, so nothing goes back to the bench yet: parties %+v, to file %v", plan.Parties, plan.ToFile)
+	if _, bench := partyOf(plan, benchSeat); bench || len(docketGaps(plan)) != 0 {
+		t.Errorf("the remand's exchange is owed, so nothing goes back to the bench yet: parties %+v, to file %v", plan.Parties, docketGaps(plan))
 	}
 	if !whyMentions(plan, remandDirection) {
 		t.Errorf("the plan's reason for G1 must carry the ruling's direction %q; why %q", remandDirection, plan.Why)
@@ -228,12 +228,12 @@ func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
 	}
 	// DOCKETED AGAIN, AND ARGUED AGAIN: its parties are readied for their closings on the new
 	// docketing, engaged on no gap, and the bench sits once neither is awaited.
-	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
+	if !slices.Equal(docketGaps(plan), []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
 		!slices.ContainsFunc(plan.Why, func(w string) bool {
 			return strings.HasPrefix(w, "G1: docketed — the closing of "+evLens+" and blue-respond")
 		}) {
 		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again, its parties readied for their closings: to file %v, docket %v, parties %+v, why %q",
-			plan.ToFile, plan.Docket, plan.Parties, plan.Why)
+			docketGaps(plan), plan.Docket, plan.Parties, plan.Why)
 	}
 	if plan.Ceiling {
 		t.Errorf("a gap going back to the bench is no ceiling")
@@ -258,8 +258,8 @@ func TestARemandExchangeThatMovesTheGapLeavesItBelowItsLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !whyMentions(plan, "G1: open, material") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-		t.Errorf("a remand exchange that moved G1 leaves it below its limits: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if !whyMentions(plan, "G1: open, material") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+		t.Errorf("a remand exchange that moved G1 leaves it below its limits: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 }
 
@@ -274,8 +274,8 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-		t.Errorf("a null exchange spends nothing, so the remand's exchange is still owed, blue's to begin: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+		t.Errorf("a null exchange spends nothing, so the remand's exchange is still owed, blue's to begin: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) {
 		t.Errorf("remand_owed = %+v, want %+v", plan.RemandOwed, want)
@@ -289,8 +289,8 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
-		t.Errorf("the exchange in which blue acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+	if !slices.Equal(docketGaps(after), []string{"G1"}) || len(after.RemandOwed) != 0 {
+		t.Errorf("the exchange in which blue acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", docketGaps(after), after.RemandOwed, after.Why)
 	}
 
 	// The null exchange is not the remand's, so it cannot hold G1 at impasse: the exchange after it
@@ -300,8 +300,8 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !whyMentions(below, "G1: open, material") || len(below.ToFile) != 0 {
-		t.Errorf("the remand's exchange moved G1 after a null one, so it is below its limits: to file %v, why %q", below.ToFile, below.Why)
+	if !whyMentions(below, "G1: open, material") || len(docketGaps(below)) != 0 {
+		t.Errorf("the remand's exchange moved G1 after a null one, so it is below its limits: to file %v, why %q", docketGaps(below), below.Why)
 	}
 }
 
@@ -347,15 +347,15 @@ func TestBlueIsRefusedItsEnvelopeUntilItActsOnTheRemandedGap(t *testing.T) {
 	}
 }
 
-// A REMAND PAST THE LIMIT IS REFUSED, NAMING THE DISPOSITIONS THAT CLOSE THE GAP (gblock,
+// A REMAND PAST THE LIMIT IS REFUSED, NAMING THE ANSWER LEFT: A SIDE OF THE DOCKETING'S PAIR (gblock,
 // 2026-10-25). The bench remanded G1 at impasse; once that remand's exchange left it at impasse — or
-// while the exchange is still owed and a party dockets it again — a remand from another sitting would
+// while the exchange is still owed and the gap is docketed again — a remand from another sitting would
 // be the gap's second at impasse, and nothing would hand its direction to any seat. The bench's work
-// list says so before it rules; a ruling that closes the gap is admitted; a second motion remanded in
-// the sitting that already remanded the gap is the same hearing, and is admitted.
+// list says so before it rules; a ruling that closes the gap is admitted; a second remand in the
+// sitting that already remanded the gap is the same hearing, and is admitted.
 func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	again := func(st *stage) Run {
-		return st.register("red-chair").docketMotion("red-chair", "M2", "G1").
+		return st.register("red-chair").docketMotion("red-chair", "D2", "G1").
 			dispatch(2, "judge", "G1").register("judge").seed()
 	}
 	for _, c := range []struct {
@@ -367,11 +367,11 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			run := c.run(t)
-			err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M2", "a second direction"))
+			err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("D2", "a second direction"))
 			if err == nil {
 				t.Fatal("a second remand of G1 at impasse was admitted")
 			}
-			for _, want := range append([]string{"M2", "G1", RemandLimitRule}, ClosingDispositions()...) {
+			for _, want := range []string{"docketing D2", "G1", RemandLimitRule, "answer with a side of the docketing's pair"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("the refusal does not name %q: %v", want, err)
 				}
@@ -382,7 +382,7 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 			if !workMentions(t, run, "bench", "judge", "a remand of G1 is refused") {
 				t.Errorf("the bench's work list does not say, before it rules, that a remand of G1 is refused")
 			}
-			if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, closingRuling("M2")); err != nil {
+			if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, closingRuling("D2")); err != nil {
 				t.Errorf("a ruling that closes G1 is refused: %v", err)
 			}
 		})
@@ -401,11 +401,12 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	})
 }
 
-// closingRuling is the bench ruling a docket motion with a disposition that closes its gap.
-func closingRuling(motion string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(motion),
+// closingRuling is the bench ruling docketing for blue, which states no word: not_a_defect closes its gap.
+func closingRuling(docketing string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{
 		Opinion: proto.String("the exchange settled nothing the record can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED), Principle: proto.String("p"), Tension: proto.String("t"),
+			DocketingId: proto.String(docketing), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}
 }
 
@@ -599,14 +600,14 @@ func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
 		if err != nil || x["G1"].Stalled != 0 || x["G1"].Exchanges != 2 {
 			t.Fatalf("setup: G1 must reach impasse on kMax with nothing stalled: %+v (err %v)", x["G1"], err)
 		}
-		if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-			t.Errorf("the remand's exchange is owed: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+			t.Errorf("the remand's exchange is owed: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 		}
 	})
 	t.Run("the remand exchange moves it off impasse", func(t *testing.T) {
 		run, plan := seeded(t, remanded(t).movingExchangeOn("G1").reauditOn("G1"))
-		if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 || plan.Ceiling {
-			t.Errorf("the remand exchange moved G1, so it is below its limits counted from the ruling: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 || plan.Ceiling {
+			t.Errorf("the remand exchange moved G1, so it is below its limits counted from the ruling: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 		}
 		if workMentions(t, run, "chair", "red-chair", "for the bench again") {
 			t.Errorf("the chair's row sends a gap below its limits to the bench")
@@ -614,14 +615,14 @@ func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
 	})
 	t.Run("kMax counted from the ruling sends it back", func(t *testing.T) {
 		_, plan := seeded(t, remanded(t).movingExchangeOn("G1").movingExchangeOn("G1").reauditOn("G1"))
-		if !slices.Equal(plan.ToFile, []string{"G1"}) || plan.Ceiling {
-			t.Errorf("two exchanges since the ruling reach kMax 2: to file %v, why %q", plan.ToFile, plan.Why)
+		if !slices.Equal(docketGaps(plan), []string{"G1"}) || plan.Ceiling {
+			t.Errorf("two exchanges since the ruling reach kMax 2: to file %v, why %q", docketGaps(plan), plan.Why)
 		}
 	})
 	t.Run("an unmoved remand exchange sends it back at once", func(t *testing.T) {
 		_, plan := seeded(t, remanded(t).actingExchangeOn("G1").reauditOn("G1"))
-		if !slices.Equal(plan.ToFile, []string{"G1"}) || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-			t.Errorf("the remand's exchange left G1 unmoved: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+		if !slices.Equal(docketGaps(plan), []string{"G1"}) || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+			t.Errorf("the remand's exchange left G1 unmoved: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 		}
 	})
 }
@@ -664,10 +665,10 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || len(plan.ToFile) != 0 ||
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || len(docketGaps(plan)) != 0 ||
 		slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Errorf("only the lens acted, so the remand's exchange is still owed: remand_owed %+v, to file %v, parties %+v, why %q",
-			plan.RemandOwed, plan.ToFile, plan.Parties, plan.Why)
+			plan.RemandOwed, docketGaps(plan), plan.Parties, plan.Why)
 	}
 	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}, {"chair", "red-chair"}} {
 		if got := remandStageOn(t, run, seat.role, seat.id, "G1"); got != "owed" {
@@ -686,8 +687,8 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
-		t.Errorf("blue acted in the next exchange, which is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+	if !slices.Equal(docketGaps(after), []string{"G1"}) || len(after.RemandOwed) != 0 {
+		t.Errorf("blue acted in the next exchange, which is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", docketGaps(after), after.RemandOwed, after.Why)
 	}
 }
 

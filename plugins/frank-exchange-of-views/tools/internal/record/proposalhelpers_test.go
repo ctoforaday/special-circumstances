@@ -10,11 +10,17 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// fileByDispatch writes m as `dispatch next` files its dockets: under the chair, in a write of its
-// own, marked byDispatch — so the seat-only check (one counted exchange first) is not asked, and
-// every other check is. A fixture that needs a gap docketed, and is not about who filed it, files it
-// this way rather than as a seat no rule would admit.
-func fileByDispatch(t *testing.T, run Run, m *recordpb.Motion) error {
+// docketByDispatch writes the docketing `dispatch next` writes on gap — under the chair, in a write of
+// its own, through the write path's validation — with cause and, for a PROPOSAL docketing, the
+// proposal it holds. A fixture that needs a gap before the bench, and is not about how the plan came to
+// docket it, writes it this way. It returns the docketing's id.
+func docketByDispatch(t *testing.T, run Run, gap string, cause recordpb.DocketingCause, motion string) (string, error) {
+	t.Helper()
+	return docketByDispatchAs(t, run, NewID("docketing"), gap, cause, motion)
+}
+
+// docketByDispatchAs is docketByDispatch with the docketing's id given, for a fixture that names it.
+func docketByDispatchAs(t *testing.T, run Run, id, gap string, cause recordpb.DocketingCause, motion string) (string, error) {
 	t.Helper()
 	db, err := openRun(run)
 	if err != nil {
@@ -25,25 +31,59 @@ func fileByDispatch(t *testing.T, run Run, m *recordpb.Motion) error {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
+	d := &recordpb.Docketing{DocketingId: proto.String(id), GapId: proto.String(gap), Cause: cause.Enum(), Basis: proto.String(impasseBasis(gap))}
+	if motion != "" {
+		d.MotionId = proto.String(motion)
+	}
 	ev := &Event{}
-	typ, err := recordpb.SetBody(ev, m)
+	typ, err := recordpb.SetBody(ev, d)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := writeIn(tx.Tx, ev, chairSeat, typ, m, func(*sql.Tx) error {
-		return validateAct(writeView{q: tx, files: filesOf(run), byDispatch: true}, chairSeat, typ, m)
+	if err := writeIn(tx.Tx, ev, chairSeat, typ, d, func(*sql.Tx) error {
+		return validateAct(writeView{q: tx, files: filesOf(run)}, chairSeat, typ, d)
 	}, stamp); err != nil {
-		return err
+		return "", err
 	}
-	return tx.Commit()
+	return d.GetDocketingId(), tx.Commit()
 }
 
-// mustFileByDispatch is fileByDispatch, failing the test on a refusal.
-func mustFileByDispatch(t *testing.T, run Run, m *recordpb.Motion) {
+// mustDocketByDispatch is docketByDispatch at impasse, failing the test on a refusal.
+func mustDocketByDispatch(t *testing.T, run Run, gap string) string {
 	t.Helper()
-	if err := fileByDispatch(t, run, m); err != nil {
+	id, err := docketByDispatch(t, run, gap, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	if err != nil {
 		t.Fatal(err)
 	}
+	return id
+}
+
+// fileProposal files m, a proposal with its act, as the chair — a red seat proposing on a lens's gap —
+// after the one counted exchange on its gap every proposal needs (requireExchangedOn).
+func fileProposal(t *testing.T, run Run, m *recordpb.Motion) {
+	t.Helper()
+	exchangeOn(t, run, m.GetDocket().GetGapId())
+	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, m)
+}
+
+// docketProposal writes the PROPOSAL docketing holding proposal motion on gap, as the end of its
+// assignee's window does, and returns its id.
+func docketProposal(t *testing.T, run Run, gap, motion string) string {
+	t.Helper()
+	id, err := docketByDispatch(t, run, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, motion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// docketGaps is the gaps a plan dockets (Plan.ToDocket), in its order.
+func docketGaps(p Plan) []string {
+	out := []string{}
+	for _, d := range p.ToDocket {
+		out = append(out, d.gapID)
+	}
+	return out
 }
 
 // convene readies the bench on gaps as `dispatch next` does — a bench row naming them, written by the

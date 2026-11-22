@@ -66,7 +66,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
-		"propose the act you want on a GAP — a regrade, a close or a supersede: any seat but the bench files, the gap's assignee may accept it, else the BENCH accepts, rejects or remands it",
+		"propose the act you want on a GAP — a regrade, a close or a supersede: any seat but the bench files, the gap's assignee may accept it, else the gap is docketed and the BENCH sides with the filer or the other party, or remands it",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final, flags.Direction}))
 	mount(subject(actingRole, "position",
@@ -179,6 +179,8 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	// command, and the seat that rules it cannot file on it (record's rulerfiles.go says why, and
 	// the write refuses the same filing by any other path).
 	switch {
+	case holds && subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+		c.AddCommand(newDocketRule(ruleFlags))
 	case holds:
 		c.AddCommand(newRule(name, ruler, ruleFlags))
 	case subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:

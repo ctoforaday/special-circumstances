@@ -16,9 +16,9 @@ import (
 // E0.5b found exactly that: regrade history unrecoverable after the fact, so
 // nobody could tell concession from re-scoping.
 //
-// TWO SEATS FILE IT, AND EACH PAGE TEACHES ITS OWN: the minting lens moves or keeps its gap's grade
-// (`regrade`), and the bench sets the grade its docket ruling rules on (`regrade-bench`). One act and
-// one write path (record.requireRegradeWithinBenchLock), keyed by the help it renders.
+// THE LENS'S ACT: the minting lens moves or keeps its gap's grade. The bench files no regrade; the
+// tool writes the bench's regrade as the statement a ruling applies (a held regrade proposal's grades,
+// or the restore at grade movement), through the same write path (record.requireRegradeWithinBenchLock).
 func Regrade(key string) *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 

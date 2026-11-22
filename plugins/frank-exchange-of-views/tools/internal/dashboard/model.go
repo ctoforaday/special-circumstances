@@ -474,10 +474,11 @@ func buildJudiciary(fam record.Family) Judiciary {
 			j.JudgeSittings++
 		}
 	}
-	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act is no judiciary act.
-		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) == "bench" {
-			j.Rulings[m.Ruling]++
+	// THE BENCH'S RULINGS are its docketings' (record.DocketingsOf): a gap's assignee accepting a
+	// proposed act answers no docketing, and is no judiciary act.
+	for _, d := range record.DocketingsOf(fam.Events) {
+		if d.Ruled() {
+			j.Rulings[d.Word()]++
 		}
 	}
 	// The epoch an open gap has lived to is the record's current one: the last with work in it.

@@ -162,7 +162,7 @@ func TestAClosingIsNotOwedOnAClosedGapOrByAMinterTheCastDoesNotSeat(t *testing.T
 // are blocked; another lens, a lane and the chair are not owed it (the chair's list carries it as
 // another seat's). Filing clears it.
 func TestTheWorkListBlocksEachPartyOnItsOwnClosing(t *testing.T) {
-	const item = "is docketed for the bench (motion M1)"
+	const item = "is before the bench (docketing M1)"
 	run := docketed(t).seed()
 	for _, c := range []struct{ role, seat string }{{"lens", evLens}, {"blue", "blue-respond"}} {
 		if s := sittingOfRunT(t, run, c.role, c.seat); !hasItem(s, item) || s.Complete {
@@ -262,10 +262,28 @@ func TestALensOwingAClosingDoesNotRetire(t *testing.T) {
 	}
 }
 
-// ONE DOCKETING STANDS PER GAP: two unruled docket motions on one gap owe each party one closing,
-// the newest's, and the gate lists each party once.
-func TestTwoUnruledDocketMotionsOweOneClosingEach(t *testing.T) {
-	run := docketed(t).docketMotion(evLens, "M2", "G1").seed()
+// ONE DOCKETING STANDS PER GAP, AND IT OWES EACH PARTY ONE CLOSING. G1 stays at impasse while its
+// docketing stands unruled and its parties sit without closing: the dispatch asked again writes no
+// second docketing on G1, and the gate lists each party's closing once.
+func TestADocketedGapIsDocketedOnceAndOwesOneClosingEach(t *testing.T) {
+	run := atImpasse(t)
+	chair := Identity{Run: run, SeatID: "red-chair"}
+	if _, _, err := DispatchNext(chair); err != nil {
+		t.Fatal(err)
+	}
+	sit(t, run, evLens)
+	sit(t, run, "blue-respond")
+	sit(t, run, "red-chair")
+	plan, standing, err := DispatchNext(chair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if standing || len(docketGaps(plan)) != 0 {
+		t.Fatalf("asked again in the chair's new sitting: standing %v, dockets %v — want a fresh plan that dockets nothing", standing, docketGaps(plan))
+	}
+	if docketings, _ := recorded(t, run, "G1"); docketings != 1 {
+		t.Errorf("G1 holds %d docketings, want the one that stands", docketings)
+	}
 	if got := closingOwners(t, run); !slices.Equal(got, []string{evLens, "blue-respond"}) {
 		t.Errorf("closing blockers owned by %v, want each party once", got)
 	}

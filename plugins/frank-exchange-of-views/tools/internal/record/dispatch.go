@@ -88,15 +88,10 @@ type Plan struct {
 	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
 	// valve keys on these and capture holds each to the record.
 	Exchanges []ExchangeCount `json:"exchanges" desc:"one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero"`
-	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
-	ToFile []string `json:"-"`
-	// basis is each ToFile gap's ask, in the words the bench rules on: at impasse, or past the
-	// grade-movement threshold.
-	basis map[string]string
-	// restore is each grade-movement ToFile gap's proposed act: the regrade restoring every axis whose
-	// grade differs from the grade its movement window measured from. Absent at impasse, and where the
-	// movement moved no axis net (a grade moved down and back up is two movements and no difference).
-	restore map[string]*recordpb.Regrade
+	// ToDocket is the docketings this plan writes: one per gap it puts before the bench, with the
+	// cause, the basis the bench rules on, and for a proposal its assignee did not accept, the
+	// proposal. `dispatch next` writes each as a Docketing row. Never relayed.
+	ToDocket []docketingEntry `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its
 	// spot-check of the stale areas. Its work list marks those blocking until they are done.
@@ -114,16 +109,17 @@ type Plan struct {
 	// Epoch is the epoch the record has reached: the chair sittings opened so far, this one included.
 	Epoch int `json:"epoch" key:"-" min:"0" desc:"the epoch the record has reached: the chair sittings opened so far, this one included"`
 	// FinalSitting: this chair sitting opens the run's last epoch (isFinalEpoch), whoever the board
-	// readies. No seat is dispatched after it, so of the motions filed in it only a petition is heard
-	// in time to change how the run ends — by the bench at the exit — and `motion … file` refuses the
-	// others there (HeardInTime).
-	FinalSitting bool `json:"final_sitting" key:"-" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
+	// readies. Only the closings owed on docketed gaps are filed after it, by the parties that owe them
+	// and nothing else (L44′), and no assignee window or exchange follows, so of the motions filed in it
+	// only a petition is heard in time to change how the run ends — by the bench at the exit — and
+	// `motion … file` refuses the others there (HeardInTime).
+	FinalSitting bool `json:"final_sitting" key:"-" desc:"this chair sitting opens the run's last epoch: only the closings owed on docketed gaps are filed after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
-	// readies, or a hearing a filing is owed, and neither is convened — or it opens the last epoch
-	// that dispatches a lens with blue the only party, held out of it (blueHeldOut) — and the run
-	// ends CEILING. A last epoch with nobody ready and nothing owed is not at the limit: it ends as
-	// any empty plan does.
-	EpochLimitReached bool `json:"epoch_limit_reached" desc:"the run's epoch limit leaves undispatched a party the board readies — any, at the sitting that opens the run's last epoch; blue, the only one, at the sitting before it — so nobody is dispatched, and ceiling is set for that reason"`
+	// readies, or a hearing a filing is owed, and neither is convened beyond the closings owed — or it
+	// opens the last epoch that dispatches a lens with blue the only party, held out of it
+	// (blueHeldOut), and owing no closing — and the run ends CEILING. A last epoch with nobody ready and
+	// nothing owed is not at the limit: it ends as any empty plan does.
+	EpochLimitReached bool `json:"epoch_limit_reached" desc:"the run's epoch limit leaves undispatched a party the board readies — any but for the closings it owes, at the sitting that opens the run's last epoch; blue, the only one and owing no closing, at the sitting before it — so nobody else is dispatched, and ceiling is set for that reason"`
 	// Blockers is everything holding a PASS, from the list the verdict gate refuses on, each with the
 	// seat that clears it. A blocker whose owner is not the chair readies that owner, once per cause
 	// (Why says which); one still standing when the debate ends with the bench as its owner is what
@@ -171,19 +167,42 @@ func chairVerdictOf(evs []*Event, win WindowIndex) PlanVerdict {
 	return v
 }
 
-// closingsAwaitedWhy is the plan's reason for a docketed gap whose parties' closings are awaited:
-// due, the parties readied to file theirs, and held, blue where the epoch holds it out (blueHeldOut),
-// whose closing is owed and not awaited.
-func closingsAwaitedWhy(gapID string, due, held []string) string {
-	if len(held) == 0 {
-		return fmt.Sprintf("%s: docketed — the closing of %s is owed on it, and each is readied to file it; the bench sits on the gap once no party's closing is awaited", gapID, strings.Join(due, " and "))
+// closingsAwaitedWhy is the plan's reason for a docketed gap whose parties' closings are awaited: due,
+// the parties readied to file theirs.
+func closingsAwaitedWhy(gapID string, due []string) string {
+	return fmt.Sprintf("%s: docketed — the closing of %s is owed on it, and each is readied to file it; the bench sits on the gap once no party's closing is awaited", gapID, strings.Join(due, " and "))
+}
+
+// proposalWindowWhy is the plan's reason for a gap a proposal stands on in its assignee's window.
+func proposalWindowWhy(gapID, motion, assignee string, awaited []string) string {
+	why := fmt.Sprintf("%s: proposal %s stands in its assignee's window — %s is readied to accept it, or to argue its closing", gapID, motion, assignee)
+	for _, p := range awaited {
+		if p != assignee {
+			why += fmt.Sprintf(", and %s to file its closing", p)
+		}
 	}
-	return fmt.Sprintf("%s: docketed — the closing of %s is owed on it, and %s is readied to file its own; %s, so it files none, and the bench sits on the gap once no other party's closing is awaited", gapID, strings.Join(append(slices.Clone(due), held...), " and "), strings.Join(due, " and "), blueHeldOutClause)
+	return why + "; unaccepted after that sitting, it is docketed for the bench"
+}
+
+// proposalBasis is the words the bench rules on at a proposal's docketing: the proposal, its filer and
+// its own basis.
+func proposalBasis(m *Motion, gapID, assignee string) string {
+	if m == nil {
+		return fmt.Sprintf("a proposal on %s its assignee %s did not accept in its window; the bench owes a ruling", gapID, assignee)
+	}
+	return fmt.Sprintf("%s proposes to %s %s, and its assignee %s did not accept it in its window; the bench owes a ruling. The proposal's basis: %s", m.Filer, m.Act, gapID, assignee, m.Basis)
 }
 
 // impasseBasis is the ask of the docket motion filed on a gap at impasse.
 func impasseBasis(gapID string) string {
 	return fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", gapID)
+}
+
+// docketingEntry is one docketing a plan writes (Plan.ToDocket): the gap, why it is before the
+// bench, the words the bench rules on, and for cause PROPOSAL the proposal it holds.
+type docketingEntry struct {
+	gapID, basis, motionID string
+	cause                  recordpb.DocketingCause
 }
 
 type openGap struct {
@@ -192,12 +211,15 @@ type openGap struct {
 	// default, which the reason names when the class alone makes the gap not material.
 	material      bool
 	classMaterial string
-	// unruledFiled is the gap view's `unruled_docket_filed`: the events.id of the newest docket
-	// motion on the gap that no ruling names, 0 when every one is ruled. The plan's "a docket stands
-	// unruled" is unruledFiled > 0, and the bench's sitting for it is keyed on that filing
-	// (benchSatFor).
+	// docketing is the gap view's `standing_docketing`, and docketedAt its `standing_docketing_at`:
+	// the docketing before the bench on the gap, "" and 0 when none stands. The bench's sitting for it
+	// is keyed on its row (benchSatFor).
+	docketing  string
+	docketedAt int64
+	// unruledFiled is the gap view's `unruled_docket_filed`: the events.id of the proposal standing
+	// unanswered on the gap, 0 when none stands; unruledMotion its motion id.
 	unruledFiled  int64
-	unruledMotion string // the motion id of that filing, for the plan's reason; "" when none
+	unruledMotion string
 	// direction is the gap view's `docket_direction`: the research direction the latest remand
 	// states, which the plan's reason quotes when the remand's exchange is owed.
 	direction string
@@ -326,20 +348,32 @@ func foldPlan(params Params, r planReads) Plan {
 	heldOut := blueHeldOut(params, plan.Epoch)
 	parties := map[string][]string{}
 	order := []string{}
-	// heldBlue is a source that readied blue in the epoch that holds it out (blueHeldOut): blue is not
-	// a party, and the plan says why.
+	// heldBlue is a source other than a closing that readied blue in the epoch that holds it out
+	// (blueHeldOut): blue is dispatched for nothing but its closings there, and the plan says why.
 	heldBlue := false
+	// closingParty is each seat readied for a closing it owes (engageClosing): at the final sitting the
+	// limit leaves exactly these dispatched, and in the epoch that holds blue out, blue sits for these.
+	closingParty := map[string]bool{}
+	add := func(seat string, gaps ...string) {
+		if _, seen := parties[seat]; !seen {
+			order = append(order, seat)
+			parties[seat] = []string{}
+		}
+		parties[seat] = append(parties[seat], gaps...)
+	}
 	// engage readies a seat on gaps. A seat is one party however many sources ready it.
 	engage := func(seat string, gaps ...string) {
 		if heldOut && seat == blueRespondSeat {
 			heldBlue = true
 			return
 		}
-		if _, seen := parties[seat]; !seen {
-			order = append(order, seat)
-			parties[seat] = []string{}
-		}
-		parties[seat] = append(parties[seat], gaps...)
+		add(seat, gaps...)
+	}
+	// engageClosing readies a party for a closing it owes, on no gap: the closing is no exchange. Blue
+	// is readied for one in the epoch that holds it out too (F-HO), for its closings alone.
+	engageClosing := func(seat string) {
+		closingParty[seat] = true
+		add(seat)
 	}
 	for _, f := range folds {
 		if f.ready {
@@ -352,7 +386,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// Source 2 and 3: the open gaps, with their materiality, their exchanges and their docket.
 	gaps := r.gaps
 	exch := exchangesOf(evs, ids, win, params, WhileRunning, r.remands)
-	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
+	stated := map[string]bool{} // the docketings and proposals a gap's reason below already names
 	// debate readies the parties the route engages on a gap (partiesOnRoute): the lens sits before blue
 	// in an epoch, so readied sooner it audits an answer that does not exist yet. It reports which.
 	debate := func(g openGap, route gapRoute, x *GapExchanges) (lens, blue bool) {
@@ -376,65 +410,102 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		return fmt.Sprintf("; blue is ready on it, and %s is not until blue has acted on it since the lens's last act there", g.assignee)
 	}
-	// THE BENCH WAITS ONLY ON A CLOSING A DISPATCHED PARTY CAN FILE. A party the run dispatches no more —
-	// anyone at the final sitting, blue in the epoch that holds it out — files none, so the bench does
-	// not wait on it: with no closing left that a dispatched party can file, the bench is the gap's
-	// party. The duty stands as closingowed.go reads it; only the wait is the plan's.
-	awaitClosings := func(gapID string, awaited, missing []string) {
-		var due, unfiled []string
-		for _, p := range awaited {
-			if plan.FinalSitting || (heldOut && p == blueRespondSeat) {
-				unfiled = append(unfiled, p)
-				continue
-			}
-			due = append(due, p)
-		}
-		if len(due) > 0 {
-			for _, p := range due {
-				engage(p)
-			}
-			plan.Why = append(plan.Why, closingsAwaitedWhy(gapID, due, unfiled))
-			return
-		}
-		engage(benchSeat, gapID)
-		why := fmt.Sprintf("%s: docketed and unruled — the bench is ready, no party's closing being awaited", gapID)
-		switch {
-		case len(unfiled) > 0 && plan.FinalSitting:
-			why = fmt.Sprintf("%s: docketed and unruled — the closing of %s is owed on it, and no seat is dispatched after this sitting, so none can be filed; the bench rules it at the exit, on the record as it stands", gapID, strings.Join(unfiled, " and "))
-		case len(unfiled) > 0:
-			why = fmt.Sprintf("%s: docketed and unruled — %s, so it files no closing on the gap; no other party's closing is awaited, so the bench is ready and rules on the record as it stands", gapID, blueHeldOutClause)
-		}
-		if len(missing) > 0 {
-			why += fmt.Sprintf("; %s sat since the docketing without filing a closing, and the bench rules on the record as it stands", strings.Join(missing, " and "))
-		}
-		plan.Why = append(plan.Why, why)
-	}
 	// THE PARTIES ARGUE BEFORE THE BENCH RULES (closingowed.go). Each party owes its closing on a
 	// docketing and is readied for it with no gap engaged — the closing is not an exchange on the gap,
 	// and its sitting counts none — while the bench is convened only once no party's closing is
 	// awaited. A party that sat since the docketing and filed none is missing: it is not readied again
 	// for it, and the bench rules on the record as it stands.
+	//
+	// A CLOSING PARTY SITS IN EVERY EPOCH THE RUN DISPATCHES: at the final sitting, and blue in the epoch
+	// that holds it out, each sits for its closings and nothing else (L44′), so the bench waits on each.
+	awaitClosings := func(gapID string, awaited, missing []string) {
+		if len(awaited) > 0 {
+			for _, p := range awaited {
+				engageClosing(p)
+			}
+			plan.Why = append(plan.Why, closingsAwaitedWhy(gapID, awaited))
+			return
+		}
+		engage(benchSeat, gapID)
+		why := fmt.Sprintf("%s: docketed and unruled — the bench is ready, no party's closing being awaited", gapID)
+		if len(missing) > 0 {
+			why += fmt.Sprintf("; %s sat since the docketing without filing a closing, and the bench rules on the record as it stands", strings.Join(missing, " and "))
+		}
+		plan.Why = append(plan.Why, why)
+	}
 	duties := map[string][]ClosingDuty{} // each gap's standing docketing's closings
 	for _, d := range standingClosingDuties(closingDutiesOf(evs, ids, win)) {
 		duties[d.GapID] = append(duties[d.GapID], d)
 	}
-	// toBench dockets a gap — at impasse, or for its grade movement: the chair files the motion on
-	// basis, and the gap's parties are readied for their closings. Nothing on the record answers a
-	// docketing not yet filed, so every party's closing is awaited and the bench is not convened.
-	toBench := func(g openGap, why, basis string) {
-		plan.Docket = append(plan.Docket, g.id)
-		plan.ToFile = append(plan.ToFile, g.id)
-		if plan.basis == nil {
-			plan.basis = map[string]string{}
+	closingsOf := func(ds []ClosingDuty) (awaited, missing []string) {
+		for _, d := range ds {
+			switch d.State {
+			case ClosingAwaited:
+				awaited = append(awaited, d.Party)
+			case ClosingMissing:
+				missing = append(missing, d.Party)
+			}
 		}
-		plan.basis[g.id] = basis
+		return awaited, missing
+	}
+	// docket writes a docketing on a gap: the plan's ToDocket entry, which `dispatch next` writes, and
+	// the gap on Docket.
+	docket := func(e docketingEntry, why string) {
+		plan.Docket = append(plan.Docket, e.gapID)
+		plan.ToDocket = append(plan.ToDocket, e)
 		plan.Why = append(plan.Why, why)
+	}
+	// toBench dockets a gap at impasse, or for its grade movement, and readies the gap's parties for
+	// their closings. Nothing on the record answers a docketing not yet written, so every party's
+	// closing is awaited and the bench is not convened.
+	toBench := func(g openGap, cause recordpb.DocketingCause, why, basis string) {
+		docket(docketingEntry{gapID: g.id, cause: cause, basis: basis}, why)
 		var awaited []string
 		if lens, ok := closingPartiesOf(r.cast, g.assignee); ok {
 			awaited = append(awaited, lens)
 		}
 		awaited = append(awaited, blueRespondSeat)
 		awaitClosings(g.id, awaited, nil)
+	}
+	closings := closingReadsOf(evs, ids, win)
+	proposals := map[string]*Motion{}
+	for _, m := range motionsAt(evs, ids, win) {
+		if m != nil && m.Subject == "docket" {
+			proposals[m.ID] = m
+		}
+	}
+	// onProposal is the route of a proposal standing on gapID with no docketing (routeProposal): its
+	// assignee's window, then its docketing. The window is the assignee's next sitting — the one it sits
+	// through after the filing — and the assignee may accept the proposal there; it is its closing
+	// sitting too, since a PROPOSAL docketing's span opens at the filing (L30), so blue is readied for its
+	// closing alongside. Once the assignee has sat through it, the proposal unaccepted, or where the
+	// assignee is no lens the cast seats and owes no closing (F6), the plan dockets it. A proposal on a
+	// closed gap (F8) takes the same window; its docketing readies the bench with no closing awaited, as
+	// a closed gap owes none (closingBlockersOf).
+	onProposal := func(gapID, assignee, motion string, filed int64, open bool) {
+		m := proposals[motion]
+		_, party := closingPartiesOf(r.cast, assignee)
+		_, sat := firstAfter(ends.through[assignee], filed)
+		rows := closings.dutiesOn(gapID, "", filed, 0, false)
+		if party && !sat {
+			awaited, _ := closingsOf(rows)
+			engageClosing(assignee)
+			for _, p := range awaited {
+				if p != assignee {
+					engageClosing(p)
+				}
+			}
+			plan.Why = append(plan.Why, proposalWindowWhy(gapID, motion, assignee, awaited))
+			return
+		}
+		docket(docketingEntry{gapID: gapID, cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, motionID: motion, basis: proposalBasis(m, gapID, assignee)},
+			fmt.Sprintf("%s: proposal %s was not accepted by its assignee %s in its window — docketed for the bench", gapID, motion, assignee))
+		if !open {
+			engage(benchSeat, gapID)
+			return
+		}
+		awaited, missing := closingsOf(rows)
+		awaitClosings(gapID, awaited, missing)
 	}
 	owed := map[string]bool{}
 	for g, x := range exch {
@@ -453,33 +524,27 @@ func foldPlan(params Params, r planReads) Plan {
 			x = &GapExchanges{GapID: g.id}
 		}
 		// THE ROUTE IS routeOf, the one predicate the work lists read too.
-		route := routeOf(g.material, g.unruledFiled > 0, moved.docketed(g.id), x)
+		route := routeOf(g.material, g.docketing != "", g.unruledFiled > 0, moved.docketed(g.id), x)
 		switch route {
 		case routeBench:
-			// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
-			// impasse or not. The dispatch files one at impasse; a party may file one earlier (`motion
-			// docket file` is a red and blue verb, kept so the route to the bench is not the record's
-			// discretion alone), and a trifle may be escalated too. Either way the motion stands until
-			// the bench rules it, PASS is refused while it stands, and a bench that sat for it and
-			// ruled nothing is not re-readied — the run cannot end in a verdict while it stands.
-			statedMotion[g.unruledMotion] = true
-			if benchSatFor(dispatches, benchOn, g.id, g.unruledFiled) {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.unruledMotion))
+			// A DOCKETING PUTS THE GAP BEFORE THE BENCH, whatever wrote it: impasse, grade movement or a
+			// proposal its assignee did not accept. It stands until the bench rules it, PASS is refused
+			// while it stands, and a bench that sat for it and ruled nothing is not re-readied — the run
+			// cannot end in a verdict while it stands.
+			stated[g.docketing] = true
+			if benchSatFor(dispatches, benchOn, g.id, g.docketedAt) {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled and the bench has sat since it was written — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.docketing))
 				continue
 			}
-			if docketedThisSitting(evs, ids, openings[chairSeat], g.unruledFiled) {
+			if docketedThisSitting(openings[chairSeat], g.docketedAt) {
 				plan.Docket = append(plan.Docket, g.id)
 			}
-			var awaited, missing []string
-			for _, d := range duties[g.id] {
-				switch d.State {
-				case ClosingAwaited:
-					awaited = append(awaited, d.Party)
-				case ClosingMissing:
-					missing = append(missing, d.Party)
-				}
-			}
+			awaited, missing := closingsOf(duties[g.id])
 			awaitClosings(g.id, awaited, missing)
+		// A PROPOSAL IN ITS ASSIGNEE'S WINDOW OUTRANKS IMPASSE AND GRADE MOVEMENT (L28).
+		case routeProposal:
+			stated[g.unruledMotion] = true
+			onProposal(g.id, g.assignee, g.unruledMotion, g.unruledFiled, true)
 		case routeNobody:
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
 		case routeDebate:
@@ -500,20 +565,14 @@ func foldPlan(params Params, r planReads) Plan {
 		// bench if that exchange leaves it here — to be closed, since a second remand is refused
 		// (requireRemandWithinLimit).
 		case routeDocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()), impasseBasis(g.id))
+			toBench(g, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()), impasseBasis(g.id))
 		case routeRedocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again, to be closed", g.id, x.Counted()), impasseBasis(g.id))
+			toBench(g, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again, to be closed", g.id, x.Counted()), impasseBasis(g.id))
 		// GRADE MOVEMENT PAST THE THRESHOLD IS DOCKETED AS IMPASSE IS, whatever the gap's materiality:
 		// a gap regraded below medium readies nobody, and that is the movement the bench rules on.
 		case routeGradeMovement:
 			b := movedBlocker[g.id]
-			toBench(g, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
-			if r := moved.restoring(g.id, gradeMovementBasis(b)); r != nil {
-				if plan.restore == nil {
-					plan.restore = map[string]*recordpb.Regrade{}
-				}
-				plan.restore[g.id] = r
-			}
+			toBench(g, recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
 		case routeRemandOwed:
 			lens, blue := debate(g, route, x)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
@@ -607,12 +666,32 @@ func foldPlan(params Params, r planReads) Plan {
 	}
 	for _, b := range blockers {
 		switch {
-		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
-			if statedMotion[b.Subject] {
-				continue // a docket on an open gap: the gap's own reason above readied the bench
+		// A DOCKETING OR A PROPOSAL ON A CLOSED GAP (F8: a proposed successor of a closed gap) takes the
+		// open gap's route: the proposal its assignee's window, then its docketing; the docketing the
+		// bench, once per docketing (benchSatFor). On an open gap the gap's own reason above has said it.
+		case b.Kind == BlockerDocketed:
+			if stated[b.Detail] {
+				continue
 			}
-			statedMotion[b.Subject] = true
-			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
+			stated[b.Detail] = true
+			if benchSatFor(dispatches, benchOn, b.About, b.since) {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open, and the bench has sat since it was written — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Detail))
+				continue
+			}
+			engage(benchSeat, b.About)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Detail))
+		case b.Kind == BlockerUnruledMotion && b.motionSubject == "docket":
+			if stated[b.Subject] {
+				continue
+			}
+			stated[b.Subject] = true
+			onProposal(b.About, b.Owner, b.Subject, b.since, false)
+		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
+			if stated[b.Subject] {
+				continue
+			}
+			stated[b.Subject] = true
+			plan.Why = append(plan.Why, benchReadiness(b, benchOn))
 		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
 		// stands until the lens is served the report in a sitting opened after the ruling
 		// (upheldPositionBlockers), so the readiness ends with it.
@@ -672,7 +751,7 @@ func foldPlan(params Params, r planReads) Plan {
 	for _, b := range blockers {
 		chairOnly = chairOnly && b.ChairOwned()
 		plan.Blockers = append(plan.Blockers, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
-		if why := kindOf(b.Kind).why; why != nil && !(b.Kind == BlockerUnruledMotion && statedMotion[b.Subject]) {
+		if why := kindOf(b.Kind).why; why != nil && !(b.Kind == BlockerUnruledMotion && stated[b.Subject]) && !(b.Kind == BlockerDocketed && stated[b.Detail]) {
 			plan.Why = append(plan.Why, why(b))
 		}
 	}
@@ -685,23 +764,44 @@ func foldPlan(params Params, r planReads) Plan {
 	// after it. The lenses' re-audits, the bench and the chair still sit. Where blue was the only
 	// party, nobody sits at all, and the run is at its limit one sitting early: the limit is what
 	// leaves blue undispatched.
+	//
+	// BLUE'S CLOSINGS ARE NO ACT A LENS AUDITS (F-HO): a docketing standing in that epoch readies blue for
+	// its closing on the docketed gap, and that sitting admits its closings and nothing else (L44′). With
+	// those its only engagement, blue is a party, the bench sits once no closing is awaited, and the run
+	// is not at its limit here.
 	if heldBlue {
-		plan.Why = append(plan.Why, fmt.Sprintf("%s: not dispatched — epoch %d is the last that dispatches a lens under the run's epoch limit of %d, so no lens would audit an act of blue's in it", blueRespondSeat, plan.Epoch, params.MaxEpochs))
+		if closingParty[blueRespondSeat] {
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: dispatched for its closings only — epoch %d is the last that dispatches a lens under the run's epoch limit of %d, so no lens would audit any other act of blue's in it", blueRespondSeat, plan.Epoch, params.MaxEpochs))
+		} else {
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: not dispatched — epoch %d is the last that dispatches a lens under the run's epoch limit of %d, so no lens would audit an act of blue's in it", blueRespondSeat, plan.Epoch, params.MaxEpochs))
+		}
 		if len(plan.Parties) == 0 {
 			plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — blue is the only party the board readies, and it is held out of epoch %d, so nobody is dispatched", params.MaxEpochs, plan.Epoch))
 			plan.EpochLimitReached, plan.Ceiling = true, true
 		}
 	}
-	// THE CHAIR SITTING THAT OPENS THE LAST EPOCH DISPATCHES NOBODY: the parties the board readies
-	// stay undispatched and the run ends CEILING. A board that permits PASS there readied nobody, so
-	// it is not at the limit and the chair records the PASS as ever. The docket stands — filing a
-	// motion dispatches no seat, and the terminal bench rules what stays unruled at the exit.
+	// THE CHAIR SITTING THAT OPENS THE LAST EPOCH DISPATCHES ONLY THE CLOSINGS OWED: the parties the
+	// board readies for anything else stay undispatched and the run ends CEILING. A board that permits
+	// PASS there readied nobody, so it is not at the limit and the chair records the PASS as ever.
+	// RED GETS ITS CLOSING AT A FINAL-SITTING DOCKETING (amendment 5): a docketing standing at this plan
+	// — written by it or before it — readies its parties' closings, each party sits for those alone
+	// (L44′), and the terminal bench rules the docketing at the exit on them.
 	// A HEARING OWED AT THE LAST EPOCH HOLDS THE LIMIT TOO (gblock, 2026-10-30): the engine convenes no
 	// hearing there, so the terminal bench hears it at the exit, and a position filed there ends the
 	// run CEILING however it is ruled (epochLimitHeldTheBench).
 	if plan.FinalSitting && (len(plan.Parties) > 0 || len(benchOwedOf(evs, ids, win)) > 0) {
-		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
-		plan.Parties = []Party{}
+		kept := []Party{}
+		for _, p := range plan.Parties {
+			if closingParty[p.SeatID] {
+				kept = append(kept, Party{SeatID: p.SeatID, GapIDs: []string{}})
+			}
+		}
+		if len(kept) > 0 {
+			plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so of the %d party(ies) above only %d sit, for the closings they owe and nothing else", params.MaxEpochs, len(plan.Parties), len(kept)))
+		} else {
+			plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
+		}
+		plan.Parties = kept
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
 	// AFTER THE LIMIT HAS EMPTIED THE PARTIES: an entry is a gap a party of THIS plan is engaged on.
@@ -729,7 +829,7 @@ func foldPlan(params Params, r planReads) Plan {
 }
 
 // isFinalEpoch reports whether epoch is the run's last under its epoch limit: the chair sitting that
-// opens epoch MaxEpochs is the run's final sitting, and no seat is dispatched after it. The plan
+// opens epoch MaxEpochs is the run's final sitting, and after it only the closings owed are filed. The plan
 // reads it for who is dispatched, the verdict for CEILING after the exit, and the write path for the
 // motions nobody is left to hear. A run held to no limit has no final sitting.
 func isFinalEpoch(params Params, epoch int) bool {
@@ -737,8 +837,8 @@ func isFinalEpoch(params Params, epoch int) bool {
 }
 
 // blueHeldOut reports whether epoch is the last that dispatches a lens under the run's epoch limit:
-// the one whose next is the final sitting (isFinalEpoch). The plan readies no blue in it, so every
-// act blue makes is followed by a lens's sitting.
+// the one whose next is the final sitting (isFinalEpoch). The plan readies no blue in it but for the
+// closings it owes, so every act blue makes is followed by a lens's sitting.
 func blueHeldOut(params Params, epoch int) bool {
 	return !isFinalEpoch(params, epoch) && isFinalEpoch(params, epoch+1)
 }
@@ -762,9 +862,8 @@ func HeardAtTheExit(subj recordpb.MotionSubject) bool {
 // not HeardAtTheExit is refused and nothing is written. The chair rules no motion after that sitting
 // and the bench is convened for none before the exit, so such a motion holds the PASS until the run
 // ends, and a docket motion ends the run CEILING however the terminal bench rules it
-// (epochLimitHeldTheBench). Asked under the write lock, as every verb's check is. The docket the
-// dispatch files at impasse is not a seat's motion and passes no such guard: it is the terminal
-// bench's to rule.
+// (epochLimitHeldTheBench). Asked under the write lock, as every verb's check is. A docketing is the
+// tool's row and no seat's motion, and passes no such guard: the terminal bench rules it.
 func HeardInTime(subj recordpb.MotionSubject) Guard {
 	return Check(func(l *Landing) error {
 		if HeardAtTheExit(subj) {
@@ -783,7 +882,7 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 			return nil
 		}
 		word := recordpb.Word(subj)
-		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
+		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and after this sitting only the closings owed are filed — no assignee window or exchange follows. "+
 			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
 			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
 			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
@@ -801,8 +900,8 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 // stops saying the limit was reached, and the CEILING the engine states is refused as a word the
 // record cannot derive.
 //
-// The bench was ready for a motion when it had not had the sitting dispatch convenes it for —
-// benchSatFor for a docket, a petition sitting for a petition — and no ruling changes that: the
+// The bench was ready for a docketing or a motion when it had not had the sitting dispatch convenes it
+// for — benchSatFor for a docketing, a petition sitting for a petition — and no ruling changes that: the
 // sittings the engine convenes at the exit answer no dispatch and state neither occasion. A motion
 // the bench had already sat for and left readied nobody, so its ruling at the exit moves nothing
 // here. A ruling counts when it follows the chair's last sitting opening; at the limit nobody is
@@ -829,10 +928,15 @@ func epochLimitHeldTheBench(params Params, r planReads) bool {
 			if !benchSatOnOccasionSince(benchOn, benchSittingFor[subj], m.filed) {
 				return true
 			}
-		case recordpb.Occasion_OCCASION_DOCKET:
-			if !benchSatFor(dispatches, benchOn, m.GapID, m.filed) {
-				return true
-			}
+		}
+	}
+	// A docketing the bench ruled at the exit without the sitting the dispatch convenes for it.
+	for _, d := range docketingsAt(evs, ids) {
+		if _, chairSatSince := firstAfter(openings[chairSeat], d.ruled); chairSatSince {
+			continue
+		}
+		if !benchSatFor(dispatches, benchOn, d.GapID, d.at) {
+			return true
 		}
 	}
 	return false
@@ -1310,7 +1414,7 @@ func chairRegisterOwed(g DispatchGroup) string {
 // it twice. A plan that differs is a new decision and is recorded. It reads the stream DispatchNext
 // read in the transaction the plan was folded in and the rows would be written in.
 func dispatchStands(evs []*Event, win WindowIndex, plan Plan) bool {
-	if len(plan.Parties) == 0 || len(plan.ToFile) > 0 || evs == nil {
+	if len(plan.Parties) == 0 || len(plan.ToDocket) > 0 || evs == nil {
 		return false
 	}
 	groups := DispatchGroups(evs, win)
@@ -1421,16 +1525,15 @@ func failedAnchor(b Blocker) string {
 	return "citation " + b.Subject
 }
 
-// benchReadiness states why one unruled motion whose gavel is the bench's holds the PASS, and readies
-// the bench where its docket has not already: a docket on a gap that has closed. A petition and a
-// position are not on the plan: the engine hears them when a close's read reports them owed
+// benchReadiness states why one unruled motion whose gavel is the bench's — a petition or a position —
+// holds the PASS. Neither is on the plan: the engine hears them when a close's read reports them owed
 // (RecordRead.BenchOwed), so all a plan says of them is that they stand.
 //
 // A FILING IS HEARD AT ITS OWN SITTING, AND ONLY ONE COUNTS. The guard is a bench sitting opened after
 // the filing whose register states the occasion, not any bench sitting: a docket sitting that sat
 // after the filing was convened for something else, and counting it would leave the filing unheard
 // while the plan said it had been.
-func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat string, gaps ...string)) string {
+func benchReadiness(b Blocker, on map[recordpb.Occasion][]int64) string {
 	subj, _ := MotionSubjectEnum(b.motionSubject)
 	switch occ, routed := benchSittingFor[subj]; {
 	case routed && occ == recordpb.Occasion_OCCASION_POSITION:
@@ -1443,13 +1546,6 @@ func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasio
 			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not heard again; the run cannot end in a verdict while it stands", b.Subject)
 		}
 		return fmt.Sprintf("%s: petition, unruled — the bench hears it as soon as nothing is running, in this turn", b.Subject)
-	case routed && occ == recordpb.Occasion_OCCASION_DOCKET:
-		// An open gap's docket was readied above; this one's gap has closed since it was filed.
-		if benchSatFor(dispatches, on, b.About, b.since) {
-			return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open, and the bench has sat since it was filed — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Subject)
-		}
-		engage(benchSeat, b.About)
-		return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Subject)
 	}
 	return fmt.Sprintf("%s: %s motion, unruled, and no sitting convenes the bench for its subject — nobody is readied; the run cannot end in a verdict while it stands", b.Subject, b.motionSubject)
 }
@@ -1464,16 +1560,12 @@ func requireBenchDocket(b *recordpb.Dispatch) error {
 	return nil
 }
 
-// docketedThisSitting reports whether the docket motion filed at `filed` is the chair's own,
-// filed in its current sitting — after the event that opened its latest one — which is how the dispatch
-// verb dockets a gap at impasse. A plan asked for again in that sitting names the gap in Docket
-// still, so the plan the chair relays last says what the sitting docketed.
-func docketedThisSitting(evs []*Event, ids []int64, chairRegisters []int64, filed int64) bool {
-	if len(chairRegisters) == 0 || filed <= chairRegisters[len(chairRegisters)-1] {
-		return false
-	}
-	k, found := slices.BinarySearch(ids, filed)
-	return found && evs[k].GetSeatId() == chairSeat
+// docketedThisSitting reports whether the docketing written at `at` was written in the chair's current
+// sitting — after the event that opened its latest one — which is where `dispatch next` writes it. A
+// plan asked for again in that sitting names the gap in Docket still, so the plan the chair relays last
+// says what the sitting docketed.
+func docketedThisSitting(chairRegisters []int64, at int64) bool {
+	return len(chairRegisters) > 0 && at > chairRegisters[len(chairRegisters)-1]
 }
 
 // benchSatOnOccasionSince reports whether the bench opened a sitting of the occasion after at — off
@@ -1483,37 +1575,24 @@ func benchSatOnOccasionSince(on map[recordpb.Occasion][]int64, occ recordpb.Occa
 	return ok
 }
 
-// benchSatFor reports whether the bench has had its sitting for EVERY docket motion standing
-// unruled on gapID — one bench sitting per docketing. A sitting counts for a docketing when the
-// bench OPENED it AFTER BOTH a dispatch engaging it on the gap and the filing: for a dispatch
-// naming gapID, the first docket sitting opened after it opens after unruledFiled, the events.id of
-// the newest unruled docket motion on the gap (the gap view's `unruled_docket_filed`, off
-// openGaps). The newest unruled filing is the key because a sitting that follows it follows every
-// older one too. A bench that sat for a docket and ruled nothing is not re-readied for it; a filing
-// the bench has not sat since is a new docketing.
-//
-// BOTH ORDERINGS, NOT THE DISPATCH'S ALONE. Keyed on the latest dispatch naming the gap, the
-// bench that sat for G1's first docket and ruled M1 read as having sat for M2 too: blue filed M2
-// after that sitting, a judge register stood after the last dispatch naming G1, and nobody was
-// engaged while M2 stood unruled for the run (#1201). Keyed on the dispatch's place against the
-// filing, a motion blue filed between the chair's dispatch and the bench's register — the bench
-// sat with it on the record and ruled nothing — re-readied the bench for a docketing it had sat for.
-// Keyed on the NEWEST filing rather than the newest unruled one, a motion blue filed into an open
-// sitting and the bench ruled there re-readied the bench for the older motion it had left alone.
+// benchSatFor reports whether the bench has had its sitting for the docketing standing on gapID,
+// written at docketedAt (the gap view's `standing_docketing_at`) — one bench sitting per docketing. A
+// sitting counts for it when the bench OPENED it AFTER BOTH a dispatch engaging it on the gap and the
+// docketing: for a dispatch naming gapID written after the docketing, the first docket sitting opened
+// after that dispatch. A bench that sat for a docketing and ruled nothing is not re-readied for it; a
+// docketing the bench has not sat since is a new one.
 //
 // THE SITTING THAT COUNTS IS A DOCKET SITTING: a hearing the bench sat answers no docketing.
-func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gapID string, unruledFiled int64) bool {
+func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gapID string, docketedAt int64) bool {
 	for _, d := range dispatches {
 		if d.seat != benchSeat || !slices.Contains(d.gaps, gapID) {
 			continue
 		}
-		// THE ROW CONVENES THE SITTING FOR A FILING IT FOLLOWS: a motion filed after the dispatch that
-		// readied the bench has had no assignee window, so that sitting does not rule it (docketHeld),
-		// and it is no sitting for it here either.
-		if d.at <= unruledFiled {
+		// THE ROW CONVENES THE SITTING FOR A DOCKETING IT FOLLOWS (docketHeld).
+		if d.at <= docketedAt {
 			continue
 		}
-		if r, ok := firstAfter(on[recordpb.Occasion_OCCASION_DOCKET], d.at); ok && r > unruledFiled {
+		if r, ok := firstAfter(on[recordpb.Occasion_OCCASION_DOCKET], d.at); ok && r > docketedAt {
 			return true
 		}
 	}
@@ -1521,15 +1600,16 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 }
 
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
-// severity, its docket and its remand's direction — all off the gap view, the
-// same fold every reader uses (how many remands count is the exchange fold's, exchangesOf). "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
-// the one definition the view's own `remanded` is derived from; the PASS gate (motionsAt) asks
-// the same per-motion question of the events, and
-// TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled holds the two level:
-// the bench is readied for a gap exactly when the gap's motion is among the plan's unruled ones.
+// severity, its standing docketing, its standing proposal and its remand's direction — all off the gap
+// view, the same fold every reader uses (how many remands count is the exchange fold's, exchangesOf).
+// "A docketing stands" is the view's `standing_docketing` and "a proposal stands" its
+// `unruled_docket_motion` (recordsql/gapstate.go); the PASS gate asks the same questions of the
+// events (docketingsAt, motionsAt), and
+// TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled holds the two level.
 func openGaps(db recordsql.Querier) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."assignee", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
+	    COALESCE(g."standing_docketing", ''), COALESCE(g."standing_docketing_at", 0),
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE(g."unruled_docket_motion", ''),
 	    COALESCE(g."docket_direction", ''),
@@ -1543,7 +1623,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	for rows.Next() {
 		var g openGap
 		var aboutKind, aboutRef string
-		if err := rows.Scan(&g.id, &g.assignee, &g.severity, &g.material, &g.classMaterial, &g.unruledFiled, &g.unruledMotion,
+		if err := rows.Scan(&g.id, &g.assignee, &g.severity, &g.material, &g.classMaterial, &g.docketing, &g.docketedAt, &g.unruledFiled, &g.unruledMotion,
 			&g.direction, &aboutKind, &aboutRef); err != nil {
 			return nil, err
 		}

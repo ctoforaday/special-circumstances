@@ -19,11 +19,16 @@ type archivedInquiryRun struct {
 	inquiries, acts             int // distinct inquiry ids; inquiry acts, proposals and fates
 	outcomes, gates             []string
 	motionRules, motionsArchive int
+	// docketRulings and dockets are the archive's docket rulings and docket motions that come forward
+	// as no ruling and no motion (EventSchema 80): a dispatch's docket is a Docketing, any other docket
+	// and its ruling are no event, and a ruling of a docketing a Close ended is no event.
+	docketRulings, dockets int
 }
 
 // THE LAST RUNS THAT HELD THE CHAIR'S INQUIRY DUTIES LOSE THOSE AND NOTHING ELSE. m36 and m35 were
 // written at EventSchema 55: the chair reviewed the inquiries and ruled on each. Migrated, every
-// review and every ruling on an inquiry is gone, every other ruling and motion arrives, every inquiry
+// review and every ruling on an inquiry is gone, every other ruling and motion arrives but the dockets
+// Translations 3 and 4 carry (a docketing, or no event), every inquiry
 // arrives with each of its acts under the fate it was filed with, and the run's stored outcome and
 // gate verdicts are the archive's. m35's engine died before a verdict, so it has neither.
 func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
@@ -31,7 +36,7 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 		{archive: "2026-10-29_is-91-prime-m36.tar.gz", reviews: 1, rulings: 5, inquiries: 5, acts: 12,
 			outcomes: []string{"verified"}, gates: []string{"pass"}, motionRules: 5},
 		{archive: "2026-10-27_is-91-prime-m35.tar.gz", reviews: 1, rulings: 6, inquiries: 7, acts: 22,
-			motionRules: 13, motionsArchive: 8},
+			motionRules: 13, motionsArchive: 8, docketRulings: 6, dockets: 8},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
 			src := openRO(t, recordtest.RequireArchive(t, c.archive))
@@ -61,11 +66,11 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 			if res.In["inquiry_review"] != c.reviews || res.Out["inquiry_review"] != 0 {
 				t.Errorf("reviews: %d in, %d out; want %d in and none out", res.In["inquiry_review"], res.Out["inquiry_review"], c.reviews)
 			}
-			if n := countOf(t, ddb, `SELECT count(*) FROM "motion_rule"`); n != c.motionRules-c.rulings {
-				t.Errorf("the migrated record holds %d ruling(s), want the archive's %d less its %d on an inquiry", n, c.motionRules, c.rulings)
+			if n := countOf(t, ddb, `SELECT count(*) FROM "motion_rule"`); n != c.motionRules-c.rulings-c.docketRulings {
+				t.Errorf("the migrated record holds %d ruling(s), want the archive's %d less its %d on an inquiry and its %d docket rulings written as no event", n, c.motionRules, c.rulings, c.docketRulings)
 			}
-			if n := countOf(t, ddb, `SELECT count(*) FROM "motion"`); n != c.motionsArchive-c.filings {
-				t.Errorf("the migrated record holds %d motion(s), want the archive's %d less its %d on an inquiry", n, c.motionsArchive, c.filings)
+			if n := countOf(t, ddb, `SELECT count(*) FROM "motion"`); n != c.motionsArchive-c.filings-c.dockets {
+				t.Errorf("the migrated record holds %d motion(s), want the archive's %d less its %d on an inquiry and its %d dockets", n, c.motionsArchive, c.filings, c.dockets)
 			}
 
 			// Every inquiry arrives under its migrated id, with every act under the fate it was filed with.

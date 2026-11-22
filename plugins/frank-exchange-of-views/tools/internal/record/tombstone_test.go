@@ -9,14 +9,21 @@ import (
 )
 
 // A TOMBSTONE HAS ITS SHAPE AND NOTHING MORE (validate's Tombstone arm): its gap is a gap, a ruling
-// placement names a docket motion on that gap, and an estoppel row names none. And the one that
-// stands is the latest row on its (gap, kind): an end row ends it, a later placement stands again.
+// placement names a docketing on that gap, and an estoppel row names none. And the one that stands
+// is the latest row on its (gap, kind): an end row ends it, a later placement stands again.
 func TestATombstoneHasItsShapeAndTheLatestRowStands(t *testing.T) {
-	run := motionGuardRun(t)
-	stone := func(gap string, kind recordpb.TombstoneKind, motion string, ends bool) *recordpb.Tombstone {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").sit(2, evLens).
+		mint(evLens, "G1", "high").mint(evLens, "G2", "high").seed()
+	impasse := recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE
+	for _, k := range []struct{ id, gap string }{{"K1", "G1"}, {"K2", "G2"}} {
+		mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Docketing{DocketingId: proto.String(k.id),
+			GapId: proto.String(k.gap), Cause: impasse.Enum(), Basis: proto.String("the gap's exchanges reached k-max")})
+	}
+	stone := func(gap string, kind recordpb.TombstoneKind, docketing string, ends bool) *recordpb.Tombstone {
 		ts := &recordpb.Tombstone{GapId: proto.String(gap), Kind: kind.Enum()}
-		if motion != "" {
-			ts.MotionId = proto.String(motion)
+		if docketing != "" {
+			ts.DocketingId = proto.String(docketing)
 		}
 		if ends {
 			ts.Ends = proto.Bool(true)
@@ -29,11 +36,10 @@ func TestATombstoneHasItsShapeAndTheLatestRowStands(t *testing.T) {
 		row   *recordpb.Tombstone
 		wants string
 	}{
-		{"a ruling row naming no motion", stone("G1", ruling, "", false), "names the motion"},
-		{"a ruling row naming another gap's motion", stone("G1", ruling, "M2", false), "no docket motion on that gap"},
-		{"a ruling row naming a petition", stone("G1", ruling, "M3", false), "no docket motion on that gap"},
-		{"an estoppel row naming a motion", stone("G1", estoppel, "M1", false), "name no motion"},
-		{"an end row naming a motion", stone("G1", ruling, "M1", true), "name no motion"},
+		{"a ruling row naming no docketing", stone("G1", ruling, "", false), "names the docketing"},
+		{"a ruling row naming another gap's docketing", stone("G1", ruling, "K2", false), "no docketing on that gap"},
+		{"an estoppel row naming a docketing", stone("G1", estoppel, "K1", false), "name no docketing"},
+		{"an end row naming a docketing", stone("G1", ruling, "K1", true), "name no docketing"},
 		{"a row on no gap", stone("G9", estoppel, "", false), "G9"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -67,10 +73,10 @@ func TestATombstoneHasItsShapeAndTheLatestRowStands(t *testing.T) {
 		row  *recordpb.Tombstone
 		want []string
 	}{
-		{stone("G1", ruling, "M1", false), []string{"G1 ruling"}},
+		{stone("G1", ruling, "K1", false), []string{"G1 ruling"}},
 		{stone("G2", estoppel, "", false), []string{"G1 ruling", "G2 estoppel"}},
 		{stone("G1", ruling, "", true), []string{"G2 estoppel"}},
-		{stone("G1", ruling, "M1", false), []string{"G1 ruling", "G2 estoppel"}},
+		{stone("G1", ruling, "K1", false), []string{"G1 ruling", "G2 estoppel"}},
 		{stone("G2", estoppel, "", true), []string{"G1 ruling"}},
 	} {
 		mustAppend(t, judge, step.row)
@@ -92,7 +98,7 @@ func TestTheBenchAloneOwesTheOpinionFields(t *testing.T) {
 	for _, field := range []string{"principle", "tension", "review_flag", "settled"} {
 		t.Run("the bench without "+field, func(t *testing.T) {
 			run := motionGuardRun(t)
-			r := actRule("M1", false, "judge")
+			r := heldBy(actRule("M1", false, "judge"), "D1")
 			d := r.GetDocket()
 			switch field {
 			case "principle":
@@ -109,7 +115,10 @@ func TestTheBenchAloneOwesTheOpinionFields(t *testing.T) {
 		})
 	}
 	t.Run("the assignee with an opinion field", func(t *testing.T) {
-		run := motionGuardRun(t)
+		// M1 stands in its assignee's window: no docketing holds it yet.
+		run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").seed()
+		fileProposal(t, run, regradeMotion("M1", "G1", "severity is overstated"))
 		r := actRule("M1", true, evLens)
 		r.GetDocket().Principle = proto.String("a rule")
 		_, err := Append(sit(t, run, evLens), r)

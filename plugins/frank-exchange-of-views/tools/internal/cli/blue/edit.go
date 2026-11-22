@@ -222,7 +222,7 @@ func newEdit() *cobra.Command {
 				}
 			}
 			return nil
-		}))
+		}), roadsHold)
 		if errors.Is(err, errBunched) {
 			return nil, bunchedRefusal(run, bunched.report, bunched.old, bunched.applied, bunched.exact)
 		}
@@ -409,6 +409,32 @@ func PlanAccept(report, gapID, loc, fix string) (Accepted, error) {
 		}
 	}
 	return planTyped(report, old, new)
+}
+
+// AcceptPair is the edit `--accept` makes of a gap's pair loc/fix, planned with PlanAccept over the
+// report l lands on, written into body: the span, the replacement with the anchors the tool put back,
+// the anchors it reopened, the literal span where it took one, and that the text is red's, applied
+// verbatim. The bench's answer for red (or for the assignee) applies red's closing's road through it,
+// in the ruling's transaction.
+func AcceptPair(l *record.Landing, body *recordpb.BlueEdit, gapID, loc, fix string) error {
+	report, err := l.Report()
+	if err != nil {
+		return err
+	}
+	a, err := PlanAccept(report, gapID, loc, fix)
+	if err != nil {
+		return err
+	}
+	if err := refuseBaredAnchors(report, a.Planned, a.Applied, gapID); err != nil {
+		return err
+	}
+	body.Old, body.New = proto.String(a.Old), proto.String(a.Applied)
+	body.Reopened = bluedoc.ReopenedAnchors(report, a.Planned)
+	if a.Exact {
+		body.ExactSpan = proto.Bool(true)
+	}
+	body.Accepted, body.AppliedVerbatim = proto.Bool(true), proto.Bool(true)
+	return nil
 }
 
 // planExact is the edit of old by new over report at old's literal span (bluedoc.LocateLiteral),

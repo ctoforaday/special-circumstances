@@ -522,10 +522,12 @@ func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 // argument stays as it was written; the act it describes keeps its id. Counted over every argument
 // field, per archive, as the migrated record holds them — a note carried to a second anchor counts
 // once per anchor. A finding's text held one in each of quadratic-formula, b, b4 and b7; a finding
-// translates to no event (EventSchema 78), so those four are not counted.
+// translates to no event (EventSchema 78), so those four are not counted; nor is the one a
+// quadratic-formula bench opinion's rationale held, since an opinion translates to no event
+// (EventSchema 80).
 func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 	want := map[string]int{
-		"2026-09-02_quadratic-formula.tar.gz":  14,
+		"2026-09-02_quadratic-formula.tar.gz":  13,
 		"2026-09-09_is-91-prime-b.tar.gz":      3, // and two in its inquiry reviews, which translate to none
 		"2026-09-10_is-91-prime-b3.tar.gz":     2,
 		"2026-09-11_is-91-prime-b5.tar.gz":     6,

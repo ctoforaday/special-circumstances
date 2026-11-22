@@ -11,10 +11,10 @@ import (
 )
 
 // The bench's docket ruling, as the bench files it (#1201).
-func docketRule(id, opinion string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(id),
+func docketRule(docketing, opinion string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{
 		Opinion: proto.String(opinion),
-		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketing),
 			Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 			Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 			Settled: proto.String("st"), Direction: proto.String("new evidence")}}}
@@ -22,7 +22,7 @@ func docketRule(id, opinion string) *recordpb.MotionRule {
 
 const (
 	benchReady   = "G1: docketed and unruled — the bench is ready"
-	benchSatIdle = "G1: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied"
+	benchSatIdle = "G1: docketing %s stands unruled and the bench has sat since it was written — one bench sitting per docketing, so this gap is not re-readied"
 )
 
 // argued files G1's two closings: blue's in its sitting, and the evidence lens's in one of its own.
@@ -46,113 +46,88 @@ func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 	return plan, engaged
 }
 
-// A DOCKET STANDS UNRULED PER MOTION, AND A NEW FILING IS A NEW DOCKETING. Blue dockets G1; the
-// chair dispatches the bench for it; what the bench does in its sitting and what blue files next
-// varies by arm. Every arm drives the real `dispatch judge [G1]` step before the bench sits — the
-// step the first fixture skipped, which is why `last == 0` hid the bench-sat branch.
+// A DOCKETING STANDS UNRULED UNTIL THE BENCH RULES IT, AND THE BENCH SITS ONCE PER DOCKETING. The
+// dispatch dockets G1 as D1; the chair dispatches the bench for it; what the bench does in its sitting
+// and what the dispatch writes next varies by arm. Every arm drives the real `dispatch judge [G1]` step
+// before the bench sits — the step the first fixture skipped, which is why `last == 0` hid the
+// bench-sat branch.
 //
-// Three readings of "a docket stands unruled", and three keys for the bench's sitting, are told
-// apart, so a regression in each fails its own arm:
+// Two readings of "a docketing stands unruled", and two keys for the bench's sitting, are told apart,
+// so a regression in each fails its own arm:
 //
-//   - a count of rulings against a count of dockets: two rulings on one motion cover an unruled
-//     sibling (#1201) — "ruled twice" (the record write refuses the second ruling, #1205, so the arm
-//     holds that refusal and that the refused attempt leaves the sibling standing unruled);
-//   - the bench's sitting keyed on the newest FILING rather than the newest UNRULED filing: a
-//     motion blue files into the bench's open sitting and the bench rules there is newer than the
-//     dispatch, so the bench reads as not having sat for the older motion it left alone and is
-//     readied again for it — "ruled the newer one in the sitting";
-//   - the bench's sitting keyed on the REGISTER's place against the filing alone: blue files M2
-//     between the chair's dispatch and the bench's register, and the sitting that dispatch convened
-//     holds only what was filed before it (docketHeld), so it is no sitting for M2 and the plan
-//     readies the bench again — "filed before the bench registered";
-//   - the bench's sitting keyed on the last dispatch alone: a judge register after the dispatch
-//     for M1 read as a sitting for M2 too, and nobody was engaged (#1201) — every arm that readies
-//     the bench after it sat.
+//   - a ruling read as covering the gap rather than its docketing: the bench rules D1, and D2, a new
+//     docketing of G1, stands unruled — "left as written"; and a second ruling of D1, which the write
+//     refuses (#1205), leaves D2 standing too — "ruled twice";
+//   - the bench's sitting keyed on the REGISTER's place against the docketing alone: D2 is written
+//     after the chair's dispatch row that convened the bench's sitting, so that sitting is no sitting
+//     for D2 and the plan readies the bench again — "written after the row that convened the sitting";
+//     a judge register after a dispatch that named another seat reads as no sitting for D2 either
+//     (#1201) — "another seat dispatched after the docketing".
 //
-// "left as written" is the control for the count, and "sat for both" the control for the key: the
-// bench dispatched twice with M1 standing has sat for it, under any key. Blue and the lens are
-// engaged in no arm: the gap is the bench's while a docket stands.
+// "sat for it" is the control for the key: the bench dispatched after D2 has sat for it, under any
+// key. Blue and the lens are engaged in no arm: the gap is the bench's while a docketing stands.
 func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *testing.T) {
 	type arm struct {
 		name    string
-		sitting func(t *testing.T, run Run) // the bench's sitting after `dispatch judge [G1]` with M1 standing, and what blue files
+		sitting func(t *testing.T, run Run) // the bench's sitting after `dispatch judge [G1]` with D1 standing, and what the dispatch writes
 		judge   []string                    // the gaps the bench is engaged on
 		reason  string                      // the plan's line for G1
 	}
-	ruleM1 := func(t *testing.T, judge Identity) {
-		mustAppend(t, judge, docketRule("M1", "the ruling"))
+	ruleD1 := func(t *testing.T, judge Identity) {
+		mustAppend(t, judge, docketRule("D1", "the ruling"))
 	}
 	// EACH DOCKETING IS ARGUED BY BOTH PARTIES before the bench is convened for it (closingowed.go),
-	// so every filing here is followed by the two closings: what is under test is the bench's sitting
-	// per docketing, not the closings.
-	fileM2 := func(t *testing.T, run Run) {
-		blue := sit(t, run, "blue-respond")
-		mustAppend(t, blue, docketMotion("M2", "G1"))
-		argued(t, run, blue)
-	}
-	// A GAP HOLDS ONE PROPOSAL AT A TIME (F5), so blue's M2 while M1 stands unruled is refused live;
-	// an archived record holds it, and the plan still reads such a record — the arms that need two
-	// standing motions on G1 seed M2 through the replay writer.
-	fileM2Archived := func(t *testing.T, run Run) {
-		blue := sit(t, run, "blue-respond")
-		if _, err := Append(blue, docketMotion("M2", "G1")); err == nil || !strings.Contains(err.Error(), "M1 stands unanswered") {
-			t.Fatalf("blue's M2 while M1 stands = %v, want refused naming M1", err)
-		}
-		if _, err := replayed(t, blue, docketMotion("M2", "G1")); err != nil {
+	// so every docketing here is followed by the two closings: what is under test is the bench's
+	// sitting per docketing, not the closings.
+	docketD2 := func(t *testing.T, run Run) {
+		if _, err := docketByDispatchAs(t, run, "D2", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, ""); err != nil {
 			t.Fatal(err)
 		}
-		argued(t, run, blue)
+		argued(t, run, sit(t, run, "blue-respond"))
 	}
 	for _, tc := range []arm{
 		{"left as written", func(t *testing.T, run Run) {
-			ruleM1(t, sit(t, run, "judge"))
-			fileM2(t, run)
+			ruleD1(t, sit(t, run, "judge"))
+			docketD2(t, run)
 		}, []string{"G1"}, benchReady},
-		{"another seat dispatched after the filing", func(t *testing.T, run Run) {
-			ruleM1(t, sit(t, run, "judge"))
-			fileM2(t, run)
+		{"another seat dispatched after the docketing", func(t *testing.T, run Run) {
+			ruleD1(t, sit(t, run, "judge"))
+			docketD2(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}})
 			sit(t, run, "judge")
 		}, []string{"G1"}, benchReady},
 		{"ruled twice", func(t *testing.T, run Run) {
 			judge := sit(t, run, "judge")
-			mustAppend(t, judge, docketRule("M1", "first"))
-			if _, err := Append(judge, docketRule("M1", "again")); err == nil {
-				t.Fatal("the write admitted a second ruling on M1")
+			mustAppend(t, judge, docketRule("D1", "first"))
+			if _, err := Append(judge, docketRule("D1", "again")); err == nil {
+				t.Fatal("the write admitted a second ruling of D1")
 			}
-			fileM2(t, run)
+			docketD2(t, run)
 		}, []string{"G1"}, benchReady},
-		// The bench rules only what its docket sitting holds (benchHeld), so its ruling on M2, filed
-		// into that sitting, is archived too.
-		{"ruled the newer one in the sitting", func(t *testing.T, run Run) {
-			judge := sit(t, run, "judge")
-			fileM2Archived(t, run)
-			if _, err := replayed(t, judge, docketRule("M2", "ruled the newer")); err != nil {
-				t.Fatal(err)
-			}
-		}, nil, fmt.Sprintf(benchSatIdle, "M1")},
-		// THE ROW CONVENES THE SITTING FOR A FILING IT FOLLOWS (benchSatFor, docketHeld): M2, filed
-		// after the dispatch that readied the bench, had no assignee window before that sitting, which
+		// THE ROW CONVENES THE SITTING FOR A DOCKETING IT FOLLOWS (benchSatFor, docketHeld): D2, written
+		// after the dispatch that readied the bench, is not held by the sitting that row convened, which
 		// neither rules it nor counts as its sitting — the bench is readied again for it.
-		{"filed before the bench registered", func(t *testing.T, run Run) {
-			fileM2Archived(t, run)
+		{"written after the row that convened the sitting", func(t *testing.T, run Run) {
+			ruleD1(t, sit(t, run, "judge"))
+			docketD2(t, run)
 			sit(t, run, "judge")
 		}, []string{"G1"}, benchReady},
-		{"sat for both", func(t *testing.T, run Run) {
-			sit(t, run, "judge")
-			fileM2Archived(t, run)
+		{"sat for it", func(t *testing.T, run Run) {
+			ruleD1(t, sit(t, run, "judge"))
+			docketD2(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
-			mustAppend(t, sit(t, run, "judge"), docketRule("M2", "ruled the newer"))
-		}, nil, fmt.Sprintf(benchSatIdle, "M1")},
+			sit(t, run, "judge")
+		}, nil, fmt.Sprintf(benchSatIdle, "D2")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 				register("red-chair").sit(2, evLens).
 				mint(evLens, "G1", "high").seed()
 			exchangeOn(t, run, "G1")
-			blue := sit(t, run, "blue-respond")
-			mustAppend(t, blue, docketMotion("M1", "G1"))
-			argued(t, run, blue)
+			if _, err := docketByDispatchAs(t, run, "D1", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, ""); err != nil {
+				t.Fatal(err)
+			}
+			argued(t, run, sit(t, run, "blue-respond"))
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
 			tc.sitting(t, run)
 			sit(t, run, "red-chair")
@@ -165,10 +140,10 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 				t.Errorf("blue or the lens is engaged on a gap that is the bench's: %v", engaged)
 			}
 			if plan.PassPermitted {
-				t.Error("PASS is not permitted while a docket motion stands unruled")
+				t.Error("PASS is not permitted while a docketing stands unruled")
 			}
 			if plan.Ceiling {
-				t.Error("a docket standing unruled is not the run at its ceiling")
+				t.Error("a docketing standing unruled is not the run at its ceiling")
 			}
 			why := strings.Join(plan.Why, "\n")
 			if !strings.Contains(why, tc.reason) {
@@ -194,7 +169,7 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 	} {
 		t.Run("omitted "+c.flag, func(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
-			o := docketRule("M1", "the ruling")
+			o := docketRule("D1", "the ruling")
 			c.clear(o.GetDocket())
 			_, err := Append(sit(t, run, "judge"), o)
 			if err == nil {
@@ -207,7 +182,7 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 	}
 	t.Run("settled present and empty", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		o := docketRule("M1", "the ruling")
+		o := docketRule("D1", "the ruling")
 		o.GetDocket().Settled = proto.String("")
 		if _, err := Append(sit(t, run, "judge"), o); err != nil {
 			t.Errorf("a ruling that bars no proposition was refused: %v", err)
@@ -235,37 +210,39 @@ func TestARemandStatesItsDirection(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
-			o := docketRule("M1", "the ruling")
+			o := docketRule("D1", "the ruling")
 			c.set(o.GetDocket())
 			_, err := Append(sit(t, run, "judge"), o)
 			if err == nil {
 				t.Fatal("a remand stating no direction reached the record — blue and the minting lens would be dispatched owing nothing")
 			}
-			if !strings.Contains(err.Error(), "--as remanded requires --direction") {
+			if !strings.Contains(err.Error(), "a remand requires --direction") {
 				t.Errorf("the refusal does not name --direction, so the bench cannot tell what the remand owes: %v", err)
 			}
 		})
 	}
 	t.Run("remanded --direction", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		if _, err := Append(sit(t, run, "judge"), docketRule("M1", "the ruling")); err != nil {
+		if _, err := Append(sit(t, run, "judge"), docketRule("D1", "the ruling")); err != nil {
 			t.Errorf("a remand stating its direction was refused: %v", err)
 		}
 	})
 	t.Run("a disposition that ends the gap still takes --final", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		o := docketRule("M1", "the ruling")
+		o := docketRule("D1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Direction, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
 		if _, err := Append(sit(t, run, "judge"), o); err != nil {
 			t.Errorf("a final not_a_defect ruling was refused: %v", err)
 		}
 	})
 	t.Run("a disposition that ends the gap states no direction", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		o := docketRule("M1", "the ruling")
+		o := docketRule("D1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
 		_, err := Append(sit(t, run, "judge"), o)
 		if err == nil || !strings.Contains(err.Error(), "--direction is the research a remand's one more exchange owes") {
 			t.Errorf("a not_a_defect ruling stating a direction was not refused for it: %v", err)

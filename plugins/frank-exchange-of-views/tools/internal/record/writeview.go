@@ -27,12 +27,6 @@ type writeView struct {
 	q recordsql.Querier
 	// files is the run's files the checks read: setup's terms.
 	files runFiles
-	// byDispatch is set on the docket motions `dispatch next` files (dispatchNext's ToFile loop) and on
-	// no other write: an impasse or a grade movement is a condition the record computed, not a seat's
-	// dispute, so the two checks a seat's proposal meets — one counted exchange first
-	// (requireExchangedOn) — are asked of every other writer of a Motion, a writer added later
-	// included.
-	byDispatch bool
 }
 
 // report is the report this write lands on, rendered in the writing transaction (RenderAt): the

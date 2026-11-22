@@ -62,14 +62,26 @@ func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
 		Supersedes: proto.String(ancestor)})
 }
 
-// docketMotion is a party escalating gap to the bench by hand — the route `motion docket file`
-// keeps open beside the dispatch's own docketing at impasse. The stage seeds it; a test that
-// files it live, after seeding, appends the same body.
+// docketMotion is a party's proposal on gap — a regrade of its severity to low, the act `motion docket
+// file regrade` proposes. The stage seeds it; a test that files it live, after seeding, appends the
+// same body.
 func docketMotion(id, gap string) *recordpb.Motion {
 	return &recordpb.Motion{MotionId: proto.String(id),
-		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}}
+		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String(gap), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}}
 }
-func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }
+
+// docketing is the docketing `dispatch next` writes on gap at impasse, under id.
+func docketing(id, gap string) *recordpb.Docketing {
+	return &recordpb.Docketing{DocketingId: proto.String(id), GapId: proto.String(gap),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String(impasseBasis(gap))}
+}
+
+// docketMotion seeds docketing id on gap as the dispatch writes it, under the chair whatever seat the
+// fixture names: a gap reaches the bench only by the tool's docketing.
+func (b *stage) docketMotion(seat, id, gap string) *stage {
+	return b.add("red-chair", docketing(id, gap))
+}
 
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
 	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})

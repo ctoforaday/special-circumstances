@@ -145,11 +145,12 @@ func assembleHostile(t *testing.T, h string) Shipped {
 		InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
 		Question: proto.String("other " + h), Reason: proto.String("why " + h),
 	})
-	archived(t, runDir, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("basis " + h),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
+	archived(t, runDir, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("basis " + h)})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("closing " + h)})
-	add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("opinion " + h),
+	add("judge", &recordpb.MotionRule{Opinion: proto.String("opinion " + h),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"), ReviewFlag: proto.String("false"),
 			Settled:   proto.String("settled " + h),

@@ -316,7 +316,7 @@ func validateContractCases() []validateContract {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "requires --id"},
+		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "--id is required"},
 		// AN UNKNOWN VERB IS UNREPRESENTABLE: the type is an enum and the body is a message, so there
 		// is no "no-such-verb" to pass. The arm that ignored it is gone with the string.
 	}
@@ -347,7 +347,7 @@ func TestValidateVerbContracts(t *testing.T) {
 	}
 }
 
-// docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
+// docketRunDir is a run in which G1 exists AND docketing D1 stands on it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
 // the missing gap or the missing filing.
 //
@@ -358,9 +358,9 @@ func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	// The cast seats the bench, the evidence lens mints the gap (its assignee), the dispatch files M1
-	// on it, and the chair's bench row naming it convenes the bench's next sitting as the docket
-	// sitting that holds M1 (benchHeld) — so a test's `sit(judge)` is the sitting that rules it.
+	// The cast seats the bench, the evidence lens mints the gap (its assignee), the dispatch writes
+	// docketing D1 on it, and the chair's bench row naming it convenes the bench's next sitting as the
+	// docket sitting that holds D1 (benchHeld) — so a test's `sit(judge)` is the sitting that rules it.
 	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
@@ -369,11 +369,9 @@ func docketRunDir(t *testing.T) string {
 	if _, err := Append(sit(t, run, evLens), &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	mustFileByDispatch(t, run, &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("red cannot settle this and puts it to the bench"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(id)}},
-	})
+	if _, err := docketByDispatchAs(t, run, "D1", id, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, ""); err != nil {
+		t.Fatal(err)
+	}
 	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: []string{id}})
 	return runDir
 }
@@ -397,10 +395,11 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// requirement, because an empty answer is an answer for `settled`, the one field that allows it.
 	complete := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("the ruling's reasoning"),
+			Opinion: proto.String("the ruling's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("x"),
 				Tension:     proto.String("x"),
 				ReviewFlag:  proto.String("x"),
@@ -413,12 +412,14 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		field, wantFlag string
 		clear           func(*recordpb.MotionRule)
 	}{
-		// The motion must EXIST and be NAMED CORRECTLY: references are checked at write time, so
-		// motion_id carries the real filed id rather than a placeholder. With a bogus id the
+		// The docketing must EXIST and be NAMED CORRECTLY: references are checked at write time, so
+		// docketing_id carries the real docketing's id rather than a placeholder. With a bogus id the
 		// reference check fires first and this would assert on the wrong refusal.
-		{"motion_id", "--id", func(r *recordpb.MotionRule) { r.MotionId = nil }},
+		{"docketing_id", "--id", func(r *recordpb.MotionRule) { r.GetDocket().DocketingId = nil }},
 		{"opinion", "--reason", func(r *recordpb.MotionRule) { r.Opinion = nil }},
-		{"disposition", "--as", func(r *recordpb.MotionRule) { r.GetDocket().Disposition = nil }},
+		{"the answer", "exactly one of a side of its docketing's pair", func(r *recordpb.MotionRule) {
+			r.GetDocket().SidedWith, r.GetDocket().Disposition, r.GetDocket().Final = nil, nil, nil
+		}},
 		{"principle", "--principle", func(r *recordpb.MotionRule) { r.GetDocket().Principle = nil }},
 		{"tension", "--tension", func(r *recordpb.MotionRule) { r.GetDocket().Tension = nil }},
 		{"review_flag", "--review-flag", func(r *recordpb.MotionRule) { r.GetDocket().ReviewFlag = nil }},
@@ -466,7 +467,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	}
 }
 
-// docketBenchSat is docketRunDir's run with the bench sat in the docket sitting that holds M1, so a
+// docketBenchSat is docketRunDir's run with the bench sat in the docket sitting that holds D1, so a
 // ruling validated there is judged on its fields.
 func docketBenchSat(t *testing.T) Run {
 	t.Helper()
@@ -825,10 +826,11 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	full := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("the repair holds at the leaf"),
+			Opinion: proto.String("the repair holds at the leaf"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("a claim rests on its weakest citation"),
 				Tension:     proto.String("correctness vs economy"),
 				ReviewFlag:  proto.String("no human review needed"),

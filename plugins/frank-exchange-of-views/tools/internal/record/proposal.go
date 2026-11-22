@@ -14,11 +14,9 @@ import (
 
 // A DOCKET MOTION IS A PROPOSED ACT (#1695 Part B). A seat that disputes a gap files the act it wants
 // on it — a regrade, a close, or a supersede — in that act's own body on the motion (Motion.act). The
-// gap's assignee may accept it at its next sitting: its accept is a DocketRuling{accepted: true} and
-// the stored act through the act verb's own write, in one transaction. Otherwise the bench answers it:
-// accept, reject, or remand. The dispatch's own filings — at impasse, and for grade movement — are
-// conditions the record computed, not disputes: an impasse filing stores no act, a grade-movement
-// filing the regrade restoring the movement, or no act where nothing moved net.
+// gap's assignee may accept it at its next sitting: its accept is a DocketRuling siding with the
+// filer, and the stored act through the act verb's own write, in one transaction. Otherwise the tool
+// dockets the gap for it (Docketing, docketing.go) and the bench answers it there.
 
 // DocketProposal is a docket motion as its answer reads it: the motion, its event, its filer, and the
 // gap's assignee.
@@ -180,6 +178,9 @@ func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 			"gap %s is yours — you are its assignee — and a proposal on it asks you to accept your own act. Take the act yourself: regrade it, close it, or mint its successor with --supersedes %s. Nothing was recorded",
 			g, g)
 	}
+	if err := requireNoDocketingOnFiling(q, g); err != nil {
+		return err
+	}
 	if standing != "" {
 		return feov.Errorf(feov.Conflict,
 			"motion %s stands unanswered on gap %s, and a gap holds one proposal at a time: argue yours in your closing on %s, or file it once %s is answered. Nothing was recorded",
@@ -192,8 +193,16 @@ func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 				g, g)
 		}
 	}
-	if !w.byDispatch {
-		return requireExchangedOn(q, g)
+	if err := requireExchangedOn(q, g); err != nil {
+		return err
+	}
+	// THE SUCCESSOR IS CHECKED MINTABLE NOW, against G's assignee (L48): the bench writes it as the
+	// assignee's on siding with the filer, so a successor it could not write is refused at the filing,
+	// and the freeze holds the checks' inputs to the ruling (freeze.go).
+	if s := m.GetSupersede(); s != nil {
+		if err := requireSuccessorMintable(w, s, ""); err != nil {
+			return successorRefusal(g, s, err)
+		}
 	}
 	return nil
 }
@@ -222,86 +231,35 @@ func requireExchangedOn(q recordsql.Querier, g string) error {
 		g, x.Counted())
 }
 
-// requireDocketAnswer is a docket ruling against the motion it answers (validate): who may write it,
-// and which answers fit the motion. The bench answers every docket motion; the gap's assignee writes
-// one answer, accepting the act a motion proposes. A motion that proposes an act is answered by
-// accepting or rejecting it, or remanded; a closing word is the bench's accept of a proposed close,
-// and no other. A motion that proposes none — the dispatch's impasse filing, its no-net grade-movement
-// filing, an archived docket — has nothing to accept or reject, and takes a disposition.
-func requireDocketAnswer(q recordsql.Querier, seatID string, r *recordpb.MotionRule) error {
-	d := r.GetDocket()
-	if d == nil {
-		return nil
-	}
-	p, found, err := docketProposalAt(q, r.GetMotionId())
-	if err != nil || !found {
-		return err // the motion's reference is requireSubjectMatches's refusal
-	}
-	bench := seatclass.RoleOfSeat(seatID) == "bench"
-	act := ActWord(p.Motion)
-	if !bench {
-		if d.GetAccepted() && p.Assignee == seatID {
-			if act == "" {
-				return noActRefusal(r.GetMotionId())
-			}
-			return nil
-		}
-		return feov.Errorf(feov.RoleViolation,
-			"motion %s is answered by the bench, and by one other seat: its gap's assignee, accepting the act it proposes. Gap %s is %s's; you are %s. Nothing was recorded",
-			r.GetMotionId(), p.GapID, p.Assignee, seatID)
-	}
-	if d.Accepted != nil {
-		if act == "" {
-			return noActRefusal(r.GetMotionId())
-		}
-		if act == "close" && d.GetAccepted() {
-			return fmt.Errorf("the bench's accept of a proposed close is the closing ruling it proposes — --as %s — with --reopens-on or --final; `motion docket rule --accept` writes it", recordpb.Word(p.Motion.GetClose().GetClosureClass()))
-		}
-		return nil
-	}
-	if act == "" || d.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
-		return nil
-	}
-	if act == "close" && d.GetDisposition() == p.Motion.GetClose().GetClosureClass() {
-		return nil // the bench's accept of the close it proposes
-	}
-	return feov.Errorf(feov.Validation,
-		"motion %s proposes a %s of %s: answer it with --accept or --reject, or remand it. A closing word of your own choosing answers no proposal — accepting a proposed close is how a closing word lands on one. Nothing was recorded",
-		r.GetMotionId(), act, p.GapID)
-}
-
-// noActRefusal refuses an accept or a reject of a motion that proposes no act, naming the dispositions.
-func noActRefusal(motionID string) error {
-	return feov.Errorf(feov.Validation,
-		"motion %s proposes no act, so there is nothing to accept or reject: rule it with a disposition — one of %s, or remanded. Nothing was recorded",
-		motionID, strings.Join(ClosingDispositions(), " | "))
-}
-
 // requireBenchHeld is the bench's docket ruling admitted exactly when its current sitting is
-// convened to rule the motion (benchHeld): a docket sitting the dispatch convened on the gap after the
-// filing, the terminal sitting, or the assembly. Asked of the bench's docket rulings only; the
+// convened to rule the docketing it names (benchHeld): a docket sitting the dispatch convened on the
+// docketing's gap, the terminal sitting, or the assembly. Asked of the bench's docket rulings only; the
 // assignee's accept is its own act at its own sitting.
 func requireBenchHeld(q recordsql.Querier, seatID string, r *recordpb.MotionRule) error {
 	if r.GetDocket() == nil || seatclass.RoleOfSeat(seatID) != "bench" {
 		return nil
 	}
-	// AN ANSWERED MOTION IS NO SITTING'S: the first-wins guard (requireUnanswered) refuses its second
-	// answer naming the first and what answers it, which is what the bench needs to hear.
-	var answered string
-	found, err := queryRowAt(q, []any{&answered}, `SELECT "motion_id" FROM "motion_answers" WHERE "motion_id" = ?`, r.GetMotionId())
-	if err != nil || found {
+	d := r.GetDocket().GetDocketingId()
+	// AN ANSWERED OR UNKNOWN DOCKETING IS NO SITTING'S: the first-wins guard (requireUnanswered) refuses
+	// a second answer naming the first, and the shape check an id the record does not hold, which is
+	// what the bench needs to hear.
+	if d == "" {
+		return nil
+	}
+	answered, err := recordHasAt(q, `SELECT 1 FROM "motion_rule_docket" WHERE "docketing_id" = ?`, d)
+	if err != nil || answered {
 		return err
 	}
 	evs, win, err := eventsAt(q)
 	if err != nil {
 		return err
 	}
-	if benchHeld(evs, win.IDs(evs), win)[r.GetMotionId()] {
+	if benchHeld(evs, win.IDs(evs), win)[d] {
 		return nil
 	}
 	return feov.Errorf(feov.Conflict,
-		"motion %s is not before this sitting: the bench rules a docket motion in the docket sitting the dispatch convenes for it once its gap's assignee has had its sitting on it, at the terminal sitting, or at the assembly. Nothing was recorded; the plan readies the bench for it",
-		r.GetMotionId())
+		"docketing %s is not before this sitting: the bench rules a docketing in the docket sitting the dispatch convenes for it once the closings owed on it are in, at the terminal sitting, or at the assembly. Nothing was recorded; the plan readies the bench for it",
+		d)
 }
 
 // requireBenchSuccessor is the bench's one Mint: the successor a supersede proposal assigned, on a
@@ -315,15 +273,14 @@ func requireBenchSuccessor(q recordsql.Querier, seatID string, m *recordpb.Mint)
 	found, err := queryRowAt(q, []any{&n},
 		`SELECT ms."event_id" FROM "motion_supersede" ms
 		   JOIN "motion" mo ON mo."event_id" = ms."event_id"
-		   JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
-		   JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
-		   JOIN "events" re ON re."id" = mr."event_id"
-		  WHERE ms."gap_id" = ? AND rd."accepted" = 1 AND re."seat_id" = ?`, m.GetGapId(), seatID)
+		   JOIN "docketing" dk ON dk."gap_id" = ms."supersedes" AND dk."motion_id" = mo."motion_id"
+		   JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
+		  WHERE ms."gap_id" = ? AND rd."sided_with" IN ('blue', 'filer')`, m.GetGapId())
 	if err != nil || found {
 		return err
 	}
 	return feov.Errorf(feov.RoleViolation,
-		"the bench mints no gap of its own: its one Mint is the successor a proposed supersede assigned, written by its accept of that proposal (`motion docket rule --accept`). %s is no such successor. Nothing was recorded",
+		"the bench mints no gap of its own: its one Mint is the successor a proposed supersede assigned, written by its ruling for that proposal's side (`motion docket rule --for-blue` or `--for-filer`). %s is no such successor. Nothing was recorded",
 		m.GetGapId())
 }
 
@@ -387,9 +344,10 @@ func mintActingSeat(q recordsql.Querier, seatID string, m *recordpb.Mint) (strin
 }
 
 // benchClosureWord is the word a bench closure states: the ruling's disposition, or `superseded` for
-// the bench's accept of a proposed supersede, which closes the gap as a supersession does.
+// a ruling siding with a proposed supersede with no word of its own, which closes the gap as a
+// supersession does.
 func benchClosureWord(d *recordpb.DocketRuling) string {
-	if d.GetAccepted() {
+	if d != nil && d.Disposition == nil && (d.GetSidedWith() == recordpb.SidedWith_SIDED_WITH_BLUE || d.GetSidedWith() == recordpb.SidedWith_SIDED_WITH_FILER) {
 		return ClosedSuperseded
 	}
 	return recordpb.Word(d.GetDisposition())

@@ -268,7 +268,9 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if firstDropped == 0 {
 		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
 	}
-	if want := map[string]int{"anchor": 43, "class_new": 2, "close": 1, "finding": 68, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8}; !maps.Equal(dropped, want) {
+	// Its 2 dispatch dockets are written as docketings, not motions, their 2 rulings as no event (a
+	// Close ended each first), and the 2 closings filed after those closes are refused (EventSchema 80).
+	if want := map[string]int{"anchor": 43, "class_new": 2, "close": 1, "finding": 68, "closing": 3, "inquiry_review": 8, "manifest_row": 16, "motion": 2, "motion_rule": 7, "position": 8}; !maps.Equal(dropped, want) {
 		t.Errorf("m28's events that write none: %v, want %v", dropped, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

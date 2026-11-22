@@ -48,11 +48,12 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	// M1 proposes a close of G1 once G1 has had its one exchange, and the bench is convened on G1:
-	// the bench rules a docket motion its docket sitting holds.
+	// M1 proposes a close of G1 once G1 has had its one exchange, D1 dockets it, and the bench is
+	// convened on G1: the bench answers the docketing its docket sitting holds.
 	g1 := handleText(t, runDir, "G1")
 	exchangeOn(t, runDir, g1)
-	proposeClose(t, runDir, "blue-respond", "G1", "not_a_defect", "the seeded docket motion this fixture answers")
+	m1 := proposeClose(t, runDir, "blue-respond", "G1", "not_a_defect", "the seeded docket motion this fixture answers")
+	docketNow(t, runDir, g1, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m1)
 	conveneBench(t, runDir, g1)
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--class", "safety", "--relief", "the relief sought",
@@ -126,7 +127,7 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "motion docket rule records the bench's ruling",
 			path: []string{"motion", "docket", "rule"}, seatID: "judge",
-			args: []string{"--id", "M1", "--as", "remanded", "--principle", "correctness", "--tension", "thoroughness against ceremony",
+			args: []string{"--id", "D1", "--remand", "--principle", "correctness", "--tension", "thoroughness against ceremony",
 				"--review-flag", "no — the ruling is mechanical", "--settled", "the proposition this ruling bars",
 				"--direction", "a reproduction on the shipped binary", "--reason", "the evidence does not reach it"},
 			typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE,
@@ -136,7 +137,7 @@ func TestVerbPayloads(t *testing.T) {
 			// argument is `opinion`.
 			want: map[string]string{"motion_id": "M1", "disposition": "remanded",
 				"opinion": "the evidence does not reach it"},
-			says: "motion M1 ruled remanded",
+			says: "docketing D1 ruled remanded",
 		},
 		{
 			name: "motion docket file regrade proposes an act on a gap",

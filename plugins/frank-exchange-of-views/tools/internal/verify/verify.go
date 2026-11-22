@@ -17,7 +17,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Check is one invariant's result. Violations lists the specific offenders (gap ids, refs)
@@ -393,23 +392,19 @@ func Compute(f record.Family) Stats {
 			}
 		case *recordpb.Motion:
 			// The dispute stat: a docket motion proposing an act on the gap — a regrade, a close
-			// or a supersede. The gap is the docket filing's own; a motion with no act (the
-			// dispatch's impasse filing) disputes nothing.
+			// or a supersede. The gap is the docket filing's own.
 			if gid := f.GetDocket().GetGapId(); gid != "" && f.GetAct() != nil {
 				withDispute[gid] = true
 			}
 		}
 	}
-	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A ruling
-	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
-	// pairing is computed, and reading it a second way here is how counters come to disagree.
-	for _, m := range record.MotionsOf(f.Events, f.At) {
-		// THE BENCH'S RULINGS: a gap's assignee accepting a proposed act settled nothing before it.
-		if m == nil || m.Subject != "docket" || !m.Ruled() || seatclass.RoleOfSeat(m.RulingBy) != "bench" {
-			continue
-		}
-		if m.GapID != "" {
-			withDisposition[m.GapID] = true
+	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A bench ruling
+	// carries the docketing's id; the gap rides the DOCKETING. record.DocketingsOf is the one place
+	// that pairing is computed, and reading it a second way here is how counters come to disagree. A
+	// gap's assignee accepting a proposed act answers no docketing, and settled nothing before it.
+	for _, d := range record.DocketingsOf(f.Events) {
+		if d.Ruled() && d.GapID != "" {
+			withDisposition[d.GapID] = true
 		}
 	}
 

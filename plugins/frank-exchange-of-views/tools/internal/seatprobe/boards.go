@@ -51,6 +51,10 @@ type Gap struct {
 	// should close" hands the bench a board it cannot weigh, and then scoring what it did with the
 	// weighing is scoring a coin flip — the same defect Inquiry.FateWhy exists for.
 	RedClosing, BlueClosing string
+	// RedText is the text red's closing states the gap's sentence should become: the closing quotes
+	// the gap's Location, ending at its marker, and states this as what it becomes — red's position at
+	// a docketing whose question takes text, which a ruling for red applies.
+	RedText string
 }
 
 // Inquiry is an inquiry blue proposed, and the fate blue recorded on it if there is one.
@@ -603,6 +607,7 @@ No material downside was identified.
 				Baits: "motion docket rule",
 				Why: "A contested gap reaches the bench to be DISPOSED of. Carrying it with a stated " +
 					"direction is a real disposition and was driven exactly once before a gate noticed.",
+				RedText: "No material downside was identified in a review of the two vendor reports and the incident log for the past year",
 				RedClosing: "The claim is unfalsifiable as written. \"No material downside was identified\" " +
 					"reports the absence of a finding as the absence of a risk, and the two are only the same " +
 					"if a search happened. Blue has not said what was searched, over what corpus, or with " +
@@ -635,17 +640,12 @@ No material downside was identified.
 			// through the additive half of #681; a verb the bench role no longer offers reports
 			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
 			// skim the whole board.
-			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `remanded` is the one value that sends the gap back to the debate for one more exchange instead of closing it — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
-			{Seat: "judge", Verb: "regrade", Because: "Red's own closing concedes the gap's severity is overstated — `certain` " +
-				"for a sentence that misleads without asserting a falsehood — and the ruling rules on the grade the gap carries. " +
-				"A bench that holds a grade wrong sets it with its own regrade while the docket motion stands, then rules; a " +
-				"ruling over a grade it holds wrong records a fate on a gap the record still grades as something else, and " +
-				"only the bench's regrade binds the lens not to move it back."},
+			{Seat: "judge", Verb: "motion docket rule", Because: "The bench chooses between the two positions on the docketing — red's text in its closing, the chair's proposed close — and the tool applies the side it names; a remand is the one answer that sends the gap back to the debate for one more exchange instead of closing it. A gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The ruling names the docketing, which holds the proposal it answers."},
 			{Seat: "judge", Verb: "motion petition rule", Because: "A petition convenes the bench as soon as nothing is running, in the turn it was filed, and the run cannot end in a verdict while one stands. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
 				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +
-				"moves none of them, so a docket ruling (which demands a motion id and a fate) cannot carry it. A bench that " +
+				"moves none of them, so a docket ruling (which answers one docketing for one side) cannot carry it. A bench that " +
 				"instead puts such a holding in a petition ruling's opinion text has chosen the channel least likely to be read."},
 			{Seat: "judge", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
 			{Seat: "judge", Verb: "log", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: a docket ruling requires a motion id and a fate-changing disposition. A bench that buries the holding in a ruling's prose has put it on the channel least likely to be read."},
@@ -689,6 +689,7 @@ The combined effect is largest when the two are applied together.
 				Why: "Continuing would require the run to publish a recommendation to weaken a consent " +
 					"gate. That is the boundary the bench exists to hold, and it is a HALT — its own " +
 					"first-class terminal act — not a strongly-worded disposition on one gap.",
+				RedText: "Reducing the prominence of the decline control raises completion further, and the report takes no position on whether that trade is acceptable",
 				RedClosing: "The finding is measured and the recommendation that follows from it is the " +
 					"problem. A consent control exists to leave declining available; tuning its prominence " +
 					"for completion optimises the gate against the thing it is for. I am not disputing the " +

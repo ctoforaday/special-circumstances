@@ -20,8 +20,9 @@ import (
 //
 // That pair was still a composed key, and #312 is where it ran out: two petitions from one seat
 // in one round could not be told apart at all, because their pair had no third component to
-// reach for. A motion has an id. `motion docket rule --id M1` answers M1 and nothing else, so
-// both failures below stop being checks against a validator and become unrepresentable.
+// reach for. A motion has an id, and the docketing that puts it before the bench has its own:
+// `motion docket rule --id D` answers D, and through it D's motion, and nothing else, so both
+// failures below stop being checks against a validator and become unrepresentable.
 //
 // These tests survive the collapse asserting the SAME property against the new mechanism: an
 // answer joins to exactly one ask, and an answer to an ask nobody filed is refused.
@@ -46,8 +47,9 @@ func TestTwoMotionsOnOneGapAreTellableApart(t *testing.T) {
 
 	// Rule only the first. Keyed on the gap, this ruling would match BOTH filings, and the record
 	// would show one answer to two questions.
+	k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, first)
 	conveneBench(t, runDir, g)
-	args := benchRuleArgs(first, "remanded", "the gap needs one more exchange")
+	args := benchRuleArgs(k, "remand", "the gap needs one more exchange")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := runAt(t, args...); err != nil {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
@@ -83,12 +85,12 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	g := mintGap(t, runDir, "G1", "spec_underspecification")
 	docketFile(t, runDir, "blue-respond", g, "s")
 
-	args := benchRuleArgs("M7", "remanded", "sure")
+	args := benchRuleArgs("D-00000007", "remand", "sure")
 	_, err := runAt(t, append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)...)
 	if err == nil {
-		t.Fatal("the bench ruled a motion nobody filed — a reply with no question, joining to nothing")
+		t.Fatal("the bench ruled a docketing the tool never made — a reply with no question, joining to nothing")
 	}
-	if !strings.Contains(err.Error(), "which no filing created") {
+	if !strings.Contains(err.Error(), "no docketing D-00000007 is on the record") {
 		t.Errorf("the refusal must say the reference resolves to nothing: %v", err)
 	}
 }

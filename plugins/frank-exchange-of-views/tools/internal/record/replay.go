@@ -278,32 +278,6 @@ func (g *Gap) Successor() string {
 	return g.Closure.GetSuccessor()
 }
 
-// DocketGapByMotion indexes each docket motion's gap by the motion's id — the FILING carries the
-// gap, so every reader of a docket RULING has to come back through here to learn what it settled.
-//
-// It is one function rather than a fold repeated at each reader because it was three: the replay,
-// the debate projection and the closure states each recovered the same pairing, and three copies
-// of a join are three chances to disagree about which gap a ruling closed. A caller passes the
-// stream it already holds; a stream without the MOTION events yields an empty index, which is why
-// every caller's typed read asks for MOTION alongside MOTION_RULE.
-func DocketGapByMotion(evs []*Event) map[string]string {
-	out := map[string]string{}
-	for _, e := range evs {
-		f, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok {
-			continue
-		}
-		d, isDocket := f.GetFiling().(*recordpb.Motion_Docket)
-		if !isDocket {
-			continue
-		}
-		if id := f.GetMotionId(); id != "" {
-			out[id] = d.Docket.GetGapId()
-		}
-	}
-	return out
-}
-
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
 // ONE SPELLING, ONE LIST. The word is the Grade enum's own (`low_medium`, `medium_high`): the grade

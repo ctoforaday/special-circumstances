@@ -186,11 +186,12 @@ func actRows() map[string]actRow {
 			setup: func(t *testing.T, runDir string) actVars {
 				g := handleText(t, runDir, "G1")
 				m := docketFile(t, runDir, "red-chair", g, "red cannot settle G1")
+				k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 				conveneBench(t, runDir, g)
-				return actVars{"m": m}
+				return actVars{"k": k}
 			},
 			act: func(v actVars, text string) []string {
-				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
+				return []string{"motion", "docket", "rule", "--id", v["k"], "--remand",
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
 					"--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}},

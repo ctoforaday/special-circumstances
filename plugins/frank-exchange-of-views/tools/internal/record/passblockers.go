@@ -40,6 +40,7 @@ const (
 	BlockerStaleArea        BlockerKind = "stale_area"
 	BlockerGradeMovement    BlockerKind = "grade_movement"
 	BlockerClosingOwed      BlockerKind = "closing_owed"
+	BlockerDocketed         BlockerKind = "docketed"
 	BlockerUnruledMotion    BlockerKind = "unruled_motion"
 	BlockerUpheldPosition   BlockerKind = "upheld_position"
 	BlockerOpenInquiry      BlockerKind = "open_inquiry"
@@ -71,6 +72,8 @@ type Blocker struct {
 	motionSubject string
 	// act is the act a docket motion blocker proposes (Motion.Act), "" for none.
 	act string
+	// cause and basis are a docketed blocker's cause, as its word, and the words the bench rules on.
+	cause, basis string
 	// since is the events.id the blocker arose at — a motion's filing, the edit that changed an
 	// unchecked anchor's sentence (0 for one no edit has changed), the failed check, the reading a
 	// debt stands on, an inquiry's latest fate — so dispatch can ask whether its owner has sat since, and an unchecked anchor's
@@ -513,8 +516,8 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	// A DOCKETED GAP IS RULED ON ITS PARTIES' CLOSINGS (closingowed.go). The owner is the party — the
-	// gap's minting lens, or blue-respond — and the docket motion holds the PASS as an unruled motion
-	// as well, so every wording says the bench rules once the closings are in. The gap's own reason in
+	// gap's minting lens, or blue-respond — and the docketing holds the PASS as a docketed gap as well,
+	// so every wording says the bench rules once the closings are in. The gap's own reason in
 	// the plan states who is readied and whether the bench sits, so the kind has no plan line of its own.
 	{
 		kind:    BlockerClosingOwed,
@@ -525,15 +528,39 @@ var blockerKinds = []blockerKind{
 			if !b.awaited {
 				state = "is not on the record, and " + ownerOr(b, "the party") + " has sat since the docketing without filing it — the bench rules on the record as it stands"
 			}
-			return fmt.Sprintf("gap %s is docketed for the bench (motion %s) and the closing argument of %s on it %s; PASS is refused until the bench rules", b.Subject, b.Detail, ownerOr(b, "a party"), state)
+			return fmt.Sprintf("gap %s is before the bench (%s) and the closing argument of %s on it %s; PASS is refused until the bench rules", b.Subject, b.Detail, ownerOr(b, "a party"), state)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
 			for _, b := range bs {
-				named = append(named, fmt.Sprintf("%s (%s, motion %s)", b.Subject, ownerOr(b, "a party"), b.Detail))
+				named = append(named, fmt.Sprintf("%s (%s, %s)", b.Subject, ownerOr(b, "a party"), b.Detail))
 			}
 			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its minting lens and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling, and `--as FAIL` does not",
 				len(bs), strings.Join(named, ", "))
+		},
+	},
+	// A DOCKETING IS THE BENCH'S UNTIL IT RULES IT (§III.B13). The tool wrote it — at impasse, for the
+	// board's grade movement, or for a proposal its assignee did not accept — and the bench answers it,
+	// once; a Close of the gap after it ends it unruled. The plan states the gap's readiness on its own
+	// route, so the kind has no plan line of its own beyond a docketing on a closed gap.
+	{
+		kind:    BlockerDocketed,
+		subject: SubjectGap,
+		gloss:   "a gap before the bench, docketed and not yet ruled",
+		item: func(b Blocker) string {
+			return fmt.Sprintf("gap %s is docketed for the bench (docketing %s, %s) and the bench has not ruled it — PASS is refused while it stands", b.Subject, b.Detail, b.cause)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s (docketing %s, %s)", b.Subject, b.Detail, b.cause))
+			}
+			return fmt.Sprintf("%d gap(s) are docketed for the bench and unruled: %s. The bench rules each docketing once, on the parties' closings, the transcript and the artifacts, by naming the side whose position stands or remanding it. "+
+				"PASS waits for those rulings, and `--as FAIL` does not",
+				len(bs), strings.Join(named, ", "))
+		},
+		why: func(b Blocker) string {
+			return fmt.Sprintf("%s: docketing %s (%s) stands unruled — %s", b.Subject, b.Detail, b.cause, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
 	{
@@ -779,17 +806,45 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex, open map[string
 	if castOfEvents(evs) != nil && reportHeadOf(evs, ids) == 0 {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
+	out = append(out, docketedBlockers(evs, ids)...)
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
 	out = append(out, upheldPositionBlockers(evs, ids, win)...)
 	return out
 }
 
+// docketedBlockers is the gate list's docketed arm: every standing docketing (docketingsAt), owned by
+// the bench. ids is evs's places, aligned with it.
+func docketedBlockers(evs []*Event, ids []int64) []Blocker {
+	var out []Blocker
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Standing() {
+			out = append(out, Blocker{Kind: BlockerDocketed, Subject: d.GapID, Owner: benchSeat, Detail: d.ID, About: d.GapID,
+				since: d.at, cause: recordpb.Word(d.Cause), basis: d.Basis})
+		}
+	}
+	return out
+}
+
 // unruledMotionBlockers is the gate list's unruled-motion arm: every motion with no ruling, owned by
-// the seat whose gavel its subject is. ids is evs's places, aligned with it.
+// the seat whose gavel its subject is — but a proposal (a docket motion), which a docketing holding it
+// puts on the docketed arm instead, and which in its window is its assignee's to accept. A proposal a
+// Close of its gap ended is answered by nobody and holds nothing (docketingsAt's rule). ids is evs's
+// places, aligned with it.
 func unruledMotionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	var out []Blocker
+	held, ended := proposalStates(evs, ids, win)
+	assignees := assigneeOf(evs)
 	for _, m := range motionsAt(evs, ids, win) {
 		if m == nil || m.Ruled() {
+			continue
+		}
+		if m.Subject == "docket" {
+			if held[m.ID] || ended[m.ID] {
+				continue
+			}
+			out = append(out, Blocker{Kind: BlockerUnruledMotion, Subject: m.ID, Owner: assignees[m.GapID],
+				Detail: "docket, a proposal its assignee " + assignees[m.GapID] + " may accept in its window", About: m.GapID,
+				motionSubject: m.Subject, since: m.filed, act: m.Act})
 			continue
 		}
 		g, err := gavelOf(m.Subject)
@@ -891,8 +946,9 @@ func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker
 	return nil
 }
 
-// requireBenchMotionsRuled refuses the run's outcome while a motion whose gavel is the bench's
-// stands unruled. The terminal bench sitting exists to rule them, and it fires on the bench-owned
+// requireBenchMotionsRuled refuses the run's outcome while a docketing stands, or a proposal, or a
+// motion whose gavel is the bench's stands unruled — every proposal is the bench's at the exit, where
+// its register dockets it (L29). The terminal bench sitting exists to rule them, and it fires on the bench-owned
 // blockers of the chair's last plan, which the record computes and capture holds to the record. A
 // motion filed after that plan is on no plan, so the terminal sitting does not convene for it: this
 // refusal is its backstop (#1202). Refused here, such a motion is loud at the one write path, and
@@ -916,17 +972,19 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	}
 	var named []string
 	for _, b := range blockers {
-		if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
-			continue
+		switch {
+		case b.Kind == BlockerDocketed:
+			named = append(named, "docketing "+b.Detail+" on "+b.About)
+		case b.Kind == BlockerUnruledMotion && (b.Owner == benchSeat || b.motionSubject == "docket"):
+			named = append(named, "motion "+b.Subject+" ("+b.Detail+")")
 		}
-		named = append(named, b.Subject+" ("+b.Detail+")")
 	}
 	if len(named) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d motion(s) whose gavel is the bench's stand unruled: %s. "+
+	return fmt.Errorf("%d docketing(s) and motion(s) the bench answers stand unruled: %s. "+
 		"The outcome is the run's last act, and a run that ends over an ask the bench never answered records a settlement that did not happen. "+
-		"You hold the gavel: read what each one asks with `inquest motions`, rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — a docket motion that proposes an act with --accept or --reject in place of --as — then record the outcome",
+		"You hold the gavel: read each docketing with `inquest motions` and rule it with `motion docket rule --id <docketing>` and one answer from its pair — `--for-red | --for-blue`, `--for-filer | --for-assignee` on a red seat's proposal on another red seat's gap, `--keep | --restore` at grade movement — or `--remand`; rule each petition or position with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — then record the outcome",
 		len(named), strings.Join(named, ", "))
 }
 

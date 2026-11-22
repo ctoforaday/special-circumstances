@@ -24,7 +24,6 @@ func TestEveryGradeAxisFlagPrintsItsAxisMeaning(t *testing.T) {
 	}{
 		{newMint(), 4},
 		{seat.Regrade("regrade"), 4},
-		{seat.Regrade("regrade-bench"), 4},
 	} {
 		carried := 0
 		for i := 0; i < axes.Len(); i++ {

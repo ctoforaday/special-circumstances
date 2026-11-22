@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -49,6 +50,7 @@ type Result struct {
 	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 78)
 	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 78)
 	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 79)
+	Dockets             migration.DocketResidue       // Translations 3 and 4's residue: the source ids written as no event (EventSchema 80)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -142,6 +144,13 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// citation its carrying reading named is the subject the live mint names, read off the source
 	// stream, since the migrated Verify names no gap.
 	cited := citedInActMints(evs)
+	// AN ARCHIVED DOCKET IS A DOCKETING, OR NO EVENT (EventSchema 80, docketing.go): which docket the
+	// dispatch filed is read off the source stream's order, which no translated body carries.
+	dockets, err := docketsOf(evs, reg, rm)
+	if err != nil {
+		return nil, err
+	}
+	reopened := map[string]bool{} // gaps whose close a dropped bench act took away (reopenedSpotCheck)
 	rm.archivedNotes = true
 	if sq, ok := src.(*SQLiteSource); ok {
 		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
@@ -319,6 +328,33 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			continue
 		}
+		// A BENCH OPINION, AND A DOCKET NO DISPATCH FILED WITH ITS RULING, IS WRITTEN AS NO EVENT
+		// (docketing.go); the gap each closed reads open where nothing else closed it.
+		if src.Word == "opinion" {
+			res.Dockets.Opinions = append(res.Dockets.Opinions, old.ID)
+			if g, ok := src.Fields["gap_id"].(string); ok {
+				reopened[rm.respelled(g)] = true
+			}
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		var drop docketDrop
+		if bodies, drop = dockets.translate(bodies); drop != keptDocket {
+			if drop == supersededDocket {
+				res.Dockets.Superseded = append(res.Dockets.Superseded, old.ID)
+			} else {
+				res.Dockets.PartyDockets = append(res.Dockets.PartyDockets, old.ID)
+			}
+			if r, ok := src.Fields["motion_id"].(string); ok && src.Word == "motion_rule" && drop == partyDocket {
+				reopened[rm.respelled(dockets.gapOf[r])] = true
+			}
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		// AN ARCHIVED REPRODUCE NAMES ITS SCRIPT BY THE SCRIPT'S SHA, and the record names a bundle:
 		// the computation written on that script says which.
 		for _, b := range bodies {
@@ -426,6 +462,39 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					return nil, err
 				}
 				continue
+			}
+			// THE BENCH SIDES WITH A STATED POSITION, AND NOTHING ELSE (EventSchema 80, docketing.go): a
+			// ruling of a docketing a Close ended first, a regrade of the bench's own, and a spot-check of
+			// a gap a dropped bench act left open are written as no event, each stated.
+			if ended, err := endedRuling(batch.Querier(), body); err != nil {
+				return nil, err
+			} else if ended {
+				res.Dockets.EndedRulings = append(res.Dockets.EndedRulings, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if benchRegrade(body, seatID) {
+				res.Dockets.BenchRegrades = append(res.Dockets.BenchRegrades, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if drop, err := reopenedSpotCheck(batch.Querier(), body, reopened); err != nil {
+				return nil, err
+			} else if drop {
+				res.Dockets.SpotChecks = append(res.Dockets.SpotChecks, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if k, ok := body.(*recordpb.Docketing); ok {
+				if err := docketingCause(batch.Querier(), k); err != nil {
+					return nil, err
+				}
 			}
 			if b, ok := body.(*recordpb.ReportPart); ok {
 				res.parts = append(res.parts, b.GetText())
@@ -599,11 +668,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Out[admissionWord]++
 				}
 			}
-			filer := id
-			if seat, ok := opinionFiler(src, body); ok {
-				filer = record.Identity{Run: dst, SeatID: seat}
-			}
-			ev, err := batch.Write(filer, body, ts)
+			ev, err := batch.Write(id, body, ts)
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
@@ -671,6 +736,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	}
 	res.QuotelessReadings, res.SettledEdits = statedIDs(res.QuotelessReadings), statedIDs(res.SettledEdits)
 	res.UnowedEngagements = statedIDs(res.UnowedEngagements)
+	d := &res.Dockets
+	d.Opinions, d.PartyDockets, d.Superseded = statedIDs(d.Opinions), statedIDs(d.PartyDockets), statedIDs(d.Superseded)
+	d.EndedRulings, d.BenchRegrades, d.SpotChecks = statedIDs(d.EndedRulings), statedIDs(d.BenchRegrades), statedIDs(d.SpotChecks)
 	return res, nil
 }
 
@@ -817,9 +885,6 @@ func archivedSha(src OldEvent) (string, bool) {
 	return "", false
 }
 
-// refusedArgument reports whether body is a closing or a position the write path refuses from
-// seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
-// event. A read that fails is returned, never taken for a refusal.
 // actOnSupersededGap reports whether body is an act on a gap a successor's mint closed by superseding
 // it, which the write refuses (EventSchema 62): a close, a regrade, a docket motion on it, and
 // the ruling of a motion so left out. An archive's lens superseded an open gap and went on acting on
@@ -838,8 +903,24 @@ func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[str
 		gap = b.GetGapId()
 	case *recordpb.Motion:
 		gap = b.GetDocket().GetGapId()
+	case *recordpb.Docketing:
+		gap = b.GetGapId()
 	case *recordpb.MotionRule:
-		return motions[b.GetMotionId()], nil
+		d := b.GetDocket().GetDocketingId()
+		if motions[b.GetMotionId()] || motions[d] {
+			return true, nil
+		}
+		if d == "" {
+			return false, nil
+		}
+		// A RULING OF A DOCKETING WHOSE GAP A SUCCESSOR SUPERSEDED AFTER IT WAS WRITTEN rules a gap that
+		// holds no state of its own, and is left out with the act on it (EventSchema 80).
+		// A docketing the write refused names no gap; its refusal is stated where it was refused.
+		if err := q.QueryRow(`SELECT "gap_id" FROM "docketing" WHERE "docketing_id" = ?`, d).Scan(&gap); errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		} else if err != nil {
+			return false, fmt.Errorf("reading the gap of docketing %s: %w", d, err)
+		}
 	default:
 		return false, nil
 	}
@@ -850,17 +931,23 @@ func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[str
 	if err != nil || !superseded {
 		return false, err
 	}
-	if m, ok := body.(*recordpb.Motion); ok {
+	switch m := body.(type) {
+	case *recordpb.Motion:
 		motions[m.GetMotionId()] = true
+	case *recordpb.Docketing:
+		motions[m.GetDocketingId()] = true
 	}
 	return true, nil
 }
 
+// refusedArgument reports whether body is a closing or a position the write path refuses from
+// seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
+// event. A read that fails is returned, never taken for a refusal.
 func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bool, error) {
 	var err error
 	switch b := body.(type) {
 	case *recordpb.Closing:
-		err = record.ClosingRefusal(q, b.GetGapId(), seatID)
+		err = record.ClosingRefusal(q, seatID, b)
 	case *recordpb.Position:
 		err = record.PositionRefusal(seatID)
 	}

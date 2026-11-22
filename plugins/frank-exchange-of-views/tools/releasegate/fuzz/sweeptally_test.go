@@ -209,7 +209,6 @@ type runTally struct {
 	HearingsAfterLens          int                       `json:"hearings_after_lens"`
 	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
 	LockRefused                int                       `json:"lock_refused"`
-	LockLifted                 int                       `json:"lock_lifted"`
 	PartRefused                map[string]int            `json:"part_refused"`
 	PartsRecorded              int                       `json:"parts_recorded"`
 	SourceClosesRefused        int                       `json:"source_closes_refused"`
@@ -265,7 +264,7 @@ func tallyOf(o outcome) runTally {
 		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
-		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted,
+		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
 		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, NonMaterialMints: o.nonMaterialMints, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
@@ -634,7 +633,7 @@ type sweepFold struct {
 	composedHanded, composedGaps, composedAnswers   int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
-	benchRegrades, lockRefused, lockLifted          int
+	benchRegrades, lockRefused                      int
 	hearingsAfterChair, hearingsAfterLens           int
 	hearingsAfterBlue                               int
 	applyMisses, estoppelMisses                     map[string]int
@@ -847,7 +846,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.hearingsAfterLens += r.HearingsAfterLens
 		f.hearingsAfterBlue += r.HearingsAfterBlue
 		f.lockRefused += r.LockRefused
-		f.lockLifted += r.LockLifted
 		for kind, n := range r.PartRefused {
 			f.partRefused[kind] += n
 		}
@@ -1333,15 +1331,12 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
 		// the gap, and the minting lens may not move it.
-		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted", f.benchRegrades, f.lockRefused, f.lockLifted)
+		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused", f.benchRegrades, f.lockRefused)
 		if f.benchRegrades == 0 {
 			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
 		}
 		if f.lockRefused == 0 {
 			t.Errorf("fuzz drove ZERO moves of a bench-set axis refused across %d runs — the lock on the bench's grade is unexercised (false green)", f.completed)
-		}
-		if f.lockLifted == 0 {
-			t.Errorf("fuzz drove ZERO lens moves of an axis the bench released across %d runs — the bench's second move returning the axis to the lens is unexercised (false green)", f.completed)
 		}
 		// THE REPORT IS THE LANES' PARTS (parts_test.go): every lane records one, the report joins two or
 		// more of them, and each refusal of a part is driven, partsSeed's run driving every one.

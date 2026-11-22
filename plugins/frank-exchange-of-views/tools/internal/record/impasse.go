@@ -305,14 +305,16 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				}
 			}
 			grades[g] = cur
-			// MOVEMENT IS A PARTY'S ACT. The bench's regrade sets the grade its ruling rules on
-			// (benchgrade.go); counted here, a bench regrade before a remand would read as the
+			// MOVEMENT IS A PARTY'S ACT. The bench's regrade is the statement a ruling applies, written
+			// by the tool (benchgrade.go); counted here, a bench regrade before a remand would read as the
 			// remand's exchange moving the gap and undo the one-remand limit.
 			if moved && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.BlueEdit:
-			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() {
+			// The bench's edit applies red's text in a ruling's transaction: no party's act, so no
+			// exchange counts it.
+			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Computation:

@@ -80,13 +80,11 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			// closing docket ruling are the latest of each arm, read off the bodies.
 			moved := column(t, db, `SELECT g."gap_id" FROM "gap" g
 			  LEFT JOIN (SELECT "gap_id", MAX("event_id") AS "c" FROM "close" GROUP BY "gap_id") c ON c."gap_id" = g."gap_id"
-			  LEFT JOIN (SELECT md."gap_id" AS "gap_id", MAX(mr."event_id") AS "b"
+			  LEFT JOIN (SELECT dk."gap_id" AS "gap_id", MAX(rd."event_id") AS "b"
 			             FROM "motion_rule_docket" rd
-			             JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
-			             JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
-			             JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+			             JOIN "docketing" dk ON dk."docketing_id" = rd."docketing_id"
 			             JOIN "enum_disposition" x ON x."value" = rd."disposition"
-			             WHERE x."closes" GROUP BY md."gap_id") b ON b."gap_id" = g."gap_id"
+			             WHERE x."closes" GROUP BY dk."gap_id") b ON b."gap_id" = g."gap_id"
 			  WHERE g."open" <> (c."c" IS NULL AND b."b" IS NULL AND g."supersede_event" IS NULL)
 			     OR COALESCE(g."close_event", 0) <> COALESCE(c."c", 0)
 			     OR COALESCE(g."bench_close_event", 0) <> COALESCE(b."b", 0)

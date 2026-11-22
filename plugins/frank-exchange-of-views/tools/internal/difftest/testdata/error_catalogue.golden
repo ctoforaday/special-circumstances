@@ -273,7 +273,7 @@ Usage:
 
 Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
-  closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
+  closing     your closing argument on a docketed gap of yours, with your text — owed once per docketing, before the bench rules it
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -317,7 +317,7 @@ Usage:
 
 Available Commands:
   cite        attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing     blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
   engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
@@ -406,7 +406,7 @@ Usage:
 
 Available Commands:
   cite        attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing     blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
   engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
@@ -456,7 +456,6 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
-  regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -636,7 +635,7 @@ feov-record: verdict: red-chair has already recorded a verdict this sitting, and
 
 ── a closing on a gap nothing is before the bench on
 exit 2
-feov-record: closing: GAP001 is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap
+feov-record: closing: GAP001 is not before the bench: no docketing and no proposal stands on it, so a closing on it answers none and nothing was recorded. A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap
 
 ── a proposal on a gap no exchange has reached
 exit 2
@@ -682,7 +681,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 exit 0
 motion MOTION001 filed (docket, proposing a close)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── a second proposal while one stands on the gap
 exit 2
@@ -744,7 +743,7 @@ feov-record: closing: blue-respond has already recorded a closing on "GAP001" th
 
 ── a lens closing a gap a docket motion stands on
 exit 2
-feov-record: close: gap GAP001 is docketed for the bench: motion MOTION001 stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on GAP001, which the bench reads before it rules
+feov-record: close: proposal MOTION001 stands on gap GAP001 in its assignee's window: the assignee answers it by accepting it, and otherwise the bench does once it is docketed. Nothing was recorded; what you found goes in your closing argument on GAP001
 
 ── repeat target: a gap nothing is before the bench on
 exit 0
@@ -753,14 +752,14 @@ minted GAP003
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the lens closes it
 exit 0
 closed GAP003 (repaired)
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the chair sits again
 exit 0
@@ -775,8 +774,8 @@ NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
 
 ── repeat target: the chair carries the closure
 exit 0
@@ -785,8 +784,8 @@ NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
 
 ── a second carry of a gap in one sitting
 exit 2
@@ -799,7 +798,7 @@ minted GAP004
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── bunch target: a second gap on it
 exit 0
@@ -808,7 +807,7 @@ minted GAP005
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── an edit carrying a run of anchors to the end of a longer replacement
 exit 2

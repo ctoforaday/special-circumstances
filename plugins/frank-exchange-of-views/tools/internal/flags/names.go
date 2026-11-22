@@ -106,8 +106,23 @@ const (
 	// verb and a second one would be two words for one meaning — the defect this file's own
 	// header declares.
 	Accept = "accept"
-	// Reject is the bench's answer to a proposed act it does not take: the gap stands as it is.
-	Reject = "reject"
+
+	// THE BENCH'S ANSWERS TO A DOCKETING (#1695 §III.B14): a side of the docketing's pair, whose
+	// statement the tool applies — red's or blue's, or lens against lens the filer's or the
+	// assignee's — the grade answer at grade movement, or a remand. No flag of the bench's chooses a
+	// word or a grade.
+	ForRed      = "for-red"
+	ForBlue     = "for-blue"
+	ForFiler    = "for-filer"
+	ForAssignee = "for-assignee"
+	Keep        = "keep"
+	Restore     = "restore"
+	Remand      = "remand"
+
+	// Red's closing states its text as a road: --quote with --new, or the anchor's --retire; NoText says
+	// it states none, where every road it can state is refused.
+	Retire = "retire"
+	NoText = "no-text"
 
 	// An inquiry's QUESTION: what it asks, holding no predicted result. Its own flag, not the prose
 	// channel's --reason, because on the two acts of one inquiry --reason is the account of a fate.
@@ -316,7 +331,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, For, Schema, JSON,
 		Reason,
-		ID, IDs, Areas, Key, Quote, New, Answers, Accept, Reject, URL, Title, Format, Window,
+		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity,
@@ -326,6 +341,7 @@ func All() []string {
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Lens,
+		ForRed, ForBlue, ForFiler, ForAssignee, Keep, Restore, Remand, Retire, NoText,
 		Method,
 		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,

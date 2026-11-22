@@ -891,8 +891,8 @@ type EstoppedJSON struct {
 	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
 	Backing []GapBackingJSON `json:"backing"`
 	Class   string           `json:"class"`
-	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
-	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
+	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the closing
+	// word a bench ruling wrote from the side it sided with (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
 	Fate string `json:"fate"`
 	// ArtifactState is the SECOND AXIS, derived from Fate — see record.ArtifactStateOf. The
@@ -969,11 +969,13 @@ type WorkGapState struct {
 	DocketSettled string
 	// route is what the dispatch does with the gap (routeOf) — the plan's own predicate over the
 	// plan's own fold (exchangesOf) — and remand the stage the work list states, read off the route
-	// (stageOnRoute), so the stage, the remand items and the plan say one thing. unruledDocket is the view's
-	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
+	// (stageOnRoute), so the stage, the remand items and the plan say one thing. unruledDocket is
+	// whether a proposal stands on it (the view's `unruled_docket_filed`) and docketed whether a
+	// docketing does (`standing_docketing`), which routeOf reads as the plan does. Open gaps only.
 	remand        remandStage
 	route         gapRoute
 	unruledDocket bool
+	docketed      bool
 	// lensDue and blueDue are whether the route engages the gap's minting lens and blue on it
 	// (partiesOnRoute); lensTurn and lensRead are GapExchanges', which the lens's items read.
 	lensDue, blueDue, lensTurn bool
@@ -1077,7 +1079,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material",
-	    "required_fix", "acceptance_check", "assignee", "unruled_docket_filed" IS NOT NULL,
+	    "required_fix", "acceptance_check", "assignee", "unruled_docket_filed" IS NOT NULL, "standing_docketing" IS NOT NULL,
 	    "fix_basis", "fix_new", COALESCE("supersedes", ''), ` + gapClosureColumns + `,
 	    "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -1100,7 +1102,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial,
-			&requiredFix, &acceptanceCheck, &assignee, &g.unruledDocket,
+			&requiredFix, &acceptanceCheck, &assignee, &g.unruledDocket, &g.docketed,
 			&fixBasis, &fixNew, &g.Supersedes}
 		if err := rows.Scan(append(append(dest, cl.dest()...), &answersRetired)...); err != nil {
 			return r, err
@@ -1171,7 +1173,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.route = routeOf(g.Material, g.unruledDocket, moved.docketed(g.ID), x)
+		g.route = routeOf(g.Material, g.docketed, g.unruledDocket, moved.docketed(g.ID), x)
 		g.remand = stageOnRoute(g.route, x.Remand)
 		g.lensDue, g.blueDue = partiesOnRoute(g.route, x)
 		g.lensTurn, g.lensRead = x.lensTurn, x.lensRead
@@ -1278,8 +1280,8 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
 				// from any other seat; a reader deriving this from Assignee is deriving a refusal
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false. The
-				// close is refused while a docket motion stands on the gap (requireNoStandingDocket).
-				YoursToClose: reader != "" && g.Assignee == reader && !g.unruledDocket,
+				// close is refused while a docketing or a proposal stands on the gap (requireNoStandingDocket).
+				YoursToClose: reader != "" && g.Assignee == reader && !g.unruledDocket && !g.docketed,
 				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
@@ -1477,7 +1479,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 func (w *WorkJSON) keepClosingsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) {
 	docketed := map[string]bool{}
 	for _, g := range gaps {
-		docketed[g.ID] = g.Open && g.unruledDocket
+		docketed[g.ID] = g.Open && (g.docketed || g.unruledDocket)
 	}
 	owed := map[string]bool{}
 	for _, b := range closingBlockersOf(evs, win.IDs(evs), win, blockerGapsOfStates(gaps)) {
@@ -1733,7 +1735,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 	}
 	sort.Ints(epochOrder)
 
-	docketGapOf := DocketGapByMotion(evs)
+	docketGapOf := DocketRulingGap(evs)
 	kept := KeptGrades(evs, win)
 
 	for _, r := range epochOrder {
@@ -1818,7 +1820,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				continue
 			}
 			rj.Lead = append(rj.Lead, DebateOpinionJSON{
-				GapID: docketGapOf[r.GetMotionId()], Disposition: rulingWord(r),
+				GapID: docketGapOf(r), Disposition: rulingWord(r),
 				Principle: d.Docket.GetPrinciple(), Tension: d.Docket.GetTension(),
 				ReviewFlag: d.Docket.GetReviewFlag(), Rationale: r.GetOpinion(),
 			})
@@ -1861,6 +1863,8 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 	recordpb.EventType_EVENT_TYPE_CLOSING,
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	// A bench ruling's gap rides its docketing (DocketRulingGap).
+	recordpb.EventType_EVENT_TYPE_DOCKETING,
 	recordpb.EventType_EVENT_TYPE_VERDICT,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
 	recordpb.EventType_EVENT_TYPE_CLOSE,

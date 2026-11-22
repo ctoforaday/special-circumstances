@@ -277,7 +277,7 @@ FROM (
 JOIN "events" e ON e."id" = x."event_id";
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
--- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
+-- ("remanded"), one row per ruling — the gap of the docketing it answers, its events.id, the sitting it was ruled in,
 -- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
 -- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
 -- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
@@ -290,17 +290,15 @@ JOIN "events" e ON e."id" = x."event_id";
 -- bench ruled — a question about the exchange count, which the record's Go fold answers and this
 -- view cannot.
 CREATE VIEW "remand" AS
-SELECT md."gap_id"                          AS "gap_id",
-       mr."event_id"                        AS "event_id",
+SELECT dk."gap_id"                          AS "gap_id",
+       rd."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
        rd."direction"                       AS "direction",
        rd."settled"                         AS "settled"
-FROM "motion_docket" md
-JOIN "motion" mo ON mo."event_id" = md."event_id"
-JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
-JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+FROM "docketing" dk
+JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
-JOIN "events" e ON e."id" = mr."event_id"
+JOIN "events" e ON e."id" = rd."event_id"
 WHERE NOT d."closes"
 UNION ALL
 SELECT pg."value"                           AS "gap_id",
@@ -384,7 +382,7 @@ FROM "placed" p;
 -- row on the same pair ends it, and a later placement stands again. One lookup per row on
 -- tombstone_kind_gap.
 CREATE VIEW "tombstone_standing" AS
-SELECT t."event_id" AS "event_id", t."gap_id" AS "gap_id", t."kind" AS "kind", t."motion_id" AS "motion_id"
+SELECT t."event_id" AS "event_id", t."gap_id" AS "gap_id", t."kind" AS "kind", t."docketing_id" AS "docketing_id"
 FROM "tombstone" t
 WHERE t."ends" IS NULL
   AND NOT EXISTS (SELECT 1 FROM "tombstone" l
@@ -455,13 +453,18 @@ CREATE VIEW "demand_reach" AS
 --   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
 --                       closing act other than a carry follows it. The closure stands; the column is
 --                       the gap's lens's news.
---   unruled_docket_filed, unruled_docket_motion  the newest docket filing on the gap no ruling names,
---                       and its motion id. The PASS gate asks the same per-motion question of the
+--   unruled_docket_filed, unruled_docket_motion  the proposal standing: the newest docket filing on
+--                       the gap no ruling names and no non-carry close of the gap after it ends, and
+--                       its motion id. The PASS gate asks the same per-motion question of the
 --                       events (motionsAt), and
 --                       TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled
 --                       (record's narrowedview_test.go) holds the two level.
 --   docket_direction, docket_settled  the latest remand's direction, and the proposition it settles.
---   remanded            a remand stands on the open gap and no docket motion on it stands unruled: the
+--   standing_docketing, standing_docketing_at  the docketing standing: the newest on the gap no ruling
+--                       names and no non-carry close of the gap after it ends, and its event. The
+--                       Go fold (record.docketingsAt) states the same rule, and
+--                       TestTheStoredDocketingIsTheFold holds the two level.
+--   remanded            a remand stands on the open gap and no proposal or docketing stands on it: the
 --                       remand sends the gap back for ONE more exchange, and the record's Go fold
 --                       (exchangesOf, over the remand view) decides where it stands against that.
 CREATE VIEW "gap" AS
@@ -507,7 +510,9 @@ SELECT
   s."minted_event"             AS "minted_event",
   s."material"                 AS "material",
   s."remanded"                 AS "remanded",
-  s."unruled_docket_motion"    AS "unruled_docket_motion"
+  s."unruled_docket_motion"    AS "unruled_docket_motion",
+  s."standing_docketing"       AS "standing_docketing",
+  s."standing_docketing_at"    AS "standing_docketing_at"
 FROM "gap_state" s
 JOIN "mint" m ON m."event_id" = s."minted_event"
 JOIN "events" e ON e."id" = s."minted_event";
@@ -618,12 +623,13 @@ SELECT
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
-  -- AN ANSWER TO A PROPOSED ACT reads as its word: accepted or rejected.
+  -- A RULING READS AS ITS WORD: the closing word where one is set, else the side it sided with or
+  -- what it did with the moved grades (docketWordSQL).
   ` + docketWordSQL(`rd`) + `                             AS "docket",
   COALESCE(fr."petition", ` + docketWordSQL(`rd`) + `)   AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
-FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
+FROM (SELECT DISTINCT "motion_id" FROM "motion_rule" WHERE "motion_id" IS NOT NULL) ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
   (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
@@ -721,6 +727,7 @@ var NotActs = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED,
 	recordpb.EventType_EVENT_TYPE_PLAN,
 	recordpb.EventType_EVENT_TYPE_TOMBSTONE,
+	recordpb.EventType_EVENT_TYPE_DOCKETING,
 }
 
 // evidenceAnchorArmsSQL is the evidence_anchor view's placing arms: one per EvidenceTables row,
@@ -761,10 +768,13 @@ func evidenceChecksSQL() string {
 	return strings.Join(words, ", ")
 }
 
-// docketWordSQL is a docket ruling's word over its row r (an SQL alias): accepted or rejected where it
-// answers a proposed act, else its disposition.
+// docketWordSQL is a docket ruling's word over its row r (an SQL alias): its closing word where one
+// is set, else `for <side>` for the side it sided with, or `grades kept` | `grades restored` for a
+// grade answer — record.rulingWord's spelling.
 func docketWordSQL(r string) string {
-	return `(CASE ` + r + `."accepted" WHEN 1 THEN 'accepted' WHEN 0 THEN 'rejected' ELSE ` + r + `."disposition" END)`
+	return `(CASE WHEN ` + r + `."disposition" IS NOT NULL THEN ` + r + `."disposition"
+	   WHEN ` + r + `."sided_with" IS NOT NULL THEN 'for ' || ` + r + `."sided_with"
+	   WHEN ` + r + `."moved_grades" IS NOT NULL THEN 'grades ' || ` + r + `."moved_grades" END)`
 }
 
 // notActsSQL is NotActs as the quoted words of events.type, comma-separated.

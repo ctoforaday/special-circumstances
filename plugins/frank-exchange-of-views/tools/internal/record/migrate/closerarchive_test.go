@@ -8,10 +8,11 @@ import (
 )
 
 // A GAP ITS LENS CLOSED IS THE LENS'S, WHEN THE BENCH RULES IT AFTER. The archived wave-b run holds
-// two gaps closed by red and then ruled closed by the bench on a docket motion that stood unruled
+// two gaps closed by red and then ruled closed by the bench on a docket the chair filed by hand
 // (G-ede17021: close ev376, ruling ev432; G-77b3a089: ev574, ev609) — the shape universe-m25 had
-// four of, whose outcome then said the bench closed them. Migrated, the board and the family name
-// red as the closer and count none of them as the bench's, and the bench's word is the fate.
+// four of, whose outcome then said the bench closed them. A docket no dispatch filed is written as no
+// event with its ruling (EventSchema 80, O2), so migrated, the board and the family name red as the
+// closer, hold no bench closure for either, and the lens's word is the fate.
 func TestAGapItsLensClosedBeforeTheBenchRuledIsTheLenss(t *testing.T) {
 	_, dst := migrateArchive(t, "2026-10-12_is-91-prime-wave-b.tar.gz")
 	fam, err := record.FamilyOf(dst)
@@ -24,17 +25,14 @@ func TestAGapItsLensClosedBeforeTheBenchRuledIsTheLenss(t *testing.T) {
 		if g == nil {
 			t.Fatalf("%s is not in the migrated family", id)
 		}
-		if g.Open || g.Closure == nil || g.BenchClosure == nil {
-			t.Fatalf("%s: open=%v close=%v ruling=%v, want closed by both arms", id, g.Open, g.Closure != nil, g.BenchClosure != nil)
+		if g.Open || g.Closure == nil || g.BenchClosure != nil {
+			t.Fatalf("%s: open=%v close=%v ruling=%v, want closed by its lens alone", id, g.Open, g.Closure != nil, g.BenchClosure != nil)
 		}
 		if g.ClosedByBench {
-			t.Errorf("%s: its lens closed it before the bench ruled, and the family names the bench its closer", id)
+			t.Errorf("%s: its lens closed it, and the family names the bench its closer", id)
 		}
-		if !g.BenchClosedLast {
-			t.Errorf("%s: the bench ruled after its lens closed it, and the family says the bench's act is not the later", id)
-		}
-		if got, want := g.ClosureReason(), recordpb.Word(g.BenchClosure.GetDisposition()); got != want {
-			t.Errorf("%s: fate %q, want the bench's later word %q", id, got, want)
+		if got, want := g.ClosureReason(), recordpb.Word(g.Closure.GetClosureClass()); got != want {
+			t.Errorf("%s: fate %q, want its lens's word %q", id, got, want)
 		}
 	}
 	bj, err := record.BoardJSONOfRun(dst)

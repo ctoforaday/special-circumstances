@@ -304,6 +304,13 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	if found {
 		return 0, "", repeatRegister(seatID, dispatch, held, occ)
 	}
+	// AT THE EXIT NO PLAN FOLLOWS, SO THE BENCH'S REGISTER DOCKETS EVERY PROPOSAL NO DOCKETING HOLDS
+	// (L29), in its own transaction: every exit ruling then names a docketing.
+	if occ != nil && (*occ == recordpb.Occasion_OCCASION_TERMINAL || *occ == recordpb.Occasion_OCCASION_ASSEMBLE) {
+		if err := docketStandingProposals(tx, filesOf(id.Run), seatID); err != nil {
+			return 0, "", err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, "", err
 	}
@@ -447,10 +454,13 @@ var defines = map[recordpb.EventType]bool{
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
 // stop at the first. A tombstone names its gap too, and a place, an end and a place again on one gap
-// in one sitting are three acts.
+// in one sitting are three acts. A docketing names its gap as well, and is the tool's row as the plan
+// is: two docketings on one gap written in one sitting — one ruled, and the gap docketed again — are
+// two rows, so it keys on the writer's ordinal as the plan does.
 var numbered = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_STALE:     true,
 	recordpb.EventType_EVENT_TYPE_TOMBSTONE: true,
+	recordpb.EventType_EVENT_TYPE_DOCKETING: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -683,6 +693,18 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 			return out, err
 		}
 	}
+	// WHAT THE ACTS LEAVE, asked of the record with every act of the transaction on it — a mint with
+	// the anchor that places it, an edit with the report it leaves: the freeze's arms (freeze.go) and
+	// each verb's landed guards (CheckLanded). A refusal rolls the whole transaction back.
+	w := writeView{q: tx, files: filesOf(id.Run)}
+	for i, a := range acts {
+		if err := judgeLanded(w, id.SeatID, a.Body); err != nil {
+			return out, err
+		}
+		if err := landedAt(w, a.Guards); err != nil {
+			return out[:i+1], err
+		}
+	}
 	return out, tx.Commit()
 }
 
@@ -749,6 +771,9 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 			return err
 		}
 		if mode.judge {
+			if err := requireClosingsOnlySitting(w, seatID, typ); err != nil {
+				return err
+			}
 			if err := judgeAct(w, seatID, body); err != nil {
 				return err
 			}
@@ -911,7 +936,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	// missing --id in the annotation's words.
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
-		if b.GetMotionId() != "" {
+		// A BENCH RULING OF A DOCKETING WITH NO PROPOSAL NAMES NO MOTION: it answers the docketing
+		// (requireDocketAnswer). Every other ruling names the motion it answers.
+		if b.GetMotionId() != "" || b.GetDocket().GetDocketingId() == "" {
 			if err := requireSubjectMatches(q, b.Subject(), b.GetMotionId()); err != nil {
 				return err
 			}
@@ -1143,7 +1170,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
-		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
+		if err := ClosingRefusal(q, seatID, b); err != nil {
 			return err
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
@@ -1294,37 +1321,40 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
-			// WHO ANSWERS, AND WHICH ANSWERS FIT THE MOTION: the bench, or the gap's assignee accepting
-			// the act the motion proposes (proposal.go).
+			// WHO ANSWERS, AND WHICH ANSWERS FIT: the bench on a docketing, or the gap's assignee
+			// accepting the act a proposal on its gap proposes (docketing.go).
 			if err := requireDocketAnswer(q, seatID, b); err != nil {
 				return err
 			}
 			if err := requireBenchOpinion(seatID, d.Docket); err != nil {
 				return err
 			}
-			// AN ACCEPT OR A REJECT ANSWERS THE ACT THE MOTION PROPOSES, and states nothing a closing
-			// word or a remand states.
-			if d.Docket.Accepted != nil {
-				if d.Docket.Disposition != nil || d.Docket.ReopensOn != nil || d.Docket.Final != nil || d.Docket.Direction != nil {
-					return fmt.Errorf("an accept or a reject answers the act the motion proposes and states nothing else: --as, --reopens-on and --final belong to a closing word, and --direction to a remand")
-				}
-			} else if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+			closes := d.Docket.Disposition != nil && d.Docket.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED
+			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
-					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+					return fmt.Errorf("a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
 				}
 				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
 				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
 				// not reopen a gap. A REMAND PAST THE LIMIT IS REFUSED (gblock, 2026-10-25): a second
-				// remand at impasse has no exchange to grant (requireRemandWithinLimit).
-				if err := requireRemandOfOpenGap(q, b.GetMotionId()); err != nil {
+				// remand at impasse has no exchange to grant (requireRemandWithinLimit). Both are asked
+				// of the gap of the docketing the remand answers.
+				gap, err := docketRulingGapAt(q, b)
+				if err != nil {
 					return err
 				}
-				if err := requireRemandWithinLimit(w, seatID, b.GetMotionId()); err != nil {
+				what := remandSubject(b)
+				if err := requireRemandOfOpenGap(q, gap, what); err != nil {
+					return err
+				}
+				if err := requireRemandWithinLimit(w, seatID, gap, what); err != nil {
 					return err
 				}
 			} else if d.Docket.Direction != nil {
-				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))
-			} else if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
+				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and a ruling that is no remand sends no exchange; what would reopen a gap it closes is --reopens-on, or --final for nothing")
+			} else if !closes && (d.Docket.ReopensOn != nil || d.Docket.Final != nil) {
+				return fmt.Errorf("--reopens-on and --final say what would reopen a gap the ruling closes, and this ruling closes nothing by its own word")
+			} else if closes && d.Docket.ReopensOn == nil && d.Docket.Final == nil {
 				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
@@ -1341,11 +1371,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// CLI's help is generated from the SAME table (MotionVerdictEnum) — one source, two
 		// readers, which is the rule enums.go exists to keep.
 		//
-		// A DOCKET RULING STATES ITS WORD: a disposition, or the answer to the proposed act. The
-		// columns hold the pair as exactly one of the two; the refusal names the flag.
-		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok && d.Docket.Accepted == nil && d.Docket.Disposition == nil {
-			return feov.Errorf(feov.MissingField, "requires --as: the ruling's word — one of %s", strings.Join(Names(MotionVerdicts["docket"]), " | "))
-		}
+		// A DOCKET RULING STATES ITS ANSWER: requireDocketAnswer refused every docket ruling without
+		// exactly one of a side, a grade answer and a remand, above.
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
 		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a
@@ -1431,6 +1458,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Tombstone:
 		if err := requireTombstoneShape(q, b); err != nil {
+			return err
+		}
+	case *recordpb.Docketing:
+		if err := requireDocketingShape(q, b); err != nil {
 			return err
 		}
 	case *recordpb.ReportRead:
@@ -1694,14 +1725,17 @@ func rulingWord(r *recordpb.MotionRule) string {
 		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
 		// broken read are the same number.
 		//
-		// AN ANSWER TO A PROPOSED ACT is its acceptance, read as its word.
-		if v.Docket.Accepted != nil {
-			if v.Docket.GetAccepted() {
-				return "accepted"
-			}
-			return "rejected"
+		// ITS CLOSING WORD WHERE ONE IS SET, else the side it sided with or what it did with the moved
+		// grades — recordsql's docketWordSQL spells the same.
+		switch {
+		case v.Docket.Disposition != nil:
+			return recordpb.Word(v.Docket.GetDisposition())
+		case v.Docket.SidedWith != nil:
+			return "for " + recordpb.Word(v.Docket.GetSidedWith())
+		case v.Docket.MovedGrades != nil:
+			return "grades " + recordpb.Word(v.Docket.GetMovedGrades())
 		}
-		return recordpb.Word(v.Docket.GetDisposition())
+		return ""
 	case *recordpb.MotionRule_Position:
 		// A message arm too, for the work an upheld ruling names: the word is on the message.
 		return recordpb.Word(v.Position.GetRuling())
@@ -1744,19 +1778,41 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		gapID, assignee, act, seatID)
 }
 
-// requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
-// gblock 2026-10-31). The lens's preference comes before the docket: once the gap is before the bench,
-// the bench disposes of it, and the lens's one act there is its closing. On universe-m37 five dockets
-// closed within minutes of being filed, and the bench sat to rule three times on gaps that were over.
+// requireNoStandingDocket refuses the close of a gap a docketing or a proposal stands on (ruled by
+// gblock 2026-10-31; the freeze, F9). The lens's preference comes before the docket: once the gap is
+// before the bench, the bench disposes of it, and the lens's one act there is its closing; while a
+// proposal stands in its window, the assignee answers it by accepting it, and a close of its own would
+// answer nobody. On universe-m37 five dockets closed within minutes of being filed, and the bench sat to
+// rule three times on gaps that were over.
 func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
-	var motion string
-	found, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found || motion == "" {
+	docketing, proposal, err := standingOnGap(q, gapID)
+	if err != nil {
+		return err
+	}
+	switch {
+	case docketing != "":
+		return feov.Errorf(feov.Conflict,
+			"gap %s is docketed for the bench: docketing %s stands on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
+			gapID, docketing, gapID)
+	case proposal != "":
+		return feov.Errorf(feov.Conflict,
+			"proposal %s stands on gap %s in its assignee's window: the assignee answers it by accepting it, and otherwise the bench does once it is docketed. Nothing was recorded; what you found goes in your closing argument on %s",
+			proposal, gapID, gapID)
+	}
+	return nil
+}
+
+// requireNoDocketingOnFiling refuses a proposal on a gap a docketing stands on (L38): the docketed gap
+// is the bench's, and each party's position at it is its closing. A docketing holds a proposal exactly
+// when its cause is PROPOSAL, and that one was filed before it.
+func requireNoDocketingOnFiling(q recordsql.Querier, gapID string) error {
+	docketing, _, err := standingOnGap(q, gapID)
+	if err != nil || docketing == "" {
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"gap %s is docketed for the bench: motion %s stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
-		gapID, motion, gapID)
+		"gap %s is docketed for the bench: docketing %s stands on it, and no proposal is filed on a docketed gap — your position goes in your closing on %s, which the bench reads before it rules for a side. Nothing was recorded",
+		gapID, docketing, gapID)
 }
 
 // closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row
@@ -1766,14 +1822,19 @@ const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON
        AND e."sitting_id" IS ?3
      ORDER BY e."id" LIMIT 1`
 
-// requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
-// filed in the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an
-// obligation nobody can discharge). The motion docketing the gap again owes each party a closing on
-// it, and that sitting holds one closing per gap, so the filer's sitting could not end
-// (EnvelopeRefusal). It is filed in a later sitting.
+// requireNoClosingThisSitting refuses a proposal on a gap whose closing its filer has already filed in
+// the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an obligation
+// nobody can discharge). A proposal is filed on an undocketed gap only (L38), and its docketing's span
+// opens at the filing, so it owes each party a closing after it; that sitting holds one closing per
+// gap, so the filer's sitting could not end (EnvelopeRefusal). It is filed in a later sitting. On a
+// docketed gap the docketing's closings are owed already and the proposal is refused for the docketing
+// itself (L38, the act judgement's, naming it), so this check asks nothing there.
 func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) error {
 	if gapID == "" {
 		return nil
+	}
+	if docketing, _, err := standingOnGap(q, gapID); err != nil || docketing != "" {
+		return err
 	}
 	sitting, _, err := latestSittingAt(q, seatID)
 	if err != nil {
@@ -1785,23 +1846,33 @@ func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) erro
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"%s already filed its closing on %s in this sitting (event %d), and a docket motion now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
-			"Nothing was recorded; file the docket motion in a later sitting",
+		"%s already filed its closing on %s in this sitting (event %d), and a proposal now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
+			"Nothing was recorded; file the proposal in a later sitting",
 		seatID, gapID, closing, gapID)
 }
 
-// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
-// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
-// closing is an argument the bench reads when it rules a docketing, so one with nothing before the
-// bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
-// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
-func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
-	if gapID == "" {
-		return nil
+// ClosingRefusal is who may file a closing, when, and what it states: a party to the gap's dispute —
+// its minting lens, or blue-respond — while a docketing or a proposal stands on it (closingowed.go),
+// stating its side's position (requireClosingStatement). A closing is an argument the bench reads when
+// it rules a docketing, so one with nothing before the bench answers no docketing, one from a seat that
+// is no party argues a dispute it is not in, and one that states no position the bench can side with
+// argues nothing. The write path refuses on it, and migrate writes no event for an archived closing it
+// refuses.
+func ClosingRefusal(q recordsql.Querier, seatID string, c *recordpb.Closing) error {
+	if c.GetGapId() == "" {
+		return nil // an absent gap is validate's refusal, not this one's
 	}
+	if err := closingPartyRefusal(q, c.GetGapId(), seatID); err != nil {
+		return err
+	}
+	return requireClosingStatement(q, seatID, c)
+}
+
+// closingPartyRefusal is ClosingRefusal's who and when.
+func closingPartyRefusal(q recordsql.Querier, gapID, seatID string) error {
 	var assignee string
 	var docketed int64
-	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("assignee", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("assignee", ''), COALESCE("standing_docketing_at", "unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
@@ -1813,7 +1884,7 @@ func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
 	}
 	if docketed == 0 {
 		return feov.Errorf(feov.Validation,
-			"%s is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. "+
+			"%s is not before the bench: no docketing and no proposal stands on it, so a closing on it answers none and nothing was recorded. "+
 				"A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap",
 			gapID)
 	}

@@ -27,7 +27,7 @@ func Verbs() []*cobra.Command {
 		newRenderPage(),
 		newReproduce(),
 		newInquiry(),
-		seat.Closing("closing-red"),
+		closingRed(),
 		seat.Log(),
 	)
 }

@@ -39,17 +39,16 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 			CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}
+	docketingOf := map[string]string{}
 	file := func(motionID, gapID string) {
 		gapOf[motionID] = gapID
-		mustFileByDispatch(t, run, &recordpb.Motion{MotionId: proto.String(motionID),
-			Basis:  proto.String("red cannot settle " + gapID),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		docketingOf[motionID] = mustDocketByDispatch(t, run, gapID)
 	}
 	// Each ruling is the bench's in the docket sitting the dispatch convenes for its gap.
 	carry := func(motionID, reopensOn string) {
-		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{
 			Opinion: proto.String("not this round"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketingOf[motionID]),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("thoroughness over speed"),
 				Tension:     proto.String("cost against certainty"),
@@ -58,9 +57,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
-		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{
 			Opinion: proto.String("settled"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketingOf[motionID]),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("cost against certainty"),

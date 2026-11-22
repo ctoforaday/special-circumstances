@@ -103,12 +103,17 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// after M2 was ruled `remanded` on R1-2, `show work` offered nothing on the gap, while a
 		// never-docketed R1-3 got the affordance.
 		//
-		// An UNRULED motion suppresses it, because filing a second time while the first is pending
-		// asks the bench the same question twice.
+		// AN UNRULED PROPOSAL OR A STANDING DOCKETING SUPPRESSES IT: a gap holds one proposal at a time,
+		// and no proposal is filed on a docketed gap (L38) — the parties' closings are its statements.
 		pending := map[string]bool{}
 		for _, m := range MotionsOf(evs, win) {
 			if m != nil && m.Subject == "docket" && m.GapID != "" && !m.Ruled() {
 				pending[m.GapID] = true
+			}
+		}
+		for _, k := range docketingsAt(evs, win.IDs(evs)) {
+			if k.Standing() {
+				pending[k.GapID] = true
 			}
 		}
 		for _, g := range gaps {
@@ -288,6 +293,10 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 		return head + g.ID + " is open because the BENCH REMANDED it — its one more exchange begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends; the gap stays open and holds the PASS: " + g.DocketDirection
 	}
 	switch g.route {
+	case routeBench:
+		return head + g.ID + " is open because the BENCH REMANDED it, and it is docketed again — the dispatch readies its parties for their closings, then the bench"
+	case routeProposal:
+		return head + g.ID + " is open because the BENCH REMANDED it, and a proposal stands on it — the dispatch readies its assignee for its window, and dockets the proposal for the bench if the assignee does not accept it there"
 	case routeRemandOwed:
 		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its minting lens once blue has acted: " + g.DocketDirection
 	case routeRedocket:

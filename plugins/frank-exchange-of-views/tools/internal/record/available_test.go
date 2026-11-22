@@ -147,26 +147,19 @@ func TestAnUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 // A `carried` RULING RE-OPENS THE FILING, AND THAT IS THE POINT OF `carried`.
 //
 // The docket affordance was keyed on "has this gap EVER been docketed", so it went silent
-// permanently at the first filing. `carried` is a deferral: the bench answers the motion and
+// permanently at the first filing. `carried` is a deferral: the bench answers the docketing and
 // deliberately keeps the gap alive with a stated condition for revisiting it, and the gap comes
-// back as a FRESH filing next round. Under the old key the surface that would prompt that filing
+// back as a FRESH proposal. Under the old key the surface that would prompt that filing
 // never fired again, so the one disposition the bench uses most often — 76 of 77 rulings on the
 // measured corpus — had no route back to the bench.
 //
 // THE KEY IS PENDING, NOT EVER-FILED. Every disposition except `carried` closes the gap, so an
-// OPEN gap whose docket motion is RULED is exactly the deferred one. An UNRULED motion still
-// suppresses the affordance, because asking the bench the same question twice while it is thinking
-// is not work.
+// OPEN gap whose docketing is RULED is exactly the deferred one. A STANDING proposal still
+// suppresses the affordance, because proposing a second act while the first is unanswered is
+// refused (one standing proposal per gap).
 func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
-	// One motion per gap: G-carried is ruled and stays open; G-pending is filed and unruled;
-	// G-fresh was never docketed at all. Only G-pending must be silent.
-	file := func(motionID, gapID string) *Event {
-		return recordtest.Event(t, "red-chair", &recordpb.Motion{
-			MotionId: proto.String(motionID),
-			Basis:    proto.String("red cannot settle " + gapID),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
-		})
-	}
+	// G-carried was docketed and the bench remanded it, so it stays open; G-pending carries a proposal
+	// standing unanswered; G-fresh was never before the bench at all. Only G-pending must be silent.
 	// All three are MATERIAL: the docket is offered only on a gap that holds PASS, and this test is
 	// about which of three such gaps the offer stands on.
 	b := loadedFamilyT(t, []*Gap{
@@ -177,17 +170,17 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 		[]*Event{
 			mintsGap(t, "red-lens-logic", "G-carried"),
 			mintsGap(t, "red-lens-logic", "G-pending"),
-			file("M1", "G-carried"),
+			recordtest.Event(t, "red-chair", docketing("D1", "G-carried")),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Opinion:  proto.String("not this round"),
+				Opinion: proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String("D1"),
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 					Direction:   proto.String("blue reporting what the stated direction found"),
 					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}),
-			file("M2", "G-pending"),
+			recordtest.Event(t, "red-chair", docketMotion("M2", "G-pending")),
 		})
 	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false, nil)
 
@@ -264,5 +257,26 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	// And the never-docketed gap still gets the filing instruction it always did.
 	if !strings.Contains(fresh, "with a docket motion") {
 		t.Errorf("the undocketed gap lost its filing affordance: %q", fresh)
+	}
+}
+
+// A DOCKETED GAP TAKES NO PROPOSAL (L38), so the chair is not offered one there: a docketing standing
+// with no proposal suppresses the row as a standing proposal does.
+func TestTheChairIsNotOfferedAProposalOnADocketedGap(t *testing.T) {
+	b := loadedFamilyT(t, []*Gap{
+		{ID: "G-docketed", Open: true, Material: true},
+		{ID: "G-fresh", Open: true, Material: true},
+	},
+		[]*Event{
+			mintsGap(t, "red-lens-logic", "G-docketed"),
+			mintsGap(t, "red-lens-logic", "G-fresh"),
+			recordtest.Event(t, "red-chair", docketing("D1", "G-docketed")),
+		})
+	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false, nil)
+	if mentions(open, "gap G-docketed with a docket motion") {
+		t.Error("G-docketed has a docketing standing, and no proposal is filed on a docketed gap — the chair is offered one")
+	}
+	if !mentions(open, "gap G-fresh ") {
+		t.Errorf("G-fresh is open and undocketed, and the chair is not offered a proposal on it: %v", hows(open))
 	}
 }

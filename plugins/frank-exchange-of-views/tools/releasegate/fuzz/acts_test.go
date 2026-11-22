@@ -54,11 +54,51 @@ func (r *runner) admit(args ...string) (out string, ok bool) { return r.admitAs(
 // admitAs is admit under a harness agent id (execAs).
 func (r *runner) admitAs(agent string, args ...string) (out string, ok bool) {
 	out, err := r.execAs(agent, args...)
-	if err != nil {
+	switch {
+	case err == nil:
+		return out, true
+	case heldUntilItsRuling(args, out+err.Error()):
+	default:
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
-		return out, false
 	}
-	return out, true
+	return out, false
+}
+
+// lockedByRuling reports whether a refusal of a lens's regrade is the lock a ruling on a grade holds:
+// the axes a ruling decided stay at the grade it left, and a lens's move of one is refused as a conflict
+// naming the ruling. The drive's regrades draw their axes, so the refusal is the draw's; lockRefused
+// counts it.
+func (r *runner) lockedByRuling(args []string, refusal string) bool {
+	if len(args) == 0 || args[0] != "regrade" || seatclass.RoleOfSeat(seatOfArgs(args)) != "lens" {
+		return false
+	}
+	if env, ok := refusalEnvelopeIn(refusal); !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "which the bench's ruling at event") {
+		return false
+	}
+	noteEither(args, "a lens's move of an axis a ruling on a grade decided", false)
+	r.mu.Lock()
+	r.lockRefused++
+	r.mu.Unlock()
+	return true
+}
+
+// heldUntilItsRuling reports whether a refusal of blue's edit or retire is the freeze on a statement
+// standing before the bench: red's text in its closing on a docketed gap, or a standing supersede
+// proposal's quote, holds until the bench rules, and an edit or retire that would leave it unable to
+// apply is refused as a conflict. Blue's drives edit the report at will, so that refusal is the draw's,
+// and noteEither tallies it.
+func heldUntilItsRuling(args []string, refusal string) bool {
+	if len(args) == 0 || (args[0] != "edit" && args[0] != "retire") || seatclass.RoleOfSeat(seatOfArgs(args)) != "blue" {
+		return false
+	}
+	if env, ok := refusalEnvelopeIn(refusal); ok && env.Code != string(feov.Conflict) {
+		return false
+	}
+	if !strings.Contains(refusal, "holds until its ruling") {
+		return false
+	}
+	noteEither(args, "blue's edit or retire of text a statement before the bench holds until its ruling", false)
+	return true
 }
 
 // refuse runs an act the drive drives to be refused with code. --json is added so the code is the
@@ -245,7 +285,9 @@ func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
 		}
 		env, ok := refusalEnvelopeIn(out)
 		if !ok || env.Code != string(feov.Conflict) || !r.staleMoved(seatID, gapID, before) {
-			r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+			if !heldUntilItsRuling(args, out) && !r.lockedByRuling(args, out) {
+				r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+			}
 			return out, false
 		}
 		noteEither(args[:1], "an act on a gap another seat changed since this seat's read point, recorded again", false)

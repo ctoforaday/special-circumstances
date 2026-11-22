@@ -48,6 +48,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [report read](#report-read) | lens, chair, operator |
 | [disposition](#disposition) | lens, chair, blue, lane, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
+| [docketing](#docketing) | lens, chair, blue, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, lane, bench, operator |
 | [relief](#relief) | lens, chair, blue, lane, bench, operator |
 | [new grounds](#new-grounds) | lens, chair, blue, lane, bench, operator |
@@ -489,7 +490,7 @@ A report read is the record's evidence that the tool served a lens the whole rep
 
 ## disposition
 
-A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -510,13 +511,23 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 ## grade movement
 
-Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
+Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no bench ruling on its grades has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling, which keeps the moved grades or restores the prior ones; the bench's regrade the tool writes in a ruling's transaction is no movement.
 
 **Delivered to:** lens, chair, bench, operator
 
 **Collisions:**
 
 - **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+
+## docketing
+
+A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for a party's proposal its assignee did not accept in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Collisions:**
+
+- **docket motion** — a docket motion is a party's proposal of an act on a gap; a docketing is the tool's record that the gap is before the bench, and holds a proposal only when the proposal's window ended unaccepted
 
 ## grade motion
 

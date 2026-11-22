@@ -13,7 +13,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // AN ACT STANDS AS FILED, AND WHAT ANSWERS A WRONG ONE IS ANOTHER ACT.
@@ -132,7 +131,7 @@ const (
 	rowFoundSource  = "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now"
 	rowClose        = "a successor naming the gap in --supersedes: mint it where the gap is yours, or propose it in a docket motion where it is not"
 	rowCarry        = "a supersede of the gap proposed in a docket motion"
-	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
+	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only on a new docketing of it"
 	rowAccept       = "your own next act on the gap, which the accept made yours: a regrade at your next sitting while the gap is open, or a successor naming it in --supersedes once it is closed"
 	rowPetition     = "a declaration"
 	rowPositionRule = "a declaration"
@@ -150,24 +149,6 @@ func (d drive) closeG1(seatID string) {
 	d.t.Helper()
 	d.admitted("close G1", seatID, "close", "--id", "G1", "--as", "repaired", "--verified-by", "L1",
 		"--verified-with", "read", "--verified-against", "blue/report.md", "--reason", "verified at the leaf")
-}
-
-// benchClosesG1 is the bench accepting G1's standing close proposal, convened for it: while a
-// proposal stands on a gap, the bench's ruling is what closes it, with the disposition the proposal
-// stores.
-func (d drive) benchClosesG1() {
-	d.t.Helper()
-	b, err := record.FamilyOf(runtest.Open(d.t, d.run))
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	for _, m := range record.MotionsOf(b.Events, b.At) {
-		if m.Subject == "docket" && !m.Ruled() {
-			ruleDocket(d.t, d.run, m.ID, "repaired")
-			return
-		}
-	}
-	d.t.Fatal("no docket motion stands on G1 for the bench to rule")
 }
 
 // propose files a docket proposal on G1 after its one exchange and returns the motion id. A GAP
@@ -278,23 +259,6 @@ func answerDrives() []answerDrive {
 			d.nextSitting(lensSeat)
 			d.refused("a regrade of a closed gap", lensSeat, "regrade", "--id", "G1", "--severity", "low", "--reason", "the first was wrong")
 		}},
-		// THE BENCH'S REGRADE SETS A GRADE BY MOVING IT, while a docket motion on the gap stands before
-		// it: the next sitting's correction moves the axis again, and keeping it is refused.
-		{name: "regrade, the bench", row: rowRegrade, helps: []string{"bench regrade"}, drive: func(d drive) {
-			d.docketMotion("docket G1", "blue-respond")
-			regrade := func(sev, why string) []string {
-				return []string{"regrade", "--id", "G1", "--severity", sev, "--reason", why}
-			}
-			conveneBench(d.t, d.run, "G1")
-			d.landed("the first", "judge", regrade("high", "the first")...)
-			d.endsWithRow(d.refused("a second in the sitting", "judge", regrade("certain", "the second")...), rowRegrade)
-			// The bench's next sitting is the one the next dispatch convenes on the gap.
-			conveneBench(d.t, d.run, "G1")
-			d.admitted("the next sitting's", "judge", regrade("certain", "the first was wrong")...)
-			d.benchClosesG1()
-			d.nextSitting("judge")
-			d.refused("a regrade of a closed gap", "judge", regrade("low", "the first was wrong")...)
-		}},
 		{name: "verify", row: rowVerify, when: "for a verification of a citation", helps: []string{"lens verify"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/v": []byte("<html>the source</html>")}})
 			d.admitted("cite", "blue-respond", "cite", "--quote", quoteTwo, "--url", "https://src/v", "--title", "T")
@@ -364,13 +328,14 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
+			k := docketNow(d.t, d.run, "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(d.t, d.run, "G1")
-			rule := func(m, text string) []string {
-				return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
+			rule := func(k, text string) []string {
+				return []string{"motion", "docket", "rule", "--id", k, "--remand", "--principle", "thoroughness over speed",
 					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}
-			d.admitted("the ruling", "judge", rule(m, "one more exchange")...)
-			d.endsWithRow(d.refused("a second ruling", "judge", rule(m, "again")...), rowDocketRule)
+			d.admitted("the ruling", "judge", rule(k, "one more exchange")...)
+			d.endsWithRow(d.refused("a second ruling", "judge", rule(k, "again")...), rowDocketRule)
 			// "a declaration": the bench's is admitted in the sitting that ruled.
 			before := d.admitted("the board as the ruling left it", "blue-respond", "show", "board")
 			// THE REPLY SAYS WHERE IT GOES: the work list is how a holding reaches the other seats.
@@ -382,19 +347,20 @@ func answerDrives() []answerDrive {
 			if after := d.admitted("the board after the declaration", "blue-respond", "show", "board"); after != before || !strings.Contains(after, `"open": true`) {
 				d.t.Fatalf("the declaration moved the board:\nbefore\n%s\nafter\n%s", before, after)
 			}
-			d.endsWithRow(d.refused("a second ruling after the declaration", "judge", rule(m, "again")...), rowDocketRule)
+			d.endsWithRow(d.refused("a second ruling after the declaration", "judge", rule(k, "again")...), rowDocketRule)
 			if r := d.refused("the bench's own docket motion", "judge", "motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--reason", "the bench should decide again"); !strings.Contains(r, "is ruled by the bench seat") {
 				d.t.Fatalf("the bench's docket motion is refused for another reason than its gavel:\n%s", r)
 			}
-			// "only in a docket motion another seat files": blue's is admitted on the ruled gap, the
-			// lens's on its own gap is refused (it takes the act itself), and the bench rules blue's in
-			// the sitting convened for it.
+			// "only on a new docketing of it": blue's proposal is admitted on the remanded gap, the
+			// lens's on its own gap is refused (it takes the act itself), and the bench rules blue's
+			// docketing in the sitting convened for it.
 			if r := d.refused("the lens's proposal on its own gap", lensSeat, "motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--reason", "r"); !strings.Contains(r, "you are its assignee") {
 				d.t.Fatalf("the lens's proposal on its own gap is refused for another reason:\n%s", r)
 			}
 			again := d.docketMotion("a new proposal on the ruled gap, by blue", "blue-respond")
+			k2 := docketNow(d.t, d.run, "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, again)
 			conveneBench(d.t, d.run, "G1")
-			d.admitted("the bench's ruling on the new motion", "judge", rule(again, "the gap again")...)
+			d.admitted("the bench's ruling on the new docketing", "judge", rule(k2, "the gap again")...)
 		}},
 		// THE ASSIGNEE'S ACCEPT APPLIES THE ACT ANOTHER SEAT PROPOSED, and answers the proposal once.
 		{name: "an accept, the lens", row: rowAccept, helps: []string{"lens motion docket accept"}, drive: func(d drive) {

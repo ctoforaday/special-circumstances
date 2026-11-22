@@ -134,6 +134,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s 
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('computation', 'a program blue ran twice on a bundle, with the bundle''s hash, its exit and its basis — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('docketing', 'the tool putting a gap before the bench — at impasse, for the board''s grade movement, or for a proposal its assignee did not accept; written by the dispatch, by no verb');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('envelope_admitted', 'the envelope an agent returned, admitted: the record refused nothing on the seat''s work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it');
@@ -291,6 +292,22 @@ CREATE TABLE "enum_petition_ruling" (
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest');
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow');
 
+CREATE TABLE "enum_sided_with" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_sided_with" ("value", "means") VALUES ('assignee', 'the gap''s assignee''s position against another red seat''s proposal: the text its closing states, applied as the bench''s edit');
+INSERT INTO "enum_sided_with" ("value", "means") VALUES ('blue', 'blue''s position: its text as it stands, with its closing''s word, or the proposal blue filed');
+INSERT INTO "enum_sided_with" ("value", "means") VALUES ('filer', 'the filing red seat''s position: the proposal it filed on another red seat''s gap');
+INSERT INTO "enum_sided_with" ("value", "means") VALUES ('red', 'red''s position: the text red''s closing states, applied as the bench''s edit of the gap''s text');
+
+CREATE TABLE "enum_moved_grades" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_moved_grades" ("value", "means") VALUES ('kept', 'the window''s moved grades stand');
+INSERT INTO "enum_moved_grades" ("value", "means") VALUES ('restored', 'the gap''s recorded prior grades are restored, by a bench regrade the tool writes in the ruling''s transaction');
+
 CREATE TABLE "enum_position_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -434,6 +451,14 @@ CREATE TABLE "enum_tombstone_kind" (
 INSERT INTO "enum_tombstone_kind" ("value", "means") VALUES ('estoppel', 'blue applied the gap''s prescription verbatim, so red may not re-raise the text it prescribed');
 INSERT INTO "enum_tombstone_kind" ("value", "means") VALUES ('ruling', 'a bench ruling but a remand is final for the ruled gap''s text');
 
+CREATE TABLE "enum_docketing_cause" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_docketing_cause" ("value", "means") VALUES ('grade_movement', 'the open gaps'' grade movement passed its threshold');
+INSERT INTO "enum_docketing_cause" ("value", "means") VALUES ('impasse', 'the gap''s exchanges reached k stalled or k-max in all');
+INSERT INTO "enum_docketing_cause" ("value", "means") VALUES ('proposal', 'a party''s proposal its assignee did not accept in its window');
+
 CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "tool_version" TEXT,
@@ -497,7 +522,7 @@ CREATE TABLE "motion" (
   "relief" TEXT,
   "filing_case" TEXT,
   "act_case" TEXT,
-  CHECK ("act_case" IS NULL OR "filing_case" = 'docket')
+  CHECK (("act_case" IS NULL) = ("filing_case" <> 'docket'))
 ) STRICT;
 
 CREATE TABLE "motion_petition" (
@@ -600,7 +625,7 @@ CREATE TABLE "motion_supersede" (
 
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "motion_id" TEXT NOT NULL,
+  "motion_id" TEXT,
   "opinion" TEXT NOT NULL,
   "binds" TEXT,
   "relief" TEXT,
@@ -621,16 +646,20 @@ CREATE TABLE "motion_rule_docket" (
   "reopens_on" TEXT,
   "final" INTEGER,
   "direction" TEXT,
-  "accepted" INTEGER,
+  "docketing_id" TEXT UNIQUE,
+  "sided_with" TEXT,
+  "moved_grades" TEXT,
   CHECK ("final" IS NULL OR "final" IN (0, 1)),
-  CHECK ("accepted" IS NULL OR "accepted" IN (0, 1)),
-  CHECK ("accepted" IS NOT NULL OR "disposition" = 'remanded' OR "reopens_on" IS NOT NULL OR "final" IS NOT NULL),
+  CHECK (coalesce("disposition", 'remanded') = 'remanded' OR "reopens_on" IS NOT NULL OR "final" IS NOT NULL),
   CHECK ("reopens_on" IS NULL OR "final" IS NULL),
   CHECK (coalesce("disposition", '') <> 'remanded' OR (coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> '' AND "reopens_on" IS NULL AND "final" IS NULL)),
   CHECK (coalesce("disposition", '') = 'remanded' OR "direction" IS NULL),
-  CHECK (("accepted" IS NULL) <> ("disposition" IS NULL)),
-  CHECK ("accepted" IS NULL OR ("reopens_on" IS NULL AND "final" IS NULL AND "direction" IS NULL)),
-  FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
+  CHECK ((("sided_with" IS NOT NULL) + ("moved_grades" IS NOT NULL) + (coalesce("disposition", '') = 'remanded')) = 1),
+  CHECK (coalesce("disposition", 'remanded') <> 'remanded' OR ("reopens_on" IS NULL AND "final" IS NULL)),
+  FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value"),
+  FOREIGN KEY ("docketing_id") REFERENCES "docketing"("docketing_id"),
+  FOREIGN KEY ("sided_with") REFERENCES "enum_sided_with"("value"),
+  FOREIGN KEY ("moved_grades") REFERENCES "enum_moved_grades"("value")
 ) STRICT;
 
 CREATE TABLE "motion_rule_position" (
@@ -713,7 +742,16 @@ CREATE TABLE "closing" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT,
   "text" TEXT NOT NULL,
-  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
+  "location" TEXT,
+  "fix_new" TEXT,
+  "retire" INTEGER,
+  "closure_class" TEXT,
+  "no_text" INTEGER,
+  CHECK ("retire" IS NULL OR "retire" IN (0, 1)),
+  CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'defect_accepted', 'defect_owed_elsewhere', 'moot', 'not_a_defect', 'repaired', 'repaired_with_regression')),
+  CHECK ("no_text" IS NULL OR "no_text" IN (0, 1)),
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
 CREATE TABLE "regrade" (
@@ -1030,13 +1068,26 @@ CREATE TABLE "tombstone" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
-  "motion_id" TEXT,
+  "docketing_id" TEXT,
   "ends" INTEGER,
   CHECK ("ends" IS NULL OR "ends" IN (0, 1)),
-  CHECK (("kind" = 'ruling' AND "ends" IS NULL) = ("motion_id" IS NOT NULL)),
+  CHECK (("kind" = 'ruling' AND "ends" IS NULL) = ("docketing_id" IS NOT NULL)),
   CHECK ("ends" IS NULL OR "ends" = 1),
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("kind") REFERENCES "enum_tombstone_kind"("value"),
+  FOREIGN KEY ("docketing_id") REFERENCES "docketing"("docketing_id")
+) STRICT;
+
+CREATE TABLE "docketing" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "docketing_id" TEXT NOT NULL UNIQUE,
+  "gap_id" TEXT NOT NULL,
+  "cause" TEXT NOT NULL,
+  "motion_id" TEXT,
+  "basis" TEXT,
+  CHECK (("cause" = 'proposal') = ("motion_id" IS NOT NULL)),
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("cause") REFERENCES "enum_docketing_cause"("value"),
   FOREIGN KEY ("motion_id") REFERENCES "motion"("motion_id")
 ) STRICT;
 
@@ -1049,6 +1100,9 @@ CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
+-- The docketings on a gap: the refresh's standing docketing and every reader of a gap's docketings.
+-- The ruling of a docketing reads motion_rule_docket ("docketing_id") through its UNIQUE index.
+CREATE INDEX "docketing_gap" ON "docketing" ("gap_id", "event_id");
 -- The evidence anchors placed as a gap's answer, which gap_refresh's live-answer demand and the
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
@@ -1161,7 +1215,9 @@ CREATE TABLE "gap_state" (
   "material"                INTEGER,
   "remanded"                INTEGER,
   "unruled_docket_motion"   TEXT,
-  "closed_event"            INTEGER
+  "closed_event"            INTEGER,
+  "standing_docketing"      TEXT,
+  "standing_docketing_at"   INTEGER
 ) STRICT;
 -- The open gaps, in mint order: the dispatch's open-gap fold and every "is anything open" question.
 CREATE INDEX "gap_state_open" ON "gap_state" ("minted_event") WHERE "open";
@@ -1183,18 +1239,24 @@ CREATE TRIGGER "gap_flush_refresh" AFTER INSERT ON "gap_flush" BEGIN
   DELETE FROM "gap_flush";
 END;
 
--- A DOCKET RULING ANSWERS A DOCKET FILING ON THE RECORD. The gap a docket ruling closes or remands
--- is the one its motion's filing names, so a ruling written before any filing of its motion would
--- change a gap only once a later filing named it, retroactively: the bench rules on a motion
--- filed, and a ruling with no filing behind it is refused for every writer.
+-- A DOCKET RULING ANSWERS A STANDING DOCKETING OR A DOCKET FILING ON THE RECORD. A bench ruling names
+-- the docketing it answers (docketing_id), which stands: on the record, and no non-carry close of its
+-- gap written after it. The assignee's accept names no docketing, and answers the docket filing its
+-- motion id names. A ruling with neither behind it would change a gap only once a later row named it,
+-- retroactively, and is refused for every writer.
 CREATE TRIGGER "motion_rule_docket_answers_a_filing" BEFORE INSERT ON "motion_rule_docket"
-WHEN NOT EXISTS (
+WHEN CASE WHEN NEW."docketing_id" IS NOT NULL THEN NOT EXISTS (
+  SELECT 1 FROM "docketing" dk
+  WHERE dk."docketing_id" = NEW."docketing_id"
+    AND NOT EXISTS (SELECT 1 FROM "close" c
+                    WHERE c."gap_id" = dk."gap_id" AND c."event_id" > dk."event_id" AND c."carried_from" IS NULL))
+  ELSE NOT EXISTS (
   SELECT 1 FROM "motion_rule" mr
   JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
   JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-  WHERE mr."event_id" = NEW."event_id")
+  WHERE mr."event_id" = NEW."event_id") END
 BEGIN
-  SELECT RAISE(ABORT, 'a docket ruling answers a docket motion already filed on the record: no docket filing carries this ruling''s motion id');
+  SELECT RAISE(ABORT, 'a docket ruling answers a standing docketing or a docket motion already filed on the record: neither stands behind this ruling');
 END;
 -- AND A FILING COMES BEFORE ITS RULING: a docket filing whose motion id a ruling already answers is refused.
 CREATE TRIGGER "motion_docket_precedes_its_ruling" BEFORE INSERT ON "motion_docket"
@@ -1220,6 +1282,14 @@ END;
 CREATE TRIGGER "gap_dirty_motion_docket" AFTER INSERT ON "motion_docket" BEGIN
   INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
   SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_docketing" AFTER INSERT ON "docketing" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_motion_rule_docket" AFTER INSERT ON "motion_rule_docket" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT dk."gap_id" FROM "docketing" dk WHERE dk."docketing_id" = NEW."docketing_id") WHERE "x" IS NOT NULL;
 END;
 CREATE TRIGGER "gap_dirty_motion_rule" AFTER INSERT ON "motion_rule" BEGIN
   INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
@@ -1387,7 +1457,7 @@ SELECT
   -- defect the work list had before duties were made per-sitting.
   (SELECT COUNT(*) FROM "events" ew
      WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
-       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','stale','report_read','envelope_admitted','plan','tombstone'))  AS "acts"
+       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','stale','report_read','envelope_admitted','plan','tombstone','docketing'))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";
@@ -1490,7 +1560,7 @@ FROM (
 JOIN "events" e ON e."id" = x."event_id";
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
--- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
+-- ("remanded"), one row per ruling — the gap of the docketing it answers, its events.id, the sitting it was ruled in,
 -- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
 -- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
 -- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
@@ -1503,17 +1573,15 @@ JOIN "events" e ON e."id" = x."event_id";
 -- bench ruled — a question about the exchange count, which the record's Go fold answers and this
 -- view cannot.
 CREATE VIEW "remand" AS
-SELECT md."gap_id"                          AS "gap_id",
-       mr."event_id"                        AS "event_id",
+SELECT dk."gap_id"                          AS "gap_id",
+       rd."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
        rd."direction"                       AS "direction",
        rd."settled"                         AS "settled"
-FROM "motion_docket" md
-JOIN "motion" mo ON mo."event_id" = md."event_id"
-JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
-JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+FROM "docketing" dk
+JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
-JOIN "events" e ON e."id" = mr."event_id"
+JOIN "events" e ON e."id" = rd."event_id"
 WHERE NOT d."closes"
 UNION ALL
 SELECT pg."value"                           AS "gap_id",
@@ -1605,7 +1673,7 @@ FROM "placed" p;
 -- row on the same pair ends it, and a later placement stands again. One lookup per row on
 -- tombstone_kind_gap.
 CREATE VIEW "tombstone_standing" AS
-SELECT t."event_id" AS "event_id", t."gap_id" AS "gap_id", t."kind" AS "kind", t."motion_id" AS "motion_id"
+SELECT t."event_id" AS "event_id", t."gap_id" AS "gap_id", t."kind" AS "kind", t."docketing_id" AS "docketing_id"
 FROM "tombstone" t
 WHERE t."ends" IS NULL
   AND NOT EXISTS (SELECT 1 FROM "tombstone" l
@@ -1683,13 +1751,18 @@ WHERE a."about_kind" = 'anchor';
 --   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
 --                       closing act other than a carry follows it. The closure stands; the column is
 --                       the gap's lens's news.
---   unruled_docket_filed, unruled_docket_motion  the newest docket filing on the gap no ruling names,
---                       and its motion id. The PASS gate asks the same per-motion question of the
+--   unruled_docket_filed, unruled_docket_motion  the proposal standing: the newest docket filing on
+--                       the gap no ruling names and no non-carry close of the gap after it ends, and
+--                       its motion id. The PASS gate asks the same per-motion question of the
 --                       events (motionsAt), and
 --                       TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled
 --                       (record's narrowedview_test.go) holds the two level.
 --   docket_direction, docket_settled  the latest remand's direction, and the proposition it settles.
---   remanded            a remand stands on the open gap and no docket motion on it stands unruled: the
+--   standing_docketing, standing_docketing_at  the docketing standing: the newest on the gap no ruling
+--                       names and no non-carry close of the gap after it ends, and its event. The
+--                       Go fold (record.docketingsAt) states the same rule, and
+--                       TestTheStoredDocketingIsTheFold holds the two level.
+--   remanded            a remand stands on the open gap and no proposal or docketing stands on it: the
 --                       remand sends the gap back for ONE more exchange, and the record's Go fold
 --                       (exchangesOf, over the remand view) decides where it stands against that.
 CREATE VIEW "gap" AS
@@ -1735,7 +1808,9 @@ SELECT
   s."minted_event"             AS "minted_event",
   s."material"                 AS "material",
   s."remanded"                 AS "remanded",
-  s."unruled_docket_motion"    AS "unruled_docket_motion"
+  s."unruled_docket_motion"    AS "unruled_docket_motion",
+  s."standing_docketing"       AS "standing_docketing",
+  s."standing_docketing_at"    AS "standing_docketing_at"
 FROM "gap_state" s
 JOIN "mint" m ON m."event_id" = s."minted_event"
 JOIN "events" e ON e."id" = s."minted_event";
@@ -1846,12 +1921,17 @@ SELECT
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
-  -- AN ANSWER TO A PROPOSED ACT reads as its word: accepted or rejected.
-  (CASE rd."accepted" WHEN 1 THEN 'accepted' WHEN 0 THEN 'rejected' ELSE rd."disposition" END)                             AS "docket",
-  COALESCE(fr."petition", (CASE rd."accepted" WHEN 1 THEN 'accepted' WHEN 0 THEN 'rejected' ELSE rd."disposition" END))   AS "ruling",
+  -- A RULING READS AS ITS WORD: the closing word where one is set, else the side it sided with or
+  -- what it did with the moved grades (docketWordSQL).
+  (CASE WHEN rd."disposition" IS NOT NULL THEN rd."disposition"
+	   WHEN rd."sided_with" IS NOT NULL THEN 'for ' || rd."sided_with"
+	   WHEN rd."moved_grades" IS NOT NULL THEN 'grades ' || rd."moved_grades" END)                             AS "docket",
+  COALESCE(fr."petition", (CASE WHEN rd."disposition" IS NOT NULL THEN rd."disposition"
+	   WHEN rd."sided_with" IS NOT NULL THEN 'for ' || rd."sided_with"
+	   WHEN rd."moved_grades" IS NOT NULL THEN 'grades ' || rd."moved_grades" END))   AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
-FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
+FROM (SELECT DISTINCT "motion_id" FROM "motion_rule" WHERE "motion_id" IS NOT NULL) ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
   (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
@@ -1933,32 +2013,29 @@ WITH "d" AS MATERIALIZED (
   FROM "gap_dirty" g CROSS JOIN "mint" m ON m."gap_id" = g."gap_id"
 ),
 "bench" AS MATERIALIZED (
-  -- THE BENCH'S CLOSING RULINGS on each gap: a docket ruling whose disposition closes, on a filing
-  -- that names the gap. The gap rides the filing, not the ruling.
-  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id"
+  -- THE BENCH'S CLOSING RULINGS on each gap: a ruling of a docketing on the gap whose disposition
+  -- closes. The gap rides the docketing, not the ruling; every bench ruling names its docketing, and
+  -- the assignee's accept names none.
+  SELECT dk."gap_id" AS "gap_id", rd."event_id" AS "event_id"
   FROM "d"
-  CROSS JOIN "motion_docket" md ON md."gap_id" = "d"."gap_id"
-  JOIN "motion" mo ON mo."event_id" = md."event_id"
-  JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
-  JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+  CROSS JOIN "docketing" dk ON dk."gap_id" = "d"."gap_id"
+  CROSS JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
   JOIN "enum_disposition" x ON x."value" = rd."disposition"
   WHERE x."closes"
   UNION ALL
-  -- AND THE BENCH'S ACCEPT OF A PROPOSED SUPERSEDE: the ruling closes the gap, and the successor the
-  -- tool writes after it names a closed gap. The ruler is the bench when it is not the gap's
-  -- assignee — the one other seat that may accept — so the assignee's own accept is read as red's,
-  -- through the successor's mint. CROSS JOIN holds the order: from the gap to its filings, each
-  -- read by key, never from the accepted rulings.
-  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id"
+  -- AND THE BENCH SIDING WITH A PROPOSED SUPERSEDE: the ruling closes the gap, and the successor the
+  -- tool writes after it names a closed gap. The proposal is the one the docketing holds, and the
+  -- ruling applied it where it sided with the proposal's side (blue, or the filing red seat); the
+  -- assignee's own accept names no docketing and is read as red's, through the successor's mint.
+  -- CROSS JOIN holds the order: from the gap to its docketings, each read by key, never from the
+  -- rulings.
+  SELECT dk."gap_id" AS "gap_id", rd."event_id" AS "event_id"
   FROM "d"
-  CROSS JOIN "motion_docket" md ON md."gap_id" = "d"."gap_id"
-  CROSS JOIN "motion_supersede" ms ON ms."event_id" = md."event_id"
-  CROSS JOIN "motion" mo ON mo."event_id" = md."event_id"
-  CROSS JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
-  CROSS JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
-  CROSS JOIN "events" re ON re."id" = mr."event_id"
-  WHERE rd."accepted" = 1
-    AND re."seat_id" <> (SELECT a."assignee" FROM "gap_state" a WHERE a."gap_id" = md."gap_id")
+  CROSS JOIN "docketing" dk ON dk."gap_id" = "d"."gap_id"
+  CROSS JOIN "motion" mo ON mo."motion_id" = dk."motion_id"
+  CROSS JOIN "motion_supersede" ms ON ms."event_id" = mo."event_id"
+  CROSS JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
+  WHERE rd."sided_with" IN ('blue', 'filer')
 ),
 "closure" AS MATERIALIZED (
   -- HOW EACH GAP CLOSED: the last close, and the first; the last close that is not a carry; the
@@ -1979,11 +2056,21 @@ WITH "d" AS MATERIALIZED (
       WHERE s."supersedes" = "d"."gap_id"
         AND NOT EXISTS (SELECT 1 FROM "close" c WHERE c."gap_id" = s."supersedes" AND c."event_id" < s."event_id")
         AND NOT EXISTS (SELECT 1 FROM "bench" b WHERE b."gap_id" = s."supersedes" AND b."event_id" < s."event_id")) AS "supersede_event",
-    -- THE DOCKET MOTION STANDING UNRULED: the newest filing on the gap that no ruling names. Asked
-    -- per motion, never as a count (#1201).
+    -- THE PROPOSAL STANDING: the newest docket filing on the gap that no ruling names and no
+    -- non-carry close of the gap written after it ends. Asked per motion, never as a count (#1201).
     (SELECT max(md."event_id") FROM "motion_docket" md JOIN "motion" mo ON mo."event_id" = md."event_id"
       WHERE md."gap_id" = "d"."gap_id"
-        AND NOT EXISTS (SELECT 1 FROM "motion_rule" mr WHERE mr."motion_id" = mo."motion_id"))         AS "filed"
+        AND NOT EXISTS (SELECT 1 FROM "motion_rule" mr WHERE mr."motion_id" = mo."motion_id")
+        AND NOT EXISTS (SELECT 1 FROM "close" c
+                        WHERE c."gap_id" = md."gap_id" AND c."event_id" > md."event_id" AND c."carried_from" IS NULL)) AS "filed",
+    -- THE DOCKETING STANDING: the newest docketing on the gap that no ruling names and no non-carry
+    -- close of the gap written after it ends — a carry restates an earlier epoch's closure and answers
+    -- no docketing (record.docketingsAt states the same rule).
+    (SELECT max(dk."event_id") FROM "docketing" dk
+      WHERE dk."gap_id" = "d"."gap_id"
+        AND NOT EXISTS (SELECT 1 FROM "motion_rule_docket" rd WHERE rd."docketing_id" = dk."docketing_id")
+        AND NOT EXISTS (SELECT 1 FROM "close" c
+                        WHERE c."gap_id" = dk."gap_id" AND c."event_id" > dk."event_id" AND c."carried_from" IS NULL)) AS "docketed"
   FROM "d"
 ),
 "k" AS MATERIALIZED (
@@ -2091,13 +2178,15 @@ SELECT
   lr."settled"                                                                AS "docket_settled",
   (SELECT m2."gap_id" FROM "mint" m2 WHERE m2."event_id" = k."supersede_event") AS "superseded_by",
   (k."class_material" = 'always' OR (k."class_material" = 'by_grade' AND COALESCE((SELECT eg."mass" FROM "enum_grade" eg WHERE eg."value" = g."severity"), 0.0) >= 2.0)) AS "material",
-  -- THE BENCH REMANDED IT AND NOTHING IS PENDING.
-  (k."open" AND k."filed" IS NULL AND lr."gap_id" IS NOT NULL)               AS "remanded",
+  -- THE BENCH REMANDED IT AND NOTHING IS PENDING: no proposal and no docketing stands on it.
+  (k."open" AND k."filed" IS NULL AND k."docketed" IS NULL AND lr."gap_id" IS NOT NULL) AS "remanded",
   (SELECT um."motion_id" FROM "motion" um WHERE um."event_id" = k."filed")    AS "unruled_docket_motion",
   -- THE FIRST CLOSING ACT, of either party: once written, no later append precedes it.
   CASE WHEN k."first_bench" IS NULL THEN k."red_first"
        WHEN k."red_first" IS NULL THEN k."first_bench"
-       ELSE min(k."first_bench", k."red_first") END                          AS "closed_event"
+       ELSE min(k."first_bench", k."red_first") END                          AS "closed_event",
+  (SELECT sd."docketing_id" FROM "docketing" sd WHERE sd."event_id" = k."docketed") AS "standing_docketing",
+  k."docketed"                                                                AS "standing_docketing_at"
 FROM "k"
 JOIN (SELECT m."event_id" AS "minted_event",
              CASE WHEN rg."event_id" IS NULL THEN m."severity" ELSE rg."result_severity" END               AS "severity",

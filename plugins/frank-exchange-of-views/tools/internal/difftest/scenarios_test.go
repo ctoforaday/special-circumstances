@@ -38,6 +38,12 @@ func scenarios() []scenario {
 		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 	}
+	// windowEnds is the minting lens sitting twice: a proposal's assignee window ends, unaccepted, and
+	// the next dispatch dockets the proposal.
+	windowEnds := []cmd{
+		base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+		base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+	}
 	// proposeClose is seat's proposal of gap's close as class, verified by the proposer.
 	proposeClose := func(seatID, gap, class, reason string) cmd {
 		return base("motion", "docket", "file", "close", "--run", "{RUN}", "--seat-id", seatID, "--id", gap, "--as", class,
@@ -258,8 +264,8 @@ func scenarios() []scenario {
 				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
-			}, convene, []cmd{
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001", "--as", "remanded",
+			}, windowEnds, convene, []cmd{
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001", "--remand",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),
@@ -279,10 +285,9 @@ func scenarios() []scenario {
 		},
 		{
 			name: "docket_ruling_requires_each_unconditional_field", // oracle: reasons, not just fates
-			// A REAL GAP AND A REAL FILING FIRST, or the refusal measured is the dangling
-			// reference rather than the missing field. `bench opinion` needed only the gap; the
-			// bench's ruling answers a MOTION, so both halves have to be on the record before the
-			// field rules are what answers.
+			// A REAL GAP, A REAL FILING AND ITS DOCKETING FIRST, or the refusal measured is the
+			// dangling reference rather than the missing field: the bench's ruling answers the
+			// DOCKETING the dispatch writes for the filing.
 			//
 			// `--reason` is supplied on both attempts for the same reason: cobra refuses the
 			// reason flag-group at PARSE, before the record sees the body at all, so an
@@ -303,26 +308,25 @@ func scenarios() []scenario {
 					"--check-kind", "document", "--check", "x", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 			}, exchange, []cmd{
-				// The proposed close is `repaired`, the closing word the rulings below state: a closing
-				// word on a proposal is the bench's accept of the close it proposes, and no other.
+				// Blue's proposed close is `repaired`: the rulings below side with blue, which applies it.
 				proposeClose("blue-respond", "GAP001", "repaired", "repaired, and the bench should say so"),
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
-			}, convene, []cmd{
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--tension", "t", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "", "--review-flag", "none", "--settled", "s", "--final"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "remanded", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final",
+			}, windowEnds, convene, []cmd{
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--principle", "p", "--tension", "t"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--principle", "p", "--review-flag", "none", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--tension", "t", "--review-flag", "none", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--principle", "p", "--tension", "", "--review-flag", "none", "--settled", "s", "--final"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--remand", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001",
+					"--for-blue", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final",
 					"--direction", "a reproduction on the shipped binary"),
 			}),
 		},

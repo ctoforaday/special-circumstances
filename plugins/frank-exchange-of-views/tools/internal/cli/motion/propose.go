@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -140,7 +141,22 @@ func propose(act, says string, register func(*cobra.Command), fill func(run reco
 			// A PROPOSAL ON A GAP THAT MOVED SINCE THIS SITTING OPENED argues with what the gap was
 			// (gblock ruling B): the refusal shows what changed, and the same filing lands once read.
 			if err := seat.AppendFresh(s, gapID, func(guards ...record.Guard) error {
-				_, err := record.Append(s.Identity(), m, append([]record.Guard{record.HeardInTime(subj)}, guards...)...)
+				guards = append([]record.Guard{record.HeardInTime(subj)}, guards...)
+				// A SUCCESSOR'S QUOTE AND FIX ARE PLANNED AS THE BENCH'S MINT PLANS THEM (L48), on the
+				// report the filing lands on; the record asks the rest of the mint's checks.
+				if sup := m.GetSupersede(); sup != nil && sup.GetLocation() != "" {
+					guards = append(guards, record.Check(func(l *record.Landing) error {
+						report, err := l.Report()
+						if err != nil {
+							return err
+						}
+						if err := blue.SuccessorPlans(report, sup.GetGapId(), sup.GetLocation(), sup.GetFixNew()); err != nil {
+							return feov.Wrap(feov.Validation, err, "the successor you propose on %s is one its assignee's mint could not write, and the bench writes it as the assignee's on siding with you: %v. Nothing was recorded", gapID, err)
+						}
+						return nil
+					}))
+				}
+				_, err := record.Append(s.Identity(), m, guards...)
 				return err
 			}); err != nil {
 				return nil, err
@@ -182,15 +198,20 @@ func newAccept() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			ruling := record.Act{Body: &recordpb.MotionRule{
-				MotionId: proto.String(id),
-				Opinion:  proto.String(reason),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Accepted: proto.Bool(true)}},
-			}}
-			if err := applyAccepted(s, run, id, ruling); err != nil {
+			// THE ACCEPT SIDES WITH THE FILER: blue where blue filed, the filer where a red seat did.
+			p, _, err := record.DocketProposalOf(run, id)
+			if err != nil {
 				return nil, err
 			}
-			return ruled{ID: id, Ruling: "accepted"}, nil
+			body := &recordpb.MotionRule{
+				MotionId: proto.String(id),
+				Opinion:  proto.String(reason),
+				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: record.ProposalSide(p.Filer).Enum()}},
+			}
+			if err := applyAccepted(s, run, id, record.Act{Body: body}); err != nil {
+				return nil, err
+			}
+			return ruled{ID: id, Ruling: record.RulingWord(body)}, nil
 		}),
 	}
 	seat.Returns(c, ruled{})
