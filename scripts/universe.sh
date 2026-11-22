@@ -923,7 +923,7 @@ cmd_supervise() {
   # plugins did not load exits 0 on the first and 2 on the second.
   local rc=$claude_rc
   [ "$claude_rc" -eq 0 ] && rc=$render_rc
-  log "claude exit $claude_rc, renderer exit $render_rc — $out"
+  log "$HARNESS exit $claude_rc, renderer exit $render_rc — $out"
   log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
   # THE LAST LINE, AND THE ONE AN OPERATOR WAITS ON. Absent, the supervisor itself was killed.
   printf 'EXIT %d\n' "$rc"

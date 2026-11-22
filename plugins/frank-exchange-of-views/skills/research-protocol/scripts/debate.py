@@ -290,8 +290,8 @@ async def sit(seat_id, prompt, schema, role_title):
                 if admit_res.returncode != 0:
                     log(f"{seat_id} admission failed: {admit_res.stderr.strip()}")
                 out = dict(answer["envelope"]) if isinstance(answer.get("envelope"), dict) else (dict(env) if isinstance(env, dict) else {})
-                if isinstance(answer.get("read"), dict):
-                    out["record_read"] = answer["read"]
+                if isinstance(answer.get("record_read"), dict):
+                    out["record_read"] = answer["record_read"]
                 return out
             if attempt >= ENVELOPE_REFUSAL_RETRIES:
                 log(f"{seat_id} envelope refused {attempt + 1} times: {refusal}")
