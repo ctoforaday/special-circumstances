@@ -62,6 +62,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST_HOME="$HOME"
+HOST_XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOST_HOME/.cache}"
 WORKDIR="${WORKDIR:-$HOST_HOME/.claude/scratch/universe}"
 MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
@@ -534,7 +535,7 @@ PY
         [ "${#nd[@]}" -gt 0 ] && digest="$("${nd[@]}" -print "$helper" 2>/dev/null)"
         [ -n "$digest" ] || die "could not compute digest for $helper"
 
-        local cache_dir="$HOST_HOME/.cache/sc-universe/native/$helper/$digest"
+        local cache_dir="$HOST_XDG_CACHE_HOME/sc-universe/native/$helper/$digest"
         local helper_bin_name="${helper}_${host_os}_${host_arch}${ext}"
         # The files this helper puts in the release: its binary, and each ASSETS line's pinned
         # export for this arch, as nativedigest -assets resolves them (the one reader of ASSETS and
