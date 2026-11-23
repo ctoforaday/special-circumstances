@@ -204,11 +204,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 
 	if eventName == "PreInvocation" && req.Engine == hookcore.EngineAntigravity {
 		var feedbackParts []string
+		scope := hookcore.DrainScopeKey(req)
 		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
 		if drainErr != nil {
-			rec.Fail(stageFailedStepDrain, "failed-step drain: "+drainErr.Error())
+			rec.FailIn(stageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 		} else {
-			rec.OK(stageFailedStepDrain)
+			rec.OKIn(stageFailedStepDrain, scope)
 		}
 		for _, st := range failedSteps {
 			if ctx.ProjectDir == "" {

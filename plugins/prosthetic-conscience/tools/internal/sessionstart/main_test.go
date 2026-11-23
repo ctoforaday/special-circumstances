@@ -386,33 +386,79 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		}
 	})
 
-	// 5. Unrecognized Bash GENERIC prose records stageFailedStepDrain loudly in stderr/Say,
-	// and a subsequent clean PreInvocation does not fail.
-	t.Run("DrainErrorRecordedAndCleared", func(t *testing.T) {
+	// 5. Mid-turn PreInvocation (invocationNum > 0) never runs checkpoint-restore even when unmarked.
+	t.Run("InvocationNumNonZeroSkipsRestore", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "5555:12345" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-midturn", 1, units)
+		if cpCalls != 0 || strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("mid-turn PreInvocation(1) ran checkpoint-restore: cpCalls=%d out=%s", cpCalls, out)
+		}
+	})
+
+	// 6. Unrecognized Bash GENERIC prose records stageFailedStepDrain scoped to the conversation,
+	// a peer conversation's clean drain does NOT clear it, and the same conversation's clean drain DOES clear it.
+	t.Run("DrainErrorRecordedScopedAndCleared", func(t *testing.T) {
 		proj := t.TempDir()
 		pluginData := t.TempDir()
 		t.Setenv("PLUGIN_DATA", pluginData)
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
 		hostProcessID = func() string { return "6006:11111" }
-		tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
-		tr := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
+
+		tpA := filepath.Join(t.TempDir(), "a.jsonl")
+		trBad := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
 			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"unrecognized bash format\n"}` + "\n"
-		if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+		if err := os.WriteFile(tpA, []byte(trBad), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		payload, _ := json.Marshal(map[string]any{
-			"hookEventName":  "PreInvocation",
-			"conversationId": "conv-drain-err",
-			"cwd":            proj,
-			"transcriptPath": tp,
-			"invocationNum":  1,
-		})
-		var stdout, stderr bytes.Buffer
-		code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil)
-		if code != 0 {
-			t.Fatalf("PreInvocation exit %d", code)
+		tpB := filepath.Join(t.TempDir(), "b.jsonl")
+		if err := os.WriteFile(tpB, []byte(`{"step_index":1,"source":"MODEL","type":"GENERIC","status":"DONE","content":"ok\n"}`+"\n"), 0o600); err != nil {
+			t.Fatal(err)
 		}
-		if !strings.Contains(stderr.String(), "failed-step drain:") {
-			t.Fatalf("drain error not recorded on stderr: stdout=%s stderr=%s", stdout.String(), stderr.String())
+
+		readFailures := func() string {
+			p, err := hookfailures.Path("prosthetic-conscience")
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, _ := os.ReadFile(p)
+			return string(b)
+		}
+		fire := func(conv, tp string) string {
+			payload, _ := json.Marshal(map[string]any{
+				"hookEventName":  "PreInvocation",
+				"conversationId": conv,
+				"cwd":            proj,
+				"transcriptPath": tp,
+				"invocationNum":  1,
+			})
+			var stdout, stderr bytes.Buffer
+			code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil)
+			if code != 0 {
+				t.Fatalf("PreInvocation exit %d", code)
+			}
+			return stderr.String()
+		}
+
+		if errOut := fire("conv-drain-A", tpA); !strings.Contains(errOut, "failed-step drain:") {
+			t.Fatalf("drain error not recorded on stderr: %s", errOut)
+		}
+		if f := readFailures(); !strings.Contains(f, string(stageFailedStepDrain)) || !strings.Contains(f, "conv-drain-A") {
+			t.Fatalf("failures.json missing scoped stageFailedStepDrain for conv-drain-A: %s", f)
+		}
+		// Peer conversation clean drain must NOT clear conv-drain-A's entry.
+		fire("conv-drain-B", tpB)
+		if f := readFailures(); !strings.Contains(f, "conv-drain-A") {
+			t.Fatalf("peer conv-drain-B cleared conv-drain-A's failure entry: %s", f)
+		}
+		// conv-drain-A subsequent clean drain DOES clear its own entry.
+		fire("conv-drain-A", tpA)
+		if f := readFailures(); strings.Contains(f, "conv-drain-A") {
+			t.Fatalf("conv-drain-A clean drain did not clear its stageFailedStepDrain entry: %s", f)
 		}
 	})
 }

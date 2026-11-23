@@ -93,11 +93,19 @@ func claudeAsymmetryPlugin(t *testing.T, hooksJSON string, agents map[string]str
 	return pluginDir
 }
 
+func requireAgyWorld(t *testing.T) *agyWorld {
+	t.Helper()
+	if _, err := exec.LookPath("agy"); err != nil {
+		t.Fatalf("agy binary not found on PATH; HOOKCORE_LIVE paired asymmetry tests require both claude and agy: %v", err)
+	}
+	return newAgyWorld(t)
+}
+
 func runClaudeAsymmetry(t *testing.T, workDir, pluginDir, logPath, resumeSession, prompt string, extraArgs ...string) string {
 	t.Helper()
 	claudeBin := findClaudeBin()
 	if claudeBin == "" {
-		t.Skip("claude CLI not found; skipping live Claude asymmetry test")
+		t.Fatal("claude CLI not found on PATH; HOOKCORE_LIVE paired asymmetry tests require both claude and agy")
 	}
 	args := []string{"-p", prompt, "--model", "haiku", "--dangerously-skip-permissions", "--plugin-dir", pluginDir}
 	if resumeSession != "" {
@@ -180,7 +188,7 @@ func TestLiveAsymmetrySessionStartOnResume(t *testing.T) {
 	})
 
 	t.Run("Antigravity", func(t *testing.T) {
-		w := newAgyWorld(t)
+		w := requireAgyWorld(t)
 		probeBin := filepath.Join(w.home, ".gemini", "config", "plugins", "asymmetryprobe", "bin", "asymmetryprobe")
 		buildAsymmetryProbe(t, probeBin)
 		w.installPlugin(t, "asymmetryprobe", `{"asymmetryprobe-hooks":{
@@ -260,7 +268,7 @@ func TestLiveAsymmetryFailedShellCommandHook(t *testing.T) {
 	})
 
 	t.Run("Antigravity", func(t *testing.T) {
-		w := newAgyWorld(t)
+		w := requireAgyWorld(t)
 		probeBin := filepath.Join(w.home, ".gemini", "config", "plugins", "asymmetryprobe", "bin", "asymmetryprobe")
 		buildAsymmetryProbe(t, probeBin)
 		w.installPlugin(t, "asymmetryprobe", `{"asymmetryprobe-hooks":{
@@ -338,7 +346,7 @@ func TestLiveAsymmetryWorkflowChildAttribution(t *testing.T) {
 	})
 
 	t.Run("Antigravity", func(t *testing.T) {
-		w := newAgyWorld(t)
+		w := requireAgyWorld(t)
 		probeBin := filepath.Join(w.home, ".gemini", "config", "plugins", "asymmetryprobe", "bin", "asymmetryprobe")
 		buildAsymmetryProbe(t, probeBin)
 		w.installPlugin(t, "asymmetryprobe", `{"asymmetryprobe-hooks":{
@@ -409,8 +417,6 @@ func TestLiveAsymmetryFinishToolOverwrite(t *testing.T) {
 		logPath := filepath.Join(t.TempDir(), "claude-finish.jsonl")
 		schema := `{"type":"object","properties":{"answer":{"type":"string"},"stamped_by_hook":{"type":"string"}},"required":["answer"]}`
 
-		// Pass ASYMMETRY_OVERWRITE_FINISH=1 via env? Wait: runClaudeAsymmetry doesn't take extraEnv;
-		// set it via t.Setenv so the child inherits it cleanly.
 		t.Setenv("ASYMMETRY_OVERWRITE_FINISH", "1")
 		out := runClaudeAsymmetry(t, workDir, pluginDir, logPath, "",
 			"Return structured output with answer='ORIGINAL_ANSWER'.",
@@ -421,7 +427,10 @@ func TestLiveAsymmetryFinishToolOverwrite(t *testing.T) {
 	})
 
 	t.Run("Antigravity", func(t *testing.T) {
-		w := newAgyWorld(t)
+		if _, err := exec.LookPath("agy"); err != nil {
+			t.Fatalf("agy binary not found on PATH; HOOKCORE_LIVE paired asymmetry tests require both claude and agy: %v", err)
+		}
+		w := requireAgyWorld(t)
 		probeBin := filepath.Join(w.home, ".gemini", "config", "plugins", "asymmetryprobe", "bin", "asymmetryprobe")
 		buildAsymmetryProbe(t, probeBin)
 		w.installPlugin(t, "asymmetryprobe", `{"asymmetryprobe-hooks":{
@@ -453,6 +462,20 @@ print("WF_RESULT:" + json.dumps(res))
 		out := w.run(t, "",
 			"Call run_workflow with ScriptPath='"+wfPath+"', Description='finish overwrite test', WaitMsBeforeAsync=10000. Report the WF_RESULT line verbatim.",
 			"ASYMMETRY_LOG="+logPath, "ASYMMETRY_OVERWRITE_FINISH=1")
+		if !strings.Contains(out, "ORIGINAL_CHILD_ANSWER") {
+			t.Fatalf("positive control failed: workflow did not return ORIGINAL_CHILD_ANSWER (out=%s)", out)
+		}
+		events := readAsymmetryEvents(t, logPath)
+		var sawFinishPre bool
+		for _, ev := range events {
+			if ev.Event == "PreToolUse" && ev.RawToolName == "finish" {
+				sawFinishPre = true
+				break
+			}
+		}
+		if !sawFinishPre {
+			t.Fatalf("positive control failed: PreToolUse hook never observed RawToolName=finish; events=%+v", events)
+		}
 		if strings.Contains(out, "OVERWRITTEN_BY_PRETOOLUSE") {
 			t.Fatalf("ASSUMPTION CHANGED: Antigravity now honors PreToolUse overwrite on finish (out=%s); debate.py can switch to hook-based envelope stamping", out)
 		}

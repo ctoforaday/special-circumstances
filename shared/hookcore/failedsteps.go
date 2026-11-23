@@ -47,6 +47,12 @@ type drainWatermark struct {
 // Backgrounded run_command calls (WaitMsBeforeAsync) yield no exit code in their GENERIC step and
 // are not reported here. A completed run_command GENERIC step matching no recognized form returns a
 // non-nil error so callers can record the unmeasured format loudly instead of returning a silent zero.
+// DrainScopeKey returns the conversation-scoped key used to isolate failed-step watermarks and
+// hook-failure stage entries per conversation so a clean drain on one seat never clears another's.
+func DrainScopeKey(req Request) string {
+	return pendingQueueKey(req)
+}
+
 func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	if req.Engine != EngineAntigravity || req.TranscriptPath == "" {
 		return nil, nil
@@ -54,6 +60,7 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	key := pendingQueueKey(req)
 	wm := drainWatermark{Step: -1}
 	var wmPath string
+	var corruptErr error
 	if req.PluginDataDir != "" && key != "" {
 		wmPath = filepath.Join(req.PluginDataDir, "last_failed_step_"+key+".json")
 		b, err := os.ReadFile(wmPath)
@@ -64,28 +71,59 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 		} else {
 			var loaded drainWatermark
 			if err := json.Unmarshal(b, &loaded); err != nil {
-				return nil, fmt.Errorf("corrupt drain watermark %s (refusing full replay): %w", wmPath, err)
+				corruptErr = fmt.Errorf("corrupt drain watermark %s: %w", wmPath, err)
+			} else {
+				wm = loaded
 			}
-			wm = loaded
 		}
 	}
 
 	f, err := os.Open(req.TranscriptPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if corruptErr != nil && wmPath != "" {
+				_ = writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: -1, Offset: 0})
+				return nil, fmt.Errorf("%v; rebased watermark to 0 with no replay", corruptErr)
+			}
 			return nil, nil
 		}
 		return nil, fmt.Errorf("open transcript %s: %w", req.TranscriptPath, err)
 	}
 	defer f.Close()
 
-	if wm.Offset > 0 {
-		fi, err := f.Stat()
-		if err != nil {
-			return nil, fmt.Errorf("stat transcript %s: %w", req.TranscriptPath, err)
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat transcript %s: %w", req.TranscriptPath, err)
+	}
+
+	// Rebase helper for corrupt watermark, shrunken transcript, or rewritten/misaligned offset:
+	// report the condition once, advance watermark to current EOF without replaying older steps,
+	// so the conversation recovers on the next drain instead of failing forever.
+	rebaseEOF := func(reason string) ([]FailedToolStep, error) {
+		if wmPath != "" {
+			if werr := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: wm.Step, Offset: fi.Size()}); werr != nil {
+				return nil, fmt.Errorf("%s; rebase write failed: %w", reason, werr)
+			}
 		}
+		return nil, fmt.Errorf("%s; rebased watermark to EOF (%d bytes) with no replay", reason, fi.Size())
+	}
+
+	if corruptErr != nil {
+		return rebaseEOF(corruptErr.Error())
+	}
+
+	if wm.Offset > 0 {
 		if fi.Size() < wm.Offset {
-			return nil, fmt.Errorf("transcript %s shrank (%d < watermark offset %d; refusing full replay)", req.TranscriptPath, fi.Size(), wm.Offset)
+			return rebaseEOF(fmt.Sprintf("transcript %s shrank (%d < watermark offset %d)", req.TranscriptPath, fi.Size(), wm.Offset))
+		}
+		// Verify the byte immediately before wm.Offset is still '\n'; if the file was rewritten
+		// to >= old size, seeking to wm.Offset would land mid-line and silently drop a step.
+		var prev [1]byte
+		if _, err := f.ReadAt(prev[:], wm.Offset-1); err != nil {
+			return nil, fmt.Errorf("check watermark boundary in %s: %w", req.TranscriptPath, err)
+		}
+		if prev[0] != '\n' {
+			return rebaseEOF(fmt.Sprintf("transcript %s misaligned at watermark offset %d (expected newline boundary)", req.TranscriptPath, wm.Offset))
 		}
 		if _, err := f.Seek(wm.Offset, io.SeekStart); err != nil {
 			return nil, fmt.Errorf("seek transcript %s: %w", req.TranscriptPath, err)
@@ -175,6 +213,18 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 						Output:    extractCommandOutput(step.Content),
 					})
 				}
+			} else if strings.Contains(step.Content, "Encountered error in step execution: failed to unmarshal result from hook") {
+				tool := call.ToolName
+				if tool == "" {
+					tool = "Bash"
+				}
+				failed = append(failed, FailedToolStep{
+					StepIndex: step.StepIndex,
+					ToolName:  tool,
+					Command:   call.Command,
+					ExitCode:  1,
+					Output:    strings.TrimSpace(step.Content),
+				})
 			} else if call.ToolName == "Bash" && !isKnownNonExitRunCommand(step.Content) {
 				parseWarns = append(parseWarns, fmt.Sprintf("step %d: run_command GENERIC result matched no exit-code line (not measured)", step.StepIndex))
 			}
@@ -187,7 +237,9 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	var errs []string
 	if wmPath != "" && (maxStep > wm.Step || curOffset > wm.Offset) {
 		if err := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: maxStep, Offset: curOffset, Pending: pending}); err != nil {
-			errs = append(errs, err.Error())
+			// Refuse to emit steps whose watermark could not be persisted, so a broken
+			// watermark path never replays the same failure on every subsequent drain.
+			return nil, err
 		}
 	}
 	if len(parseWarns) > 0 {
@@ -227,8 +279,7 @@ func writeDrainWatermark(wmPath, dir string, wm drainWatermark) error {
 func isKnownNonExitRunCommand(content string) bool {
 	return strings.Contains(content, "Tool is running as a background task") ||
 		strings.Contains(content, "tool call denied by pre-tool hook") ||
-		strings.Contains(content, "Command was canceled") ||
-		strings.Contains(content, "Encountered error in step execution:")
+		strings.Contains(content, "Command was canceled")
 }
 
 func unquoteJSONString(s string) string {

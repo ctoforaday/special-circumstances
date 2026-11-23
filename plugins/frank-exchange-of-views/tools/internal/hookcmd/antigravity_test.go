@@ -7,9 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 func TestAntigravityFinishEnvelopeUnwrapsAndRewrapsResult(t *testing.T) {
@@ -394,6 +397,15 @@ func TestAntigravitySittingRefusesDecidedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Direct resolver check: both fast-path (conv-*.json) and first-bind (--seat-id) must return
+	// false on a decided run (fails immediately if either StateOf check in resolveAgySitting is reverted).
+	if s, ok := resolveAgySitting(hookcore.Request{Engine: hookcore.EngineAntigravity, SessionID: "already-bound"}, cwd, testRecorder()); ok {
+		t.Fatalf("resolveAgySitting fast-path resolved a decided run: %+v", s)
+	}
+	if s, ok := resolveAgySitting(hookcore.Request{Engine: hookcore.EngineAntigravity, SessionID: "fresh-conv", ToolName: "Bash", Command: "feov-record register --seat-id red-lens-logic"}, cwd, testRecorder()); ok {
+		t.Fatalf("resolveAgySitting first-bind resolved a decided run: %+v", s)
+	}
+
 	// Both fast-path (conv-*.json) and first-bind (--seat-id) must refuse to bind a decided run,
 	// without creating .bound / conv-*.json and without PostToolUse logging under the decided agent.
 	var logged []string
@@ -456,42 +468,104 @@ func TestAntigravitySittingRefusesDecidedRun(t *testing.T) {
 	}
 }
 
-func TestAntigravityPreInvocationDrainErrorRecorded(t *testing.T) {
+func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	cwd, runDir := hookRun(t)
 	sdir := filepath.Join(runDir, agySittingsDir)
 	if err := os.MkdirAll(sdir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	seatRec, _ := json.Marshal(agySitting{
-		AgentID:     "agy-drainerr000001",
-		AgentType:   "frank-exchange-of-views:red-lens-logic",
-		SeatID:      "red-lens-logic",
-		RunDir:      runDir,
-		LeadSession: testLead,
-	})
-	if err := os.WriteFile(filepath.Join(sdir, "conv-drain-conv.json"), seatRec, 0o600); err != nil {
-		t.Fatal(err)
+	writeConv := func(conv, agentID string) {
+		b, _ := json.Marshal(agySitting{
+			AgentID:     agentID,
+			AgentType:   "frank-exchange-of-views:red-lens-logic",
+			SeatID:      "red-lens-logic",
+			RunDir:      runDir,
+			LeadSession: testLead,
+		})
+		if err := os.WriteFile(filepath.Join(sdir, "conv-"+conv+".json"), b, 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
-	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
-	tr := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
+	writeConv("conv-A", "agy-drainerrA00001")
+	writeConv("conv-B", "agy-drainerrB00001")
+
+	tpA := filepath.Join(t.TempDir(), "a.jsonl")
+	trBad := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
 		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"unrecognized bash exit format\n"}` + "\n"
-	if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+	if err := os.WriteFile(tpA, []byte(trBad), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	payload, _ := json.Marshal(map[string]any{
-		"hookEventName":  "PreInvocation",
-		"conversationId": "drain-conv",
-		"cwd":            cwd,
-		"transcriptPath": tp,
-		"invocationNum":  1,
+	tpB := filepath.Join(t.TempDir(), "b.jsonl")
+	if err := os.WriteFile(tpB, []byte(`{"step_index":1,"source":"MODEL","type":"GENERIC","status":"DONE","content":"ok\n"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	readFailures := func() string {
+		p, err := hookfailures.Path("frank-exchange-of-views")
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := os.ReadFile(p)
+		return string(b)
+	}
+	firePreInv := func(conv, tp string) {
+		payload, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreInvocation",
+			"conversationId": conv,
+			"cwd":            cwd,
+			"transcriptPath": tp,
+			"invocationNum":  1,
+		})
+		rec := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreInvocation", time.Now(), &bytes.Buffer{})
+		var out bytes.Buffer
+		if err := Pre(bytes.NewReader(payload), &out, rec); err != nil {
+			t.Fatal(err)
+		}
+		rec.Persist()
+	}
+
+	// 1. conv-A fails drain -> recorded under StageFailedStepDrain scoped to its watermark key (agent id).
+	firePreInv("conv-A", tpA)
+	if f := readFailures(); !strings.Contains(f, string(StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") {
+		t.Fatalf("failures.json missing scoped StageFailedStepDrain for agy-drainerrA00001: %s", f)
+	}
+	// 2. Peer conv-B clean drain must NOT clear conv-A's entry.
+	firePreInv("conv-B", tpB)
+	if f := readFailures(); !strings.Contains(f, "agy-drainerrA00001") {
+		t.Fatalf("peer conv-B clean drain cleared agy-drainerrA00001's failure entry: %s", f)
+	}
+	// 3. conv-A subsequent clean drain DOES clear conv-A's entry.
+	firePreInv("conv-A", tpA)
+	if f := readFailures(); strings.Contains(f, "agy-drainerrA00001") {
+		t.Fatalf("conv-A clean drain did not clear its StageFailedStepDrain entry: %s", f)
+	}
+
+	// 4. StageAgyBind conflict is recorded and then cleared on the next successful bind.
+	seatB, _ := json.Marshal(agySitting{
+		AgentID: "agy-bindclear0001", AgentType: "frank-exchange-of-views:red-chair",
+		SeatID: "red-chair", RunDir: runDir, LeadSession: testLead,
 	})
-	rec := testRecorder()
-	var out bytes.Buffer
-	if err := Pre(bytes.NewReader(payload), &out, rec); err != nil {
+	if err := os.WriteFile(filepath.Join(sdir, "seat-red-chair.json"), seatB, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if !rec.Failed() {
-		t.Fatalf("expected unrecognized Bash GENERIC on PreInvocation to record StageFailedStepDrain failure")
+	if err := os.WriteFile(filepath.Join(sdir, "seat-red-chair.bound"), []byte("other\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec1 := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreToolUse", time.Now(), &bytes.Buffer{})
+	resolveAgySitting(hookcore.Request{Engine: hookcore.EngineAntigravity, SessionID: "c-conflict", ToolName: "Bash", Command: "feov-record register --seat-id red-chair"}, cwd, rec1)
+	rec1.Persist()
+	if f := readFailures(); !strings.Contains(f, string(StageAgyBind)) {
+		t.Fatalf("failures.json missing StageAgyBind after conflict: %s", f)
+	}
+	_ = os.Remove(filepath.Join(sdir, "seat-red-chair.bound"))
+	rec2 := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreToolUse", time.Now(), &bytes.Buffer{})
+	if _, ok := resolveAgySitting(hookcore.Request{Engine: hookcore.EngineAntigravity, SessionID: "c-ok", ToolName: "Bash", Command: "feov-record register --seat-id red-chair"}, cwd, rec2); !ok {
+		t.Fatal("expected clean bind to succeed")
+	}
+	rec2.Persist()
+	if f := readFailures(); strings.Contains(f, string(StageAgyBind)) {
+		t.Fatalf("successful bind did not clear StageAgyBind: %s", f)
 	}
 }

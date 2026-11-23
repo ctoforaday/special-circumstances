@@ -198,11 +198,12 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	if runDir == "" {
 		return
 	}
+	scope := hookcore.DrainScopeKey(req)
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
-		rec.Fail(StageFailedStepDrain, "failed-step drain: "+drainErr.Error())
+		rec.FailIn(StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 	} else {
-		rec.OK(StageFailedStepDrain)
+		rec.OKIn(StageFailedStepDrain, scope)
 	}
 	for _, st := range failed {
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})

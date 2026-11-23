@@ -29,6 +29,9 @@ func TestDrainFailedToolStepsExtractsNonZeroRunCommandOnce(t *testing.T) {
 		TranscriptPath: tp,
 		PluginDataDir:  filepath.Join(dir, "plugin_data"),
 	}
+	if gotKey := DrainScopeKey(req); gotKey != "conv-1" {
+		t.Fatalf("DrainScopeKey(req) = %q, want conv-1", gotKey)
+	}
 	got, err := DrainFailedToolSteps(req)
 	if err != nil {
 		t.Fatalf("first drain error: %v", err)
@@ -195,7 +198,7 @@ func TestDrainFailedToolStepsRecognizesOctoberFormatAndStepExecErrors(t *testing
 		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"missing-cmd"}}]}`,
 		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"The command exited with code 127.\n\nCommand output:\nnot found\n"}`,
 		`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"hook-err-cmd"}}]}`,
-		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: failed to unmarshal result from hook\n"}`,
+		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
 	}, "\n") + "\n"
 	if err := os.WriteFile(tp, []byte(transcript), 0o600); err != nil {
 		t.Fatal(err)
@@ -211,8 +214,26 @@ func TestDrainFailedToolStepsRecognizesOctoberFormatAndStepExecErrors(t *testing
 	if err != nil {
 		t.Fatalf("unexpected drain error: %v", err)
 	}
-	if len(got) != 1 || got[0].StepIndex != 2 || got[0].ExitCode != 127 || got[0].Command != "missing-cmd" {
-		t.Fatalf("got = %+v, want step 2 exit 127", got)
+	if len(got) != 2 {
+		t.Fatalf("got %d failed steps (%+v), want 2 (October exit 127 + hook unmarshal error)", len(got), got)
+	}
+	if got[0].StepIndex != 2 || got[0].ExitCode != 127 || got[0].Command != "missing-cmd" {
+		t.Fatalf("step 0 = %+v, want step 2 exit 127", got[0])
+	}
+	if got[1].StepIndex != 4 || got[1].Command != "hook-err-cmd" || !strings.Contains(got[1].Output, "failed to unmarshal result from hook") {
+		t.Fatalf("step 1 = %+v, want step 4 hook-unmarshal failure", got[1])
+	}
+
+	// Unknown "Encountered error in step execution:" form must NOT be suppressed silently.
+	f, err := os.OpenFile(tp, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = f.WriteString(`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"other"}}]}` + "\n" +
+		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: unknown mystery\n"}` + "\n")
+	_ = f.Close()
+	if _, err := DrainFailedToolSteps(req); err == nil {
+		t.Fatalf("unknown step-execution error was silently suppressed, want non-nil error")
 	}
 }
 
@@ -237,12 +258,8 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 		t.Fatalf("initial drain = %+v err=%v, want 1, nil", got, err)
 	}
 
-	// 1. Corrupt watermark must error and NOT replay step 2.
+	// 1. Corrupt watermark errors once, rebases to EOF (no replay), and subsequent drain succeeds cleanly.
 	wmPath := filepath.Join(pluginData, "last_failed_step_conv-replay.json")
-	origWM, err := os.ReadFile(wmPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if err := os.WriteFile(wmPath, []byte("{not-json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -250,11 +267,11 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 	if err == nil || len(replayed) != 0 {
 		t.Fatalf("corrupt watermark: got steps=%+v err=%v, want empty + non-nil error", replayed, err)
 	}
-
-	// 2. Restore watermark, shrink transcript -> must error and NOT replay.
-	if err := os.WriteFile(wmPath, origWM, 0o600); err != nil {
-		t.Fatal(err)
+	if after, err := DrainFailedToolSteps(req); err != nil || len(after) != 0 {
+		t.Fatalf("drain after corrupt rebase: got steps=%+v err=%v, want empty, nil", after, err)
 	}
+
+	// 2. Shrunken transcript errors once, rebases to EOF (no replay), and subsequent drain succeeds cleanly.
 	if err := os.WriteFile(tp, []byte("{}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -262,8 +279,37 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 	if err == nil || len(replayed) != 0 {
 		t.Fatalf("shrunken transcript: got steps=%+v err=%v, want empty + non-nil error", replayed, err)
 	}
+	if after, err := DrainFailedToolSteps(req); err != nil || len(after) != 0 {
+		t.Fatalf("drain after shrink rebase: got steps=%+v err=%v, want empty, nil", after, err)
+	}
 
-	// 3. Unwritable watermark tmp path must return non-nil error.
+	// 3. Misaligned rewrite (file rewritten to >= old size so byte at offset-1 != '\n') errors once and rebases.
+	if err := os.WriteFile(tp, []byte(transcript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	reqAlign := Request{
+		Engine:         EngineAntigravity,
+		Event:          "PreInvocation",
+		SessionID:      "conv-align",
+		TranscriptPath: tp,
+		PluginDataDir:  pluginData,
+	}
+	if _, err := DrainFailedToolSteps(reqAlign); err != nil {
+		t.Fatal(err)
+	}
+	// Overwrite with longer content where the byte at old offset-1 is 'x', not '\n'.
+	rewritten := strings.Repeat("x", len(transcript)+20) + "\n"
+	if err := os.WriteFile(tp, []byte(rewritten), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if gotAlign, err := DrainFailedToolSteps(reqAlign); err == nil || len(gotAlign) != 0 {
+		t.Fatalf("misaligned rewrite: got steps=%+v err=%v, want empty + non-nil error", gotAlign, err)
+	}
+	if after, err := DrainFailedToolSteps(reqAlign); err != nil || len(after) != 0 {
+		t.Fatalf("drain after misaligned rebase: got steps=%+v err=%v, want empty, nil", after, err)
+	}
+
+	// 4. Unwritable watermark tmp path returns 0 steps + non-nil error on BOTH drains (no replay).
 	req2 := Request{
 		Engine:         EngineAntigravity,
 		Event:          "PreInvocation",
@@ -277,9 +323,11 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 	if err := os.MkdirAll(filepath.Join(pluginData, "last_failed_step_conv-unwritable.json.tmp"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	_, err = DrainFailedToolSteps(req2)
-	if err == nil {
-		t.Fatalf("unwritable watermark tmp path returned err=nil, want error")
+	for i := 1; i <= 2; i++ {
+		steps, err := DrainFailedToolSteps(req2)
+		if err == nil || len(steps) != 0 {
+			t.Fatalf("unwritable watermark drain %d: got steps=%+v err=%v, want 0 steps + error", i, steps, err)
+		}
 	}
 }
 

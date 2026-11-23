@@ -1035,6 +1035,7 @@ cmd_shell() {
     local agy_tok="$WORKDIR/home/.gemini/antigravity-cli/antigravity-oauth-token"
     local cleanup_cmd
     printf -v cleanup_cmd 'rm -f %q %q' "$WORKDIR/shell.pid" "$agy_tok"
+    # shellcheck disable=SC2064 # intentional: expand function-local paths at trap registration time
     trap "$cleanup_cmd" EXIT
     lend_agy_access_token
     printf '%s\n' "$$" > "$WORKDIR/shell.pid"
@@ -1045,6 +1046,7 @@ cmd_shell() {
   printf '%s\n' "$$" > "$WORKDIR/shell.pid"
   local cleanup_cmd
   printf -v cleanup_cmd 'rm -f %q' "$WORKDIR/shell.pid"
+  # shellcheck disable=SC2064 # intentional: expand path at trap registration time
   trap "$cleanup_cmd" EXIT
   ( cd "$src" && exec claude )
 }
