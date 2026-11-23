@@ -447,32 +447,31 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if errOut := fire("conv-drain-A", tpA); !strings.Contains(errOut, "failed-step drain:") {
 			t.Fatalf("drain error not recorded on stderr: %s", errOut)
 		}
-		if f := readFailures(); !strings.Contains(f, string(stageFailedStepDrain)) || !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"expires_after"`) {
-			t.Fatalf("failures.json missing TTL-scoped stageFailedStepDrain for conv-drain-A: %s", f)
+		if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain)) || !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"expires_after"`) {
+			t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for conv-drain-A: %s", f)
 		}
 		// Peer conversation clean drain must NOT clear conv-drain-A's entry.
 		fire("conv-drain-B", tpB)
 		if f := readFailures(); !strings.Contains(f, "conv-drain-A") {
 			t.Fatalf("peer conv-drain-B cleared conv-drain-A's failure entry: %s", f)
 		}
-		// Un-announced entry is NOT cleared before a displaying event shows it (N5).
+		// Clean drain before being shown marks Recovered (does not silently drop); Stop shows it
+		// ONCE as recovered ("has since worked", NOT "failing since") and drops it immediately.
 		fire("conv-drain-A", tpA)
-		if f := readFailures(); !strings.Contains(f, "conv-drain-A") {
-			t.Fatalf("un-announced stageFailedStepDrain was cleared before being shown: %s", f)
+		if f := readFailures(); !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"recovered"`) {
+			t.Fatalf("un-announced StageFailedStepDrain should be marked recovered, not dropped: %s", f)
 		}
-		// Once a displaying event (Stop) shows it, conv-drain-A's next clean drain DOES clear it.
 		showRec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", time.Now(), &bytes.Buffer{})
-		if msg := showRec.Settle(); !strings.Contains(msg, "conv-drain-A") {
-			t.Fatalf("Stop Settle did not announce conv-drain-A: %q", msg)
+		if msg := showRec.Settle(); !strings.Contains(msg, "conv-drain-A") || !strings.Contains(msg, "has since worked") || strings.Contains(msg, "failing since") {
+			t.Fatalf("Stop Settle for recovered entry = %q, want 'has since worked' without 'failing since'", msg)
 		}
-		fire("conv-drain-A", tpA)
 		if f := readFailures(); strings.Contains(f, "conv-drain-A") {
-			t.Fatalf("conv-drain-A clean drain did not clear its stageFailedStepDrain entry after being shown: %s", f)
+			t.Fatalf("recovered entry survived its one-time Stop announcement: %s", f)
 		}
 	})
 
 	// 7. Hook-unmarshal failures NEVER strike (neither Read nor run_command), record
-	// stageHookUnmarshal with TTL, and clear on next clean drain after being shown.
+	// hookcore.StageHookUnmarshal with TTL, and clear on next clean drain after being shown.
 	t.Run("HookUnmarshalNeverStrikesAndRecordsAndClearsStage", func(t *testing.T) {
 		proj := t.TempDir()
 		t.Setenv("PLUGIN_DATA", t.TempDir())
@@ -509,10 +508,10 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(stageHookUnmarshal)) || !strings.Contains(string(fb), `"expires_after"`) {
-			t.Fatalf("failures.json missing TTL stageHookUnmarshal: %s", string(fb))
+		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(hookcore.StageHookUnmarshal)) || !strings.Contains(string(fb), `"expires_after"`) {
+			t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", string(fb))
 		}
-		// Show on Stop, then next clean PreInvocation clears stageHookUnmarshal.
+		// Show on Stop, then next clean PreInvocation clears StageHookUnmarshal.
 		showRec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", time.Now(), &bytes.Buffer{})
 		_ = showRec.Settle()
 		stdout.Reset()
@@ -520,8 +519,8 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
 			t.Fatalf("PreInvocation clean exit %d", code)
 		}
-		if fb, _ := os.ReadFile(p); strings.Contains(string(fb), string(stageHookUnmarshal)) {
-			t.Fatalf("clean PreInvocation did not clear stageHookUnmarshal after being shown: %s", string(fb))
+		if fb, _ := os.ReadFile(p); strings.Contains(string(fb), string(hookcore.StageHookUnmarshal)) {
+			t.Fatalf("clean PreInvocation did not clear StageHookUnmarshal after being shown: %s", string(fb))
 		}
 	})
 }

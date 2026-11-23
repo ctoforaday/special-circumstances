@@ -11,7 +11,28 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
+
+// StageFailedStepDrain is recorded when Antigravity's PreInvocation failed-step transcript drain
+// encounters a corrupt watermark, shrunken transcript, misaligned rewrite, or unrecognized Bash
+// GENERIC format. Registered with ConversationStageTTL so ended conversations age out once shown.
+const StageFailedStepDrain hookfailures.Stage = "failed-step-drain"
+
+// StageHookUnmarshal is recorded when an Antigravity transcript step failed because a hook emitted
+// output the client could not unmarshal. Registered with ConversationStageTTL.
+const StageHookUnmarshal hookfailures.Stage = "hook-result-unmarshal"
+
+// ConversationStageTTL is how long a conversation-scoped drain/unmarshal failure persists after
+// Last once shown at least once, before any hook merge prunes it.
+const ConversationStageTTL = 30 * time.Minute
+
+func init() {
+	hookfailures.RegisterTTL(StageFailedStepDrain, ConversationStageTTL)
+	hookfailures.RegisterTTL(StageHookUnmarshal, ConversationStageTTL)
+}
 
 // FailedToolStep describes a tool call recorded in an Antigravity transcript whose execution
 // failed (for example, a run_command that exited non-zero, which Antigravity reports on

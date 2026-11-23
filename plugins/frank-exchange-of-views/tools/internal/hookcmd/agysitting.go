@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -37,21 +36,12 @@ const agySittingsDir = ".agy-sittings"
 // seat sitting, instead of silently ignoring the conflict. Cleared on the next successful bind.
 const StageAgyBind hookfailures.Stage = "agy-sitting-bind"
 
-// StageFailedStepDrain is recorded when Antigravity's PreInvocation failed-step transcript drain
-// encounters a corrupt watermark, shrunken transcript, or unrecognized Bash GENERIC format.
-// Cleared on the next clean drain and aged out after conversationStageTTL so ended seats do not nag.
-const StageFailedStepDrain hookfailures.Stage = "failed-step-drain"
-
-// StageHookUnmarshal is recorded when an Antigravity transcript step failed because one of our
-// hooks emitted output the client could not unmarshal.
-const StageHookUnmarshal hookfailures.Stage = "hook-result-unmarshal"
-
-const conversationStageTTL = 30 * time.Minute
+var resolveAgySittingFn = resolveAgySitting
 
 // applyAgySitting populates req's AgentID, AgentType and SessionID from an active Antigravity
 // run_workflow sitting when applicable. Used uniformly by Pre, Post, PostFailure, and PreInvocation.
 func applyAgySitting(req *hookcore.Request, cwd string, rec *hookfailures.Recorder) (agySitting, bool) {
-	s, ok := resolveAgySitting(*req, cwd, rec)
+	s, ok := resolveAgySittingFn(*req, cwd, rec)
 	if !ok {
 		return agySitting{}, false
 	}
@@ -208,15 +198,15 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	scope := hookcore.DrainScopeKey(req)
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
-		rec.FailInWithTTL(StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error(), conversationStageTTL)
+		rec.FailIn(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 	} else {
-		rec.OKIn(StageFailedStepDrain, scope)
+		rec.OKIn(hookcore.StageFailedStepDrain, scope)
 	}
 	sawHookErr := false
 	for _, st := range failed {
 		if st.HookError {
 			sawHookErr = true
-			rec.FailInWithTTL(StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output), conversationStageTTL)
+			rec.FailIn(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
 		}
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)
@@ -234,6 +224,6 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		}
 	}
 	if !sawHookErr {
-		rec.OKIn(StageHookUnmarshal, scope)
+		rec.OKIn(hookcore.StageHookUnmarshal, scope)
 	}
 }

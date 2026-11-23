@@ -12,11 +12,14 @@
 //
 // Each failure is a FIELD on a record, keyed by the STAGE that failed and the SCOPE it failed in
 // (a project, a conversation, or empty for the machine), and cleared by that stage's own next
-// success (or, for TTL-bounded conversation-scoped entries recorded with FailInWithTTL, aged out
-// after their TTL once shown at least once) — so "no entry" means the stage last WORKED or its
-// bounded scope ended after reporting, never "nothing looked". A failure on an event the client
-// displays nothing for is KEPT until one that does: that is what the record buys over speaking at
-// the moment of failure, and five of the events in this suite display nothing.
+// success — so "no entry" means the stage last WORKED, never "nothing looked". A failure on an
+// event the client displays nothing for is KEPT until one that does: that is what the record buys
+// over speaking at the moment of failure, and five of the events in this suite display nothing.
+//
+// Stages registered with RegisterTTL (such as conversation-scoped drain stages) carry an
+// ExpiresAfter on the Failure itself: once shown at least once, an entry that stops failing ages
+// out after its TTL on any subsequent merge, and if it recovers before ever being shown it is
+// shown once as recovered and dropped immediately.
 //
 // The events that display a top-level systemMessage are SessionStart, PreToolUse, PostToolUse,
 // PostToolUseFailure and Stop. Settle returns the message rather than printing it, because most
@@ -78,8 +81,33 @@ type Failure struct {
 	Event        string        `json:"event"` // the hook event that last hit it
 	Since        time.Time     `json:"since"` // first failure since the stage last worked
 	Last         time.Time     `json:"last"`
-	Notified     time.Time     `json:"notified,omitzero"` // last time a displaying event showed it
+	Notified     time.Time     `json:"notified,omitzero"`  // last time a displaying event showed it
+	Recovered    time.Time     `json:"recovered,omitzero"` // set when a TTL stage recovered before being shown
 	ExpiresAfter time.Duration `json:"expires_after,omitempty"`
+}
+
+var (
+	ttlMu     sync.RWMutex
+	stageTTLs = map[Stage]time.Duration{}
+)
+
+// RegisterTTL associates a bounded-lifetime TTL with stage s. Entries for s persist ExpiresAfter
+// on the Failure itself so any plugin hook on any event or harness prunes them after ttl past
+// Last once shown at least once. Pass ttl <= 0 to clear a registration.
+func RegisterTTL(s Stage, ttl time.Duration) {
+	ttlMu.Lock()
+	defer ttlMu.Unlock()
+	if ttl <= 0 {
+		delete(stageTTLs, s)
+		return
+	}
+	stageTTLs[s] = ttl
+}
+
+func stageTTL(s Stage) time.Duration {
+	ttlMu.RLock()
+	defer ttlMu.RUnlock()
+	return stageTTLs[s]
 }
 
 // Record is the file's shape.
@@ -103,15 +131,14 @@ func (f Failure) key() key { return key{f.Stage, f.Scope} }
 // worse than the silence this package exists to end, so the lock is not optional and the race
 // detector runs over this in CI.
 type Recorder struct {
-	mu        sync.Mutex
-	plugin    string
-	speaker   string
-	event     string
-	now       time.Time
-	stderr    io.Writer
-	failed    map[key]string
-	failedTTL map[key]time.Duration
-	worked    map[key]bool
+	mu      sync.Mutex
+	plugin  string
+	speaker string
+	event   string
+	now     time.Time
+	stderr  io.Writer
+	failed  map[key]string
+	worked  map[key]bool
 }
 
 // New starts a recorder for one hook invocation.
@@ -140,23 +167,9 @@ func (r *Recorder) FailIn(s Stage, scope, detail string) {
 	r.failed[key{s, scope}] = detail
 }
 
-// FailInWithTTL is FailIn for a bounded-lifetime scope (such as a single conversation) whose
-// entry ages out after ttl past Last once it has been shown at least once. Stored on the Failure
-// itself so any plugin hook on any event or harness prunes it during merge.
-func (r *Recorder) FailInWithTTL(s Stage, scope, detail string, ttl time.Duration) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	fmt.Fprintln(r.stderr, r.speaker+": "+detail)
-	k := key{s, scope}
-	r.failed[k] = detail
-	if ttl > 0 {
-		if r.failedTTL == nil {
-			r.failedTTL = map[key]time.Duration{}
-		}
-		r.failedTTL[k] = ttl
-	}
-}
-
+// OKIn records that stage s worked in scope. Non-TTL entries and already-shown TTL entries clear
+// immediately; a TTL entry that has not yet been shown is marked Recovered so the next displaying
+// event reports it once as recovered and drops it.
 func (r *Recorder) OKIn(s Stage, scope string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -222,12 +235,20 @@ func (r *Recorder) Settle() string {
 		return ""
 	}
 	var due []Failure
-	for i, f := range rec.Failures {
-		if f.Notified.IsZero() || r.now.Sub(f.Notified) >= NotifyEvery {
-			rec.Failures[i].Notified = r.now
-			due = append(due, rec.Failures[i])
+	remaining := rec.Failures[:0]
+	for _, f := range rec.Failures {
+		if !f.Recovered.IsZero() {
+			// Recovered before ever being shown: report once as recovered and drop immediately.
+			due = append(due, f)
+			continue
 		}
+		if f.Notified.IsZero() || r.now.Sub(f.Notified) >= NotifyEvery {
+			f.Notified = r.now
+			due = append(due, f)
+		}
+		remaining = append(remaining, f)
 	}
+	rec.Failures = remaining
 	if len(due) == 0 {
 		return ""
 	}
@@ -356,9 +377,15 @@ func (r *Recorder) merge(path string, pathErr error) (Record, error) {
 	for _, f := range rec.Failures {
 		_, failedNow := r.failed[f.key()]
 		if !failedNow {
-			if r.worked[f.key()] && (f.ExpiresAfter == 0 || !f.Notified.IsZero()) {
-				changed = true
-				continue
+			if r.worked[f.key()] {
+				if f.ExpiresAfter == 0 || !f.Notified.IsZero() {
+					changed = true
+					continue
+				}
+				if f.Recovered.IsZero() {
+					f.Recovered = r.now
+					changed = true
+				}
 			}
 			if f.ExpiresAfter > 0 && !f.Notified.IsZero() && !f.Last.IsZero() && r.now.Sub(f.Last) >= f.ExpiresAfter {
 				changed = true
@@ -376,9 +403,8 @@ func (r *Recorder) merge(path string, pathErr error) (Record, error) {
 		}
 		f := &rec.Failures[i]
 		f.Error, f.Event, f.Last = d, r.event, r.now
-		if ttl := r.failedTTL[k]; ttl > 0 {
-			f.ExpiresAfter = ttl
-		}
+		f.Recovered = time.Time{}
+		f.ExpiresAfter = stageTTL(k.stage)
 		changed = true
 	}
 	sortFailures(rec.Failures)
@@ -467,14 +493,34 @@ func sortFailures(fs []Failure) {
 
 func render(speaker string, due []Failure, path string, persistErr error) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s: %d stage(s) failing — the session is unaffected; what it records is not:", speaker, len(due))
+	var failing, recovered int
+	for _, f := range due {
+		if f.Recovered.IsZero() {
+			failing++
+		} else {
+			recovered++
+		}
+	}
+	switch {
+	case failing > 0 && recovered > 0:
+		fmt.Fprintf(&b, "%s: %d stage(s) failing, %d recovered — the session is unaffected; what it records is not:", speaker, failing, recovered)
+	case failing == 0:
+		fmt.Fprintf(&b, "%s: %d stage(s) failed and has since worked — the session is unaffected; what it recorded may not be:", speaker, recovered)
+	default:
+		fmt.Fprintf(&b, "%s: %d stage(s) failing — the session is unaffected; what it records is not:", speaker, failing)
+	}
 	for _, f := range due {
 		where := ""
 		if f.Scope != "" {
 			where = " in " + f.Scope
 		}
-		fmt.Fprintf(&b, "\n- %s%s: %s (failing since %s, last at %s)",
-			f.Stage, where, f.Error, f.Since.UTC().Format(time.RFC3339), f.Event)
+		if !f.Recovered.IsZero() {
+			fmt.Fprintf(&b, "\n- %s%s: %s (failed at %s, has since worked at %s)",
+				f.Stage, where, f.Error, f.Since.UTC().Format(time.RFC3339), f.Recovered.UTC().Format(time.RFC3339))
+		} else {
+			fmt.Fprintf(&b, "\n- %s%s: %s (failing since %s, last at %s)",
+				f.Stage, where, f.Error, f.Since.UTC().Format(time.RFC3339), f.Event)
+		}
 	}
 	if persistErr != nil {
 		fmt.Fprintf(&b, "\nThis is shown on every displaying event while it lasts: the failure record cannot be kept (%v).", persistErr)

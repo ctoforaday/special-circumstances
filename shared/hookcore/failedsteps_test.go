@@ -393,3 +393,37 @@ func TestDrainFailedToolStepsCapsUnmatchedWarnings(t *testing.T) {
 		t.Fatalf("capped warning err = %v, want '+2 more, 5 unmatched total'", err)
 	}
 }
+
+func TestLastNewlineOffsetMultiChunk(t *testing.T) {
+	dir := t.TempDir()
+
+	// 1. Newline more than 64 KiB before EOF (spans multiple read chunks).
+	p1 := filepath.Join(dir, "long-tail.jsonl")
+	data1 := "a\n" + strings.Repeat("x", 96*1024)
+	if err := os.WriteFile(p1, []byte(data1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f1, err := os.Open(p1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f1.Close()
+	if got := lastNewlineOffset(f1, int64(len(data1))); got != 2 {
+		t.Fatalf("lastNewlineOffset(>64KiB tail) = %d, want 2", got)
+	}
+
+	// 2. 128 KiB file with no newline at all returns 0.
+	p2 := filepath.Join(dir, "no-nl.jsonl")
+	data2 := strings.Repeat("y", 128*1024)
+	if err := os.WriteFile(p2, []byte(data2), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f2, err := os.Open(p2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+	if got := lastNewlineOffset(f2, int64(len(data2))); got != 0 {
+		t.Fatalf("lastNewlineOffset(128KiB no newline) = %d, want 0", got)
+	}
+}

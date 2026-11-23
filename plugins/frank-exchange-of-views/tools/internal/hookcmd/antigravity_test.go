@@ -3,6 +3,7 @@ package hookcmd
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -526,9 +527,9 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 		rec.Persist()
 	}
 
-	// 1. conv-A fails drain -> recorded under StageFailedStepDrain with TTL scoped to its agent id.
+	// 1. conv-A fails drain -> recorded under hookcore.StageFailedStepDrain with TTL scoped to its agent id.
 	firePreInv("conv-A", tpA)
-	if f := readFailures(); !strings.Contains(f, string(StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") || !strings.Contains(f, `"expires_after"`) {
+	if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") || !strings.Contains(f, `"expires_after"`) {
 		t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for agy-drainerrA00001: %s", f)
 	}
 	// 2. Peer conv-B clean drain must NOT clear conv-A's entry.
@@ -546,7 +547,7 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 		t.Fatalf("conv-A clean drain did not clear its StageFailedStepDrain entry after being shown: %s", f)
 	}
 
-	// 4. Hook-unmarshal ERROR step records StageHookUnmarshal with TTL, and clears on next clean drain after shown.
+	// 4. Hook-unmarshal ERROR step records hookcore.StageHookUnmarshal with TTL, and clears on next clean drain after shown.
 	prevFail := recordFailure
 	recordFailure = func(_, _, _ string) error { return nil }
 	t.Cleanup(func() { recordFailure = prevFail })
@@ -558,20 +559,20 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 		t.Fatal(err)
 	}
 	firePreInv("conv-H", tpHook)
-	if f := readFailures(); !strings.Contains(f, string(StageHookUnmarshal)) || !strings.Contains(f, `"expires_after"`) {
+	if f := readFailures(); !strings.Contains(f, string(hookcore.StageHookUnmarshal)) || !strings.Contains(f, `"expires_after"`) {
 		t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", f)
 	}
 	showRec2 := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "Stop", time.Now(), &bytes.Buffer{})
 	_ = showRec2.Settle()
 	firePreInv("conv-H", tpHook)
-	if f := readFailures(); strings.Contains(f, string(StageHookUnmarshal)) {
+	if f := readFailures(); strings.Contains(f, string(hookcore.StageHookUnmarshal)) {
 		t.Fatalf("clean drain did not clear StageHookUnmarshal after being shown: %s", f)
 	}
 
 	// 5. F6: Run() on a bound agy seat queues Settle's Say under the bound AgentID so the next
 	// PreInvocation flushes it (instead of stranding it under the raw conversationId).
 	seedRec := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreInvocation", time.Now(), &bytes.Buffer{})
-	seedRec.FailInWithTTL(StageFailedStepDrain, "agy-drainerrA00001", "F6_BOUND_DELIVERY_CANARY", conversationStageTTL)
+	seedRec.FailIn(hookcore.StageFailedStepDrain, "agy-drainerrA00001", "F6_BOUND_DELIVERY_CANARY")
 	seedRec.Persist()
 	preToolPayload, _ := json.Marshal(map[string]any{
 		"hookEventName":  "PreToolUse",
@@ -624,5 +625,42 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 	rec2.Persist()
 	if f := readFailures(); strings.Contains(f, string(StageAgyBind)) {
 		t.Fatalf("successful bind did not clear StageAgyBind: %s", f)
+	}
+}
+
+// G1: A panic in resolveAgySitting during Run's post-entry sitting lookup MUST be caught by Run's
+// recover(), exit 0, and record StagePanic (never escape Run with exit 2).
+func TestAntigravityRunRecoversPanicInSittingLookup(t *testing.T) {
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	prev := resolveAgySittingFn
+	resolveAgySittingFn = func(hookcore.Request, string, *hookfailures.Recorder) (agySitting, bool) {
+		panic("injected sitting lookup panic")
+	}
+	t.Cleanup(func() { resolveAgySittingFn = prev })
+
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": "conv-panic-test",
+		"cwd":            t.TempDir(),
+		"toolCall": map[string]any{
+			"id":   "call-panic",
+			"name": "run_command",
+			"args": map[string]any{"CommandLine": "echo hi"},
+		},
+	})
+	var out bytes.Buffer
+	code := Run("feov-pretooluse", "PreToolUse", func(io.Reader, io.Writer, *hookfailures.Recorder) error {
+		return nil
+	}, bytes.NewReader(payload), &out)
+	if code != 0 {
+		t.Fatalf("Run returned exit %d on resolveAgySitting panic, want 0", code)
+	}
+	p, err := hookfailures.Path("frank-exchange-of-views")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); !strings.Contains(string(b), string(StagePanic)) {
+		t.Fatalf("failures.json missing StagePanic after resolveAgySitting panic: %s", string(b))
 	}
 }

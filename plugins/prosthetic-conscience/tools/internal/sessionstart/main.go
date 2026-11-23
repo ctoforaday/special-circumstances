@@ -101,16 +101,6 @@ func merge(results []hookunit.Result) (text string, watch []string, logged strin
 // broken marker fails loudly instead of silently skipping checkpoint restore on resume.
 const stageResumeMarker hookfailures.Stage = "resume-restore-marker"
 
-// stageFailedStepDrain records Antigravity PreInvocation failed-step transcript drain errors so
-// they are cleared on the next clean drain instead of polluting StageStrikesRead permanently.
-const stageFailedStepDrain hookfailures.Stage = "failed-step-drain"
-
-// stageHookUnmarshal records Antigravity steps that failed because one of our hooks emitted
-// output the client could not unmarshal.
-const stageHookUnmarshal hookfailures.Stage = "hook-result-unmarshal"
-
-const conversationStageTTL = 30 * time.Minute
-
 var hostProcessID = defaultHostProcessID
 
 func resumeMarkerPath(pluginDataDir, sessionID string) string {
@@ -213,9 +203,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		scope := hookcore.DrainScopeKey(req)
 		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
 		if drainErr != nil {
-			rec.FailInWithTTL(stageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error(), conversationStageTTL)
+			rec.FailIn(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 		} else {
-			rec.OKIn(stageFailedStepDrain, scope)
+			rec.OKIn(hookcore.StageFailedStepDrain, scope)
 		}
 		sawHookErr := false
 		for _, st := range failedSteps {
@@ -223,7 +213,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 				// Our hook's output failed to parse: record on hookfailures for the human,
 				// never strike the agent for our own hook defect.
 				sawHookErr = true
-				rec.FailInWithTTL(stageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output), conversationStageTTL)
+				rec.FailIn(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
 				continue
 			}
 			// Never strike tools without a command (e.g. Read or manage_task): their key would
@@ -253,7 +243,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			}
 		}
 		if !sawHookErr {
-			rec.OKIn(stageHookUnmarshal, scope)
+			rec.OKIn(hookcore.StageHookUnmarshal, scope)
 		}
 
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a
