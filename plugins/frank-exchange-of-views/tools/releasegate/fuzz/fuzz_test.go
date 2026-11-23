@@ -5146,6 +5146,12 @@ func (r *runner) admitClose(id string, args []string) bool {
 		}
 		return false
 	}
+	// A PROPOSAL A BYSTANDER FILED ON id SINCE THE READ holds the gap in its assignee's window, and the
+	// close is refused naming it: concurrent lenses propose on one another's gaps (proposeAsBystander).
+	if env, ok := refusalEnvelopeIn(out); ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, "in its assignee's window") && r.beforeTheBench(id) {
+		noteEither(args, "a close of a gap a bystander's proposal landed on after the drive read it", false)
+		return false
+	}
 	r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 	return false
 }
@@ -8015,7 +8021,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// AND A SPAN THE FREEZE HOLDS IS THE RECORD'S ANSWER: red's text in its closing on a docketed
 				// gap, or a standing supersede's quote, holds the sentence until its ruling, and blue's edit of
 				// it is refused naming the statement (record/freeze.go).
-				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) {
+				// AND A BYSTANDER'S PROPOSAL ON IT IS ITS ANSWER where it closed the gap: another lens's or the
+				// chair's proposed close or supersede, which the assignee accepted or the bench sided with,
+				// closes the gap with no edit of blue's (proposeAsBystander).
+				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) && !(!g.Open && r.bystanderProposedOn(id)) {
 					r.mu.Lock()
 					why := cmp.Or(r.unanswered[id], "no refusal of blue's edit answering it was recorded")
 					r.mu.Unlock()
@@ -9842,11 +9851,13 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 //
 // A GAP THE RECORD HELD BEFORE THE BENCH takes no proposal either: docketed at impasse, its contest is
 // the docketing's and the closings argue it; with another proposal standing on it, the gap holds that
-// one. The drive's last attempt refused by either is the record's answer to the scenario.
+// one; and blue, having filed its closing on the gap in the sitting, cannot owe it a second. The drive's
+// last attempt refused by any of these is the record's answer to the scenario.
 func (r *runner) heldUnexchanged(gapID string) bool {
 	why := r.disputeRefusals[gapID]
 	for _, held := range []string{tombstoneStands, "a proposal on a gap is admitted once it has had one exchange",
-		"no proposal is filed on a docketed gap", "a gap holds one proposal at a time"} {
+		"no proposal is filed on a docketed gap", "a gap holds one proposal at a time",
+		"a proposal now would owe it a second closing"} {
 		if strings.Contains(why, held) {
 			return true
 		}

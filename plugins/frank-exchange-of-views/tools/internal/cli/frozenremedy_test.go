@@ -110,3 +110,119 @@ func TestBluesRetireThatIsRedsTextLandsAndTheBenchAppliesNothingMore(t *testing.
 		t.Errorf("the last retire on the record is %+v, want blue's of %s alone", body, cite)
 	}
 }
+
+// BLUE'S EDIT THAT IS RED'S REPLACEMENT LANDS, and the bench's answer for red applies nothing more: the
+// report already holds red's text at the gap's place (record.RedTextStands).
+func TestBluesEditThatIsRedsReplacementLandsAndTheBenchAppliesNothingMore(t *testing.T) {
+	runDir, _, gap, d := frozenRemedyRun(t, false)
+	report, err := record.RenderRun(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	words := "Costs rose sharply across the first quarter"
+	tail := report[strings.Index(report, words)+len(words):]
+	run_ := tail[:anchor.SkipRun(tail, 0)]
+	if out, err := redStates(t, runDir, gap, "--quote", words+run_, "--new", "Costs rose a little"+run_); err != nil {
+		t.Fatalf("red's text over the cited words: %v %s", err, out)
+	}
+	if out, err := blueStates(t, runDir, gap, ""); err != nil {
+		t.Fatalf("blue's closing: %v %s", err, out)
+	}
+	if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words, "--new", "Costs rose a little", "--answers", gap, "--reason", "red's text"); err != nil {
+		t.Fatalf("blue's edit applying red's replacement: %v %s", err, out)
+	}
+	edits := func() int {
+		fam, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, e := range fam.Events {
+			if _, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+				n++
+			}
+		}
+		return n
+	}
+	before := edits()
+	conveneBench(t, runDir, gap)
+	if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
+		t.Fatalf("--for-red with red's text already done: %v %s", err, out)
+	}
+	if after := edits(); after != before {
+		t.Errorf("the answer for red wrote %d edit(s) over red's text already standing, want none", after-before)
+	}
+}
+
+// BLUE'S OWN REWORD OF RED'S SPAN IS STILL HELD: an edit of the words red's text quotes that is not
+// exactly red's replacement — other words, or red's with words added — is refused by the freeze.
+func TestBluesOwnRewordOfRedsSpanIsHeld(t *testing.T) {
+	runDir, _, gap, _ := frozenRemedyRun(t, false)
+	report, err := record.RenderRun(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	words := "Costs rose sharply across the first quarter"
+	tail := report[strings.Index(report, words)+len(words):]
+	run_ := tail[:anchor.SkipRun(tail, 0)]
+	if out, err := redStates(t, runDir, gap, "--quote", words+run_, "--new", "Costs rose a little"+run_); err != nil {
+		t.Fatalf("red's text over the cited words: %v %s", err, out)
+	}
+	for _, own := range []string{"Costs rose somewhat", "In fact, Costs rose a little"} {
+		out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words, "--new", own, "--answers", gap, "--reason", "blue's own")
+		heldRefusal(t, "blue's own reword of red's span to "+own, out, err, "holds until its ruling", words)
+	}
+}
+
+// THE LENS'S TWIN: a reading of the evidence lens's that finds its citation's source against the
+// sentence owes the gap of its class about the citation — or a fresh reading. Where blue's supersede of
+// the lens's own gap stands, stating that successor, the successor arm refuses both (L48): the mint
+// would hold the successor's class and subject, and a reading that no longer finds against would take
+// the standing reading the successor's class stands on. So the debt does not hold the lens's sitting,
+// and it still holds the PASS.
+func TestAnOwedReadingTheFreezeHoldsDoesNotHoldTheLensesSitting(t *testing.T) {
+	b := readingRunCast(t, rdReport, rdCited, rdBacked)
+	out, err := run(t, "mint", "--run", b.runDir, "--seat-id", lensL, "--quote", rdFree1, "--class", "false_universal",
+		"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
+	if err != nil {
+		t.Fatalf("the lens's gap: %v %s", err, out)
+	}
+	g := gapID(out)
+	exchangeOn(t, b.runDir, g)
+	b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+	b.mustRead(lensK, citeReading(b.c2, "supports")...)
+	out, err = runAt(t, append([]string{"motion", "docket", "file", "supersede", "--run", b.runDir, "--seat-id", blueSeat, "--id", g,
+		"--reason", "the gap misstates the defect", "--json", "--class", "claim_contradicts_source",
+		"--problem", "the source says otherwise than the sentence", "--fix", "the fix, restated", "--check-kind", "document",
+		"--check", "the sentence states what the source says", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"}, about(b.c1)...)...)
+	if err != nil {
+		t.Fatalf("blue's supersede stating the debt's gap as the successor: %v %s", err, out)
+	}
+	m := filedMotionID(t, out)
+	b.sit(lensL)
+	out, err = run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--class", "claim_contradicts_source",
+		"--problem", "the source says otherwise than the sentence", "--fix", "the fix", "--check-kind", "document",
+		"--check", "the sentence states what the source says", "--severity", "low", "--likelihood", "low", "--impact", "low"}, about(b.c1)...)...)
+	heldRefusal(t, "the lens's mint of its debt's gap the successor states", out, err, m, "holds until its ruling")
+	_, rerr := run(t, append([]string{"verify", "--run", b.runDir, "--seat-id", lensL}, citeReading(b.c1, "supports")...)...)
+	heldRefusal(t, "the lens's fresh reading the successor's class stands on", "", rerr, m, "holds until its ruling")
+	if out, err := redStates(t, b.runDir, g, "--no-text"); err != nil {
+		t.Fatalf("the lens's closing on %s: %v %s", g, err, out)
+	}
+	refusal, err := record.EnvelopeRefusal(runtest.Open(t, b.runDir), lensL)
+	if err != nil || refusal != "" {
+		t.Errorf("the lens's envelope with only a frozen reading debt owed: refused %q (%v), want admitted", refusal, err)
+	}
+	bs, err := record.PassBlockers(runtest.Open(t, b.runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	held := false
+	for _, bl := range bs {
+		held = held || bl.Kind == record.BlockerReadingDebt && bl.Owner == lensL && bl.Subject == b.c1
+	}
+	if !held {
+		t.Errorf("the reading debt on %s no longer holds the PASS: %+v", b.c1, bs)
+	}
+}

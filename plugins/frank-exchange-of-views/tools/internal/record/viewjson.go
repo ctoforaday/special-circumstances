@@ -1049,6 +1049,9 @@ type workReads struct {
 	// roads is every statement of text standing on a gap until its ruling (standingRoadsAt), which the
 	// freeze holds blue's edit and retire to (frozenIn).
 	roads []Road
+	// supersedes is every supersede proposal standing (standingSupersedesAt), whose successor the freeze
+	// holds its assignee's acts to (frozenDebtIn).
+	supersedes []standingSupersede
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1124,6 +1127,9 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	if r.roads, err = standingRoadsAt(q); err != nil {
+		return r, err
+	}
+	if r.supersedes, err = standingSupersedesAt(q); err != nil {
 		return r, err
 	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
@@ -1388,11 +1394,6 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	return workJSONOfGaps(gaps, 0, backingOf(r.evs, r.win), ""), nil
 }
 
-// unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
-// anchor's sentence — the report does not render, its anchor is not in it, or it stands bare — the
-// predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
-// list's one render (reportRender), and finds the bare anchors on the first question, and only then:
-// most work lists ask none.
 // frozenIn says which standing statement of red's text the freeze holds an evidence anchor's remedy
 // under — the anchor's token stands in the span a pair road quotes, so blue's retire of it and its edit
 // of the sentence both change that span (cli/blue's roadsHold) — or "" where none does. A retire road
@@ -1427,6 +1428,35 @@ func frozenIn(r workReads) unverifiableFunc {
 	}
 }
 
+// frozenDebtIn says which standing supersede proposal the freeze holds a lens's reading debt's remedies
+// under — the proposal stands on a gap of the debt's owner and states a successor of the debt's class
+// about its citation, so the owner's mint of that gap and a reading of the citation that no longer
+// finds against are both refused by the successor arm (L48) — or "" where none does.
+func frozenDebtIn(r workReads) func(Blocker) string {
+	if len(r.supersedes) == 0 {
+		return nil
+	}
+	return func(b Blocker) string {
+		if b.Kind != BlockerReadingDebt || b.Subject == "" {
+			return ""
+		}
+		outcome, subject := b.outcome, b.Subject
+		class := obligedClass(&recordpb.Verify{Outcome: &outcome, Anchor: &subject})
+		for _, s := range r.supersedes {
+			if s.assignee == b.Owner && s.mint.GetClass() == class &&
+				s.mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && s.mint.GetAboutRef() == b.Subject {
+				return fmt.Sprintf("proposal %s stands on gap %s and states that gap as its successor, which holds your mint of it and your reading of the citation again until its ruling", s.motionID, s.gapID)
+			}
+		}
+		return ""
+	}
+}
+
+// unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
+// anchor's sentence — the report does not render, its anchor is not in it, or it stands bare — the
+// predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
+// list's one render (reportRender), and finds the bare anchors on the first question, and only then:
+// most work lists ask none.
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
 		asked     bool
@@ -1549,7 +1579,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
 	last := win.LastEpoch(evs)
-	reads := sittingReads{unverifiable: unverifiableIn(r), frozen: frozenIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
+	reads := sittingReads{unverifiable: unverifiableIn(r), frozen: frozenIn(r), frozenDebt: frozenDebtIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
 		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)

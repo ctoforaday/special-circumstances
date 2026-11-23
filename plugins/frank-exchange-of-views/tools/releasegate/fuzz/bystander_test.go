@@ -2,9 +2,11 @@ package fuzz
 
 import (
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -65,6 +67,13 @@ var forcedBystanderActs = []string{"regrade", "close", "supersede"}
 
 // bystanderGaps is the gaps seatID may propose on as a bystander (proposeAsBystander).
 func (r *runner) bystanderGaps(seatID string) []string {
+	r.mu.Lock()
+	final := finalEpoch(r.planEpoch, r.planLimit)
+	r.mu.Unlock()
+	// A PROPOSAL FILED AT THE FINAL EPOCH IS NOT HEARD IN TIME, and the record refuses it.
+	if final {
+		return nil
+	}
 	ruled, ok := r.tombstoned()
 	if !ok {
 		return nil
@@ -90,7 +99,7 @@ func (r *runner) bystanderProposal(seatID, act, id string) string {
 	reason := "fuzz: " + seatID + ", no party to " + id + ", proposes its act"
 	switch act {
 	case "close":
-		r.admitFresh(id, proposeCloseArgs(seatID, id, "not_a_defect", reason)...)
+		r.bystanderFiles(id, proposeCloseArgs(seatID, id, "not_a_defect", reason))
 	case "regrade":
 		held := r.benchGrades(id)
 		free := slices.DeleteFunc(slices.Clone(disputeDims), func(d string) bool { _, locked := held[d]; return locked })
@@ -98,12 +107,86 @@ func (r *runner) bystanderProposal(seatID, act, id string) string {
 			return ""
 		}
 		dim := pick(r.rng, free)
-		r.admitFresh(id, "motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
-			"--"+dim, r.gradeOtherThan(r.currentGrade(id, dim)), "--reason", reason)
+		r.bystanderFiles(id, []string{"motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
+			"--" + dim, r.gradeOtherThan(r.currentGrade(id, dim)), "--reason", reason})
 	default:
-		r.proposeSuccessor(seatID, id, reason)
+		// A SUCCESSOR OF A GAP THAT AWAITS A LIVE ANSWER carries its demand at the gap's check kind
+		// (gblock 2026-11-05), which a bystander's restatement does not type: such a gap is left out.
+		if r.awaitsEvidence(id) {
+			return ""
+		}
+		if r.bystanderFiles(id, r.proposeSupersedeArgs(seatID, id, reason)) == "successor_unmintable_refused" {
+			r.bystanderFiles(id, r.plainSuccessorArgs(seatID, id, reason))
+		}
 	}
 	return id
+}
+
+// bystanderRefusals is each refusal a bystander's proposal meets as the record working as ruled, by the
+// words that name it, and its tally key: another seat's proposal landed on the gap since the drive read
+// it — the lenses sit in parallel, so two may draw one gap (a gap holds one proposal at a time, F5) —
+// the successor stated is one its assignee's mint could not write (L48), which another seat's act since
+// the read can make so, or the gap closed since the read.
+var bystanderRefusals = []struct {
+	code       feov.Code
+	words, key string
+}{
+	{feov.Conflict, "a gap holds one proposal at a time", "one_proposal_refused"},
+	{feov.Validation, unmintableSuccessor, "successor_unmintable_refused"},
+	{feov.Conflict, "no act but a successor moves a closed gap", "closed_gap_refused"},
+}
+
+// bystanderFiles is a bystander's filing of args on gapID: admitted, or refused by one of
+// bystanderRefusals, which is counted under its key and reported; any other refusal is admitFresh's.
+// It reports the refusal's key, "" where the filing landed or admitFresh took it.
+func (r *runner) bystanderFiles(gapID string, args []string) string {
+	out, err := r.exec(withJSON(args)...)
+	if err == nil {
+		return ""
+	}
+	if env, ok := refusalEnvelopeIn(out); ok {
+		for _, b := range bystanderRefusals {
+			if env.Code == string(b.code) && strings.Contains(env.Error, b.words) {
+				r.countGate(b.key)
+				return b.key
+			}
+		}
+	}
+	r.admitFresh(gapID, args...)
+	return ""
+}
+
+// bystanderProposedOn reports whether a seat other than blue filed a proposal on gapID.
+func (r *runner) bystanderProposedOn(gapID string) bool {
+	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_MOTION)
+	if err != nil {
+		r.noteActErr("the record's proposals could not be read: " + err.Error())
+		return false
+	}
+	for _, e := range evs {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && m.GetDocket().GetGapId() == gapID && seatclass.RoleOfSeat(e.GetSeatId()) != "blue" {
+			return true
+		}
+	}
+	return false
+}
+
+// awaitsEvidence reports whether gapID awaits a live answer, as its assignee's work list reads it.
+func (r *runner) awaitsEvidence(gapID string) bool {
+	r.mu.Lock()
+	minter := r.minter[gapID]
+	r.mu.Unlock()
+	w, err := record.WorkOfSeat(r.run(), "lens", minter)
+	if err != nil {
+		r.noteActErr(minter + "'s work list could not be read: " + err.Error())
+		return true
+	}
+	for _, g := range w.Open {
+		if g.ID == gapID {
+			return g.AwaitingEvidence
+		}
+	}
+	return false
 }
 
 // BYSTANDERSEED'S RUN REACHES `--for-assignee`, pinned deterministically: another lens's regrade on a

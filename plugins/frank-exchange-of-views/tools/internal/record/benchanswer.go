@@ -332,13 +332,26 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 
 // requireRoadApplied is the for-red (for-assignee) answer's check that the bench's act is red's road:
 // the anchor's retire where the road is a retire, else the edit blue's `edit --accept` makes of the
-// pair, its span the one record.ProposalOver plans on the report as it stood before the edit.
+// pair, its span the one record.ProposalOver plans on the report as it stood before the edit. Where
+// red's text already stands — the anchor retired, or the report holding the pair's replacement at the
+// gap's place — the answer applies no act.
 func requireRoadApplied(q recordsql.Querier, p Positions, texts []benchAct) error {
 	// A RETIRE ROAD ALREADY DONE: the anchor's retire matches red's text, and the freeze admits it, so
 	// the answer for red applies nothing more.
 	if len(texts) == 0 && p.Road.GetRetire() {
 		_, retired, err := anchorRetiredAt(q, p.AboutRef)
 		if err != nil || retired {
+			return err
+		}
+	}
+	// A PAIR ROAD ALREADY DONE: the report holds red's text at the gap's place, as an edit of blue's that
+	// matched it left it, so the answer for red applies nothing more.
+	if len(texts) == 0 && !p.Road.GetRetire() && p.Road.GetFixNew() != "" {
+		report, err := RenderAt(q)
+		if err != nil {
+			return err
+		}
+		if done, err := redTextAppliedAt(q, report, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew()); err != nil || done {
 			return err
 		}
 	}

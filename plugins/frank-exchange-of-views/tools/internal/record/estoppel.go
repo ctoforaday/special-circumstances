@@ -227,6 +227,59 @@ func ProposalOver(report, gapID, loc, fix string) (string, string) {
 	return loc, fix
 }
 
+// redTextAppliedAt reports whether an act already did what red's pair road on gapID does: a recorded
+// edit replaced exactly the words the road quotes with exactly the words it states, anchors aside, and
+// the report still holds those words at the gap's place — an occurrence of fix whose span or abutting
+// anchor run holds the gap's token. The freeze admits such an edit, and the answer for red then applies
+// nothing more (gblock 2026-11-23, as for a retire road). An edit that rewords the span otherwise, or
+// adds words to red's, matches neither half and is held.
+func redTextAppliedAt(q recordsql.Querier, report, gapID, loc, fix string) (bool, error) {
+	if strings.TrimSpace(fix) == "" {
+		return false, nil
+	}
+	tok := anchor.Token(gapID)
+	stands := false
+	for _, sp := range anchortext.LocateAll(report, fix) {
+		after := strings.TrimLeft(report[sp[1]:], anchortext.TrailingPunct)
+		if strings.Contains(report[sp[0]:sp[1]], tok) || strings.Contains(after[:anchor.SkipRun(after, 0)], tok) {
+			stands = true
+			break
+		}
+	}
+	if !stands {
+		return false, nil
+	}
+	spans, err := editSpansAt(q)
+	if err != nil {
+		return false, err
+	}
+	words := func(s string) string { return strings.TrimSpace(anchor.StripWritten(s, nil)) }
+	for _, e := range spans {
+		if words(e.Old) == words(loc) && words(e.New) == words(fix) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// RedTextApplied is redTextAppliedAt asked of run's record as it renders now.
+func RedTextApplied(run Run, gapID, loc, fix string) (bool, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return false, err
+	}
+	report, err := RenderAt(db)
+	if err != nil {
+		return false, err
+	}
+	return redTextAppliedAt(db, report, gapID, loc, fix)
+}
+
+// RedTextApplied is record.RedTextApplied asked of the landing record, over report as it renders there.
+func (l *Landing) RedTextApplied(report, gapID, loc, fix string) (bool, error) {
+	return redTextAppliedAt(l.w.q, report, gapID, loc, fix)
+}
+
 // ProposalAppliedVerbatim reports whether the pair a seat typed is EXACTLY the fix the named gap
 // proposed over the report it edited — byte-for-byte on both halves, against Proposal's pair.
 //

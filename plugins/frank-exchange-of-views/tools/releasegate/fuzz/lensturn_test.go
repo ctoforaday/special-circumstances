@@ -437,7 +437,9 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 	}
 	// A DOCKET COMES AFTER THE LENS'S SITTING, read off the record's sittings and not through the fold
 	// that holds it back. Only what this dispatch wrote: the dispatch's docketings — the tool's rows, no
-	// seat's motion — are the tail of the record, written since the chair last opened a sitting.
+	// seat's motion — are the tail of the record, written since the chair last opened a sitting. Only at
+	// IMPASSE: a proposal's docketing ends its assignee's window, and one at grade movement reads grades
+	// already on the record, so neither waits on the lens reading blue's answer.
 	after := 0
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		e := b.Events[i]
@@ -445,7 +447,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			break
 		}
 		m, ok := recordpb.BodyAs[*recordpb.Docketing](e)
-		if !ok || m.GetGapId() == "" {
+		if !ok || m.GetGapId() == "" || m.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE {
 			continue
 		}
 		gap := m.GetGapId()

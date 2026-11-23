@@ -215,6 +215,14 @@ func applyText(s seat.Context, run record.Run, p record.Positions, ruling record
 		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef)), blue.BenchRoadsHold}}, ruling)
 		return err
 	}
+	// RED'S TEXT ALREADY STANDS: the report holds the pair's replacement at the gap's place, as an edit
+	// of blue's that matched it left it, so the answer for red writes its ruling alone.
+	if done, err := record.RedTextApplied(run, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew()); err != nil {
+		return err
+	} else if done {
+		_, err := record.AppendActs(s.Identity(), ruling)
+		return err
+	}
 	ed := &recordpb.BlueEdit{Answers: proto.String(p.GapID), Text: proto.String(opinion)}
 	plan := record.Check(func(l *record.Landing) error {
 		return blue.AcceptPair(l, ed, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew())

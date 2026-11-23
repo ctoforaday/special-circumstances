@@ -2045,10 +2045,14 @@ passes: a successor already unwritable when the act began is no act of the assig
 ruling's tombstone, so another lens's mint, or a ruling, can fail the set while the freeze judges neither;
 the filer's side is then refused at the accept and at the bench, naming M and the successor, and the
 bench answers the other side or remands. *Owed but frozen does not block (gblock 2026-11-23, "Owed-but-frozen doesn't block", agent
-wording):* an item whose every remedy the freeze refuses — a failed check of a citation whose token stands
-in the span a pair road quotes — does not hold blue's sitting or envelope, and still holds the PASS until
-the ruling; and a retire road always stands — blue's retire of the anchor does what red's text does, and
-the answer for red then applies nothing more (`requireRoadApplied`). planguard plans the re-run (check 8). *What the applied edit is on the record (appendix M20, 37 hits / 25
+wording):* an item whose every remedy the freeze refuses — blue's failed check of a citation whose token
+stands in the span a pair road quotes, or a lens's reading debt whose gap a standing supersede on the
+lens's own gap states as its successor (the successor arm refuses both the mint and a fresh reading) —
+does not hold that seat's sitting or envelope, and still holds the PASS until the ruling. An act that does
+what red's text does lands: a retire road always stands, and blue's edit replacing exactly the words a
+pair road quotes with exactly its words (anchors aside, the report still holding them at the gap's place)
+leaves the road standing (lead call 2026-11-23); the answer for red then applies nothing more
+(`requireRoadApplied`). planguard plans the re-run (check 8). *What the applied edit is on the record (appendix M20, 37 hits / 25
 files on `a488cad41`):* it moves the report as any edit does (pins, stale areas, standing readings);
 it answers G, which closes in the same transaction, and its seat is the bench, so no exchange counts it
 (`impasse.go:314`, `blueanswered.go:233`); it applies red's prescription verbatim, so `writeTombstones`

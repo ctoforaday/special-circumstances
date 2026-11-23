@@ -195,7 +195,10 @@ func (r *runner) benchRules(args []string) bool {
 	// THE FILER'S SIDE OF A SUPERSEDE WHOSE SUCCESSOR ANOTHER SEAT'S ACT LEFT UNWRITABLE is refused naming
 	// the successor: the bench answers the other side, or remands where that side stated nothing.
 	for i, a := range args {
-		if (a != "--for-blue" && a != "--for-filer") || !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, successorUnwritable) {
+		// The refusal is read off the envelope, and off the error where no envelope decodes.
+		unwritable := ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, successorUnwritable) ||
+			!ok && strings.Contains(out+err.Error(), successorUnwritable)
+		if (a != "--for-blue" && a != "--for-filer") || !unwritable {
 			continue
 		}
 		noteEither(args, "the bench's answer writing a successor another seat's act left unwritable", false)
@@ -204,9 +207,7 @@ func (r *runner) benchRules(args []string) bool {
 		if _, err := r.exec(withJSON(swapped)...); err == nil {
 			return true
 		}
-		remand := append(slices.Delete(slices.Clone(args), i, i+1), "--remand", "--direction", "fuzz: one more exchange on the successor's subject")
-		remand = slices.DeleteFunc(remand, func(s string) bool { return s == "--final" })
-		_, admitted := r.admit(remand...)
+		_, admitted := r.admit(remandOf(args, a)...)
 		return admitted
 	}
 	at, other := -1, ""
@@ -218,15 +219,51 @@ func (r *runner) benchRules(args []string) bool {
 			at, other = i, "--for-filer"
 		}
 	}
-	if at < 0 || !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "holds until its ruling") {
+	if at < 0 || !ok {
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 		return false
 	}
-	r.countGate("bench_road_held_refused")
+	switch {
+	case env.Code == string(feov.Conflict) && strings.Contains(env.Error, "holds until its ruling"):
+		r.countGate("bench_road_held_refused")
+	case env.Code == string(feov.Validation) || env.Code == string(feov.Conflict):
+		// RED'S TEXT THE RECORD WILL NOT APPLY AS IT STANDS — a retire of a citation a computation still
+		// applies, say — is refused like any act of that text: the bench answers the other side.
+		noteEither(args, "the bench's answer applying red's text the record refuses as it stands", false)
+		r.countGate("bench_text_refused")
+	default:
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		return false
+	}
 	swapped := slices.Clone(args)
 	swapped[at] = other
-	_, admitted := r.admit(swapped...)
-	return admitted
+	sout, serr := r.exec(withJSON(swapped)...)
+	if serr == nil {
+		return true
+	}
+	// AND THE OTHER SIDE'S SUCCESSOR UNWRITABLE TOO: neither side applies, so the bench remands.
+	if senv, sok := refusalEnvelopeIn(sout); sok && senv.Code == string(feov.Conflict) && strings.Contains(senv.Error, successorUnwritable) {
+		noteEither(swapped, "the bench's answer writing a successor another seat's act left unwritable", false)
+		_, admitted := r.admit(remandOf(args, args[at])...)
+		return admitted
+	}
+	r.noteActErr("refused, and the drive expects it admitted: " + serr.Error())
+	return false
+}
+
+// remandOf is the bench's answer args with its side flag and every closing word taken out, as a remand.
+func remandOf(args []string, side string) []string {
+	var remand []string
+	for j := 0; j < len(args); j++ {
+		switch args[j] {
+		case side, "--final":
+		case "--reopens-on":
+			j++
+		default:
+			remand = append(remand, args[j])
+		}
+	}
+	return append(remand, "--remand", "--direction", "fuzz: one more exchange on the successor's subject")
 }
 
 // exchangeOn is one counted exchange on the gaps the chair's plan engages blue on: the chair plans,

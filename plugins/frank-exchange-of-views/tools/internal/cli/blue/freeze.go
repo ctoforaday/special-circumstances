@@ -59,9 +59,11 @@ func requireRoadsHold(l *record.Landing, remedy string) error {
 }
 
 // roadPlans is nil where road r still plans on report: a pair as the accept applies it — a successor's
-// with its own marker placed at its quote, as `lens mint` verifies a fix — or a retire. A RETIRE ROAD
-// ALWAYS STANDS: an act that retires its anchor does what red's text does, and the answer for red then
-// applies nothing more (record.requireRoadApplied).
+// with its own marker placed at its quote, as `lens mint` verifies a fix — or a retire. AN ACT THAT DOES
+// WHAT RED'S TEXT DOES LEAVES THE ROAD STANDING: a retire road always stands, and a pair road stands
+// where an edit replaced exactly its quoted words with exactly its own and the report still holds them
+// at the gap's place (record.RedTextApplied); the answer for red
+// then applies nothing more (record.requireRoadApplied).
 func roadPlans(l *record.Landing, report string, r record.Road) error {
 	switch {
 	case r.Retire != "":
@@ -70,6 +72,11 @@ func roadPlans(l *record.Landing, report string, r record.Road) error {
 		return SuccessorPlans(report, r.Successor, r.Location, r.FixNew)
 	}
 	_, err := PlanAccept(report, r.GapID, r.Location, r.FixNew)
+	if err != nil {
+		if done, derr := l.RedTextApplied(report, r.GapID, r.Location, r.FixNew); derr != nil || done {
+			return derr
+		}
+	}
 	return err
 }
 
