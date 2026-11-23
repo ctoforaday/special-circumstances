@@ -44,6 +44,55 @@ import (
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
+// StageDecision is a unit's decision document that this hook could not read.
+const StageDecision hookfailures.Stage = "unit-decision"
+
+// unreadableReason is what the agent is told when a unit's decision could not be read.
+const unreadableReason = "sc-pretooluse: a PreToolUse check wrote a decision this hook cannot read, so the call is refused. " +
+	"This is a defect in the hook, not in the call: tell the human, and do not retry or rephrase the call to get past it."
+
+// readDecision turns a unit's decision document into the response hookcore renders for the
+// calling harness.
+//
+// EVERY DECISION GOES THROUGH hookcore. A document written to stdout as-is is read by neither
+// harness as a decision: Claude Code ignores stdout that is not its JSON and runs the call, and
+// Antigravity fails the step with "failed to unmarshal result from hook" (#1927). The one unit
+// that writes a decision is the secrets gate, which fails closed, so a document this hook cannot
+// read — not JSON, or JSON naming no permissionDecision or one that is not allow, deny or ask — is a DENY, recorded as this hook's
+// failure so the defect surfaces rather than recurring silently.
+func readDecision(decision string, rec *hookfailures.Recorder) hookcore.Response {
+	var doc struct {
+		HookSpecificOutput struct {
+			PermissionDecision       string         `json:"permissionDecision"`
+			PermissionDecisionReason string         `json:"permissionDecisionReason"`
+			UpdatedInput             map[string]any `json:"updatedInput"`
+		} `json:"hookSpecificOutput"`
+	}
+	err := json.Unmarshal([]byte(decision), &doc)
+	if err == nil {
+		switch hookcore.Decision(doc.HookSpecificOutput.PermissionDecision) {
+		case hookcore.DecisionAllow, hookcore.DecisionDeny, hookcore.DecisionAsk:
+		case hookcore.DecisionNone:
+			err = fmt.Errorf("it names no hookSpecificOutput.permissionDecision")
+		default:
+			err = fmt.Errorf("permissionDecision %q is not allow, deny or ask", doc.HookSpecificOutput.PermissionDecision)
+		}
+	}
+	if err != nil {
+		rec.Fail(StageDecision, fmt.Sprintf("a unit's PreToolUse decision could not be read (%v), so the call was refused: %.200q", err, decision))
+		return hookcore.Response{Decision: hookcore.DecisionDeny, Reason: unreadableReason}
+	}
+	rec.OK(StageDecision)
+	resp := hookcore.Response{
+		Decision: hookcore.Decision(doc.HookSpecificOutput.PermissionDecision),
+		Reason:   doc.HookSpecificOutput.PermissionDecisionReason,
+	}
+	if cmd, ok := doc.HookSpecificOutput.UpdatedInput["command"].(string); ok {
+		resp.UpdatedCommand = cmd
+	}
+	return resp
+}
+
 // merge is the event's decision policy, kept pure so it can be tested without units.
 func merge(results []hookunit.Result) (decision, warnings, say string) {
 	var warn, said []string
@@ -78,43 +127,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	hookenv.Note(ctx.ProjectDir, rec) // recorded, never a reason to skip the secrets gate
 	decision, warnings, say := merge(hookunit.Run(ctx, units))
 
-	resp := hookcore.Response{
-		Warnings: warnings,
-		Say:      strings.TrimSpace(say + "\n\n" + rec.Settle()),
-	}
-
+	var resp hookcore.Response
 	if decision != "" {
-		var testDoc map[string]any
-		if err := json.Unmarshal([]byte(decision), &testDoc); err != nil {
-			fmt.Fprint(stdout, decision)
-			return 0
-		}
-		var doc struct {
-			HookSpecificOutput struct {
-				PermissionDecision       string         `json:"permissionDecision"`
-				PermissionDecisionReason string         `json:"permissionDecisionReason"`
-				UpdatedInput             map[string]any `json:"updatedInput"`
-			} `json:"hookSpecificOutput"`
-		}
-		if err := json.Unmarshal([]byte(decision), &doc); err == nil && doc.HookSpecificOutput.PermissionDecision != "" {
-			resp.Decision = hookcore.Decision(doc.HookSpecificOutput.PermissionDecision)
-			resp.Reason = doc.HookSpecificOutput.PermissionDecisionReason
-			if cmd, ok := doc.HookSpecificOutput.UpdatedInput["command"].(string); ok {
-				resp.UpdatedCommand = cmd
-			}
-		} else {
-			if d, ok := testDoc["permissionDecision"].(string); ok {
-				resp.Decision = hookcore.Decision(d)
-			} else if d, ok := testDoc["decision"].(string); ok {
-				resp.Decision = hookcore.Decision(d)
-			}
-			if r, ok := testDoc["permissionDecisionReason"].(string); ok {
-				resp.Reason = r
-			} else if r, ok := testDoc["reason"].(string); ok {
-				resp.Reason = r
-			}
-		}
+		resp = readDecision(decision, rec)
+	} else {
+		rec.OK(StageDecision)
 	}
+	resp.Warnings = warnings
+	resp.Say = strings.TrimSpace(say + "\n\n" + rec.Settle())
 
 	return hookcore.Respond(req, resp, stdout, stderr, nil)
 }
