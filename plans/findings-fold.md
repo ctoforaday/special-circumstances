@@ -1,16 +1,27 @@
 # Findings fold into gaps (Part A); a motion on a gap is a proposed act (Part B) (#1695, folds #1646)
 
+> **Amendment 8 (2026-11-23, gblock "New gap; supersedes = own amend", "Only the prescribing lens",
+> "Wait, then mint", "File both, after #1889", option wording the agent's; §III.B16, §VI "Amendment
+> 2026-11-23 (8)"):** a defect found after a close is an ordinary new gap from any lens, with no link.
+> `--supersedes` is one act only: a lens amending its OWN OPEN gap; the mint refuses a closed ancestor
+> and another seat's gap. Deleted: `Close.successor` (`--superseded-by`) with its CHECK,
+> `repaired_with_regression` and `amends_prior` (lens and bench), the closed-ancestor lineage link,
+> `demand_lineage` (only self rows remain, so the table goes; L55), the board telemetry's
+> `repair_regression` (L56), and every carrier that teaches them. Verbatim-accept estoppel bars only
+> the lens that wrote the applied text (`minterOf`); any other lens mints an ordinary gap on it; ruling
+> tombstones still bar both sides. A non-party lens does nothing on another lens's open gap (structural,
+> no mechanism). Amendment 7's forks F-CS, F-AP, F-BS and F-AR are ruled; B7 builds both amendments at
+> the branch's epoch + 1 (81). Migrate gains Translation 5. #1930 and #1931 are filed outside #1889.
+
 > **Amendment 7 (2026-11-23, gblock "Own gap only", option wording the agent's; §III.B15, §VI
 > "Amendment 2026-11-23 (7)"):** only a gap's two parties — its lens and blue — file on it, so blue is
 > the one filer; no proposal states a successor; the bench chooses red against blue only. Deleted: the
 > supersede proposal, its stored successor, L48 (`requireSuccessorMintable` and the freeze's successor
 > arm), the bystander drives and refusals, `SIDED_WITH_FILER`/`ASSIGNEE` with `--for-filer` and
 > `--for-assignee`, the chair's and other lenses' proposals, the bench's `Mint` and `actingSeat` (L5).
-> Built in a new phase B7 on the branch's epoch + 1 (L50). Open for gblock: F-CS (another lens's
+> Built in a new phase B7 on the branch's epoch + 1 (L50). Its four forks — F-CS (another lens's
 > `--supersedes` of a closed gap), F-AR (a lens's argument about another lens's gap), F-BS (blue's
-> supersede proposal, deleted on the ruling's plain reading), F-AP (`amends_prior`). **B7 waits on
-> F-BS and F-CS:** F-BS (b) keeps most of the deletion list, and F-CS moves `requireSupersedable`,
-> F-B3 and `debate.js:910`.
+> supersede proposal), F-AP (`amends_prior`) — are ruled by amendment 8 (§VI).
 
 > **Status: APPROVED 2026-11-21 — gblock picked "Fix and approve now" on audit p9 (option wording the
 > agent's; §VI "Amendment 2026-11-21 (6) — APPROVED"). The build resumes at phase B2a with no further
@@ -41,8 +52,8 @@
 > verb mounting it; a cut does not end a tombstone), its gap 1 answered in migrate. ONE change: Part A and Part B are sections of one build, committed in phases (Part A's
 > first), each phase green on the full check, and reach `main` together — one merge (one PR, or two
 > stacked PRs merged as a pair); `main` never holds Part A without Part B (§V). **`main` is `32f152f65`
-> (EventSchema 77, #1874)**; Part A takes `main`'s epoch + 1, Part B `main`'s + 2 in B1 and `main`'s + 3
-> in B2a, whatever `main` holds then (L16, R8).
+> (EventSchema 77, #1874)** when this was written; each DDL phase takes the branch's epoch + 1 — A1 78,
+> B1 79, B2a 80, B7 81 — and `main`, now 79, is merged in at 80 (L16 as amended 8, R8).
 > **Which commit each reference was read on:** audit p5 re-ran rows A01–X2, M13, M14, M15 (1), (4), (5)
 > and (6) on `32f152f65` and they reproduce; on `32f152f65` this revision re-read the write path
 > (`record.go` `appendAct`/`writeIn`, `replaywriter.go`, `dispatchnext.go:63-71`), migrate's replay
@@ -182,11 +193,15 @@ fold are deleted.
   wording the agent's, after `successor-audit.md` and `successor-archaeology-git.md`): the supersede
   proposal and everything built for it go — the stored successor, L48's check and freeze, the bystander
   refusals, the `FILER`/`ASSIGNEE` sides and flags; G's parties are its lens and blue; no third party
-  files and the bench never chooses between red lenses. The lead scoped it the same day: it restricts
-  filing, not `--supersedes` at the mint (16 archived cross-lens uses, all on closed gaps; F-CS open).
-  Ancestor (gblock: "depends on the reason"): kept for a lens's own lineage — regression carry-forward
-  and self-correction; across lenses it is F-CS. `amends_prior` is raised and not ruled (F-AP)
-  (§III.B15).
+  files and the bench never chooses between red lenses (§III.B15).
+- **A defect found after a close is a new gap; `--supersedes` is a lens's amendment of its own open
+  gap** (2026-11-23, amendment 8; picked "New gap; supersedes = own amend", "Only the prescribing lens",
+  "Wait, then mint", option wording the agent's): no lineage link survives a close — `Close.successor`,
+  `repaired_with_regression`, `amends_prior` and a mint naming a closed ancestor go, whoever writes it;
+  a verbatim-applied prescription estops only the lens that wrote it; a lens that is no party to an
+  open gap waits, and mints its own gap once that gap closes if the defect remains. Premature or narrow
+  closure (#1930) and an inquiry re-fate that undoes a closure (#1931) are filed outside #1889
+  (§III.B16).
 
 **Success criteria — Part A.** (A1) `lens finding`, `show findings`, `mint --found-by` are unknown
 commands; `EVENT_TYPE_FINDING`, its body arm, `Mint.found_by`, `ABOUT_KIND_GAP` are reserved.
@@ -244,8 +259,10 @@ has both closings before the bench sits, and so does one standing where blue is 
   finding's verb, event, table, views, anchor kind, item kinds and fuzz drives. Because Part B lands
   with it, a dispute blue carried as a finding has its act: a proposed regrade or close its assignee
   accepts in one act. A lens's dispute of another lens's gap has none (amendment 7): a different defect
-  is the lens's own gap, and the 53 of 70 archived disputes that misstate the defect are residue
-  (F-AR). Nothing new is added by Part A.
+  is the lens's own gap, and the 53 of 70 archived disputes that misstate the defect are not residue
+  (amendment 8): G's own lens amends its open gap (`--supersedes`, its own act), and blue's word —
+  `not_a_defect` in its close proposal or its closing, which the bench sides with — answers the rest.
+  Nothing new is added by Part A.
 - **Part B.** Grade motions never moved a grade: 9 archived, all blue's, 0 followed by the proposed
   regrade (§II.4). A dispute becomes the act the filer wants, in the body the record already has; the
   assignee's acceptance is its own verb writing those bytes, so every guard it has today holds. Added:
@@ -264,9 +281,9 @@ has both closings before the bench sits, and so does one standing where blue is 
   fields, two flags, a term), the Go fold in `mintedBy(evs)`, four event-seat assignee reads.
   `Mint.supersedes` narrows from a list to one gap.
 
-**Out of scope, stated.** `close --superseded-by` (`Close.successor`) stays (§III.B0a); its flag name
-says the opposite of what it carries (`docs/vocabulary.md:665`). Renaming it is its own change.
-`reopens_on`/`final` on a closing ruling stay the bench's stated opinion; nothing reads them as a gate
+**Out of scope, stated.** Closure strength — a closure too narrow or too early (#1930) — and an
+inquiry re-fate that undoes a closure with no link to the gap (#1931) are filed and outside #1889
+(amendment 8). `reopens_on`/`final` on a closing ruling stay the bench's stated opinion; nothing reads them as a gate
 before or after (L15).
 
 **Out of scope.** The mint cap (#1828). Low-grade friction (#1798). Petition and position motions.
@@ -297,7 +314,7 @@ in an `events` log, one table per body arm, `gap_state` refreshed by trigger at 
 | Estoppel today: derived from the event history — `applied_verbatim` edits, ended by a later edit whose `BlueEdit.reopened` (`bluedoc.ReopenedAnchors`, `cli/blue/edit.go:179`) lists the gap (F12) | `estoppingPrescriptions` `estoppel.go:72-103`; `standingreading.go:225` | replaced by a written estoppel `Tombstone` row, ended by an end row at the same condition and at a later verbatim edit whose `reopened` names the gap (L24, §III.B12) |
 | The work list's `estopped`: "what you may not re-raise" — the gaps the bench ruled closed, taught and listed, enforced by nothing but `requireNewGrounds`' grounds list | `EstoppedJSON` `viewjson.go:947-1000,1407-1425`; `cli/seat/verbs.go:344`; `sittingwrite/delivery.go:472` | one row per gap a standing ruling tombstone protects, now enforced (§III.B12); `grounds.go` deleted |
 | One gap per class and subject: the subject arms (sentence, inquiry, citation, cross-arms) over one held set of open gaps | `requireOneGapPerClassAndSubject`, `openGapsOfClassAt` `onegapperclass.go:59-185` | the held set gains every gap of the class whose ruling tombstone stands, by its own subject (§III.B12) |
-| A gap fact fixed at its mint, stored once by the write path and read unrecursed: `demand_lineage` (#1794, `1782df359`: trigger-written, `demandlineage.go:42-58`); `gap_state` per append (#1810 `c40fc671a`, #1811 `9b845802e`), which already holds columns fixed at the mint (`supersedes_count`, `gapstate.go:47,290`); one rule rendered by one Go function into two statements (`materialSQL`, `gapstate.go:334`); migrate replays every event through them and carries neither table (`migrate/sqlitesource.go:262-271`) | `gapstate.go`, `demandlineage.go`, `views.go` | the gap's assignee (§III.B4a) |
+| A gap fact fixed at its mint, stored once by the write path and read unrecursed: `demand_lineage` (#1794, `1782df359`: trigger-written, `demandlineage.go:42-58`); `gap_state` per append (#1810 `c40fc671a`, #1811 `9b845802e`), which already holds columns fixed at the mint (`supersedes_count`, `gapstate.go:47,290`); one rule rendered by one Go function into two statements (`materialSQL`, `gapstate.go:334`) — `demand_lineage` is deleted by amendment 8 (L55); migrate replays every event through them and carries neither table (`migrate/sqlitesource.go:262-271`) | `gapstate.go`, `demandlineage.go`, `views.go` | the gap's assignee (§III.B4a) |
 | Verb-only effects: mint's `verifiedFix` (sets `fix_new`, `fix_basis`), estoppel guard (TOOL `Log` after rollback), `AppendPlaced` (Places guard + `Anchor` body); regrade's Fresh guard (`Stale` on refusal) | `cli/lens/mint.go:90-97,158-198`; `cli/seat/verbs.go:1385-1418`; `cli/seat/regrade.go:39-44` | run unchanged on the minter's accept (appendix M10) |
 
 ### II.2 What a finding does on `main`
@@ -336,6 +353,7 @@ the 36; the issue's "34 archives" and `early-dockets.md`'s "37 runs" (8 scratch 
 | The 70 disputes by kind (one hand classifier) | misstates the defect 53 (fix 27, acceptance check 26); not real or resolved 13; closure wrong on a closed target 3; wrong weight 1 | `aboutgap-archaeology.md` §4 |
 | Supersede links (smoke runs only; the 30 of 36 holding mints, `quadratic-formula` excluded as pre-gap) | 35 links on 320 mints; 27 by the ancestor's minter; 8 across seats, **0 on an open ancestor** (requireSupersedable refuses it) | `~/.claude/scratch/1695/supersede/{counts,links}.txt` |
 | `Close.successor` set | 10 (17 with `quadratic-formula`), **every one duplicating a `supersedes` link**, every one before 2026-11-04; 0 in `m38` | same, re-checked per row against `mint_supersedes` |
+| Amendment 8's carriers (the 34 SQLite archives of `successor-audit/x/`, 2026-11-23; the 6 August JSONL runs not read) | `close` rows `repaired_with_regression` (or the era's `closed_with_regression`) 10 in 4 runs (quadratic-formula, m29, 1565, m37); `close.successor` set 18; `amends_prior` 0; every one of the 18 follows a mint superseding its own gap (11 by the same raw seat, 7 in quadratic-formula by `red-merge-r2` over `red-merge-r1`), so `actOnSupersededGap` drops each whose link survives Translation 2; links naming an ancestor a `close` row ended before the successor's mint, same raw seat: 12 in 9 runs (bench-closed ancestors not counted here); `log` rows of type `estoppel` 2 (1565, m37); bench rulings `repaired_with_regression` 6 (this table's row below), each rewritten by Translation 4 | `python3 -I ~/.claude/scratch/1695/amend8/bin/measure.py`, `measure2.py`; T-B43 counts the migrated residue exactly |
 | Assignee from every supersede link (F-B3, ruled), untranslated | 9 successors in 6 runs change assignee (m28, 1565, m32, m35, m37 ×3, m38). On replay, validate (which migrate runs; it runs no judgeAct, `migrate/replay.go:64-67`) refuses **11** archived acts in 4 runs: 4 closes and 5 regrades (`requireOriginator`, `record.go:1101,1284`), 1 supersede of an open gap (`requireSupersedable`, `supersession.go:90`), 1 closing (`ClosingRefusal`, `record.go:1221` → `:1868`; the first simulation missed it) | `python3 -I ~/.claude/scratch/1695/supersede-a/scripts/acts.py ~/.claude/scratch/1695/supersede/x` → `supersede-a/acts.txt`; quadratic-formula's merge seats translate to the chair (`record.go:1790-1791`), so its 14 links stay one assignee |
 | Blue engagements on those successors (`requireEngage`, validate, `successor.go:152`: the gap must be a successor the record names) | 2: 1565 ev 906 on G-bf2de55d, m37 ev 1186 on G-4febbcc9 | same db's `dispatch` rows written by `blue-respond` |
 | Mints superseding more than one gap | 1 (quadratic-formula R2-7 ← R1-4, R1-9, both the chair's after translation); 0 in the gap era. R1-9 is also superseded by R2-3 (`links.txt` lists R1-9 → R2-3 and R1-9 → R2-7), so dropping R2-7's second link leaves R1-9 closed by R2-3 if R2-3's mint precedes R2-7's — T-B11 asserts it | `supersede/links.txt` |
@@ -403,8 +421,8 @@ event's seat — who wrote it; the *assignee* is the minter of its chain's first
 (`gap_state.assignee`, the gap view's and every JSON's `assignee`, replacing `minted_by`, which today
 holds the writer and is renamed, not kept beside it: no reader needs the writer from the view); the
 *acting seat* of a Mint is the seat whose write's checks ran — its minter, always: the bench writes no
-`Mint` (amendment 7, §III.B15), so `actingSeat` and L5 are deleted. Minter and assignee differ only
-on a successor of another seat's closed gap (F-CS).
+`Mint` (amendment 7, §III.B15), so `actingSeat` and L5 are deleted. Minter and assignee never differ:
+a mint names only its own open gap as ancestor (amendment 8, §III.B16), so a chain is one seat's.
 
 Amendment 5 (`git grep -l -w -F <name> a488cad41 -- plugins scripts ':!plans' ':!*/vecembed/vocab.txt'`
 → 0 each): `MovedGrades`, `moved_grades`, `MOVED_GRADES`, `MOVED_GRADES_KEPT`, `MOVED_GRADES_RESTORED`,
@@ -438,7 +456,7 @@ printed in every `--as` list: "blue argued the finding was wrong" → "blue argu
 the `GradeDimension` comment (`:1896`, "`mint`, `regrade`, `finding`"; its grade-motion clause goes
 with Part B), the `Mint.about_kind` comment (`:924-936`, "the same pair a lens finding carries"),
 `PETITION_CLASS_INTEGRITY` (`:1934`, "burying a real finding" → "burying a real defect"). Part A's
-epoch is `main`'s + 1 (L16); `protogen`, `schemagen`, `vocabgen`, `cmdtreegen`; restamp
+epoch is 78, `main`'s 77 + 1 at A1's build (L16); `protogen`, `schemagen`, `vocabgen`, `cmdtreegen`; restamp
 `schema.epoch.json` and `schema.sql` with `UPDATE_GOLDENS=1`.
 
 #### III.A2 The fold and its redirects [DELETE / MODIFY]
@@ -468,13 +486,17 @@ epoch is `main`'s + 1 (L16); `protogen`, `schemagen`, `vocabgen`, `cmdtreegen`; 
     refusal names the ruling, its motion and event, and what ends the bar there.
   `requireSupersedable`'s open-ancestor refusal (`supersession.go:93`) names the same two roads — the
   defect as G states it is on the board; a different defect is the seat's own gap — and no proposal
-  (amendment 7, §III.B15); the own-gap case cannot arise there (it admits the assignee).
+  (amendment 7, §III.B15); the own-gap case cannot arise there (it admits the assignee). Its
+  closed-ancestor refusal (amendment 8, §III.B16) names the new gap as the road.
   `requireSupersededOffDocket`'s refusal ("what you found goes in your closing argument") gains: "or
   accept the proposal standing on it (`motion docket accept --id M`)" where M carries an act.
 - **The voice lens's composed-source audit** (`composedsource.go:28-30`, `red-lens-voice.md:15`, ruled
   2026-11-10: narration in another lens's gap "is a finding about that gap, which reaches its minter"):
   narration in another seat's gap has no act of the voice lens's (amendment 7: no lens files on
-  another lens's gap); it is residue until F-AR is ruled (§III.B15).
+  another lens's gap). Amendment 8 rules it (F-AR, "Wait, then mint"): the voice lens does nothing
+  while that gap is open — the gap's own lens amends it (`--supersedes`, its own act) — and the row
+  prints in the risk matrix only while the gap is open, so a close takes the narration out of the
+  report; a defect that outlives the close is the voice lens's own new gap.
 - `requireInquiryCheck`, `GroundsKinds`, `HoldsAnchor`/`requireClosureAnchors`/`requireFindings`,
   `positionheard.go:253` (tells a lens "a defect you find there is a finding and a gap"),
   `report/layout.go:166-167` (the shipped docket document) lose the finding arm or sentence.
@@ -575,13 +597,15 @@ not real or resolved → close; wrong weight → regrade; misstates the defect (
 acceptance check) → supersede. Blue proposes a close or a regrade (D3); the assignee takes it in one
 accept, else the bench. The supersede is the assignee's own act (amendment 7, §III.B15): of 85
 archived successor uses, 57 carry a failed repair forward and 21 are a lens correcting its own open gap
-(`successor-audit.md`), and none came from another seat's proposal.
+(`successor-audit.md`), and none came from another seat's proposal. Amendment 8 (§III.B16) keeps the
+supersede for the assignee's own OPEN gap only: a repair that fails after G closed is a new gap, with no
+link.
 
 **A follow-up gap cannot do the job, measured against `main`:**
 
 | Road | What stops it |
 |---|---|
-| Close G, naming the follow-up | `Close.successor` is admitted only with `repaired_with_regression` (`record.go:1184-1191`) and must name an existing, open gap (`record.proto:1071`; `record.go:1162-1170`). It records a regression, never a restatement |
+| Close G, naming the follow-up | `Close.successor` is admitted only with `repaired_with_regression` (`record.go:1184-1191`) and must name an existing, open gap (`record.proto:1071`; `record.go:1162-1170`). It records a regression, never a restatement; amendment 8 deletes it |
 | Mint the follow-up first, G still open | one-gap-per-class exempts only the gaps a mint supersedes (`onegapperclass.go:73`): a corrected gap on G's class and subject is refused |
 | Close G first, then mint | refused while G's live-answer demand is unmet (`actjudge.go:89` → `requireDemandMet`, `demand.go:108`) and while a failed check stands on it (`actjudge.go:95`, `failedcheck.go:223`, whose refusal names the supersede as the road). Where it lands it states a disposition G did not have (repaired, not a defect), and the follow-up inherits no demand: demand passes only through `supersedes` (`demandlineage.go:52-58`) |
 | Any of the above by a non-assignee | the close is the assignee's (`requireOriginator`, `record.go:1792`), and so is a mint superseding an open gap (`requireSupersedable`, `supersession.go:77`) |
@@ -601,17 +625,17 @@ motion's `Mint` act arm and the bench CTE's supersede arm are deleted by amendme
 
 **Residue, smoke runs only (not real-run evidence).** 35 supersede links on 320 mints; 0 across
 seats on an open gap, because `requireSupersedable` refuses it, so the dispute road has no archived
-use to count; amendment 7 deletes it, and the 53 misstatement disputes are residue (F-AR). The 8
-across seats on a closed gap are lineage mints; under F-B3 their successors are the origin's
-(§III.B4a), and migration drops every cross-seat link — 16 measured at B5 over the 38 archives and bundle-store m37/m38 (§III.B7).
+use to count; amendment 7 deletes it. The 53 misstatement disputes are not residue (amendment 8,
+§III.B16): G's own lens amends its open gap — `--supersedes` is that act — and where G's lens does not,
+blue's word answers it (`not_a_defect` in its close proposal, or its closing at impasse) and the bench
+sides. The 8 across seats on a closed gap were lineage mints; amendment 8 refuses a closed ancestor to
+every seat, and migration drops every cross-seat link (Translation 2, 16 measured at B5 over the 38
+archives and bundle-store m37/m38, §III.B7) and every closed-ancestor link (Translation 5, §III.B16).
 
-**`Close.successor` stays.** Its 10 archived uses all duplicate a `supersedes` link, and all predate
-the 2026-11-04 ruling that a mint superseding an open gap closes it: since then no close can follow
-such a mint, and `record.go:1181-1191` admits `--superseded-by` only for "the regression a repair
-caused, in a gap that does not supersede this one". That is a second fact, not the first written
-twice: a regression is a new defect the repair caused, and a `supersedes` link would wrongly pass
-G's live-answer demand to it (`demandlineage.go:52`). Its readers (`successor.go:39`,
-`replay.go:275`, `report/assemble.go:993`, `view/view.go:347,385`) are untouched.
+**`Close.successor` goes (amendment 8, §III.B16).** Its 10 archived uses all duplicate a `supersedes`
+link and all predate the 2026-11-04 ruling that a mint superseding an open gap closes it. A regression
+a repair caused is a new defect, and a new defect found after a close is an ordinary gap with no link
+(RULINGS.md "2026-11-23 — successors"); its readers are rows of §III.B16's deletion list.
 
 #### III.B1 Record — `record.proto` [MODIFY] (contract: event schema)
 
@@ -657,8 +681,8 @@ G's live-answer demand to it (`demandlineage.go:52`). Its readers (`successor.go
   `mint_supersedes` table's removal and its triggers (§III.B11), the
   `Tombstone` body [NEW] (`EVENT_TYPE_TOMBSTONE`, an `Event` oneof arm, its `TombstoneKind` enum and
   means texts), its table
-  `tombstone`, the view `tombstone_standing` and the index `tombstone_kind_gap` (§III.B12), change under Part B's bump to `main`'s + 2, all in phase B1 (L16); generated carriers as in A1. Phase B2a reshapes
-four of B1's pieces under Part B's second bump, `main`'s + 3 (§III.B13): `Motion`'s CHECK (a docket
+  `tombstone`, the view `tombstone_standing` and the index `tombstone_kind_gap` (§III.B12), change under B1's epoch (79, L16), all in phase B1; generated carriers as in A1. Phase B2a reshapes
+four of B1's pieces under B2a's epoch (80, §III.B13): `Motion`'s CHECK (a docket
 motion carries an act), `MotionRule.motion_id` (no longer required), `DocketRuling.docketing_id` [NEW]
 and `Tombstone`'s field 3 (`docketing_id`), with the `Docketing` body, table, index and `gap_state`'s
 two columns. No `Disposition`
@@ -668,8 +692,7 @@ value is added (L12 withdrawn, 2026-11-13).
 
 - **Verb.** `motion docket file <regrade|close> --id G --reason <basis>`, on blue's surface alone
   (amendment 7, §III.B15), each mounting its act's existing flag set (`cli/seat/regrade.go`,
-  `cli/lens/close.go`). The tool sets the act's gap to G. `motion docket file close` mounts no
-  `--superseded-by`; no filing mounts `--grounds` or `--quote` (deleted, §III.B12). No proposal states
+  `cli/lens/close.go`). The tool sets the act's gap to G. No filing mounts `--grounds` or `--quote` (deleted, §III.B12). No proposal states
   a successor: B2's `supersede` subcommand leaves in phase B7 (X19).
 - **Checks at filing.** The act's shape, and blue's own standing; blue cannot pass the act's
   seat-keyed checks as itself — `requireOriginator` refuses every seat but the assignee — so those run
@@ -683,8 +706,8 @@ value is added (L12 withdrawn, 2026-11-13).
   | the filer is blue (L51) | validate (the `Motion` arm) and the surface (`motion docket file` mounted for blue only) | any other seat, naming G's parties and the refused seat's roads (its own gap; nothing to record) |
   | F1 not the assignee | judgeAct | G's assignee, naming its own regrade, close, mint `--supersedes` |
   | F5 one at a time | judgeAct | a filing while a motion stands unanswered on G, naming it |
-  | F8 closed G | judgeAct | every proposal (L53), naming G's closure and the assignee's successor mint as the road that reopens it |
-  | a close proposal `--as repaired_with_regression` | validate (the `Close` act arm) | it: its required `successor` (`record.go:1184-1191`) is a lineage fact no bench ruling carries, so the bench's accept would drop it. Refusal: "a close naming the regression it caused is the gap's assignee's own act (`lens close --superseded-by`); propose another disposition". The other `Close` fields (anchors, verification triple, prose) stay on the stored proposal, read through the motion; no reader of a bench closure reads them (bench closures never carried them) |
+  | F8 closed G | judgeAct | every proposal (L53), naming G's closure; a defect still in the report after it is a new gap, with no link (amendment 8) |
+  | a close proposal `--as repaired_with_regression` | — | deleted by amendment 8 (L13 withdrawn): the value is reserved, so `--as` refuses it as it refuses any word outside the vocabulary |
   | `requireExchangedOn` [NEW] | judgeAct, every writer | G with `GapExchanges.Exchanges < 1`; with `Unresolved > 0` the refusal says NOT MEASURED (`impasse.go:95`) |
   | `requireGap`, `requireNotSuperseded`, `requireNoClosingThisSitting`, `HeardInTime`, `AppendFresh` | as today | as today |
   | `requireNotEstoppedOn` [NEW, replaces `requireNewGrounds`] | judgeAct (`actjudge.go:96`'s arm), every writer | blue's proposal on G while G's ruling tombstone stands (§III.B12, F-J), naming it and what ends the bar |
@@ -787,9 +810,9 @@ replaces B13's answer table and the per-motion-kind table B2 built (act motion /
 
 - **The rule (F-B3: the chain's origin, always).** A mint that names no ancestor is its writer's. A
   mint that names its one ancestor (§III.B11) is assigned to that ancestor's stored assignee, whoever
-  writes it: a seat's own `mint --supersedes` — of its own open gap (writer and assignee one seat, `requireSupersedable`) or of any
-  seat's closed gap (lineage, `supersession.go:73-76`; F-CS). No proposal writes a successor
-  (amendment 7). Followed link by link, that is the minter of
+  writes it: a seat's own `mint --supersedes` of its own open gap (writer and assignee one seat,
+  `requireSupersedable`). A closed ancestor is refused to every seat (amendment 8, §III.B16), and no
+  proposal writes a successor (amendment 7), so the assignee is always the writer. Followed link by link, that is the minter of
   the chain's first mint; with one ancestor per mint the chain is a line. The successor's exchange
   starts at zero: `GapExchanges` is keyed by gap id (a proposal on it needs its own exchange, F2).
 - **Assignee and writer (ruled 2026-11-14; amended 7).** The **assignee** answers whose gap it is: who
@@ -800,11 +823,9 @@ replaces B13's answer table and the per-motion-kind table B2 built (act motion /
   credited with what the act did: the debt a mint discharges (a failed check, `failedcheck.go:80-81`; a
   reading debt, `mintRowsOf`), the reading behind the mint (`readingBehind`), authorship of its text
   and of a prescription (`minterOf`, `composedsource.go:77`, `inquirycheck.go:133`), whether a seat
-  minted since (`answersretired.go:68`). Writer and assignee differ in one case: lens X mints a
-  successor of lens Y's closed gap (writer X, assignee Y; F-CS) — X's successor answers X's own failed
-  check on its anchor, discharges X's reading debt and stands on X's reading, and voice's
-  composed-source audit skips it only when X is voice — and it is Y's gap, to audit, regrade, close
-  and argue.
+  minted since (`answersretired.go:68`, whose supersede arm amendment 8 deletes). Writer and assignee
+  never differ (amendment 8): the one case — lens X's successor of lens Y's closed gap — is refused at
+  the mint. The two words stay because they answer two questions; `assigneeSQL`'s chain step goes (L57).
 - **Stored once, at the successor's append, the way #1794 stores a gap's demand lineage**
   (`1782df359`; `demandlineage.go:42-58`) and #1810/#1811 store each gap's state per append.
   `gap_state` (`gapstate.go:38-62`) gains `"assignee" TEXT NOT NULL`, which `gap_refresh`
@@ -824,18 +845,14 @@ replaces B13's answer table and the per-motion-kind table B2 built (act motion /
   the name the ruling replaced. **`assigneeOf`** (was `mintedBy`, `available.go:258`, a Go fold of the
   Mint events) becomes one read of the stored column or of the caller's gap rows; no Go statement of
   the chain rule remains, so no twin.
-- **The seat that writes a successor it is not assigned** (lens X supersedes lens Y's closed gap;
-  F-CS). X's act is done at its mint. The
-  successor is Y's: on Y's audit and work lists, Y's to regrade and close (`requireOriginator`), Y's
-  closing owed on a docket (`closingPartiesOf`); its live-answer demand is met by Y's re-check
-  (`demandReachSQL`'s seat). X is no closing party (`IsClosingParty`, `closingowed.go:94`) and
-  files nothing on it (amendment 7: only blue proposes). An
-  assignee the cast no longer seats owes no closing (`closingMinterNoLens`, `closingowed.go:79`).
+- **The seat that writes a successor it is not assigned** — deleted by amendment 8: no such mint lands
+  (`requireSupersedable` refuses a closed ancestor to every seat and an open one to all but its
+  assignee). `IsClosingParty` and `closingMinterNoLens` read the assignee, which is the writer.
 - **Which checks bind whom at the mint** (amended 7: one row; the accept and bench rows are deleted):
 
   | Writer | Event seat and sitting | stored `assignee` | Checks, and the acting seat |
   |---|---|---|---|
-  | a seat's own `mint --supersedes` (open ancestor: its own; closed: any seat's) | the writer's | the ancestor's stored assignee — the writer's on an open ancestor | every mint check against the writer, as today; acting seat the writer |
+  | a seat's own `mint --supersedes` of its own open gap (a closed ancestor is refused, amendment 8) | the writer's | the writer's | every mint check against the writer, as today; acting seat the writer |
 
 - **An assignee outside its area.** A lens is an area (`flags/lensareas.go:16`), not a set of
   classes; no mint check ties a gap's class to its writer. Archived lineage already crosses classes
@@ -849,16 +866,12 @@ replaces B13's answer table and the per-motion-kind table B2 built (act motion /
 - **No body field.** `feov-migrate` replays every event through the refresh and carries no
   `gap_state` (`migrate/sqlitesource.go:269-271`), so the replay computes every archived assignee by
   the live rule; where that re-attributes an archived act, migrate translates the mint (§III.B7).
-- **The test.** T-B14 `TestAssigneeAndWriterReadersOfASuccessor` (renamed in B7): lens A mints and
-  closes H; lens B mints S1 superseding H (lineage); A mints G and S2 superseding G (its own). One
-  subtest per M9 row, each run on S1 and S2: an assignee row returns A on both; a writer row returns B
-  on S1 and A on S2. A reader on the wrong side returns another seat and fails its row. Plus: a second
-  chain step (A's S3 superseding S2) returns A at the third gap, its exchange count zero at its mint;
-  and the failed-check case — B holds a failed check on anchor X and supersedes A's closed gap H about
-  X: B's check is answered (`owed()` false), B's repeat failing check of X is refused naming S1, and
-  A's close of S1 is refused by `requireFailedCheckAnswered` while the check stands. Its bench-successor
-  subtest is deleted with the bench's `Mint`. If F-CS restricts a closed ancestor to the minter's own
-  chain, S1 is minted by A.
+- **The test.** T-B14 `TestAssigneeAndWriterReadersOfASuccessor` (renamed in B7; amended 8): lens A
+  mints G and S2 superseding G (its own, G open); a second chain step (A's S3 superseding S2) returns A
+  at the third gap, its exchange count zero at its mint; one subtest per M9 row returns A on S2 and S3.
+  Lens B's mint naming A's open G, and any seat's naming a closed gap, are refused (T-B41). The S1
+  (writer B, assignee A) subtests and the failed-check case on S1 are deleted with the case, and the
+  bench-successor subtest with the bench's `Mint`.
 
 #### III.B5 Readiness — `record.go`, `benchsitting.go` [MODIFY]
 
@@ -926,8 +939,9 @@ archived act (§III.B12; `newID`, taken from the id `Replay.Write` returns for t
 they move), while a source `tombstone` event is written as no event (`toNoEvent`), so a record
 written at Part B's epoch is migrated with each row once (§III.B12, T-B21); migrate runs no judgeAct
 (`migrate/replay.go:64-67`), so the estopped checks refuse no archived act, and 0 archived filings
-followed a non-remand bench ruling (§II.4). Two translations here, both migrate-local; the third is
-§III.B13's.
+followed a non-remand bench ruling (§II.4). Two translations here, both migrate-local; the third and
+fourth are §III.B13–B14's, the fifth (closed-ancestor links and regression closes, amendment 8)
+§III.B16's.
 
 **Translation 1 — one ancestor (§III.B11).** A Mint's `supersedes` list becomes the singular field:
 its first entry (`ord` 0) is kept and every further entry dropped. Three archived mints name two
@@ -1103,11 +1117,11 @@ The docket gates `closings_filed`, `closings_refused`, `closing_waits`, `dockete
 | T-B8 | bench answer per act: close → `closed_by_bench`, `bench_close_event` set, word = stored; regrade → bench regrade locks the axis, then `sided_with: BLUE`; `--for-red` on blue's regrade proposal → `sided_with: RED`, G's grades byte-identical, the axes named locked (L35′); `--for-red` on blue's close → red's text applied and `repaired`, and with no text refused naming it (T-B27, T-B29); `--as`, `--accept` and `--reject` are no flags of the bench's ruling; `--for-red` and `--for-blue` on an impasse docketing and `--keep` and `--restore` on a grade-movement docketing each land their §III.B14 row (T-B27); every bench ruling names its docketing; a Mint by the bench refused by validate, live and on replay of a fixture stream (L52); no `superseded` in any `--as` list (no disposition was added); every bench ruling carries the four opinion fields | any differs, a bench Mint lands unaccepted, or the bench writes a word or grade of its own |
 | T-B9 | `TestTheBenchRulesWhatItsSittingHolds`, one row per path, each driven as the engine drives it (the bench's register with its occasion, then `motion docket rule`): (1) dispatched docket sitting — refused before the dispatch naming G's docketing, admitted in the sitting it convenes; a proposal filed after that dispatch is refused naming D (L38); (2) terminal sitting at `FinalSitting`, after the final sitting's closing sitting (T-B37), the assignee's closing not filed there — `--for-blue` admitted on every docketing, `--keep` and `--restore` at grade movement; `--for-red` admitted where its statement is no text (a regrade proposal), and refused naming the missing closing where it is text (§III.B14, amendment 5) (the record refuses no remand there today; the prompt offers none, no seat sitting after it); (3) the assembly, M filed in a dispatched sitting an engine stop ends (`failedblue_test.go:235`'s shape, with an act and a counted exchange; amendment 6's stated residue) — each side of D's pair admitted, red's refused naming the missing text where its statement is text, `bench outcome` then lands; a filing at or after a final-epoch plan refused naming the plan (`HeardInTime`, unchanged); (4) past the remand limit — remand refused naming D's pair, each side admitted; (5) a docket ruling in a petition sitting — refused; (6) a proposal filed after the bench's register on a docketed G — refused naming D (L38, T-B30); the bench rules D | a path refuses its ruling, or a refusal is missing |
 | T-B10 | ruling readers for each side (appendix M11; amendment 4): `Ruled()` true, `motion_answers` says the side (`for blue` / `for red`, `for filer` / `for assignee`), no PASS blocker, absent from LEAD/precedents when the assignee's, not counted carried. **Per reader of M11's reader table** (audit p4 gap 2), one subtest each, driven on an open material gap G: the assignee's regrade accept, the bench's for-blue answer to blue's regrade, its for-red answer — each reader returns what its row states (`gapNewsOf`: no item for the assignee's accept, the bench's two answers each an item in its side's word, never "remand"; `staleOf`: the fact in the ruler's word; `docketRulings`, `j.Rulings`, `GapsWithDisposition`, `dispositions`: the two bench answers counted, the assignee's not; `inquirycheck`'s `moved`: the two that applied the regrade, not the for-red answer); and after each, the next `dispatch next` plan names G's next party by `routeOf`, or writes G's impasse docketing — never readies the lens for a remand that did not happen | any reader differs from its row |
-| T-B11 | `TestAnArchivedGradeMotionLeavesNoEvent`: 15 motions, 12 rulings gone, by source id per run (B5; 9 and 9 counted the SQLite era only); every other event unchanged except §III.B7's, and the `Tombstone` rows the replay's write path adds after their acts (§III.B12, counted by T-B20), which move later ids only. `TestAMintKeepsItsFirstAncestor`: every migrated Mint names at most one gap; quadratic-formula R2-7 names R1-4; R1-9 is closed in the migrated run; R2-7's `demand_lineage` printed. `TestACrossSeatLineageLinkDrops`: exactly the 16 links of §III.B7 gone, m37 ev 1186, 1565 ev 906 and eiffel 11-11 ev 647 gone, zero refusals (each of the 20 acts present), quadratic-formula's 14 chair links kept. `TestEveryArchivedGapIsAssignedToItsChainsOrigin`: each migrated gap's stored `assignee` equals the chain origin recomputed from the migrated stream, and equals its writer everywhere | a count differs, an act is missing, or a stored assignee is not the origin or not the writer |
+| T-B11 | `TestAnArchivedGradeMotionLeavesNoEvent`: 15 motions, 12 rulings gone, by source id per run (B5; 9 and 9 counted the SQLite era only); every other event unchanged except §III.B7's, and the `Tombstone` rows the replay's write path adds after their acts (§III.B12, counted by T-B20), which move later ids only. `TestAMintKeepsItsFirstAncestor`: every migrated Mint names at most one gap; quadratic-formula R2-7 names R1-4; R1-9 is closed in the migrated run (R2-7's `demand_lineage` print goes with the table, L55). `TestACrossSeatLineageLinkDrops`: exactly the 16 links of §III.B7 gone, m37 ev 1186, 1565 ev 906 and eiffel 11-11 ev 647 gone, zero refusals (each of the 20 acts present), quadratic-formula's 14 chair links kept. `TestEveryArchivedGapIsAssignedToItsChainsOrigin`: each migrated gap's stored `assignee` equals the chain origin recomputed from the migrated stream, and equals its writer everywhere | a count differs, an act is missing, or a stored assignee is not the origin or not the writer |
 | T-B12 | replaced by T-B26 `TestAnArchivedDocketBecomesADocketing` (§III.B13): every archived docket the dispatch filed is a `Docketing` at its place, its ruling that docketing's, its closings answering it; the party- and hand-filed ones as O2 rules; no `grounds` was set, so reserving the fields drops nothing | a count differs, or a ruling names no docketing |
-| T-B13 | T-A7 re-run on Part B's epoch (`main` + 3, since B2a), after phase B5, the replay writing its `Tombstone` rows: zero refusals, and every archived run still renders with the rows' id shift. Covered at B5 by `TestEveryArchivedRunMigrates` and `TestEveryArchivedRunRenders` over run-archive/, and by T-B26's zero-refusal check over bundle-store m37/m38; no new test | a refusal |
-| T-B14 | `TestAssigneeAndWriterReadersOfASuccessor` (§III.B4a, amended 7: one subtest per M9 row (ASSIGNEE, WRITER) on another lens's lineage successor and on the assignee's own; the second chain step; the failed-check case); `TestTheStoredGapStateIsTheRules` (`gapstate_test`, #1811) gains a step: a seat's own `mint --supersedes` of another lens's closed gap (the origin's, F-B3; F-CS) | an assignee row returns the writer, a writer row returns the assignee on S1, the failed-check case differs, or a stored assignee differs from the step's truth |
-| T-B16 | `TestAChainAssigneeHoldsASuccessorOutsideItsArea`: voice mints a `report_voice` gap H and closes it; logic mints a `claim_contradicts_own_record` gap superseding H. Stored `assignee` = voice; on voice's audit and work lists, not logic's; voice's regrade and close land, logic's are refused naming voice; on a docket, voice owes the closing and logic's closing is refused; a `source` check kind's demand is met by voice's re-check, not logic's; no reader refuses on class or area | the successor reads as logic's anywhere, or a class/area check refuses voice |
+| T-B13 | T-A7 re-run on Part B's epoch (the binary's: 80 since B2a, 81 since B7), after phase B5, the replay writing its `Tombstone` rows: zero refusals, and every archived run still renders with the rows' id shift. Covered at B5 by `TestEveryArchivedRunMigrates` and `TestEveryArchivedRunRenders` over run-archive/, and by T-B26's zero-refusal check over bundle-store m37/m38; no new test | a refusal |
+| T-B14 | `TestAssigneeAndWriterReadersOfASuccessor` (§III.B4a, amended 8: one subtest per M9 row on the assignee's own successor S2 and its second chain step S3; the S1 and failed-check-on-S1 cases deleted with the writer-assignee split); `TestTheStoredGapStateIsTheRules` (`gapstate_test`, #1811) gains a step: a seat's own `mint --supersedes` of its own open gap, the stored assignee its writer (L57) | an assignee row returns another seat than the writer, or a stored assignee differs from the step's truth |
+| T-B16 | `TestAChainAssigneeHoldsASuccessorOutsideItsArea` (amended 8: a closed ancestor is refused, so the chain is one seat's): voice mints a `report_voice` gap H and, while H is open, a `claim_contradicts_own_record` gap superseding it. Stored `assignee` = voice; on voice's audit and work list; voice's regrade and close land, logic's are refused naming voice; on a docket, voice owes the closing; a `source` check kind's demand is met by voice's re-check of its own anchor, not logic's; no reader refuses on class or area; logic's mint naming H is refused (T-B41) | the successor reads as another seat's anywhere, or a class/area check refuses voice |
 | T-B18 | `TestAMintSupersedesOneGap`: `lens mint --supersedes A,B` and `--supersedes A --supersedes B` each refused, naming supersede one and close (or propose closes on) the rest; one ancestor lands; the `mint` row's `supersedes` column holds it and `supersedes_count` is 1 | a second ancestor lands, or one form is silently narrowed |
 | T-B15 | `TestOnlyTheBenchOwesAnOpinion`: a bench ruling (each disposition, and each of `--for-red`, `--for-blue`, `--keep`, `--restore`) missing each of the four fields refused; the assignee's accept with none lands; an assignee's ruling carrying any refused | a field binds the minter, or frees the bench |
 | T-B19 | `TestABenchRulingIsFinalForItsText` (`internal/cli`, driven as seats run it): for each ruling kind — for red at impasse (red's text applied, `repaired`), for blue at impasse (blue's stated word, and `not_a_defect` with none), `--keep` and `--restore` at grade movement, for red on blue's close (red's text), for blue on a close and a regrade, for red on a regrade — on a quote gap G: (1) the ruling's transaction holds, after the ruling, one `Tombstone{gap_id: G, kind: RULING, docketing_id: D}` row, and nothing else is written — on a for-red ruling the bench's edit of red's text writes no estoppel row, whether G's mint prescribes nothing or the very text red's closing states (gblock 2026-11-22); red's re-raising of G after a for-blue and after a for-red ruling is refused by the ruling's row alike; no verb, flag or help page mounts the body (L23's residue: a `Tombstone` handed to `record.Append` meets only validate's shape checks — a row missing `gap_id` or `kind`, or carrying `docketing_id` on an estoppel or end row, refused); (2) another lens's mint of G's class on that sentence refused naming the ruling, docketing and event; G's assignee's own, and a mint `--supersedes G` (G closed), refused likewise; the one-gap refusal's estopped case (moved from T-A3) names what ends it; (3) blue's proposal on G refused naming it; (4) a mint of another class on the sentence lands; (5) a citation placed as G's answer ends nothing; (6) blue's edit rewording G's sentence ends it (its transaction holds an end row on (G, RULING) after the edit; `tombstone_standing` has none for G), then (2)–(3) land; on a second run, an edit that cuts the sentence and leaves G's token bare writes no row, and (3) is still refused; (7) a remand and the assignee's accept write no row; (8) an anchor gap about citation C, and one about computation K: a mint about C of the class, and a `--quote` mint of the class on C's sentence (the cross-arm), refused; an edit whose `reopened` lists C ends it; on a second run, blue's `retire --anchor C` ends it; (9) the work list's `estopped` holds a row per protected gap and drops it once ended; the board and gap rows carry `ruling_tombstone`; (10) a seat's owed failed check on an estopped gap's anchor still admits its gap; (11) on an open G ruled for red on blue's regrade proposal, the dispatch's impasse docketing, and its grade-movement docketing on an axis the proposal did not name, land through `dispatch next` (T-B4), and blue's `motion docket file regrade --id G` is refused naming the tombstone (the chair files none, amendment 7); (12) the report text after each ruling is byte-identical to before it (no token inserted); (13) deleted by amendment 7 (no bench successor); a lens's `mint --supersedes G` (G closed), S's assignee's `mint --supersedes S`, and a proposal on S after S's exchange are each refused naming it; after blue's reword of G's sentence, the proposal on S and a successor of S accepted from it land (F-J); (14) estoppel: a verbatim edit writes P's estoppel row, a red mint whose quote overlaps P's `fix_new` is refused naming it, a reword writes its end row, a second verbatim edit places it again; on a second run, a cut of P's sentence writes no row and the mint is still refused; a verbatim edit answering P1 whose `reopened` names P2 writes P2's end row before P1's placement; a second edit rewording P's sentence after the end writes no row; a keyed retry of the verbatim edit is refused at its own key and writes no row; place, end and place again on P in one sitting each land (ordinal keys) (`TestARewordEndsEstoppelAndAReapplyRestoresIt`, rewritten); (15) an inquiry gap about Q, each ruling kind: a mint about Q of the class and blue's proposal on the ruled gap refused; blue's next fate on Q ends it, then both land; the `estopped` row names Q; (16) a section gap, and a quote gap whose token stood bare at the ruling: a proposal on it refused for the run, a mint of its class about the section lands (L21); a quote gap whose sentence blue cuts after the ruling: the cut writes no row, and a proposal on it is refused for the run (picked 2026-11-14, L21) | a row is missing, or written by the wrong act or outside its act's transaction, a refusal is missing, an ending act does not end it, a cut ends one, a remand or assignee accept sets one, a dispatch docketing is refused or a non-blue proposal lands, or the work list and the guard disagree |
@@ -1128,7 +1142,8 @@ a line, and `assigneeSQL` reads one column.
   and the index `mint ("supersedes", "event_id")` replaces `mint_supersedes_value` (`schema.go:288`)
   for the reads keyed on the ancestor: `gap_refresh`'s `supersede_event` (`gapstate.go:211`),
   `demand_lineage_supersedes` (`demandlineage.go:52-61`, now `AFTER INSERT ON "mint" WHEN
-  NEW."supersedes" IS NOT NULL`; its diamond `OR IGNORE` comment goes — one ancestor, no diamond),
+  NEW."supersedes" IS NOT NULL`; its diamond `OR IGNORE` comment goes — one ancestor, no diamond;
+  amendment 8 deletes the table, X49),
   `grounds.go:120`. The `mint_supersedes` gap marker (`gapstate.go:129`) folds into the mint's marker.
   `gap_state."supersedes_count"` becomes `"supersedes"` (the ancestor, NULL for none); its readers
   (`views.go:439,484,541`, `retirement.go:345`) ask `IS NULL`. The gap JSON's `supersedes`
@@ -1297,8 +1312,9 @@ stands for the run.
     its gap's mint `fix_new` (the text `ProposalOver`, `estoppel.go:227`, reads today), and refuses a
     mint whose quote contains or is contained in that text (containment and `minEstoppelOverlap`,
     unchanged), naming P, the estoppel row's event (written in the verbatim edit's transaction) and
-    P's acting seat (`PrescribedBy`, M9); no field names the edit, whose `edit_key` is optional. It binds every red lens
-    (L18); a mint `--supersedes P` stays the road the refusal names.
+    P's writer (`PrescribedBy`, `minterOf`, M9); no field names the edit, whose `edit_key` is optional. It binds
+    only P's writer (L18 as amended 8, §III.B16): `EstoppelConflict` takes the minting seat and
+    returns no conflict for any other; the refusal names no `--supersedes` road.
   - **Double jeopardy, class arm** — `requireOneGapPerClassAndSubject`'s held set (`openGapsOfClassAt`)
     is the open gaps of the class plus every gap of the class with a standing ruling row, each with its
     own subject columns: G's token's sentence (`gapSentenceIn` on G's id), its about anchor, its
@@ -1437,7 +1453,7 @@ blue's text as it stands; at grade movement the moved grades against the recorde
 positions table; no closing word or regrade of its own). One sitting per docketing; remand limit 1, and
 no remand at grade movement (L40); epoch limit.
 
-- **Record [phase B2a; Part B's second DDL phase, epoch `main` + 3 (L16 amended)].**
+- **Record [phase B2a; Part B's second DDL phase, epoch 80 (L16)].**
   - `Docketing` [NEW body; `Event` oneof arm `docketing = 68` — `Event`'s reserve shrinks to `reserved 69 to 80`, its comment gaining "68 for the docketing" (audit p7 NOTE; renumbered from 66 at the 2026-11-22 merge of main, whose question part and its check hold 65–66 and event types 46–47 in archived records); `EVENT_TYPE_DOCKETING = 49`, means "the
     tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal
     its assignee did not accept; written by the dispatch, by no verb"]: `docketing_id` (required,
@@ -1990,7 +2006,8 @@ leaves the road standing (lead call 2026-11-23); the answer for red then applies
 files on `a488cad41`):* it moves the report as any edit does (pins, stale areas, standing readings);
 it answers G, which closes in the same transaction, and its seat is the bench, so no exchange counts it
 (`impasse.go:314`, `blueanswered.go:233`); it applies red's prescription verbatim, so `writeTombstones`
-places G's estoppel row as for blue's verbatim edit, binding every red lens against that text (L18);
+places G's estoppel row as for blue's verbatim edit, binding G's writer against that text (L18 as
+amended 8);
 it precedes the ruling in the transaction and `writeTombstones` writes ends before placements (T-B19
 (14)), so its own reword of G's sentence ends nothing the ruling places; validate's `BlueEdit` and
 `Retire` arms admit the bench's seat only in a for-red ruling's transaction (`record.go:990`). **Residue,
@@ -2014,10 +2031,9 @@ the docketing]:* `Closing.closure_class = 6` (`Disposition`, `subset: "closes"`,
 not coined: `Close.closure_class` (`record.proto:1046`) is the word a closing records, and `close --as`
 its flag. Admitted on blue's closing owed for an `IMPASSE` docketing only, optional, one of the five
 words ruled 2026-11-20 — `repaired`, `not_a_defect`, `defect_accepted`, `defect_owed_elsewhere`, `moot`;
-`repaired_with_regression` is refused by the close proposal's filing check, reused (L13: its `successor`
-no ruling carries), `amends_prior` by the closing verb (outside the five), and `remanded` by the
-`subset: "closes"` CHECK; that is every `Disposition` value (`record.proto:505-530`: the five, these
-three, `UNSPECIFIED`; an archived `carried` is no value). Refused on red's closing; on
+`remanded` is refused by the `subset: "closes"` CHECK; that is every `Disposition` value
+(`record.proto:505-530`: the five, `remanded`, `UNSPECIFIED`; `repaired_with_regression` and
+`amends_prior` are reserved by amendment 8, and an archived `carried` is no value). Refused on red's closing; on
 blue's closing on a `PROPOSAL` docketing holding blue's act, naming the proposal — the proposal is blue's
 statement there, and where it is a close its word is the one a for-blue answer writes (one statement per
 side, one source per word); on a `GRADE_MOVEMENT` docketing, where blue's position is the recorded
@@ -2343,8 +2359,8 @@ stated).**
   lands with no red text, or a closing road the answer cannot apply, or an estopped one, is
   recorded.
 - T-B35 `TestEachSideStatesItsPositionAtTheDocketing` (amendment 4): blue's closing on an `IMPASSE`
-  docketing lands with each of the five words and with none; with `repaired_with_regression` it is
-  refused by L13's check, and with `amends_prior` or `remanded` refused; a word on blue's closing on a
+  docketing lands with each of the five words and with none; with `remanded` it is refused, and
+  `repaired_with_regression` and `amends_prior` are no word `--as` takes (amendment 8); a word on blue's closing on a
   `PROPOSAL` docketing holding blue's close, supersede or regrade is refused naming the proposal, and on
   a `GRADE_MOVEMENT` docketing refused; a word on red's closing is refused; `--for-blue` at impasse
   writes exactly blue's word, and `not_a_defect` where none was stated; `--for-blue` on blue's close
@@ -2493,9 +2509,8 @@ the proposal road has 0 archived uses (`successor-archaeology-git.md` §4). **Sc
 lead the same day:** the ruling restricts filing, not the mint. 16 archived uses are one lens's
 `--supersedes` of another lens's gap, every one on a gap already closed and every one a repair that
 failed (regressed, reverted, wrong prescription, residue); 0 superseded another lens's open gap.
-Whether a lens may name another lens's closed gap as its ancestor is F-CS (§VI), open; this section
-writes no mint-time restriction, and `requireSupersedable` keeps its rule (an open ancestor is its
-assignee's alone; a closed ancestor is any seat's to name).
+Whether a lens may name another lens's closed gap as its ancestor was F-CS; amendment 8 rules it
+(§III.B16): no seat names a closed ancestor, and `requireSupersedable` refuses it.
 
 **The model.**
 
@@ -2515,19 +2530,23 @@ assignee's alone; a closed ancestor is any seat's to name).
   class and subject, estoppel, the standing reading). A lens whose point is G's defect as G states it
   records nothing: G is on the board. **A lens that disagrees with how G states its defect argues and
   does not file** — and the record holds no act for that argument: Part A deleted the finding and the
-  about-kind gap, and this section deletes the proposal. Residue, stated: §II.4's 53 of 70 archived
-  disputes that "misstate the defect", and the voice lens's case of run-voice narration in another
-  lens's gap text (`red-lens-voice.md:15`: a gap's problem and fix print in the risk matrix), have no
-  road (F-AR, §VI). **Two defects are not recordable at all**, not merely unargued: (i) a lens's
-  different defect of the SAME class on the subject of another lens's open gap — the one-gap rule
-  refuses its mint ("two defects of one class on one subject are one gap") and nothing else takes it;
-  (ii) a lens's defect in text another lens prescribed and blue applied verbatim while that prescribing
-  gap is open — estoppel (L18, every lens) refuses the mint and `requireSupersedable` refuses the
-  supersede of an open gap not its own. Both are F-AR's.
+  about-kind gap, and this section deletes the proposal. **Not residue (amendment 8, F-AR ruled "Wait,
+  then mint"):** §II.4's 53 of 70 archived disputes that "misstate the defect" are answered by G's
+  parties — G's own lens amends its open gap (`--supersedes`, its own act; 21 of the 85 archived
+  successor uses are exactly that, 17 voice-driven), and where it does not, blue's word does
+  (`not_a_defect` in its close proposal or its closing at impasse), which the bench sides with or not.
+  The voice lens's case of run-voice narration in another lens's gap text (`red-lens-voice.md:15`) is
+  the same: G's lens amends it, and G's risk-matrix row prints only while G is open. The two defects
+  amendment 7 called unrecordable: (i) a different defect of the SAME class on another lens's open
+  gap's subject waits — the non-party lens does nothing while G is open, and mints its own gap once G
+  closes if the defect remains (no mechanism: the one-gap rule stops refusing at G's close); (ii) a
+  defect in text another lens prescribed and blue applied verbatim is the non-prescribing lens's own
+  gap now — estoppel bars only the prescribing lens (L18 as amended 8) — subject to (i) where it is of
+  G's class on G's subject.
 - **No proposal states a successor**, blue's included (F-BS): `Motion.act` holds `Regrade regrade` or
   `Close close`, and `Mint supersede = 17` is reserved. A proposal on a closed G had only that act
-  (F8), so no proposal is filed on a closed G (L53): the filing is refused naming G's closure and the
-  assignee's successor mint as the road that reopens it. Blue's road against a gap it holds misstated
+  (F8), so no proposal is filed on a closed G (L53): the filing is refused naming G's closure; a defect
+  still in the report after it is a new gap, with no link (amendment 8). Blue's road against a gap it holds misstated
   is its close proposal (`not_a_defect`) or its closing at G's impasse.
 - **Every docketing's pair is red against blue**: `--for-red | --for-blue` at impasse and on blue's
   proposal, `--keep | --restore` at grade movement, or `--remand`. `SidedWith` keeps `RED = 1` and
@@ -2547,10 +2566,11 @@ assignee's alone; a closed ancestor is any seat's to name).
 --supersedes` (the one-ancestor rule, `requireSupersedable`'s rule, `requireSupersededOffDocket` less
 its `except` parameter, `requireSuccessorCarriesDemand`, `requireSuccessorKeepsBenchGrades`, demand
 lineage, `successorsOf`); `Close.successor` (L8) and L13's refusal; the assignee as chain origin (L4,
-F-B3) pending F-CS; blue's regrade and close proposals with the assignee's accept, its window (L28),
-the `PROPOSAL` docketing, red's closing road on blue's close proposal on open G (L37) and the regrade
-ruling (L39, red against blue); estoppel binding every lens (L18); `amends_prior` (F-AP, raised and not
-ruled); `Retire.superseded_by` (blue's claim retire, a homonym).
+F-B3, which amendment 8 reduces to the writer); blue's regrade and close proposals with the assignee's
+accept, its window (L28), the `PROPOSAL` docketing, red's closing road on blue's close proposal on open
+G (L37) and the regrade ruling (L39, red against blue); `Retire.superseded_by` (blue's claim retire, a
+homonym). Amendment 8 (§III.B16) then deletes `Close.successor` (L8) and L13's refusal, the closed
+ancestor, `amends_prior`, `demand_lineage`, and narrows estoppel to the prescribing lens (L18).
 
 **Refusal and help text, reworded to name the parties' roads** (each read before and after, check 6):
 
@@ -2560,8 +2580,8 @@ ruled); `Retire.superseded_by` (blue's claim retire, a homonym).
 - `onegapperclass.go:293` (`oneGapRefusal` on another seat's gap, T-A3's text): "If your point is G's
   defect as A states it, it is on the board: nothing more is recorded", and no proposal; a defect of
   another class on the subject is the seat's own gap. `aboutGapRefusal` (`cli/lens/mint.go:441-453`)
-  loses its proposal road; the estoppel refusal (`:516`, "argue it there, or mint --supersedes") names
-  the supersede only where the prescribing gap is the seat's own chain or closed (F-CS).
+  loses its proposal road; the estoppel refusal (`:516`) is reworded by amendment 8 (§III.B16: it
+  reaches only the prescribing lens, and names no `--supersedes`).
 - `proposal.go` `requireDocketFiling`: the own-gap refusal keeps the assignee's own acts; the
   closed-gap refusal names L53; the one-proposal refusal ("argue yours in your closing") is blue's
   alone; a non-blue filer's refusal is validate's (L51).
@@ -2578,7 +2598,7 @@ ruled); `Retire.superseded_by` (blue's claim retire, a homonym).
   parties: blue proposes the act it wants on a gap that has had an exchange, the gap's assignee may
   accept it in its window, and otherwise the record dockets it"; `lead-judge.md`'s docket-rule block
   is the generated manual (regenerated). `debate.js:910`'s "a successor you mint of another lens's
-  closed gap is that lens's to audit and close" moves only with F-CS.
+  closed gap is that lens's to audit and close" is deleted by amendment 8 (§III.B16, X58).
 - `docs/seat-command-triggers.md:110-114`: the `motion docket file regrade|close` rows say blue files
   them; the `supersede` row is deleted; `motion docket rule` names the pair.
 
@@ -2628,7 +2648,7 @@ ruled); `Retire.superseded_by` (blue's claim retire, a homonym).
 | X40 | `T/internal/cli/lens/mint.go:441-453` (`aboutGapRefusal`), `:455-460` (`WriteMint`'s comment), `:516` (the estoppel refusal), `:548-552` (`Statement`'s comment); `T/internal/cli/seat/verbs.go:352` (`estopped`'s "and the successor a supersede the ruling applied left standing") | each proposal road, accept-written successor and F-J successor case | Go, help |
 | X41 | `T/internal/record/motion.go:304`, `T/internal/seatprobe/seatprobe.go:244` | `ActWord` callers: kept, two acts | O (NARROW) |
 
-Forty-one rows; the non-test rows reconcile with M21's command run on `5dfbb7750` (189 hits in 29
+Forty-one rows (amendment 8 continues the list at X42, §III.B16); the non-test rows reconcile with M21's command run on `5dfbb7750` (189 hits in 29
 files, `~/.claude/scratch/1695/amend7/census.txt`, every file a row). X26–X37 name 38 test or fuzz functions and the file-level declarations of 32 test
 files (`~/.claude/scratch/1695/successor-tests.txt`, by file; the B7 sweep, check 5, re-reads it). A
 row marked "rows of" keeps the test and deletes only those cases: each test that also drives blue's
@@ -2642,7 +2662,7 @@ with acts): none holds a `motion_supersede` or `docketing` table. `Motion.act` (
 (`migrate/docketing.go:204`, Translation 4's for-blue answer); Translations 3 and 4 already write
 every archived party- or hand-filed docket as no event (7 chair, 5 the minter's own, 4 blue; O2), so
 no archived chair or lens filing survives to need a side; Translation 2 already drops the 16 cross-seat
-lineage links (F-CS reads them). A record written at a branch epoch exists only in the branch's tests
+lineage links, and amendment 8's Translation 5 every link past a close (§III.B16). A record written at a branch epoch exists only in the branch's tests
 and fuzz scratch (L16), and `requireThisEpoch` refuses it at the new epoch. T-B39 holds this.
 
 **Tests** (each fails if the change is wrong; driven through the command tree as seats run it):
@@ -2674,6 +2694,172 @@ drives no longer reach. `proposalOracles` keep their three keys. The `docketing:
 `answer:proposal:red|blue` and `assignee_accepts:close|regrade` keys stay, fed by blue's proposals; a
 zero on any of them after X33 is a gap in blue's drive, fixed there, never by deleting the key (R32).
 
+#### III.B16 Successor lineage ends at a close; `--supersedes` is a lens's amendment of its own open gap; estoppel binds the prescribing lens (amendment 8, gblock 2026-11-23) — `record.proto`, `record/{supersession,successor,replay,record,proposal,docketing,enums,estoppel,freeze,benchanswer,standingreading,answersretired,supersede,demand,actjudge,sitting}.go`, `recordsql/{demandlineage,views,gapstate,schema}.go`, `cli/{seat/closure,lens/mint,blue/closing}.go`, `flags/names.go`, `view/view.go`, `scorecard/scorecard.go`, `cli/seat/help/*.md`, `debate.js`, `scripts/agentgen/src/*`, `terms.json`, `docs/*`, `migrate/*`, `releasegate/fuzz/*` [DELETE / MODIFY]
+
+**Ruled** (RULINGS.md "2026-11-23 — successors", the entry that supersedes the earlier same-day draft;
+option wording the agent's; evidence `successor-audit.md`, `anchor-reopen-measure.md`,
+`successor-archaeology-git.md`): "New gap; supersedes = own amend" — a defect found after a close is an
+ordinary gap by any lens, with no link, and `--supersedes` is only a lens rewording its OWN OPEN gap;
+it drops `Close.successor`, `repaired_with_regression`, `amends_prior` and the estoppel escape through
+`--supersedes`. "Only the prescribing lens" — verbatim-accept estoppel bars only the lens that wrote
+the applied text; any other lens mints an ordinary gap on it; ruling tombstones still bar both sides.
+"Wait, then mint" — a non-party lens does nothing on another lens's open gap; after the close, if the
+defect remains, any lens mints a new gap; no new mechanism (F-AR). "File both, after #1889" — premature
+or narrow closure (#1930) and an inquiry re-fate that undoes a closure with no link (#1931) are
+filed, outside this plan. The measurement behind it: of 85 archived successor uses, 31 were minted on
+an ancestor already closed, the reopen route; a reopen-on-anchor-edit rule fires before 3 of 24
+measurable closed-ancestor successors at about 13% precision, and the source is closure strength
+(#1930) and inquiry re-fates (#1931), which a lineage link does not fix.
+
+**The model.**
+
+- **`--supersedes` names the seat's own OPEN gap, and nothing else.** `requireSupersedable`
+  (`supersession.go:87`) refuses, naming the case and the road:
+  - a closed ancestor, any seat's — **new refusal**: "--supersedes names G, which is closed (<its
+    fate>): a mint names only an open gap of yours as the one it replaces. A defect still in the
+    report after a close is a new gap: mint it without --supersedes. Nothing was written";
+  - another seat's open gap (kept, amendment 7's text): "… only its assignee closes a gap … If your
+    point is G's defect as A states it, it is on the board: nothing more is recorded. If yours is a
+    different defect, mint it without --supersedes" — and, amendment 8, "of G's class on G's subject,
+    it waits until G closes".
+  A gap closed by an earlier supersession is closed, so a second successor of one ancestor is refused
+  by the first arm. The check runs in the write path (validate), so the replay meets it too, which is
+  why Translation 5 exists. `requireSupersededOffDocket`, `requireSuccessorCarriesDemand` and
+  `requireSuccessorKeepsBenchGrades` keep their rules, each now on an open ancestor only.
+- **A close names no successor.** `Close.successor` (`--superseded-by`) is reserved with its CHECK; a
+  close states how G ended and nothing else. `repaired_with_regression` and `amends_prior` are reserved
+  `Disposition` values: the regression a repair caused is a new defect, minted as a new gap by
+  whichever lens finds it; `amends_prior` had 0 archived uses and its one-ancestor shape could not hold
+  (`b91a1d4ee` named both amended ids).
+- **A gap's lineage is its own chain**: S superseding the open G it amends, both its writer's. The
+  assignee is always the writer (§III.B4a), so `assigneeSQL`'s chain step goes (L57).
+- **The live-answer demand does not pass.** With no successor of a closed gap and only own-open
+  amends left, `demand_lineage` holds only self rows (measured: no archived non-self row, in the three
+  runs that have the table, against 21 supersede rows), so the table, its four triggers and its index
+  go and `demand_reach` reads the gap's own demand (L55). An own amend of an open gap awaiting a live
+  answer is still held to its check kind (`requireSuccessorCarriesDemand`, kept: the ancestor closes
+  at the mint, and the successor owes its own live answer at the same kind); what meets the
+  successor is what meets any gap — its own anchor's answer, retire or re-check.
+- **Estoppel binds the lens that wrote the applied text.** `EstoppelConflict(f, seat, quote)` returns
+  a conflict only where the estopping gap's writer (`minterOf`) is `seat`. The prescribing lens's mint
+  on its own verbatim-applied text is refused with no escape — the `supersedes != est.Gap` exemption in
+  `requireNotEstopped` (`cli/lens/mint.go:421`) goes; while P is open, P's own acts are its road (its
+  regrade, its close, its own amendment of P quoting other text); once P closes, the text stands for
+  that lens. Any other lens's mint on that text lands as an ordinary gap, subject to the one-gap rule
+  (G's class on G's open subject waits). The same per-seat rule reaches every reader of the estoppel
+  row: red's closing road (`roadEstoppel`, L43, called at `docketing.go:561` and `benchanswer.go:391`)
+  is refused only where the closing's seat wrote the estopping gap; a standing reading's estoppel
+  discharge (`standingreading.go:464-472`, `l.estopped`, and its read at `:969`) applies only to a
+  reading by the estopping gap's writer, so another lens's refuting reading keeps its debt until its
+  own mint discharges it. Ruling tombstones are unchanged and bar both sides (§III.B12).
+- **A non-party lens does nothing on another lens's open gap** (F-AR). No mechanism: the one-gap rule
+  refuses a same-class mint on G's subject while G is open and stops refusing at G's close; amendment
+  7 already removed every filing a non-party had.
+- **What a regression after a close costs, stated:** the new gap carries no link to G, so nothing
+  reads G's history from it, blue's `engage` (R2) never follows a closed gap to it, and the board
+  telemetry's `repair_regression` ratio, which counted lineage mints against closures, measures
+  nothing that means "durable repair" and goes (L56).
+
+**What stays, named so the sweep does not take it:** `Mint.supersedes` and `lens mint --supersedes`
+for the own open gap; `supersessionsOf`, the gap view's `superseded_by`, `SupersededGap`,
+`requireNotSuperseded`, `ClosedSuperseded` (an own amend still closes its ancestor, and an act on the
+superseded gap is still refused naming its successor); `successorsOf`'s `Mint` arm and blue's `engage`
+with `ItemSuccessorOwed` (blue can find G closed by its lens's own supersede in the sitting before it);
+`requireSuccessorCarriesDemand` and `requireSuccessorKeepsBenchGrades`; the estoppel `Tombstone` rows
+and when they end (L24); `Retire.superseded_by` and `flags.New` (blue's claim retire, a homonym);
+`supersedes_status` and `supersedes_coverage` (an inquiry's and a question part's record of a fate or
+coverage, another sense); the dashboard's argument chains and `graph.go`'s supersedes edges (own
+chains); `verify.go`'s `supersedesResolve`; `EdgeDeltas` (the mass change across an own amend);
+migrate's skip of an archived `demand_lineage` table (`sqlitesource.go:262-265`, a table archived
+records hold); `run-archive/`, `research/`, `ideas/`, `law/`, `feov-memory/` prose (history).
+
+**Deletion and text list** (continuing §III.B15's; `T` = `plugins/frank-exchange-of-views/tools`):
+
+| # | Path | Symbol or text | Kind |
+|---|---|---|---|
+| X42 | `T/internal/record/recordpb/record.proto` | `DISPOSITION_REPAIRED_WITH_REGRESSION = 2`, `DISPOSITION_AMENDS_PRIOR = 3` reserved (number and name) with their means; the `:172-173` comment's example | proto enum |
+| X43 | `T/internal/record/recordpb/record.proto` | `Close.successor = 7` reserved with its comment; `Close`'s CHECK `"closure_class" <> 'repaired_with_regression' OR "successor" IS NOT NULL` and its "LINEAGE NEVER DROPS" comment; the `carried_from` CHECK's comment pointing at "the regression check above" | proto field, CHECK |
+| X44 | `T/internal/record/recordpb/record.proto` | `LOG_TYPE_ESTOPPEL`'s means: "the TOOL refused a mint by the lens whose fix blue applied verbatim at that text: that lens is bound by it; another lens audits it as any text" | proto means |
+| X45 | `T/internal/record/recordpb/record.proto` (`TelemetryLine.repair_regression = 8` reserved, `RepairRegression` deleted); `T/internal/view/view.go:408-440` (`lineage` kept for `EdgeDeltas`), `:553-557`, `:961`, `:985`, `:1024-1025`, `:376`'s comment; `T/internal/scorecard/scorecard.go:184-205` ("Durable repairs"); `F/tests/simulator/debate.test.mjs:912`'s fixture key; `scripts/agentgen/src/lead-judge.md:110` | the repair-regression telemetry and its readers (L56) | proto, Go, prompt |
+| X46 | `record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go` (`close` and `motion_close` scans of `successor`, `:563-588`, `:1159-1184`) — `protogen`; `recordpb/annotations_gen.go:196-197` — `vocabgen`; `recordpb/descriptions.go:140`'s example | generated, regenerated | generated |
+| X47 | the generated DDL; `recordsql/testdata/schema.sql`, `T/internal/record/testdata/plans.golden`, `shapes.golden` | `close.successor` and `motion_close.successor` with their references, the CHECK, `enum_disposition`'s two rows; `demand_lineage` (X49); every planned statement reading them | DDL, epoch (L50), golden |
+| X48 | `T/internal/record/supersession.go` | `requireSupersedable` refuses a closed ancestor (new arm, text above); the file comment's "A mint naming a gap a close or a bench ruling already closed carries the lineage forward and closes nothing" and `requireSupersedable`'s "A closed ancestor is lineage only, and any seat may name it" | Go, refusal |
+| X49 | `T/internal/record/recordsql/demandlineage.go` (the table, index, `demand_lineage_is_append_only_*`, `demand_lineage_mint`, `demand_lineage_supersedes`; `evidenceCheckIndexesSQL` moves to `schema.go` with its indexes, which `gap_refresh`'s checks read); `views.go:352-362` (`demand_reach` reads the gap), `:668-671` (`demandReachSQL` loses its lineage argument); `gapstate.go:275`; `schema.go:293`'s comment | `demand_lineage` (L55) | DDL, Go |
+| X50 | `T/internal/record/record.go:1128-1160` | the `Close` arm's `--superseded-by` checks (`requireGap`, `requireOpenGap` of the successor, "requires --superseded-by", "given only with --as repaired_with_regression"); `:1138-1143`'s and `refs.go:350`'s and `replay.go:165`'s "repair_regression denominator" wording | Go, refusal |
+| X51 | `T/internal/cli/seat/closure.go:24`, `:54`; `T/internal/flags/names.go:231` (`SupersededBy`), `:344`, `:432` (`"successor"`); `flags/shapes.go:78`; `cli/seat/seat.go:1154-1158`; `cli/enumhelp/enumhelp.go:28`; `cli/lens/close.go:49` | `--superseded-by` and every comment naming it | Go, flag |
+| X52 | `T/internal/record/successor.go:26-45` (`successorsOf`'s `Close` arm and doc), `:147` (requireEngage's "names it in its close's superseded_by"); `sitting.go:702-704` | the close end of the lineage relation | Go, text |
+| X53 | `T/internal/record/replay.go:270-278` | `Gap.Successor()`'s `Closure` arm and doc; `report/assemble.go:944` and `view/view.go:313,351` keep their call (supersession successors only) | Go |
+| X54 | `T/internal/record/enums.go:160-190`, `:278`; `enumvalue.go:22` | `artifactByClass`'s `repaired_with_regression` row, the `amends_prior` comment and `ArtifactStateOf`'s `amends_prior` arm; the closure-class `Why`'s "repair_regression denominator" | Go |
+| X55 | `T/internal/record/docketing.go:523-526`; `T/internal/cli/blue/closing.go:23` | blue's closing word's two refusals (the enum refuses both now); the help's "Not repaired_with_regression or amends_prior" | Go, help |
+| X56 | `T/internal/record/proposal.go:85-100`, `:141-143`; `cli/motion/propose.go:69` (`ProposedCloseClasses`) | `ProposedCloseRefusal`, `proposedRegressionRefusal` (X10's text edit with them) and the proposed close's `Successor` check; `--as` offers `ClosingDispositions` | Go, help |
+| X57 | `T/internal/record/estoppel.go:17-40`, `:77-119` | `EstoppelConflict(f, seat, quote)` (the writer arm), `Estoppel.PrescribedBy`'s doc, the comments "RED IS THE PARTY BOUND, NOT THE LENS THAT WROTE IT" and "red mints --supersedes the prescribing gap, as the refusal says" | Go |
+| X58 | `T/internal/cli/lens/mint.go:404-423` (`requireNotEstopped(l, seat, quote)`; the `supersedes != est.Gap` exemption), `:475-502`, `:505-520` (the refusal: "estoppel — this location is text you prescribed on P and blue applied verbatim: your own applied fix binds you, so it is not a fresh gap of yours. Argue it on P while P is open; once P is closed the text stands for you, and another lens audits it as any text. Prescribed text: %q"; the `author` lookup goes); `T/internal/record/freeze.go:340-352` (`roadEstoppel` takes the closing's seat; "you are bound by the fix you prescribed"); `docketing.go:561`, `benchanswer.go:376-391` (pass the seat); `standingreading.go:194`, `:225-227`, `:414-472`, `:969` (per-seat `estopped`); `passblockers.go:1126`; `view/changes.go:93-103` ("text the minting lens prescribed"); `changesjson.go:78`; `cli/blue/edit.go:69` | the estoppel bar's seat | Go, refusal |
+| X59 | `T/internal/record/answersretired.go:21`, `:51`, `:57-63` | `supersededBySeatAfter` and its call (it can no longer fire); the news item's "mint it, naming G as the gap it supersedes" → "mint it: a new gap" | Go, text |
+| X60 | `T/internal/record/supersede.go:82-83`, `:92` | the `close` superseder ("a new gap of the defect, if it is still in the report: a close names no successor") and the lens docket row's "or a successor naming it in --supersedes once it is closed" | Go, help |
+| X61 | `T/internal/record/demand.go` (`successorDemandRefusal`'s "each demand passes to the successor"; the file's demand-lineage comments), `actjudge.go:211-214`'s comment | the demand does not pass (L55) | Go, refusal |
+| X62 | `T/internal/cli/seat/help/mint.md` ("If yours replaces it, mint it as that gap's successor" → own open gap only; "A candidate that is a closed gap's defect is a REOPEN, and a reopen carries its lineage" → a new gap with no link; "Naming a closed gap carries lineage …" and "What would have met the ancestor's demand meets your gap's too …" deleted; "A CLOSURE STANDS …: mint it naming that gap as the one it supersedes" → a new gap; the live-answer paragraph's `repaired_with_regression` and "which takes the demand on"; the ESTOPPEL paragraph: "a mint against text blue applied VERBATIM from your own proposal is REFUSED … another lens's applied text you audit as any text", "or mint declaring that gap as its ancestor" deleted); `help/close.md`, `help/carry.md`, `help/engage.md`, `help/verify.md:28`, `help/reproduce.md:31`; `cli/seat/verbs.go:356` ("repaired_with_regression means a live successor exists" goes) and its `estopped`/`engaged` rows' successor wording; `help_gen.go`, `required_gen.go` (`cmdtreegen`) | help | help, generated |
+| X63 | `F/skills/research-protocol/scripts/debate.js:907` ("a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage" → a defect a close left in the report is a new gap), `:910` ("THE ASSIGNEE CLOSES, AND LINEAGE IS NEVER DROPPED … a successor you mint of another lens's closed gap is that lens's … a closure that regressed says so, and the docket follows those chains" → the assignee closes; a successor amends your own open gap); `scripts/agentgen/src/fragments/lens-duties.md:5` (the proposal road and "every successor of it, whoever mints that; a successor you mint of another lens's closed gap …"; amendment 7's census missed this file), `:9` ("another seat's regrade, close or supersede of it" → blue's regrade or close); `fragments/lens-audit-and-mint.md:8` ("the demand passes to it" → it carries the same check kind and owes its own answer), `:14` ("Lineage is mandatory … a closure that regressed says so" → a successor amends your own open gap; a defect after a close is a new gap); `red-lens-voice.md:15` ("narration in another lens's gap … propose its successor …" → that gap's lens amends it; you record nothing while it is open); `lead-judge.md:43` ("Ancestor demanded reads" names an own chain only) | prompts (then `agentgen`, `enginegen` where generated) | prompt |
+| X64 | `T/internal/terms/terms.json` (the `--superseded-by` resolution `:1129`, `disposition`'s values, the successor/lineage definitions), then `vocabgen` (`definitions_gen.go`) and `vocabdoc` (`F/docs/vocabulary.md:648`) | terms | registry, generated |
+| X65 | `F/docs/seat-command-triggers.md:67` (lens close), `:89` (engage: "an open successor of it" — own supersessions only); `F/docs/citations-and-bibliography.md:181-184`; `F/docs/record-flow.md:56` (amendment 7's proposal road, missed by X38) | docs | doc |
+| X66 | `T/internal/record/migrate/` — Translation 5 (below): `lineage.go` (`dropClosedAncestorLink`), `valuerenames.go` (`Disposition`: `repaired_with_regression`, `closed_with_regression` → `repaired`), `eraentries.go:22` (maps to `repaired`), the registry's drop of the archived `close.successor` and `motion_close.successor` columns, `remap.go:115` (`Close.successor` leaves `idFields`), `replay.go:52`, `:445` and `migration/manifest.go:99` (an engagement orphaned by Translation 2 or 5), the manifest's Translation 5 residue counts | migrate | Go |
+| X67 | tests and fuzz — `~/.claude/scratch/1695/amend8/tests.txt` lists each function by file, DELETE or NARROW: every `repaired_with_regression`, `amends_prior`, `Successor:`/`--superseded-by`, closed-ancestor `--supersedes`, `demand_lineage` and cross-lens estoppel case; `fuzz_test.go:11`, `:1449` (`blueRefusedWords`), `:4983-5030` (the regression-close and `amends_prior` drives), `:5371` (the carry's `--superseded-by`), `:4773-4790` (`mintEstopped` drives the prescribing lens, and a second drive mints another lens's gap on the same text, which lands); `sweeptally_test.go`'s estoppel oracle and `readingdebt_test.go`'s `estoppel` discharge keyed on the prescriber; `benchorders_test.go:223-294` (the proposed successor, already amendment 7's, and the closed-ancestor successor it falls back to) | test, fuzz | test |
+
+Twenty-six rows, X42–X67; with §III.B15's, sixty-seven. The non-test rows reconcile with appendix M22's
+command on `26a69d300` (every non-test file a row or a stated keep).
+
+**Migration — Translation 5 (EventSchema 81; migrate-local, `internal/record/migrate`).** Three parts,
+one change: (a) a Mint's `supersedes` is dropped where the ancestor is closed — no `"gap"."open"` —
+on the destination at the successor's place (`dropClosedAncestorLink`, beside Translation 2's
+`dropCrossSeatLink`, reading `q` as it does); an ancestor an earlier supersession closed is closed;
+(b) an archived `Close`'s `successor` column is dropped by a registry entry, and `repaired_with_regression`
+(and the round era's `closed_with_regression`, `eraentries.go:22`) is respelled `repaired` in
+`valueRenames` — so Translation 4 still rewrites an archived bench ruling's word to its for-blue
+`not_a_defect` after decoding; (c) an archived `amends_prior` has no mapping, so one would be refused
+loudly: T-B43 asserts there is none. Measured 2026-11-23 over the 34 SQLite archives (§II.4's row): 18
+closes carry a successor, every one after a mint superseding its own gap, so `actOnSupersededGap`
+already writes each as no event where Translation 2 keeps the link (quadratic-formula's merge seats
+are the chair's after translation, so its 7 keep theirs); 12 own-seat links name an ancestor a
+`close` row ended first (bench-closed ancestors not counted); 0 `amends_prior`. Residue, stated: each
+dropped link, with `supersedes_count`, its place in `successorsOf`, its passed demand (none measured:
+no archived non-self `demand_lineage` row) and its successor's lineage in the report; the dropped
+`successor` values; blue engagements the dropped links orphan (`UnowedEngagements`). The 6 August JSONL
+runs are not measured here; T-B43 counts every archive. The archived `estoppel` log rows (2) translate
+as `entries.go:208-210` writes them today, and the replay places estoppel `Tombstone` rows from the
+archived verbatim edits as §III.B12 does; migrate runs no `requireNotEstopped` (a verb guard), so no
+archived mint is re-judged under the per-seat rule.
+
+**Tests** (driven through the command tree as seats run it):
+
+- **T-B41** `TestSupersedesNamesOnlyYourOwnOpenGap` (`internal/cli`): lens A mints G; A's mint
+  `--supersedes G` lands and closes G; lens B's mint `--supersedes` of A's open H is refused naming H's
+  assignee; A's and B's mint `--supersedes` of a closed gap (closed by `close`, by a ruling, by an
+  earlier supersession) are each refused with the closed-ancestor text; `lens close --superseded-by`
+  is an unknown flag; `--as repaired_with_regression` and `--as amends_prior` are refused by the enum on
+  `close`, `closing-blue` and `motion docket file close`; a raw `Close` carrying field 7 is refused at
+  the write. Fails if any closed-ancestor link lands, a successor field survives, or either word does.
+- **T-B42** `TestEstoppelBindsOnlyThePrescribingLens` (`internal/cli`): lens P mints G with a verified
+  fix; blue applies it verbatim (`blue edit --accept`); P's mint quoting the applied text is refused,
+  the `estoppel` log entry written and its text naming no `--supersedes`; P's mint `--supersedes G`
+  quoting it is refused too (the exemption is gone); lens Q's mint quoting it, of another class, lands;
+  of G's class on G's sentence while G is open it is refused by the one-gap rule, and lands once P
+  closes G; Q's closing road quoting the text lands where P's is refused (L43); Q's refuting standing
+  reading of the sentence keeps its debt until Q mints. A ruling tombstone on G refuses both P's and Q's
+  same-class mint. Fails without the seat argument: Q's mint is refused as today.
+- **T-B43** `TestNoArchiveKeepsALinkPastAClose` (`internal/record/migrate`): every archived run
+  replays with zero refusals, zero `Mint.supersedes` naming a gap closed at the successor's place, zero
+  `Close.successor`, zero `repaired_with_regression` or `amends_prior`, and the manifest's Translation 5
+  counts equal to the dropped links and respelled closes by source id per run (the measured figures
+  above are its expectation where the replay reaches them). Fails if a translation keeps a link past a
+  close or an archive holds a word it does not map.
+- T-B14 is narrowed (§III.B4a); T-B11's R2-7 `demand_lineage` report and T-B16's lineage reach are
+  deleted with the table; T-B35 (§III.B14) loses its L13 case.
+
+**Release fuzz.** The regression-close and `amends_prior` drives go; `mintEstopped` drives the
+prescribing lens and a new drive mints another lens's gap on the same applied text, counted under a
+new gate key `estoppel_other_lens_admitted`; the `estoppels` gate keeps its key, fed by the prescribing
+lens. blue's `engage` gate stays, fed by a lens's own supersede of its open gap in the sitting before
+blue's; a zero there is a gap in that drive, fixed in the drive, never by deleting the key (R34).
+
 ### III.C Carrier/consumer census
 
 Commands, per-file lists and per-file change are in the appendix. Rows A01–X2 reproduce on
@@ -2701,7 +2887,10 @@ docket ruling's gap or word, 110 hits tagged DOCKETING-KEY | DOCKETING-STANDS | 
 **M19** every carrier of `Closing`, which gains red's text; **M20** every reader of a `BlueEdit`, to which the
 bench's for-red edit is new; **M21** (amendment 7, on `5dfbb7750`) every carrier of the supersede
 proposal, of a third party's filing and of the `FILER`/`ASSIGNEE` sides, tagged DELETE | NARROW | TEXT |
-GEN | O — each non-test hit is a row of §III.B15's deletion list X1–X41. **M1** gains the dashboard's grade
+GEN | O — each non-test hit is a row of §III.B15's deletion list X1–X41; **M22** (amendment 8, on
+`26a69d300`) every carrier of a lineage link past a close, of `Close.successor`, `repaired_with_regression`,
+`amends_prior`, `demand_lineage`, the repair-regression telemetry and the estoppel bar's seat — each
+non-test file a row of §III.B16's X42–X67 or a stated keep, and M9, M12, M13 re-tagged there. **M1** gains the dashboard's grade
 counter (`dashboard/model.go:73,486-492`, `render.go:381-386,406`, deleted with its tests and golden
 rows, §III.B6). Generated carriers (edit the source, regenerate, `-check` clean): `protogen`,
 `schemagen`, `vocabgen`, `cmdtreegen`, `agentgen`, `enginegen`, `vocabdoc`. **Complete when** §V
@@ -2718,7 +2907,7 @@ check 5 leaves only the appendix's O lines.
 | R5 | Two answers on one M | L×H×L | in-transaction `requireUnanswered`; T-B7; oracle |
 | R6 | The successor's assignee diverges between the view and a stream reader; an assignee reader keeps the event seat, or an acting reader reads the wrong seat | M×M×L | one stored column, the rule rendered by one function; the writer is the event's seat everywhere (amendment 7 deletes `actingSeat`); M9 tags every reader ASSIGNEE \| WRITER; T-B14 runs every row on another lens's lineage successor and on the assignee's own; oracle `assignee_drift` recomputes the assignee independently |
 | R10 | The migrate translation cascades: a dropped link or a dropped engagement leaves a later archived act refused | M×M×L | the 20 acts and 3 engagements are measured (B5; the plan's 11 and 2 counted 36 archives) (§II.4, `supersede-a/acts.txt`); T-B11 asserts each act present; T-B13 zero refusals; a further refusal stops phase B5 and goes to gblock as residue (§III.B7) |
-| R11 | A lineage successor lands with an assignee that does not act on it: outside its area, or no longer cast | M×M×L | no reader keys on area (§III.B4a, T-B16); an uncast assignee owes no closing and the gap goes as any uncast assignee's does today (`closingowed.go:79`); `lineage_successors_reowned` and `assignee_drift` in the fuzz |
+| R11 | A successor (since amendment 8 only its writer's own amendment of an open gap) lands with an assignee that does not act on it: outside its area, or no longer cast | M×M×L | no reader keys on area (§III.B4a, T-B16); an uncast assignee owes no closing and the gap goes as any uncast assignee's does today (`closingowed.go:79`); `lineage_successors_reowned` and `assignee_drift` in the fuzz |
 | R9 | `gap_refresh` reads `gap_state` (the ancestor's row) inside the flush's `INSERT OR REPLACE INTO "gap_state"` | L×M×L | SQLite evaluates the source before the replace; the predecessor is never in flight in its successor's mint append. T-B14's state steps; `TestEveryGapMarkerIsNeeded` re-run; the compile guard's x1.2 bound (#1811) |
 | R7 | A frozen gap stalls when nobody accepts | L×M×L | the assignee's window is one sitting; its end writes `Docketing{PROPOSAL}`, whose filer's side lands at every path: a close as filed, a regrade or the other side's grades, and a supersede whose successor was checked mintable against G's assignee at the filing, its inputs frozen to the ruling (§III.B13, §III.B14's sweep table, L48; T-B38) |
 | R24 | A proposal filed before a non-remand ruling of its gap is answered after it, overturning the ruling (double jeopardy) | M×H×L | none can be: a proposal is refused while a docketing stands (L38), and a condition docketing is refused while a proposal stands (L28), so every proposal standing at a ruling is the one it answers; T-B30; oracle `proposal_outlived_ruling` |
@@ -2730,8 +2919,8 @@ check 5 leaves only the appendix's O lines.
 | R15 | A gap under a bench ruling with no sentence (about an inquiry or section, or its text gone) is relitigated | L×M×L | its tombstone is on its own row whatever its anchor; the proposal arm reads it for every gap; the anchor and inquiry arms by the gap's own subject (L17); a section, gone-, bare- or cut-text ruling bars proposals only (L21); T-B19 (6), (8), (15)–(16) |
 | R16 | A tool-written docketing is refused by a party's rule, or takes a party's proposal slot (the race the impasse filing ran at k-max 1, EVIDENCE) | M×H×L | the dispatch writes `Docketing`, a body no filing check reads; F5 counts proposals only; no proposal is filed while a docketing stands and no condition docketing is written while a proposal stands (L28, L38), so a docketing holds a proposal exactly when its cause is `PROPOSAL` (§III.B13); T-B4, T-B22, T-B24, T-B30; gates `docketings_under_tombstone`, `filings_on_docketed_gap_refused` |
 | R14 | The singular `supersedes` silently narrows a list (a comma value, a repeated flag, an archived list decoded last-wins) | M×M×L | new field number; both flag forms refused; T-B18; migrate keeps `ord` 0 by name (T-B11) |
-| R8 | #1828 lands in another shape, or not first | M×M×L | the change takes `main`'s epoch + 1 and + 2 at its build; the build stops if `mintbudget.go` still exists |
-| R17 | `TestEveryDDLChangeBumpsTheEpoch` refuses a same-epoch restamp (`schemaepoch_test.go:60`), so a phase that changes DDL after its part's first phase stamped the epoch is red | H×M×L | L16: Part A bumps to `main` + 1 in A1, Part B to `main` + 2 in B1 and to `main` + 3 in B2a (the amendment's DDL, after B1's stamp was built), and every DDL change lands in one of those phases (the `Tombstone` body, its table, view and index in B1, not B3; the `Docketing` body and its reshapes in B2a, not B3–B6); check 2 at every phase |
+| R8 | #1828 lands in another shape, or not first | M×M×L | each DDL phase takes the branch's epoch + 1 at its build (L16); the build stops if `mintbudget.go` still exists |
+| R17 | `TestEveryDDLChangeBumpsTheEpoch` refuses a same-epoch restamp (`schemaepoch_test.go:60`), so a phase that changes DDL after an earlier phase stamped the epoch is red | H×M×L | L16 (amended 8): every DDL phase takes the branch's epoch + 1 at its build — A1 78, B1 79, B2a 80 (over `main`'s 77 then), B7 81 with amendments 7 and 8 — and every DDL change lands in one of those phases; the merge with `main` renumbers the branch over `main`'s epoch then; check 2 at every phase |
 | R18 | Migrating a record written at Part B's epoch writes each tombstone row twice — the source's event replayed as itself, and the row the replay's write path re-derives — or the act's `newID` names its last row (audit p5 gap 1, NOTE 1) | M×H×L | a source `tombstone` translates to no event (`toNoEvent`); `newID` takes the id `Replay.Write` returns; T-B21 through `feov-migrate`; check 7's rows on both |
 | R19 | A duty the dispatch's motion carried is lost or kept on the motion when the docketing replaces it: closings never owed, a bench readied twice for one docketing, PASS allowed with a gap before the bench, a docketed gap left on a party's list | M×H×L | §III.B13's duty table, each row re-keyed by meaning; appendix M16 tags every reader PROPOSAL-STANDS or DOCKETING-STANDS; T-B23 a subtest per row; check 7 deletes each re-key |
 | R20 | Translation 3 leaves an archived ruling naming no docketing, or an archived party docket with no act unreplayable | M×M×L | Translation 3 lands in B2a with validate's no-act refusal; O2 (ruled) drops the party- and hand-filed dockets, 16 (O5), and the 22 closings filed on them (O6), both confirmed 2026-11-20; T-B26; check 9 zero refusals |
@@ -2741,8 +2930,11 @@ check 5 leaves only the appendix's O lines.
 | R29 | A red closing re-prescribes estopped text through the bench (audit p8 gap 3), or a closing party sits at the final sitting and lands an act no lens audits | M×M×L | the road is checked by `EstoppelConflict` at the closing and at the ruling; L44′ admits only the closing in the final closing sitting and in held-out blue's; a red closing no road admits is filed `--no-text` (L49), so no duty is blocking or missing; T-B29, T-B37; gates `closing_road_estopped`, `final_sitting_closings` |
 | R23 | Translation 4 cascades or misreads its cause: a rewritten closing word, a live-rule cause that is not the archived basis's, or the dropped bench regrade leaves a later archived act refused or a fate moved | M×M×L | re-derived against every B2a rule (amendment 5: `amend5/sweep.py`, 16 rulings a `Close` ended dropped, 26 closings dropped, 3 words → `not_a_defect`, 0 fates reopened; previously measured before B2a: 19 of 19 at impasse by basis, 19 words → `not_a_defect`, 0 fates reopened; 1 regrade, whose later lens regrade ev 711 is the one candidate); T-B31 asserts the live cause (m29 G-6f6f47fb `GRADE_MOVEMENT`, ruled 2026-11-22) and every other `IMPASSE`; T-B26 zero refusals (measured on B2a's replay) |
 | R30 | Amendment 7 deletes the supersede proposal and third-party filing but a carrier still speaks it: a help page, refusal or prompt still offers `motion docket file supersede`, `--for-filer`/`--for-assignee`, or a lens's proposal on another lens's gap, so a seat calls a verb that is gone and loses the capability for the run | M×H×L | §III.B15's deletion list X1–X41 by path and symbol; check 5's B7 sweep returns no live hit; check 6 reads each changed `--help` and refusal before and after; T-B39, T-B40 |
-| R31 | A lens's dispute of another lens's gap is silently lost: the defect it holds G misstates never reaches the record, and the run reads as clean | M×M×M | stated as residue (§III.B15), raised as F-AR for gblock; a different defect is the lens's own gap under the ordinary rules; the voice lens's risk-matrix narration case is named in F-AR |
+| R31 | A lens's dispute of another lens's gap is silently lost: the defect it holds G misstates never reaches the record, and the run reads as clean | M×M×M | ruled by amendment 8 (F-AR, "Wait, then mint"): G's own lens amends its open gap, blue's word answers the rest and the bench sides; a non-party lens waits and mints its own gap once G closes if the defect remains; the 53 archived misstatement disputes are not residue (§III.B15–B16) |
 | R32 | Blue's proposal drive alone leaves a proposal gate at zero once the bystander drives go, and the fix deletes the gate | M×M×L | §III.B15 Release fuzz: a zero on `docketing:proposal`, `answer:proposal:*`, `assignee_accepts:close` or `assignee_accepts:regrade` is fixed in blue's drive, never by deleting the key; check 10 on the PR's final head |
+| R33 | Amendment 8 narrows estoppel at the mint but a reader of the estoppel row still binds every lens: red's closing road (L43), a standing reading's estoppel discharge, the work list or the fuzz oracle, so another lens's road is refused or its reading debt silently discharged | M×M×L | one function, `EstoppelConflict(f, seat, quote)`, is the bar every reader calls (X57, X58); T-B42 drives the mint, the road and the reading for the prescriber and for another lens; delete the seat argument and T-B42 fails |
+| R34 | Deleting the regression-close drive leaves blue's `engage` gate, or a successor-fed oracle, at zero, and the fix deletes the key | M×M×L | the drive is a lens's own supersede of its open gap in the sitting before blue's (§III.B16 Release fuzz); a zero is fixed in that drive; check 10 on the PR's final head |
+| R35 | A carrier still teaches a link past a close — `--superseded-by`, `repaired_with_regression`, "a reopen carries its lineage", "mint it naming that gap as the one it supersedes" — so a seat types a flag or word that is gone, or a closed-ancestor mint, and loses the act | M×H×L | §III.B16's X42–X67 by path and symbol; appendix M22 leaves only O lines (check 5); check 6 reads each changed `--help` and refusal before and after; T-B41 |
 
 ## V. Phases and Verification Plan
 
@@ -2756,18 +2948,18 @@ residue or release exists between them. The release fuzz (check 10) runs on the 
 
 | Phase | Builds | Tests | Epoch |
 |---|---|---|---|
-| A1 | record, fold, redirects (the own-gap and another-seat cases; the latter names Part B's road by its verb text, which lands in B2; the estopped case is B3's), about-kind refusal | T-A1–T-A4 | `main` + 1, set here; Part A's only DDL phase (L16) |
+| A1 | record, fold, redirects (the own-gap and another-seat cases; the latter names Part B's road by its verb text, which lands in B2; the estopped case is B3's), about-kind refusal | T-A1–T-A4 | 78 (`main`'s 77 + 1 then), set here; Part A's only DDL phase (L16) |
 | A2 | text, regenerated carriers | check 3, 6 | — |
 | A3 | migrate (Part A) | T-A5–T-A7 | — |
 | A4 | fuzz drives and gates (CI on push) | check 10 parts | — |
-| B1 | record: `Motion.act` oneof (R1 resolved), `accepted`, grounds reserved, `assignee` column and rename, bench CTE arm, one ancestor, the `Tombstone` body, table, `tombstone_standing` and `tombstone_kind_gap`, validate's `Tombstone` shape arm | T-B1, T-B18, `gapstate_test` | `main` + 2, set here; Part B's first DDL phase (L16) |
+| B1 | record: `Motion.act` oneof (R1 resolved), `accepted`, grounds reserved, `assignee` column and rename, bench CTE arm, one ancestor, the `Tombstone` body, table, `tombstone_standing` and `tombstone_kind_gap`, validate's `Tombstone` shape arm | T-B1, T-B18, `gapstate_test` | 79, set here; Part B's first DDL phase (L16) |
 | B2 | filing, assignee's accept, bench answers, readiness, grade deletion, `actingSeat` — **built** (`a488cad41`), with the dispatch's motion filing (`byDispatch`, no-act motions and their refusal, the restoring regrade, L25), which B2a deletes | T-B2–T-B10, T-B14–T-B16 | — |
-| B2a | **the docketing (§III.B13; amendment 2026-11-20)**: record — `Docketing` body, `DocketingCause`, table, `docketing_gap`, `gap_state.standing_docketing{,_at}`, `DocketRuling.docketing_id`, `MotionRule.motion_id` optional, `Motion`'s act-required CHECK, `Tombstone` field 3 → `docketing_id`, means and comment texts; the dispatch writes `ToDocket` rows and no motion; `routeProposal`; every duty of §III.B13's table re-keyed; the bench's answers per docketing; the exit register's docketings (L29); B2's code deleted per §III.B13's list (`byDispatch`, `noActRefusal`, the dispatch's `Motion` loop, their tests; `restoring` moved to the bench's reject); **amendment 2 (§III.B14)**: `DocketRuling.disposition` loses its flag, `--accept \| --reject \| --remand` on every docketing, the positions table's writes, the restoring `Regrade` on the reject, validate's `DocketRuling` arm, the `regrade-bench` verb and its help deleted; **amendment 4**: `--for-red \| --for-blue \| --for-filer \| --for-assignee \| --remand` in place of `--accept \| --reject \| --remand`, `DocketRuling.sided_with = 11` (`SidedWith`) with field 9 (`accepted`) reserved and its CHECKs, `Closing.closure_class = 6` (blue's word) and `closing-blue --as`, the docketing's `Close` end in `gap_state.standing_docketing` and `docketingsAt`; **amendment 3**: `Closing.location`/`fix_new`/`retire` and the closing verb's `PlanAccept`, the for-red answer's bench edit, the freeze's filing and edit arms (L38), `DocketRulingGap` and `docketingsAt` with every M18 reader re-keyed, the docket-order audit on docketings, the window (L41); migrate Translations 3 and 4 (O2, O3 ruled; O5, O6 confirmed), **after the precondition measurement** (§III.B14: `amend5/sweep.py`, re-derived against B2a's rules); **amendment 5**: `DocketRuling.moved_grades = 12` (`MovedGrades`) and the exactly-one CHECK, `--keep \| --restore`, the winner's-statement rows (no side-alone answer on a close or supersede; the assignee's road lens against lens), the lock on every grade ruling (L35′) and the window's regrade-proposal arm (L41′), the road's estoppel check, the freeze re-planning every standing road (L45), the final sitting's closing sitting (`awaitClosings`, the limit's emptying, `debate.js`, L44′), migrate's dropped rulings and closings; **amendment 6**: `requireSuccessorMintable` at the supersede filing and at the bench's mint, and its re-run in the freeze (L48); `benchSetAxesOf`'s re-lock with the toggle deleted (L35′); `tombstonesOwed`'s `moved_grades` arm; held-out blue's closing (`awaitClosings`' held-out arm deleted, `engage`'s closing-only admission, L44′'s key on `isFinalEpoch`/`blueHeldOut`); `Closing.no_text = 7` and `closing-red --no-text` (L49); the final-sitting text of appendix M16's amendment-6 row; B2's tests re-keyed (T-B4, T-B8, T-B9, T-B10, T-B15) | T-B22–T-B38, T-B4, T-B8–T-B10 and T-B15 rewritten, T-A7/T-B13 zero refusals | `main` + 3, set here (L16 amended) |
+| B2a | **the docketing (§III.B13; amendment 2026-11-20)**: record — `Docketing` body, `DocketingCause`, table, `docketing_gap`, `gap_state.standing_docketing{,_at}`, `DocketRuling.docketing_id`, `MotionRule.motion_id` optional, `Motion`'s act-required CHECK, `Tombstone` field 3 → `docketing_id`, means and comment texts; the dispatch writes `ToDocket` rows and no motion; `routeProposal`; every duty of §III.B13's table re-keyed; the bench's answers per docketing; the exit register's docketings (L29); B2's code deleted per §III.B13's list (`byDispatch`, `noActRefusal`, the dispatch's `Motion` loop, their tests; `restoring` moved to the bench's reject); **amendment 2 (§III.B14)**: `DocketRuling.disposition` loses its flag, `--accept \| --reject \| --remand` on every docketing, the positions table's writes, the restoring `Regrade` on the reject, validate's `DocketRuling` arm, the `regrade-bench` verb and its help deleted; **amendment 4**: `--for-red \| --for-blue \| --for-filer \| --for-assignee \| --remand` in place of `--accept \| --reject \| --remand`, `DocketRuling.sided_with = 11` (`SidedWith`) with field 9 (`accepted`) reserved and its CHECKs, `Closing.closure_class = 6` (blue's word) and `closing-blue --as`, the docketing's `Close` end in `gap_state.standing_docketing` and `docketingsAt`; **amendment 3**: `Closing.location`/`fix_new`/`retire` and the closing verb's `PlanAccept`, the for-red answer's bench edit, the freeze's filing and edit arms (L38), `DocketRulingGap` and `docketingsAt` with every M18 reader re-keyed, the docket-order audit on docketings, the window (L41); migrate Translations 3 and 4 (O2, O3 ruled; O5, O6 confirmed), **after the precondition measurement** (§III.B14: `amend5/sweep.py`, re-derived against B2a's rules); **amendment 5**: `DocketRuling.moved_grades = 12` (`MovedGrades`) and the exactly-one CHECK, `--keep \| --restore`, the winner's-statement rows (no side-alone answer on a close or supersede; the assignee's road lens against lens), the lock on every grade ruling (L35′) and the window's regrade-proposal arm (L41′), the road's estoppel check, the freeze re-planning every standing road (L45), the final sitting's closing sitting (`awaitClosings`, the limit's emptying, `debate.js`, L44′), migrate's dropped rulings and closings; **amendment 6**: `requireSuccessorMintable` at the supersede filing and at the bench's mint, and its re-run in the freeze (L48); `benchSetAxesOf`'s re-lock with the toggle deleted (L35′); `tombstonesOwed`'s `moved_grades` arm; held-out blue's closing (`awaitClosings`' held-out arm deleted, `engage`'s closing-only admission, L44′'s key on `isFinalEpoch`/`blueHeldOut`); `Closing.no_text = 7` and `closing-red --no-text` (L49); the final-sitting text of appendix M16's amendment-6 row; B2's tests re-keyed (T-B4, T-B8, T-B9, T-B10, T-B15) | T-B22–T-B38, T-B4, T-B8–T-B10 and T-B15 rewritten, T-A7/T-B13 zero refusals | 80, set here (L16) |
 | B3 | tombstones: `writeTombstones` in `writeIn` (which returns the act's id, through `appendAct` and `Replay.Write`; migrate's `batch.Write` calls and `newID` take it in this phase, so the tree compiles and no pin names a row) and `tombstoneArms`, the guards read the rows, the one-gap refusal's estopped case, `estopped` rows and gap-row fields; grounds and estoppel fold deleted | T-B19, T-A3's estopped case (in T-B19 (2)), `TestTheStoredTombstonesAreTheRule`, `TestEveryTombstoneArmIsNeeded` | — (its DDL is B1's and B2a's) |
 | B4 | text incl. M8, M12–M15, regenerate | check 3, 5, 6 | — |
 | B5 | migrate (Part B: grade motions, translations 1–2, `tombstone` → `toNoEvent`, the rows' tally; Translation 3 is B2a's) | T-B11, T-B13, T-B20, T-B21 | — |
 | B6 | fuzz (CI) | check 10 | — |
-| B7 | **only a gap's parties file; no proposal states a successor (§III.B15; amendment 7)**: record — `Motion.act` field 17 and `SIDED_WITH_FILER`/`ASSIGNEE` reserved, `motion_supersede` dropped, `sided_with`'s CHECK narrowed, the bench CTE's supersede arm gone; validate's `Motion` arm refuses a non-blue filer (L51) and a bench `Mint` (L52); the filing refused on a closed G (L53); `actingSeat` and L48's successor arm deleted; refusal and help text; carriers regenerated; the bystander drives, `bystanderSeed` and X37's gate keys deleted — every row of §III.B15's deletion list | T-B39, T-B40; T-B8, T-B14, T-B19, T-B29, T-B30 amended; check 3, 5, 6, 7, 10 | the branch's epoch + 1 (81 over today's 80; renumbered over `main` at the merge, as every phase's is), set here (L50) |
+| B7 | **only a gap's parties file; no proposal states a successor (§III.B15; amendment 7); no link past a close, estoppel binds the prescribing lens (§III.B16; amendment 8)**: record — `Motion.act` field 17 and `SIDED_WITH_FILER`/`ASSIGNEE` reserved, `motion_supersede` dropped, `sided_with`'s CHECK narrowed, the bench CTE's supersede arm gone; validate's `Motion` arm refuses a non-blue filer (L51) and a bench `Mint` (L52); the filing refused on a closed G (L53); `actingSeat` and L48's successor arm deleted; refusal and help text; carriers regenerated; the bystander drives, `bystanderSeed` and X37's gate keys deleted — every row of §III.B15's deletion list; **amendment 8**: `Close.successor` and its CHECK, `repaired_with_regression`, `amends_prior`, `TelemetryLine.repair_regression` reserved, `demand_lineage` dropped (L55), `requireSupersedable`'s closed-ancestor refusal, `assigneeSQL`'s chain step (L57), `EstoppelConflict`'s seat and every reader of it, Translation 5, the regression-close and `amends_prior` drives and the estoppel drives — every row X42–X67 | T-B39, T-B40, T-B41, T-B42, T-B43; T-B8, T-B11, T-B14, T-B16, T-B19, T-B29, T-B30, T-B35 amended; check 3, 5, 6, 7, 10 | the branch's epoch + 1 (81 over today's 80; renumbered over `main` at the merge, as every phase's is), set here (L50) |
 
 T-A3's road text names `motion docket file regrade|close` for blue, and no proposal for a lens
 (amendment 7, B7); before B7 the built text names the supersede proposal too.
@@ -2778,7 +2970,7 @@ Before the pair merges: an independent review of the built change, and the audit
 `export GOTOOLCHAIN=local`; absolute paths; read the FAIL COUNT; `uptime` before believing a timeout.
 
 1. **Proto committed.** `go -C scripts run ./protogen && git diff --exit-code -- '*record.pb.go' '*record.proto.sha256' '*decode_gen.go' '*body_gen.go'` → no diff. *Re-armed by:* `record.proto`.
-2. **Epoch.** `go -C scripts run ./schemagen && grep -n eventSchema plugins/frank-exchange-of-views/requirements.json` → `main`'s + 1 on both sides through Part A's phases, `main`'s + 2 in B1 and B2, `main`'s + 3 from B2a (L16), and the branch's epoch + 1 from B7 (L50); `schema.epoch.json` restamped with `UPDATE_GOLDENS=1` only in A1, B1, B2a and B7. *Re-armed by:* any event, table, column or view change.
+2. **Epoch.** `go -C scripts run ./schemagen && grep -n eventSchema plugins/frank-exchange-of-views/requirements.json` → `requirements.json` and `record.EventSchema` agree, and the value is the phase's own: 78 from A1, 79 from B1, 80 from B2a, 81 from B7 (each the branch's epoch + 1 at its build, L16, L50); after a merge of `main`, greater than `main`'s; `schema.epoch.json` restamped with `UPDATE_GOLDENS=1` only in A1, B1, B2a and B7. *Re-armed by:* any event, table, column or view change.
 3. **Carriers.** `go -C plugins/frank-exchange-of-views/tools run ./devcmd/vocabgen && go -C plugins/frank-exchange-of-views/tools run ./devcmd/cmdtreegen && go -C scripts run ./agentgen -check && go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen -check && go -C scripts run ./vocabdoc && git status --short` → only the phase's carriers change. *Re-armed by:* help, terms, agentgen sources, proto options.
 4. **Tests and goldens.** `go -C plugins/frank-exchange-of-views/tools test -count=1 -timeout 40m ./... 2>&1 | tee ~/.claude/scratch/1695/build/test.log | grep -c '^--- FAIL'` → 0; goldens regenerated with `UPDATE_GOLDENS=1` and every changed line read; `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs` → fail 0 (`debate.test.mjs`, `prompts.test.mjs`). *Re-armed by:* any Go, help or debate.js change.
 5. **Sweeps.** `cats.sh` hardcodes `REV=origin/main` and `OUT`, so first take a copy that reads both from the environment: `mkdir -p ~/.claude/scratch/1695/build/cat-$PART && sed -e 's#REV=origin/main$#REV=${REV:?}#' -e 's#^OUT=.*#OUT=${OUT:?}#' ~/.claude/scratch/1695/audit-p2/r2/scripts/cats.sh > ~/.claude/scratch/1695/build/cats.sh && REV=HEAD OUT=~/.claude/scratch/1695/build/cat-$PART bash ~/.claude/scratch/1695/build/cats.sh` (never over p1's or p2's outputs); then the A13/M8/M9/M12/M13/M16 commands with `HEAD` for `origin/main` (M16's for `a488cad41`) → every remaining hit is an O line of the appendix; plus
@@ -2791,8 +2983,9 @@ Before the pair merges: an independent review of the built change, and the audit
    - A13 residual, committed (audit p3-A NOTE): `git grep -n -i -w -E 'findings?|found.?by' HEAD -- plugins/frank-exchange-of-views scripts/agentgen ':!*/record/migrate/*' > ~/.claude/scratch/1695/build/a13-residual.txt` → every line is an O line of the appendix (rows A01–A13) or a generated carrier whose source holds none; the whole tree, so no file list is needed to reproduce it.
    - Tombstones: `git grep -n -E 'GetTombstone\(\)|recordpb\.Tombstone\b|TombstoneKind|TOMBSTONE_KIND|tombstone_standing|tombstone_kind_gap|"tombstone"|writeTombstones|tombstonesOwed' HEAD -- plugins/frank-exchange-of-views/tools` → the readers appendix M15 lists, and no other; `git grep -n -E 'ruling_tombstone|estoppel_tombstone' HEAD -- plugins/frank-exchange-of-views/tools` → only the JSON row fields M15 lists (no `gap_state` column, `gap_refresh` rule or `gapMarkers()` row).
    - Parties (amendment 7, phase B7): `git grep -n -E 'Motion_Supersede|motion_supersede|SIDED_WITH_FILER|SIDED_WITH_ASSIGNEE|SidedWith_SIDED_WITH_(FILER|ASSIGNEE)|ForFiler|ForAssignee|for-filer|for-assignee|requireSuccessorMintable|successorCheck|successorRefusal|standingSupersede|unwritableSuccessors|judgedLanded|judgeLanded|SuccessorPlans|actingSeat|mintActingSeat|proposeAsBystander|bystander|successor_unmintable_refused|one_proposal_refused|closed_gap_refused|motion:(lens|chair):|docket file supersede|ProposalSide' HEAD -- plugins/frank-exchange-of-views scripts/agentgen ':!*/record/migrate/*' | grep -v reserved` → empty; `feov-record motion docket --help` from the chair's and a lens's seat → no `file` verb. *Re-armed by:* `record.proto`'s `Motion` or `SidedWith`, `cli/motion/*`, `record/{proposal,freeze,benchanswer,docketing}.go`, `releasegate/fuzz/*`.
+   - Lineage past a close (amendment 8, phase B7): `git grep -n -i -E 'repaired_with_regression|REPAIRED_WITH_REGRESSION|amends_prior|AMENDS_PRIOR|closed_with_regression|superseded-by|flags\.SupersededBy|GetSuccessor\(\)|\.Successor = |demand_lineage|demandLineage|RepairRegression|repair_regression|lineage_mints|supersededBySeatAfter|ProposedCloseRefusal|proposedRegressionRefusal' HEAD -- plugins/frank-exchange-of-views scripts/agentgen ':!*/record/migrate/*' | grep -v reserved` → empty but migrate's archived-table skip and the O lines of appendix M22; `git grep -n -E 'EstoppelConflict\(' HEAD -- plugins/frank-exchange-of-views/tools` → every call passes a seat; appendix M22's command → every non-test hit a row X42–X67 or an O line.
    *Re-armed by:* any edit.
-6. **Help, read before and after, one command at a time.** A: `lens mint`, `lens close`, `dispatch`, `show work`, `inquiry`. B: `motion docket file` (each act), `motion docket accept`, `motion docket rule` (`--for-red`, `--for-blue`, `--keep`, `--restore`, remand, what each side's statement is per cause, and that a side stating nothing cannot win; no `--as`, `--accept`, `--reject`), `closing` red (its quote, new and retire, and the refusal of a pair the accept would refuse) and blue (`--as`: its five words, where admitted, and the default), the bench's surface (no `regrade`), `lens mint` (the `--supersedes` text), `lens close`, `lens regrade` (the lock: a ruled grade, not the bench's own), `declare`, `closing` both sides, `show work` (the `estopped` rows, the `assignee` and tombstone fields), `show board`, `blue edit`, `blue inquiry` and `blue retire --anchor` (what each ends), `bench outcome`'s refusal; and the prompt goldens: the lens prompt (`debate.js:912`'s assignee sentence), `prompt-judge-terminal.golden` (a side; nothing remanded), the assembly prompt. *Re-armed by:* any help source or Go help text.
+6. **Help, read before and after, one command at a time.** A: `lens mint`, `lens close`, `dispatch`, `show work`, `inquiry`. B: `motion docket file` (each act), `motion docket accept`, `motion docket rule` (`--for-red`, `--for-blue`, `--keep`, `--restore`, remand, what each side's statement is per cause, and that a side stating nothing cannot win; no `--as`, `--accept`, `--reject`), `closing` red (its quote, new and retire, and the refusal of a pair the accept would refuse) and blue (`--as`: its five words, where admitted, and the default), the bench's surface (no `regrade`), `lens mint` (the `--supersedes` text), `lens close`, `lens regrade` (the lock: a ruled grade, not the bench's own), `declare`, `closing` both sides, `show work` (the `estopped` rows, the `assignee` and tombstone fields), `show board`, `blue edit`, `blue inquiry` and `blue retire --anchor` (what each ends), `bench outcome`'s refusal; and the prompt goldens: the lens prompt (`debate.js:912`'s assignee sentence), `prompt-judge-terminal.golden` (a side; nothing remanded), the assembly prompt. Amendment 8: `lens mint` (its `--supersedes` text: own open gap only; the REOPEN and closure-stands sentences; the ESTOPPEL paragraph), `lens close` (no `--superseded-by`; no `repaired_with_regression`), `carry`, `engage`, `verify`, `reproduce`, `closing-blue --as`, `motion docket file close --as`, and the refusals of a closed-ancestor mint and of an estopped mint; the lens prompt's `debate.js:907,910`. *Re-armed by:* any help source or Go help text.
 7. **Delete-the-row**, by hand, each reverted; a row that stays green is a gap in the tests:
 
    | Delete or change | Expected red |
@@ -2828,6 +3021,9 @@ Before the pair merges: an independent review of the built change, and the audit
 | B (amendment 5): migrate's left-out ruling of an ended docketing (keep it); `refusedArgument`'s road arm (keep a road-less red closing) | T-B31, T-B26 (refusals) |
 | B (amendment 7): validate's non-blue filer refusal (L51) with the surface still narrowed; the surface mount widened back to every role with validate's refusal kept; the closed-G refusal (L53); the bench-`Mint` refusal (L52) | T-B39 (the raw row; the surface row; the closed-G row); T-B8's bench-`Mint` row |
 | B (amendment 7): `filer` restored as a row of `enum_sided_with` | T-B40's raw-row case |
+| B (amendment 8): `requireSupersedable`'s closed-ancestor arm deleted; Translation 5's link drop deleted | T-B41's closed-ancestor cases; T-B43 (an archive replays with a link past a close, or refused) |
+| B (amendment 8): `EstoppelConflict` ignoring its seat (every lens bound); `roadEstoppel` ignoring the closing's seat; the per-seat `estopped` discharge reverted | T-B42's other-lens mint; its road case; its reading-debt case |
+| B (amendment 8): the `supersedes != est.Gap` exemption restored in `requireNotEstopped` | T-B42's prescriber `--supersedes` case |
 | B (amendment 6): `benchSetAxesOf`'s re-lock (restore the 2026-10-30 lift on a bench `Regrade` of a locked axis); the fold order (ruling before the `Regrade`) | T-B36 R1→R2 row |
 | B (2026-11-21 lock span, from B3): the lock's end (the lock outliving its ruling's ending `Tombstone` row; or ending on any other row) | T-B36's reword rows |
 | B (amendment 6): L44′'s held-out arm (key on `final_sitting` alone); `awaitClosings`' held-out arm restored; `engage`'s closing-only admission of held-out blue (admit every source) | T-B37 held-out row |
@@ -2839,7 +3035,7 @@ Before the pair merges: an independent review of the built change, and the audit
    | B: `requireSupersedable`'s bench arm | T-B8 (bench Mint lands unaccepted) |
    | B: the filing refusal of a regression close | T-B2 |
    | B: any one of the 4 switched assignee reads back to `e.GetSeatId()`; a WRITER read switched to the gap's assignee; the gap view back to `e."seat_id"` | its T-B14 row on another lens's lineage successor |
-   | B: `assigneeSQL`'s ancestor arm (successor takes its writer); `demandReachSQL` back to the event seat | T-B14 / T-B8 supersede row / T-B16; T-B16 demand row |
+   | B: `assigneeSQL` reading anything but the mint event's seat (L57; its ancestor arm deleted by amendment 8) | T-B14 / T-B8 supersede row / T-B16 |
    | B: the flag's comma refusal; its repeat refusal | T-B18 (each form) |
    | B: migrate's first-ancestor translation | T-B11 `TestAMintKeepsItsFirstAncestor` |
    | B: `requireBenchOpinion` (either arm) | T-B15 |
@@ -2860,8 +3056,8 @@ Before the pair merges: an independent review of the built change, and the audit
 
    *Re-armed by:* any predicate, view or refusal change.
 8. **Full check.** `go -C scripts run ./check 2>&1 | tee ~/.claude/scratch/1695/build/check.log | tail -40` → read the fail count. It includes planguard, which plans the write-path reads amendments 5–6 add (audit p9 NOTE): L44′'s read of the latest stored plan at each act, and L45's re-plan of every standing road at each blue edit (L48's re-run is deleted by amendment 7); a walk of a growing table is fixed by an index with the epoch bump, never baselined. *Re-armed by:* every push.
-9. **Real data.** `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestEveryArchivedRun|TestALensFinding|TestNoMigratedArchive|TestAnArchivedGradeMotion|TestAnArchivedDocketBecomesADocketing|TestAnArchivedBenchWordTakesItsSide|TestACrossSeatLineageLinkDrops|TestAMintKeepsItsFirstAncestor|TestEveryArchivedGapIsAssignedTo|TestArchivedRunsCarryTheirTombstones|TestNoArchiveHoldsAThirdPartyProposal' ./internal/record/migrate/` → zero refusals, the residue counts (§III.A5; §III.B7: 8 links, 1 second ancestor, 2 engagements, 0 reassigned gaps; §III.B12: tombstones standing by kind, the estoppel differences of L24); and `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestAMigratedRecordWritesEachTombstoneOnce|TestMigrateSaysWhatBecameOfTheReportsOrder' ./internal/cli/` → pass (T-B21, a Part-B-epoch record through `feov-migrate`). After the smoke run below, `feov-migrate` its record and compare its `tombstone` rows before and after (T-B21's property on a real run); a record holding no row is NOT MEASURED, not a pass. Then `scripts/universe.sh build`; grep the staged marketplace (`$WORKDIR.marketplace/plugins/frank-exchange-of-views`) for a phrase of the change's help ("its assignee may accept it"; a phrase of `blue edit`'s help on ending a ruling's tombstone) and for `lens finding` (none). **Before `universe.sh run`:** confirm the isolated config bills the subscription — `env | grep -c '^ANTHROPIC_API_KEY='` → 0 in the universe environment, and the run's first stream-json `system/init` event has `"apiKeySource":"none"`; stop the run otherwise. One `--smoke` run on the merge candidate: no `finding` table; every docket motion stores an act and none is the dispatch's, every answered motion has exactly one `MotionRule`, every bench docket ruling names a docketing, each docketing has at most one, no bench `Regrade` stands outside the transaction of a for-blue (for-filer) answer to a regrade proposal or of `--restore` at grade movement (`moved_grades: RESTORED`), every answer at impasse carries its side's statement (`repaired` after the bench's edit of red's closing's text, else blue's closing's word, else `not_a_defect`), every non-remand ruling but one on a grade leaves its gap closed and no later answer on that gap applies a statement a standing ruling refused (T-B36's property, recomputed), no for-red or for-assignee answer applies text no closing of that side carried, every docketing written at the `FinalSitting` plan had its closings readied before the terminal bench (a docketing at the final sitting holding none is NOT MEASURED, not a pass), no proposal was filed on a docketed gap, and each was written in a sitting `benchHeld` held it in, every gap's view `assignee` is its writer, or for a mint naming an ancestor that ancestor's `assignee`, no Mint names two gaps, every non-remand bench ruling is followed in its transaction by its gap's ruling `Tombstone` row, every docketing the plans named landed, and no seat mint or proposal landed under a standing tombstone. *Re-armed by:* the merge candidate.
-10. **CI only — release fuzz.** On the PR's final head (both PRs' when stacked), the four `release-fuzz` parts and `release-fuzz-tally` show every gate of §III.A6 and §III.B9 (less §III.B15's X37 keys), every oracle at zero. *Re-armed by:* the merge candidate.
+9. **Real data.** `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestEveryArchivedRun|TestALensFinding|TestNoMigratedArchive|TestAnArchivedGradeMotion|TestAnArchivedDocketBecomesADocketing|TestAnArchivedBenchWordTakesItsSide|TestACrossSeatLineageLinkDrops|TestAMintKeepsItsFirstAncestor|TestEveryArchivedGapIsAssignedTo|TestArchivedRunsCarryTheirTombstones|TestNoArchiveHoldsAThirdPartyProposal|TestNoArchiveKeepsALinkPastAClose' ./internal/record/migrate/` → zero refusals, the residue counts (§III.A5; §III.B7: 8 links, 1 second ancestor, 2 engagements, 0 reassigned gaps; §III.B12: tombstones standing by kind, the estoppel differences of L24); and `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestAMigratedRecordWritesEachTombstoneOnce|TestMigrateSaysWhatBecameOfTheReportsOrder' ./internal/cli/` → pass (T-B21, a Part-B-epoch record through `feov-migrate`). After the smoke run below, `feov-migrate` its record and compare its `tombstone` rows before and after (T-B21's property on a real run); a record holding no row is NOT MEASURED, not a pass. Then `scripts/universe.sh build`; grep the staged marketplace (`$WORKDIR.marketplace/plugins/frank-exchange-of-views`) for a phrase of the change's help ("its assignee may accept it"; a phrase of `blue edit`'s help on ending a ruling's tombstone) and for `lens finding` (none). **Before `universe.sh run`:** confirm the isolated config bills the subscription — `env | grep -c '^ANTHROPIC_API_KEY='` → 0 in the universe environment, and the run's first stream-json `system/init` event has `"apiKeySource":"none"`; stop the run otherwise. One `--smoke` run on the merge candidate: no `finding` table; every docket motion stores an act and none is the dispatch's, every answered motion has exactly one `MotionRule`, every bench docket ruling names a docketing, each docketing has at most one, no bench `Regrade` stands outside the transaction of a for-blue (for-filer) answer to a regrade proposal or of `--restore` at grade movement (`moved_grades: RESTORED`), every answer at impasse carries its side's statement (`repaired` after the bench's edit of red's closing's text, else blue's closing's word, else `not_a_defect`), every non-remand ruling but one on a grade leaves its gap closed and no later answer on that gap applies a statement a standing ruling refused (T-B36's property, recomputed), no for-red or for-assignee answer applies text no closing of that side carried, every docketing written at the `FinalSitting` plan had its closings readied before the terminal bench (a docketing at the final sitting holding none is NOT MEASURED, not a pass), no proposal was filed on a docketed gap, and each was written in a sitting `benchHeld` held it in, every gap's view `assignee` is its writer, or for a mint naming an ancestor that ancestor's `assignee`, no Mint names two gaps, every non-remand bench ruling is followed in its transaction by its gap's ruling `Tombstone` row, every docketing the plans named landed, and no seat mint or proposal landed under a standing tombstone. *Re-armed by:* the merge candidate.
+10. **CI only — release fuzz.** On the PR's final head (both PRs' when stacked), the four `release-fuzz` parts and `release-fuzz-tally` show every gate of §III.A6 and §III.B9 (less §III.B15's X37 keys), §III.B16's `estoppel_other_lens_admitted` and the `engage` gate fed by an own supersede, every oracle at zero. *Re-armed by:* the merge candidate.
 11. **Auditor gate.** `/prosthetic-conscience:plan-audit`.
 
 ## VI. Forks
@@ -2881,7 +3077,7 @@ Before the pair merges: an independent review of the built change, and the audit
 | Owner from the chain | The successor's assignee is its chain's first minter; no `Mint` field; fresh exchange. gblock: "Every minted thing should pop by back at the originating conversation shouldn't it?" | 2026-11-13 |
 | L5 | On the bench's supersede accept, the checks a mint takes by seat run against G's assignee **Withdrawn by amendment 7**: the bench writes no `Mint`; `actingSeat` is deleted. | 2026-11-13 |
 | F-B2 | The assignee's accept records `accepted` and the act, no opinion fields; the four bind bench rulings only (the field is `sided_with` from amendment 4, L32) | 2026-11-13 |
-| F-B3 | The chain's origin always, a seat's own `mint --supersedes` of another lens's closed gap included; migration translates and states the residue (§III.B7) A seat's `--supersedes` of another lens's closed gap is F-CS, open (amendment 7). | 2026-11-13 |
+| F-B3 | The chain's origin always, a seat's own `mint --supersedes` of another lens's closed gap included; migration translates and states the residue (§III.B7) A seat's `--supersedes` of another lens's closed gap is F-CS, open (amendment 7). **Amendment 8:** no seat names a closed ancestor (F-CS ruled), so every chain is its writer's own and the origin is the writer (L57). | 2026-11-13 |
 | Bench reject | accept \| reject \| remand; remand limit unchanged. gblock: "I don't know that limiting the judge is wise?" (amended 2026-11-21 by "Winner's statement applies": siding with a side that stated nothing is refused, so a reject does not land on every path) | 2026-11-13 |
 | One ancestor | `Mint.supersedes` names one gap; no merge operator. gblock: "Perhaps we shouldn't allow superseding more than one gap? Or is this the *merge* operator???" | 2026-11-13 |
 | Bench-accepted supersede | **Fix the reader**: `gap_state` counts the closing written from a bench-accepted supersede proposal as the bench's close; no `superseded` disposition (L12 withdrawn) (§III.B4) **Withdrawn by amendment 7**: the arm is deleted with the supersede proposal. | 2026-11-13 |
@@ -2922,7 +3118,11 @@ Before the pair merges: an independent review of the built change, and the audit
 | Fix and approve now | Picked (audit p9): fold the three picks, p9's three local gaps and its NOTES; carry what remains as required tests; start B2a without another audit; an independent code review follows the build (§VI amendment 6) | 2026-11-21 |
 | A Close ends a docketing | Relayed by peer #1830 (their P12, gblock's ruling, not verified against their RULINGS): the record's moot close on a pure cut is a real `Close` event (disposition `moot`) in the cutting edit's transaction, in P12b after this change → a docketing ends, unruled, at any non-carry `Close` of its gap written after it; no moot-specific path (§III.B14, T-B34, L42) | 2026-11-20 |
 | Own gap only (amendment 7) | Picked (option wording the agent's; RULINGS.md "2026-11-23 — successors"): the supersede proposal goes with its stored successor, L48 (`requireSuccessorMintable`), the freeze on successor inputs, the bystander refusals and the `FILER`/`ASSIGNEE` sides and flags; only a gap's two parties — its lens and blue — file on it; there is no third party, and the bench never chooses between red lenses. Scope, by the lead the same day: no mint-time restriction on `--supersedes` (F-CS). It also removes the chair's and other lenses' close and regrade proposals, and the "My gap stands" pick of earlier that day, unwritten (§III.B15) | 2026-11-23 |
-| Ancestor (amendment 7) | gblock typed: "depends on the reason" → picked: own-gap lineage keeps it (regression carry-forward and self-correction); another lens's closed ancestor is F-CS | 2026-11-23 |
+| Ancestor (amendment 7) | gblock typed: "depends on the reason" → picked: own-gap lineage keeps it (regression carry-forward and self-correction); another lens's closed ancestor is F-CS **Narrowed by amendment 8**: own-gap lineage is the amendment of an OPEN gap only; regression carry-forward after a close is a new gap with no link | 2026-11-23 |
+| New gap; supersedes = own amend (amendment 8) | Picked (option wording the agent's; RULINGS.md "2026-11-23 — successors"): a defect found after a close is an ordinary gap by any lens, with no link; `--supersedes` only for a lens rewording its OWN OPEN gap; drops `Close.successor`, `repaired_with_regression`, `amends_prior` and the estoppel escape through `--supersedes`. gblock typed: "How is it not just another gap? What was the source of the problem? How do we fix the problem at the source??? Why does it happen at all?" Resolves F-CS, F-AP, F-BS (§III.B16) | 2026-11-23 |
+| Only the prescribing lens (amendment 8) | Picked: verbatim-accept estoppel bars only the lens that wrote the applied text; any other lens mints an ordinary gap on it; ruling tombstones still bar both sides (L18 reversed) | 2026-11-23 |
+| Wait, then mint (amendment 8) | Picked: a non-party lens does nothing on another lens's open gap; after the close, if the defect remains, any lens mints a new gap; no new mechanism. Answers F-AR | 2026-11-23 |
+| File both, after #1889 (amendment 8) | Picked: premature or narrow closure (closure strength) and an inquiry re-fate that undoes a closure with no link become issues outside #1889: filed as #1930 and #1931 | 2026-11-23 |
 
 ### Lead calls, disclosed (not ruled; each reversible plan wording)
 
@@ -2932,11 +3132,11 @@ Before the pair merges: an independent review of the built change, and the audit
 | L2 | A proposed regrade that moves no axis of G as it stands is refused at filing | §III.B2 | letting it file; the accept's own check still refuses it |
 | L4 | The chain's origin is computed into `gap_state.assignee` at the gap's refresh (the #1794/#1810 pattern): one key step, no recursion, no Go statement of the rule, no proto field | §III.B4a | a recursive CTE per read, or a Go fold beside the SQL; R6 returns |
 | L7 | The bench's ruling of docketing D is admitted exactly when `benchHeld` holds D; its docket arm holds the standing docketings on the gaps the convening rows name and a `PROPOSAL` docketing's own `motion_id`, and `benchSatFor` keys on the docketing (amended 2026-11-20 twice: from B2's "filed before the dispatch that convened the sitting", then, by L38, no proposal filed on a docketed gap is held at all) | §III.B5, §III.B13 | holding proposals filed in the closing sitting (amendment 1's arm), with L38 reversed |
-| L8 | `Close.successor` (`--superseded-by`) stays: it names only a regression | §III.B0a | deleting it with its five readers |
-| L13 | A close proposal `--as repaired_with_regression` is refused at filing: its required `successor` is a lineage fact the bench's ruling cannot carry | §III.B2 | a `successor` field on `DocketRuling` |
+| L8 | `Close.successor` (`--superseded-by`) stays: it names only a regression **Withdrawn by amendment 8** ("New gap; supersedes = own amend"): `Close.successor` and `repaired_with_regression` are deleted; a regression after a close is a new gap (§III.B16, X43) | §III.B0a | deleting it with its five readers (taken) |
+| L13 | A close proposal `--as repaired_with_regression` is refused at filing: its required `successor` is a lineage fact the bench's ruling cannot carry **Withdrawn by amendment 8**: the value is reserved, so the enum refuses it everywhere (X56) | §III.B2 | a `successor` field on `DocketRuling` |
 | L15 | `reopens_on`/`final` stay on closing rulings as the bench's stated opinion, rendered on the `estopped` row; no check reads them. Their teaching text moves to the new model in M15: the `--reopens-on` why-text (`record.proto:1983`, `record.go:1397`) and `verbs.go:344` say what the bench forecasts would change its outcome, and that what ends the bar on the record is blue's reword of the ruled gap's sentence, its reword or retire of the anchor the gap is about, or its next fate of the inquiry the gap is about | §I, §III.B12 | deleting both fields with their CHECK and readers |
-| L16 | Three epochs: Part A takes `main` + 1 in phase A1, Part B `main` + 2 in phase B1 and `main` + 3 in phase B2a (amended 2026-11-20: B1's stamp was built before the docketing ruling, and `TestEveryDDLChangeBumpsTheEpoch` refuses a same-epoch restamp); every DDL change lands in one of those three phases, so `schema.epoch.json` is restamped with `UPDATE_GOLDENS=1` once per such phase and no stamp file is deleted. No record outside the branch's tests holds `main` + 2. `feov-migrate` translates any archived source to the binary's epoch, keyed on the source's shape as today; Part A's and Part B's translations are separate entries, one per change | §V, R17 | one epoch for both parts, with a later phase's restamp by deleting the stamp |
-| L18 | Estoppel binds every red lens, as today (`estoppel.go:111-114`), with its containment test over the prescribing gap's `fix_new`: whom the bar binds is unchanged (when it ends is L24) | §III.B12 | binding only the prescription's acting seat |
+| L16 | **Each DDL phase takes the branch's epoch + 1 at its build** (amended 2026-11-23 by amendment 8; the earlier "`main` + 1, + 2, + 3" stopped being true when `main` moved): A1 stamped 78, B1 79 and B2a 80 over `main`'s 77; `main` has since reached 79 (merged into the branch at `5dfbb7750`, the branch keeping 80), so the branch's 78 and 79 are not `main`'s; B7, building amendments 7 and 8, takes 81. Every DDL change lands in one of those phases, so `schema.epoch.json` is restamped with `UPDATE_GOLDENS=1` once per such phase and no stamp file is deleted. A merge of `main` keeps the branch's epoch greater than `main`'s (renumbered over `main`'s if `main` reaches it). No record outside the branch's tests holds a branch epoch. `feov-migrate` translates any archived source to the binary's epoch, keyed on the source's shape as today; each translation is its own entry, one per change | §V, R17 | one epoch for both parts, with a later phase's restamp by deleting the stamp |
+| L18 | Estoppel binds every red lens, as today (`estoppel.go:111-114`), with its containment test over the prescribing gap's `fix_new`: whom the bar binds is unchanged (when it ends is L24) **Reversed by amendment 8** ("Only the prescribing lens", ruled): the bar binds only the prescribing gap's writer (`minterOf`), at the mint, at red's closing road (L43) and at a standing reading's discharge; any other lens audits the applied text as any text; ruling tombstones still bar both sides (§III.B16, X57, X58) | §III.B12 | binding only the prescription's acting seat (taken) |
 | L19 | Two reads of a Mint keep the writer: the retry key (`replay.go:413`) and a sitting's productivity (`retirement.go:298`), since both key on the event's own sitting, which on a bench accept is the bench's **Amendment 7:** with the bench writing no `Mint`, every read of a Mint keeps the writer; the exception this call carved is gone. | §III.B4a | crediting the assignee's productivity for an act in another seat's sitting |
 | L20 | The gap state's bench CTE knows the bench's accept from the assignee's by the ruling's seat against G's stored assignee (the ruler check admits only those two); Go folds key the same fact on the ruling seat's role | §III.B4 | a stored ruler field on `DocketRuling` |
 | L21 | A ruling tombstone on a `section` gap, or on a quote gap whose token is gone or bare — at the ruling, or by a later cut (Cut, picked) — is read by the proposal arm only: a section is no subject of the one-gap rule (`onegapperclass.go:38-39`) and a gone or bare token stands in no sentence a mint can quote, so a same-class mint about that section lands (archive: 0 section rulings) | §III.B12 | barring a mint of its class with the same `about_ref`, for the run |
@@ -2966,10 +3166,14 @@ Before the pair merges: an independent review of the built change, and the audit
 | L47 | **Archived acts B2a refuses are written as no event, migrate-local**: the 16 rulings naming a docketing a `Close` ended (beside `actOnSupersededGap`'s left-out ruling), and the 26 closings `refusedArgument` meets (L37's road on 13 red; no standing docketing for 2 red and 9 blue), residue stated (11-03: drop and live with it) | §III.B14 | an archived-shape tolerance in validate (a compatibility path; not offered) |
 | L48 | **A supersede proposal's successor is checked mintable at the filing, and its inputs held to the ruling** (amendment 6, picked 2026-11-21 "Check the mint at filing", option wording the agent's; audit p9 gap 1): `requireSuccessorMintable` runs every check the successor's mint write runs at the bench (judgeAct's and validate's Mint arms, the three verb guards) against G's assignee, at the filing and again at the ruling — one function; while M stands the freeze re-runs it after every act that moves an input (blue's edit and retire, a verbatim edit placing an estoppel row, the assignee's own `verify`, `reproduce` and `mint`) and refuses the act after which it fails, naming M; a bystander's act (another lens's mint, a ruling's tombstone) can fail it unjudged, and the filer's side is then refused (gblock 2026-11-23, "Bench sides other way") **Withdrawn by amendment 7** (2026-11-23, "Own gap only"): the supersede proposal, `requireSuccessorMintable`, the successor arm (`judgeLanded`, `unwritableSuccessors`) and the "Bench sides other way" pick are deleted (§III.B15, X8). | §III.B2, §III.B14 | accept the residue (a supersede docketing whose successor the record refuses stays unruled with no red text); a side-alone fallback (reopens "Winner's statement applies", not offered) |
 | L49 | **A red closing may state no text, stored** (amendment 6, audit p9 gap 5; confirmed 2026-11-21, picked "Yes, --no-text", option wording the agent's): where `PlanAccept` or a standing estoppel row refuses every road red can state, `closing-red --no-text` files the closing with `Closing.no_text = 7` set and no road; validate requires exactly one of a road and `no_text` on a red closing whose docketing's question takes text, so migrate's drop of archived road-less closings stands; every closing-duty reader reads it filed, so no party is blocked or held missing for a closing no input admits; the help teaches the road first (gblock typed 2026-11-20, "Shouldn't red *always* provide the text?") | §III.B14 | the duty marked non-blocking where no road plans (the tool cannot decide that over free text: a miss reads as a clean zero); a verb-only flag (the record would admit a road-less closing, moving migrate's L37/L47 counts) |
-| L50 | **Amendment 7 builds in a new phase, B7, at the branch's epoch + 1** (81 over today's 80): B7 changes DDL (`motion_supersede` dropped, `sided_with`'s CHECK narrowed, the bench CTE arm), and `TestEveryDDLChangeBumpsTheEpoch` refuses a same-epoch restamp of B2a's stamp; no record outside the branch holds B2a's epoch (L16), so no translation is owed | §III.B15, §V | folding the deletion into B2a's epoch by rewriting B2a's commits (history rewrite on a pushed branch) |
+| L50 | **Amendment 7 builds in a new phase, B7, at the branch's epoch + 1** (81 over today's 80): B7 changes DDL (`motion_supersede` dropped, `sided_with`'s CHECK narrowed, the bench CTE arm), and `TestEveryDDLChangeBumpsTheEpoch` refuses a same-epoch restamp of B2a's stamp; no record outside the branch holds B2a's epoch (L16), so no translation is owed. Amendment 8 builds in the same phase at the same epoch (its DDL: `close.successor`, `motion_close.successor`, the CHECK, `enum_disposition`'s two rows, `demand_lineage`), and its one translation (Translation 5) is for archived records | §III.B15, §V | folding the deletion into B2a's epoch by rewriting B2a's commits (history rewrite on a pushed branch) |
 | L51 | **The filer is checked at the write as well as by the surface**: `motion docket file` is mounted for blue alone, and validate's `Motion` arm refuses a docket `Motion` whose seat's role is not blue, naming G's parties and the refused seat's roads — the surface alone leaves a raw `Append` and a replay unguarded | §III.B15 | the surface mount alone |
 | L52 | **A bench `Mint` is refused outright**: `requireBenchSuccessor` becomes the refusal of a `Mint` whose writer's role is `bench`, live and on replay; the bench mounts no mint verb, but the replay sees only the writer's seat | §III.B15 | no check (the surface alone) |
-| L53 | **No proposal is filed on a closed G**: F8 admitted only a supersede there, which amendment 7 deletes; the refusal names G's closure and the assignee's successor mint as the road that reopens it | §III.B15 | — (follows from the ruling; reverses only with F-BS (b)) |
+| L53 | **No proposal is filed on a closed G**: F8 admitted only a supersede there, which amendment 7 deletes; the refusal names G's closure, and that a defect still in the report after it is a new gap with no link (amendment 8) | §III.B15 | — (follows from the ruling; F-BS ruled (a)) |
+| L54 | **Translation 5 is one translation in three parts** (§III.B16): drop a link whose ancestor is closed at the successor's place (read through `q`, as Translation 2), drop the archived `successor` columns by a registry entry, respell `repaired_with_regression`/`closed_with_regression` as `repaired`; an archived `amends_prior` is left unmapped so it would be refused loudly (0 measured; T-B43) | §III.B16 | a translation per part; mapping `amends_prior` to `repaired` silently |
+| L55 | **`demand_lineage` is deleted, not kept with self rows only**: with no link past a close and the demand not passing (the ruling drops non-self rows), the table holds (G, G) for every gap — a stored copy of the gap id — so the table, its four triggers and index go and `demand_reach` reads the gap's own anchors; `evidenceCheckIndexesSQL` moves to `schema.go` | §III.B16, X49 | keep the table with its mint trigger alone (an identity table) |
+| L56 | **The board telemetry's `repair_regression` goes**: it divides lineage mints by closures, and after amendment 8 a lineage mint is a lens's amendment of its own open gap, never a regression; "Durable repairs" would report restatements as repair failures. `TelemetryLine.repair_regression = 8` is reserved, `RepairRegression` deleted, the scorecard row and `lead-judge.md:110`'s sentence go; `EdgeDeltas` stays | §III.B16, X45 | keep it renamed as a restatement rate (a new metric nobody asked for); keep it as is (mislabelled) |
+| L57 | **`assigneeSQL` reads the mint event's seat; its chain step goes**: every ancestor a mint can name is its writer's own open gap, so the ancestor's stored assignee is the writer; the column, its name and every assignee reader stay | §III.B4a | keep the chain step (the same answer by a longer read, and a rule nothing exercises) |
 
 L3, L6, L9, L10, L11, L12, L14, L22, L25 and L26 are withdrawn, and L27 is ruled (above): double jeopardy supersedes L3; the assignee
 ruling settles L9, L11 and L14; the reader fix replaces L12; the 2026-11-14 picks replace L10 and L22;
@@ -3250,7 +3454,7 @@ successor arm.
 (7 + 5 + 4, O2) and Translation 2 the 16 cross-seat lineage links. `TestNoArchiveHoldsAThirdPartyProposal`
 holds it.
 
-**Open forks for gblock** (none ruled; each recommendation is the lead's):
+**Forks raised by amendment 7** — each ruled by amendment 8 (below; RULINGS.md "2026-11-23 — successors"): F-CS (b) own chain only, and narrower — no closed ancestor for any seat; F-AR "Wait, then mint", none of (a)–(d); F-BS (a); F-AP (a). The rows are the question as it was put:
 
 | # | Question | Options and consequences |
 |---|---|---|
@@ -3264,4 +3468,57 @@ placements (the successor arm, `judgeLanded`, and the arm's admission of a verba
 estoppel row over a successor's quote). It must be told, before B7 lands, that L48 and the successor arm
 are deleted, that the freeze holds red's closing road alone (L45), and that `--for-filer` /
 `--for-assignee` and `SIDED_WITH_FILER` / `ASSIGNEE` are gone. Route: `telepathy search 1830`, then
+`telepathy send` (AGENTS.md).
+
+### Amendment 2026-11-23 (8) — successor lineage ends at a close; estoppel binds the prescribing lens
+
+**Ruled** (RULINGS.md "2026-11-23 — successors", the entry that supersedes an earlier same-day draft;
+picks "New gap; supersedes = own amend", "Only the prescribing lens", "Wait, then mint", "File both,
+after #1889", option wording the agent's; gblock's typed questions are quoted there and in the Ruled
+rows above). Evidence: `successor-audit.md` (85 uses; 31 minted on a closed ancestor, the reopen route;
+16 cross-lens, all on closed gaps; 21 a lens amending its own open gap), `anchor-reopen-measure.md`
+(reopen-on-anchor-edit fires before 3 of 24 measurable closed-ancestor successors at about 13%
+precision; the source is premature or narrow closure and inquiry re-fates), `successor-archaeology-git.md`.
+m35's two "orphan" `repaired_with_regression` rulings were not orphans (the bench named G-86478f5a as
+carrier); "Owe it to the lens" is withdrawn.
+
+**Folded:** §III.B16 (the model, what stays, X42–X67, Translation 5, T-B41–T-B43, the release fuzz);
+the header; §I's rulings and out-of-scope; §II.4's measurement row; §II.5 (minter and assignee never
+differ); §III.A2 (`requireSupersedable`'s closed-ancestor refusal; the voice case); §III.B0a (the 53
+disputes; `Close.successor` goes); §III.B2's table (F8, the `repaired_with_regression` row); §III.B4a
+(no writer-assignee split; T-B14 narrowed); §III.B7 (Translation 5's pointer); §III.B11's
+`demand_lineage` note; §III.B12's estoppel guard; §III.B14's applied-edit estoppel, closing words and
+T-B35; §III.B15 (the closed-ancestor scope, the not-residue answer, what stays, the estoppel refusal,
+`debate.js:910`, migration); §III.C's M22; R17, R31, R33–R35; phase B7 and checks 2, 5, 6, 7, 9, 10;
+the Ruled rows F-B3 and the four picks; lead calls L8 and L13 withdrawn, L16 and L18 rewritten, L50,
+L53; new L54–L57.
+
+**Amendment 7's concern answered — the 53 of 70 misstatement disputes are not residue.** Amendment 7
+read "a lens that disagrees with how G states its defect argues and does not file" as leaving those
+disputes with no road (R31). Under amendment 8 each has one: G's own lens amends its open gap
+(`--supersedes` is that act, and the archive shows it used so 21 times, 17 voice-driven), and where
+G's lens does not, blue's word — `not_a_defect` in its close proposal, or its closing at G's impasse —
+puts the dispute before the bench, which sides. A third lens does nothing while G is open and mints its
+own gap after G closes if the defect remains; the misstatement in G's own text stops printing at G's
+close (the risk matrix prints open gaps only).
+
+**Filed, outside #1889's scope:** #1930 (premature or narrow closure — closure strength) and #1931
+(an inquiry re-fate undoes a closure with no link to the gap). Neither is a dependency of B7.
+
+**Not closed by the rulings, stated for gblock:** the prescribing lens has no road on its own
+verbatim-applied text when the prescription itself is the defect (PRESCRIPTION-WRONG: 9 archived, 4
+found by the prescribing lens itself — `merge` ×2, voice U74, U75 — and 8 of the 9 after the
+ancestor's close): while its gap is open, its own `--supersedes` quoting that text is estopped (the
+escape is deleted), and once it is closed the text stands for it; only another lens can raise it. The
+plan builds the ruling as written (T-B42 pins it).
+
+**Migration:** Translation 5 (§III.B16): closed-ancestor links dropped, archived `successor` columns
+dropped, `repaired_with_regression` respelled `repaired`, `amends_prior` refused if ever met (none
+measured). Translations 2–4 did not cover it: Translation 2 drops cross-seat links only, Translation 4
+rewrites only the bench's word, and `eraentries.go:22` mapped the round era's word to the one this
+amendment reserves. Residue stated in §III.B16 and counted by T-B43.
+
+**Notify a peer.** PR #1830 (P12b) reads the estoppel row and red's closing road; it must be told
+before B7 lands that `EstoppelConflict` takes the minting seat and that `--superseded-by`,
+`repaired_with_regression` and `amends_prior` are gone. Route: `telepathy search 1830`, then
 `telepathy send` (AGENTS.md).
