@@ -649,6 +649,11 @@ type runner struct {
 	// sweep gates each count at zero.
 	lockRefused      int
 	forceBenchOrders bool
+	// forceBystander is bystanderSeed's run: every lens and chair sitting that finds a gap to propose on
+	// files, and the assignee leaves those proposals to the bench (bystander_test.go).
+	forceBystander bool
+	// bystanderFiled counts this run's bystander filings, by filer role.
+	bystanderFiled map[string]int
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -5983,6 +5988,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// THE VERDICT IS THE PASS ALONE: a sitting that records none relays no verdict. Where its
 		// plan permitted the PASS and the gate refused it, the position is still owed.
 		r.chairPosition(seatID, permitted)
+		// A CHAIR WHOSE PLAN HOLDS THE PASS PROPOSES ON A GAP: one that permits it ends the debate.
+		if !permitted {
+			r.proposeAsBystander(seatID)
+		}
 		return r.chairEnvelope(seatID, false, "", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond") && strings.Contains(prompt, closingsOnlyClause),
@@ -6602,6 +6611,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if strings.HasPrefix(seatID, "red-lens") {
 			r.aboutGapRefusedDrive(seatID)
 			r.disputeMovedGap(seatID)
+			r.proposeAsBystander(seatID)
 		}
 		r.dischargeOwed(seatID)
 		// A COMPUTATION JUDGED UNSOUND AFTER answerFailed RAN — a reopened computation re-run, one the owner was
@@ -7352,6 +7362,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceLifecycle = seed == lifecycleSeed
 	r.forceStaleness = slices.Contains(stalenessSeeds, seed)
 	r.forceBenchOrders = seed == benchOrdersSeed
+	r.forceBystander = seed == bystanderSeed
 	r.forceParts = seed == partsSeed
 	r.maxEpochs = runEpochLimit(seed)
 	if seed == limitSeed {

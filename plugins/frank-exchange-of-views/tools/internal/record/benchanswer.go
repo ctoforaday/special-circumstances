@@ -334,6 +334,14 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 // the anchor's retire where the road is a retire, else the edit blue's `edit --accept` makes of the
 // pair, its span the one record.ProposalOver plans on the report as it stood before the edit.
 func requireRoadApplied(q recordsql.Querier, p Positions, texts []benchAct) error {
+	// A RETIRE ROAD ALREADY DONE: the anchor's retire matches red's text, and the freeze admits it, so
+	// the answer for red applies nothing more.
+	if len(texts) == 0 && p.Road.GetRetire() {
+		_, retired, err := anchorRetiredAt(q, p.AboutRef)
+		if err != nil || retired {
+			return err
+		}
+	}
 	if len(texts) != 1 {
 		return feov.Errorf(feov.Validation, "--for-%s applies red's text on %s as one bench act before the ruling — the edit or the retire its closing states — and the record holds %d. Nothing was recorded", recordpb.Word(p.TextSide), p.GapID, len(texts))
 	}

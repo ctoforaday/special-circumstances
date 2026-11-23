@@ -184,7 +184,7 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 		_, err := record.AppendActs(s.Identity(), record.Act{Body: r}, ruling)
 		return err
 	case side != 0 && side == p.TextSide && p.Stated(side):
-		return applyText(s, p, ruling, opinion)
+		return applyText(s, run, p, ruling, opinion)
 	case side != 0 && side == p.FilerSide:
 		switch p.Act.(type) {
 		case *recordpb.Regrade, *recordpb.Mint:
@@ -200,8 +200,17 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 // pair, planned on the report the write lands on. The freeze holds it as it holds blue's edit: where
 // another docketing's or proposal's road no longer plans on the report it leaves, it is refused naming
 // that one (blue.BenchRoadsHold).
-func applyText(s seat.Context, p record.Positions, ruling record.Act, opinion string) error {
+func applyText(s seat.Context, run record.Run, p record.Positions, ruling record.Act, opinion string) error {
 	if p.Road.GetRetire() {
+		// RED'S TEXT ALREADY STANDS: a retire of the anchor its road retires matches it, and the freeze
+		// admits it (blue.roadPlans), so the answer for red writes its ruling alone.
+		if _, retired, err := record.AnchorRetiredAt(run, p.AboutRef); err != nil || retired {
+			if err != nil {
+				return err
+			}
+			_, err := record.AppendActs(s.Identity(), ruling)
+			return err
+		}
 		rt := &recordpb.Retire{Reason: proto.String(opinion), Answers: proto.String(p.GapID)}
 		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef)), blue.BenchRoadsHold}}, ruling)
 		return err

@@ -258,12 +258,6 @@ type Road struct {
 // supersede proposal's stored quote.
 func (l *Landing) StandingRoads() ([]Road, error) { return standingRoadsAt(l.w.q) }
 
-// AnchorLive reports whether ref is an anchor no retire has taken, on the record the write lands on.
-func (l *Landing) AnchorLive(ref string) (bool, error) {
-	err := requireAboutAnchorLive(l.w.q, recordpb.AboutKind_ABOUT_KIND_ANCHOR, ref)
-	return err == nil, nil
-}
-
 // standingRoadsAt is StandingRoads asked of q.
 func standingRoadsAt(q recordsql.Querier) ([]Road, error) {
 	evs, win, err := eventsAt(q)

@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A PROPOSAL PROPOSES ONE ACT on its gap — a regrade, a close or a supersede — and its assignee accepts
@@ -248,13 +249,17 @@ func (r *runner) exchangeOn(t *testing.T) {
 // acceptProposal is gapID's assignee, seatID, accepting the act the docket motion standing on it
 // proposes: `motion docket accept`, which applies the act as filed. A gap with no motion standing has
 // nothing to accept.
+//
+// IN ITS WINDOW ONLY, AND COUNTED AS THE DRAWN ACCEPT IS (acceptAsAssignee): once a docketing holds the
+// proposal it is the bench's.
 func (r *runner) acceptProposal(seatID, gapID string) {
+	if len(r.standingDocketings(gapID)) > 0 {
+		return
+	}
 	for _, m := range r.unruledDocketMotions(gapID) {
-		if act, _, _ := r.actOf(m); act == "" {
-			continue
+		if act, _, _ := r.actOf(m); act != "" {
+			r.acceptAsAssignee(seatID, gapID, m, act)
 		}
-		r.admitFresh(gapID, "motion", "docket", "accept", "--seat-id", seatID, "--id", m,
-			"--reason", "fuzz: the proposed act on "+gapID+" is right, taken as filed")
 	}
 }
 
@@ -265,13 +270,20 @@ func (r *runner) acceptProposal(seatID, gapID string) {
 // docket. An accept the record admits is counted by the act it applied (assignee_accepts:<act>); one the
 // act's own checks refuse — the record has moved since the filing — is counted as such
 // (accepts_refused:<act>), the proposal then the bench's. Any other refusal fails the run.
+//
+// ONLY A DOCKETING KEEPS IT FROM THE ASSIGNEE: the proposal it answers stands unruled on the gap, which
+// beforeTheBench counts too, so that read would leave every proposal unanswered.
 func (r *runner) assigneeAnswers(seatID, gapID string) {
-	if r.beforeTheBench(gapID) {
+	if len(r.standingDocketings(gapID)) > 0 {
 		return
 	}
 	for _, m := range r.unruledDocketMotions(gapID) {
 		p, found, err := record.DocketProposalOf(r.run(), m)
 		if err != nil || !found || p.Assignee != seatID {
+			continue
+		}
+		// bystanderSeed's run leaves a bystander's proposal to the bench (proposeAsBystander).
+		if r.forceBystander && seatclass.RoleOfSeat(p.Filer) != "blue" {
 			continue
 		}
 		if act := record.ActWord(p.Motion); act != "" && r.coin(50) {

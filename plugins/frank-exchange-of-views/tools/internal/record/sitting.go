@@ -119,6 +119,8 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 type sittingReads struct {
 	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
+	// frozen: why the freeze holds every remedy of blue's for an evidence anchor (frozenIn).
+	frozen unverifiableFunc
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
 	// closingsOnly: the seat sits for its closings alone — a party in the final epoch, or blue in the
@@ -385,6 +387,15 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 			case b.Kind == BlockerFailedCheck && seatID == blueRespondSeat:
+				// OWED BUT FROZEN DOES NOT BLOCK (gblock 2026-11-23): where the freeze refuses every remedy
+				// of blue's, no act of blue's clears the item before the ruling, so it does not hold the
+				// sitting or its envelope; it still holds the PASS, as the gate reads it.
+				if reads.frozen != nil {
+					if why := reads.frozen(b.Subject); why != "" {
+						s.Open = append(s.Open, b.asItem(blueFailedItem(b)+" — "+why+": it does not hold your sitting until that ruling; it still holds the PASS", false))
+						continue
+					}
+				}
 				s.Open = append(s.Open, b.asItem(blueFailedItem(b), true))
 			}
 		}

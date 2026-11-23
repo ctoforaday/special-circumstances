@@ -436,20 +436,19 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 	}
 	// A DOCKET COMES AFTER THE LENS'S SITTING, read off the record's sittings and not through the fold
-	// that holds it back. Only what this dispatch filed: `docket` also names every motion already standing,
-	// and a party's filing is not the dispatch's order. The dispatch's motions are the tail of the record,
-	// written since the chair last opened a sitting.
+	// that holds it back. Only what this dispatch wrote: the dispatch's docketings — the tool's rows, no
+	// seat's motion — are the tail of the record, written since the chair last opened a sitting.
 	after := 0
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		e := b.Events[i]
 		if _, opens := b.At.Opens(e); opens || e.GetSeatId() != "red-chair" {
 			break
 		}
-		m, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok || m.GetDocket().GetGapId() == "" {
+		m, ok := recordpb.BodyAs[*recordpb.Docketing](e)
+		if !ok || m.GetGapId() == "" {
 			continue
 		}
-		gap := m.GetDocket().GetGapId()
+		gap := m.GetGapId()
 		lens := minter[gap]
 		if seatclass.RoleOfSeat(lens) != "lens" {
 			continue
@@ -462,7 +461,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		case sat:
 			after++
 		case turnCame(lens, gap):
-			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch filed %s on %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer: %s", m.GetMotionId(), gap, lens, witness(gap)))
+			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch wrote docketing %s on %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer: %s", m.GetDocketingId(), gap, lens, witness(gap)))
 			return
 		}
 	}

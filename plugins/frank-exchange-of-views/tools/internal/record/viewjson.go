@@ -1046,6 +1046,9 @@ type workReads struct {
 	// estoppelsStandingAt).
 	rulings   map[string]RulingTombstone
 	estoppels map[string]int64
+	// roads is every statement of text standing on a gap until its ruling (standingRoadsAt), which the
+	// freeze holds blue's edit and retire to (frozenIn).
+	roads []Road
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1118,6 +1121,9 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	if r.estoppels, err = estoppelsStandingAt(q); err != nil {
+		return r, err
+	}
+	if r.roads, err = standingRoadsAt(q); err != nil {
 		return r, err
 	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
@@ -1387,6 +1393,40 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 // predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
 // list's one render (reportRender), and finds the bare anchors on the first question, and only then:
 // most work lists ask none.
+// frozenIn says which standing statement of red's text the freeze holds an evidence anchor's remedy
+// under — the anchor's token stands in the span a pair road quotes, so blue's retire of it and its edit
+// of the sentence both change that span (cli/blue's roadsHold) — or "" where none does. A retire road
+// holds nothing: the anchor's retire is red's text itself. nil reads no anchor as held.
+func frozenIn(r workReads) unverifiableFunc {
+	if len(r.roads) == 0 {
+		return nil
+	}
+	var (
+		asked     bool
+		report    string
+		renderErr error
+	)
+	return func(id string) string {
+		if !asked {
+			asked = true
+			report, renderErr = r.report.get()
+		}
+		if renderErr != nil {
+			return ""
+		}
+		tok := anchor.Token(id)
+		for _, rd := range r.roads {
+			if rd.Retire != "" || rd.Successor != "" || rd.FixNew == "" {
+				continue
+			}
+			if old, _ := ProposalOver(report, rd.GapID, rd.Location, rd.FixNew); strings.Contains(old, tok) {
+				return fmt.Sprintf("its token stands in the span red's text on gap %s quotes, which %s holds until its ruling, and blue's retire of it and its edit of the sentence are refused while it stands", rd.GapID, rd.By)
+			}
+		}
+		return ""
+	}
+}
+
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
 		asked     bool
@@ -1509,7 +1549,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
 	last := win.LastEpoch(evs)
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
+	reads := sittingReads{unverifiable: unverifiableIn(r), frozen: frozenIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
 		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)

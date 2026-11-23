@@ -44,6 +44,7 @@ const (
 	partsSeed               = 24 // every part refusal (parts_test.go)
 	blueFailsSeed           = 26 // blue's failed sittings in a row stop the run (failedblue_test.go)
 	fateTurnSeed            = 27 // a lens's turn a changed fate brought (fateturnseed_test.go)
+	bystanderSeed           = 28 // proposals by another lens and by the chair, left to the bench (bystander_test.go)
 )
 
 // stalenessSeeds are the seeds whose runs are FORCED through the staleness arm (judgedsentence_test.go):

@@ -47,26 +47,25 @@ func requireRoadsHold(l *record.Landing, remedy string) error {
 			if r.Successor != "" {
 				what = "the quote of the successor " + r.Successor + " it proposes"
 			}
+			// THE PLANNER'S OWN REFUSAL IS WORDED FOR A SEAT TYPING A PAIR, which the refused seat is not:
+			// the refusal names the span the statement quotes and what this act did to it.
 			return feov.Wrap(feov.Conflict, err,
-				"%s stands on gap %s and holds %s, which no longer applies to the report this act leaves: %v. "+
+				"%s stands on gap %s and holds %s, which quotes %q: this act changes that span, or makes it ambiguous, so the statement no longer applies to the report it leaves. "+
 					"Every statement standing on %s holds until its ruling, so nothing was recorded; %s",
-				r.By, r.GapID, what, err, r.GapID, fmt.Sprintf(remedy, r.GapID, r.By))
+				r.By, r.GapID, what, r.Location, r.GapID, fmt.Sprintf(remedy, r.GapID, r.By))
 		}
 	}
 	return nil
 }
 
 // roadPlans is nil where road r still plans on report: a pair as the accept applies it — a successor's
-// with its own marker placed at its quote, as `lens mint` verifies a fix — or a retire whose anchor no
-// retire has taken.
+// with its own marker placed at its quote, as `lens mint` verifies a fix — or a retire. A RETIRE ROAD
+// ALWAYS STANDS: an act that retires its anchor does what red's text does, and the answer for red then
+// applies nothing more (record.requireRoadApplied).
 func roadPlans(l *record.Landing, report string, r record.Road) error {
 	switch {
 	case r.Retire != "":
-		live, err := l.AnchorLive(r.Retire)
-		if err != nil || live {
-			return err
-		}
-		return feov.Errorf(feov.Conflict, "its road retires %s, which is retired", r.Retire)
+		return nil
 	case r.Successor != "":
 		return SuccessorPlans(report, r.Successor, r.Location, r.FixNew)
 	}
