@@ -26,10 +26,10 @@ var docketAnswers = []struct {
 	flag, help string
 	side       recordpb.SidedWith
 }{
-	{flags.ForRed, "side with red: at impasse and on blue's close or supersede, the tool applies the text red's closing states — the edit of the span it quotes, or the anchor's retire — and the gap closes repaired; on blue's regrade, the gap stays at its grades. Refused where red's closing states no text", recordpb.SidedWith_SIDED_WITH_RED},
+	{flags.ForRed, "side with red: at impasse and on blue's close or supersede, the tool applies the text red's closing states — the edit of the span it quotes, or the anchor's retire — and the gap closes repaired; on blue's regrade, the gap stays at its grades. Refused where red's closing states no text, or where the text applied leaves another gap's standing statement no longer applying", recordpb.SidedWith_SIDED_WITH_RED},
 	{flags.ForBlue, "side with blue: at impasse the gap closes with the word blue's closing states, or not_a_defect where it states none — blue's text stands; on blue's proposal the tool applies it as filed: a close with its word, a regrade at its grades, a supersede's successor", recordpb.SidedWith_SIDED_WITH_BLUE},
 	{flags.ForFiler, "on a red seat's proposal on another red seat's gap: side with the filer — the tool applies the proposal as filed", recordpb.SidedWith_SIDED_WITH_FILER},
-	{flags.ForAssignee, "on a red seat's proposal on another red seat's gap: side with the gap's assignee — against a close or a supersede, the tool applies the text its closing states and the gap closes repaired, refused where it states none; against a regrade, the gap stays at its grades", recordpb.SidedWith_SIDED_WITH_ASSIGNEE},
+	{flags.ForAssignee, "on a red seat's proposal on another red seat's gap: side with the gap's assignee — against a close or a supersede, the tool applies the text its closing states and the gap closes repaired, refused where it states none or where the text applied leaves another gap's standing statement no longer applying; against a regrade, the gap stays at its grades", recordpb.SidedWith_SIDED_WITH_ASSIGNEE},
 	{flags.Keep, "at grade movement: the moved grades stand, and each moved axis is locked at the grade it keeps", 0},
 	{flags.Restore, "at grade movement: the tool restores each moved axis to the grade the movement started from, and locks it there", 0},
 	{flags.Remand, "send an open gap back for one more exchange on --direction; refused at grade movement and past the remand limit", 0},
@@ -39,7 +39,7 @@ var docketAnswers = []struct {
 const docketRuleSays = "A DOCKETING PUTS TWO STATEMENTS BEFORE YOU, EACH STATED BY ITS PARTY, AND YOU CHOOSE BETWEEN THEM. Name the docketing with --id (your work list names it, with its cause and basis), and answer with exactly one of its pair — `--for-red | --for-blue`; `--for-filer | --for-assignee` on a red seat's proposal on another red seat's gap; `--keep | --restore` at grade movement — or `--remand`. " +
 	"Each side states what it holds in the closing it owes on the docketing: red its text — the span of the report it quotes, ending at the gap's marker, and what it becomes, or the retire of the anchor the gap is about — and blue its closing word. A held proposal is its filer's statement; the gap's grades are the other side's against a regrade proposal; the gap's recorded closure the other side's against a supersede of a closed gap; at grade movement the moved grades stand against the recorded ones. " +
 	"THE TOOL APPLIES THE STATEMENT OF THE SIDE YOU NAME, in your ruling's transaction, and writes no word, grade or text of yours: red's text as blue's `edit --accept` applies a prescription, and the gap closes `repaired`; blue's word, or `not_a_defect` where blue's closing states none — blue's text stands; a proposal as filed — a close with its word, a regrade at its grades, a supersede's successor, assigned to the gap's assignee; the restored grades on --restore. " +
-	"A SIDE WINS ONLY BY WHAT IT STATED: siding with red (the assignee) where its closing states no text — none filed, `--no-text`, or a gap about an inquiry or a section — is refused naming what is missing, and you answer for the other side or remand. " +
+	"A SIDE WINS ONLY BY WHAT IT STATED: siding with red (the assignee) where its closing states no text — none filed, `--no-text`, or a gap about an inquiry or a section — is refused naming what is missing, and you answer for the other side or remand. ANOTHER GAP'S STANDING TEXT HOLDS UNTIL ITS OWN RULING: an answer whose text leaves it no longer applying is refused naming it — answer the other side, or rule that one first. " +
 	"Every answer but one on a grade closes the gap; a ruling on a grade locks each axis it decided at the grade it leaves, and the assignee may not move it back." +
 	"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its assignee and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the assignee on the gap once blue has acted, to audit the answer. " +
 	"A REMAND PAST THE LIMIT IS REFUSED — " + record.RemandLimitRule + ". So a gap you remanded at impasse, back before you at impasse, takes a side of its pair. A gap's grade movement takes no remand: the question is grades already on the record."
@@ -197,17 +197,19 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 
 // applyText writes the text red's (the assignee's) closing states as the bench's act, then the ruling:
 // the anchor's retire where the closing states one, else the edit blue's `edit --accept` makes of its
-// pair, planned on the report the write lands on.
+// pair, planned on the report the write lands on. The freeze holds it as it holds blue's edit: where
+// another docketing's or proposal's road no longer plans on the report it leaves, it is refused naming
+// that one (blue.BenchRoadsHold).
 func applyText(s seat.Context, p record.Positions, ruling record.Act, opinion string) error {
 	if p.Road.GetRetire() {
 		rt := &recordpb.Retire{Reason: proto.String(opinion), Answers: proto.String(p.GapID)}
-		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef))}}, ruling)
+		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef)), blue.BenchRoadsHold}}, ruling)
 		return err
 	}
 	ed := &recordpb.BlueEdit{Answers: proto.String(p.GapID), Text: proto.String(opinion)}
 	plan := record.Check(func(l *record.Landing) error {
 		return blue.AcceptPair(l, ed, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew())
 	})
-	_, err := record.AppendActs(s.Identity(), record.Act{Body: ed, Guards: []record.Guard{plan}}, ruling)
+	_, err := record.AppendActs(s.Identity(), record.Act{Body: ed, Guards: []record.Guard{plan, blue.BenchRoadsHold}}, ruling)
 	return err
 }

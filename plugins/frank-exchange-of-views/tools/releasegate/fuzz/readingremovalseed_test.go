@@ -424,9 +424,10 @@ func TestTheReadingRemovalSeedDrivesEveryArm(t *testing.T) {
 		r := stagedSynthesizedRunner(t)
 		r.register("blue", "blue-respond")
 		r.forcedReadingRemoval("blue-respond")
+		debts := r.readingDebts() // read before r.mu is taken: readingDebts takes it on a read error
 		r.mu.Lock()
 		defer r.mu.Unlock()
-		if r.removal.stage != "" || r.readingRemovalForcedErr() != "" || len(r.readingDebts()) != 0 {
+		if r.removal.stage != "" || r.readingRemovalForcedErr() != "" || len(debts) != 0 {
 			t.Errorf("a run not forced drove the arm (stage %q) or owes it", r.removal.stage)
 		}
 	})

@@ -1358,6 +1358,11 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", g.what, f.completed)
 			}
 		}
+		for _, o := range proposalOracles {
+			if n := f.proposalGates[o.key]; n != 0 {
+				t.Errorf("the record holds %d of %s across %d runs — each is a defect", n, o.what, f.completed)
+			}
+		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267
 		// measurement reads went silently missing.

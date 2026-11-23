@@ -6013,7 +6013,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				_, err := r.exec(withJSON(args)...)
 				noteEither(args, "blue's proposal on a gap the record held unexchanged when read", err == nil)
 			default:
-				r.admitFresh(id, args...)
+				// A RULING THAT LEFT THE GAP OPEN (one on a grade) places its tombstone, which bars every
+				// proposal on the gap until a reword ends it: that refusal is the record's answer, counted.
+				out, err := r.exec(withJSON(args)...)
+				if env, ok := refusalEnvelopeIn(out); err != nil && ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands) {
+					r.countGate("estopped_refused:close")
+					break
+				}
+				if err != nil {
+					r.admitFresh(id, args...)
+				}
 			}
 		}
 		if !r.forcedVerdict() {
@@ -6234,6 +6243,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if r.presented.has(id) {
 				r.evaluated.add(id)
 			}
+			// A PROPOSAL STANDING IN THE ASSIGNEE'S WINDOW is answered at its sitting, by a seeded draw:
+			// accepted as filed, or left for the dispatch to docket.
+			if d != dirDisputeWon {
+				r.assigneeAnswers(seatID, id)
+				if !r.openOnRecord(id) {
+					continue
+				}
+			}
 			// BLUE SITS AFTER THE LENSES IN AN EPOCH, so a gap the plan engages both on has not
 			// been answered yet the first time the lens sees it: closing it then is red closing
 			// on nothing — which is exactly what left `--answers`, verbatim application and the
@@ -6264,9 +6281,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						}
 						return r.gradeOn(dim)
 					}
-					dim := pick(r.rng, regradeDims)
-					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, keep(dim), "--complexity", keep("complexity"))
+					// A LOCKED AXIS THE GAP HOLDS NO GRADE ON is kept by not stating it: currentGrade
+					// reads it "", which no grade flag takes.
+					args := []string{"regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-" + id}
+					for _, d := range []string{pick(r.rng, regradeDims), "complexity"} {
+						if g := keep(d); g != "" {
+							args = append(args, "--"+d, g)
+						}
+					}
+					if len(args) > 6 {
+						r.admitFresh(id, args...)
+					}
 				})
 			}
 		}
@@ -7882,7 +7907,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// gate refuses a proposal until the gap's first counted exchange, and a lens sitting engaged on
 				// the gap that no stop closes, by a seat that never sits again, holds every later blue sitting
 				// uncounted (TestAProposalWaitsOnALensSittingTheRecordCannotClose). Excused only where the
-				// refusal was that gate's and the record still counts no exchange on the gap at the end.
+				// drive's last attempt was refused by that gate.
 				if !disputed[id] && r.heldUnexchanged(id) {
 					continue
 				}
@@ -7911,7 +7936,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					return res
 				}
 			case dirApply:
-				if !answered[id] {
+				// A GAP THE BENCH CLOSED IS THE BENCH'S ANSWER: docketed, the gap is off blue's list and
+				// red's closing road freezes its span, so blue's apply is refused or never reached, and a
+				// ruling for blue closes it with no edit (a ruling for red applies red's text as an edit
+				// answering it). The bench's close of a gap is that gap's answer, as COMPUTE reads it.
+				if !answered[id] && !(g.HasClosed && g.ClosedByBench) {
 					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
 					return res
 				}
@@ -8246,11 +8275,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
-	_, res.gradeRulings = r.lockedAxes()
 	res.lockRefused = r.lockRefused
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
-	res.proposalGates = r.docketTally()
 	r.mu.Unlock()
+	// THE STREAM'S TALLIES ARE READ WITH r.mu RELEASED: each takes it (docketTally to copy the drives'
+	// counts, lockedAxes through noteActErr on an unreadable record), and sync.Mutex is not reentrant.
+	_, res.gradeRulings = r.lockedAxes()
+	res.proposalGates = r.docketTally()
 	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
 	if missed := r.partsMissed(); len(missed) > 0 && res.err == "" {
 		res.err = "forced parts: the run drove no " + strings.Join(missed, ", ") + " refusal"
@@ -9721,18 +9752,15 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 	}
 }
 
-// heldUnexchanged reports whether gapID's proposed regrade was refused by the exchange gate — a proposal
-// waits for the gap's first counted exchange — and the record, read now, still counts none on it; or by
-// a ruling's tombstone on it, which bars the dispute the scenario asked for (estopped_refused).
+// heldUnexchanged reports whether the last attempt at gapID's proposed regrade was refused by the
+// exchange gate — a proposal waits for the gap's first counted exchange, and a gap whose lens sitting
+// the record cannot close stands NOT MEASURED — or by a ruling's tombstone on it, which bars the dispute
+// the scenario asked for (estopped_refused). The drive files again at each later blue sitting on the gap
+// until one lands, so the refusal kept is the last attempt's: a count the record reaches after blue's
+// last sitting on the gap (a lens sitting closed later, or at the run's end) came too late for any.
 func (r *runner) heldUnexchanged(gapID string) bool {
 	why := r.disputeRefusals[gapID]
-	if strings.Contains(why, tombstoneStands) {
-		return true
-	}
-	if !strings.Contains(why, "a proposal on a gap is admitted once it has had one exchange") {
-		return false
-	}
-	return !r.exchanged(gapID)
+	return strings.Contains(why, tombstoneStands) || strings.Contains(why, "a proposal on a gap is admitted once it has had one exchange")
 }
 
 // counterEdit makes a real edit that is NOT red's proposed text.
@@ -10224,8 +10252,7 @@ func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (rem
 		if unstated != 0 {
 			r.refuseUnstated(d.ID, unstated, append(slices.Clone(common), "--reason", "fuzz: siding with a side that stated nothing"))
 		}
-		args := append(common, answer...)
-		if _, ok := r.admit(args...); ok && remand {
+		if r.benchRules(append(common, answer...)) && remand {
 			remanded = true
 		}
 	}
@@ -10368,7 +10395,7 @@ func (r *runner) ruleDocketAtExit(seatID, id string) {
 	if unstated != 0 {
 		r.refuseUnstated(id, unstated, common)
 	}
-	r.admit(append(common, answer...)...)
+	r.benchRules(append(common, answer...))
 }
 
 // docketingsHolding is the docketing standing that holds each of motionIDs, in motionIDs' order: the
@@ -10538,11 +10565,17 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 // runstatErr is a failed run's error as the RUNSTAT line carries it: its first line, and where the
 // error holds a refused act's envelope — exec puts the act's output after the exit status, on the
 // lines below — the envelope's code and error, so the job log, which keeps RUNSTAT and drops the
-// lines below it, names why the act was refused and not only its exit status.
+// lines below it, names why the act was refused and not only its exit status. An act run without
+// --json prints its refusal as text: the first line of it below the exit status is carried instead.
 func runstatErr(err string) string {
 	line := firstLine(err)
 	if env, ok := refusalEnvelopeIn(err); ok {
-		line += " — refused (" + env.Code + "): " + env.Error
+		return line + " — refused (" + env.Code + "): " + env.Error
+	}
+	if _, rest, ok := strings.Cut(err, "\n"); ok {
+		if below := firstLine(strings.TrimSpace(rest)); below != "" {
+			line += " — " + below
+		}
 	}
 	return line
 }

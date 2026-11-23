@@ -163,9 +163,15 @@ func (r *runner) keepingBenchGrades(args []string) []string {
 			continue
 		}
 		for dim, g := range r.benchGrades(args[i+1]) {
-			if at := slices.Index(args, "--"+dim); at >= 0 {
+			at := slices.Index(args, "--"+dim)
+			switch {
+			case g == "" && at >= 0:
+				// A LOCKED AXIS THE GAP HOLDS NO GRADE ON is kept by not stating it.
+				args = slices.Delete(args, at, at+2)
+			case g == "":
+			case at >= 0:
 				args[at+1] = g
-			} else {
+			default:
 				args = append(args, "--"+dim, g)
 			}
 		}

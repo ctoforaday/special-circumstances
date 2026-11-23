@@ -49,7 +49,7 @@ func validateAct(w writeView, seatID string, typ recordpb.EventType, body proto.
 // terms, the two the plan reads (HeardInTime reads the same).
 func requireClosingsOnlySitting(w writeView, seatID string, typ recordpb.EventType) error {
 	role := seatclass.RoleOfSeat(seatID)
-	if role != "lens" && role != "blue" && role != seatclass.Lane.Role {
+	if !closingsParty(role) {
 		return nil
 	}
 	if typ == recordpb.EventType_EVENT_TYPE_CLOSING || typ == recordpb.EventType_EVENT_TYPE_DISPATCH || slices.Contains(recordsql.NotActs, typ) {
@@ -78,6 +78,22 @@ func requireClosingsOnlySitting(w writeView, seatID string, typ recordpb.EventTy
 	}
 	return nil
 }
+
+// closingsParty reports whether role is a party's — a lens's or blue's (a lane's) — whose sitting the
+// closings-only epochs hold to its closings.
+func closingsParty(role string) bool {
+	return role == "lens" || role == "blue" || role == seatclass.Lane.Role
+}
+
+// closingsOnlyFor reports whether a seat of role, at epoch under params, sits for its closings alone:
+// every party at the final epoch (isFinalEpoch), and blue in the epoch that holds it out (blueHeldOut)
+// — the sittings requireClosingsOnlySitting holds to their closings.
+func closingsOnlyFor(params Params, epoch int, role string) bool {
+	return closingsParty(role) && (isFinalEpoch(params, epoch) || role != "lens" && blueHeldOut(params, epoch))
+}
+
+// closingsOnlyHolds is what an item a closings-only sitting cannot clear says on the seat's list.
+const closingsOnlyHolds = "this sitting admits your closings alone, so this item does not hold your sitting; it still holds the PASS"
 
 // judgeAct asks the act judgements of a body the shape check (validate) has admitted. It runs inside
 // the write's transaction, so every question is asked of the record the event lands on.

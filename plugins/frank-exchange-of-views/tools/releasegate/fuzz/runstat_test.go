@@ -19,6 +19,12 @@ func TestRunstatNamesTheRefusal(t *testing.T) {
 	if strings.Contains(got, "\n") {
 		t.Errorf("RUNSTAT err spans lines: %q", got)
 	}
+	// AN ACT RUN WITHOUT --json prints its refusal as text, and RUNSTAT carries its first line.
+	text := "an act the drive issued: refused, and the drive expects it admitted: motion docket rule --for-red: exit status 2\n" +
+		"  the quoted span was not found in report.md — quote the EXACT current text\nmore"
+	if got := runstatErr(text); !strings.Contains(got, "exit status 2 — the quoted span was not found") || strings.Contains(got, "more") {
+		t.Errorf("RUNSTAT err of a text refusal = %q, want the exit status and the refusal's first line", got)
+	}
 	if got := runstatErr("forced unsound computation: no plan readied"); got != "forced unsound computation: no plan readied" {
 		t.Errorf("an error with no envelope = %q, want its first line", got)
 	}

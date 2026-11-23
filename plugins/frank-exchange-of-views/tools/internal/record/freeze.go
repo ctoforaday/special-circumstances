@@ -19,15 +19,16 @@ import (
 // answer of the docketing or proposal it argues, and a standing supersede proposal's successor, from
 // its filing. Two arms hold them:
 //
-//   - THE ROADS (L45): blue's edit and retire re-plan each standing road on the report they leave
-//     (StandingRoads, planned by the blue verbs with the accept's own planner, asked of the record with
-//     the act on it), and an act after which a road no longer plans is refused naming its docketing or
-//     proposal;
+//   - THE ROADS (L45): blue's edit and retire, and the text the bench's answer for red applies, re-plan
+//     each standing road on the report they leave (StandingRoads, planned by the blue verbs with the
+//     accept's own planner, asked of the record with the act on it), and an act after which a road no
+//     longer plans is refused naming its docketing or proposal;
 //   - THE SUCCESSOR (L48): a supersede proposal's successor is checked mintable against G's assignee
 //     at the filing (requireSuccessorMintable, called from requireDocketFiling), and every act that can
-//     move one of those checks' inputs — blue's edit and retire, G's assignee's verify, reproduce and
-//     mint — is judged again with the act on the record (judgeLanded), refused naming the proposal and
-//     the check where the successor is no longer one the bench could write.
+//     move one of those checks' inputs — blue's edit and retire, the bench's applied edit and retire,
+//     G's assignee's verify, reproduce and mint — is judged again with the act on the record
+//     (judgeLanded), refused naming the proposal and the check where the successor is no longer one
+//     the bench could write.
 //
 // A raw row appended below the verbs is protected as Stale and Plan are, by no verb mounting it.
 
@@ -157,14 +158,15 @@ func standingSupersedesAt(q recordsql.Querier) ([]standingSupersede, error) {
 }
 
 // judgeLanded is the freeze's successor arm (L48), asked of the record with the act on it: an act that
-// can move an input of a standing supersede's checks — blue's edit or retire, or G's assignee's own
+// can move an input of a standing supersede's checks — blue's edit or retire, the bench's applied edit
+// or retire, or G's assignee's own
 // verify, reproduce or mint — is refused where the successor is no longer one the bench could write.
 func judgeLanded(w writeView, seatID string, body proto.Message) error {
 	role := seatclass.RoleOfSeat(seatID)
 	var assigneeOnly bool
 	switch body.(type) {
 	case *recordpb.BlueEdit, *recordpb.Retire:
-		if role != "blue" && role != seatclass.Lane.Role {
+		if role != "blue" && role != seatclass.Lane.Role && role != "bench" {
 			return nil
 		}
 	case *recordpb.Verify, *recordpb.Reproduce, *recordpb.Mint:

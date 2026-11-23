@@ -1,6 +1,8 @@
 package blue
 
 import (
+	"fmt"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -9,16 +11,28 @@ import (
 // THE FREEZE'S EDIT ARM (#1695 §III.B14, L45): every statement of text standing on a gap — red's
 // closing's road, from the closing until the answer of the docketing or proposal it argues, and a
 // standing supersede proposal's stored quote and fix — holds until its ruling, so the bench's answer
-// for that side applies it. Blue's edit and retire re-plan each standing road on the report they leave,
-// with the accept's own planner (PlanAccept), and an act after which one no longer plans is refused,
-// naming the docketing or proposal: an edit over the span, and an edit elsewhere that makes the quote
-// ambiguous, alike. An act that leaves every road planning lands.
+// for that side applies it. Blue's edit and retire, and the text the bench's answer for red applies
+// (the edit or retire of another docketing's road, in its ruling's transaction), re-plan each standing
+// road on the report they leave, with the accept's own planner (PlanAccept), and an act after which one
+// no longer plans is refused, naming the docketing or proposal: an edit over the span, and an edit
+// elsewhere that makes the quote ambiguous, alike. An act that leaves every road planning lands.
 
-// roadsHold is the freeze's guard, asked of the record with blue's act on it.
-var roadsHold = record.CheckLanded(requireRoadsHold)
+// roadsHold is the freeze's guard on blue's edit and retire, asked of the record with blue's act on it.
+var roadsHold = record.CheckLanded(func(l *record.Landing) error {
+	return requireRoadsHold(l, "edit elsewhere, or argue in your closing on %[1]s")
+})
 
-// requireRoadsHold refuses where a standing road no longer plans on the report l renders.
-func requireRoadsHold(l *record.Landing) error {
+// BenchRoadsHold is the freeze's guard on the text the bench's answer applies, asked of the record with
+// the applied act and its ruling on it: the ruled docketing's own road has ended, and every other road
+// standing must still plan.
+var BenchRoadsHold = record.CheckLanded(func(l *record.Landing) error {
+	return requireRoadsHold(l, "answer this docketing for the other side, or rule %[2]s first")
+})
+
+// requireRoadsHold refuses where a standing road no longer plans on the report l renders. remedy is
+// what the refused seat may do instead, formatted with the road's gap and the docketing or proposal
+// that holds it.
+func requireRoadsHold(l *record.Landing, remedy string) error {
 	roads, err := l.StandingRoads()
 	if err != nil || len(roads) == 0 {
 		return err
@@ -35,8 +49,8 @@ func requireRoadsHold(l *record.Landing) error {
 			}
 			return feov.Wrap(feov.Conflict, err,
 				"%s stands on gap %s and holds %s, which no longer applies to the report this act leaves: %v. "+
-					"Every statement standing on %s holds until its ruling, so nothing was recorded; edit elsewhere, or argue in your closing on %s",
-				r.By, r.GapID, what, err, r.GapID, r.GapID)
+					"Every statement standing on %s holds until its ruling, so nothing was recorded; %s",
+				r.By, r.GapID, what, err, r.GapID, fmt.Sprintf(remedy, r.GapID, r.By))
 		}
 	}
 	return nil

@@ -179,6 +179,38 @@ func (r *runner) refuseUnstated(id string, side recordpb.SidedWith, common []str
 	}
 }
 
+// benchRules admits the bench's answer args. An answer for the side whose text the tool applies —
+// --for-red, or --for-assignee against a lens's proposal — is refused by the freeze where that text
+// would leave another gap's standing statement no longer applying (L45: every statement standing on a
+// gap holds until its ruling), a conflict naming the docketing or proposal that holds it; the bench
+// then answers for the other side of the pair, as the refusal directs, and the refusal is counted
+// (bench_road_held_refused). It reports whether an answer was admitted.
+func (r *runner) benchRules(args []string) bool {
+	out, err := r.exec(withJSON(args)...)
+	if err == nil {
+		return true
+	}
+	at, other := -1, ""
+	for i, a := range args {
+		switch a {
+		case "--for-red":
+			at, other = i, "--for-blue"
+		case "--for-assignee":
+			at, other = i, "--for-filer"
+		}
+	}
+	env, ok := refusalEnvelopeIn(out)
+	if at < 0 || !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "holds until its ruling") {
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		return false
+	}
+	r.countGate("bench_road_held_refused")
+	swapped := slices.Clone(args)
+	swapped[at] = other
+	_, admitted := r.admit(swapped...)
+	return admitted
+}
+
 // exchangeOn is one counted exchange on the gaps the chair's plan engages blue on: the chair plans,
 // blue sits under an agent, and its sitting closes at its return with its envelope admitted — a
 // stalled exchange where blue moved nothing. A proposal on a gap is refused until the gap has one.
@@ -209,6 +241,46 @@ func (r *runner) acceptProposal(seatID, gapID string) {
 	}
 }
 
+// assigneeAnswers is the assignee's answer, in its window, to each proposal standing on gapID that no
+// docketing holds yet (§III.B9: "the assignee accepts or not by seeded draw"): on a coin, seatID — when
+// the record names it the gap's assignee — accepts the act as filed with `motion docket accept`, which
+// writes the act and its ruling in one transaction; otherwise it leaves the proposal for the dispatch to
+// docket. An accept the record admits is counted by the act it applied (assignee_accepts:<act>); one the
+// act's own checks refuse — the record has moved since the filing — is counted as such
+// (accepts_refused:<act>), the proposal then the bench's. Any other refusal fails the run.
+func (r *runner) assigneeAnswers(seatID, gapID string) {
+	if r.beforeTheBench(gapID) {
+		return
+	}
+	for _, m := range r.unruledDocketMotions(gapID) {
+		p, found, err := record.DocketProposalOf(r.run(), m)
+		if err != nil || !found || p.Assignee != seatID {
+			continue
+		}
+		if act := record.ActWord(p.Motion); act != "" && r.coin(50) {
+			r.acceptAsAssignee(seatID, gapID, m, act)
+		}
+	}
+}
+
+// acceptAsAssignee is seatID, gapID's assignee, accepting proposal m — whose act is act — as filed, and
+// counting the answer (assigneeAnswers).
+func (r *runner) acceptAsAssignee(seatID, gapID, m, act string) {
+	out, err := r.exec(withJSON([]string{"motion", "docket", "accept", "--seat-id", seatID, "--id", m,
+		"--reason", "fuzz: the proposed act on " + gapID + " is right, taken as filed"})...)
+	if err == nil {
+		r.countGate("assignee_accepts:" + act)
+		return
+	}
+	env, ok := refusalEnvelopeIn(out)
+	if ok && (env.Code == string(feov.Validation) || env.Code == string(feov.Conflict)) && strings.Contains(env.Error, "Nothing was recorded") {
+		r.countGate("accepts_refused")
+		r.countGate("accepts_refused:" + act)
+		return
+	}
+	r.noteActErr("the assignee's accept of proposal " + m + " on " + gapID + " was refused, and not by its act's own checks: " + err.Error())
+}
+
 // exchanged reports whether gapID has had a counted exchange, as the record folds it under the run's
 // terms: a proposal on it is refused until it has.
 func (r *runner) exchanged(gapID string) bool {
@@ -228,8 +300,10 @@ func (r *runner) exchanged(gapID string) bool {
 // sentence, with a concrete fix on a coin, or, on a coin, about a subject aboutAnchor draws.
 func (r *runner) proposeSupersedeArgs(seatID, gapID, reason string) []string {
 	class := "spec_underspecification"
+	var mint *recordpb.Mint
 	if fam, err := record.FamilyOf(r.run()); err == nil {
 		if g := fam.Gap(gapID); g != nil && g.Mint != nil {
+			mint = g.Mint
 			class = recordpb.Word(g.Mint.GetClass())
 		}
 	}
@@ -237,6 +311,17 @@ func (r *runner) proposeSupersedeArgs(seatID, gapID, reason string) []string {
 		"--problem", "fuzz: the defect, restated", "--fix", "fuzz: the fix, restated",
 		"--check-kind", "document", "--check", "fuzz: the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", reason}
+	// A CLASS BOUND TO AN INQUIRY OR TO THE QUESTION is about that subject alone (out_of_scope about an
+	// inquiry, coverage_misstated about the question): the successor carries the class, so it is about
+	// the gap's own subject, never a quote or an anchor.
+	switch k := mint.GetAboutKind(); k {
+	case recordpb.AboutKind_ABOUT_KIND_INQUIRY, recordpb.AboutKind_ABOUT_KIND_QUESTION:
+		args = append(args, "--about-kind", recordpb.Word(k))
+		if ref := mint.GetAboutRef(); ref != "" {
+			args = append(args, "--about", ref)
+		}
+		return args
+	}
 	switch {
 	case r.coin(50):
 		kind, ref := r.aboutAnchor()

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -358,5 +359,57 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its assignee to audit that answer, which ends the one more exchange; " + blueHeldOutClause
 	if !workMentions(t, answered, "chair", "red-chair", audits) {
 		t.Errorf("the chair's row for G1 does not say the lens's audit ends the exchange while blue is held out")
+	}
+}
+
+// A SITTING FOR THE CLOSINGS ALONE OWES ONLY THE CLOSINGS (L44′): blue's remedy of a failed check is
+// owed — and refuses its envelope — in an ordinary sitting; in the epoch that holds blue out, and in the
+// final epoch, every act but a closing is refused (requireClosingsOnlySitting), so the item stays on
+// blue's list, holding the PASS, and no longer holds the sitting: the envelope is admitted.
+func TestASittingForTheClosingsAloneOwesOnlyTheClosings(t *testing.T) {
+	b := unsoundBoard(t).register("red-chair").dispatch(2, "blue-respond").register("blue-respond")
+	run := b.seed()
+	refusal, err := EnvelopeRefusal(run, "blue-respond")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(refusal, "K-1") {
+		t.Fatalf("setup: blue's envelope in an ordinary sitting is not refused over K-1's failed check: %q", refusal)
+	}
+	var epochs []int
+	if err := readSnapshot(run, func(q recordsql.Querier) (err error) { epochs, err = epochsAt(q); return err }); err != nil || len(epochs) == 0 {
+		t.Fatalf("the record's epochs: %v %v", epochs, err)
+	}
+	last := epochs[len(epochs)-1]
+	for _, c := range []struct {
+		name string
+		max  int
+	}{{"blue held out", last + 1}, {"the final epoch", last}} {
+		t.Run(c.name, func(t *testing.T) {
+			writeRunConfig(t, b.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, c.max))
+			refusal, err := EnvelopeRefusal(run, "blue-respond")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if refusal != "" {
+				t.Errorf("blue's envelope in a sitting for its closings alone is refused over an item no act it may make clears: %q", refusal)
+			}
+			w, err := WorkOfSeat(run, "blue", "blue-respond")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var held bool
+			for _, it := range w.Sitting.Open {
+				if it.Kind == ItemKind(BlockerFailedCheck) {
+					held = !it.Blocks && strings.Contains(it.What, closingsOnlyHolds)
+				}
+			}
+			if !held {
+				t.Errorf("K-1's failed check is not on blue's list as held for a later sitting: %+v", w.Sitting.Open)
+			}
+			if bs, err := PassBlockers(run); err != nil || len(bs) == 0 {
+				t.Errorf("the failed check no longer holds the PASS: %v %v", bs, err)
+			}
+		})
 	}
 }

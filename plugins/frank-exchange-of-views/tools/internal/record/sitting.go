@@ -121,6 +121,9 @@ type sittingReads struct {
 	unverifiable unverifiableFunc
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
+	// closingsOnly: the seat sits for its closings alone — a party in the final epoch, or blue in the
+	// epoch that holds it out (closingsOnlyFor) — so no act of its own but a closing lands.
+	closingsOnly bool
 	// found: the located readings (locatedReadingsAt), the reading debt's input, read on the list's
 	// snapshot.
 	found []locatedReading
@@ -566,6 +569,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// first. They carry Blocks:false, so they are visible without being owed.
 	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut, reads.exchanged)...)
 
+	// A SITTING FOR THE CLOSINGS ALONE HOLDS ONLY THE CLOSINGS (L44′): every act but a closing is
+	// refused there (requireClosingsOnlySitting), so an item only another act clears is not this
+	// sitting's to clear. It stays on the list, saying so, and holds the PASS as the gate reads it.
+	if reads.closingsOnly {
+		for i, it := range s.Open {
+			if it.Blocks && !it.AnotherSeatClears && it.Kind != ItemKind(BlockerClosingOwed) {
+				s.Open[i].Blocks = false
+				s.Open[i].What += " — " + closingsOnlyHolds
+			}
+		}
+	}
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —
 	// so the seat assumes the work is somewhere else and goes looking for it. Measured across two

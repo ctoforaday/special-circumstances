@@ -1508,7 +1508,8 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		return WorkJSON{}, err
 	}
 	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
+	last := win.LastEpoch(evs)
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
 		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)

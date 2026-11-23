@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -38,6 +40,61 @@ var proposalGateKeys = []struct{ key, what string }{
 	{"closings_only_refused", "acts other than a closing refused in a closings-only sitting"},
 	{"final_sitting_closings:red", "red closings filed in a closings-only sitting"},
 	{"final_sitting_closings:blue", "blue closings filed in a closings-only sitting"},
+	{"motion:blue:close", "close proposals filed by blue"},
+	{"motion:blue:regrade", "regrade proposals filed by blue"},
+	{"motion:blue:supersede", "supersede proposals filed by blue"},
+	{"motion:lens:close", "close proposals filed by another lens"},
+	{"motion:lens:regrade", "regrade proposals filed by another lens"},
+	{"motion:lens:supersede", "supersede proposals filed by another lens"},
+	{"motion:chair:close", "close proposals filed by the chair"},
+	{"motion:chair:regrade", "regrade proposals filed by the chair"},
+	{"motion:chair:supersede", "supersede proposals filed by the chair"},
+	{"assignee_accepts:close", "close proposals the assignee accepted as filed"},
+	{"assignee_accepts:regrade", "regrade proposals the assignee accepted as filed"},
+	{"assignee_accepts:supersede", "supersede proposals the assignee accepted as filed"},
+	{"accepts_refused", "assignee accepts the act's own checks refused"},
+}
+
+// proposalOracles is every proposalOracle key, each a defect at ANY count.
+var proposalOracles = []struct{ key, what string }{
+	{"oracle:two_answers", "a proposal answered by two rulings"},
+	{"oracle:docketing_answered_twice", "a docketing ruled twice"},
+	{"oracle:docket_motion_without_act", "a docket motion stating no act"},
+}
+
+// proposalStream is the stream's own count of the proposals and their answers, folded from the events
+// alone — independent of record.DocketingsOf, so a fold that drops a ruling cannot hide a second one:
+// each docket motion by its filer's role and act (motion:<role>:<act>), and each oracle of
+// proposalOracles.
+func proposalStream(evs []*record.Event) map[string]int {
+	out := map[string]int{}
+	byMotion, byDocketing := map[string]int{}, map[string]int{}
+	for _, e := range evs {
+		switch b, _ := recordpb.Body(e); b := b.(type) {
+		case *recordpb.Motion:
+			if b.GetDocket() == nil {
+				continue
+			}
+			act := record.ActWord(b)
+			if act == "" {
+				out["oracle:docket_motion_without_act"]++
+				continue
+			}
+			out["motion:"+seatclass.RoleOfSeat(e.GetSeatId())+":"+act]++
+		case *recordpb.MotionRule:
+			if id := b.GetMotionId(); id != "" {
+				if byMotion[id]++; byMotion[id] == 2 {
+					out["oracle:two_answers"]++
+				}
+			}
+			if id := b.GetDocket().GetDocketingId(); id != "" {
+				if byDocketing[id]++; byDocketing[id] == 2 {
+					out["oracle:docketing_answered_twice"]++
+				}
+			}
+		}
+	}
+	return out
 }
 
 // countGate adds one to key's count.
@@ -81,6 +138,14 @@ func (r *runner) docketTally() map[string]int {
 		}
 		out["answer:"+cause+":"+answer]++
 		side[d.ID] = answer
+	}
+	stream, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_MOTION, recordpb.EventType_EVENT_TYPE_MOTION_RULE)
+	if err != nil {
+		r.noteActErr("the record's proposals and rulings could not be read: " + err.Error())
+		return out
+	}
+	for k, n := range proposalStream(stream) {
+		out[k] += n
 	}
 	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_TOMBSTONE)
 	if err != nil {
@@ -161,16 +226,70 @@ func TestEveryProposalGateKeyIsOneItsCountersWrite(t *testing.T) {
 	}
 	drives := map[string]bool{"estopped_refused:regrade": true, "estopped_refused:supersede": true,
 		"closing_no_text": true, "closings_only_refused": true,
-		"final_sitting_closings:red": true, "final_sitting_closings:blue": true}
+		"final_sitting_closings:red": true, "final_sitting_closings:blue": true,
+		"assignee_accepts:close": true, "assignee_accepts:regrade": true, "assignee_accepts:supersede": true, "accepts_refused": true}
+	roles := map[string]bool{"blue": true, "lens": true, "chair": true}
+	acts := map[string]bool{}
+	for _, a := range []*recordpb.Motion{{Act: &recordpb.Motion_Close{}}, {Act: &recordpb.Motion_Regrade{}}, {Act: &recordpb.Motion_Supersede{}}} {
+		acts[record.ActWord(a)] = true
+	}
 	for _, g := range proposalGateKeys {
 		parts := strings.Split(g.key, ":")
 		switch {
 		case drives[g.key]:
+		case parts[0] == "motion" && len(parts) == 3 && roles[parts[1]] && acts[parts[2]]:
 		case parts[0] == "docketing" && len(parts) == 2 && causes[parts[1]]:
 		case parts[0] == "answer" && len(parts) == 3 && causes[parts[1]] && answers[parts[2]]:
 		case parts[0] == "tombstone" && len(parts) == 3 && parts[1] == "placed" && answers[parts[2]]:
 		default:
 			t.Errorf("gate %q (%s) is no cell a counter writes", g.key, g.what)
+		}
+	}
+}
+
+// THE ORACLES COUNT WHAT THEY NAME, and nothing on a clean stream: a docket motion with no act, a
+// proposal answered twice and a docketing ruled twice are planted, and each is counted once; the
+// filer census counts each motion by its filer's role and act.
+func TestTheProposalOraclesCountAPlantedDefect(t *testing.T) {
+	ev := func(seat string, body proto.Message) *record.Event {
+		e := &record.Event{SeatId: proto.String(seat)}
+		if _, err := recordpb.SetBody(e, body); err != nil {
+			t.Fatal(err)
+		}
+		return e
+	}
+	docket := func(act bool) *recordpb.Motion {
+		m := &recordpb.Motion{MotionId: proto.String("M-1"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G-1")}}}
+		if act {
+			m.Act = &recordpb.Motion_Close{Close: &recordpb.Close{}}
+		}
+		return m
+	}
+	rule := func(motion, docketing string) *recordpb.MotionRule {
+		r := &recordpb.MotionRule{}
+		if motion != "" {
+			r.MotionId = proto.String(motion)
+		}
+		if docketing != "" {
+			r.Ruling = &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketing)}}
+		}
+		return r
+	}
+	clean := []*record.Event{ev("blue-respond", docket(true)), ev(fuzzLensSeats[0], rule("M-1", "")), ev("judge", rule("", "D-1"))}
+	got := proposalStream(clean)
+	for _, o := range proposalOracles {
+		if got[o.key] != 0 {
+			t.Errorf("a clean stream counts %s = %d", o.key, got[o.key])
+		}
+	}
+	if got["motion:blue:close"] != 1 {
+		t.Errorf("motion:blue:close = %d, want 1", got["motion:blue:close"])
+	}
+	planted := append(clean, ev("red-chair", docket(false)), ev("judge", rule("M-1", "")), ev("judge", rule("", "D-1")))
+	got = proposalStream(planted)
+	for _, o := range proposalOracles {
+		if got[o.key] != 1 {
+			t.Errorf("%s over a stream planted with one = %d, want 1", o.key, got[o.key])
 		}
 	}
 }
