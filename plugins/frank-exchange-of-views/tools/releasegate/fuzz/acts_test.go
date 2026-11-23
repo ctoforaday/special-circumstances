@@ -86,8 +86,23 @@ func (r *runner) lockedByRuling(args []string, refusal string) bool {
 // proposal's quote, holds until the bench rules, and an edit or retire that would leave it unable to
 // apply is refused as a conflict. Blue's drives edit the report at will, so that refusal is the draw's,
 // and noteEither tallies it.
+//
+// THE ASSIGNEE'S OWN READING AND MINT ARE HELD BY THE SUCCESSOR ARM (L48): while a supersede proposal
+// stands on a lens's gap, its verify, reproduce or mint after which the proposal's successor is no
+// longer one the bench could write is refused naming the proposal. The drive's readings and mints are
+// drawn, so that refusal is the draw's too.
 func heldUntilItsRuling(args []string, refusal string) bool {
-	if len(args) == 0 || (args[0] != "edit" && args[0] != "retire") || seatclass.RoleOfSeat(seatOfArgs(args)) != "blue" {
+	if len(args) == 0 {
+		return false
+	}
+	role := seatclass.RoleOfSeat(seatOfArgs(args))
+	what := ""
+	switch {
+	case (args[0] == "edit" || args[0] == "retire") && role == "blue":
+		what = "blue's edit or retire of text a statement before the bench holds until its ruling"
+	case (args[0] == "verify" || args[0] == "reproduce" || args[0] == "mint") && role == "lens" && strings.Contains(refusal, "the successor it states"):
+		what = "the assignee's act after which a standing supersede's successor could not be written"
+	default:
 		return false
 	}
 	if env, ok := refusalEnvelopeIn(refusal); ok && env.Code != string(feov.Conflict) {
@@ -96,7 +111,7 @@ func heldUntilItsRuling(args []string, refusal string) bool {
 	if !strings.Contains(refusal, "holds until its ruling") {
 		return false
 	}
-	noteEither(args, "blue's edit or retire of text a statement before the bench holds until its ruling", false)
+	noteEither(args, what, false)
 	return true
 }
 

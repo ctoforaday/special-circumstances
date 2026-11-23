@@ -247,7 +247,17 @@ func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act)
 	case *recordpb.Mint:
 		fixNew := a.GetFixNew()
 		a.FixNew, a.FixBasis = nil, proto.String("proposed")
-		return lens.WriteMint(s, a, a.GetLocation(), fixNew, ruling)
+		err := lens.WriteMint(s, a, a.GetLocation(), fixNew, ruling)
+		// THE BENCH IS TOLD WHICH ACT FAILED: its answer writes the successor as the assignee's mint, and
+		// that mint's refusal is worded for a minting lens. Another seat's act can leave a standing
+		// successor unwritable (record.unwritableSuccessors), so the bench answers the other side or
+		// remands.
+		if err != nil && s.Role == "bench" {
+			return feov.Wrap(feov.Conflict, err,
+				"the successor %s that proposal %s states could not be written on the record as it stands: its assignee's mint of it is refused now, an act since the filing having moved what that mint is checked against. Nothing was recorded; answer for the other side, or remand",
+				a.GetGapId(), id)
+		}
+		return err
 	default:
 		_, err := record.AppendActs(s.Identity(), ruling)
 		return err

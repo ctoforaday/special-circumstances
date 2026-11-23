@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -743,40 +744,44 @@ func (r *runner) lifecycleCitedRetire(blue, claim, next string) string {
 }
 
 // screenUnsoundComputationName is the bundle of the computation limitSeed's run ends on, judged unsound
-// (screenAtLimit).
+// (screenBeforeHeldOut, screenAtLimit).
 const screenUnsoundComputationName = "fuzz-screen-unsound.js"
 
-// screenAtLimit is limitSeed's half of the assembly screen arm, driven at the chair's sitting whose plan
-// reaches the epoch limit, which dispatches nobody: blue-respond, in a sitting of its own, computes the
-// fuzz sentence, and the computation owner, in its own, judges it unsound. No seat sits after, so the run
-// ends with it live, and the screen at the run's end must FAIL naming it (screenUnsound). The limit plan
-// is the one point the forced run is sure to reach; blue-respond is not sure to be dispatched before it,
-// since which seats the epochs ready turns on the run's draws and the seats' interleaving. Draws nothing.
-func (r *runner) screenAtLimit(plan map[string]any) {
+// screenBeforeHeldOut and screenAtLimit are limitSeed's half of the assembly screen arm. Blue's acts
+// land before the epoch that holds it out — the last that dispatches a lens — and the lenses' judgements
+// in it, so no act after them answers either: blue sits there and in the final epoch for its closings
+// alone, and every party does at the final epoch (record.requireClosingsOnlySitting). The run ends with
+// the computation live and unsound, and the screen at its end must FAIL naming it (screenUnsound).
+//
+// screenBeforeHeldOut is blue's half, driven at the forced run's first chair sitting before its plan,
+// while the record is still at the epoch the lanes and the synthesis wrote: blue-respond, in a sitting
+// of its own, computes the fuzz sentence and cites a sentence of the report. blue-respond is not sure to
+// be dispatched before blue is held out — under forcedEpochLimit it never is — so the drive sits it.
+// Draws nothing.
+func (r *runner) screenBeforeHeldOut() {
 	r.mu.Lock()
 	due := r.forceScreenUnsound && r.screenUnsoundComputation == ""
 	r.mu.Unlock()
-	if limit, _ := plan["epoch_limit_reached"].(bool); !limit || !due {
+	if !due {
 		return
 	}
 	const blue = "blue-respond"
-	k := ""
-	if r.openSitting(blue) {
+	k, opened := "", r.openSitting(blue)
+	if opened {
 		k = r.lifecycleCompute(blue, "§ fuzz sentence", screenUnsoundComputationName, "", "")
 	}
 	r.mu.Lock()
 	r.screenUnsoundComputation = cmp.Or(k, "refused")
 	r.mu.Unlock()
-	if k != "" && r.openSitting(computationOwner) {
-		r.lifecycleJudge(computationOwner, k, "unsound")
+	if !opened {
+		return
 	}
 	// AND A READING DEBT STANDS AT THE RUN'S END: blue cites a sentence of the report, and the citation
-	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing — the run ends
-	// UNVERIFIED on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails
-	// on it beside the unsound computation.
-	// THE CITATION IS RESERVED BEFORE IT IS READ (reservedDebtSubject): a sitting of the owner's or
-	// blue's still running from the last plan would otherwise mint on the debt, re-read the citation
-	// as backing, or retire it, and the run would end on no debt.
+	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing (screenAtLimit) — the
+	// run ends on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails on it
+	// beside the unsound computation.
+	// THE CITATION IS RESERVED FROM ITS CITE (reservedDebtSubject): a drawn sitting of the owner's would
+	// otherwise mint on the debt or re-read the citation as backing, and the run would end on no debt.
 	// THE SENTENCE CITED HOLDS NO OPEN claim_contradicts_source GAP (limitDebtSentence): a gap of the
 	// class on the sentence, quoting it or about a citation it holds, discharges the owner's debt the
 	// moment the reading lands (F9, `open now`), and the run would end on none — the lenses' drawn
@@ -786,14 +791,31 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 		r.mu.Lock()
 		r.limitDebtCite = "refused"
 		r.mu.Unlock()
-		r.noteActErr("the limit plan found no sentence to cite for the reading debt: every candidate holds an open claim_contradicts_source gap or is not held once")
+		r.noteActErr("the forced limit run found no sentence to cite for the reading debt: every candidate holds an open claim_contradicts_source gap or is not held once")
 		return
 	}
 	cite := r.lifecycleCite(blue, quote, "/limit-debt", "")
 	r.mu.Lock()
 	r.limitDebtCite, r.limitDebtSentenceCited = cmp.Or(cite, "refused"), sentence
 	r.mu.Unlock()
-	if cite == "" || !r.openSitting(citationOwner) {
+}
+
+// screenAtLimit is the lenses' half, driven at the chair's sitting whose plan holds blue out
+// (holdsBlueOut): the computation owner, in a sitting of its own, judges blue's computation unsound, and
+// the citation owner reads blue's citation `refutes`. Draws nothing.
+func (r *runner) screenAtLimit(plan map[string]any) {
+	r.mu.Lock()
+	k, cite := r.screenUnsoundComputation, r.limitDebtCite
+	due := r.forceScreenUnsound && !r.screenJudged && k != ""
+	r.screenJudged = r.screenJudged || due && holdsBlueOut(plan)
+	r.mu.Unlock()
+	if !due || !holdsBlueOut(plan) {
+		return
+	}
+	if strings.HasPrefix(k, anchorPrefix["computation"]) && r.openSitting(computationOwner) {
+		r.lifecycleJudge(computationOwner, k, "unsound")
+	}
+	if !strings.HasPrefix(cite, anchorPrefix["citation"]) || !r.openSitting(citationOwner) {
 		return
 	}
 	at := r.readCited(citationOwner, cite, "refutes")
@@ -806,7 +828,7 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	// THE DEBT IS READ BACK AT ONCE: a reading that leaves none names, from the record, what discharged
 	// it, so the run fails here with the cause rather than at its end with the absence.
 	if _, stands := r.debtOf(citationOwner, cite); !stands {
-		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s at the limit plan (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
+		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s in the epoch that holds blue out (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
 	}
 }
 
@@ -1036,14 +1058,18 @@ func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
 	})
 }
 
-// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION: at the plan that reaches the epoch limit, blue
-// computes the fuzz sentence and the computation owner judges it unsound, and the assembly screen at the
-// run's end FAILS naming it. Blue-respond has never sat: the drive owes nothing to a dispatch of blue
-// before the limit, which the forced run is not sure to reach. A plan short of the limit drives nothing,
-// and a run with no live unsound computation is screened for none.
+// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION, staged under the forced run's own limit: before
+// its first plan blue computes the fuzz sentence, and at that plan — which holds blue out — the
+// computation owner judges it unsound; blue's next act is refused there, so nothing answers the
+// judgement, and the assembly screen at the run's end FAILS naming it. Blue-respond has never sat: the
+// drive owes nothing to a dispatch of blue, which the forced run never gets. A plan that does not hold
+// blue out drives no judgement, and a run with no live unsound computation is screened for none.
 func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	stage := func(t *testing.T) *runner {
 		r := stagedSynthesizedRunner(t)
+		if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"), fuzzRunConfig(3, 1, 2, forcedEpochLimit)); err != nil {
+			t.Fatal(err)
+		}
 		r.forceScreenUnsound = true
 		return r
 	}
@@ -1053,29 +1079,57 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 		}
 		return r.screenUnsound()
 	}
-	t.Run("at the limit", func(t *testing.T) {
+	t.Run("before and in the epoch that holds blue out", func(t *testing.T) {
 		r := stage(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		r.screenBeforeHeldOut()
 		if !strings.HasPrefix(r.screenUnsoundComputation, anchorPrefix["computation"]) || r.actErr != "" {
-			t.Fatalf("blue's computation of the fuzz sentence at the limit: %q (%s)", r.screenUnsoundComputation, r.actErr)
+			t.Fatalf("blue's computation of the fuzz sentence before the first plan: %q (%s)", r.screenUnsoundComputation, r.actErr)
+		}
+		r.dispatchSits("chair", "red-chair")
+		plan := r.dispatchNext("red-chair")
+		r.dispatchReturns("red-chair", false)
+		if !holdsBlueOut(plan) {
+			t.Fatalf("the forced run's first plan (epoch %v of %v) does not hold blue out", plan["epoch"], plan["max_epochs"])
+		}
+		r.screenAtLimit(plan)
+		if r.actErr != "" {
+			t.Fatalf("the lenses' judgements in the epoch that holds blue out: %s", r.actErr)
+		}
+		// THE OWNERS' DRAWN SITTINGS IN THAT EPOCH LEAVE BOTH: the reserved citation's debt, and the
+		// unsound computation, which the owner carries by its gap.
+		for _, owner := range []string{computationOwner, citationOwner} {
+			r.dischargeOwed(owner)
+			r.answerFailed(owner)
+			r.envelopeEnds(owner)
+		}
+		if r.actErr != "" {
+			t.Fatalf("the owners' drives in the epoch that holds blue out: %s", r.actErr)
+		}
+		// NOTHING OF BLUE'S ANSWERS IT THERE: the record holds blue to its closings.
+		r.refuse(feov.Conflict, "edit", "--seat-id", "blue-respond", "--quote", "fuzz sentence", "--new", "fuzz statement",
+			"--reason", "fuzz: blue's answer to the unsound judgement")
+		if r.actErr != "" {
+			t.Fatalf("blue's edit in the epoch that holds it out: %s", r.actErr)
 		}
 		if n, msg := screen(t, r); n != 1 || msg != "" {
 			t.Errorf("the screen of a run ending on unsound %s counted %d (%s), want 1", r.screenUnsoundComputation, n, msg)
 		}
-	})
-	t.Run("short of the limit", func(t *testing.T) {
-		r := stage(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": false})
-		if r.screenUnsoundComputation != "" {
-			t.Errorf("a plan short of the limit drove the arm: %q", r.screenUnsoundComputation)
+		if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
+			t.Errorf("the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
 		}
+	})
+	t.Run("a plan that does not hold blue out", func(t *testing.T) {
+		r := stage(t)
+		r.screenBeforeHeldOut()
+		r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(record.DefaultParams.MaxEpochs)})
 		if n, msg := screen(t, r); n != 0 || msg != "" {
-			t.Errorf("the screen of a run with no unsound computation counted %d (%s), want 0", n, msg)
+			t.Errorf("the screen of a run whose computation no lens judged counted %d (%s), want 0", n, msg)
 		}
 	})
 	t.Run("not forced", func(t *testing.T) {
 		r := stagedSynthesizedRunner(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		r.screenBeforeHeldOut()
+		r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 		if r.screenUnsoundComputation != "" {
 			t.Errorf("a run not forced drove the arm: %q", r.screenUnsoundComputation)
 		}
@@ -1097,7 +1151,7 @@ func itemAbout(it record.Item, g, a string) bool {
 	return false
 }
 
-// THE LIMIT PLAN CITES A SENTENCE FREE OF THE CLASS'S GAP: an open claim_contradicts_source gap on
+// THE FORCED LIMIT RUN CITES A SENTENCE FREE OF THE CLASS'S GAP: an open claim_contradicts_source gap on
 // lane 1's sentence — a lens's quote mint on its own found reading — would discharge the owner's
 // debt the moment it is read (F9), so the limit debt sits on the next candidate, and stands; and
 // a run ending on no debt names, from the record, what discharged it.
@@ -1113,9 +1167,10 @@ func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
 	if g == "" || r.actErr != "" {
 		t.Fatalf("the other lens's mint quoting lane 1's sentence: %q (%s)", g, r.actErr)
 	}
-	r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+	r.screenBeforeHeldOut()
+	r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 	if r.actErr != "" || !strings.HasPrefix(r.limitDebtCite, anchorPrefix["citation"]) || r.limitDebtRead == 0 {
-		t.Fatalf("the limit plan's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
+		t.Fatalf("the forced limit run's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
 	}
 	if r.limitDebtSentenceCited != foundSourceSentences[0] {
 		t.Errorf("the limit debt sits on %q, want lane 3's sentence with lane 1's holding %s", r.limitDebtSentenceCited, g)

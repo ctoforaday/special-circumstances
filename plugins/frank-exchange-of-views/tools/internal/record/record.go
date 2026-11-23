@@ -673,6 +673,10 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 			_ = tx.Rollback()
 		}
 	}()
+	// THE SUCCESSORS ALREADY UNWRITABLE BEFORE THE WRITE, read at its BEGIN: the freeze's successor arm
+	// refuses an act after which a standing supersede's successor NO LONGER passes (judgeLanded), so one
+	// that failed before any act of this write landed is no act's of it to answer for.
+	var unwritable map[string]bool
 	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
@@ -682,7 +686,10 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 			return nil, err
 		}
 		WriteBegins()
-		tx, err = recordsql.BeginWrite(db)
+		if tx, err = recordsql.BeginWrite(db); err != nil {
+			return tx, err
+		}
+		unwritable, err = unwritableSuccessors(writeView{q: tx, files: filesOf(id.Run)}, id.SeatID, acts)
 		return tx, err
 	}
 	var out []*Event
@@ -698,7 +705,7 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 	// each verb's landed guards (CheckLanded). A refusal rolls the whole transaction back.
 	w := writeView{q: tx, files: filesOf(id.Run)}
 	for i, a := range acts {
-		if err := judgeLanded(w, id.SeatID, a.Body); err != nil {
+		if err := judgeLanded(w, id.SeatID, a.Body, unwritable); err != nil {
 			return out, err
 		}
 		if err := landedAt(w, a.Guards); err != nil {

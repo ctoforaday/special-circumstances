@@ -264,6 +264,22 @@ func (r *runner) reconsider(seatID string) {
 // tombstoneStands is the words a proposal on a gap whose ruling's tombstone stands is refused with.
 const tombstoneStands = "its tombstone stands"
 
+// tombstoned is every gap a ruling's tombstone stands on, read off the record's own estopped rows: a
+// proposal on such a gap is refused while it does, so a drive filing one that is not driven to be
+// refused picks another gap. ok is false where the record could not be read, which fails the run.
+func (r *runner) tombstoned() (gaps map[string]bool, ok bool) {
+	w, err := record.WorkOfSeat(r.run(), "blue", "blue-respond")
+	if err != nil {
+		r.noteActErr("the record could not be read to say which gaps a ruling's tombstone stands on: " + err.Error())
+		return nil, false
+	}
+	gaps = map[string]bool{}
+	for _, e := range w.Estopped {
+		gaps[e.ID] = true
+	}
+	return gaps, true
+}
+
 // estoppedSuccessorRefused is blue proposing the successor of gapID while its ruling's tombstone
 // stands: refused naming the tombstone, as the regrade was.
 func (r *runner) estoppedSuccessorRefused(seatID, gapID string) {

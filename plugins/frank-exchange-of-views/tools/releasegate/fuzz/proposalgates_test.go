@@ -175,6 +175,22 @@ const closingsOnlyClause = "THIS SITTING IS FOR YOUR CLOSINGS ALONE"
 // (record.requireClosingsOnlySitting), the final epoch's and the held-out epoch's alike.
 const closingsOnlyRefusal = "for the closings it owes and nothing else"
 
+// closingsOnlyAt reports whether a party of role sits for its closings alone in epoch under the run's
+// epoch limit, by the record's definitions: every party at the final epoch, and blue in the epoch that
+// holds it out (record.Plan.BlueHeldOut).
+func closingsOnlyAt(epoch, limit int, role string) bool {
+	return finalEpoch(epoch, limit) || role != "lens" && (record.Plan{MaxEpochs: limit, Epoch: epoch}).BlueHeldOut()
+}
+
+// blueClosingsOnly reports whether the epoch the latest chair plan opened holds blue to its closings:
+// an act of blue's the drive issues outside blue's own sitting — an answer a lens's close waits on —
+// is refused there, so the drive issues none.
+func (r *runner) blueClosingsOnly() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return closingsOnlyAt(r.planEpoch, r.planLimit, "blue")
+}
+
 // closingsOnlySitting is a party's sitting whose prompt admits its closings alone: it reaches once for
 // an act other than a closing — a petition, which needs nothing on the board — and the record refuses
 // it, then files each closing it owes and ends. Its envelope is empty: it engaged nothing.

@@ -563,10 +563,10 @@ func (r *runner) debtLeftBy(seatID string) bool {
 // leftDebtOnly reports whether seatID's envelope stands refused over reading debts its sitting
 // leaves and nothing else: every item the sitting owes is a reading debt, and the sitting leaves
 // them (debtLeftBy). The mark is spent.
+//
+// A DEBT ON A SUBJECT A FORCED CHAIN RESERVES (reservedDebtSubject) is left whatever the sitting's mark:
+// answerReadingDebt clears none of them, and the chain's end is the debt standing.
 func (r *runner) leftDebtOnly(seatID string) bool {
-	if !r.debtLeftBy(seatID) {
-		return false
-	}
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
 		return false
@@ -575,10 +575,15 @@ func (r *runner) leftDebtOnly(seatID string) bool {
 	if len(owed) == 0 {
 		return false
 	}
+	reserved := true
 	for _, it := range owed {
 		if it.Kind != record.ItemKind(record.BlockerReadingDebt) {
 			return false
 		}
+		reserved = reserved && it.Subject != nil && r.reservedDebtSubject(it.Subject.ID)
+	}
+	if !reserved && !r.debtLeftBy(seatID) {
+		return false
 	}
 	r.mu.Lock()
 	delete(r.debtLeft, seatID)
@@ -972,7 +977,10 @@ func (r *runner) outcomeReason() (string, bool) {
 }
 
 // crossArmTurn alternates the cross-arm drive's three arms across the whole sweep, so each is driven
-// whichever runs reach it (as applyTurn alternates the verbatim-apply arms).
+// whichever runs reach it (as applyTurn alternates the verbatim-apply arms). THE ANCHOR ARM COMES FIRST:
+// the sweep runs in four processes, each with its own turn, and one whose few draws reached the chain
+// twice never drove the third arm — measured, the anchor arm drew zero across 40 runs while the
+// cross-arms drew nine.
 var crossArmTurn atomic.Int64
 
 // crossArmMints is the one-gap rule's anchor arm and cross-arm, driven as lens seatID on a coin, at
@@ -995,7 +1003,7 @@ func (r *runner) crossArmMints(seatID string) {
 	if cite == "" || r.isNotTheWorkCite(cite) {
 		return
 	}
-	if why := r.crossArmChain(seatID, cite, int(crossArmTurn.Add(1)%3)); why != "" {
+	if why := r.crossArmChain(seatID, cite, int((crossArmTurn.Add(1)-1)%3)); why != "" {
 		noteEither([]string{"mint"}, "the cross-arm drive stopped: "+why, false)
 	}
 }

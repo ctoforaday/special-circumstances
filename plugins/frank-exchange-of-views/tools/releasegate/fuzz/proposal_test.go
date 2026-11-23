@@ -190,6 +190,24 @@ func (r *runner) benchRules(args []string) bool {
 	if err == nil {
 		return true
 	}
+	env, ok := refusalEnvelopeIn(out)
+	// THE FILER'S SIDE OF A SUPERSEDE WHOSE SUCCESSOR ANOTHER SEAT'S ACT LEFT UNWRITABLE is refused naming
+	// the successor: the bench answers the other side, or remands where that side stated nothing.
+	for i, a := range args {
+		if (a != "--for-blue" && a != "--for-filer") || !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, successorUnwritable) {
+			continue
+		}
+		noteEither(args, "the bench's answer writing a successor another seat's act left unwritable", false)
+		swapped := slices.Clone(args)
+		swapped[i] = map[string]string{"--for-blue": "--for-red", "--for-filer": "--for-assignee"}[a]
+		if _, err := r.exec(withJSON(swapped)...); err == nil {
+			return true
+		}
+		remand := append(slices.Delete(slices.Clone(args), i, i+1), "--remand", "--direction", "fuzz: one more exchange on the successor's subject")
+		remand = slices.DeleteFunc(remand, func(s string) bool { return s == "--final" })
+		_, admitted := r.admit(remand...)
+		return admitted
+	}
 	at, other := -1, ""
 	for i, a := range args {
 		switch a {
@@ -199,7 +217,6 @@ func (r *runner) benchRules(args []string) bool {
 			at, other = i, "--for-filer"
 		}
 	}
-	env, ok := refusalEnvelopeIn(out)
 	if at < 0 || !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "holds until its ruling") {
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 		return false
@@ -381,6 +398,10 @@ func (r *runner) mustExec(t *testing.T, args ...string) string {
 	}
 	return out
 }
+
+// successorUnwritable is the words the bench's answer for the filer of a supersede is refused with where
+// the successor's mint is refused now (motion's applyAccepted).
+const successorUnwritable = "could not be written on the record as it stands"
 
 // unmintableSuccessor is the refusal of a proposed supersede whose successor its gap's assignee could
 // not mint: the bench writes it as the assignee's on siding with the filer, so the filing is checked

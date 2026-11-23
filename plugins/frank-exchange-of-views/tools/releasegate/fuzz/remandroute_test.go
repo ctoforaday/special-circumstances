@@ -23,7 +23,9 @@ import (
 
 // escalateTrifle files blue's proposed close of an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
-// standing on it, a closing of blue's this sitting, or no counted exchange yet is skipped.
+// standing on it, a closing of blue's this sitting, no counted exchange yet, a ruling's tombstone
+// standing on it (which refuses every proposal on the gap), or a dispute scenario (whose proposed
+// regrade the gap's one proposal is kept for) is skipped.
 func (r *runner) escalateTrifle(seatID string) {
 	if !r.coin(25) {
 		return
@@ -35,7 +37,7 @@ func (r *runner) escalateTrifle(seatID string) {
 	}
 	var trifles []string
 	for _, g := range w.Open {
-		if g.Material || g.Remanded || g.RemandStage != "" || r.closedThisSitting(seatID, g.ID) || r.beforeTheBench(g.ID) || !r.exchanged(g.ID) {
+		if g.Material || g.Remanded || g.RemandStage != "" || r.closedThisSitting(seatID, g.ID) || r.beforeTheBench(g.ID) || !r.exchanged(g.ID) || g.RulingTombstone != nil || r.scenarioOf(g.ID) == dirDisputeWon || r.scenarioOf(g.ID) == dirDisputeLost {
 			continue
 		}
 		trifles = append(trifles, g.ID)

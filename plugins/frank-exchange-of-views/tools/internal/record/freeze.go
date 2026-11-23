@@ -2,7 +2,9 @@ package record
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 
@@ -58,7 +60,7 @@ func requireSuccessorMintable(w writeView, m *recordpb.Mint, motionID string) er
 	}{
 		{"the anchor it is about is retired", func() error { return requireAboutAnchorLive(q, m.GetAboutKind(), m.GetAboutRef()) }},
 		{"its class stands on a reading of its subject, and " + assignee + ", the gap's assignee, holds no such standing reading", func() error { return requireOwnStandingReading(w, assignee, m) }},
-		{assignee + ", the gap's assignee, holds an open gap of its class on its subject, and one class on one subject is one gap", func() error { return requireOneGapPerClassAndSubject(w, assignee, m) }},
+		{"an open gap of its class, or a ruling's tombstone of one, stands on its subject, and one class on one subject is one gap", func() error { return requireOneGapPerClassAndSubject(w, assignee, m) }},
 		{"another proposal or a docketing stands on " + g, func() error { return requireSupersededOffDocket(q, m, motionID) }},
 		{"it drops the live answer " + g + " demands", func() error { return requireSuccessorCarriesDemand(q, m) }},
 		{"it is written in the run's own voice", func() error { return refuseMintReportVoice(m) }},
@@ -157,24 +159,62 @@ func standingSupersedesAt(q recordsql.Querier) ([]standingSupersede, error) {
 	return out, nil
 }
 
+// judgedLanded reports whether the freeze's successor arm judges body written by seatID, and whether
+// only the supersedes standing on a gap seatID is the assignee of: blue's edit or retire, the bench's
+// applied edit or retire, and a lens's verify, reproduce or mint.
+func judgedLanded(seatID string, body proto.Message) (judged, assigneeOnly bool) {
+	role := seatclass.RoleOfSeat(seatID)
+	switch body.(type) {
+	case *recordpb.BlueEdit, *recordpb.Retire:
+		return role == "blue" || role == seatclass.Lane.Role || role == "bench", false
+	case *recordpb.Verify, *recordpb.Reproduce, *recordpb.Mint:
+		return role == "lens", true
+	}
+	return false, false
+}
+
+// unwritableSuccessors is the standing supersede proposals whose successor the bench could not write
+// on the record a write begins on, read only where the arm judges one of its acts: the motions
+// judgeLanded leaves to the act that moved their inputs.
+//
+// ANOTHER SEAT'S ACT CAN MOVE ONE. The one-gap rule reads every open gap of the class and each ruling's
+// tombstone, so another lens's mint, or the bench's ruling, can leave M's successor unwritable while
+// the arm judges neither; the assignee's next act that moves nothing of M's is still its own.
+func unwritableSuccessors(w writeView, seatID string, acts []Act) (map[string]bool, error) {
+	if !slices.ContainsFunc(acts, func(a Act) bool { judged, _ := judgedLanded(seatID, a.Body); return judged }) {
+		return nil, nil
+	}
+	standing, err := standingSupersedesAt(w.q)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]bool
+	for _, s := range standing {
+		err := requireSuccessorMintable(w, s.mint, s.motionID)
+		var c successorCheck
+		switch {
+		case err == nil:
+			continue
+		case !errors.As(err, &c):
+			return nil, err
+		}
+		if out == nil {
+			out = map[string]bool{}
+		}
+		out[s.motionID] = true
+	}
+	return out, nil
+}
+
 // judgeLanded is the freeze's successor arm (L48), asked of the record with the act on it: an act that
 // can move an input of a standing supersede's checks — blue's edit or retire, the bench's applied edit
 // or retire, or G's assignee's own
 // verify, reproduce or mint — is refused where the successor is no longer one the bench could write.
-func judgeLanded(w writeView, seatID string, body proto.Message) error {
-	role := seatclass.RoleOfSeat(seatID)
-	var assigneeOnly bool
-	switch body.(type) {
-	case *recordpb.BlueEdit, *recordpb.Retire:
-		if role != "blue" && role != seatclass.Lane.Role && role != "bench" {
-			return nil
-		}
-	case *recordpb.Verify, *recordpb.Reproduce, *recordpb.Mint:
-		if role != "lens" {
-			return nil
-		}
-		assigneeOnly = true
-	default:
+// unwritable is the motions whose successor already failed when the write began
+// (unwritableSuccessors), which no act of the write moved.
+func judgeLanded(w writeView, seatID string, body proto.Message, unwritable map[string]bool) error {
+	judged, assigneeOnly := judgedLanded(seatID, body)
+	if !judged {
 		return nil
 	}
 	standing, err := standingSupersedesAt(w.q)
@@ -182,7 +222,7 @@ func judgeLanded(w writeView, seatID string, body proto.Message) error {
 		return err
 	}
 	for _, s := range standing {
-		if assigneeOnly && s.assignee != seatID {
+		if assigneeOnly && s.assignee != seatID || unwritable[s.motionID] {
 			continue
 		}
 		if err := requireSuccessorMintable(w, s.mint, s.motionID); err != nil {

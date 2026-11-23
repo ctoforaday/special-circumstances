@@ -221,6 +221,47 @@ func TestASupersedeDocketingLandsAtTheExit(t *testing.T) {
 			t.Errorf("gap %s is open after the bench sided with its supersede", gap)
 		}
 	})
+
+	// THE ARM REFUSES THE ACT THAT MOVES AN INPUT, NOT EVERY ACT AFTER ONE MOVED: another lens's mint of
+	// the successor's class on its quote — an act the arm does not judge — leaves M's successor one the
+	// bench could not write, and the assignee's next act that moves none of its inputs is still its own.
+	t.Run("with M's successor already held by another lens's gap: the assignee's act that moves none of its inputs lands, and the bench's for-blue is refused naming M", func(t *testing.T) {
+		runDir := acceptRun(t)
+		seedCastWith(t, runDir, otherLens)
+		gap, err := mintQuote(t, runDir, "G", acceptS+".")
+		if err != nil {
+			t.Fatal(err)
+		}
+		exchangeOn(t, runDir, gap)
+		out, err := supersedeOf(t, runDir, gap, acceptS+".", otherClass, "")
+		if err != nil {
+			t.Fatalf("the supersede proposal: %v\n%s", err, out)
+		}
+		m := filedMotionID(t, out)
+		asSeat(t, runDir, otherLens, "register")
+		args := []string{"--run", runDir, "--seat-id", otherLens, "--quote", acceptS + ".", "--class", otherClass,
+			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"}
+		out, err = runMint(t, args...)
+		if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
+			out, err = runMint(t, args...)
+		}
+		if err != nil {
+			t.Fatalf("another lens's mint of the successor's class on its quote: %v %s", err, out)
+		}
+		if _, err := mintQuote(t, runDir, "G3", freezeLater, "--class", "false_universal"); err != nil {
+			t.Errorf("the assignee's mint of another class on another sentence, which moves nothing of M's successor, was refused: %v", err)
+		}
+		d := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+		conveneBench(t, runDir, gap)
+		// AT THE BENCH THE SUCCESSOR STILL CANNOT BE WRITTEN: its answer for blue is refused naming M and
+		// the successor, and it remands.
+		bout, berr := answerDocketing(t, runDir, d, "for-blue")
+		heldRefusal(t, "the bench's answer for blue writing an unwritable successor", bout, berr, m, "could not be written", "answer for the other side, or remand")
+		if out, err := answerDocketing(t, runDir, d, "remand", "--direction", "one more exchange on the successor's subject"); err != nil {
+			t.Errorf("the bench's remand of the docketing holding M: %v\n%s", err, out)
+		}
+	})
 }
 
 // T-B30: no proposal is filed on a docketed gap (L38), by any filer, of any act; after a remand one

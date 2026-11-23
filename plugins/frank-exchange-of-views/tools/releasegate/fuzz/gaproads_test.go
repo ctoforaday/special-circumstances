@@ -84,6 +84,11 @@ func (r *runner) disputeMovedGap(seatID string) {
 	for _, id := range r.openGaps() {
 		open[id] = true
 	}
+	// A RULING'S TOMBSTONE REFUSES EVERY PROPOSAL ON ITS GAP: the dispute is filed on a gap none stands on.
+	ruled, ok := r.tombstoned()
+	if !ok {
+		return
+	}
 	gap := ""
 	for _, e := range b.Events {
 		rg := e.GetRegrade()
@@ -95,7 +100,7 @@ func (r *runner) disputeMovedGap(seatID string) {
 		minter := r.minter[id]
 		own, sitting := minter == seatID, r.unreturned[minter] > 0
 		r.mu.Unlock()
-		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && !r.beforeTheBench(id) && r.exchanged(id) {
+		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && !r.beforeTheBench(id) && r.exchanged(id) && !ruled[id] {
 			gap = id
 		}
 	}
