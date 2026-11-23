@@ -364,6 +364,12 @@ func TestVersionOf(t *testing.T) {
 	for _, mode := range []string{"multiline", "oneline", "leadingblank"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("SC_DOCTOR_HELPER", mode)
+			// The child exits from inside the test, so its TestMain never removes the isolated
+			// home it made; its temp directory is this test's, which goes with it.
+			tmp := t.TempDir()
+			for _, k := range []string{"TMPDIR", "TMP", "TEMP"} {
+				t.Setenv(k, tmp)
+			}
 			got := versionOf(os.Args[0] + " -test.run=TestHelperVersionOutput")
 			if strings.Contains(got, "\n") {
 				t.Fatalf("versionOf = %q; the table has ONE column for this", got)

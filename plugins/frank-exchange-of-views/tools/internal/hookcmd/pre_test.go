@@ -1,7 +1,7 @@
 package hookcmd
 
 import (
-	"fmt"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 	"io"
 	"os"
 	"path/filepath"
@@ -39,18 +39,4 @@ func testRecorder() *hookfailures.Recorder {
 
 // No test in this package may write the developer's own failure record: every entry point here now
 // settles into ~/.local/state unless something stops it.
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "feov-hookfailures-test-")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "TestMain:", err)
-		os.Exit(1)
-	}
-	defer os.RemoveAll(dir)
-	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
-		if err := os.Setenv(k, dir); err != nil {
-			fmt.Fprintln(os.Stderr, "TestMain:", err)
-			os.Exit(1)
-		}
-	}
-	os.Exit(m.Run())
-}
+func TestMain(m *testing.M) { os.Exit(testhome.Run(m, "feov-hookfailures-test-")) }

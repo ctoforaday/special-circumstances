@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,25 +21,11 @@ import (
 // store's mtime cannot prove this either way (a read never moves it, and the hooks move it
 // constantly), so the isolation is set for the WHOLE package here rather than trusted test by
 // test. A test that sets its own with t.Setenv still overrides this for its duration.
-func TestMain(m *testing.M) {
-	os.Exit(isolated(m))
-}
-
-func isolated(m *testing.M) int {
-	dir, err := os.MkdirTemp("", "gray-area-capture-test-")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "TestMain: no temp dir to isolate the store in: %v\n", err)
-		return 1
-	}
-	defer os.RemoveAll(dir)
-	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
-		if err := os.Setenv(k, dir); err != nil {
-			fmt.Fprintf(os.Stderr, "TestMain: setting %s: %v\n", k, err)
-			return 1
-		}
-	}
-	return m.Run()
-}
+//
+// testhome also pins the Go caches before HOME moves: a test here builds this command with `go
+// build`, and under the sandboxed HOME that build downloaded the module graph, read-only, into the
+// sandbox, which then could not be removed — 72 directories, 18.5 GB, in /tmp on 2026-11-22.
+func TestMain(m *testing.M) { os.Exit(testhome.Run(m, "gray-area-capture-test-")) }
 
 func call(t *testing.T, stdin, projectDir string, st statFunc, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
