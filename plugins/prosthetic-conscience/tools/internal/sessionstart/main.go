@@ -203,9 +203,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		scope := hookcore.DrainScopeKey(req)
 		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
 		if drainErr != nil {
-			rec.FailIn(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
+			rec.FailBounded(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 		} else {
-			rec.OKIn(hookcore.StageFailedStepDrain, scope)
+			rec.OKIn(hookcore.StageFailedStepDrain.Stage, scope)
 		}
 		sawHookErr := false
 		for _, st := range failedSteps {
@@ -213,7 +213,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 				// Our hook's output failed to parse: record on hookfailures for the human,
 				// never strike the agent for our own hook defect.
 				sawHookErr = true
-				rec.FailIn(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+				rec.FailBounded(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
 				continue
 			}
 			// Never strike tools without a command (e.g. Read or manage_task): their key would
@@ -243,7 +243,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			}
 		}
 		if !sawHookErr {
-			rec.OKIn(hookcore.StageHookUnmarshal, scope)
+			rec.OKIn(hookcore.StageHookUnmarshal.Stage, scope)
 		}
 
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a

@@ -447,7 +447,7 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if errOut := fire("conv-drain-A", tpA); !strings.Contains(errOut, "failed-step drain:") {
 			t.Fatalf("drain error not recorded on stderr: %s", errOut)
 		}
-		if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain)) || !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"expires_after"`) {
+		if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain.Stage)) || !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"expires_after"`) {
 			t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for conv-drain-A: %s", f)
 		}
 		// Peer conversation clean drain must NOT clear conv-drain-A's entry.
@@ -508,7 +508,7 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(hookcore.StageHookUnmarshal)) || !strings.Contains(string(fb), `"expires_after"`) {
+		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(hookcore.StageHookUnmarshal.Stage)) || !strings.Contains(string(fb), `"expires_after"`) {
 			t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", string(fb))
 		}
 		// Show on Stop, then next clean PreInvocation clears StageHookUnmarshal.
@@ -519,7 +519,7 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
 			t.Fatalf("PreInvocation clean exit %d", code)
 		}
-		if fb, _ := os.ReadFile(p); strings.Contains(string(fb), string(hookcore.StageHookUnmarshal)) {
+		if fb, _ := os.ReadFile(p); strings.Contains(string(fb), string(hookcore.StageHookUnmarshal.Stage)) {
 			t.Fatalf("clean PreInvocation did not clear StageHookUnmarshal after being shown: %s", string(fb))
 		}
 	})

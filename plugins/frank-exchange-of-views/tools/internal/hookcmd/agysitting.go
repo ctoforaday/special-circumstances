@@ -51,6 +51,23 @@ func applyAgySitting(req *hookcore.Request, cwd string, rec *hookfailures.Record
 	return s, true
 }
 
+// applyBoundAgySitting resolves an already-bound Antigravity sitting (fast-path conv-<id>.json
+// only, never touching O_EXCL seat-<id>.bound) so Run can populate req.AgentID before f runs
+// without racing with f's first-bind path.
+func applyBoundAgySitting(req *hookcore.Request, cwd string) bool {
+	probe := *req
+	probe.ToolName = ""
+	probe.Command = ""
+	s, ok := resolveAgySittingFn(probe, cwd, nil)
+	if !ok {
+		return false
+	}
+	req.AgentID = s.AgentID
+	req.AgentType = s.AgentType
+	req.SessionID = s.LeadSession
+	return true
+}
+
 func resolveAgySitting(req hookcore.Request, cwd string, rec *hookfailures.Recorder) (agySitting, bool) {
 	if req.Engine != hookcore.EngineAntigravity || req.AgentID != "" || req.SessionID == "" {
 		return agySitting{}, false
@@ -198,15 +215,15 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	scope := hookcore.DrainScopeKey(req)
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
-		rec.FailIn(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
+		rec.FailBounded(hookcore.StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 	} else {
-		rec.OKIn(hookcore.StageFailedStepDrain, scope)
+		rec.OKIn(hookcore.StageFailedStepDrain.Stage, scope)
 	}
 	sawHookErr := false
 	for _, st := range failed {
 		if st.HookError {
 			sawHookErr = true
-			rec.FailIn(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+			rec.FailBounded(hookcore.StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
 		}
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)
@@ -224,6 +241,6 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		}
 	}
 	if !sawHookErr {
-		rec.OKIn(hookcore.StageHookUnmarshal, scope)
+		rec.OKIn(hookcore.StageHookUnmarshal.Stage, scope)
 	}
 }

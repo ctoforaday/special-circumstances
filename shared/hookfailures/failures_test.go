@@ -266,26 +266,29 @@ func TestAFailingStageIsSaidOnceEveryNotifyPeriod(t *testing.T) {
 	}
 }
 
-// RegisterTTL associates a TTL with a stage so any event/harness merge prunes expired entries
-// once shown, marks un-announced recoveries as Recovered to show once and drop, and never loses
-// still-failing or non-TTL stages.
+// BoundedStage associates a TTL with a stage so any event/harness merge prunes expired entries
+// once shown, marks un-announced recoveries as Recovered to show once and drop, resets Since when
+// a recovered entry fails again, and never loses still-failing or non-TTL stages.
 func TestStageTTLSemantics(t *testing.T) {
 	plugin, path := isolate(t)
-	RegisterTTL(stageA, 30*time.Minute)
-	t.Cleanup(func() { RegisterTTL(stageA, 0) })
+	boundedA := BoundedStage{Stage: stageA, TTL: 30 * time.Minute}
 
-	// 1. G2: Fail at t=0 on non-displaying PreInvocation, recover (OKIn) at +1m before ever being
-	// shown -> displaying event at +2m shows it ONCE as recovered (never "failing since") and drops it.
+	// 1. G2 + H3: Fail at t=0 on non-displaying PreInvocation, recover (OKIn) at +1m before ever being
+	// shown -> displaying event at +2m shows it ONCE with singular recovered header & cleared footer
+	// (never "failing since") and drops it.
 	g2a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
-	g2a.FailIn(stageA, "conv-rec", "drain failed")
+	g2a.FailBounded(boundedA, "conv-rec", "drain failed")
 	g2a.Persist()
 	g2b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
 	g2b.OKIn(stageA, "conv-rec")
 	g2b.Persist()
 	g2c := New(plugin, "test-hook", "PreToolUse", noon.Add(2*time.Minute), io.Discard)
 	recMsg := g2c.Settle()
-	if !strings.Contains(recMsg, "has since worked") || strings.Contains(recMsg, "failing since") {
-		t.Fatalf("recovered-before-shown message = %q, want 'has since worked' without 'failing since'", recMsg)
+	if !strings.Contains(recMsg, "1 stage failed and has since worked") ||
+		!strings.Contains(recMsg, "has since worked at") ||
+		!strings.Contains(recMsg, "Each recovered entry above has been cleared.") ||
+		strings.Contains(recMsg, "failing since") {
+		t.Fatalf("singular recovered message unexpected: %q", recMsg)
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("recovered entry survived its one-time announcement: %+v", recorded(t, path))
@@ -295,9 +298,59 @@ func TestStageTTLSemantics(t *testing.T) {
 		t.Fatalf("recovered entry re-announced at +12m: %q", again)
 	}
 
+	// 1b. H3 plural recovered-only header: 2 recovered stages use plural "2 stages failed and have since worked".
+	p1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	p1.FailBounded(boundedA, "conv-p1", "err1")
+	p1.FailBounded(boundedA, "conv-p2", "err2")
+	p1.Persist()
+	p2 := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	p2.OKIn(stageA, "conv-p1")
+	p2.OKIn(stageA, "conv-p2")
+	p2.Persist()
+	p3 := New(plugin, "test-hook", "PreToolUse", noon.Add(2*time.Minute), io.Discard)
+	if pmsg := p3.Settle(); !strings.Contains(pmsg, "2 stages failed and have since worked") || !strings.Contains(pmsg, "Each recovered entry above has been cleared.") {
+		t.Fatalf("plural recovered message unexpected: %q", pmsg)
+	}
+
+	// 1c. H2 + H5: fail@0 -> OK@1m (Recovered) -> fail@2m clears Recovered AND resets Since to +2m,
+	// so Settle@3m renders "failing since <+2m>" and NOT "has since worked".
+	h2a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	h2a.FailBounded(boundedA, "conv-flaky", "first fail")
+	h2a.Persist()
+	h2b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	h2b.OKIn(stageA, "conv-flaky")
+	h2b.Persist()
+	h2c := New(plugin, "test-hook", "PreInvocation", noon.Add(2*time.Minute), io.Discard)
+	h2c.FailBounded(boundedA, "conv-flaky", "second fail")
+	h2c.Persist()
+	h2d := New(plugin, "test-hook", "PreToolUse", noon.Add(3*time.Minute), io.Discard)
+	flakyMsg := h2d.Settle()
+	wantSince := noon.Add(2 * time.Minute).UTC().Format(time.RFC3339)
+	if !strings.Contains(flakyMsg, "failing since "+wantSince) || strings.Contains(flakyMsg, "has since worked") {
+		t.Fatalf("fail->OK->fail message = %q, want 'failing since %s' without 'has since worked'", flakyMsg, wantSince)
+	}
+	// Clean up conv-flaky before continuing.
+	h2e := New(plugin, "test-hook", "PreInvocation", noon.Add(4*time.Minute), io.Discard)
+	h2e.OKIn(stageA, "conv-flaky")
+	h2e.Persist()
+
+	// 1d. G4: FailBounded (TTL 30m) followed by plain FailIn on the same key resets ExpiresAfter to 0.
+	g4a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	g4a.FailBounded(boundedA, "conv-g4", "bounded")
+	g4a.Persist()
+	g4b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	g4b.FailIn(stageA, "conv-g4", "plain")
+	g4b.Persist()
+	if got, ok := entry(recorded(t, path), stageA, "conv-g4"); !ok || got.ExpiresAfter != 0 {
+		t.Fatalf("plain FailIn after FailBounded kept sticky TTL: ok=%v got=%+v", ok, got)
+	}
+	g4c := New(plugin, "test-hook", "PreInvocation", noon.Add(2*time.Minute), io.Discard)
+	g4c.OKIn(stageA, "conv-g4")
+	g4c.Persist()
+
 	// 2. Record a TTL stage on non-displaying PreInvocation and a non-TTL stageB.
 	r1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
-	r1.FailIn(stageA, "conv-ended", "drain failed")
+	r1.FailBounded(boundedA, "conv-ended", "drain failed")
 	r1.Fail(stageB, "permanent failure")
 	r1.Persist()
 
@@ -330,10 +383,10 @@ func TestStageTTLSemantics(t *testing.T) {
 	// 6. Still-failing entry ages from Last, NOT Since: fail at t=0, fail again at t=20m, show at
 	// t=20m, settle at t=35m (now-Since=35m >= 30m, now-Last=15m < 30m) -> MUST be kept.
 	r5a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
-	r5a.FailIn(stageA, "conv-active", "still failing")
+	r5a.FailBounded(boundedA, "conv-active", "still failing")
 	r5a.Persist()
 	r5b := New(plugin, "test-hook", "Stop", noon.Add(20*time.Minute), io.Discard)
-	r5b.FailIn(stageA, "conv-active", "still failing")
+	r5b.FailBounded(boundedA, "conv-active", "still failing")
 	r5b.Settle()
 	r5c := New(plugin, "test-hook", "Stop", noon.Add(35*time.Minute), io.Discard)
 	r5c.Persist()
@@ -343,7 +396,7 @@ func TestStageTTLSemantics(t *testing.T) {
 
 	// 7. G3: Failing-now is never expired even if now-Last >= TTL, AND preserves Since and Notified.
 	r6 := New(plugin, "test-hook", "Stop", noon.Add(60*time.Minute), io.Discard)
-	r6.FailIn(stageA, "conv-active", "failing right now")
+	r6.FailBounded(boundedA, "conv-active", "failing right now")
 	r6.Persist()
 	got, ok := entry(recorded(t, path), stageA, "conv-active")
 	if !ok {

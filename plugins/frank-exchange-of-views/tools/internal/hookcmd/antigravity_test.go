@@ -529,7 +529,7 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 
 	// 1. conv-A fails drain -> recorded under hookcore.StageFailedStepDrain with TTL scoped to its agent id.
 	firePreInv("conv-A", tpA)
-	if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") || !strings.Contains(f, `"expires_after"`) {
+	if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain.Stage)) || !strings.Contains(f, "agy-drainerrA00001") || !strings.Contains(f, `"expires_after"`) {
 		t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for agy-drainerrA00001: %s", f)
 	}
 	// 2. Peer conv-B clean drain must NOT clear conv-A's entry.
@@ -559,20 +559,20 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 		t.Fatal(err)
 	}
 	firePreInv("conv-H", tpHook)
-	if f := readFailures(); !strings.Contains(f, string(hookcore.StageHookUnmarshal)) || !strings.Contains(f, `"expires_after"`) {
+	if f := readFailures(); !strings.Contains(f, string(hookcore.StageHookUnmarshal.Stage)) || !strings.Contains(f, `"expires_after"`) {
 		t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", f)
 	}
 	showRec2 := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "Stop", time.Now(), &bytes.Buffer{})
 	_ = showRec2.Settle()
 	firePreInv("conv-H", tpHook)
-	if f := readFailures(); strings.Contains(f, string(hookcore.StageHookUnmarshal)) {
+	if f := readFailures(); strings.Contains(f, string(hookcore.StageHookUnmarshal.Stage)) {
 		t.Fatalf("clean drain did not clear StageHookUnmarshal after being shown: %s", f)
 	}
 
 	// 5. F6: Run() on a bound agy seat queues Settle's Say under the bound AgentID so the next
 	// PreInvocation flushes it (instead of stranding it under the raw conversationId).
 	seedRec := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreInvocation", time.Now(), &bytes.Buffer{})
-	seedRec.FailIn(hookcore.StageFailedStepDrain, "agy-drainerrA00001", "F6_BOUND_DELIVERY_CANARY")
+	seedRec.FailBounded(hookcore.StageFailedStepDrain, "agy-drainerrA00001", "F6_BOUND_DELIVERY_CANARY")
 	seedRec.Persist()
 	preToolPayload, _ := json.Marshal(map[string]any{
 		"hookEventName":  "PreToolUse",
@@ -662,5 +662,59 @@ func TestAntigravityRunRecoversPanicInSittingLookup(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(p); !strings.Contains(string(b), string(StagePanic)) {
 		t.Fatalf("failures.json missing StagePanic after resolveAgySitting panic: %s", string(b))
+	}
+}
+
+// H1: When f panics on an already-bound Antigravity seat, Run must still queue the hook-panic
+// message under the bound AgentID so the seat's next PreInvocation delivers it.
+func TestAntigravityRunBoundSeatEntryPanicDeliveredOnPreInvocation(t *testing.T) {
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	cwd, runDir := hookRun(t)
+	sdir := filepath.Join(runDir, agySittingsDir)
+	if err := os.MkdirAll(sdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(agySitting{
+		AgentID:     "agy-panicbound0001",
+		AgentType:   "frank-exchange-of-views:red-lens-logic",
+		SeatID:      "red-lens-logic",
+		RunDir:      runDir,
+		LeadSession: testLead,
+	})
+	if err := os.WriteFile(filepath.Join(sdir, "conv-P.json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": "conv-P",
+		"cwd":            cwd,
+		"toolCall": map[string]any{
+			"id":   "call-p",
+			"name": "run_command",
+			"args": map[string]any{"CommandLine": "echo hi"},
+		},
+	})
+	var runOut bytes.Buffer
+	code := Run("feov-pretooluse", "PreToolUse", func(io.Reader, io.Writer, *hookfailures.Recorder) error {
+		panic("simulated entry panic on bound seat")
+	}, bytes.NewReader(payload), &runOut)
+	if code != 0 {
+		t.Fatalf("Run returned exit %d, want 0", code)
+	}
+
+	preInvPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-P",
+		"cwd":            cwd,
+		"invocationNum":  1,
+	})
+	var preInvOut bytes.Buffer
+	if err := Pre(bytes.NewReader(preInvPayload), &preInvOut, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(preInvOut.String(), "hook-panic") || !strings.Contains(preInvOut.String(), "simulated entry panic on bound seat") {
+		t.Fatalf("bound seat PreInvocation did not deliver hook-panic after f panicked: %s", preInvOut.String())
 	}
 }

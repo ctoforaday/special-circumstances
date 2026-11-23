@@ -128,14 +128,16 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		}
 		code = 0
 	}()
+	// Resolve an already-bound Antigravity seat BEFORE f runs (fast-path read-only, inside Run's
+	// recover-protected body) so if f panics, defer respond() still queues StagePanic under the
+	// bound AgentID (what PreInvocation flushes). Re-check after f in case f just created the binding.
+	applyBoundAgySitting(&req, req.CWD)
 	if err := f(bytes.NewReader(raw), &buf, rec); err != nil {
 		rec.Fail(StageError, err.Error()+" (exiting 0)")
 	} else {
 		rec.OK(StageError)
 	}
-	// Resolve a bound Antigravity seat inside Run's recover-protected body (never in the defer)
-	// so respond() queues Settle's Say under pending_<agentID>.jsonl (what PreInvocation flushes).
-	applyAgySitting(&req, req.CWD, nil)
+	applyBoundAgySitting(&req, req.CWD)
 	return 0
 }
 
