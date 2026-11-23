@@ -184,6 +184,9 @@ func runGate(root string, g gate, base string) result {
 	}
 	dir := filepath.Join(root, g.dir)
 	start := time.Now()
+	if why := memoryShort(g, readHeadroom("/proc", "/sys/fs/cgroup")); why != "" {
+		return result{gate: g, status: "FAIL", details: why}
+	}
 
 	var cmd *exec.Cmd
 	switch g.kind {
@@ -257,6 +260,17 @@ func runGate(root string, g gate, base string) result {
 		return result{gate: g, status: "FAIL", took: took, details: strings.TrimSpace(string(out))}
 	}
 	return result{gate: g, status: "PASS", took: took}
+}
+
+// memoryShort is why g cannot start with the memory this process can get, or "" when it can.
+// An unreadable headroom does not hold the gate back: there is no number to refuse it on, and the
+// gate runs as it did before it declared one.
+func memoryShort(g gate, h headroom) string {
+	if g.memory == 0 || !h.ok || h.bytes >= g.memory {
+		return ""
+	}
+	return fmt.Sprintf("not started: this gate holds up to %d MB and %s. Started short it sits in reclaim "+
+		"and stalls its cgroup. Free memory, or raise the limit named, and run it again.", g.memory>>20, h)
 }
 
 // toolFlags returns a tool gate's own flags — everything in args after `run` and the package
