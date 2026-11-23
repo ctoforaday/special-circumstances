@@ -20,19 +20,17 @@ import (
 // Last once shown at least once, before any hook merge prunes it.
 const ConversationStageTTL = 30 * time.Minute
 
-// StageFailedStepDrain is recorded when Antigravity's PreInvocation failed-step transcript drain
-// encounters a corrupt watermark, shrunken transcript, misaligned rewrite, or unrecognized Bash
-// GENERIC format. Carries ConversationStageTTL so ended conversations age out once shown.
-var StageFailedStepDrain = hookfailures.BoundedStage{
-	Stage: "failed-step-drain",
-	TTL:   ConversationStageTTL,
+// StageFailedStepDrain returns the TTLStage recorded when Antigravity's PreInvocation failed-step
+// transcript drain encounters a corrupt watermark, shrunken transcript, misaligned rewrite, or
+// unrecognized Bash GENERIC format.
+func StageFailedStepDrain() hookfailures.TTLStage {
+	return hookfailures.TTLStage{Stage: "failed-step-drain", TTL: ConversationStageTTL}
 }
 
-// StageHookUnmarshal is recorded when an Antigravity transcript step failed because a hook emitted
-// output the client could not unmarshal. Carries ConversationStageTTL.
-var StageHookUnmarshal = hookfailures.BoundedStage{
-	Stage: "hook-result-unmarshal",
-	TTL:   ConversationStageTTL,
+// StageHookUnmarshal returns the TTLStage recorded when an Antigravity transcript step failed
+// because a hook emitted output the client could not unmarshal.
+func StageHookUnmarshal() hookfailures.TTLStage {
+	return hookfailures.TTLStage{Stage: "hook-result-unmarshal", TTL: ConversationStageTTL}
 }
 
 // FailedToolStep describes a tool call recorded in an Antigravity transcript whose execution

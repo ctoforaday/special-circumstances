@@ -110,6 +110,19 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		} else {
 			rec.OK(StagePanic)
 		}
+		// Resolve a bound Antigravity seat (pre-bound OR newly bound by f before returning or
+		// panicking) under its own recover so respond() queues Settle's Say under
+		// pending_<AgentID>.jsonl (the queue PreInvocation flushes) without risking Run's exit 0.
+		if req.AgentID == "" {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
+					}
+				}()
+				applyBoundAgySitting(&req, req.CWD)
+			}()
+		}
 		if err := respond(req, stdout, buf.Bytes(), rec.Settle()); err != nil {
 			// The decision never reached the client. Recorded rather than said — the channel for
 			// saying it is the thing that failed — and read out by the next call that can.
@@ -128,16 +141,11 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		}
 		code = 0
 	}()
-	// Resolve an already-bound Antigravity seat BEFORE f runs (fast-path read-only, inside Run's
-	// recover-protected body) so if f panics, defer respond() still queues StagePanic under the
-	// bound AgentID (what PreInvocation flushes). Re-check after f in case f just created the binding.
-	applyBoundAgySitting(&req, req.CWD)
 	if err := f(bytes.NewReader(raw), &buf, rec); err != nil {
 		rec.Fail(StageError, err.Error()+" (exiting 0)")
 	} else {
 		rec.OK(StageError)
 	}
-	applyBoundAgySitting(&req, req.CWD)
 	return 0
 }
 

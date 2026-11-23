@@ -16,10 +16,10 @@
 // event the client displays nothing for is KEPT until one that does: that is what the record buys
 // over speaking at the moment of failure, and five of the events in this suite display nothing.
 //
-// Stages declared as BoundedStage (via FailBounded, such as conversation-scoped drain stages)
-// carry an ExpiresAfter on the Failure itself: once shown at least once, an entry that stops
-// failing ages out after its TTL on any subsequent merge, and if it recovers before ever being
-// shown it is shown once as recovered and dropped immediately.
+// Stages declared as TTLStage (via FailTTL, such as conversation-scoped drain stages) carry an
+// ExpiresAfter on the Failure itself: once shown at least once, an entry that stops failing ages
+// out after its TTL on any subsequent merge, and if it recovers before ever being shown it is
+// shown once as recovered and dropped immediately.
 //
 // The events that display a top-level systemMessage are SessionStart, PreToolUse, PostToolUse,
 // PostToolUseFailure and Stop. Settle returns the message rather than printing it, because most
@@ -70,9 +70,9 @@ const NotifyEvery = 10 * time.Minute
 // Schema versions failures.json.
 const Schema = 1
 
-// BoundedStage pairs a Stage with a bounded-lifetime TTL (such as a single conversation) so
-// FailBounded persists ExpiresAfter on the Failure itself with no process-global registry.
-type BoundedStage struct {
+// TTLStage pairs a Stage with a bounded-lifetime TTL (such as a single conversation) so
+// FailTTL persists ExpiresAfter on the Failure itself with no process-global registry.
+type TTLStage struct {
 	Stage Stage
 	TTL   time.Duration
 }
@@ -150,10 +150,15 @@ func (r *Recorder) FailIn(s Stage, scope, detail string) {
 	r.recordFail(s, scope, detail, 0)
 }
 
-// FailBounded records a failure for a BoundedStage, persisting its TTL on the Failure itself so
+// FailTTL records a failure for a TTLStage, persisting its TTL on the Failure itself so
 // any plugin hook on any event or harness prunes it after TTL past Last once shown.
-func (r *Recorder) FailBounded(s BoundedStage, scope, detail string) {
+func (r *Recorder) FailTTL(s TTLStage, scope, detail string) {
 	r.recordFail(s.Stage, scope, detail, s.TTL)
+}
+
+// OKTTL records that a TTLStage worked in scope (delegating to OKIn without exposing the raw Stage).
+func (r *Recorder) OKTTL(s TTLStage, scope string) {
+	r.OKIn(s.Stage, scope)
 }
 
 func (r *Recorder) recordFail(s Stage, scope, detail string, ttl time.Duration) {

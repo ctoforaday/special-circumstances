@@ -32,6 +32,12 @@ func TestDrainFailedToolStepsExtractsNonZeroRunCommandOnce(t *testing.T) {
 	if gotKey := DrainScopeKey(req); gotKey != "conv-1" {
 		t.Fatalf("DrainScopeKey(req) = %q, want conv-1", gotKey)
 	}
+	if s := StageFailedStepDrain(); s.Stage != "failed-step-drain" || s.TTL != ConversationStageTTL {
+		t.Fatalf("StageFailedStepDrain() = %+v", s)
+	}
+	if s := StageHookUnmarshal(); s.Stage != "hook-result-unmarshal" || s.TTL != ConversationStageTTL {
+		t.Fatalf("StageHookUnmarshal() = %+v", s)
+	}
 	got, err := DrainFailedToolSteps(req)
 	if err != nil {
 		t.Fatalf("first drain error: %v", err)
