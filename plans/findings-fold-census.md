@@ -1046,6 +1046,12 @@ O hits (kept): 51; D hits (regenerated): 24.
 
 ## M9 readers of a gap's assignee and of a mint's acting seat — Part B (F-B1, owner from the chain, F-B3, L5, assignee)
 
+**Amendment 7 (plan §III.B15).** The bench writes no `Mint` and no accept writes one, so `actingSeat`
+and L5 are deleted: every **ACTOR** line below reads the Mint event's seat again (tag ACTOR → WRITER in
+phase B7), and T-B14 becomes `TestAssigneeAndWriterReadersOfASuccessor` with no bench successor. The
+ASSIGNEE lines are unchanged; the one case where writer and assignee differ is a lens's successor of
+another lens's closed gap, which is F-CS.
+
 Re-read on `3eca8f516` (line numbers are its; `c6f061897` moves them by a few). The assignee is
 `gap_state.assignee`, the chain's origin, written by `gap_refresh` through `assigneeSQL` (plan
 §III.B4a); the gap view's `assignee` (renamed from `minted_by`, M14) reads it. Three questions (ruled
@@ -1414,12 +1420,12 @@ sense). Plan §III.B13's duty table is the change; T-B23 a subtest per DOCKETING
 ## M17 the bench's own closing word and own regrade, and every carrier of the docketing's answers — Part B (amendments 2 and 4, 2026-11-20, plan §III.B14)
 
 **Amendment 4 (each side states its position; side-named answers; a stored side).** Every CHOOSE line
-below that names `--accept | --reject` names D's pair instead — `--for-red | --for-blue`, or
-`--for-filer | --for-assignee` on a red seat's proposal on another red seat's gap — and teaches each
+below that names `--accept | --reject` names D's pair instead — `--for-red | --for-blue` (amendment 7
+deletes B2a's `--for-filer | --for-assignee`, M21) — and teaches each
 side's statement (red's text in its closing, blue's word in its closing, a proposal, the moved or the
 recorded grades) and that a side stating nothing cannot win. Every reader of `DocketRuling.accepted`
-reads `sided_with` (tag **SIDED**, replacing REJECT-MOVES): "the held act applied" is `sided_with IN
-(BLUE, FILER)`. Sweep re-run at the build: `git grep -n -E 'GetAccepted\(\)|"accepted"|"rejected"|--accept\b|--reject\b|flags\.(Accept|Reject)' a488cad41 -- plugins/frank-exchange-of-views/tools plugins/frank-exchange-of-views/skills scripts/agentgen ':!*_test.go'`,
+reads `sided_with` (tag **SIDED**, replacing REJECT-MOVES): "the held act applied" is `sided_with =
+BLUE` (amendment 7). Sweep re-run at the build: `git grep -n -E 'GetAccepted\(\)|"accepted"|"rejected"|--accept\b|--reject\b|flags\.(Accept|Reject)' a488cad41 -- plugins/frank-exchange-of-views/tools plugins/frank-exchange-of-views/skills scripts/agentgen ':!*_test.go'`,
 each hit tagged SIDED, CHOOSE (the docket rule's flags), or O (`blue edit --accept`, `motion docket
 accept`, another verb's flag).
 
@@ -1432,7 +1438,7 @@ git grep -c -i -E 'regrade-bench|bench.?s (own )?regrade|BenchRegrade|requireReg
 plus, read by hand, the agentgen sources the pattern does not reach (`lead-judge.md:42-43,82,112`,
 `red-chair.md`), debate.js `:491,927,1123-1128` and the assembly prompt, `terms.json`'s `disposition`
 (`:815-857`). Tags: **CHOOSE** (a surface where the bench chooses a word or grade: deleted, or reworded to
-D's pair (amendment 4: `--for-red | --for-blue`, `--for-filer | --for-assignee`) | remand and the positions), **TOOL-WRITES** (record code that now writes the word or
+D's pair (amendment 4: `--for-red | --for-blue`; amendment 7 deletes `--for-filer | --for-assignee`) | remand and the positions), **TOOL-WRITES** (record code that now writes the word or
 grade from the record), **DELETE**, **TEXT**, **O** (another sense — `flags.As` of another verb).
 
 - `F/tools/internal/record/recordpb/record.proto` TOOL-WRITES — `DocketRuling.disposition` loses `flag: "as"`, its `why` and the side-or-remand CHECK's `why` say the tool sets it (red's `repaired`, blue's stated word or `not_a_defect`, a proposal's stored word, `remanded`); `accepted = 9` reserved and `sided_with = 11` (`SidedWith`: `RED`, `BLUE`, `FILER`, `ASSIGNEE`; means "the position whose statement this ruling applied, as the answer named it") with its CHECKs (amendment 4); `Closing.closure_class = 6` (blue's word, `subset: "closes"`, `flag: "as"`; M19); `Disposition`'s "the bench's word" comment; `remanded`'s means unchanged; `Closing.location`, `fix_new`, `retire` (M19)
@@ -1446,7 +1452,7 @@ grade from the record), **DELETE**, **TEXT**, **O** (another sense — `flags.As
 - `F/tools/internal/record/supersede.go:303`, `enums.go` (6), `cli/chair/verdict.go` (5), `cli/bench/outcome.go` (3), `cli/blue/inquiry.go` (3), `cli/lens/reproduce.go` (3), `cli/lens/verify.go` (3), `cli/seat/closure.go` (3), `cli/motion/propose.go:68-76` O — `flags.As` of another verb (the proposal's own closure class, `bench outcome --as`, the verdict, an inquiry's status, a reproduction's or verification's outcome)
 - `F/tools/internal/record/viewjson.go` (1), `sitting.go` S — the bench's work-list row on a docketing names the change at issue and G as it stands, and what each answer writes
 - `F/tools/internal/cli/bench/command.go:23` DELETE — `seat.Regrade("regrade-bench")`; `F/tools/internal/cli/seat/help/regrade-bench.md` DELETE; `cli/seat/regrade.go:20-21` TEXT (one act, the lens's; the bench's regrade is the tool's)
-- `F/tools/internal/cli/motion/verbs.go` (5) CHOOSE — `motion docket rule`: `--for-red | --for-blue | --for-filer | --for-assignee | --remand` exactly one, from D's pair or the remand (amendment 4), `--direction` with `--remand`, `RequiredUnless(c, flags.As, …)` (`:408`) gone; help `:226-240,293,405` teaches the positions table; `rulingSaid` (`:492`) unchanged
+- `F/tools/internal/cli/motion/verbs.go` (5) CHOOSE — `motion docket rule`: `--for-red | --for-blue | --keep | --restore | --remand` exactly one (amendment 7), from D's pair or the remand (amendment 4), `--direction` with `--remand`, `RequiredUnless(c, flags.As, …)` (`:408`) gone; help `:226-240,293,405` teaches the positions table; `rulingSaid` (`:492`) unchanged
 - `F/tools/internal/cli/motion/propose.go:218` TEXT — "The bench's regrade is the grade its ruling rules on" → the stored regrade, written as the bench's
 - `F/tools/internal/cli/seat/help/regrade.md:11` TEXT — "AN AXIS THE BENCH SET" stays (the lock), set now by a ruling on a grade (a regrade proposal's either answer, `--keep`, `--restore`; L35′); `close.md`, `mint.md`, `reproduce.md`, `verify.md` (each 1, "the bench's word") TEXT — a bench closure's word is a proposal's or the tool's; `help_gen.go` D
 - `scripts/agentgen/src/lead-judge.md:42-43,82,112` CHOOSE — "REASONS, NOT JUST FATES" keeps its four fields; "WHERE YOU HOLD A GAP'S GRADE WRONG, YOU MUST SET IT BEFORE YOU RULE" deleted; the impasse paragraph and `:112`'s "you have the disposition for it" → a side of D's pair (`--for-red | --for-blue`; `--for-filer | --for-assignee`) or remand, each side's statement (red's text, blue's word, a proposal, the grades), that the tool applies the chosen side's and that a side stating nothing cannot win (amendment 4); `src/red-chair.md`, `src/fragments/lens-duties.md`, `lens-audit-and-mint.md` TEXT (grade movement: the bench keeps or restores; amendment 4: blue's closing may state its word, red's carries its text); `F/agents/*.md` (9) D
@@ -1521,3 +1527,20 @@ Tags: **WRITE-CHECK** (admits the edit), **SEAT** (keys on the edit being blue's
 - VERB — `cli/blue/edit.go:119,351-356` (`PlanAccept` and `Accepted` reused; `repeatsEdit` unchanged), `record/blueedit.go:13-17` (keyed retry: the bench writes no key)
 - MIGRATE — `record/migrate/eraentries.go:34`, `migrate/gapplace.go:70,142`, `migrate/replay.go:890`
 - O — `record/recordpb/record.proto:261` (the type's means: "a change to the report"; unchanged)
+
+## M21 the supersede proposal, third-party filing and the lens-against-lens sides — Part B (amendment 7, 2026-11-23, plan §III.B15)
+
+Read on `5dfbb7750` (the branch head, B6c built). Command:
+`git grep -n -E 'Motion_Supersede|motion_supersede|Mint supersede|SIDED_WITH_FILER|SIDED_WITH_ASSIGNEE|SidedWith_SIDED_WITH_(FILER|ASSIGNEE)|ForFiler|ForAssignee|for-filer|for-assignee|requireSuccessorMintable|successorCheck|successorRefusal|standingSupersede|unwritableSuccessors|judgedLanded|judgeLanded|SuccessorPlans|actingSeat|mintActingSeat|requireBenchSuccessor|ProposalSide|proposalSide|proposeAsBystander|bystander|successor_unmintable_refused|one_proposal_refused|closed_gap_refused|motion:(lens|chair):|docket file supersede|ProposedActs' HEAD -- plugins/frank-exchange-of-views scripts/agentgen`.
+Tags: **DELETE** (the line goes), **NARROW** (the line stays for blue's proposals or red against blue),
+**TEXT** (agent-facing wording reworded), **GEN** (a generated carrier, regenerated), **O** (another
+sense). Every non-test hit is a row of the plan's deletion list X1–X41, which names each by path and
+symbol; the test and fuzz functions are listed in `~/.claude/scratch/1695/successor-tests.txt`
+(38 functions, and file-level declarations, in 32 files), each DELETE (whole) or NARROW (its supersede, lens-filer, chair-filer or
+`FILER`/`ASSIGNEE` rows).
+
+- DELETE — `record/freeze.go` (L48's arm, X8), `record/supersession.go:38-50` (X11), `cli/blue/freeze.go`'s successor road (X18), `cli/motion/propose.go`'s `supersede` subcommand (X19), `cli/motion/docketrule.go:31-32` (X20), `flags/names.go:116-117,348` (X21), `consistency/consistency.go:118,258-260` (X17), `recordsql/gapstate.go:209-221` (X6), `releasegate/fuzz/bystander_test.go` (X33), `forcedseeds_test.go:47` (X35)
+- NARROW — `record/proposal.go` (X10), `record/docketing.go` (X12), `record/benchanswer.go` (X13), `record/actjudge.go:190` (X14), `record/record.go:677-708,940-941` (X9), `recordsql/views.go`'s `sided_with` reads (X7), `cli/motion/command.go` (X22: `docket` filed by blue only), `fuzz_test.go` (X34), `proposal_test.go` (X36), `proposalgates_test.go` (X37)
+- TEXT — `record/supersession.go:108`, `cli/lens/mint.go:451-452`, `record/remand.go:231`, `record/passblockers.go:1049`, `record/benchanswer.go:20-21,104-105`, `record/tombstone.go:217`, `cli/motion/command.go:69`, `debate.js:910,918`, `scripts/agentgen/src/red-chair.md:18`, `docs/seat-command-triggers.md:110-114`
+- GEN — `record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go:796,909-912` (protogen); `recordpb/annotations_gen.go:366-367` (vocabgen); `cli/seat/help_gen.go`, `required_gen.go` (cmdtreegen); `agents/*.md`, `agents-claude/*.md` (agentgen; `lead-judge.md:446-448` and each seat's `motion docket file` page); `difftest` goldens (`UPDATE_GOLDENS=1`)
+- O — `Mint.supersedes` and `lens mint --supersedes` (the lens's own act, kept); `requireSupersedable`'s rule (F-CS open); `Retire.superseded_by` (blue's claim retire); `requireSuccessorCarriesDemand`, `requireSuccessorKeepsBenchGrades`, `successorsOf` (lineage readers, kept); the word "assignee" and "filer" in their kept senses (G's assignee; blue as filer)
