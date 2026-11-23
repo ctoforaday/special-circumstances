@@ -461,4 +461,76 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 			t.Fatalf("conv-drain-A clean drain did not clear its stageFailedStepDrain entry: %s", f)
 		}
 	})
+
+	// 7. Hook-unmarshal failures: tools with no command (e.g. Read) do NOT strike, record
+	// stageHookUnmarshal; run_command hook-unmarshal strikes say "hook result failed to parse".
+	t.Run("HookUnmarshalNoStrikeOnEmptyCommandAndRecordsStage", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		hostProcessID = func() string { return "7007:22222" }
+
+		tpRead := filepath.Join(t.TempDir(), "read.jsonl")
+		trRead := strings.Join([]string{
+			`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"read_file","args":{"Path":"a.go"}}]}`,
+			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"read_file","args":{"Path":"b.go"}}]}`,
+			`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"read_file","args":{"Path":"c.go"}}]}`,
+			`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+		}, "\n") + "\n"
+		if err := os.WriteFile(tpRead, []byte(trRead), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreInvocation",
+			"conversationId": "conv-hook-read",
+			"cwd":            proj,
+			"transcriptPath": tpRead,
+			"invocationNum":  1,
+		})
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+			t.Fatalf("PreInvocation exit %d", code)
+		}
+		if strings.Contains(stdout.String(), "anti-spinning:") {
+			t.Fatalf("empty-command Read hook-unmarshal errors must NOT trip anti-spinning: %s", stdout.String())
+		}
+		p, err := hookfailures.Path("prosthetic-conscience")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(stageHookUnmarshal)) {
+			t.Fatalf("failures.json missing stageHookUnmarshal: %s", string(fb))
+		}
+
+		// 3 identical run_command hook-unmarshal errors DO strike with "hook result failed to parse" (no invented exit code).
+		tpBash := filepath.Join(t.TempDir(), "bash.jsonl")
+		trBash := strings.Join([]string{
+			`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+		}, "\n") + "\n"
+		if err := os.WriteFile(tpBash, []byte(trBash), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		payload2, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreInvocation",
+			"conversationId": "conv-hook-bash",
+			"cwd":            proj,
+			"transcriptPath": tpBash,
+			"invocationNum":  1,
+		})
+		stdout.Reset()
+		stderr.Reset()
+		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload2), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+			t.Fatalf("PreInvocation exit %d", code)
+		}
+		if !strings.Contains(stdout.String(), "hook result failed to parse") || strings.Contains(stdout.String(), "Command exited with code") {
+			t.Fatalf("run_command hook-unmarshal strike should say 'hook result failed to parse' without invented exit code: %s", stdout.String())
+		}
+	})
 }

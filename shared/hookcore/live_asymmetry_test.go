@@ -427,9 +427,6 @@ func TestLiveAsymmetryFinishToolOverwrite(t *testing.T) {
 	})
 
 	t.Run("Antigravity", func(t *testing.T) {
-		if _, err := exec.LookPath("agy"); err != nil {
-			t.Fatalf("agy binary not found on PATH; HOOKCORE_LIVE paired asymmetry tests require both claude and agy: %v", err)
-		}
 		w := requireAgyWorld(t)
 		probeBin := filepath.Join(w.home, ".gemini", "config", "plugins", "asymmetryprobe", "bin", "asymmetryprobe")
 		buildAsymmetryProbe(t, probeBin)

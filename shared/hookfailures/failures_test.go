@@ -266,6 +266,33 @@ func TestAFailingStageIsSaidOnceEveryNotifyPeriod(t *testing.T) {
 	}
 }
 
+// Conversation-scoped stages age out via Expire so an ended conversation's failure does not nag
+// every 10 minutes machine-wide forever.
+func TestExpireAgesOutStaleScopedStage(t *testing.T) {
+	plugin, path := isolate(t)
+	r1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	r1.FailIn(stageA, "conv-ended", "drain failed")
+	r1.Persist()
+
+	// Before TTL (29m): peer conversation's Expire keeps conv-ended's entry.
+	r2 := New(plugin, "test-hook", "PreInvocation", noon.Add(29*time.Minute), io.Discard)
+	r2.Expire(stageA, 30*time.Minute)
+	r2.OKIn(stageA, "conv-peer")
+	r2.Persist()
+	if _, ok := entry(recorded(t, path), stageA, "conv-ended"); !ok {
+		t.Fatalf("entry aged out early at 29m")
+	}
+
+	// At TTL (30m): peer conversation's Expire prunes conv-ended's entry.
+	r3 := New(plugin, "test-hook", "PreInvocation", noon.Add(30*time.Minute), io.Discard)
+	r3.Expire(stageA, 30*time.Minute)
+	r3.OKIn(stageA, "conv-peer")
+	r3.Persist()
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expired entry was not pruned at 30m: %+v", recorded(t, path))
+	}
+}
+
 // A healthy invocation writes nothing at all — not even the directory.
 func TestAHealthyInvocationWritesNothing(t *testing.T) {
 	plugin, path := isolate(t)

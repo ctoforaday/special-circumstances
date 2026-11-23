@@ -105,6 +105,12 @@ const stageResumeMarker hookfailures.Stage = "resume-restore-marker"
 // they are cleared on the next clean drain instead of polluting StageStrikesRead permanently.
 const stageFailedStepDrain hookfailures.Stage = "failed-step-drain"
 
+// stageHookUnmarshal records Antigravity steps that failed because one of our hooks emitted
+// output the client could not unmarshal.
+const stageHookUnmarshal hookfailures.Stage = "hook-result-unmarshal"
+
+const conversationStageTTL = 30 * time.Minute
+
 var hostProcessID = defaultHostProcessID
 
 func resumeMarkerPath(pluginDataDir, sessionID string) string {
@@ -205,14 +211,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if eventName == "PreInvocation" && req.Engine == hookcore.EngineAntigravity {
 		var feedbackParts []string
 		scope := hookcore.DrainScopeKey(req)
+		rec.Expire(stageFailedStepDrain, conversationStageTTL)
+		rec.Expire(stageHookUnmarshal, conversationStageTTL)
 		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
 		if drainErr != nil {
 			rec.FailIn(stageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 		} else {
 			rec.OKIn(stageFailedStepDrain, scope)
 		}
+		sawHookErr := false
 		for _, st := range failedSteps {
-			if ctx.ProjectDir == "" {
+			if st.HookError {
+				sawHookErr = true
+				rec.FailIn(stageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+			}
+			// Never strike tools without a command (e.g. Read or manage_task): their key would
+			// collapse to the tool name alone and trip anti-spinning on unrelated calls.
+			if ctx.ProjectDir == "" || strings.TrimSpace(st.Command) == "" {
 				continue
 			}
 			path := strikes.Path(ctx.ProjectDir)
@@ -232,9 +247,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 				rec.OKIn(strikecounter.StageStrikesWrite, ctx.ProjectDir)
 			}
 			if tripped {
-				errSummary := fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
+				var errSummary string
+				if st.HookError {
+					errSummary = "hook result failed to parse: " + st.Output
+				} else {
+					errSummary = fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
+				}
 				feedbackParts = append(feedbackParts, strikecounter.Message(st.ToolName, errSummary, key, count))
 			}
+		}
+		if !sawHookErr {
+			rec.OKIn(stageHookUnmarshal, scope)
 		}
 
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a

@@ -22,6 +22,7 @@ type FailedToolStep struct {
 	Command   string
 	ExitCode  int
 	Output    string
+	HookError bool
 }
 
 var reCommandExitCode = regexp.MustCompile(`(?m)^(?:The )?[Cc]ommand exited with code (\d+)\.$`)
@@ -47,12 +48,6 @@ type drainWatermark struct {
 // Backgrounded run_command calls (WaitMsBeforeAsync) yield no exit code in their GENERIC step and
 // are not reported here. A completed run_command GENERIC step matching no recognized form returns a
 // non-nil error so callers can record the unmeasured format loudly instead of returning a silent zero.
-// DrainScopeKey returns the conversation-scoped key used to isolate failed-step watermarks and
-// hook-failure stage entries per conversation so a clean drain on one seat never clears another's.
-func DrainScopeKey(req Request) string {
-	return pendingQueueKey(req)
-}
-
 func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	if req.Engine != EngineAntigravity || req.TranscriptPath == "" {
 		return nil, nil
@@ -97,11 +92,12 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	}
 
 	// Rebase helper for corrupt watermark, shrunken transcript, or rewritten/misaligned offset:
-	// report the condition once, advance watermark to current EOF without replaying older steps,
-	// so the conversation recovers on the next drain instead of failing forever.
+	// report the condition once, advance watermark to current EOF with Step: -1 (since renumbered
+	// transcripts start at step 0 again while Offset already skips all old bytes) without replaying
+	// older steps, so the conversation recovers on the next drain instead of failing forever.
 	rebaseEOF := func(reason string) ([]FailedToolStep, error) {
 		if wmPath != "" {
-			if werr := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: wm.Step, Offset: fi.Size()}); werr != nil {
+			if werr := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: -1, Offset: fi.Size()}); werr != nil {
 				return nil, fmt.Errorf("%s; rebase write failed: %w", reason, werr)
 			}
 		}
@@ -213,7 +209,7 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 						Output:    extractCommandOutput(step.Content),
 					})
 				}
-			} else if strings.Contains(step.Content, "Encountered error in step execution: failed to unmarshal result from hook") {
+			} else if step.Status == "ERROR" && strings.Contains(step.Content, "Encountered error in step execution: failed to unmarshal result from hook") {
 				tool := call.ToolName
 				if tool == "" {
 					tool = "Bash"
@@ -222,8 +218,8 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 					StepIndex: step.StepIndex,
 					ToolName:  tool,
 					Command:   call.Command,
-					ExitCode:  1,
 					Output:    strings.TrimSpace(step.Content),
+					HookError: true,
 				})
 			} else if call.ToolName == "Bash" && !isKnownNonExitRunCommand(step.Content) {
 				parseWarns = append(parseWarns, fmt.Sprintf("step %d: run_command GENERIC result matched no exit-code line (not measured)", step.StepIndex))
@@ -256,6 +252,12 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 		return failed, errors.New(strings.Join(errs, "; "))
 	}
 	return failed, nil
+}
+
+// DrainScopeKey returns the conversation-scoped key used to isolate failed-step watermarks and
+// hook-failure stage entries per conversation so a clean drain on one seat never clears another's.
+func DrainScopeKey(req Request) string {
+	return pendingQueueKey(req)
 }
 
 func writeDrainWatermark(wmPath, dir string, wm drainWatermark) error {

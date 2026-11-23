@@ -198,7 +198,10 @@ func TestDrainFailedToolStepsRecognizesOctoberFormatAndStepExecErrors(t *testing
 		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"missing-cmd"}}]}`,
 		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"The command exited with code 127.\n\nCommand output:\nnot found\n"}`,
 		`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"hook-err-cmd"}}]}`,
-		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal result from hook","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+		// A DONE read_file quoting the same phrase from a transcript must NOT be emitted as a failure.
+		`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"read_file","args":{"Path":"transcript.jsonl"}}]}`,
+		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
 	}, "\n") + "\n"
 	if err := os.WriteFile(tp, []byte(transcript), 0o600); err != nil {
 		t.Fatal(err)
@@ -215,13 +218,13 @@ func TestDrainFailedToolStepsRecognizesOctoberFormatAndStepExecErrors(t *testing
 		t.Fatalf("unexpected drain error: %v", err)
 	}
 	if len(got) != 2 {
-		t.Fatalf("got %d failed steps (%+v), want 2 (October exit 127 + hook unmarshal error)", len(got), got)
+		t.Fatalf("got %d failed steps (%+v), want 2 (October exit 127 + ERROR hook unmarshal; DONE read_file must be ignored)", len(got), got)
 	}
-	if got[0].StepIndex != 2 || got[0].ExitCode != 127 || got[0].Command != "missing-cmd" {
+	if got[0].StepIndex != 2 || got[0].ExitCode != 127 || got[0].HookError || got[0].Command != "missing-cmd" {
 		t.Fatalf("step 0 = %+v, want step 2 exit 127", got[0])
 	}
-	if got[1].StepIndex != 4 || got[1].Command != "hook-err-cmd" || !strings.Contains(got[1].Output, "failed to unmarshal result from hook") {
-		t.Fatalf("step 1 = %+v, want step 4 hook-unmarshal failure", got[1])
+	if got[1].StepIndex != 4 || !got[1].HookError || got[1].ExitCode != 0 || got[1].Command != "hook-err-cmd" || !strings.Contains(got[1].Output, "failed to unmarshal result from hook") {
+		t.Fatalf("step 1 = %+v, want step 4 HookError=true ExitCode=0", got[1])
 	}
 
 	// Unknown "Encountered error in step execution:" form must NOT be suppressed silently.
@@ -229,8 +232,8 @@ func TestDrainFailedToolStepsRecognizesOctoberFormatAndStepExecErrors(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = f.WriteString(`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"other"}}]}` + "\n" +
-		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Encountered error in step execution: unknown mystery\n"}` + "\n")
+	_, _ = f.WriteString(`{"step_index":7,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"other"}}]}` + "\n" +
+		`{"step_index":8,"source":"MODEL","type":"GENERIC","status":"ERROR","content":"Encountered error in step execution: unknown mystery\n"}` + "\n")
 	_ = f.Close()
 	if _, err := DrainFailedToolSteps(req); err == nil {
 		t.Fatalf("unknown step-execution error was silently suppressed, want non-nil error")
@@ -271,7 +274,8 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 		t.Fatalf("drain after corrupt rebase: got steps=%+v err=%v, want empty, nil", after, err)
 	}
 
-	// 2. Shrunken transcript errors once, rebases to EOF (no replay), and subsequent drain succeeds cleanly.
+	// 2. Shrunken transcript errors once, rebases to EOF with Step: -1 (no replay), and a
+	// newly appended failure at a RENUMBERED step_index <= old max IS reported (and not replayed).
 	if err := os.WriteFile(tp, []byte("{}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -279,8 +283,19 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 	if err == nil || len(replayed) != 0 {
 		t.Fatalf("shrunken transcript: got steps=%+v err=%v, want empty + non-nil error", replayed, err)
 	}
-	if after, err := DrainFailedToolSteps(req); err != nil || len(after) != 0 {
-		t.Fatalf("drain after shrink rebase: got steps=%+v err=%v, want empty, nil", after, err)
+	f, err := os.OpenFile(tp, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = f.WriteString(`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"post-rebase-cmd"}}]}` + "\n" +
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 7.\n"}` + "\n")
+	_ = f.Close()
+	afterRebase, err := DrainFailedToolSteps(req)
+	if err != nil || len(afterRebase) != 1 || afterRebase[0].StepIndex != 2 || afterRebase[0].ExitCode != 7 || afterRebase[0].Command != "post-rebase-cmd" {
+		t.Fatalf("drain after shrink rebase with renumbered step 2: got steps=%+v err=%v, want 1 step (exit 7)", afterRebase, err)
+	}
+	if again, err := DrainFailedToolSteps(req); err != nil || len(again) != 0 {
+		t.Fatalf("second drain after renumbered step: got steps=%+v err=%v, want empty, nil", again, err)
 	}
 
 	// 3. Misaligned rewrite (file rewritten to >= old size so byte at offset-1 != '\n') errors once and rebases.

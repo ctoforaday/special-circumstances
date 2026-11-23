@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -38,8 +39,14 @@ const StageAgyBind hookfailures.Stage = "agy-sitting-bind"
 
 // StageFailedStepDrain is recorded when Antigravity's PreInvocation failed-step transcript drain
 // encounters a corrupt watermark, shrunken transcript, or unrecognized Bash GENERIC format.
-// Cleared on the next clean drain.
+// Cleared on the next clean drain and aged out after conversationStageTTL so ended seats do not nag.
 const StageFailedStepDrain hookfailures.Stage = "failed-step-drain"
+
+// StageHookUnmarshal is recorded when an Antigravity transcript step failed because one of our
+// hooks emitted output the client could not unmarshal.
+const StageHookUnmarshal hookfailures.Stage = "hook-result-unmarshal"
+
+const conversationStageTTL = 30 * time.Minute
 
 // applyAgySitting populates req's AgentID, AgentType and SessionID from an active Antigravity
 // run_workflow sitting when applicable. Used uniformly by Pre, Post, PostFailure, and PreInvocation.
@@ -199,17 +206,28 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		return
 	}
 	scope := hookcore.DrainScopeKey(req)
+	rec.Expire(StageFailedStepDrain, conversationStageTTL)
+	rec.Expire(StageHookUnmarshal, conversationStageTTL)
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
 		rec.FailIn(StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
 	} else {
 		rec.OKIn(StageFailedStepDrain, scope)
 	}
+	sawHookErr := false
 	for _, st := range failed {
+		if st.HookError {
+			sawHookErr = true
+			rec.FailIn(StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+		}
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)
 		if errText == "" {
-			errText = fmt.Sprintf("Command exited with code %d.", st.ExitCode)
+			if st.HookError {
+				errText = "hook result failed to parse"
+			} else {
+				errText = fmt.Sprintf("Command exited with code %d.", st.ExitCode)
+			}
 		}
 		text, ok := failureEntry(runDir, st.ToolName, rawInput, errText)
 		if !ok {
@@ -220,5 +238,8 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		} else {
 			rec.OK(StageFailureLog)
 		}
+	}
+	if !sawHookErr {
+		rec.OKIn(StageHookUnmarshal, scope)
 	}
 }

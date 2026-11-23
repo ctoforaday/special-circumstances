@@ -108,6 +108,7 @@ type Recorder struct {
 	stderr  io.Writer
 	failed  map[key]string
 	worked  map[key]bool
+	expire  map[Stage]time.Duration
 }
 
 // New starts a recorder for one hook invocation.
@@ -140,6 +141,18 @@ func (r *Recorder) OKIn(s Stage, scope string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.worked[key{s, scope}] = true
+}
+
+// Expire drops persisted entries for stage s whose Last timestamp is at least maxAge older than
+// r.now (unless the same (s, scope) failed in this invocation). Used for conversation-scoped
+// stages so an ended conversation's entry ages out instead of nagging machine-wide forever.
+func (r *Recorder) Expire(s Stage, maxAge time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.expire == nil {
+		r.expire = map[Stage]time.Duration{}
+	}
+	r.expire[s] = maxAge
 }
 
 // Failed reports whether anything failed in this invocation, for a caller that must know before it
@@ -334,9 +347,15 @@ func (r *Recorder) merge(path string, pathErr error) (Record, error) {
 	kept := rec.Failures[:0]
 	for _, f := range rec.Failures {
 		_, failedNow := r.failed[f.key()]
-		if r.worked[f.key()] && !failedNow {
-			changed = true
-			continue
+		if !failedNow {
+			if r.worked[f.key()] {
+				changed = true
+				continue
+			}
+			if maxAge, ok := r.expire[f.Stage]; ok && !f.Last.IsZero() && r.now.Sub(f.Last) >= maxAge {
+				changed = true
+				continue
+			}
 		}
 		kept = append(kept, f)
 	}
