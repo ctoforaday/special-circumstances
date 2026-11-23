@@ -22,14 +22,10 @@ import (
 // like a term the run was never given, so a key no field declares — a term the engine no longer
 // has, or a misspelt one — refuses the read rather than vanishing.
 //
-// A VALUE IS TYPED HERE ONLY WHERE THE RECORD OWNS ITS SHAPE. The record's epoch gate
-// (EventSchema, feov-migrate) is what keeps an archived run readable when a shape moves, and it
-// covers only shapes the record declares. A value whose shape another package owns — `hooks`,
-// hookprovenance.Provenance, which moves with no epoch bump — is held as raw JSON and decoded by its
-// owner (hookprovenance.Decode): typed here, a change in that package would refuse every archived
-// run's configuration with no migration able to bring it forward. The TOP-LEVEL key set stays
-// strict either way; `billing` is BillingIdentity, which the record declares, so it is typed, and so
-// is each entry of `seats`, modeltier.SeatSpec, whose shape moves only with an epoch bump.
+// EVERY VALUE IS TYPED, AND EACH SHAPE IS THE RECORD'S. The record's epoch gate (EventSchema,
+// feov-migrate) is what keeps an archived run readable when a shape moves, and it covers only
+// shapes the record declares: `billing` is BillingIdentity, which the record declares, and each
+// entry of `seats` is modeltier.SeatSpec, whose shape moves only with an epoch bump.
 type RunConfig struct {
 	Topic string `json:"topic"`
 	// RunDir is the ABSOLUTE path of this run.
@@ -59,16 +55,6 @@ type RunConfig struct {
 	K         *int `json:"k"`
 	KMax      *int `json:"kMax"`
 	MaxEpochs *int `json:"maxEpochs"`
-	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
-	// binary is baked from the working tree and the hooks come from the version-gated install
-	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise
-	// byte-identical on the record to one whose hooks were current.
-	//
-	// It says what was installed, never what RAN: a cache entry on disk does not prove the
-	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
-	// run.md reads it back through hookprovenance.Decode. RAW, because hookprovenance owns its shape
-	// (see the type's comment): setup marshals hookprovenance.Provenance into it.
-	Hooks json.RawMessage `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
 	//
 	// A run directory is created by `setup` and does not outlive the schema that made it — but

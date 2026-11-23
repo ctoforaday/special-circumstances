@@ -267,7 +267,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 	}); err != nil {
 		rec.FailIn(StageRearmWrite, projectDir, err.Error())
-		// A LockLeftError is a committed write whose lock stayed behind: the event IS recorded,
+		// A LockLeftError is a committed write whose lock stayed held: the event IS recorded,
 		// so what it pruned and what it found ambiguous are reported below as for any commit.
 		var left *checkpoint.LockLeftError
 		if !errors.As(err, &left) {
@@ -288,7 +288,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	if len(dropped) > 0 {
 		// Reported only AFTER the write commits. Said from inside the callback it would
-		// announce a prune that an abandoned update (#215) never performed — a message
+		// announce a prune that an update whose write then failed never performed — a message
 		// about state must not outrun the state.
 		fmt.Fprintf(stderr, "sc-filechanged-rearm: dropped %d re-arm record(s) whose check no longer appears in the note — the check's text was edited, so those records name a check that is gone. Nothing else changed; the surviving records and this event's re-arm are unaffected.\n", len(dropped))
 	}

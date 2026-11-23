@@ -106,6 +106,11 @@ type gate struct {
 	// between jobs is a change somebody makes deliberately rather than one that slips.
 	ciJob string
 	why   string
+	// memory is the most this gate's processes are measured to hold at once, with a margin. A
+	// gate that declares it does not start unless that much is available (memory.go): started
+	// short, it does not fail, it sits in reclaim for hours and stalls every other process in
+	// its cgroup.
+	memory uint64
 }
 
 // noCache is the difference between running the suite and reading a memory of it. CI passes it
@@ -256,7 +261,9 @@ var tools = []gate{
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
 	{id: "secretsgen", kind: kindTool, dir: "plugins/prosthetic-conscience/tools", args: []string{"run", "./devcmd/secretsgen", "-check"}, ciJob: "debate-sim",
 		why: "the secrets gate builds its detector from a table generated from gitleaks.toml and gitleaks' default configuration; a stale table refuses what the configuration no longer names, or lets through what it now does"},
-	{id: "deadcode", kind: kindTool, dir: "scripts", args: []string{"run", "./deadcode"}, ciJob: "debate-sim",
+	// MEASURED 2026-11-23: 3.26 GiB peak resident (/usr/bin/time -v), 33s on a quiet box; started
+	// under a 6G memory.high with 2.5 GB of tmpfs beside it, it ran 2h43m without finishing.
+	{id: "deadcode", kind: kindTool, dir: "scripts", args: []string{"run", "./deadcode"}, ciJob: "debate-sim", memory: 4 << 30,
 		why: "a function nothing reaches reads as part of the design to whoever opens the file; every Go module is analysed with its tests, on each platform it ships on, a generated copy's caller keeps its authored source alive, and every function left is a failure"},
 	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
 		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},

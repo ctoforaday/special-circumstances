@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/bufbuild/protocompile v0.14.1
+	github.com/ctoforaday/special-circumstances/shared v0.0.0
 	golang.org/x/tools v0.52.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -17,3 +18,5 @@ require (
 )
 
 tool golang.org/x/tools/cmd/deadcode
+
+replace github.com/ctoforaday/special-circumstances/shared => ../shared

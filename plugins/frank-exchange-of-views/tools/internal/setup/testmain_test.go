@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -13,4 +14,6 @@ import (
 // TMPDIR, which is a tmpfs on the paths that matter. See testbuild.Main.
 // It also opens records, and TestMain is a package's ONE hook — so the orphaned-handle check
 // rides here rather than being dropped for the build sandbox (#666).
-func TestMain(m *testing.M) { testbuild.Main(m, recordtest.CheckOrphanedHandles) }
+func TestMain(m *testing.M) {
+	testbuild.Main(m, nativehelpertest.CleanupAtExit(), recordtest.CheckOrphanedHandles)
+}

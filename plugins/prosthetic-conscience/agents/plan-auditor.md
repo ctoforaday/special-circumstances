@@ -1,7 +1,7 @@
 ---
 name: plan-auditor
 description: The spec-driven-development gate — adversarially audits an implementation plan against the five-section standard (Summary & Goals through Verification Plan) for Alignment, Completeness, and Safety; returns a binary structured verdict. Use via /plan-audit or before treating any plan as approved.
-tools: [Read, Grep, Glob, Bash, WebSearch, WebFetch]
+tools: [read_file, grep_search, find_by_name, list_dir, run_command, search_web, read_url_content]
 skills: [critical-stance, design-by-contract, spec-driven-development, terse-communication, complete-the-concept]
 ---
 

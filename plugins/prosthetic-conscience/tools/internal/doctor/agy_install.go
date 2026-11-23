@@ -199,15 +199,19 @@ func agyContentWarningsFromRepo(root, repo string) []string {
 	if err != nil {
 		return []string{fmt.Sprintf("PLUGIN CONTENTS NOT VERIFIED: malformed .claude-plugin/marketplace.json (%v).", err)}
 	}
-	pinByName := make(map[string]marketplacePin, len(pins))
-	for _, p := range pins {
-		pinByName[p.Name] = p
+	installedByName := make(map[string]pluginRef)
+	for _, plug := range allInstalledPluginRoots(root) {
+		if plug.Name != "" {
+			installedByName[plug.Name] = plug
+		}
 	}
 
 	var warnings []string
-	for _, plug := range allInstalledPluginRoots(root) {
-		pin, ok := pinByName[plug.Name]
+	for _, pin := range pins {
+		plug, ok := installedByName[pin.Name]
 		if !ok {
+			warnings = append(warnings, fmt.Sprintf("PLUGIN NOT INSTALLED: %s is in the marketplace (pinned %s) and not installed in Antigravity — run `doctor --fix` to install.",
+				pin.Name, pin.Ref))
 			continue
 		}
 		wantCommit, err := resolveRefCommit(repo, pin.Ref)
@@ -245,8 +249,9 @@ func gitShowFile(repo, commit, relPath string) ([]byte, error) {
 	return cmd.Output()
 }
 
-// reinstallAgyPlugins checks all installed Antigravity plugins against the marketplace pins
-// and reinstalls any mismatched plugin whole via `git archive` + `agy plugin install <dir>`.
+// reinstallAgyPlugins ensures every marketplace plugin is installed in Antigravity at its pinned
+// commit (or origin/main for source-only plugins) via `git archive` + `agy plugin install <dir>`,
+// and runs the installed plugin's `hooks/fetch-bin.sh fetch` synchronously after each install.
 var reinstallAgyPlugins = func(root string) []string {
 	if !isAntigravityInstallRoot(root) {
 		return nil
@@ -267,30 +272,42 @@ func reinstallAgyPluginsFromRepo(root, repo, agyBin string) []string {
 	if err != nil {
 		return []string{fmt.Sprintf("agy plugin reinstall skipped: %v", err)}
 	}
-	pinByName := make(map[string]marketplacePin, len(pins))
-	for _, p := range pins {
-		pinByName[p.Name] = p
+	installedByName := make(map[string]pluginRef)
+	for _, plug := range allInstalledPluginRoots(root) {
+		if plug.Name != "" {
+			installedByName[plug.Name] = plug
+		}
 	}
+	pluginsBaseDir := filepath.Dir(filepath.Clean(root))
 
 	var report []string
-	for _, plug := range allInstalledPluginRoots(root) {
-		pin, ok := pinByName[plug.Name]
-		if !ok {
-			continue
-		}
+	for _, pin := range pins {
 		wantCommit, err := resolveRefCommit(repo, pin.Ref)
 		if err != nil {
-			report = append(report, fmt.Sprintf("%s: cannot resolve %s: %v", plug.Name, pin.Ref, err))
+			report = append(report, fmt.Sprintf("%s: cannot resolve %s: %v", pin.Name, pin.Ref, err))
 			continue
 		}
-		if agyPluginMatchesCommit(plug.Root, repo, pin.Path, wantCommit) {
+		plug, installed := installedByName[pin.Name]
+		destRoot := filepath.Join(pluginsBaseDir, pin.Name)
+		if installed {
+			destRoot = plug.Root
+			if agyPluginMatchesCommit(destRoot, repo, pin.Path, wantCommit) {
+				continue
+			}
+		}
+		if err := archiveAndAgyInstall(repo, wantCommit, pin.Path, destRoot, agyBin); err != nil {
+			action := "install"
+			if installed {
+				action = "reinstall"
+			}
+			report = append(report, fmt.Sprintf("%s: %s from %s failed: %v", pin.Name, action, pin.Ref, err))
 			continue
 		}
-		if err := archiveAndAgyInstall(repo, wantCommit, pin.Path, plug.Root, agyBin); err != nil {
-			report = append(report, fmt.Sprintf("%s: reinstall from %s failed: %v", plug.Name, pin.Ref, err))
-			continue
+		if installed {
+			report = append(report, fmt.Sprintf("%s: reinstalled plugin contents from %s (%s)", pin.Name, pin.Ref, short(wantCommit)))
+		} else {
+			report = append(report, fmt.Sprintf("%s: installed plugin from %s (%s)", pin.Name, pin.Ref, short(wantCommit)))
 		}
-		report = append(report, fmt.Sprintf("%s: reinstalled plugin contents from %s (%s)", plug.Name, pin.Ref, short(wantCommit)))
 	}
 	return report
 }
@@ -339,6 +356,38 @@ func archiveAndAgyInstall(repo, commit, relPath, destPluginRoot, agyBin string) 
 	}
 	if err := os.WriteFile(filepath.Join(destPluginRoot, agyInstalledRefFile), []byte(commit+"\n"), 0o644); err != nil {
 		return err
+	}
+	if err := runInstalledFetchBin(destPluginRoot); err != nil {
+		return err
+	}
+	return nil
+}
+
+// runInstalledFetchBin synchronously fetches the installed plugin's official release binaries via
+// `hooks/fetch-bin.sh fetch` when the script is present, closing the background-fetch window where
+// hooks (such as the secrets gate) would otherwise do nothing on the first turn (#1792).
+func runInstalledFetchBin(destPluginRoot string) error {
+	fetchScript := filepath.Join(destPluginRoot, "hooks", "fetch-bin.sh")
+	if _, err := os.Stat(fetchScript); err != nil {
+		if os.IsNotExist(err) {
+			return nil // source-only plugins (e.g. sleeper-service) ship no fetch-bin.sh
+		}
+		return err
+	}
+	cmd := exec.Command("sh", fetchScript, "fetch")
+	cmd.Dir = destPluginRoot
+	// Clear CLAUDE_PLUGIN_ROOT and point PLUGIN_ROOT at destPluginRoot so fetch-bin.sh never
+	// inherits another plugin's root from the calling session.
+	var env []string
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "CLAUDE_PLUGIN_ROOT=") || strings.HasPrefix(kv, "PLUGIN_ROOT=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	cmd.Env = append(env, "PLUGIN_ROOT="+destPluginRoot)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("hooks/fetch-bin.sh fetch: %s: %w", strings.TrimSpace(string(out)), err)
 	}
 	return nil
 }

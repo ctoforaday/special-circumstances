@@ -51,6 +51,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -60,16 +61,34 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	srcDir    = "scripts/agentgen/src"
-	agentsDir = "plugins/frank-exchange-of-views/agents"
-	skillsDir = "plugins/frank-exchange-of-views/skills"
-	toolsDir  = "plugins/frank-exchange-of-views/tools"
-	beginMark = "<!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->"
-	endMark   = "<!-- END GENERATED SURFACE -->"
+	srcDir          = "scripts/agentgen/src"
+	agentsDir       = "plugins/frank-exchange-of-views/agents"
+	agentsClaudeDir = "plugins/frank-exchange-of-views/agents-claude"
+	pcAgentsDir     = "plugins/prosthetic-conscience/agents"
+	pcAgentsClaude  = "plugins/prosthetic-conscience/agents-claude"
+	skillsDir       = "plugins/frank-exchange-of-views/skills"
+	toolsDir        = "plugins/frank-exchange-of-views/tools"
+	beginMark       = "<!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->"
+	endMark         = "<!-- END GENERATED SURFACE -->"
 )
+
+// claudeToAgyTools maps each Claude Code built-in tool name to its Antigravity tool registry
+// equivalent(s). Antigravity loads tools directly without ToolSearch, so ToolSearch maps to nil.
+var claudeToAgyTools = map[string][]string{
+	"Read":       {"read_file"},
+	"Write":      {"write_file"},
+	"Edit":       {"edit_file"},
+	"Glob":       {"find_by_name", "list_dir"},
+	"Grep":       {"grep_search"},
+	"Bash":       {"run_command"},
+	"WebSearch":  {"search_web"},
+	"WebFetch":   {"read_url_content"},
+	"ToolSearch": nil,
+}
 
 // maxTurns is the model turns one sitting may take before the client ends it — an API round trip,
 // however many tool calls it carries, and the call returning the envelope is a turn of its own. A
@@ -137,15 +156,41 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	// name -> the bytes the committed file must hold. Agent definitions and skills are one kind of
-	// output from here on: a source expanded, written when it differs, reported when -check finds it stale.
+	// name -> the bytes the committed file must hold. Agent definitions (both Antigravity in
+	// agents/ and Claude Code in agents-claude/) and skills are one kind of output from here on:
+	// a source expanded, written when it differs, reported when -check finds it stale.
 	want := map[string][]byte{}
+	var feovClaudeNames []string
 	for name, s := range surfaceOf {
-		out, err := renderDefinition(srcRoot, name, byRole[s.role])
+		claudeOut, err := renderDefinition(srcRoot, name, byRole[s.role])
 		if err != nil {
 			fail(fmt.Errorf("%s: %w", name, err))
 		}
-		want[filepath.Join(agentsDir, name+".md")] = out
+		agyOut, err := toAntigravityTools(claudeOut)
+		if err != nil {
+			fail(fmt.Errorf("%s (antigravity tools): %w", name, err))
+		}
+		want[filepath.Join(agentsClaudeDir, name+".md")] = claudeOut
+		want[filepath.Join(agentsDir, name+".md")] = agyOut
+		feovClaudeNames = append(feovClaudeNames, name+".md")
+	}
+	pcSources, err := filepath.Glob(filepath.Join(root, pcAgentsClaude, "*.md"))
+	if err != nil {
+		fail(err)
+	}
+	var pcClaudeNames []string
+	for _, p := range pcSources {
+		base := filepath.Base(p)
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			fail(err)
+		}
+		agyOut, err := toAntigravityTools(raw)
+		if err != nil {
+			fail(fmt.Errorf("%s (antigravity tools): %w", base, err))
+		}
+		want[filepath.Join(pcAgentsDir, base)] = agyOut
+		pcClaudeNames = append(pcClaudeNames, base)
 	}
 	for _, name := range skills {
 		out, err := renderSkill(srcRoot, name)
@@ -153,6 +198,13 @@ func main() {
 			fail(err)
 		}
 		want[filepath.Join(skillsDir, name, "SKILL.md")] = out
+	}
+
+	if err := checkPluginAgentsManifest(filepath.Join(root, "plugins/frank-exchange-of-views/.claude-plugin/plugin.json"), feovClaudeNames); err != nil {
+		fail(err)
+	}
+	if err := checkPluginAgentsManifest(filepath.Join(root, "plugins/prosthetic-conscience/.claude-plugin/plugin.json"), pcClaudeNames); err != nil {
+		fail(err)
 	}
 
 	stale := []string{}
@@ -168,6 +220,9 @@ func main() {
 		if *check {
 			stale = append(stale, rel)
 			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			fail(err)
 		}
 		if err := os.WriteFile(path, out, 0o644); err != nil {
 			fail(err)
@@ -464,4 +519,94 @@ func splice(cur, surface []byte) ([]byte, error) {
 	tail := cur[i+j+len(endMark):]
 	out := append(append([]byte{}, cur[:i]...), block...)
 	return append(out, bytes.TrimLeft(tail, "\n")...), nil
+}
+
+// toAntigravityTools translates the `tools: [...]` frontmatter line of a Claude Code agent
+// definition into Antigravity's tool registry names via claudeToAgyTools. Refuses any unknown
+// Claude tool name so a new tool is mapped deliberately rather than silently dropped.
+func toAntigravityTools(def []byte) ([]byte, error) {
+	const fence = "---\n"
+	if !bytes.HasPrefix(def, []byte(fence)) {
+		return nil, fmt.Errorf("definition opens with no frontmatter block")
+	}
+	end := bytes.Index(def[len(fence):], []byte("\n"+fence))
+	if end < 0 {
+		return nil, fmt.Errorf("definition frontmatter block never closes")
+	}
+	block := string(def[len(fence) : len(fence)+end])
+	var doc map[string]any
+	if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
+		return nil, fmt.Errorf("parse frontmatter: %w", err)
+	}
+	rawTools, ok := doc["tools"]
+	if !ok {
+		return def, nil
+	}
+	items, ok := rawTools.([]any)
+	if !ok || len(items) == 0 {
+		return nil, fmt.Errorf("tools must be a non-empty YAML sequence, got %T", rawTools)
+	}
+	seen := map[string]bool{}
+	var agy []string
+	for _, it := range items {
+		name, ok := it.(string)
+		if !ok {
+			return nil, fmt.Errorf("tool entry %v is not a string", it)
+		}
+		mapped, known := claudeToAgyTools[name]
+		if !known {
+			return nil, fmt.Errorf("unknown Claude tool %q — add its Antigravity equivalent to claudeToAgyTools in scripts/agentgen/main.go", name)
+		}
+		for _, t := range mapped {
+			if !seen[t] {
+				seen[t] = true
+				agy = append(agy, t)
+			}
+		}
+	}
+	if len(agy) == 0 {
+		return nil, fmt.Errorf("tools mapped to an empty Antigravity tool list")
+	}
+	replacement := "tools: [" + strings.Join(agy, ", ") + "]"
+	lines := strings.Split(block, "\n")
+	replaced := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "tools:") {
+			lines[i] = replacement
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		return nil, fmt.Errorf("could not locate tools: line in frontmatter")
+	}
+	out := append([]byte{}, []byte(fence)...)
+	out = append(out, strings.Join(lines, "\n")...)
+	return append(out, def[len(fence)+end:]...), nil
+}
+
+// checkPluginAgentsManifest verifies that a plugin's .claude-plugin/plugin.json declares
+// `"agents": ["./agents-claude/<file>", ...]` matching every file in agents-claude/ 1-to-1.
+func checkPluginAgentsManifest(manifestPath string, fileNames []string) error {
+	b, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return err
+	}
+	var m struct {
+		Agents []string `json:"agents"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return fmt.Errorf("%s: %w", manifestPath, err)
+	}
+	want := make([]string, len(fileNames))
+	for i, f := range fileNames {
+		want[i] = "./agents-claude/" + f
+	}
+	sort.Strings(want)
+	got := append([]string(nil), m.Agents...)
+	sort.Strings(got)
+	if strings.Join(want, "\x00") != strings.Join(got, "\x00") {
+		return fmt.Errorf("%s: \"agents\" = %v, want %v (must match agents-claude/*.md 1-to-1)", manifestPath, got, want)
+	}
+	return nil
 }

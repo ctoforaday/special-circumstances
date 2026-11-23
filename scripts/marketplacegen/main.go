@@ -79,11 +79,12 @@ type claudeManifest struct {
 	Keywords     []string        `json:"keywords,omitempty"`
 	Dependencies []string        `json:"dependencies,omitempty"`
 	Hooks        string          `json:"hooks,omitempty"`
+	Agents       []string        `json:"agents,omitempty"`
 }
 
 // antigravityManifest is the generated per-plugin manifest at
 // plugins/<name>/.antigravity-plugin/plugin.json. It carries the fields accepted by
-// `agy plugin validate --strict` and omits Claude-only fields (dependencies, hooks).
+// `agy plugin validate --strict` and omits Claude-only fields (dependencies, hooks, agents).
 type antigravityManifest struct {
 	Name        string          `json:"name"`
 	DisplayName string          `json:"displayName,omitempty"`
