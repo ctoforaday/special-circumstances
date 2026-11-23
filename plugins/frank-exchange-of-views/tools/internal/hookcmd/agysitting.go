@@ -206,11 +206,9 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 		return
 	}
 	scope := hookcore.DrainScopeKey(req)
-	rec.Expire(StageFailedStepDrain, conversationStageTTL)
-	rec.Expire(StageHookUnmarshal, conversationStageTTL)
 	failed, drainErr := hookcore.DrainFailedToolSteps(req)
 	if drainErr != nil {
-		rec.FailIn(StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
+		rec.FailInWithTTL(StageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error(), conversationStageTTL)
 	} else {
 		rec.OKIn(StageFailedStepDrain, scope)
 	}
@@ -218,16 +216,12 @@ func logAgyFailedToolSteps(req hookcore.Request, in hookgate.Input, cwd string, 
 	for _, st := range failed {
 		if st.HookError {
 			sawHookErr = true
-			rec.FailIn(StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+			rec.FailInWithTTL(StageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output), conversationStageTTL)
 		}
 		rawInput, _ := json.Marshal(map[string]any{"command": strings.TrimSpace(st.Command)})
 		errText := strings.TrimSpace(st.Output)
 		if errText == "" {
-			if st.HookError {
-				errText = "hook result failed to parse"
-			} else {
-				errText = fmt.Sprintf("Command exited with code %d.", st.ExitCode)
-			}
+			errText = fmt.Sprintf("Command exited with code %d.", st.ExitCode)
 		}
 		text, ok := failureEntry(runDir, st.ToolName, rawInput, errText)
 		if !ok {

@@ -11,8 +11,10 @@
 // # The shape
 //
 // Each failure is a FIELD on a record, keyed by the STAGE that failed and the SCOPE it failed in
-// (a project, or empty for the machine), and cleared by that stage's own next success — so "no
-// entry" means the stage last WORKED, never "nothing looked". A failure on an event the client
+// (a project, a conversation, or empty for the machine), and cleared by that stage's own next
+// success (or, for TTL-bounded conversation-scoped entries recorded with FailInWithTTL, aged out
+// after their TTL once shown at least once) — so "no entry" means the stage last WORKED or its
+// bounded scope ended after reporting, never "nothing looked". A failure on an event the client
 // displays nothing for is KEPT until one that does: that is what the record buys over speaking at
 // the moment of failure, and five of the events in this suite display nothing.
 //
@@ -71,12 +73,13 @@ type Failure struct {
 	// Scope is the project a project-scoped failure happened in, and empty for a machine-scoped
 	// one. It is part of the identity: a manifest that works in one project must not clear the
 	// entry of another whose manifest does not.
-	Scope    string    `json:"scope,omitempty"`
-	Error    string    `json:"error"`
-	Event    string    `json:"event"` // the hook event that last hit it
-	Since    time.Time `json:"since"` // first failure since the stage last worked
-	Last     time.Time `json:"last"`
-	Notified time.Time `json:"notified,omitzero"` // last time a displaying event showed it
+	Scope        string        `json:"scope,omitempty"`
+	Error        string        `json:"error"`
+	Event        string        `json:"event"` // the hook event that last hit it
+	Since        time.Time     `json:"since"` // first failure since the stage last worked
+	Last         time.Time     `json:"last"`
+	Notified     time.Time     `json:"notified,omitzero"` // last time a displaying event showed it
+	ExpiresAfter time.Duration `json:"expires_after,omitempty"`
 }
 
 // Record is the file's shape.
@@ -100,15 +103,15 @@ func (f Failure) key() key { return key{f.Stage, f.Scope} }
 // worse than the silence this package exists to end, so the lock is not optional and the race
 // detector runs over this in CI.
 type Recorder struct {
-	mu      sync.Mutex
-	plugin  string
-	speaker string
-	event   string
-	now     time.Time
-	stderr  io.Writer
-	failed  map[key]string
-	worked  map[key]bool
-	expire  map[Stage]time.Duration
+	mu        sync.Mutex
+	plugin    string
+	speaker   string
+	event     string
+	now       time.Time
+	stderr    io.Writer
+	failed    map[key]string
+	failedTTL map[key]time.Duration
+	worked    map[key]bool
 }
 
 // New starts a recorder for one hook invocation.
@@ -137,22 +140,27 @@ func (r *Recorder) FailIn(s Stage, scope, detail string) {
 	r.failed[key{s, scope}] = detail
 }
 
+// FailInWithTTL is FailIn for a bounded-lifetime scope (such as a single conversation) whose
+// entry ages out after ttl past Last once it has been shown at least once. Stored on the Failure
+// itself so any plugin hook on any event or harness prunes it during merge.
+func (r *Recorder) FailInWithTTL(s Stage, scope, detail string, ttl time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	fmt.Fprintln(r.stderr, r.speaker+": "+detail)
+	k := key{s, scope}
+	r.failed[k] = detail
+	if ttl > 0 {
+		if r.failedTTL == nil {
+			r.failedTTL = map[key]time.Duration{}
+		}
+		r.failedTTL[k] = ttl
+	}
+}
+
 func (r *Recorder) OKIn(s Stage, scope string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.worked[key{s, scope}] = true
-}
-
-// Expire drops persisted entries for stage s whose Last timestamp is at least maxAge older than
-// r.now (unless the same (s, scope) failed in this invocation). Used for conversation-scoped
-// stages so an ended conversation's entry ages out instead of nagging machine-wide forever.
-func (r *Recorder) Expire(s Stage, maxAge time.Duration) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.expire == nil {
-		r.expire = map[Stage]time.Duration{}
-	}
-	r.expire[s] = maxAge
 }
 
 // Failed reports whether anything failed in this invocation, for a caller that must know before it
@@ -348,11 +356,11 @@ func (r *Recorder) merge(path string, pathErr error) (Record, error) {
 	for _, f := range rec.Failures {
 		_, failedNow := r.failed[f.key()]
 		if !failedNow {
-			if r.worked[f.key()] {
+			if r.worked[f.key()] && (f.ExpiresAfter == 0 || !f.Notified.IsZero()) {
 				changed = true
 				continue
 			}
-			if maxAge, ok := r.expire[f.Stage]; ok && !f.Last.IsZero() && r.now.Sub(f.Last) >= maxAge {
+			if f.ExpiresAfter > 0 && !f.Notified.IsZero() && !f.Last.IsZero() && r.now.Sub(f.Last) >= f.ExpiresAfter {
 				changed = true
 				continue
 			}
@@ -368,6 +376,9 @@ func (r *Recorder) merge(path string, pathErr error) (Record, error) {
 		}
 		f := &rec.Failures[i]
 		f.Error, f.Event, f.Last = d, r.event, r.now
+		if ttl := r.failedTTL[k]; ttl > 0 {
+			f.ExpiresAfter = ttl
+		}
 		changed = true
 	}
 	sortFailures(rec.Failures)
@@ -468,7 +479,7 @@ func render(speaker string, due []Failure, path string, persistErr error) string
 	if persistErr != nil {
 		fmt.Fprintf(&b, "\nThis is shown on every displaying event while it lasts: the failure record cannot be kept (%v).", persistErr)
 	} else {
-		fmt.Fprintf(&b, "\nRecord: %s. Each entry clears when its stage next works; a failing stage is shown again after %d minutes.",
+		fmt.Fprintf(&b, "\nRecord: %s. Each entry clears when its stage next works (or ages out after its TTL once shown); a failing stage is shown again after %d minutes.",
 			path, int(NotifyEvery.Minutes()))
 	}
 	return b.String()

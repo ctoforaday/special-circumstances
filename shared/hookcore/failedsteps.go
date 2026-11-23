@@ -92,16 +92,17 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 	}
 
 	// Rebase helper for corrupt watermark, shrunken transcript, or rewritten/misaligned offset:
-	// report the condition once, advance watermark to current EOF with Step: -1 (since renumbered
-	// transcripts start at step 0 again while Offset already skips all old bytes) without replaying
-	// older steps, so the conversation recovers on the next drain instead of failing forever.
+	// report the condition once, advance watermark to the last newline boundary at or before EOF
+	// with Step: -1 (since renumbered transcripts start at step 0 again while Offset already skips
+	// all old bytes, and landing on '\n' avoids misaligning on a half-written trailing line).
 	rebaseEOF := func(reason string) ([]FailedToolStep, error) {
+		targetOffset := lastNewlineOffset(f, fi.Size())
 		if wmPath != "" {
-			if werr := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: -1, Offset: fi.Size()}); werr != nil {
+			if werr := writeDrainWatermark(wmPath, req.PluginDataDir, drainWatermark{Step: -1, Offset: targetOffset}); werr != nil {
 				return nil, fmt.Errorf("%s; rebase write failed: %w", reason, werr)
 			}
 		}
-		return nil, fmt.Errorf("%s; rebased watermark to EOF (%d bytes) with no replay", reason, fi.Size())
+		return nil, fmt.Errorf("%s; rebased watermark to offset %d with no replay", reason, targetOffset)
 	}
 
 	if corruptErr != nil {
@@ -252,6 +253,30 @@ func DrainFailedToolSteps(req Request) ([]FailedToolStep, error) {
 		return failed, errors.New(strings.Join(errs, "; "))
 	}
 	return failed, nil
+}
+
+// lastNewlineOffset returns the byte offset immediately after the last '\n' in f (up to size),
+// or 0 if no newline is present. Keeps rebased watermarks aligned to a line boundary.
+func lastNewlineOffset(f *os.File, size int64) int64 {
+	const chunk = 64 * 1024
+	buf := make([]byte, chunk)
+	for end := size; end > 0; {
+		start := end - chunk
+		if start < 0 {
+			start = 0
+		}
+		n, err := f.ReadAt(buf[:end-start], start)
+		if n > 0 {
+			if idx := bytes.LastIndexByte(buf[:n], '\n'); idx >= 0 {
+				return start + int64(idx) + 1
+			}
+		}
+		if err != nil && !errors.Is(err, io.EOF) {
+			return 0
+		}
+		end = start
+	}
+	return 0
 }
 
 // DrainScopeKey returns the conversation-scoped key used to isolate failed-step watermarks and

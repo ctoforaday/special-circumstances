@@ -274,27 +274,49 @@ func TestDrainFailedToolStepsRefusesSilentReplayOnCorruptOrShrunkenOrUnwritableW
 		t.Fatalf("drain after corrupt rebase: got steps=%+v err=%v, want empty, nil", after, err)
 	}
 
-	// 2. Shrunken transcript errors once, rebases to EOF with Step: -1 (no replay), and a
-	// newly appended failure at a RENUMBERED step_index <= old max IS reported (and not replayed).
-	if err := os.WriteFile(tp, []byte("{}\n"), 0o600); err != nil {
+	// 2. Shrunken transcript (starting from a FRESH watermark with Step=2, NOT already -1):
+	// errors once, rebases to last newline with Step: -1 (no replay), and a newly appended failure
+	// at a RENUMBERED step_index <= old max (step 2) IS reported once and not replayed.
+	tpShrink := filepath.Join(dir, "shrink.jsonl")
+	if err := os.WriteFile(tpShrink, []byte(transcript), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	replayed, err = DrainFailedToolSteps(req)
+	reqShrink := Request{
+		Engine:         EngineAntigravity,
+		Event:          "PreInvocation",
+		SessionID:      "conv-shrink-fresh",
+		TranscriptPath: tpShrink,
+		PluginDataDir:  pluginData,
+	}
+	if initGot, err := DrainFailedToolSteps(reqShrink); err != nil || len(initGot) != 1 || initGot[0].StepIndex != 2 {
+		t.Fatalf("shrink initial drain = %+v err=%v, want step 2", initGot, err)
+	}
+	// Shrink with a half-written trailing line (F10) to prove rebase lands on the last '\n'.
+	if err := os.WriteFile(tpShrink, []byte("{}\n{\"step_index\":1,\"half\":"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err = DrainFailedToolSteps(reqShrink)
 	if err == nil || len(replayed) != 0 {
 		t.Fatalf("shrunken transcript: got steps=%+v err=%v, want empty + non-nil error", replayed, err)
 	}
-	f, err := os.OpenFile(tp, os.O_APPEND|os.O_WRONLY, 0o600)
+	wmShrinkBytes, err := os.ReadFile(filepath.Join(pluginData, "last_failed_step_conv-shrink-fresh.json"))
+	if err != nil || !strings.Contains(string(wmShrinkBytes), `"step":-1`) || !strings.Contains(string(wmShrinkBytes), `"offset":3`) {
+		t.Fatalf("rebased watermark = %s (err=%v), want step:-1 and offset:3 (last newline)", string(wmShrinkBytes), err)
+	}
+	// Finish the half-written line and append a renumbered failure at step_index 2 (<= old max 2).
+	f, err := os.OpenFile(tpShrink, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = f.WriteString(`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"post-rebase-cmd"}}]}` + "\n" +
+	_, _ = f.WriteString("true}\n" +
+		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"post-rebase-cmd"}}]}` + "\n" +
 		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 7.\n"}` + "\n")
 	_ = f.Close()
-	afterRebase, err := DrainFailedToolSteps(req)
+	afterRebase, err := DrainFailedToolSteps(reqShrink)
 	if err != nil || len(afterRebase) != 1 || afterRebase[0].StepIndex != 2 || afterRebase[0].ExitCode != 7 || afterRebase[0].Command != "post-rebase-cmd" {
 		t.Fatalf("drain after shrink rebase with renumbered step 2: got steps=%+v err=%v, want 1 step (exit 7)", afterRebase, err)
 	}
-	if again, err := DrainFailedToolSteps(req); err != nil || len(again) != 0 {
+	if again, err := DrainFailedToolSteps(reqShrink); err != nil || len(again) != 0 {
 		t.Fatalf("second drain after renumbered step: got steps=%+v err=%v, want empty, nil", again, err)
 	}
 

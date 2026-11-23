@@ -266,30 +266,66 @@ func TestAFailingStageIsSaidOnceEveryNotifyPeriod(t *testing.T) {
 	}
 }
 
-// Conversation-scoped stages age out via Expire so an ended conversation's failure does not nag
-// every 10 minutes machine-wide forever.
-func TestExpireAgesOutStaleScopedStage(t *testing.T) {
+// FailInWithTTL stores the TTL on the Failure itself so any event/harness merge prunes it after
+// it has been shown at least once, without losing un-announced entries or prematurely expiring
+// still-failing or non-TTL stages.
+func TestFailInWithTTLSemantics(t *testing.T) {
 	plugin, path := isolate(t)
+
+	// 1. Record a TTL stage on non-displaying PreInvocation and a non-TTL stageB.
 	r1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
-	r1.FailIn(stageA, "conv-ended", "drain failed")
+	r1.FailInWithTTL(stageA, "conv-ended", "drain failed", 30*time.Minute)
+	r1.Fail(stageB, "permanent failure")
 	r1.Persist()
 
-	// Before TTL (29m): peer conversation's Expire keeps conv-ended's entry.
-	r2 := New(plugin, "test-hook", "PreInvocation", noon.Add(29*time.Minute), io.Discard)
-	r2.Expire(stageA, 30*time.Minute)
-	r2.OKIn(stageA, "conv-peer")
+	// 2. Un-announced (Notified is zero): OKIn must NOT clear it, and +31m non-displaying merge
+	// must NOT prune it before the human sees it.
+	r2 := New(plugin, "test-hook", "PreInvocation", noon.Add(31*time.Minute), io.Discard)
+	r2.OKIn(stageA, "conv-ended")
 	r2.Persist()
 	if _, ok := entry(recorded(t, path), stageA, "conv-ended"); !ok {
-		t.Fatalf("entry aged out early at 29m")
+		t.Fatalf("un-announced TTL entry was cleared/pruned before ever being shown")
 	}
 
-	// At TTL (30m): peer conversation's Expire prunes conv-ended's entry.
-	r3 := New(plugin, "test-hook", "PreInvocation", noon.Add(30*time.Minute), io.Discard)
-	r3.Expire(stageA, 30*time.Minute)
-	r3.OKIn(stageA, "conv-peer")
-	r3.Persist()
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("expired entry was not pruned at 30m: %+v", recorded(t, path))
+	// 3. A displaying event (Stop, e.g. from Claude) at +31m shows it and stamps Notified.
+	r3 := New(plugin, "test-hook", "Stop", noon.Add(31*time.Minute), io.Discard)
+	msg := r3.Settle()
+	if !strings.Contains(msg, "conv-ended") {
+		t.Fatalf("displaying event at +31m did not show un-announced TTL entry: %q", msg)
+	}
+
+	// 4. Now that Notified is set and now-Last >= 30m, ANY subsequent merge (even Stop with no
+	// Expire call) prunes stageA while leaving non-TTL stageB untouched.
+	r4 := New(plugin, "test-hook", "Stop", noon.Add(32*time.Minute), io.Discard)
+	r4.Persist()
+	rec := recorded(t, path)
+	if _, ok := entry(rec, stageA, "conv-ended"); ok {
+		t.Fatalf("shown + expired TTL entry was not pruned: %+v", rec)
+	}
+	if _, ok := entry(rec, stageB, ""); !ok {
+		t.Fatalf("non-TTL stageB was wrongly pruned: %+v", rec)
+	}
+
+	// 5. Still-failing entry ages from Last, NOT Since: fail at t=0, fail again at t=20m, show at
+	// t=20m, settle at t=35m (now-Since=35m >= 30m, now-Last=15m < 30m) -> MUST be kept.
+	r5a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	r5a.FailInWithTTL(stageA, "conv-active", "still failing", 30*time.Minute)
+	r5a.Persist()
+	r5b := New(plugin, "test-hook", "Stop", noon.Add(20*time.Minute), io.Discard)
+	r5b.FailInWithTTL(stageA, "conv-active", "still failing", 30*time.Minute)
+	r5b.Settle()
+	r5c := New(plugin, "test-hook", "Stop", noon.Add(35*time.Minute), io.Discard)
+	r5c.Persist()
+	if _, ok := entry(recorded(t, path), stageA, "conv-active"); !ok {
+		t.Fatalf("still-failing entry was expired from Since instead of Last")
+	}
+
+	// 6. Failing-now is never expired even if now-Last >= TTL.
+	r6 := New(plugin, "test-hook", "Stop", noon.Add(60*time.Minute), io.Discard)
+	r6.FailInWithTTL(stageA, "conv-active", "failing right now", 30*time.Minute)
+	r6.Persist()
+	if _, ok := entry(recorded(t, path), stageA, "conv-active"); !ok {
+		t.Fatalf("entry failing in current invocation was wrongly expired")
 	}
 }
 

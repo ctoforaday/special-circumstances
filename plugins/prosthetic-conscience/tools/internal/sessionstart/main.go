@@ -211,19 +211,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if eventName == "PreInvocation" && req.Engine == hookcore.EngineAntigravity {
 		var feedbackParts []string
 		scope := hookcore.DrainScopeKey(req)
-		rec.Expire(stageFailedStepDrain, conversationStageTTL)
-		rec.Expire(stageHookUnmarshal, conversationStageTTL)
 		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
 		if drainErr != nil {
-			rec.FailIn(stageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error())
+			rec.FailInWithTTL(stageFailedStepDrain, scope, "failed-step drain: "+drainErr.Error(), conversationStageTTL)
 		} else {
 			rec.OKIn(stageFailedStepDrain, scope)
 		}
 		sawHookErr := false
 		for _, st := range failedSteps {
 			if st.HookError {
+				// Our hook's output failed to parse: record on hookfailures for the human,
+				// never strike the agent for our own hook defect.
 				sawHookErr = true
-				rec.FailIn(stageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+				rec.FailInWithTTL(stageHookUnmarshal, scope, "hook result failed to parse: "+strings.TrimSpace(st.Output), conversationStageTTL)
+				continue
 			}
 			// Never strike tools without a command (e.g. Read or manage_task): their key would
 			// collapse to the tool name alone and trip anti-spinning on unrelated calls.
@@ -247,12 +248,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 				rec.OKIn(strikecounter.StageStrikesWrite, ctx.ProjectDir)
 			}
 			if tripped {
-				var errSummary string
-				if st.HookError {
-					errSummary = "hook result failed to parse: " + st.Output
-				} else {
-					errSummary = fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
-				}
+				errSummary := fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
 				feedbackParts = append(feedbackParts, strikecounter.Message(st.ToolName, errSummary, key, count))
 			}
 		}

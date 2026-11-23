@@ -110,6 +110,9 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		} else {
 			rec.OK(StagePanic)
 		}
+		// Resolve a bound Antigravity seat before queuing Settle's Say so the message lands in
+		// pending_<agentID>.jsonl (the queue PreInvocation flushes), not pending_<conversationId>.jsonl.
+		applyAgySitting(&req, req.CWD, nil)
 		if err := respond(req, stdout, buf.Bytes(), rec.Settle()); err != nil {
 			// The decision never reached the client. Recorded rather than said — the channel for
 			// saying it is the thing that failed — and read out by the next call that can.

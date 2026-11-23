@@ -526,23 +526,80 @@ func TestAntigravityPreInvocationDrainErrorScopedAndCleared(t *testing.T) {
 		rec.Persist()
 	}
 
-	// 1. conv-A fails drain -> recorded under StageFailedStepDrain scoped to its watermark key (agent id).
+	// 1. conv-A fails drain -> recorded under StageFailedStepDrain with TTL scoped to its agent id.
 	firePreInv("conv-A", tpA)
-	if f := readFailures(); !strings.Contains(f, string(StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") {
-		t.Fatalf("failures.json missing scoped StageFailedStepDrain for agy-drainerrA00001: %s", f)
+	if f := readFailures(); !strings.Contains(f, string(StageFailedStepDrain)) || !strings.Contains(f, "agy-drainerrA00001") || !strings.Contains(f, `"expires_after"`) {
+		t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for agy-drainerrA00001: %s", f)
 	}
 	// 2. Peer conv-B clean drain must NOT clear conv-A's entry.
 	firePreInv("conv-B", tpB)
 	if f := readFailures(); !strings.Contains(f, "agy-drainerrA00001") {
 		t.Fatalf("peer conv-B clean drain cleared agy-drainerrA00001's failure entry: %s", f)
 	}
-	// 3. conv-A subsequent clean drain DOES clear conv-A's entry.
+	// 3. Displaying event shows conv-A's entry (stamps Notified), then conv-A's clean drain clears it.
+	showRec := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "Stop", time.Now(), &bytes.Buffer{})
+	if msg := showRec.Settle(); !strings.Contains(msg, "agy-drainerrA00001") {
+		t.Fatalf("Stop Settle did not show conv-A drain error: %q", msg)
+	}
 	firePreInv("conv-A", tpA)
 	if f := readFailures(); strings.Contains(f, "agy-drainerrA00001") {
-		t.Fatalf("conv-A clean drain did not clear its StageFailedStepDrain entry: %s", f)
+		t.Fatalf("conv-A clean drain did not clear its StageFailedStepDrain entry after being shown: %s", f)
 	}
 
-	// 4. StageAgyBind conflict is recorded and then cleared on the next successful bind.
+	// 4. Hook-unmarshal ERROR step records StageHookUnmarshal with TTL, and clears on next clean drain after shown.
+	prevFail := recordFailure
+	recordFailure = func(_, _, _ string) error { return nil }
+	t.Cleanup(func() { recordFailure = prevFail })
+	writeConv("conv-H", "agy-hookerrH00001")
+	tpHook := filepath.Join(t.TempDir(), "hookerr.jsonl")
+	trHook := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"echo hi"}}]}` + "\n" +
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__feov\n"}` + "\n"
+	if err := os.WriteFile(tpHook, []byte(trHook), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	firePreInv("conv-H", tpHook)
+	if f := readFailures(); !strings.Contains(f, string(StageHookUnmarshal)) || !strings.Contains(f, `"expires_after"`) {
+		t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", f)
+	}
+	showRec2 := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "Stop", time.Now(), &bytes.Buffer{})
+	_ = showRec2.Settle()
+	firePreInv("conv-H", tpHook)
+	if f := readFailures(); strings.Contains(f, string(StageHookUnmarshal)) {
+		t.Fatalf("clean drain did not clear StageHookUnmarshal after being shown: %s", f)
+	}
+
+	// 5. F6: Run() on a bound agy seat queues Settle's Say under the bound AgentID so the next
+	// PreInvocation flushes it (instead of stranding it under the raw conversationId).
+	seedRec := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreInvocation", time.Now(), &bytes.Buffer{})
+	seedRec.FailInWithTTL(StageFailedStepDrain, "agy-drainerrA00001", "F6_BOUND_DELIVERY_CANARY", conversationStageTTL)
+	seedRec.Persist()
+	preToolPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": "conv-A",
+		"cwd":            cwd,
+		"toolCall": map[string]any{
+			"id":   "call-f6",
+			"name": "run_command",
+			"args": map[string]any{"CommandLine": "echo ok"},
+		},
+	})
+	var runOut bytes.Buffer
+	Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(preToolPayload), &runOut)
+	preInvF6, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-A",
+		"cwd":            cwd,
+		"invocationNum":  1,
+	})
+	var preInvOut bytes.Buffer
+	if err := Pre(bytes.NewReader(preInvF6), &preInvOut, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(preInvOut.String(), "F6_BOUND_DELIVERY_CANARY") {
+		t.Fatalf("bound agy seat PreInvocation did not flush Run() Settle message (stranded under conversationId?): %s", preInvOut.String())
+	}
+
+	// 6. StageAgyBind conflict is recorded and then cleared on the next successful bind.
 	seatB, _ := json.Marshal(agySitting{
 		AgentID: "agy-bindclear0001", AgentType: "frank-exchange-of-views:red-chair",
 		SeatID: "red-chair", RunDir: runDir, LeadSession: testLead,
