@@ -110,6 +110,19 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		} else {
 			rec.OK(StagePanic)
 		}
+		// Resolve a bound Antigravity seat (pre-bound OR newly bound by f before returning or
+		// panicking) under its own recover so respond() queues Settle's Say under
+		// pending_<AgentID>.jsonl (the queue PreInvocation flushes) without risking Run's exit 0.
+		if req.AgentID == "" {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
+					}
+				}()
+				applyBoundAgySitting(&req, req.CWD)
+			}()
+		}
 		if err := respond(req, stdout, buf.Bytes(), rec.Settle()); err != nil {
 			// The decision never reached the client. Recorded rather than said — the channel for
 			// saying it is the thing that failed — and read out by the next call that can.
@@ -189,10 +202,9 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageInput)
-	if req.HookEventName == "PreInvocation" {
-		req.Event = "PreInvocation"
-		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
-		return nil
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
 	}
 	in := hookgate.Input{
 		AgentID:   req.AgentID,
@@ -201,9 +213,19 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		ToolName:  req.ToolName,
 		ToolInput: req.ToolInput,
 	}
-	cwd := req.CWD
-	if cwd == "" {
-		cwd = cwdOf(req.Raw)
+	if s, ok := resolveAgySitting(req, cwd, rec); ok {
+		in.AgentID = s.AgentID
+		in.AgentType = s.AgentType
+		in.SessionID = s.LeadSession
+		req.AgentID = s.AgentID
+		req.AgentType = s.AgentType
+		req.SessionID = s.LeadSession
+	}
+	if req.HookEventName == "PreInvocation" {
+		req.Event = "PreInvocation"
+		logAgyFailedToolSteps(req, in, cwd, rec)
+		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
+		return nil
 	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).

@@ -245,7 +245,7 @@ func Write(s Sitting, seat io.Writer) error {
 	if phase == Open && seat != nil {
 		injectWorkList(run, agentID, agentType, seat)
 	}
-	return ingestTurns(run, phase, transcriptPath)
+	return ingestTurns(run, phase, agentID, transcriptPath)
 }
 
 // ingestTurns reads the finished seat's transcript into per-turn rows.
@@ -254,7 +254,7 @@ func Write(s Sitting, seat io.Writer) error {
 // to exist and its failure is returned. A transcript that cannot be read or parsed loses
 // telemetry and nothing else, so it reports to stderr and lets the span stand — the alternative
 // is a non-zero exit that makes a readable span look like a failed write.
-func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
+func ingestTurns(run record.Run, phase Phase, fallbackAgentID, transcriptPath string) error {
 	if phase != Close || transcriptPath == "" {
 		return nil // no turns at the opening end, and none to read without a path
 	}
@@ -263,10 +263,13 @@ func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
 		fmt.Fprintf(os.Stderr, "sittingwrite: reading %s for its turns: %v\n", transcriptPath, err)
 		return nil
 	}
-	// THE AGENT COMES OFF THE TRANSCRIPT, not from the caller's flag. The lines state which agent
-	// produced them; the flag states which agent stopped. They agree, and preferring the record
-	// in the file keeps one source for the fact — see seatturn.Parse.
+	// THE AGENT COMES OFF THE TRANSCRIPT when present (Claude JSONL carries agentId on every line),
+	// falling back to the sitting's own agent id for Antigravity PLANNER_RESPONSE transcripts, which
+	// carry no per-line agentId field.
 	agentID, turns := seatturn.Parse(string(body))
+	if agentID == "" {
+		agentID = fallbackAgentID
+	}
 	if agentID == "" || len(turns) == 0 {
 		return nil
 	}

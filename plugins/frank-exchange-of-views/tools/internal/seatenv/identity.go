@@ -92,8 +92,17 @@ func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
 // what `setup` records as the run's lead.
 const SessionVar = "CLAUDE_CODE_SESSION_ID"
 
-// Session is the client session this process runs under, or "" outside Claude Code.
-func Session() string { return strings.TrimSpace(os.Getenv(SessionVar)) }
+// AgySessionVar is Antigravity's equivalent variable naming the conversation a run_command call
+// runs under.
+const AgySessionVar = "ANTIGRAVITY_CONVERSATION_ID"
+
+// Session is the client session this process runs under, or "" outside Claude Code / Antigravity.
+func Session() string {
+	if s := strings.TrimSpace(os.Getenv(SessionVar)); s != "" {
+		return s
+	}
+	return strings.TrimSpace(os.Getenv(AgySessionVar))
+}
 
 // AgentType is the harness's name for this process's agent configuration, or "" in a main session,
 // an operator shell, or any context the hook did not rewrite.

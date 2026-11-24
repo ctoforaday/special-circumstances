@@ -115,4 +115,29 @@ func TestSameModel(t *testing.T) {
 	if SameModel("gpt-oss-120b-medium", "claude-fable-5") {
 		t.Error("non-Anthropic model must not match fable tier")
 	}
+	// Antigravity run_workflow tiers
+	if !SameModel("flash_lite", "gemini-3.5-flash-lite") {
+		t.Error("flash_lite should match gemini-3.5-flash-lite")
+	}
+	if SameModel("flash_lite", "gemini-3.8-flash-low") {
+		t.Error("flash_lite must not match non-lite flash")
+	}
+	if !SameModel("flash", "gemini-3.8-flash-low") {
+		t.Error("flash should match gemini-3.8-flash-low")
+	}
+	if SameModel("flash", "gemini-3.5-flash-lite") {
+		t.Error("flash must not match flash-lite")
+	}
+	if !SameModel("pro", "gemini-3.1-pro") {
+		t.Error("pro should match gemini-3.1-pro")
+	}
+	if SameModel("pro", "gemini-3.5-flash-lite") {
+		t.Error("pro must not match flash-lite")
+	}
+	if !SameModel("inherit", "gemini-4-neon-high") {
+		t.Error("inherit should match any served model")
+	}
+	if SameModel("flash_lite", "gemini-4-neon-high") {
+		t.Error("flash_lite must not match gemini-4-neon-high")
+	}
 }

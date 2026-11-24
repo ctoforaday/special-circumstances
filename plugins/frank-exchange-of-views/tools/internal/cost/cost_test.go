@@ -159,7 +159,7 @@ func TestTierMismatch(t *testing.T) {
 // every row's, component by component — an unknown model over-reports and never under-reports.
 func TestThePriceTableIsKeyedByModelsTheLadderKnows(t *testing.T) {
 	for m, c := range Prices {
-		if !modeltier.Recognized(m) {
+		if !modeltier.Recognized(m) && !modeltier.RecognizedAntigravityServed(m) {
 			t.Errorf("%q has a price and no tier: the tier guard would call it unrecognized", m)
 		}
 		for _, r := range []Rate{c.Rate, c.Long} {
@@ -277,6 +277,13 @@ func TestAnUnpricedModelIsChargedHighAndNamed(t *testing.T) {
 	agyRow := ScanTranscript(agyTxt)
 	if agyRow.Cost != 0 || agyRow.T != "unpriced" || agyRow.Inp != 1000000 || len(agyRow.Unpriced) != 1 {
 		t.Errorf("antigravity row = %+v (want $0, unpriced, 1M input)", agyRow)
+	}
+	// Priced Gemini Antigravity turns compute published rates and report no Unpriced entries.
+	gemTxt := `{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","model":"gemini-3.5-flash-lite","input_tokens":1000000,"output_tokens":1000000,"cache_read_tokens":1000000}` + "\n"
+	gemRow := ScanTranscript(gemTxt)
+	wantGem := 0.30 + 2.50 + 0.03
+	if math.Abs(gemRow.Cost-wantGem) > 1e-9 || len(gemRow.Unpriced) != 0 {
+		t.Errorf("gemini-3.5-flash-lite row = %+v (want cost=%v, unpriced=[])", gemRow, wantGem)
 	}
 }
 

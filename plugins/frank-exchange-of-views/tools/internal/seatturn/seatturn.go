@@ -80,6 +80,7 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 			Timestamp       string `json:"timestamp"`
 			Source          string `json:"source"`
 			Type            string `json:"type"`
+			Model           string `json:"model"`
 			CreatedAt       string `json:"created_at"`
 			InputTokens     int    `json:"input_tokens"`
 			OutputTokens    int    `json:"output_tokens"`
@@ -114,6 +115,7 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 				turns = append(turns, Turn{
 					Index:     len(turns),
 					TSMillis:  millis(rec.CreatedAt),
+					Model:     rec.Model,
 					Input:     rec.InputTokens,
 					Output:    rec.OutputTokens,
 					CacheRead: rec.CacheReadTokens,
