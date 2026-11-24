@@ -649,7 +649,27 @@ func TestEnsureReturnsTheVersionChecksMessage(t *testing.T) {
 		t.Error("output that is not the message document was taken as a message")
 	}
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	if got, err := Ensure("SessionStart"); err != nil || got != "" {
+	t.Setenv("PLUGIN_ROOT", root)
+	write(`[ "$1" = ensure ] && [ "$2" = SessionStart ] && printf '{"injectSteps":[{"systemMessage":{"systemMessage":"agy installing v2"}}]}\n'`)
+	if got, err := Ensure("SessionStart"); err != nil || got != "agy installing v2" {
+		t.Errorf("Antigravity PLUGIN_ROOT-only env did not run fetch-bin.sh ensure: %q %v", got, err)
+	}
+
+	// Binary grandparent fallback when neither CLAUDE_PLUGIN_ROOT nor PLUGIN_ROOT is set.
+	t.Setenv("PLUGIN_ROOT", "")
+	if err := os.MkdirAll(filepath.Join(root, ".antigravity-plugin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".antigravity-plugin", "plugin.json"), []byte(`{"name":"test","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fakeExe := func() (string, error) { return filepath.Join(root, "bin", "sc-sessionstart"), nil }
+	if got, err := ensureWith("SessionStart", fakeExe); err != nil || got != "agy installing v2" {
+		t.Errorf("binary grandparent fallback did not run fetch-bin.sh ensure: %q %v", got, err)
+	}
+
+	nonPluginExe := func() (string, error) { return filepath.Join(t.TempDir(), "bin", "plain"), nil }
+	if got, err := ensureWith("SessionStart", nonPluginExe); err != nil || got != "" {
 		t.Errorf("outside a plugin hook there is nothing to ensure: %q %v", got, err)
 	}
 }

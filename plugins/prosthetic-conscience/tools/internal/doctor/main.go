@@ -23,6 +23,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 type requirements struct {
@@ -898,17 +899,8 @@ func resolveRoot(rootFlag, envRoot string, executable func() (string, error)) st
 	if rootFlag != "" {
 		return rootFlag
 	}
-	if envRoot != "" {
-		return envRoot
-	}
-	if pRoot := os.Getenv("PLUGIN_ROOT"); pRoot != "" {
-		return pRoot
-	}
-	if exe, err := executable(); err == nil {
-		grandparent := filepath.Dir(filepath.Dir(exe))
-		if isPluginDir(grandparent) {
-			return grandparent
-		}
+	if r := hookfailures.ResolvePluginRoot(envRoot, os.Getenv("PLUGIN_ROOT"), executable); r != "" {
+		return r
 	}
 	if isAntigravity() {
 		if h := homeDir(); h != "" {
@@ -1041,11 +1033,7 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 // Main is the process boundary: it wires the real environment in and returns the
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
-	envRoot := os.Getenv("CLAUDE_PLUGIN_ROOT")
-	if envRoot == "" {
-		envRoot = os.Getenv("PLUGIN_ROOT")
-	}
-	return run(os.Args[1:], os.Stdout, envRoot, os.Executable, fix)
+	return run(os.Args[1:], os.Stdout, os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Executable, fix)
 }
 
 // displayVersion prefers the line the check command already produced during Probe over running

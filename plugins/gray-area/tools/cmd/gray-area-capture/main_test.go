@@ -601,3 +601,42 @@ func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
 		t.Fatal("drove 0 Antigravity hooks from gray-area hooks.json")
 	}
 }
+
+func TestAntigravitySessionStartRunsRealEnsureWithPluginRootOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fetch-bin.sh is a POSIX shell script")
+	}
+	root := t.TempDir()
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "[ \"$1\" = ensure ] && [ \"$2\" = SessionStart ] && printf '{\"systemMessage\":\"agy-ga-self-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	t.Setenv("PLUGIN_ROOT", root)
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	proj := t.TempDir()
+	trPath := filepath.Join(t.TempDir(), "transcript.jsonl")
+	if err := os.WriteFile(trPath, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "SessionStart",
+		"conversationId": "conv-ensure-ga",
+		"cwd":            proj,
+		"transcriptPath": trPath,
+	})
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"-event", "SessionStart"}, bytes.NewReader(payload), &stdout, &stderr, proj, noon, okStat(2))
+	if code != 0 {
+		t.Fatalf("SessionStart exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-ga-self-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected Antigravity gray-area-capture SessionStart to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", stdout.String())
+	}
+}

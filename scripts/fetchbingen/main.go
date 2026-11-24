@@ -35,6 +35,12 @@ const src = "scripts/fetchbingen/fetch-bin.sh"
 // fetchVar is how a guard names its plugin's fetch-bin.sh.
 const fetchVar = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"`
 
+// agyFetchVar and agyEnsureEntry are the Antigravity root hooks.json counterparts.
+const (
+	agyFetchVar    = `F="$R/hooks/fetch-bin.sh"`
+	agyEnsureEntry = `R="${PWD}"; F="$R/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" ensure SessionStart; fi`
+)
+
 // ensureEntry is the SessionStart entry that asks the version question once per session. A guard
 // fires only when its binary is ABSENT, so without this a binary from an older release is treated
 // as current for as long as it sits there. It checks its script exists before running it for the
@@ -89,9 +95,15 @@ func main() {
 		hj, err := os.ReadFile(filepath.Join(root, "plugins", p, ".claude-plugin", "hooks.json"))
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("plugins/%s ships binaries but its .claude-plugin/hooks.json cannot be read: %v", p, err))
-			continue
+		} else {
+			problems = append(problems, guardProblems(p, hj)...)
 		}
-		problems = append(problems, guardProblems(p, hj)...)
+		agyHJ, err := os.ReadFile(filepath.Join(root, "plugins", p, "hooks.json"))
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("plugins/%s ships binaries but its Antigravity root hooks.json cannot be read: %v", p, err))
+		} else {
+			problems = append(problems, agyGuardProblems(p, agyHJ)...)
+		}
 	}
 	problems = append(problems, ensureCopyProblems(root)...)
 
@@ -210,6 +222,102 @@ func guardProblems(plugin string, data []byte) []string {
 	// Zero guards in a plugin that ships binaries means the pattern moved, not that all is well.
 	if guards == 0 {
 		out = append(out, fmt.Sprintf("plugins/%s: no guard found in hooks.json — the shape this check reads has moved, so it would pass without reading anything", plugin))
+	}
+	return out
+}
+
+// agyGuardProblems checks a plugin's Antigravity root hooks.json with the same invariants:
+// every "$R/bin/" guard hands missing binaries to fetch-bin.sh under its event, and SessionStart
+// runs either agyEnsureEntry or a guarded SessionStart binary (which calls hookfailures.Ensure).
+func agyGuardProblems(plugin string, data []byte) []string {
+	type agyEntry struct {
+		Command string `json:"command"`
+		Hooks   []struct {
+			Command string `json:"command"`
+		} `json:"hooks"`
+	}
+	var doc map[string]map[string][]agyEntry
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return []string{fmt.Sprintf("plugins/%s/hooks.json does not parse: %v", plugin, err)}
+	}
+	groups := make([]string, 0, len(doc))
+	for g := range doc {
+		groups = append(groups, g)
+	}
+	sort.Strings(groups)
+
+	var out []string
+	guards := 0
+	checksVersion := false
+	for _, g := range groups {
+		evMap := doc[g]
+		events := make([]string, 0, len(evMap))
+		for ev := range evMap {
+			events = append(events, ev)
+		}
+		sort.Strings(events)
+		for _, ev := range events {
+			evHooks := 0
+			hasEnsureEntry := false
+			hasSessionStartBin := false
+			hasSubagentStart := false
+			for _, entry := range evMap[ev] {
+				var cmds []string
+				if entry.Command != "" {
+					cmds = append(cmds, entry.Command)
+				}
+				for _, h := range entry.Hooks {
+					if h.Command != "" {
+						cmds = append(cmds, h.Command)
+					}
+				}
+				for _, cmd := range cmds {
+					evHooks++
+					if ev == "SessionStart" && cmd == agyEnsureEntry {
+						checksVersion = true
+						hasEnsureEntry = true
+						continue
+					}
+					if !strings.Contains(cmd, `"$R/bin/`) {
+						continue
+					}
+					guards++
+					if !strings.Contains(cmd, agyFetchVar) {
+						out = append(out, fmt.Sprintf("plugins/%s/hooks.json: a %s guard does not hand a missing binary to fetch-bin.sh", plugin, ev))
+						continue
+					}
+					wantEv := ev
+					if ev == "SessionStart" && strings.Contains(cmd, "-subagentstart") {
+						wantEv = "SubagentStart"
+						hasSubagentStart = true
+					} else if ev == "Stop" && strings.Contains(cmd, "-subagentstop") {
+						wantEv = "SubagentStop"
+					}
+					if !strings.Contains(cmd, `exec sh "$F" hook `+wantEv+`;`) {
+						out = append(out, fmt.Sprintf("plugins/%s/hooks.json: a %s guard passes fetch-bin.sh an event other than %s", plugin, ev, wantEv))
+						continue
+					}
+					if ev == "SessionStart" && wantEv == "SessionStart" {
+						checksVersion = true // the plugin's own SessionStart binary, which runs hookfailures.Ensure
+						hasSessionStartBin = true
+					}
+				}
+			}
+			// One hook per event per plugin, except Antigravity's SessionStart when a plugin with no
+			// SessionStart binary carries both the ensure entry and a subagentstart hook (since agy
+			// routes subagent starts through SessionStart).
+			if ev == "SessionStart" && hasEnsureEntry && hasSessionStartBin {
+				out = append(out, fmt.Sprintf("plugins/%s/hooks.json: SessionStart has both the ensure entry and a SessionStart binary — fold the version check into the binary via hookfailures.Ensure", plugin))
+			} else if evHooks != 1 && !(ev == "SessionStart" && evHooks == 2 && hasEnsureEntry && hasSubagentStart) {
+				out = append(out, fmt.Sprintf("plugins/%s/hooks.json: %s has %d hooks — one hook per event per plugin", plugin, ev, evHooks))
+			}
+		}
+	}
+	if !checksVersion {
+		out = append(out, fmt.Sprintf("plugins/%s/hooks.json: no SessionStart hook runs the version check — SessionStart must carry the ensure entry or a guarded SessionStart binary that calls hookfailures.Ensure", plugin))
+	}
+	if guards == 0 {
+		out = append(out, fmt.Sprintf("plugins/%s/hooks.json: no guard found — the shape this check reads has moved, so it would pass without reading anything", plugin))
 	}
 	return out
 }

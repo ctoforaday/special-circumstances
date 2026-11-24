@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // Engine represents the executing AI assistant harness.
@@ -236,25 +238,16 @@ func findGitRoot(start string) string {
 	return ""
 }
 
-// PluginRoot resolves the plugin's root directory.
+// PluginRoot resolves the plugin's root directory, extending hookfailures.ResolvePluginRoot with an
+// explicit exePath probe and a current-working-directory manifest check for Antigravity hooks.
 func PluginRoot(envClaude, envPluginRoot, exePath string) string {
-	if envClaude != "" {
-		return envClaude
-	}
-	if envPluginRoot != "" {
-		return envPluginRoot
-	}
 	if exePath != "" {
-		grandparent := filepath.Dir(filepath.Dir(exePath))
-		if isPluginDir(grandparent) {
-			return grandparent
+		if r := hookfailures.ResolvePluginRoot(envClaude, envPluginRoot, func() (string, error) { return exePath, nil }); r != "" {
+			return r
 		}
 	}
-	if exe, err := os.Executable(); err == nil {
-		grandparent := filepath.Dir(filepath.Dir(exe))
-		if isPluginDir(grandparent) {
-			return grandparent
-		}
+	if r := hookfailures.ResolvePluginRoot(envClaude, envPluginRoot, os.Executable); r != "" {
+		return r
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		if isPluginDir(cwd) {

@@ -149,3 +149,56 @@ func TestASessionStartBinaryCarriesTheVersionCheck(t *testing.T) {
 		t.Fatalf("a plugin whose one SessionStart hook is its own binary was refused: %v", got)
 	}
 }
+
+func agyGuardCmd(bin, ev string) string {
+	return `R="${PWD}"; B="$R/bin/` + bin + `"; if [ -x "$B" ] || [ -x "$B.exe" ]; then exec "$B"; fi; ` +
+		`F="$R/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" hook ` + ev + `; fi`
+}
+
+func TestAgyGuardProblems(t *testing.T) {
+	t.Run("valid with ensure entry", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `},{"command":` + jsonQuote(agyGuardCmd("feov-subagentstart", "SubagentStart")) + `}]}}`
+		if got := agyGuardProblems("p", []byte(doc)); len(got) != 0 {
+			t.Fatalf("unexpected problems: %v", got)
+		}
+	})
+	t.Run("valid with SessionStart binary", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyGuardCmd("sc-sessionstart", "SessionStart")) + `}]}}`
+		if got := agyGuardProblems("p", []byte(doc)); len(got) != 0 {
+			t.Fatalf("unexpected problems: %v", got)
+		}
+	})
+	t.Run("missing ensure when only subagentstart on SessionStart", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyGuardCmd("feov-subagentstart", "SubagentStart")) + `}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "no SessionStart hook runs the version check") {
+			t.Fatalf("want missing version check problem, got %v", got)
+		}
+	})
+	t.Run("wrong event literal fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"PreToolUse":[{"matcher":".*","hooks":[{"command":` + jsonQuote(agyGuardCmd("x", "PostToolUse")) + `}]}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "event other than PreToolUse") {
+			t.Fatalf("want wrong event problem, got %v", got)
+		}
+	})
+	t.Run("missing fetch-bin fallback fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":"R=\"${PWD}\"; B=\"$R/bin/x\"; exec \"$B\""}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "does not hand") {
+			t.Fatalf("want missing fetch-bin problem, got %v", got)
+		}
+	})
+	t.Run("ensure entry plus SessionStart binary fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `},{"command":` + jsonQuote(agyGuardCmd("sc-sessionstart", "SessionStart")) + `}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "both the ensure entry and a SessionStart binary") {
+			t.Fatalf("want duplicate SessionStart version-check problem, got %v", got)
+		}
+	})
+}
+
+func jsonQuote(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
