@@ -52,8 +52,8 @@ func applyAgySitting(req *hookcore.Request, cwd string, rec *hookfailures.Record
 }
 
 // applyBoundAgySitting resolves an already-bound Antigravity sitting (fast-path conv-<id>.json
-// only, never touching O_EXCL seat-<id>.bound) so Run can populate req.AgentID before f runs
-// without racing with f's first-bind path.
+// only, never touching O_EXCL seat-<id>.bound) so Run's deferred Settle can recover req.AgentID
+// without performing a first bind.
 func applyBoundAgySitting(req *hookcore.Request, cwd string) bool {
 	probe := *req
 	probe.ToolName = ""
