@@ -16,6 +16,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/telecli"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // TestLiveAntigravityLinkAndSend drives the shipped hook and both binaries through a real agy:
@@ -41,23 +42,11 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	if err != nil {
 		t.Skipf("agy not found on PATH: %v", err)
 	}
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip(err)
-	}
-	token := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(token); err != nil {
-		t.Skipf("no agy credentials at %s", token)
-	}
-
 	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
-	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
-	copyFile(t, token, filepath.Join(agyDir, "antigravity-oauth-token"), 0o600)
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		if _, err := os.Stat(filepath.Join(realHome, ".gemini", "antigravity-cli", extra)); err == nil {
-			copyFile(t, filepath.Join(realHome, ".gemini", "antigravity-cli", extra), filepath.Join(agyDir, extra), 0o600)
-		}
+	if err := testhome.StageAgyAccessToken(home); err != nil {
+		t.Skipf("no agy credentials: %v", err)
 	}
+	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
 	// Tool calls proceed without prompting: the setting a headless run needs, scoped to this home.
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
 
@@ -268,23 +257,11 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	if err != nil {
 		t.Skipf("agy not found on PATH: %v", err)
 	}
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip(err)
-	}
-	token := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(token); err != nil {
-		t.Skipf("no agy credentials at %s", token)
-	}
-
 	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
-	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
-	copyFile(t, token, filepath.Join(agyDir, "antigravity-oauth-token"), 0o600)
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		if _, err := os.Stat(filepath.Join(realHome, ".gemini", "antigravity-cli", extra)); err == nil {
-			copyFile(t, filepath.Join(realHome, ".gemini", "antigravity-cli", extra), filepath.Join(agyDir, extra), 0o600)
-		}
+	if err := testhome.StageAgyAccessToken(home); err != nil {
+		t.Skipf("no agy credentials: %v", err)
 	}
+	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
 
 	src, err := filepath.Abs("../../..")

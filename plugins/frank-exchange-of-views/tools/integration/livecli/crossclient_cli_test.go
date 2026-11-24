@@ -19,6 +19,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 func requireLiveCLI(t *testing.T, needClaude, needAgy bool) (claudeBin, agyBin string) {
@@ -123,28 +124,14 @@ func copyFileIfPresent(src, dst string, mode os.FileMode) {
 
 func newIsolatedAgyHome(t *testing.T) string {
 	t.Helper()
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("real home: %v", err)
-	}
-	cliSrc := filepath.Join(realHome, ".gemini", "antigravity-cli")
-	if _, err := os.Stat(filepath.Join(cliSrc, "antigravity-oauth-token")); err != nil {
-		t.Skipf("antigravity-oauth-token not found under %s: skipping live agy test", cliSrc)
-	}
-
 	fakeHome := t.TempDir()
+	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
+		t.Skipf("antigravity credentials unavailable: %v", err)
+	}
 	cliDst := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
-	if err := os.MkdirAll(cliDst, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"antigravity-oauth-token", "antigravity_state.pbtxt", "installation_id"} {
-		copyFileIfPresent(filepath.Join(cliSrc, name), filepath.Join(cliDst, name), 0o600)
-	}
 	if err := os.WriteFile(filepath.Join(cliDst, "settings.json"), []byte(`{"toolPermission":"always-proceed"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// Preserve Claude subscription credentials if present so setup billing checks run cleanly.
-	copyFileIfPresent(filepath.Join(realHome, ".claude", ".credentials.json"), filepath.Join(fakeHome, ".claude", ".credentials.json"), 0o600)
 	return fakeHome
 }
 

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // buildProbeBinary compiles the test probe helper binary linking hookcore into the given bin directory.
@@ -154,28 +156,13 @@ func TestLiveClaudeContract(t *testing.T) {
 		t.Skipf("claude binary not found on PATH: %v", err)
 	}
 
-	home, err := os.UserHomeDir()
+	claudeOAuthEnv, err := testhome.ClaudeOAuthEnv()
 	if err != nil {
-		t.Skipf("user home dir: %v", err)
-	}
-	credPath := filepath.Join(home, ".claude", ".credentials.json")
-	if _, err := os.Stat(credPath); err != nil {
-		t.Skipf("claude credentials not found at %s: skipping", credPath)
+		t.Skipf("claude credentials unavailable: %v", err)
 	}
 
-	// 1. Isolate test in a dedicated fake home directory
+	// 1. Isolate test in a dedicated fake home directory (lending only the access token via env, #1890).
 	fakeHome := t.TempDir()
-	fakeClaudeDir := filepath.Join(fakeHome, ".claude")
-	if err := os.MkdirAll(fakeClaudeDir, 0755); err != nil {
-		t.Fatalf("mkdir fakeHome .claude: %v", err)
-	}
-	credData, err := os.ReadFile(credPath)
-	if err != nil {
-		t.Fatalf("read credentials: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(fakeClaudeDir, ".credentials.json"), credData, 0600); err != nil {
-		t.Fatalf("write fake credentials: %v", err)
-	}
 
 	// Set up temporary plugin directory for Claude Code
 	pluginDir := t.TempDir()
@@ -266,7 +253,7 @@ func TestLiveClaudeContract(t *testing.T) {
 		"--dangerously-skip-permissions",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(fakeHome, claudeOAuthEnv)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -318,34 +305,12 @@ func TestLiveAntigravityContract(t *testing.T) {
 		t.Skipf("agy binary not found on PATH: %v", err)
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skipf("user home dir: %v", err)
-	}
-	tokenPath := filepath.Join(home, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(tokenPath); err != nil {
-		t.Skipf("antigravity oauth token not found at %s: skipping", tokenPath)
-	}
-
-	// 1. Isolate test in a dedicated fake home directory
+	// 1. Isolate test in a dedicated fake home directory (staging only the refresh-stripped access token, #1890).
 	fakeHome := t.TempDir()
+	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
+		t.Skipf("antigravity credentials unavailable: %v", err)
+	}
 	fakeAgyDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
-	if err := os.MkdirAll(fakeAgyDir, 0755); err != nil {
-		t.Fatalf("mkdir fakeHome .gemini/antigravity-cli: %v", err)
-	}
-	tokenData, err := os.ReadFile(tokenPath)
-	if err != nil {
-		t.Fatalf("read token: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(fakeAgyDir, "antigravity-oauth-token"), tokenData, 0600); err != nil {
-		t.Fatalf("write fake token: %v", err)
-	}
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		src := filepath.Join(home, ".gemini", "antigravity-cli", extra)
-		if data, err := os.ReadFile(src); err == nil {
-			_ = os.WriteFile(filepath.Join(fakeAgyDir, extra), data, 0600)
-		}
-	}
 	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
 	settingsPath := filepath.Join(fakeAgyDir, "settings.json")
 	if err := os.WriteFile(settingsPath, []byte(`{"toolPermission":"always-proceed"}`), 0600); err != nil {

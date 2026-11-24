@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // harnessCLI resolves a harness binary from PATH, then from ~/.local/bin, where both installers
@@ -662,28 +663,11 @@ func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
 	claude := harnessCLI(t, "claude")
 	repo, plugins := stage(t)
 
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	agyToken := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(agyToken); err != nil {
-		t.Skipf("no agy credentials at %s", agyToken)
-	}
 	seedAgyHome := func(t *testing.T) string {
 		t.Helper()
 		home := tempHome(t)
-		dstDir := filepath.Join(home, ".gemini", "antigravity-cli")
-		if err := os.MkdirAll(dstDir, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		for _, name := range []string{"antigravity-oauth-token", "antigravity_state.pbtxt"} {
-			src := filepath.Join(realHome, ".gemini", "antigravity-cli", name)
-			if b, err := os.ReadFile(src); err == nil {
-				if err := os.WriteFile(filepath.Join(dstDir, name), b, 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
+		if err := testhome.StageAgyAccessToken(home); err != nil {
+			t.Skipf("no agy credentials: %v", err)
 		}
 		return home
 	}

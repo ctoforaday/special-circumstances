@@ -280,7 +280,7 @@ HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveAntigravity' .
 HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
 ```
 
-Each agy test runs in a throwaway home holding a copy of your agy credentials, on
+Each agy test runs in a throwaway home holding a refresh-stripped access token (via `shared/testhome`), on
 `gemini-3.8-flash-low`, a few turns at a time. Run them after a change to hookcore's Antigravity
 paths, to a plugin's root `hooks.json`, or to `telepathy send`/`link`, and after an agy upgrade. A
 model-driven assertion can miss on one run, so a single red is a reason to read the test's log

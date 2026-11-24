@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // copyGhCredentials copies local GitHub CLI credentials into fakeHome if present so gh commands
@@ -68,7 +70,8 @@ func liveTestEnv(fakeHome string, extra ...string) []string {
 		}
 		env = append(env, e)
 	}
-	env = append(env, "HOME="+fakeHome, "PATH="+os.Getenv("PATH"))
+	env = append(env, "HOME="+fakeHome, "PATH="+os.Getenv("PATH"),
+		"AGY_CLI_DISABLE_AUTO_UPDATE=true", "DISABLE_AUTOUPDATER=1")
 	gc, gmc := hostGoCaches()
 	if gc != "" {
 		env = append(env, "GOCACHE="+gc)
@@ -87,38 +90,16 @@ func liveTestEnv(fakeHome string, extra ...string) []string {
 	return env
 }
 
-// copyAgyCredentials copies local credentials so agy -p doesn't block on interactive OAuth.
+// copyAgyCredentials stages the refresh-stripped Antigravity access token (#1890) so agy -p does
+// not block on interactive OAuth, skipping when credentials are unavailable.
 func copyAgyCredentials(t *testing.T, fakeHome string) {
 	t.Helper()
 	copyGhCredentials(fakeHome)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skipf("user home dir: %v", err)
-	}
-	tokenPath := filepath.Join(home, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(tokenPath); err != nil {
-		t.Skipf("antigravity oauth token not found at %s: skipping live agy test", tokenPath)
-	}
-
-	fakeAgyDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
-	if err := os.MkdirAll(fakeAgyDir, 0755); err != nil {
-		t.Fatalf("mkdir fakeHome .gemini/antigravity-cli: %v", err)
-	}
-	tokenData, err := os.ReadFile(tokenPath)
-	if err != nil {
-		t.Fatalf("read token: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(fakeAgyDir, "antigravity-oauth-token"), tokenData, 0600); err != nil {
-		t.Fatalf("write fake token: %v", err)
-	}
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		src := filepath.Join(home, ".gemini", "antigravity-cli", extra)
-		if data, err := os.ReadFile(src); err == nil {
-			_ = os.WriteFile(filepath.Join(fakeAgyDir, extra), data, 0600)
-		}
+	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
+		t.Skipf("antigravity credentials unavailable: %v", err)
 	}
 	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
-	settingsPath := filepath.Join(fakeAgyDir, "settings.json")
+	settingsPath := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "settings.json")
 	if err := os.WriteFile(settingsPath, []byte(`{"toolPermission":"always-proceed"}`), 0600); err != nil {
 		t.Fatalf("write fake settings: %v", err)
 	}
