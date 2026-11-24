@@ -180,14 +180,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", eventName, now, stderr)
-	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. It runs
-	// before the project root is resolved: the binaries are the machine's, and a session with no
-	// root still heals — only the message waits, because such a session writes nothing to stdout.
-	healed, err := ensure(eventName)
-	if err != nil {
-		rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
-	} else {
-		rec.OK(hookfailures.StageEnsure)
+	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. Run it on
+	// SessionStart only (not on every Antigravity PreInvocation model step, matching gray-area-capture).
+	// It runs before the project root is resolved: the binaries are the machine's, and a session with
+	// no root still heals — only the message waits, because such a session writes nothing to stdout.
+	var healed string
+	if eventName == "SessionStart" {
+		var err error
+		healed, err = ensure(eventName)
+		if err != nil {
+			rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+		} else {
+			rec.OK(hookfailures.StageEnsure)
+		}
 	}
 	ctx := hookunit.NewCtx(eventName, req.Raw, projectDir, now, rec)
 	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {

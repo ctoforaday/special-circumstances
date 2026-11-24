@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/pluginroot"
 )
 
 // Engine represents the executing AI assistant harness.
@@ -238,33 +238,21 @@ func findGitRoot(start string) string {
 	return ""
 }
 
-// PluginRoot resolves the plugin's root directory, extending hookfailures.ResolvePluginRoot with an
-// explicit exePath probe and a current-working-directory manifest check for Antigravity hooks.
+// PluginRoot resolves the plugin's root directory via pluginroot.Resolve, falling back to the
+// current working directory when it carries a plugin marker (Antigravity hooks run with cwd at
+// the plugin root).
 func PluginRoot(envClaude, envPluginRoot, exePath string) string {
+	exeFn := os.Executable
 	if exePath != "" {
-		if r := hookfailures.ResolvePluginRoot(envClaude, envPluginRoot, func() (string, error) { return exePath, nil }); r != "" {
-			return r
-		}
+		exeFn = func() (string, error) { return exePath, nil }
 	}
-	if r := hookfailures.ResolvePluginRoot(envClaude, envPluginRoot, os.Executable); r != "" {
+	if r := pluginroot.Resolve(envClaude, envPluginRoot, exeFn); r != "" {
 		return r
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		if isPluginDir(cwd) {
-			return cwd
-		}
+	if cwd, err := os.Getwd(); err == nil && pluginroot.IsPluginDir(cwd) {
+		return cwd
 	}
 	return ""
-}
-
-func isPluginDir(dir string) bool {
-	if _, err := os.Stat(filepath.Join(dir, ".antigravity-plugin", "plugin.json")); err == nil {
-		return true
-	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude-plugin", "plugin.json")); err == nil {
-		return true
-	}
-	return false
 }
 
 // PluginDataDir resolves the plugin's private persistent state directory.

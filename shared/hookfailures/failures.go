@@ -56,6 +56,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/pluginroot"
 )
 
 // Stage names what failed. Each stage is declared by the package that can fail it, so a new failure
@@ -310,40 +312,8 @@ const StageEnsure Stage = "ensure"
 // a plugin with none keeps the check as its SessionStart entry. fetch-bin.sh stays the one
 // implementation of the check, the fetch and the throttle on what it says.
 //
-// ResolvePluginRoot resolves a plugin's root directory from environment variables
-// (CLAUDE_PLUGIN_ROOT, then PLUGIN_ROOT) or the binary's own grandparent when that directory
-// carries a plugin manifest (.antigravity-plugin/plugin.json or .claude-plugin/plugin.json).
-// executable is injectable so tests can pin the grandparent fallback without relocating binaries.
-func ResolvePluginRoot(envClaude, envPluginRoot string, executable func() (string, error)) string {
-	if envClaude != "" {
-		return envClaude
-	}
-	if envPluginRoot != "" {
-		return envPluginRoot
-	}
-	if executable != nil {
-		if exe, err := executable(); err == nil && exe != "" {
-			grandparent := filepath.Dir(filepath.Dir(exe))
-			if isPluginDir(grandparent) {
-				return grandparent
-			}
-		}
-	}
-	return ""
-}
-
-func isPluginDir(dir string) bool {
-	if _, err := os.Stat(filepath.Join(dir, ".antigravity-plugin", "plugin.json")); err == nil {
-		return true
-	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude-plugin", "plugin.json")); err == nil {
-		return true
-	}
-	return false
-}
-
 // Outside a plugin hook — neither CLAUDE_PLUGIN_ROOT nor PLUGIN_ROOT is set and the binary's
-// grandparent carries no plugin manifest — there is nothing to ensure and it returns nothing.
+// grandparent carries no plugin marker — there is nothing to ensure and it returns nothing.
 // Whether the root is a development checkout, which is never healed, is fetch-bin.sh's question too:
 // it refuses there and says nothing on stdout, so Ensure returns nothing.
 func Ensure(event string) (string, error) {
@@ -351,7 +321,7 @@ func Ensure(event string) (string, error) {
 }
 
 func ensureWith(event string, executable func() (string, error)) (string, error) {
-	root := ResolvePluginRoot(os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("PLUGIN_ROOT"), executable)
+	root := pluginroot.Resolve(os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("PLUGIN_ROOT"), executable)
 	if root == "" {
 		return "", nil
 	}

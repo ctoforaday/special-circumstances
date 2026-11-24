@@ -70,16 +70,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	var problems []string
-	for _, p := range plugins {
-		dst := filepath.Join(root, "plugins", p, "hooks", "fetch-bin.sh")
-		if !*check {
+	if !*check {
+		for _, p := range plugins {
+			dst := filepath.Join(root, "plugins", p, "hooks", "fetch-bin.sh")
 			if err := os.WriteFile(dst, want, 0o644); err != nil {
 				fmt.Fprintln(os.Stderr, "fetchbingen:", err)
 				os.Exit(1)
 			}
-			continue
 		}
+		fmt.Printf("fetchbingen: wrote fetch-bin.sh into %d plugin(s): %s\n", len(plugins), strings.Join(plugins, ", "))
+		return
+	}
+	problems := checkPlugins(root, plugins, want)
+	if len(problems) > 0 {
+		for _, s := range problems {
+			fmt.Fprintln(os.Stderr, "fetchbingen:", s)
+		}
+		fmt.Fprintf(os.Stderr, "fetchbingen: edit %s and run `go -C scripts run ./fetchbingen`; a guard's event literal must be the key it sits under.\n", src)
+		os.Exit(1)
+	}
+	fmt.Printf("fetchbingen: %d plugin(s) match %s, every guard names its own event, and every event has one hook\n", len(plugins), src)
+}
+
+// checkPlugins runs every fetchbingen verification pass across plugins under root.
+func checkPlugins(root string, plugins []string, want []byte) []string {
+	var problems []string
+	for _, p := range plugins {
+		dst := filepath.Join(root, "plugins", p, "hooks", "fetch-bin.sh")
 		got, err := os.ReadFile(dst)
 		switch {
 		case err != nil:
@@ -106,19 +123,7 @@ func main() {
 		}
 	}
 	problems = append(problems, ensureCopyProblems(root)...)
-
-	if !*check {
-		fmt.Printf("fetchbingen: wrote fetch-bin.sh into %d plugin(s): %s\n", len(plugins), strings.Join(plugins, ", "))
-		return
-	}
-	if len(problems) > 0 {
-		for _, s := range problems {
-			fmt.Fprintln(os.Stderr, "fetchbingen:", s)
-		}
-		fmt.Fprintf(os.Stderr, "fetchbingen: edit %s and run `go -C scripts run ./fetchbingen`; a guard's event literal must be the key it sits under.\n", src)
-		os.Exit(1)
-	}
-	fmt.Printf("fetchbingen: %d plugin(s) match %s, every guard names its own event, and every event has one hook\n", len(plugins), src)
+	return problems
 }
 
 // render is the generated form of the authored script.

@@ -202,3 +202,47 @@ func jsonQuote(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
+
+// TestCheckPluginsWiresBothClaudeAndAgyGuards pins main's call sites into guardProblems and
+// agyGuardProblems so removing either call cannot pass the suite.
+func TestCheckPluginsWiresBothClaudeAndAgyGuards(t *testing.T) {
+	want := []byte("#!/bin/sh\n# stub\n")
+	setup := func(t *testing.T, claudeHooks, agyHooks string) string {
+		t.Helper()
+		root := t.TempDir()
+		pDir := filepath.Join(root, "plugins", "demo")
+		for _, sub := range []string{"hooks", "bin", ".claude-plugin"} {
+			if err := os.MkdirAll(filepath.Join(pDir, sub), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_ = os.WriteFile(filepath.Join(pDir, "hooks", "fetch-bin.sh"), want, 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, "bin", ".gitkeep"), nil, 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, ".claude-plugin", "hooks.json"), []byte(claudeHooks), 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, "hooks.json"), []byte(agyHooks), 0o644)
+		// Seed the hookinvocation_test.go copy checked by ensureCopyProblems.
+		hiPath := filepath.Join(root, "plugins", "frank-exchange-of-views", "tools", "releasegate", "fuzz", "hookinvocation_test.go")
+		if err := os.MkdirAll(filepath.Dir(hiPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(hiPath, []byte("const x = `"+ensureEntry+"`\n"), 0o644)
+		return root
+	}
+
+	validClaude := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` + jsonQuote(ensureEntry) + `}]}],"Stop":[{"hooks":[{"type":"command","command":` + jsonQuote(guardCmd("x", "Stop")) + `}]}]}}`
+	validAgy := `{"demo-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":` + jsonQuote(agyGuardCmd("x", "Stop")) + `}]}}`
+
+	if got := checkPlugins(setup(t, validClaude, validAgy), []string{"demo"}, want); len(got) != 0 {
+		t.Fatalf("valid plugin reported problems: %v", got)
+	}
+
+	badClaude := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` + jsonQuote(ensureEntry) + `}]}],"Stop":[{"hooks":[{"type":"command","command":"exec \"${CLAUDE_PLUGIN_ROOT}/bin/x\""}]}]}}`
+	if got := checkPlugins(setup(t, badClaude, validAgy), []string{"demo"}, want); len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), "does not hand") {
+		t.Fatalf("checkPlugins did not wire Claude guardProblems: %v", got)
+	}
+
+	badAgy := `{"demo-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":"R=\"${PWD}\"; exec \"$R/bin/x\""}]}}`
+	if got := checkPlugins(setup(t, validClaude, badAgy), []string{"demo"}, want); len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), "does not hand") {
+		t.Fatalf("checkPlugins did not wire Antigravity agyGuardProblems: %v", got)
+	}
+}

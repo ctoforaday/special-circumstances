@@ -655,6 +655,22 @@ func TestEnsureReturnsTheVersionChecksMessage(t *testing.T) {
 		t.Errorf("Antigravity PLUGIN_ROOT-only env did not run fetch-bin.sh ensure: %q %v", got, err)
 	}
 
+	// Precedence: CLAUDE_PLUGIN_ROOT wins over PLUGIN_ROOT when both are set (e.g. Claude spawned inside an agy shell).
+	otherRoot := t.TempDir()
+	otherScript := filepath.Join(otherRoot, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(otherScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(otherScript, []byte(`printf '{"systemMessage":"from-claude-root"}\n'`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", otherRoot)
+	t.Setenv("PLUGIN_ROOT", root)
+	if got, err := Ensure("SessionStart"); err != nil || got != "from-claude-root" {
+		t.Errorf("when both CLAUDE_PLUGIN_ROOT and PLUGIN_ROOT are set, CLAUDE_PLUGIN_ROOT must win: %q %v", got, err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+
 	// Binary grandparent fallback when neither CLAUDE_PLUGIN_ROOT nor PLUGIN_ROOT is set.
 	t.Setenv("PLUGIN_ROOT", "")
 	if err := os.MkdirAll(filepath.Join(root, ".antigravity-plugin"), 0o755); err != nil {

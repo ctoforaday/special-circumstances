@@ -281,7 +281,7 @@ credentials for either, so it skips them; a run here is the check.
 
 ```sh
 unset $(env | grep -o '^FEOV_[A-Z_]*')
-HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveAntigravity' .
+HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveShippedAntigravity|TestLiveAntigravity' .
 HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
 ```
 
