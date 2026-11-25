@@ -695,9 +695,6 @@ type runner struct {
 	// reproduced records the COMPUTE gaps whose computation a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced gapSet
-	// rerunOnce is, in owedComputationSeed's run, the computations its owner has re-run for a compute gap
-	// (recomputeOpenComputations): it re-runs each once, so a gap left open is no reproduce every sitting.
-	rerunOnce map[string]bool
 	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
 	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
 	applyMisses map[string]int
@@ -829,6 +826,9 @@ type runner struct {
 	// ownerWhys is, in owedComputationSeed's run, the computation owner's line of every plan, in order: what the
 	// sweep logs, so a forced run that keeps the owner fewer times than it plans says why.
 	ownerWhys []string
+	// ownerActs counts, in owedComputationSeed's run, the computation owner's admitted productive calls by
+	// verb (countOwnerAct).
+	ownerActs map[string]int
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
@@ -2346,6 +2346,30 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 // execAs is exec under a harness agent id, as the PreToolUse hook exports one into a dispatched
 // seat's shell; "" is exec's own environment, which carries none.
 func (r *runner) execAs(agent string, args ...string) (string, error) {
+	return r.execCall(agent, false, args...)
+}
+
+// isCompute is whether args is a `compute` call: the verb among the arguments before a `--`, after
+// which a computation's own command runs.
+func isCompute(args []string) bool {
+	if i := slices.Index(args, "--"); i >= 0 {
+		args = args[:i]
+	}
+	return slices.Contains(args, "compute")
+}
+
+// execCall runs a call of the binary. owed marks computeOwed's computation: IN OWEDCOMPUTATIONSEED'S
+// RUN IT IS THE ONLY ONE (computeOwed), because every computation is one its owner reproduces, a
+// productive sitting, and a run whose owner never sits barren to its limit never holds it kept by an
+// unjudged one. Any other `compute` of blue-respond's there — the one seat whose computation the
+// record admits — is the drive's defect, refused before it runs and failing the run by name; a lane's
+// `compute`, driven to its refusal (laneActsOnItsPart), records nothing and runs.
+func (r *runner) execCall(agent string, owed bool, args ...string) (string, error) {
+	if r.forceOwedComputation && !owed && isCompute(args) && seatOfCall(args) == "blue-respond" {
+		err := fmt.Errorf("%s: owedComputationSeed's run records no computation but computeOwed's, and the drive issued another", strings.Join(args, " "))
+		r.noteActErr("drive defect: " + err.Error())
+		return "", err
+	}
 	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
 	// --run as two more of its arguments.
 	seat := seatOfCall(args)
@@ -2371,7 +2395,30 @@ func (r *runner) execAs(agent string, args ...string) (string, error) {
 	if seat != "" {
 		r.handNext(seat, agent)
 	}
+	if r.forceOwedComputation && seat == computationOwner {
+		r.countOwnerAct(args)
+	}
 	return string(out), nil
+}
+
+// ownerActVerbs are the verbs whose admitted call makes a lens's sitting productive (record.lensStates):
+// a mint, a close, a verify, a reproduce, an inquiry's check.
+var ownerActVerbs = []string{"mint", "close", "verify", "reproduce", "check"}
+
+// countOwnerAct tallies, in owedComputationSeed's run, an admitted call of the computation owner's by its
+// productive verb, so a run that never held it at its barren limit says what kept it productive.
+func (r *runner) countOwnerAct(args []string) {
+	for _, a := range args {
+		if slices.Contains(ownerActVerbs, a) {
+			r.mu.Lock()
+			if r.ownerActs == nil {
+				r.ownerActs = map[string]int{}
+			}
+			r.ownerActs[a]++
+			r.mu.Unlock()
+			return
+		}
+	}
 }
 
 // sit is the register a DISPATCH makes: every time debate.js hands a seat a prompt, that seat sits
@@ -2834,7 +2881,9 @@ func (r *runner) drawsReading(seatID string) bool {
 	if r.lensReadings == nil {
 		r.lensReadings = map[string]int{}
 	}
-	if r.lensReadings[seatID] >= fuzzLensReadings {
+	// OWEDCOMPUTATIONSEED'S COMPUTATION OWNER DRAWS NONE: each would be a productive sitting before it can sit
+	// barren to its limit, and the run has twelve epochs to hold it kept by an unjudged computation.
+	if r.lensReadings[seatID] >= fuzzLensReadings || r.forceOwedComputation && seatID == computationOwner {
 		return false
 	}
 	r.lensReadings[seatID]++
@@ -3265,25 +3314,28 @@ func (r *runner) judgeToReopen(seatID string) {
 // the computation lens owes a check of until it sits, once the owner has retired; and an edit of the edit
 // target. It draws nothing.
 //
-// THE COMPUTATION WAITS FOR THE OWNER'S BARREN COUNT. The owner's check of it is a reproduce, which
+// THE COMPUTATION WAITS FOR THE OWNER'S BARREN LIMIT. The owner's check of it is a reproduce, which
 // makes its sitting productive (record.lensStates), so a computation every blue sitting kept the owner's
 // barren count at zero and no plan kept it from retiring by one: 0 in the sweep. Blue proves it once the
-// plan of this epoch reads the owner two barren sittings in a row (ownerBarrenAtLeast) or retired (a
-// stale area). Lenses sit before blue in an epoch, so the owner's sitting of this epoch — owing nothing,
-// its drawn readings spent, its compute gaps re-run once — is its third barren one, and the next plan
-// holds a lens past its barren limit kept from retiring by a computation nobody has judged.
+// plan of this epoch reads the owner retired, or at its barren limit (ownerAtBarrenLimit), or names it a
+// stale area. It is the run's only computation (computesOwed): every other computation of the run would
+// be one more the owner reproduces, a productive sitting. The edit below lands in the same sitting, so
+// the head is past the owner's pin and the next plan holds the owner past its barren limit, behind the
+// head, kept from retiring by a computation nobody has judged.
 func (r *runner) computeOwed(seatID string) {
 	if !r.forceOwedComputation || seatID != "blue-respond" {
 		return
 	}
-	if slices.Contains(r.staleAreas(), computationOwner) || r.ownerBarrenAtLeast(retiresAfterSittings-1) {
+	if slices.Contains(r.staleAreas(), computationOwner) || r.ownerAtBarrenLimitNow() {
 		r.mu.Lock()
 		r.owedComputations++
 		n := r.owedComputations
 		r.mu.Unlock()
 		if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
-			r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
-				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...)
+			if _, err := r.execCall("", true, append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
+				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil {
+				r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+			}
 		}
 	}
 	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A computation moves no head, and a fold names a debt that
@@ -3884,20 +3936,26 @@ var barrenSittings = regexp.MustCompile(`^red-lens-[a-z-]+: .* \((\d+) sitting\(
 // row barren, owing nothing, is retired.
 const retiresAfterSittings = 3
 
-// ownerBarrenAtLeast is whether the computation owner's line of the latest plan reads n or more barren
-// sittings in a row.
-func (r *runner) ownerBarrenAtLeast(n int) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if len(r.ownerWhys) == 0 {
-		return false
+// ownerAtBarrenLimit is whether line, the computation owner's line of a plan, reads it retired or at its
+// barren limit: retired, or retiresAfterSittings or more sittings in a row with no productive act.
+// TestKeptByDebtReadsThePlansLine holds it to the lines a plan prints for both.
+func ownerAtBarrenLimit(line string) bool {
+	if strings.HasPrefix(line, computationOwner+": retired (pin ") {
+		return true
 	}
-	g := barrenSittings.FindStringSubmatch(r.ownerWhys[len(r.ownerWhys)-1])
+	g := barrenSittings.FindStringSubmatch(line)
 	if g == nil {
 		return false
 	}
 	k, _ := strconv.Atoi(g[1])
-	return k >= n
+	return k >= retiresAfterSittings
+}
+
+// ownerAtBarrenLimitNow is ownerAtBarrenLimit of the owner's line of the latest plan.
+func (r *runner) ownerAtBarrenLimitNow() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.ownerWhys) > 0 && ownerAtBarrenLimit(r.ownerWhys[len(r.ownerWhys)-1])
 }
 
 // tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
@@ -4227,7 +4285,18 @@ func (r *runner) mintWith(seatID, class string) string {
 	if r.forceVerified {
 		directive = pick(r.rng, []string{dirApply, dirCounter})
 	}
+	// OWEDCOMPUTATIONSEED'S RUN MINTS NO GAP A COMPUTATION SETTLES (computesOwed): blue's answer to one is a
+	// computation its owner reproduces. The draw is the run's RNG all the same, so the run's other
+	// draws stay where they were.
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
+	if r.forceOwedComputation {
+		if directive == dirCompute || directive == dirComputeDrifts {
+			directive = dirApply
+		}
+		if kind == "computation" {
+			kind = "document"
+		}
+	}
 	if directive == dirCompute || directive == dirComputeDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
 		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
@@ -8233,6 +8302,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.reopenedOwnerErr != "" && res.err == "" {
 		res.err = r.reopenedOwnerErr
 	}
+	// OWEDCOMPUTATIONSEED'S RUN THAT PROVED NO COMPUTATION FAILS BY NAME: its owner never read retired or at
+	// its barren limit at a blue sitting, and the sweep's debt gate would read it as a draw that held none.
+	if r.forceOwedComputation && r.owedComputations == 0 && res.err == "" {
+		res.err = fmt.Sprintf("forced owed computation: no blue sitting found %s retired or at its barren limit, so computeOwed proved nothing; its productive calls %v; its line of each plan %q", computationOwner, r.ownerActs, r.ownerWhys)
+	}
 	if r.forceReopenedComputation && r.computationReopenedReadied[computationOwner] == 0 && res.err == "" {
 		stage := r.reopenStage
 		if stage == "" {
@@ -9607,20 +9681,6 @@ func (r *runner) recomputeOpenComputations(seatID string) {
 				r.reproduced.add(id)
 			}
 			continue
-		}
-		// OWEDCOMPUTATIONSEED'S OWNER RE-RUNS EACH ONCE: a reproduce is a productive act, and one at every
-		// sitting while a compute gap stays open kept its barren count at zero in all twelve plans.
-		if r.forceOwedComputation {
-			r.mu.Lock()
-			done := r.rerunOnce[at]
-			if r.rerunOnce == nil {
-				r.rerunOnce = map[string]bool{}
-			}
-			r.rerunOnce[at] = true
-			r.mu.Unlock()
-			if done {
-				continue
-			}
 		}
 		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--anchor", at, "--as", r.judgement(), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
