@@ -883,6 +883,19 @@ jobs:
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
+      # A FAILED NIGHTLY SWEEP KEEPS ITS RUN DIRECTORIES. TestFuzzDebate removes a passing run's
+      # directory and keeps a failing one's for inspection, but on the runner that directory dies
+      # with the job: seeds 13 and 20 failed on the nightlies of 2026-11-16 and -17 (a lens's reading
+      # debt left standing at its envelope) and neither failed in 48 local reruns, so the record each
+      # left was the one thing that could say why. Linux only, where TMPDIR is the tmpfs above.
+      - name: Upload the failing fuzz runs
+        if: failure() && github.event_name == 'schedule' && runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nightly-fuzz-failed-runs
+          path: /dev/shm/tmp/fuzz-run-*/
+          retention-days: 14
+          if-no-files-found: ignore
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
