@@ -348,11 +348,12 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	}
 	// A native archive's acts written `ran` = false, each on its bundle's re-run before it.
 	ranNothing := map[string]int{
-		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
-		"2026-11-04_eiffel-tower-height.tar.gz":   8,
-		"2026-11-11_eiffel-tower-height.tar.gz":   3,
-		"2026-11-12_is-91-prime-1838.tar.gz":      7,
-		"2026-11-14_is-91-prime-1883.tar.gz":      8,
+		"2026-10-30_mersenne-31-prime-sum.tar.gz":            10,
+		"2026-11-04_eiffel-tower-height.tar.gz":              8,
+		"2026-11-11_eiffel-tower-height.tar.gz":              3,
+		"2026-11-12_is-91-prime-1838.tar.gz":                 7,
+		"2026-11-14_is-91-prime-1883.tar.gz":                 8,
+		"2026-11-10_auditing-constitutions-gap-audit.tar.gz": 7,
 	}
 	ledger, native, unsentenced, sentenced := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
@@ -618,13 +619,14 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 			runs++
 		}
 	}
-	// Measured over the 38 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
+	// Measured over the 39 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
 	// over 30, before 1565, m35, m36, mersenne-31-prime-sum (11 acts on 3 bundles),
 	// 2026-11-04_eiffel-tower-height (4 acts on 2 bundles), 2026-11-11_eiffel-tower-height (3 acts
-	// on 1 bundle), 2026-11-12_is-91-prime-1838 (8 acts on 2 bundles) and
-	// 2026-11-14_is-91-prime-1883 (11 acts on 4 bundles) were archived.
-	if acts != 195 || bundles != 51 || runs != 31 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 195, 51, 31", acts, bundles, runs)
+	// on 1 bundle), 2026-11-12_is-91-prime-1838 (8 acts on 2 bundles),
+	// 2026-11-14_is-91-prime-1883 (11 acts on 4 bundles) and
+	// 2026-11-10_auditing-constitutions-gap-audit (7 acts on 1 bundle) were archived.
+	if acts != 202 || bundles != 52 || runs != 32 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 202, 52, 32", acts, bundles, runs)
 	}
 }
 
