@@ -63,6 +63,8 @@ var argumentResidue = map[string]struct {
 	"2026-10-30_mersenne-31-prime-sum":            {2, 0, "blue:filed=4,lens:filed=4", "not_owed=12"},
 	"2026-11-04_eiffel-tower-height":              {0, 0, "blue:filed=3,lens:filed=3", "not_owed=12"},
 	"2026-11-11_eiffel-tower-height":              {0, 0, "blue:filed=1,lens:filed=1", "not_owed=12"},
+	"2026-11-12_is-91-prime-1838":                 {0, 0, "", "not_owed=10"},
+	"2026-11-14_is-91-prime-1883":                 {0, 0, "blue:filed=1,lens:filed=1", "not_owed=9"},
 	"2026-11-10_auditing-constitutions-gap-audit": {0, 0, "", "not_owed=12"},
 }
 

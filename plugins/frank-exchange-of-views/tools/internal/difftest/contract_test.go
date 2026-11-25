@@ -167,8 +167,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// The closed sets. Each names what would have worked AND what the near-miss
 		// would have done, because the near-miss is the case that used to be recorded
 		// silently rather than refused.
-		{"verdict in the wrong case", []string{"verdict", "--as", "pass"}},
-		{"verdict outside the set", []string{"verdict", "--as", "banana"}},
 		{"outcome in the wrong case", []string{"outcome", "--seat-id", "judge", "--as", "ceiling"}},
 		// These two pinned "no verb `petition-rule` exists" and "no verb `dispute` exists" — the
 		// generic unknown-verb refusal — while claiming to pin a value outside a closed set. The
@@ -200,7 +198,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"invalid seat id", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "not a seat id", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
-		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
+		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence"}},
 		// THE PART IS A LANE'S, once, before the report changes. The finding above placed an anchor, so
 		// the report has changed by the time the second lane asks.
 		{"a part from a seat that is no lane", []string{"ingest", "--seat-id", "blue-synthesize"}},
@@ -257,8 +255,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a second position in one sitting", []string{"position", "--seat-id", "red-chair", "--reason", "the board is clean going in, restated"}},
 		{"repeat target: the chair's spot-check", []string{"spot-check", "--seat-id", "red-chair", "--reason", "nothing is closed"}},
 		{"a second spot-check in one sitting", []string{"spot-check", "--seat-id", "red-chair", "--reason", "again"}},
-		{"repeat target: the chair's verdict", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
-		{"a second verdict in one sitting", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
 		// A CLOSING IS A PARTY'S ARGUMENT ON A DOCKETING: refused before the gap is docketed, from
 		// the chair, which holds no such verb, and from a lens that did not mint the gap.
 		{"a closing on a gap nothing is before the bench on", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "early"}},

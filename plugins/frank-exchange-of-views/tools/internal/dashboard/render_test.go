@@ -43,7 +43,7 @@ func telFixture() []*recordpb.TelemetryLine {
 
 func judFixture() Judiciary {
 	j := Judiciary{Measured: true, JudgeSittings: 1, Rulings: map[string]int{"remanded": 2, "repaired": 1},
-		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0, LatestVerdict: "FAIL", VerdictEpoch: 2}
+		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0}
 	j.Disputes.Raised, j.Disputes.Accepted, j.Disputes.Rejected = 2, 1, 1
 	return j
 }
@@ -108,7 +108,7 @@ func terminalModel(t *testing.T, live record.LiveState) Model {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS"}`},
-		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL"}`},
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"passed":true}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
@@ -180,7 +180,9 @@ func TestRenderHTMLLive(t *testing.T) {
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
 		// A claim count a seat put in its envelope is not summarised: the count is the report's.
-		{`{"verdict":"FAIL","claim_count":15}`, "verdict FAIL"},
+		{`{"passed":true,"claim_count":15}`, "verdict PASS"},
+		// A chair sitting that recorded no PASS says nothing of a verdict.
+		{`{"passed":false}`, `{"passed":false}`},
 		// A ruling is the record's: the bench's envelope carries none to count.
 		{`{"dispositions":[1,2]}`, `{"dispositions":[1,2]}`},
 		{`not json`, "not json"},
@@ -201,12 +203,12 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	// run-config on disk; CLI overrides lanes.
 	_ = os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"t","seats":{"blue-lane":{"harness":"claude","model":"haiku"},"judge":{"harness":"claude","model":"haiku"}},"maxRounds":"6","lanes":"2"}`), 0o644)
+		[]byte(`{"topic":"t","seats":{"blue-lane":{"harness":"claude","model":"haiku"},"judge":{"harness":"claude","model":"haiku"}},"lanes":"2"}`), 0o644)
 	// one agent transcript with a usage record.
 	_ = os.WriteFile(filepath.Join(tr, "agent-a.jsonl"),
 		[]byte(`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(tr, "journal.jsonl"),
-		[]byte(`{"agentId":"a","result":{"verdict":"FAIL","gaps":[]}}`+"\n"), 0o644)
+		[]byte(`{"agentId":"a","result":{"verdict":"PASS","gaps":[]}}`+"\n"), 0o644)
 
 	m := BuildModel(runtest.Open(t, runDir), tr, Config{Lanes: "9"}, 1737000000000)
 	if m.Config.Seats["blue-lane"].Model != "haiku" {

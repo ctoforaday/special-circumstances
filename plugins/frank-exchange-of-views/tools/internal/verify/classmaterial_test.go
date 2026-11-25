@@ -23,7 +23,7 @@ func passOverOneOpenGap(t *testing.T, cm recordpb.ClassMaterial, sev recordpb.Gr
 			Severity: sev.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 			ClassMaterial: cm.Enum()}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 	)
 	fam, err := record.FamilyOf(runtest.Open(t, dir))
 	if err != nil {
@@ -56,7 +56,7 @@ func TestPassOverOpenMaterialGapFails(t *testing.T) {
 			Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 			ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 	)
 	fam, err := record.FamilyOf(runtest.Open(t, dir))
 	if err != nil {

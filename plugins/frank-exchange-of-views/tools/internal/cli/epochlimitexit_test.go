@@ -48,6 +48,8 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	for range 2 { // it has been served the report at the head, so the head readies it for nothing further
 		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served())
 	}
+	// The question is split, covered and checked: what these runs test is the epoch limit.
+	evs = append(evs, recordtest.SettledQuestion(t)...)
 	evs = append(evs, at("red-chair", &recordpb.Register{}))
 	recordtest.Seed(t, runDir, evs...)
 }
@@ -182,7 +184,7 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%s filed at the final sitting was recorded: %s", tc.name, out)
 			}
-			for _, want := range []string{"is not heard in time", "epoch 4, the last under the run's epoch limit of 4", "Nothing was recorded", "records the verdict the board permits", "or a FAIL", "goes in a position", "a petition, which the bench hears at the exit"} {
+			for _, want := range []string{"is not heard in time", "epoch 4, the last under the run's epoch limit of 4", "Nothing was recorded", "records the PASS where the plan permits one, or no verdict", "goes in a position", "a petition, which the bench hears at the exit"} {
 				if !strings.Contains(out+err.Error(), want) {
 					t.Errorf("the refusal does not say %q: %v\n%s", want, err, out)
 				}

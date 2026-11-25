@@ -1,6 +1,7 @@
 package hookcmd
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"strings"
@@ -33,10 +34,14 @@ func Post(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		rec.Fail(StageAdmission, "cannot read or parse the PostToolUse payload — a seat's accepted envelope was not recorded as admitted")
 		return nil
 	}
-	switch req.ToolName {
-	case envelopeTool:
+	applyAgySitting(&req, cwdOfRequest(req), rec)
+	if req.Engine == hookcore.EngineAntigravity && req.ToolError != "" {
+		return PostFailure(bytes.NewReader(req.Raw), stdout, rec)
+	}
+	switch {
+	case isEnvelopeTool(req.ToolName, req.Engine):
 		admit(req, rec)
-	case "Bash":
+	case req.ToolName == "Bash":
 		nextItem(req, stdout, rec)
 	}
 	return nil
@@ -79,7 +84,10 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 	if caller.ID == "" || !runlive.IsLensAgentType(caller.Type) {
 		return
 	}
-	command, _ := req.RawToolInput["command"].(string)
+	command := req.Command
+	if command == "" {
+		command, _ = req.RawToolInput["command"].(string)
+	}
 	if !hookgate.CallsRecord(command) {
 		return
 	}

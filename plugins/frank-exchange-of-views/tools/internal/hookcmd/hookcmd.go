@@ -101,11 +101,27 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 	var buf bytes.Buffer
 	raw, _ := io.ReadAll(stdin)
 	req := hookcore.Read(event, bytes.NewReader(raw))
+	if req.HookEventName == "PreInvocation" {
+		req.Event = "PreInvocation"
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
 		} else {
 			rec.OK(StagePanic)
+		}
+		// Resolve a bound Antigravity seat (pre-bound OR newly bound by f before returning or
+		// panicking) under its own recover so respond() queues Settle's Say under
+		// pending_<AgentID>.jsonl (the queue PreInvocation flushes) without risking Run's exit 0.
+		if req.AgentID == "" {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
+					}
+				}()
+				applyBoundAgySitting(&req, req.CWD)
+			}()
 		}
 		if err := respond(req, stdout, buf.Bytes(), rec.Settle()); err != nil {
 			// The decision never reached the client. Recorded rather than said — the channel for
@@ -137,7 +153,11 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 func respond(req hookcore.Request, stdout io.Writer, doc []byte, msg string) error {
 	if req.Engine == hookcore.EngineAntigravity {
 		if msg != "" {
-			hookcore.QueueSay(req.PluginDataDir, req.SessionID, msg)
+			key := req.SessionID
+			if req.AgentID != "" {
+				key = req.AgentID
+			}
+			hookcore.QueueSay(req.PluginDataDir, key, msg)
 		}
 		if req.Event == "PostToolUse" || req.Event == "PostTool" || req.Event == "PostToolUseFailure" {
 			_, err := stdout.Write([]byte("{}\n"))
@@ -182,6 +202,10 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageInput)
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
 	in := hookgate.Input{
 		AgentID:   req.AgentID,
 		AgentType: req.AgentType,
@@ -189,13 +213,23 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		ToolName:  req.ToolName,
 		ToolInput: req.ToolInput,
 	}
-	cwd := req.CWD
-	if cwd == "" {
-		cwd = cwdOf(req.Raw)
+	if s, ok := resolveAgySitting(req, cwd, rec); ok {
+		in.AgentID = s.AgentID
+		in.AgentType = s.AgentType
+		in.SessionID = s.LeadSession
+		req.AgentID = s.AgentID
+		req.AgentType = s.AgentType
+		req.SessionID = s.LeadSession
+	}
+	if req.HookEventName == "PreInvocation" {
+		req.Event = "PreInvocation"
+		logAgyFailedToolSteps(req, in, cwd, rec)
+		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
+		return nil
 	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
-	if in.ToolName == envelopeTool {
+	if isEnvelopeTool(in.ToolName, req.Engine) {
 		gateEnvelope(in, cwd, stdout, rec, req)
 		return nil
 	}
@@ -282,9 +316,32 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 	runlive.NoteMembership(i, rec, "the run directory is not injected into its commands, and its calls are not counted")
 }
 
-// envelopeTool is the tool a Workflow seat returns its envelope with: the harness tells each seat to
-// call it exactly once to end its work, and to call it again when the call is refused.
-const envelopeTool = "StructuredOutput"
+// envelopeTool is the tool a Claude Workflow seat returns its envelope with; agyEnvelopeTool is
+// Antigravity run_workflow's synthetic `finish` tool, which wraps the seat's schema under `result`.
+const (
+	envelopeTool    = "StructuredOutput"
+	agyEnvelopeTool = "finish"
+)
+
+func isEnvelopeTool(toolName string, engine hookcore.Engine) bool {
+	return toolName == envelopeTool || (engine == hookcore.EngineAntigravity && toolName == agyEnvelopeTool)
+}
+
+// unwrapEnvelopeInput extracts the seat's envelope JSON from an Antigravity `finish` tool call
+// (`{"result": <envelope>}`), returning wrapped=true so emitEnvelopeRead re-wraps its overwrite.
+func unwrapEnvelopeInput(toolName string, engine hookcore.Engine, raw json.RawMessage) (json.RawMessage, bool) {
+	if engine != hookcore.EngineAntigravity || toolName != agyEnvelopeTool {
+		return raw, false
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return raw, true
+	}
+	if inner, ok := m["result"]; ok && len(inner) > 0 {
+		return inner, true
+	}
+	return raw, true
+}
 
 // gateEnvelope is the hook on the call returning a seat's envelope. It denies the call when the record
 // refuses it (record.EnvelopeRefusal, record.ChairEnvelope, asked through the writer): a seat's sitting
@@ -313,7 +370,12 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if runDir == "" {
 		return
 	}
-	answer, err := envelopeAnswer(runDir, agentID, in.ToolInput)
+	var engine hookcore.Engine
+	if len(req) > 0 {
+		engine = req[0].Engine
+	}
+	toolInput, _ := unwrapEnvelopeInput(in.ToolName, engine, in.ToolInput)
+	answer, err := envelopeAnswer(runDir, agentID, toolInput)
 	if err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
 		if answer.Refusal == "" {
@@ -326,7 +388,7 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	case answer.Refusal != "":
 		emitPreDeny(stdout, answer.Refusal, req...)
 	case answer.Read != nil:
-		base := in.ToolInput
+		base := toolInput
 		if answer.Envelope != nil {
 			base = answer.Envelope
 		}
@@ -350,6 +412,9 @@ func emitEnvelopeRead(stdout io.Writer, base, read json.RawMessage, rec *hookfai
 	var r hookcore.Request
 	if len(req) > 0 {
 		r = req[0]
+	}
+	if r.Engine == hookcore.EngineAntigravity && r.ToolName == agyEnvelopeTool {
+		updated = map[string]any{"result": updated}
 	}
 	if r.Event == "" {
 		r.Event = "PreToolUse"

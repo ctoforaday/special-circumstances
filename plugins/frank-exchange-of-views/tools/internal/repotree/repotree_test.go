@@ -145,3 +145,17 @@ func TestDebateJSResolvesToTheShippedScript(t *testing.T) {
 		t.Errorf("%s does not name the tool — this is not the orchestrator", p)
 	}
 }
+
+func TestDebatePyResolvesToTheShippedScript(t *testing.T) {
+	p, err := DebatePy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatalf("the Python orchestrator script is not where this package says it is: %v", err)
+	}
+	if !strings.Contains(string(b), "feov-record") {
+		t.Errorf("%s does not name the tool — this is not the orchestrator", p)
+	}
+}

@@ -21,14 +21,10 @@ import (
 //     read it, and a sitting that never closed does not clear it;
 //   - the lens has minted a gap naming it in `supersedes` after the retire;
 //   - a closing act other than a carry follows the retire: the column is then NULL.
-//
-// The item spends and frees no mint (requireMintWithinBudget counts open gaps); at no mints left it
-// stays listed, with the budget clause.
 
 // answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers are all
-// retired. ids are evs's places; mintsLeft is the seat's mints left (sittingReads.mintsLeft), nil
-// where the budget was not read.
-func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string, mintsLeft *int) []Item {
+// retired. ids are evs's places.
+func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	var held []WorkGapState
 	for _, g := range gaps {
 		if !g.Open && g.AnswersRetiredEvent != 0 && g.MintedBy == seatID {
@@ -53,10 +49,7 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if g.benchClosedLast {
 			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all been retired, the last at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
 		}
-		what += "; if the defect it closed is still in the report, that is a new gap: mint it, naming " + g.ID + " as the gap it supersedes; it takes a mint"
-		if mintsLeft != nil && *mintsLeft <= 0 {
-			what += " — you have no mint left; a close of a gap you hold frees one"
-		}
+		what += "; if the defect it closed is still in the report, that is a new gap: mint it, naming " + g.ID + " as the gap it supersedes"
 		out = append(out, gapItem(ItemNews, g.ID, what))
 	}
 	return out

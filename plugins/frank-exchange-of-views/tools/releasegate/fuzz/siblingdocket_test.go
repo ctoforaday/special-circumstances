@@ -29,6 +29,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	r := newRunner(bin, runDir, newLockedRand(7))
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
 		t.Fatalf("record the lane's part: %v", err)

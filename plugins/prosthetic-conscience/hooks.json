@@ -30,7 +30,7 @@
         ]
       }
     ],
-    "PostInvocation": [
+    "Stop": [
       {
         "command": "R=\"${PWD}\"; B=\"$R/bin/sc-stop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook Stop; fi"
       }

@@ -97,24 +97,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			want: "PASS refused",
 		},
 		{
-			name: "a FAIL while the lens closes the last material gap",
-			stage: func(t *testing.T) Run {
-				st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-					register("red-chair").register(evLens).add(evLens, highMint("G1")).
-					add("red-chair", failVerdict()).register("red-chair").register(evLens)
-				low, _ := GradeOf("low")
-				st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-					CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
-					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
-				return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair").seed()
-			},
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, evLens, "race:close:G1", repairClose("G1"))}
-			},
-			seat: "red-chair", body: func() proto.Message { return failVerdict() },
-			want: "the board has converged",
-		},
-		{
 			name: "the outcome while a party petitions the bench",
 			stage: func(t *testing.T) Run {
 				return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -128,18 +110,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			},
 			want: "M7 (petition, ruled by the bench seat)",
 		},
-		{
-			name: "a lens's two mints at once, one slot left",
-			stage: func(t *testing.T) Run {
-				dir := newRun(t)
-				writeRunConfig(t, dir, `{"mintBudget":1}`)
-				recordtest.Seed(t, dir, recordtest.At(t, evLens, "race:register", &recordpb.Register{}))
-				return mustRun(t, dir)
-			},
-			acts: func(t *testing.T) []*Event { return []*Event{recordtest.At(t, evLens, "race:mint:G1", highMint("G1"))} },
-			seat: evLens, body: func() proto.Message { return budgetMint("G2") },
-			want: "holds 1 gap(s) open and its mint budget admits no more",
-		},
+
 		{
 			name:  "a close while a docket motion on the gap lands",
 			stage: raceStage,

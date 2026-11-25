@@ -165,9 +165,10 @@ func TestAReadingDebtIsOnEverySurface(t *testing.T) {
 	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate); err == nil || !strings.Contains(err.Error(), "C-00000001") || !strings.Contains(err.Error(), "reading") {
 		t.Errorf("the PASS over the debt = %v, want it refused naming C-1 and the reading", err)
 	}
-	// The clause: the derived reason names it.
-	if got := anchorsStanding(plan.Blockers); got != "; on a reading debt: C-00000001" {
-		t.Errorf("anchorsStanding = %q, want the debt's clause alone", got)
+	// The clause: the derived reason names it, beside the clause of the question this board never
+	// split, which holds the PASS by its own state too.
+	if got := anchorsStanding(plan.Blockers); got != "; on a reading debt: C-00000001; the question with no part split out" {
+		t.Errorf("anchorsStanding = %q, want the debt's clause and the unsplit question's", got)
 	}
 }
 

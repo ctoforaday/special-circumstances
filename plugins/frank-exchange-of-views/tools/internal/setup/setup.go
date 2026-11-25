@@ -53,15 +53,35 @@ var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "scratch
 // trailing newline, and — critically — NO HTML escaping. Go's default escapes
 // <, >, & to \u00xx; JS does not, and the law banner ("statute > precedent")
 // carries '>'. json.Encoder.Encode already appends the newline.
-func marshalJSON(v any) ([]byte, error) {
+//
+// IT PANICS ON AN ENCODING FAILURE. Setup encodes strings, integers, booleans and the raw JSON it
+// encoded itself, none of which JSON refuses, so a failure is a defect in setup and no input the
+// operator passed: there is nothing to tell the operator to change.
+func marshalJSON(v any) []byte {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(v); err != nil {
-		return nil, err
+		panic(fmt.Sprintf("run-setup encoded a value JSON refuses: %v", err))
 	}
-	return buf.Bytes(), nil
+	return buf.Bytes()
+}
+
+// stageFile writes b to a new file in dir named by pattern (os.CreateTemp), mode 0644, and returns
+// its path. A write that fails removes the file.
+func stageFile(dir, pattern string, b []byte) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	_, werr := f.Write(b)
+	cerr := f.Close()
+	if err := errors.Join(werr, cerr, os.Chmod(f.Name(), 0o644)); err != nil {
+		_ = os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
 }
 
 func exists(p string) bool { _, err := os.Stat(p); return err == nil }

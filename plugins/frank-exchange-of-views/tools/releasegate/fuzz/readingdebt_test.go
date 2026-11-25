@@ -229,7 +229,7 @@ func (r *runner) readingDirective() string {
 type readingMintResult struct {
 	gap string
 	// refusedBy is "" where the mint landed; else one_gap (the one-gap rule, any arm), estoppel,
-	// standing (the standing-reading check), budget, or other.
+	// standing (the standing-reading check), or other.
 	refusedBy string
 	out       string
 }
@@ -263,9 +263,6 @@ func (r *runner) mintOnReading(seatID, class string, subject []string, at int64,
 		case strings.Contains(out, standingReadingWords), strings.Contains(out, citedDefectWords):
 			res.refusedBy = "standing"
 			r.noteActErr(fmt.Sprintf("%s's %s mint on its reading at event %d was refused for want of a standing reading: %s", seatID, class, at, firstLine(out)))
-		case strings.Contains(out, "its mint budget admits no more"):
-			res.refusedBy = "budget"
-			r.noteActErr(fmt.Sprintf("%s's %s mint on its reading was refused for budget, and a gap of a class a reading defines is outside the budget: %s", seatID, class, firstLine(out)))
 		default:
 			res.refusedBy = "other"
 			noteEither(args[:2], "a mint on a reading, refused by another rule", false)
@@ -563,6 +560,56 @@ func (r *runner) debtLeftBy(seatID string) bool {
 	return r.debtLeft[seatID]
 }
 
+// startDebtPass clears what seatID's previous pass at its reading debts noted, so envelopeEnds names
+// the last pass only.
+func (r *runner) startDebtPass(seatID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.debtTried, seatID)
+	delete(r.debtDetail, seatID)
+}
+
+// noteDebtTried keeps one line of what seatID's pass at its reading debts did about a debt.
+func (r *runner) noteDebtTried(seatID, what string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.debtTried == nil {
+		r.debtTried = map[string][]string{}
+	}
+	r.debtTried[seatID] = append(r.debtTried[seatID], what)
+}
+
+// noteDebtDetail keeps the latest refusal or give-up an act clearing seatID's debt met without failing
+// the run: the arms that note it only as the draw's (noteEither) or return with nothing recorded.
+func (r *runner) noteDebtDetail(seatID, why string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.debtDetail == nil {
+		r.debtDetail = map[string]string{}
+	}
+	r.debtDetail[seatID] = why
+}
+
+// takeDebtDetail is the detail noted for seatID since the last take, cleared.
+func (r *runner) takeDebtDetail(seatID string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	d := r.debtDetail[seatID]
+	delete(r.debtDetail, seatID)
+	return d
+}
+
+// debtTriedWords is what seatID's last pass at its reading debts did, for an envelope refused at the
+// end of its drive.
+func (r *runner) debtTriedWords(seatID string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.debtTried[seatID]) == 0 {
+		return "the last pass at its reading debts tried none"
+	}
+	return "the last pass at its reading debts: " + strings.Join(r.debtTried[seatID], "; ")
+}
+
 // leftDebtOnly reports whether seatID's envelope stands refused over reading debts its sitting
 // leaves and nothing else: every item the sitting owes is a reading debt, and the sitting leaves
 // them (debtLeftBy). The mark is spent.
@@ -690,8 +737,7 @@ func (r *runner) mintOnFoundReading(seatID, quote string, v *recordpb.Verify, at
 
 // mintUnsourcedOnDebt is seatID's plain unsourced_claim mint quoting the uncited sentence a found
 // source of its was read `absent` for: admitted, or refused as a second on the sentence — either way
-// the open gap discharges the debt (F7 (a)). Refused for budget, the lens reads another source for
-// the sentence instead.
+// the open gap discharges the debt (F7 (a)).
 func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 	args := append([]string{"--json", "mint", "--seat-id", seatID, "--class", classUnsourced,
 		"--problem", "fuzz: no source backs the sentence", "--check-kind", "document", "--check", "a citation backs the sentence",
@@ -715,16 +761,13 @@ func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 		gap := r.openGapNamedIn(classUnsourced, out)
 		if gap == "" {
 			noteEither(args[:2], "an unsourced_claim mint refused over a gap that closed under the drive before the board was read", false)
+			r.noteDebtDetail(seatID, "the mint was refused as a second on the sentence, and that gap closed before the board was read: "+firstLine(out))
 			return
 		}
 		r.debtDischargedByOpenGap(seatID, quote, gap, args, classUnsourced, "the open unsourced_claim gap "+gap+" on the sentence")
-	case strings.Contains(out, "its mint budget admits no more"):
-		r.mu.Lock()
-		r.budgetRefused++
-		r.mu.Unlock()
-		r.rereadFound(seatID, quote)
 	default:
 		noteEither(args[:2], "an unsourced_claim mint on an absent found reading, refused by another rule", false)
+		r.noteDebtDetail(seatID, "the mint was refused: "+firstLine(out))
 		r.rereadFound(seatID, quote)
 	}
 }
@@ -752,11 +795,17 @@ func (r *runner) rereadFound(seatID, quote string) {
 // time in ten the lens first tries to end with the debt standing, and its envelope is refused
 // naming the reading.
 func (r *runner) answerReadingDebt(seatID string) {
+	r.startDebtPass(seatID)
 	if r.debtLeftBy(seatID) {
+		r.noteDebtTried(seatID, "the sitting leaves its debts standing (leaveDebt), so none was answered")
 		return
 	}
 	for _, b := range r.readingDebts() {
-		if b.Owner != seatID || r.reservedDebtSubject(b.Subject) {
+		if b.Owner != seatID {
+			continue
+		}
+		if r.reservedDebtSubject(b.Subject) {
+			r.noteDebtTried(seatID, fmt.Sprintf("event %d: reserved for a forced drive, not answered", b.Since()))
 			continue
 		}
 		// EACH DEBT IS ASKED OF THE RECORD AGAIN BEFORE IT IS ANSWERED: an earlier debt's act in this
@@ -764,42 +813,69 @@ func (r *runner) answerReadingDebt(seatID string) {
 		if !r.debtStandsSince(seatID, b.Since()) {
 			continue
 		}
-		if r.coin(10) && r.envelopeRefusedEarly(seatID, "reading of ") {
-			r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+		r.answerOneDebt(seatID, b)
+	}
+}
+
+// answerOneDebt clears one of seatID's reading debts by the arm answerReadingDebt describes, and
+// notes the arm taken — with what stopped it — when the debt still stands after it (debtTriedWords).
+func (r *runner) answerOneDebt(seatID string, b record.Blocker) {
+	arm := ""
+	defer func() {
+		detail := r.takeDebtDetail(seatID)
+		if !r.debtStandsSince(seatID, b.Since()) {
+			return
 		}
-		cited := anchor.Kind(b.Subject) == "citation"
-		class := obligedClassOf(b)
-		switch {
-		case cited && (r.readThisSitting(seatID, b.Subject) || r.coin(60)):
-			if res := r.mintOnReading(seatID, class, aboutArgs(b.Subject), b.Since(), "about"); res.gap != "" {
-				r.debtDischargedBy(seatID, b.Subject, "mint", "the lens's mint about the citation at its sitting's end")
-			} else if _, stands := r.debtOf(seatID, b.Subject); stands {
-				r.rereadCited(seatID, b)
-			}
-		case cited:
+		what := fmt.Sprintf("event %d (lost=%d, held once=%t): %s left it standing", b.Since(), b.Lost(), r.heldOnce(b.Subject), arm)
+		if detail != "" {
+			what += " — " + detail
+		}
+		r.noteDebtTried(seatID, what)
+	}()
+	if r.coin(10) && r.envelopeRefusedEarly(seatID, "reading of ") {
+		r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+	}
+	cited := anchor.Kind(b.Subject) == "citation"
+	class := obligedClassOf(b)
+	switch {
+	case cited && (r.readThisSitting(seatID, b.Subject) || r.coin(60)):
+		arm = "the mint about the citation"
+		if res := r.mintOnReading(seatID, class, aboutArgs(b.Subject), b.Since(), "about"); res.gap != "" {
+			r.debtDischargedBy(seatID, b.Subject, "mint", "the lens's mint about the citation at its sitting's end")
+		} else if _, stands := r.debtOf(seatID, b.Subject); stands {
+			arm = "the mint about the citation, then its backing re-read"
 			r.rereadCited(seatID, b)
-		case b.Lost() != 0 || !r.heldOnce(b.Subject):
-			r.rereadLost(seatID, b)
-		case class == classUnsourced:
-			// A FRESH 29 IS A FRESH GAP: past the lens's stock, or in a run forced to a verdict, the
-			// debt clears by another source read for the sentence.
-			if r.mintsFresh(seatID) && r.coin(60) {
-				r.mintUnsourcedOnDebt(seatID, b.Subject)
-			} else {
-				r.rereadFound(seatID, b.Subject)
-			}
-		default:
-			if r.coin(60) {
-				if res := r.mintOnReading(seatID, class, quoteArgs(b.Subject), b.Since(), "quote"); res.gap != "" {
-					r.debtDischargedBy(seatID, b.Subject, "mint", "the lens's mint quoting the sentence at its sitting's end")
-					continue
-				}
-				if _, stands := r.debtOf(seatID, b.Subject); !stands {
-					continue
-				}
-			}
+		}
+	case cited:
+		arm = "the citation's backing re-read"
+		r.rereadCited(seatID, b)
+	case b.Lost() != 0 || !r.heldOnce(b.Subject):
+		arm = "the re-read of a lost reading (rereadLost)"
+		r.rereadLost(seatID, b)
+	case class == classUnsourced:
+		// A FRESH 29 IS A FRESH GAP: past the lens's stock, or in a run forced to a verdict, the
+		// debt clears by another source read for the sentence.
+		if r.mintsFresh(seatID) && r.coin(60) {
+			arm = "the unsourced_claim mint quoting the sentence"
+			r.mintUnsourcedOnDebt(seatID, b.Subject)
+		} else {
+			arm = "a reading of another source for the sentence (rereadFound)"
 			r.rereadFound(seatID, b.Subject)
 		}
+	default:
+		arm = "a reading of another source for the sentence (rereadFound)"
+		if r.coin(60) {
+			arm = "the mint quoting the sentence"
+			if res := r.mintOnReading(seatID, class, quoteArgs(b.Subject), b.Since(), "quote"); res.gap != "" {
+				r.debtDischargedBy(seatID, b.Subject, "mint", "the lens's mint quoting the sentence at its sitting's end")
+				return
+			}
+			if _, stands := r.debtOf(seatID, b.Subject); !stands {
+				return
+			}
+			arm = "the mint quoting the sentence, then a reading of another source for it"
+		}
+		r.rereadFound(seatID, b.Subject)
 	}
 }
 
@@ -846,6 +922,7 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	url, quote, seeded := foundSourceURL(seatID), b.Reworded(), false
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
+		r.noteDebtDetail(seatID, "the report did not render for the re-read: "+err.Error())
 		return
 	}
 	if quote == "" {
@@ -858,6 +935,7 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 		}
 		if quote == "" {
 			noteEither([]string{"verify"}, "a lost reading's url read again: no sentence the report holds once to read it against", false)
+			r.noteDebtDetail(seatID, "no sentence the report holds once to read the same url against")
 			return
 		}
 	}
@@ -874,6 +952,9 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 		at = r.readFoundClearing(seatID, quote)
 	}
 	if at == 0 {
+		if seeded {
+			r.noteDebtDetail(seatID, fmt.Sprintf("the same url read again against %q was refused", quote))
+		}
 		return
 	}
 	how := "the lens's reading of a source against the sentence blue's edit left"
@@ -925,7 +1006,7 @@ func (r *runner) passRefusedOnReadingDebt(seatID string, plan map[string]any) {
 	if blockers[string(record.BlockerReadingDebt)] == 0 || len(r.readingDebts()) == 0 {
 		return
 	}
-	out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "PASS")
+	out, err := r.exec("--json", "verdict", "--seat-id", seatID)
 	switch {
 	case err == nil && len(r.readingDebts()) == 0:
 		noteEither([]string{"verdict"}, "a PASS over a reading debt another seat's act ended between the check and the verdict", true)

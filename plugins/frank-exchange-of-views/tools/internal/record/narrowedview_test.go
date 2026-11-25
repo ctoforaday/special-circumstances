@@ -93,7 +93,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
 		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"), Basis: str("red cannot settle G2"),
@@ -112,7 +111,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		// The chair's spot-check, read against the archive the closes replay (debate).
 		recordtest.At(t, "red-chair", "red-chair:spot_check:#9", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
 			Ids: []string{"G1"}, Reason: str("the area reads clean")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		// The bench's run-level disposition (debate): a halt, a certification a later one supersedes,
 		// and the outcome.
 		recordtest.Event(t, "judge", &recordpb.Halt{Opinion: str("the consent gate failed")}),
@@ -191,15 +190,14 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	}
 }
 
-// THE RECORDED VERDICT IS EACH EPOCH'S, on the run path. An empty verdict means none was recorded,
+// THE RECORDED PASS IS EACH EPOCH'S, on the run path. passed false means none was recorded,
 // so a debate read that did not load the gates printed that for every epoch of every run (#1243).
 func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 	)
 	b, err := DebateJSONBytes(mustRun(t, dir))
 	if err != nil {
@@ -209,13 +207,13 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	if err := json.Unmarshal(b, &dj); err != nil {
 		t.Fatal(err)
 	}
-	got := map[int]string{}
+	got := map[int]bool{}
 	for _, e := range dj.Epochs {
-		got[e.Epoch] = e.Verdict
+		got[e.Epoch] = e.Passed
 	}
-	for epoch, want := range map[int]string{1: "fail", 2: "pass"} {
+	for epoch, want := range map[int]bool{1: false, 2: true} {
 		if got[epoch] != want {
-			t.Errorf("epoch %d: verdict %q, the record holds %q\n%s", epoch, got[epoch], want, b)
+			t.Errorf("epoch %d: passed %v, the record holds %v\n%s", epoch, got[epoch], want, b)
 		}
 	}
 }
@@ -493,81 +491,6 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	})
 }
 
-// A LENS'S MINT BUDGET IS READ OFF THE WORK LIST'S SNAPSHOT. The list states the gaps a lens holds
-// open and, beside them, how many mints that leaves it; asked of the record at two moments, a close
-// landing between them counts a gap the list still shows, or leaves out one it no longer does. The
-// lens closes its gaps while it reads its list, and on every read the budget counts exactly the
-// gaps the list shows it holding open.
-func TestTheMintBudgetCountsTheGapsOnItsOwnWorkListWhileALensCloses(t *testing.T) {
-	const lens = "red-lens-logic"
-	run, closes := gapsTheLensCloses(t, lens)
-	whileWriting(t, run, closes, func() {
-		w, err := WorkOfSeat(run, "lens", lens)
-		if err != nil {
-			t.Fatal(err)
-		}
-		budgetAgreesWithList(t, w, lens)
-	})
-}
-
-// The same, made deterministic on the reader: the snapshot is pinned, every close commits on a
-// seat's own connection, and only then are the list and the budget read off it. Both still see all
-// 25 gaps open; a budget read anywhere but q would count none.
-func TestTheMintBudgetIsReadOffTheListsTransaction(t *testing.T) {
-	const lens = "red-lens-logic"
-	run, closes := gapsTheLensCloses(t, lens)
-	db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
-	err := readSnapshot(run, func(q recordsql.Querier) error {
-		if _, _, err := eventsAt(q); err != nil { // the snapshot starts at the first read
-			return err
-		}
-		for _, ev := range closes {
-			if _, err := recordsql.Insert(db, ev); err != nil {
-				return err
-			}
-		}
-		r, err := workReadsAt(q, budgetAskOf(run, "lens", lens))
-		if err != nil {
-			return err
-		}
-		open := 0
-		for _, g := range r.gaps {
-			if g.Open && g.MintedBy == lens {
-				open++
-			}
-		}
-		if r.budget == nil || r.budget.err != nil {
-			t.Fatalf("the budget did not read: %+v", r.budget)
-		}
-		if got := r.budget.st.Open + r.budget.st.Answering; open != 25 || got != open {
-			t.Errorf("the list holds %d of the lens's gaps open and the budget counts %d, want 25 and 25 — the budget came off another read of the record", open, got)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// budgetAgreesWithList fails w where its mint budget counts other than the gaps its list shows
-// lens holding open.
-func budgetAgreesWithList(t *testing.T, w WorkJSON, lens string) {
-	t.Helper()
-	listed := 0
-	for _, g := range w.Open {
-		if g.MintedBy == lens {
-			listed++
-		}
-	}
-	b := w.Sitting.MintBudget
-	if b == nil {
-		t.Fatalf("the lens's work list carries no mint budget")
-	}
-	if got := b.Open + b.Answering; got != listed {
-		t.Fatalf("the list shows %d gap(s) the lens holds open and its mint budget counts %d — the budget and the list came off two reads of the record", listed, got)
-	}
-}
-
 // whileCommitting commits acts in ONE transaction on a seat's own connection (seatWriter) from a
 // second goroutine, and calls read until the commit is in — at least once after it. A fresh run each
 // round, rounds times: the commit is one instant, and a read that straddles it is what is under test.
@@ -624,7 +547,7 @@ func TestTheDerivedVerdictNeverReadsAPassPastTheHaltBesideIt(t *testing.T) {
 	whileCommitting(t, 20, uncastStage(t), func() []*Event {
 		return []*Event{
 			recordtest.At(t, "judge", "judge:halt", &recordpb.Halt{Opinion: proto.String("consent gate")}),
-			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{}),
 		}
 	}, func(round int, run Run) {
 		verdict, why, _, err := DeriveVerdict(run)
@@ -646,7 +569,7 @@ func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T)
 	whileCommitting(t, 20, uncastStage(t), func() []*Event {
 		return []*Event{
 			recordtest.At(t, "judge", "judge:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("ended")}),
-			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+			recordtest.At(t, "red-chair", "red-chair:gate", &recordpb.Gate{}),
 		}
 	}, func(round int, run Run) {
 		v, err := TerminalVerdict(run)

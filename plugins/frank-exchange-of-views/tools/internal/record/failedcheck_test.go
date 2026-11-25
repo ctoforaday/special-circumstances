@@ -25,7 +25,7 @@ func unsoundBoard(t *testing.T) *stage {
 
 // aboutComputation is a gap about computation anchor, graded low: not material, so it readies nobody itself.
 func aboutComputation(gap, anchor string) *recordpb.Mint {
-	m := budgetMint(gap)
+	m := sectionMint(gap)
 	m.Severity = recordpb.Grade_GRADE_LOW.Enum()
 	m.Problem = proto.String("the script does trial division, and the sentence calls it a sieve")
 	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(anchor)
@@ -171,37 +171,6 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	}
 }
 
-// A GAP THAT CARRIES THE LENS'S OWN UNSOUND JUDGEMENT TAKES NO MINT. Every other mint counts.
-func TestTheGapAboutAnUnsoundJudgementTakesNoMint(t *testing.T) {
-	b := unsoundBoard(t)
-	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
-	b.computation("K-2", "s2")
-	run := b.seed()
-	md := "# Report\n\nA paragraph that cites nothing."
-	withRenderer(t, renders(&md))
-	id := Identity{Run: run, SeatID: compLens}
-	// The computation lens's budget is max(1, ceil(2 computations × 3 / 2)) = 3.
-	mustAppend(t, id, budgetMint("G-00000001"))
-	mustAppend(t, id, budgetMint("G-00000002"))
-	mustAppend(t, id, budgetMint("G-00000003"))
-	_, err := Append(id, aboutComputation("G-00000004", "K-2"))
-	mustRefuse(t, err, "admits no more")
-	mustAppend(t, id, aboutComputation("G-00000005", "K-1"))
-	w, err := WorkOfSeat(run, "lens", compLens)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if mb := w.Sitting.MintBudget; mb == nil || mb.Open != 3 || mb.Answering != 1 {
-		t.Errorf("mint_budget = %+v, want open 3, answering 1", mb)
-	}
-	// A second gap of the class about K-1 is one gap with the first (the one-gap rule's anchor arm,
-	// asked before the budget); a plain mint counts, and the budget admits no more.
-	_, err = Append(id, aboutComputation("G-00000006", "K-1"))
-	mustRefuse(t, err, "G-00000005", "Two defects of one class on one subject are one gap")
-	_, err = Append(id, budgetMint("G-00000007"))
-	mustRefuse(t, err, "admits no more")
-}
-
 // A GAP OR FINDING ABOUT A COMPUTATION NAMES ONE: the write refuses an anchor no computation carries.
 func TestAnActAboutAComputationNamesOne(t *testing.T) {
 	run := unsoundBoard(t).seed()
@@ -284,7 +253,7 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 			t.Fatal(err)
 		}
 		ids := fam.At.IDs(fam.Events)
-		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil))
+		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil, nil))
 		return slices.Contains(debts[compLens], "failed_check K-1")
 	}
 	before := owes(unsoundBoard(t).seed())

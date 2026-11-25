@@ -109,8 +109,8 @@ func summarizeResult(raw any) string {
 		return sliceStr(s, 110)
 	}
 	var bits []string
-	if v, ok := j["verdict"].(string); ok && v != "" {
-		bits = append(bits, "verdict "+v)
+	if passed, _ := j["passed"].(bool); passed {
+		bits = append(bits, "verdict PASS")
 	}
 	if len(bits) == 0 {
 		return sliceStr(s, 110)
@@ -230,11 +230,24 @@ func RenderHTML(m Model) string {
 	}
 	w(`<p class="muted">generated ` + esc(m.Generated) + ` · auto-refreshes every 20s · dollars are list-rate estimates</p>` + "\n")
 
+	if m.ConfigUnread != "" {
+		w("<h2>Run configuration</h2>\n")
+		w(`<p class="stale">the run's configuration could not be read: ` + esc(m.ConfigUnread) + "</p>\n")
+	}
+	// The flags the dashboard was given still show when the file could not be read: they are the
+	// operator's own statement, not a reading of the file. A field no flag gave is then one the
+	// unread file would have supplied, and reads as not read rather than as a run's default.
 	if len(m.Config.Seats) > 0 || m.Config.Lanes != "" {
-		w("<h2>Run configuration</h2>\n<table>\n")
-		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "bulk")) + "</b></td></tr>\n")
-		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "judgment")) + "</b></td></tr>\n")
-		ln := "—"
+		modelUnset, lanesUnset := "session default", "—"
+		if m.ConfigUnread == "" {
+			w("<h2>Run configuration</h2>\n")
+		} else {
+			modelUnset, lanesUnset = "not read", "not read"
+		}
+		w("<table>\n")
+		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "bulk", modelUnset)) + "</b></td></tr>\n")
+		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "judgment", modelUnset)) + "</b></td></tr>\n")
+		ln := lanesUnset
 		if m.Config.Lanes != "" {
 			ln = esc(m.Config.Lanes)
 		}
@@ -294,15 +307,9 @@ func RenderHTML(m Model) string {
 	tile(countOrNotMeasured(m.BlueClaims), "blue claims")
 	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
+	// THE TILE IS THE RUN'S VERDICT, AND A RECORDED PASS IS ONE: the record derives VERIFIED from it
+	// (record.TerminalVerdict), so before that the tile says the run has none.
 	verdict := m.TerminalVerdict
-	verdictLabel := "final verdict"
-	if verdict == "" {
-		verdict = m.Judiciary.LatestVerdict
-		verdictLabel = "latest verdict"
-		if m.Judiciary.VerdictEpoch != 0 {
-			verdictLabel += " (epoch " + itoa(m.Judiciary.VerdictEpoch) + ")"
-		}
-	}
 	switch {
 	case verdict != "":
 	case !m.Judiciary.Measured:
@@ -310,7 +317,7 @@ func RenderHTML(m Model) string {
 	default:
 		verdict = "—"
 	}
-	tile(esc(verdict), verdictLabel)
+	tile(esc(verdict), "final verdict")
 	tile(logTileCount(m.Log), "log entries")
 	if etaRunning {
 		tile(fmt.Sprintf("%d–%dm", m.Eta.LowMin, m.Eta.HighMin), "projected remaining")
@@ -631,7 +638,7 @@ func lastN(s []Seat, n int) []Seat {
 	return s[len(s)-n:]
 }
 
-func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class string) string {
+func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class, unset string) string {
 	counts := map[string]int{}
 	bySeat := map[string]string{}
 	for seatID, spec := range seats {
@@ -649,7 +656,7 @@ func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class string) strin
 		counts[v]++
 	}
 	if len(bySeat) == 0 {
-		return "session default"
+		return unset
 	}
 	primary, best := "", -1
 	for v, n := range counts {

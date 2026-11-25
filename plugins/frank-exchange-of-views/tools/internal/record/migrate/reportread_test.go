@@ -93,7 +93,7 @@ func TestAReportReadServedAtNothingMigratedIsRefused(t *testing.T) {
 }
 
 // AN ARCHIVED SITTING KEEPS ITS LATEST SERVE, AND ONLY A LENS'S, THE CHAIR'S OR THE BENCH'S
-// (EventSchema 79): the write refuses a second report_read in a sitting and one under any other seat,
+// (EventSchema 80): the write refuses a second report_read in a sitting and one under any other seat,
 // so migrate drops the earlier serves of a sitting and every other seat's, counted in the manifest.
 func TestAnArchivedSittingKeepsItsLatestServe(t *testing.T) {
 	old, ingest := readFixture(t, func(ingest int64) int64 { return ingest })

@@ -68,7 +68,7 @@ func TestARegradeStoresTheGradesItLeaves(t *testing.T) {
 
 // THE BENCH LOCK'S FOLD READS THE GRADES THE GAP VIEW READS. benchSetAxesOf folds the lock over the
 // regrades and takes each axis's grade from the result the regrade stored; the gap view takes its
-// current grades from gap_grade's standing row. The two must agree on every axis of every gap, or the
+// current grades from the latest stored result. The two must agree on every axis of every gap, or the
 // lock refuses a move against a grade the board does not show.
 func TestTheBenchLockFoldAgreesWithTheGapView(t *testing.T) {
 	run, lens := liveRun(t)

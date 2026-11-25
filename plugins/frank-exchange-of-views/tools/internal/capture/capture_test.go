@@ -380,7 +380,7 @@ func TestRecordParityAudit(t *testing.T) {
 	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("why")}))...)); a.Verdict != "PASS" {
 		t.Errorf("the withheld PASS is argued: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}))...)); a.Verdict != "PASS" {
+	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{}))...)); a.Verdict != "PASS" {
 		t.Errorf("the chair recorded the PASS and owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	// THE SMOKE'S SITTINGS 4–5: the chair sat with no PASS permitted and filed no position. Nothing
@@ -1081,7 +1081,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"kMax":6,"mintBudget":5,"maxEpochs":12,"seats":{"frontier":{"harness":"claude","model":"sonnet"}}}`), 0o644); err != nil {
+		[]byte(`{"kMax":6,"maxEpochs":12,"seats":{"frontier":{"harness":"claude","model":"sonnet"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed

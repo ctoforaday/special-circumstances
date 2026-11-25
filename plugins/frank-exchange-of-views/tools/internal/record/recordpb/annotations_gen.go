@@ -11,8 +11,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsEventType[:]
 	case "feov.record.v1.Grade":
 		return annotationsGrade[:]
-	case "feov.record.v1.Verdict":
-		return annotationsVerdict[:]
 	case "feov.record.v1.RunOutcome":
 		return annotationsRunOutcome[:]
 	case "feov.record.v1.CheckKind":
@@ -33,6 +31,8 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsSoundness[:]
 	case "feov.record.v1.Rerun":
 		return annotationsRerun[:]
+	case "feov.record.v1.PartCoverage":
+		return annotationsPartCoverage[:]
 	case "feov.record.v1.InquiryStatus":
 		return annotationsInquiryStatus[:]
 	case "feov.record.v1.MotionSubject":
@@ -95,7 +95,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_REPRODUCE", Means: "red checking a recorded computation against its bundle's re-run, and whether what it computes is sound"},
 	{Name: "EVENT_TYPE_RETIRE", Means: "a claim retired from the report, with the reason and what supersedes it"},
 	{Name: "EVENT_TYPE_SPOT_CHECK", Means: "red re-checking a sample of prior work, or stating that it checked none and why"},
-	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's verdict for its epoch: PASS or FAIL against the open board"},
+	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's PASS, checked against the open board"},
 	{Name: "EVENT_TYPE_VERIFY", Means: "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"},
 	{Name: "EVENT_TYPE_REPORT_PART", Means: "a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them"},
 	{Name: "EVENT_TYPE_SITTING_OPEN", Means: "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"},
@@ -107,6 +107,8 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
+	{Name: "EVENT_TYPE_QUESTION_PART", Means: "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"},
+	{Name: "EVENT_TYPE_QUESTION_PART_CHECK", Means: "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"},
 }
 
 var annotationsGrade = [...]ValueAnnotations{
@@ -121,18 +123,13 @@ var annotationsGrade = [...]ValueAnnotations{
 	{Name: "GRADE_REALIZED", Means: "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", Mass: DeclaredNumber{Declared: true, Value: 0}},
 }
 
-var annotationsVerdict = [...]ValueAnnotations{
-	{Name: "VERDICT_UNSPECIFIED"},
-	{Name: "VERDICT_PASS", Means: "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"},
-	{Name: "VERDICT_FAIL", Means: "the board, as it stands, still stops you — refused over a converged board"},
-}
-
 var annotationsRunOutcome = [...]ValueAnnotations{
 	{Name: "RUN_OUTCOME_UNSPECIFIED"},
-	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board and the bench agrees the question was answered"},
-	{Name: "RUN_OUTCOME_CEILING", Means: "the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run"},
+	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board, and every question part is covered and checked"},
+	{Name: "RUN_OUTCOME_CEILING", Means: "the run reached its epoch limit with nobody left to dispatch and PASS not permitted; NOT a judged failure to verify — what stays open travels OUT of the run for re-audit"},
 	{Name: "RUN_OUTCOME_HALTED", Means: "the bench ended the run on a safety, ethics, consent or integrity boundary"},
-	{Name: "RUN_OUTCOME_UNVERIFIED", Means: "the run ended without the question being answered, and no ceiling or halt explains it"},
+	{Name: "RUN_OUTCOME_UNVERIFIED", Means: "the run ended with the question unanswered, and no ceiling or halt explains it"},
+	{Name: "RUN_OUTCOME_QUALIFIED", Means: "red passed the board and every question part is checked, but one or more parts are not covered: their sources were not obtained, or they are excluded from the report's answer"},
 }
 
 var annotationsCheckKind = [...]ValueAnnotations{
@@ -182,6 +179,7 @@ var annotationsGapClass = [...]ValueAnnotations{
 	{Name: "GAP_CLASS_UNSOURCED_CLAIM", Means: "a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence, or says nothing of it, is not the report's citation: the gap stands until blue cites one", Neighbor: "citation_figure_misattribution", Distinguisher: "does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_UNCLASSIFIED", Means: "no other value fits this gap. The mint's reason names the nearest value and what it does not cover", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_OUT_OF_SCOPE", Means: "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research", Neighbor: "invalid_inference", Distinguisher: "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
+	{Name: "GAP_CLASS_COVERAGE_MISSTATED", Means: "the report's coverage of the question is misstated on the record: a question part's coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at all", Neighbor: "out_of_scope", Distinguisher: "is the defect in what the record states of the question the run was asked — its parts and their coverage — or in an inquiry the research took up?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
 	{Name: "GAP_CLASS_CLAIM_CONTRADICTS_SOURCE", Means: "a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote", Neighbor: "citation_figure_misattribution", Distinguisher: "does the source say otherwise than the sentence, or not say it at all?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
 }
 
@@ -204,7 +202,7 @@ var annotationsSourceOutcome = [...]ValueAnnotations{
 	{Name: "SOURCE_OUTCOME_WEAK", Means: "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it"},
 	{Name: "SOURCE_OUTCOME_REFUTES", Means: "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again", FindsAgainst: DeclaredBool{Declared: true, Value: true}},
 	{Name: "SOURCE_OUTCOME_ABSENT", Means: "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap", FindsAgainst: DeclaredBool{Declared: true, Value: true}},
-	{Name: "SOURCE_OUTCOME_UNREACHABLE", Means: "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"},
+	{Name: "SOURCE_OUTCOME_UNREACHABLE", Means: "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read"},
 }
 
 var annotationsBridgeKind = [...]ValueAnnotations{
@@ -234,13 +232,20 @@ var annotationsRerun = [...]ValueAnnotations{
 	{Name: "RERUN_CALLS_THE_TOOL", Means: "the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"},
 }
 
+var annotationsPartCoverage = [...]ValueAnnotations{
+	{Name: "PART_COVERAGE_UNSPECIFIED"},
+	{Name: "PART_COVERAGE_COVERED", Means: "the report answers this part of the question"},
+	{Name: "PART_COVERAGE_NOT_OBTAINED", Means: "the report does not answer this part because the sources that would answer it could not be obtained — REQUIRES a reason naming them and what was tried; report.md states the part is not answered here for that cause"},
+	{Name: "PART_COVERAGE_EXCLUDED", Means: "the report does not answer this part because it lies outside the answer the report gives — REQUIRES a reason saying why; report.md states the part lies outside its answer"},
+}
+
 var annotationsInquiryStatus = [...]ValueAnnotations{
 	{Name: "INQUIRY_STATUS_UNSPECIFIED"},
 	{Name: "INQUIRY_STATUS_PROPOSED", Means: "put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it"},
 	{Name: "INQUIRY_STATUS_UNDERWAY", Means: "you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached"},
 	{Name: "INQUIRY_STATUS_CONFIRMED", Means: "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"},
 	{Name: "INQUIRY_STATUS_REFUTED", Means: "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"},
-	{Name: "INQUIRY_STATUS_DEFERRED", Means: "left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it"},
+	{Name: "INQUIRY_STATUS_DEFERRED", Means: "left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it"},
 	{Name: "INQUIRY_STATUS_DECLINED", Means: "you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"},
 	{Name: "INQUIRY_STATUS_ABANDONED", Means: "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this"},
 }
@@ -268,7 +273,7 @@ var annotationsPetitionRuling = [...]ValueAnnotations{
 var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
 	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
-	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
+	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
 }
 
 var annotationsAboutKind = [...]ValueAnnotations{
@@ -276,6 +281,7 @@ var annotationsAboutKind = [...]ValueAnnotations{
 	{Name: "ABOUT_KIND_SECTION", Means: "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"},
 	{Name: "ABOUT_KIND_INQUIRY", Means: "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"},
 	{Name: "ABOUT_KIND_GAP", Means: "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"},
+	{Name: "ABOUT_KIND_QUESTION", Means: "the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated"},
 	{Name: "ABOUT_KIND_ANCHOR", Means: "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"},
 }
 

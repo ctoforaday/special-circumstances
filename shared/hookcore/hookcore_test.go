@@ -970,3 +970,83 @@ func TestRespondUpdatedInputEmitsWithoutExplicitDecision(t *testing.T) {
 		t.Fatalf("Antigravity output dropped overwrite: %s", stdout.String())
 	}
 }
+
+func TestAntigravity153To156PayloadFields(t *testing.T) {
+	// 1. PreToolUse with hookEventName, top-level cwd (empty workspacePaths), and toolCall.id (agy 1.5.4+)
+	preInput := `{
+		"conversationId": "conv-154",
+		"hookEventName": "PreToolUse",
+		"cwd": "/workspace/from/top-level-cwd",
+		"workspacePaths": [],
+		"toolCall": {
+			"id": "call_abc123",
+			"name": "run_command",
+			"args": {
+				"CommandLine": "go version"
+			}
+		}
+	}`
+	reqPre := Read("", strings.NewReader(preInput))
+	if reqPre.Engine != EngineAntigravity {
+		t.Errorf("Engine = %v, want %v", reqPre.Engine, EngineAntigravity)
+	}
+	if reqPre.HookEventName != "PreToolUse" {
+		t.Errorf("HookEventName = %q, want PreToolUse", reqPre.HookEventName)
+	}
+	if reqPre.Event != "PreToolUse" {
+		t.Errorf("Event fallback = %q, want PreToolUse", reqPre.Event)
+	}
+	if reqPre.ToolCallID != "call_abc123" {
+		t.Errorf("ToolCallID = %q, want call_abc123", reqPre.ToolCallID)
+	}
+	if reqPre.CWD != "/workspace/from/top-level-cwd" {
+		t.Errorf("CWD = %q, want /workspace/from/top-level-cwd", reqPre.CWD)
+	}
+	if reqPre.ProjectDir != "/workspace/from/top-level-cwd" {
+		t.Errorf("ProjectDir = %q, want /workspace/from/top-level-cwd", reqPre.ProjectDir)
+	}
+
+	// 2. Claude PreToolUse with tool_use_id
+	claudePre := Read("PreToolUse", strings.NewReader(`{"session_id":"s1","tool_use_id":"toolu_999","tool_name":"Bash","tool_input":{"command":"pwd"}}`))
+	if claudePre.ToolCallID != "toolu_999" {
+		t.Errorf("Claude ToolCallID = %q, want toolu_999", claudePre.ToolCallID)
+	}
+
+	// 3. Stop / PostInvocation with continuation_active: true (agy 1.5.6+)
+	stopCont := `{
+		"conversationId": "conv-156",
+		"hookEventName": "Stop",
+		"cwd": "/workspace/from/top-level-cwd",
+		"continuation_active": true,
+		"terminationReason": "COMPLETE"
+	}`
+	reqStop := Read("Stop", strings.NewReader(stopCont))
+	if !reqStop.StopHookActive {
+		t.Errorf("StopHookActive = false, want true when continuation_active is true")
+	}
+
+	// Negative control: continuation_active: false and executionNum: 0 leaves StopHookActive false
+	stopFirst := `{
+		"conversationId": "conv-156",
+		"hookEventName": "Stop",
+		"continuation_active": false,
+		"executionNum": 0
+	}`
+	reqStopFirst := Read("Stop", strings.NewReader(stopFirst))
+	if reqStopFirst.StopHookActive {
+		t.Errorf("StopHookActive = true, want false on initial Stop")
+	}
+
+	// 4. PLUGIN_ROOT and PLUGIN_DATA environment variables on hook subprocesses (agy 1.5.3+)
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	t.Setenv("CLAUDE_PLUGIN_DATA", "")
+	t.Setenv("PLUGIN_ROOT", "/agy/plugins/prosthetic-conscience")
+	t.Setenv("PLUGIN_DATA", "/agy/plugin-data/prosthetic-conscience")
+	reqEnv := Read("SessionStart", strings.NewReader(`{"conversationId":"conv-153","cwd":"/workspace/repo"}`))
+	if reqEnv.PluginRoot != "/agy/plugins/prosthetic-conscience" {
+		t.Errorf("PluginRoot = %q, want /agy/plugins/prosthetic-conscience", reqEnv.PluginRoot)
+	}
+	if reqEnv.PluginDataDir != "/agy/plugin-data/prosthetic-conscience" {
+		t.Errorf("PluginDataDir = %q, want /agy/plugin-data/prosthetic-conscience", reqEnv.PluginDataDir)
+	}
+}

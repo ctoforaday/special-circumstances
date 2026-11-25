@@ -72,3 +72,32 @@ func TestProjectClaude(t *testing.T) {
 		t.Errorf("Act[2] = %+v, want Read unresolved", proj.Acts[2])
 	}
 }
+
+func TestProjectAntigravitySystemMessageAndToolCallID(t *testing.T) {
+	input := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-14T18:00:00Z","content":"Run task"}
+{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-14T18:00:01Z","tool_calls":[{"id":"call_agy_154","name":"run_command","args":{"CommandLine":"echo ok"}}]}
+{"step_index":2,"source":"TOOL","type":"GENERIC","status":"DONE","created_at":"2026-11-14T18:00:02Z","content":"ok"}
+{"step_index":3,"source":"SYSTEM","type":"SYSTEM_MESSAGE","status":"DONE","created_at":"2026-11-14T18:00:03Z","content":"Task finished"}
+`
+	proj := Project(strings.NewReader(input), 0)
+	if len(proj.Words) != 2 {
+		t.Fatalf("Words = %d, want 2", len(proj.Words))
+	}
+	if proj.Words[1].OriginKind != "task-notification" || proj.Words[1].Role != "system" {
+		t.Errorf("Words[1] = %+v, want OriginKind=task-notification Role=system", proj.Words[1])
+	}
+	if len(proj.Acts) != 1 || proj.Acts[0].Outcome != OutcomeOK {
+		t.Errorf("Acts = %+v, want 1 Act with OutcomeOK", proj.Acts)
+	}
+
+	res, err := Parse(strings.NewReader(input), "transcript.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Events) != 2 {
+		t.Fatalf("Parse events = %d, want 2", len(res.Events))
+	}
+	if res.Events[0].ToolUseID != "call_agy_154" || res.Events[1].ToolUseID != "call_agy_154" {
+		t.Errorf("ToolUseID = (%q, %q), want call_agy_154", res.Events[0].ToolUseID, res.Events[1].ToolUseID)
+	}
+}

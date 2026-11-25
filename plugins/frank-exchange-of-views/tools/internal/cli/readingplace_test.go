@@ -21,7 +21,7 @@ const (
 
 func repeatedRun(t *testing.T) readingBoard {
 	t.Helper()
-	b := readingRunOf(t, rpReport, 0, rpRepeated, "The quarter closed with costs rising steeply.", "Margins held, by the survey's count")
+	b := readingRunOf(t, rpReport, rpRepeated, "The quarter closed with costs rising steeply.", "Margins held, by the survey's count")
 	if _, err := run(t, "edit", "--run", b.runDir, "--seat-id", blueSeat, "--key", "E0", "--quote", "costs rising steeply",
 		"--new", "costs rising sharply", "--reason", "one wording"); err != nil {
 		t.Fatalf("blue's edit: %v", err)
@@ -143,7 +143,7 @@ func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testi
 		if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
 			t.Fatal(err)
 		}
-		_, err = run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
+		_, err = run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair")
 		mustRefuse(t, err, "", g1, "material gap")
 	})
 	t.Run("c: a found-source reading and its quote gap", func(t *testing.T) {

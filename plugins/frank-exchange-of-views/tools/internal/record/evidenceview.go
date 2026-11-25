@@ -70,6 +70,9 @@ type EvidenceSourceJSON struct {
 	// FetchedAt is when the run's fetch took the copy sha256 names, RFC 3339 UTC: the source's
 	// accessed date. Empty on a cite migrated from before the field.
 	FetchedAt string `json:"fetched_at"`
+	// CopyCapturedAt is when the web archive took the copy sha256 names, RFC 3339 UTC, on a copy the
+	// tool took from a web archive and on no other: what the copy says is what the url said then.
+	CopyCapturedAt string `json:"copy_captured_at,omitempty"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for — in
 	// the report as it stands where LocationState is `marked`, located by the token as the board
 	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor bare,
@@ -526,6 +529,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 				Epoch:      w.Epoch,
 				Verified:   checks,
 
+				CopyCapturedAt:     bd.GetCopyCapturedAt(),
 				SourceTextOrigin:   recordpb.Word(bd.GetSourceTextOrigin()),
 				WorkStatus:         recordpb.Word(bd.GetWorkStatus()),
 				SourceCompleteness: recordpb.Word(bd.GetSourceCompleteness()),

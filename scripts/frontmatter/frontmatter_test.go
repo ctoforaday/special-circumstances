@@ -183,27 +183,66 @@ func TestASkillNameMustMatchItsDirectory(t *testing.T) {
 	}
 }
 
-// AN AGENT'S tools AND skills ARE SEQUENCES. Antigravity decodes both into []string and skips
-// the whole agent on a scalar, so `tools: Read, Write` loads in Claude Code and vanishes from
-// `agy agents` with nothing said.
+// AN AGENT'S tools AND skills ARE SEQUENCES, and every tool name must belong to the target
+// harness's tool registry (`agents/` -> Antigravity, `agents-claude/` -> Claude Code).
 func TestAnAgentToolsFieldMustBeAList(t *testing.T) {
-	const f = "plugins/p/agents/probe.md"
-	if p, _ := check(f, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\nskills: [a, b]\n---\n"); len(p) > 0 {
-		t.Errorf("YAML sequence tools and skills fields must pass: %v", p)
+	const agyF = "plugins/p/agents/probe.md"
+	const claudeF = "plugins/p/agents-claude/probe.md"
+	if p, _ := check(agyF, "---\nname: probe\ndescription: d\ntools: [read_file, write_file, run_command]\nskills: [a, b]\n---\n"); len(p) > 0 {
+		t.Errorf("valid Antigravity agent frontmatter must pass: %v", p)
 	}
-	for _, tc := range []struct{ block, want string }{
-		{"---\nname: probe\ndescription: d\ntools: Read, Write, Bash\n---\n", "`tools` must be a non-empty YAML sequence"},
-		{"---\nname: probe\ndescription: d\ntools: []\n---\n", "`tools` must be a non-empty YAML sequence"},
-		{"---\nname: probe\ndescription: d\ntools: [Read, \"\"]\n---\n", "every entry in `tools`"},
-		{"---\nname: probe\ndescription: d\nskills: a, b\n---\n", "`skills` must be a non-empty YAML sequence"},
+	if p, _ := check(claudeF, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\nskills: [a, b]\n---\n"); len(p) > 0 {
+		t.Errorf("valid Claude agent frontmatter must pass: %v", p)
+	}
+	for _, tc := range []struct{ file, block, want string }{
+		{agyF, "---\nname: probe\ndescription: d\ntools: read_file, write_file\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: []\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: [read_file, \"\"]\n---\n", "every entry in `tools`"},
+		{agyF, "---\nname: probe\ndescription: d\nskills: a, b\n---\n", "`skills` must be a non-empty YAML sequence"},
+		{agyF, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\n---\n", "not in Antigravity's tool registry"},
+		{claudeF, "---\nname: probe\ndescription: d\ntools: [read_file, run_command]\n---\n", "not a known Claude Code tool"},
 	} {
-		p, _ := check(f, tc.block)
+		p, _ := check(tc.file, tc.block)
 		if got := fmt.Sprint(p); !strings.Contains(got, tc.want) {
-			t.Errorf("block %q: want a problem containing %q, got %v", tc.block, tc.want, p)
+			t.Errorf("%s block %q: want a problem containing %q, got %v", tc.file, tc.block, tc.want, p)
 		}
 	}
-	// Only agents are held to it: a skill's frontmatter is not an agent definition.
+	// Only agents are held to it: a skill's own SKILL.md is not an agent definition.
 	if p, _ := check("plugins/p/skills/s/SKILL.md", "---\nname: s\ndescription: d\ntools: Read, Write\n---\n"); len(p) > 0 {
 		t.Errorf("a SKILL.md is not an agent and must not be held to the agent list rule: %v", p)
+	}
+}
+
+func TestSkillVisibilityParityAndOperatorGuard(t *testing.T) {
+	// Operator skill must stay visible.
+	const op = "plugins/prosthetic-conscience/skills/doctor/SKILL.md"
+	if p, _ := check(op, "---\nname: doctor\ndescription: d\n---\n"); len(p) > 0 {
+		t.Errorf("visible operator skill must pass: %v", p)
+	}
+	for _, hidden := range []string{
+		"---\nname: doctor\ndescription: d\ndisable-slash-command: true\nuser-invocable: false\n---\n",
+		"---\nname: doctor\ndescription: d\ndisable-slash-command: true\n---\n",
+		"---\nname: doctor\ndescription: d\nuser-invocable: false\n---\n",
+	} {
+		p, _ := check(op, hidden)
+		if got := fmt.Sprint(p); !strings.Contains(got, "Everything that was a command is intended to be visible") {
+			t.Errorf("hiding operator skill must be rejected with the operator guard message, got %v", p)
+		}
+	}
+
+	// Internal procedural skill in a shipped plugin must carry both hiding flags.
+	const proc = "plugins/prosthetic-conscience/skills/terse-communication/SKILL.md"
+	if p, _ := check(proc, "---\nname: terse-communication\ndescription: d\ndisable-slash-command: true\nuser-invocable: false\n---\n"); len(p) > 0 {
+		t.Errorf("properly hidden procedural skill must pass: %v", p)
+	}
+	for _, partial := range []string{
+		"---\nname: terse-communication\ndescription: d\n---\n",
+		"---\nname: terse-communication\ndescription: d\ndisable-slash-command: true\n---\n",
+		"---\nname: terse-communication\ndescription: d\nuser-invocable: false\n---\n",
+	} {
+		p, _ := check(proc, partial)
+		if got := fmt.Sprint(p); !strings.Contains(got, "must carry both `disable-slash-command: true`") {
+			t.Errorf("unhidden or half-hidden procedural skill must fail, got %v", p)
+		}
 	}
 }

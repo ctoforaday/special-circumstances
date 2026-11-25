@@ -62,7 +62,7 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	// agentgen -check holds the written file to the source, and this holds this reader to both.
 	body := map[string]bool{}
 	for _, typ := range agentTypes {
-		p, err := repotree.Plugin("agents", typ+".md")
+		p, err := repotree.Plugin("agents-claude", typ+".md")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -281,7 +281,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 				e["record_read"] = map[string]any{"event": 1, "bench_owed": []any{"petition", "position"}, "halted": false}
 			} else {
 				e.Relay(plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true))
-				e["verdict"] = "PASS"
+				e["passed"] = true
 			}
 		}
 		return e

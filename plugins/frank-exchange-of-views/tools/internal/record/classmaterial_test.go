@@ -15,7 +15,6 @@ import (
 func liveRun(t *testing.T) (Run, Identity) {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
-	writeRunConfig(t, dir, `{"mintBudget":50}`)
 	run := mustRun(t, dir)
 	lens := Identity{Run: run, SeatID: evLens}
 	if _, _, err := RegisterSeat(lens, "", ""); err != nil {

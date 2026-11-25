@@ -213,7 +213,7 @@ func uncheckedInquiryFact(b Blocker) string {
 // about it since its fate and the gaps minted about it since its last check, so the owner's
 // judgement is not blind to them.
 func uncheckedInquiryAct(b Blocker) string {
-	s := fmt.Sprintf("%s owes the judgement: read its row (`show inquiries`) and the report's account of the research it names, then `inquiry check --id %s --reason \"<why its fate stands as the report's account of it>\"` where it is sound, or mint the gap about it (`mint --about-kind inquiry --about %s`) where it is wanting — class out_of_scope where it asks a question this run was not asked; the owner's gap about an inquiry takes none of its mint budget",
+	s := fmt.Sprintf("%s owes the judgement: read its row (`show inquiries`) and the report's account of the research it names, then `inquiry check --id %s --reason \"<why its fate stands as the report's account of it>\"` where it is sound, or mint the gap about it (`mint --about-kind inquiry --about %s`) where it is wanting — class out_of_scope where it asks a question this run was not asked",
 		ownerOr(b, inquiryOwner), b.Subject, b.Subject)
 	if len(b.notes) > 0 {
 		s += ". Findings other lenses filed about it since its fate: " + strings.Join(b.notes, ", ")

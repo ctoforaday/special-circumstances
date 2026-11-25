@@ -311,6 +311,8 @@ func censusRun(t *testing.T) string {
 		{"position", "--seat-id", "red-chair", "--reason", "the chair's position on the open gap"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "does a second source give the same figure", "--hypothesis", "two sources agree within ten percent"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "is the trend seasonal", "--hypothesis", "the rise repeats every winter"},
+		{"question", "split", "--seat-id", blueSeat, "--text", "whether the cost is rising"},
+		{"question", "split", "--seat-id", blueSeat, "--text", "whether the rise is seasonal"},
 		{"motion", "grade", "file", "--seat-id", blueSeat, "--id", gap, "--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"},
 		{"cite", "--seat-id", blueSeat, "--quote", "The cost is moderate and rising.", "--url", "https://census/1", "--title", "Census source"},
 	} {

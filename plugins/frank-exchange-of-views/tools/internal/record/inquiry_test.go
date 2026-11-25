@@ -375,30 +375,9 @@ func TestARetiredOwnerStillOwesTheCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	ids := win.IDs(evs)
-	owes := lensOwesOf(evs, ids, win, nil, owedBlockersOf(evs, ids, win, nil, nil))
+	owes := lensOwesOf(evs, ids, win, nil, owedBlockersOf(evs, ids, win, nil, nil, nil))
 	if !slices.Contains(owes[inquiryOwner], string(BlockerUncheckedInquiry)+" Q1") {
 		t.Errorf("the owner of an unchecked inquiry owes %q — the check is its debt whatever its quiet sittings", owes[inquiryOwner])
-	}
-}
-
-// THE OWNER'S GAP ABOUT AN INQUIRY TAKES NO MINT: at the cap the logic lens's mint about an inquiry
-// is admitted, and another lens's is refused.
-func TestTheOwnersGapAboutAnInquiryTakesNoMint(t *testing.T) {
-	for _, r := range []struct {
-		lens  string
-		admit bool
-	}{{inquiryOwner, true}, {"red-lens-dark-side", false}} {
-		id := budgetRun(t, 1, 0, 0, r.lens)
-		if _, err := Append(Identity{Run: id.Run, SeatID: "blue-respond"}, fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := Append(id, budgetMint("G-cap")); err != nil {
-			t.Fatalf("%s: the mint that fills the floor: %v", r.lens, err)
-		}
-		_, err := Append(id, liveInquiryGap("G-q", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_HIGH))
-		if admitted := err == nil; admitted != r.admit {
-			t.Errorf("%s at the cap minting about an inquiry: admitted = %v (%v), want %v", r.lens, admitted, err, r.admit)
-		}
 	}
 }
 

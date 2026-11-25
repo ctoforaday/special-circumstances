@@ -325,7 +325,9 @@ response carries:
 
 Every helper also answers the **self-test ops** `selftest-stdout` (writes to stdout through `printf`, `std::cout`,
 `fwrite(stdout)` and `write(1)`, then returns a payload of all 256 byte values including `0x0D 0x0A` and `0x1A`) and
-`selftest-sleep <ms>`. `feov-ocr` adds `selftest-traineddata` (the sha256 of its embedded `eng.traineddata`) and, on
+`selftest-sleep <ms>`. With `NATIVE_HELPER_SELFTEST_STDOUT=1` in its environment, a helper also writes to stdout through
+the same four routes before its first request and after each response, where no request's capture covers fd 1.
+`feov-ocr` adds `selftest-traineddata` (the sha256 of its embedded `eng.traineddata`) and, on
 Linux targets, `selftest-libc` (the bounded-scan probes of `internal/libcprobe/probe_cgo.go`, #1598, in C++).
 
 **Lifecycle:**
@@ -362,6 +364,9 @@ Each case is a distinct error:
 - `helper-crashed`, with the exit status and the captured stderr;
 - `helper-deadline`, with the op and the elapsed time;
 - `helper-protocol`.
+
+A request whose frame would exceed the bounds is none of these: the client refuses it as `request-too-large` before
+writing anything, and the helper stays up.
 
 `fetch`'s `ocr_engine_absent` field (`internal/cli/fetchsummary.go:91`) keeps its name and means "no helper came up".
 It is set by `helper-absent`, `helper-digest-mismatch`, and the latched handshake failure (a crash, deadline or protocol
@@ -891,6 +896,17 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
      stdout writes appear in that request's captured stderr field. Run on every target in `native-run`. It fails on
      Linux without the fd move or without the paired fd 1 capture. It fails on Windows without binary mode, or with
      frames written to a `GetStdHandle` value read before `_dup2`.
+   - `TestStdoutOutsideARequestReachesStderr`: with `NATIVE_HELPER_SELFTEST_STDOUT=1` the helper writes to stdout
+     before its first request and after each response, through the same four routes; every line reaches its stderr
+     pipe and the handshake and requests answer. Run on every target in `native-run`. It fails without `claim()`'s fd 1
+     move (the first write lands in the handshake's frame) and without `Capture::end`'s (the between-requests writes
+     land in the capture file and are truncated away); no request's capture covers either write.
+   - `TestARefusedHandshakeKillsTheHelper`, `TestACrashBeforeTheCaptureCarriesOnlyItsOwnStderr`,
+     `TestAnOversizedRequestIsRefusedAndTheHelperStaysUp`, the `wrong-op` case of `TestAProtocolErrorKillsAndNames`,
+     `TestResolvedDirFollowsALink` and `TestTheShippedLookupFollowsALinkedExecutable` (#1812): each client check
+     — the handshake's status, field count, unpinned asset and the kill after it; the cleared capture; the request
+     refused client-side as `request-too-large` with the helper kept; the echoed op; the symlink resolved beside the
+     executable — fails its test when deleted.
    - `TestACrashedRequestIsNotRetried`: a request that aborts the helper returns `helper-crashed` with its stderr, is
      not resent, and the next request spawns once.
    - `TestAPageCrashIsNotAnAbsentEngine`: through `fetch`, a helper that handshakes and then aborts on one page reports
@@ -930,7 +946,7 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
    - `TestIdentityReadsTheGeneratedPins` (r4 gap 1): `Identity()` begins with `tesseract@`, `leptonica@`, `eng@` and
      `feov-ocr@` followed by `digest_gen.go`'s generated values. A re-typed constant passes only until the next pin
      bump, when `nativedigest` moves the generated value and this fails.
-   - `TestNativeDigestReadsTheEnginePins` (r4 gap 1), on a copy of `native/` through `nativedigest` as `build.sh` runs
+   - `TestAnEnginePinBumpReachesTheGeneratedFile` (r4 gap 1), on a copy of `native/` through `nativedigest` as `build.sh` runs
      it: `tesseract-5.5.3.tar.gz` renamed `tesseract-5.5.4.tar.gz` in `feov-ocr/PINS.txt` yields `5.5.4`, so the
      committed `digest_gen.go` no longer matches; a copy with no tesseract record, or two, fails naming the file.
      Deletion check: make the reader return a fixed version and the first case fails.

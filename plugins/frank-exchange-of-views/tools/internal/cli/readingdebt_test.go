@@ -54,7 +54,7 @@ func TestAReadingWritesOneEvent(t *testing.T) {
 // low and closed not_a_defect, the PASS is admitted; `show evidence`'s counts carry no
 // sources_refuted key throughout.
 func TestAReadingDebtHoldsThePassUntilItsGap(t *testing.T) {
-	b := readingRunCast(t, rdReport, 0, rdCited, rdBacked)
+	b := readingRunCast(t, rdReport, rdCited, rdBacked)
 	counts := func() map[string]any {
 		raw, err := record.EvidenceJSONBytes(runtest.Open(t, b.runDir))
 		if err != nil {
@@ -99,7 +99,7 @@ func TestAReadingDebtHoldsThePassUntilItsGap(t *testing.T) {
 	if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
+	_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair")
 	mustRefuse(t, err, "", "reading of citation "+b.c1, lensL)
 	out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--class", "claim_contradicts_source",
 		"--problem", "the source says otherwise than the sentence", "--fix", "the fix", "--check-kind", "document",
@@ -129,7 +129,7 @@ func TestAReadingDebtHoldsThePassUntilItsGap(t *testing.T) {
 // not the bench's prose — carries the debt's clause. Every citation is read, so the debt is the only
 // subject the clause can name.
 func TestAnUnverifiedEndNamesTheReadingDebtStanding(t *testing.T) {
-	b := readingRunCast(t, rdReport, 0, rdCited, rdBacked)
+	b := readingRunCast(t, rdReport, rdCited, rdBacked)
 	b.mustRead(lensL, citeReading(b.c1, "refutes")...)
 	b.mustRead(lensK, citeReading(b.c2, "supports")...)
 	if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {

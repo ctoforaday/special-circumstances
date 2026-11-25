@@ -41,6 +41,13 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
 on the box are unaffected.
 
+Authentication is the exception, and it is lent rather than shared: `run`, `resume` and `shell` pass
+the host login's current access token in `CLAUDE_CODE_OAUTH_TOKEN`, and the universe holds no
+credential file. It never holds the refresh token, because a universe that renewed it left the host's
+Remote Control sessions with a spent one ("needs to sign in again"). A token with less than
+`TOKEN_MIN_MINUTES` (default 180) left is renewed through the host login before the run starts, which
+revokes the old access token; sessions holding it re-read the host file on their next call.
+
 Tearing one down is **three** paths, not one: `$WORKDIR`, `$WORKDIR.marketplace`, and
 `$WORKDIR.release`. The staged marketplace is a copy of the checkout's `plugins/` beside the universe,
 and it is the plugin root a universe session loads (below). `$WORKDIR.release` is the local release
@@ -225,7 +232,7 @@ magnitude:
 | lanes | 1 (+ `laneFloorOverride`) | 3 |
 | bulk tier | `haiku` | `sonnet` |
 | judgment tier | `haiku` | `sonnet` |
-| terms | `--mint-budget 3 --k-max 2` | defaults (15 / 6) |
+| terms | `--k-max 2` | default (6) |
 
 `--judgment` is set EXPLICITLY, and that is the point of the mode. Before both tiers were
 required, omitting it let the judgment seats inherit the session model — measured at 68% of one
@@ -234,7 +241,7 @@ strength and no faster to iterate on than a keeper.
 
 ```sh
 BULK=haiku JUDGMENT=haiku LANES=1 \
-  scripts/universe.sh run "<topic>" --mint-budget 3 --k-max 2
+  scripts/universe.sh run "<topic>" --k-max 2
 ```
 
 Measured for scale on one elementary topic: the development configuration cost **$42.96** and 99.5
@@ -350,5 +357,5 @@ re-reads the whole context from cache. Measured over one week: dev sessions and 
   is the main session's only), so a resume re-writes the whole grown transcript. Hand a fresh agent
   the artifacts instead.
 - A smoke run is meant to be cheap. The engine's own `--smoke` is one lane, `haiku` on **both**
-  tiers, `--mint-budget 3 --k-max 2`. Running it at the development configuration — three lanes,
+  tiers, `--k-max 2`. Running it at the development configuration — three lanes,
   `sonnet` on both tiers — costs roughly an order of magnitude more and is not a smoke.

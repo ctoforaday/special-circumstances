@@ -57,8 +57,10 @@ var keyLine = regexp.MustCompile(`^([A-Za-z_][\w-]*):\s+(\S.*)$`)
 // agentFile and skillFile are the two files a plugin declares its contract in. A skill is its
 // directory's SKILL.md only; the markdown under references/ beside it is ordinary prose.
 var (
-	agentFile = regexp.MustCompile(`^plugins/[^/]+/agents/[^/]+\.md$`)
-	skillFile = regexp.MustCompile(`^plugins/([^/]+)/skills/([^/]+)/SKILL\.md$`)
+	agentFile       = regexp.MustCompile(`^plugins/[^/]+/agents(?:-claude)?/[^/]+\.md$`)
+	agyAgentFile    = regexp.MustCompile(`^plugins/[^/]+/agents/[^/]+\.md$`)
+	claudeAgentFile = regexp.MustCompile(`^plugins/[^/]+/agents-claude/[^/]+\.md$`)
+	skillFile       = regexp.MustCompile(`^plugins/([^/]+)/skills/([^/]+)/SKILL\.md$`)
 )
 
 // problem is one finding, pre-formatted for the operator.
@@ -96,6 +98,7 @@ func check(file, text string) (problems []problem, scanned bool) {
 	}
 
 	problems = append(problems, skillNameProblems(file, doc)...)
+	problems = append(problems, skillVisibilityProblems(file, doc)...)
 	problems = append(problems, agentToolsProblems(file, doc)...)
 
 	// Then the thing no parser can see: valid YAML that does not mean what it says.
@@ -142,18 +145,110 @@ func skillNameProblems(file string, doc map[string]any) []problem {
 	return nil
 }
 
+// shippedPlugins are the repository's four plugins whose skills are held to the 12-operator vs
+// procedural visibility split (plans/hide-non-user-facing-skills-slash-commands.md).
+var shippedPlugins = map[string]bool{
+	"frank-exchange-of-views": true,
+	"gray-area":               true,
+	"prosthetic-conscience":   true,
+	"sleeper-service":         true,
+}
+
+// operatorSkills are the 12 user-invocable slash commands across the shipped plugins. Every other
+// skill in a shipped plugin is an internal procedural skill and must be hidden in both harnesses.
+var operatorSkills = map[string]bool{
+	"frank-exchange-of-views/adversarial-audit": true,
+	"frank-exchange-of-views/research":          true,
+	"gray-area/audit-checkpoint":                true,
+	"gray-area/audit-pr-body":                   true,
+	"gray-area/audit-repetition":                true,
+	"gray-area/audit-seat-coverage":             true,
+	"gray-area/elicitation-testing":             true,
+	"prosthetic-conscience/checkpoint":          true,
+	"prosthetic-conscience/doctor":              true,
+	"prosthetic-conscience/plan-audit":          true,
+	"prosthetic-conscience/probe":               true,
+	"prosthetic-conscience/resume":              true,
+}
+
+// skillVisibilityProblems enforces that every skill agrees across Claude Code (`user-invocable`)
+// and Antigravity (`disable-slash-command`), that the 12 operator skills stay visible, and that
+// every procedural skill in a shipped plugin carries both hiding flags.
+func skillVisibilityProblems(file string, doc map[string]any) []problem {
+	m := skillFile.FindStringSubmatch(filepath.ToSlash(file))
+	if m == nil {
+		return nil
+	}
+	plugin, dir := m[1], m[2]
+	dscRaw, hasDSC := doc["disable-slash-command"]
+	uiRaw, hasUI := doc["user-invocable"]
+	dsc, dscBool := dscRaw.(bool)
+	ui, uiBool := uiRaw.(bool)
+
+	if operatorSkills[plugin+"/"+dir] {
+		if hasDSC || hasUI {
+			return []problem{problem(fmt.Sprintf(
+				"%s: operator skill `/%s:%s` carries hiding flags (`disable-slash-command` / `user-invocable`). Everything that was a command is intended to be visible — do not mark former commands hidden.",
+				file, plugin, dir))}
+		}
+		return nil
+	}
+	if shippedPlugins[plugin] {
+		if !hasDSC || !dscBool || !dsc || !hasUI || !uiBool || ui {
+			return []problem{problem(fmt.Sprintf(
+				"%s: internal procedural skill `/%s:%s` must carry both `disable-slash-command: true` (Antigravity) and `user-invocable: false` (Claude Code) so it stays out of the `/` menu in both harnesses.",
+				file, plugin, dir))}
+		}
+		return nil
+	}
+	if hasDSC || hasUI {
+		if !hasDSC || !dscBool || !dsc || !hasUI || !uiBool || ui {
+			return []problem{problem(fmt.Sprintf(
+				"%s: slash-command hiding requires both `disable-slash-command: true` and `user-invocable: false` together so Claude Code and Antigravity agree.",
+				file))}
+		}
+	}
+	return nil
+}
+
 // agentListKeys are the agent frontmatter fields Antigravity's loader decodes as `[]string`.
 var agentListKeys = []string{"tools", "skills"}
 
+// antigravityTools are the Antigravity built-in tool registry names verified against `agy -p --agent`.
+// Putting a Claude Code tool name (e.g. Read, Bash) in plugins/*/agents/*.md causes Antigravity to
+// fail executor construction (`unknown component: tool "Read" not found in registry`), even though
+// `agy plugin validate --strict` and `agy agents` do not catch it.
+var antigravityTools = map[string]bool{
+	"read_file":        true,
+	"write_file":       true,
+	"edit_file":        true,
+	"grep_search":      true,
+	"find_by_name":     true,
+	"list_dir":         true,
+	"run_command":      true,
+	"search_web":       true,
+	"read_url_content": true,
+}
+
+// claudeTools are the Claude Code built-in tool names allowed in plugins/*/agents-claude/*.md.
+var claudeTools = map[string]bool{
+	"Read":       true,
+	"Write":      true,
+	"Edit":       true,
+	"Glob":       true,
+	"Grep":       true,
+	"Bash":       true,
+	"WebSearch":  true,
+	"WebFetch":   true,
+	"ToolSearch": true,
+}
+
 // agentToolsProblems refuses an agent whose `tools` or `skills` frontmatter field is not a YAML
-// sequence of non-empty strings.
-//
-// Antigravity's loader unmarshals these fields into `[]string` and skips the entire agent when
-// one is a comma-separated scalar (`cannot unmarshal !!str ... into []string`) — the agent
-// vanishes from `agy agents` and nothing else says so. A YAML sequence
-// (`tools: [Read, Write, Bash]`) loads in both Claude Code and Antigravity.
+// sequence of non-empty strings, and verifies every tool name belongs to the target harness's
+// tool registry (`agents/` -> Antigravity, `agents-claude/` -> Claude Code).
 func agentToolsProblems(file string, doc map[string]any) []problem {
-	if !agentFile.MatchString(filepath.ToSlash(file)) {
+	slash := filepath.ToSlash(file)
+	if !agentFile.MatchString(slash) {
 		return nil
 	}
 	var problems []problem
@@ -170,11 +265,25 @@ func agentToolsProblems(file string, doc map[string]any) []problem {
 			continue
 		}
 		for _, it := range items {
-			if s, ok := it.(string); !ok || strings.TrimSpace(s) == "" {
+			s, ok := it.(string)
+			if !ok || strings.TrimSpace(s) == "" {
 				problems = append(problems, problem(fmt.Sprintf(
 					"%s: every entry in `%s` must be a non-empty string, got %v.",
 					file, key, it)))
 				break
+			}
+			if key != "tools" {
+				continue
+			}
+			if agyAgentFile.MatchString(slash) && !antigravityTools[s] {
+				problems = append(problems, problem(fmt.Sprintf(
+					"%s: tool %q is not in Antigravity's tool registry (plugins/*/agents/*.md serves Antigravity; put Claude tool names in agents-claude/ and regenerate with `go -C scripts run ./agentgen`).",
+					file, s)))
+			}
+			if claudeAgentFile.MatchString(slash) && !claudeTools[s] {
+				problems = append(problems, problem(fmt.Sprintf(
+					"%s: tool %q is not a known Claude Code tool (plugins/*/agents-claude/*.md serves Claude Code).",
+					file, s)))
 			}
 		}
 	}

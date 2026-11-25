@@ -5,7 +5,7 @@ import (
 )
 
 // A DELIVERY OF REPORT TEXT IS ONE ROW PER SEAT AND SITTING, AND ONLY A LENS'S, THE CHAIR'S OR THE
-// BENCH'S (EventSchema 79). The write refuses a second report_read in a seat's sitting and one under
+// BENCH'S (EventSchema 80). The write refuses a second report_read in a seat's sitting and one under
 // any other seat, so an archived sitting holding several serves keeps its latest and drops the rest,
 // and a serve under any other seat is dropped; the manifest counts each in events_in and none in
 // events_out. An archived report_read was a serve of the whole report through stdout, and reads as a

@@ -1,28 +1,18 @@
-// Package modeltier is the model-tier vocabulary: which price row a model string belongs to,
-// which of two rows is dearer, and what tiers a run was CONFIGURED to use.
+// Package modeltier is the model vocabulary: which price row a model string belongs to, which of
+// two rows is dearer, whether a served model is the configured one (SameModel), and the shape of one
+// seat's configured {harness, model} (SeatSpec) with its parse, its per-seat lookup and the one
+// expansion of a bulk and a judgment spec into seats. What a run was CONFIGURED to use is the run's
+// configuration, read through the record (record.ReadRunConfig, whose `seats` holds SeatSpec).
 //
-// # Why it is not in internal/cost
-//
-// It was, and it could not stay there. `cost` prices transcripts, so it imports `view`, which
-// imports `record` — and the tier check now has to run at `register`, inside `record` itself.
-// Importing cost from there is a cycle.
-//
-// The alternative was to let `record` re-derive the tier: another `strings.Contains(m, "opus")`
-// ladder and another pair of bare `model` / `judgmentModel` keys read out of run-config.json.
-// That is the defect this repository names most often — one fact, two hand-kept readers, drifting
-// silently — and the tier ladder is exactly the kind that drifts: it is a substring scan whose
-// miss returns the DEAREST row, so a copy that falls behind a new model name reports a plausible
-// tier rather than an error.
-//
-// So the vocabulary moved down to a leaf both sides can import, and `cost` keeps only what is
-// actually about money: the price rows keyed by the tier this package names.
+// The tier ladder lives here, apart from the prices in internal/cost, because it is a substring scan
+// whose miss returns the DEAREST row: a second copy that falls behind a new model name reports a
+// plausible tier rather than an error, so there is one copy. Its one dependency is the seat roster
+// (internal/seatclass), which says which seats a run configures and which class each is in.
 package modeltier
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -59,6 +49,25 @@ func Recognized(m string) bool {
 	return false
 }
 
+// AntigravityTiers are the model tiers Antigravity's run_workflow agent() primitive accepts.
+var AntigravityTiers = []string{"inherit", "flash_lite", "flash", "pro"}
+
+// RecognizedAntigravity reports whether m is one of the model tiers run_workflow's agent() accepts.
+func RecognizedAntigravity(m string) bool {
+	for _, t := range AntigravityTiers {
+		if m == t {
+			return true
+		}
+	}
+	return false
+}
+
+// RecognizedAntigravityServed reports whether a served model id maps to a known Antigravity tier
+// (flash_lite, flash, or pro).
+func RecognizedAntigravityServed(served string) bool {
+	return SameModel("flash_lite", served) || SameModel("flash", served) || SameModel("pro", served)
+}
+
 // Rank is a tier's position on the ladder. A tier not on it ranks dearest, matching Of's fallback.
 func Rank(tier string) int {
 	for i, k := range Order {
@@ -72,7 +81,8 @@ func Rank(tier string) int {
 // Dearer reports whether tier a costs more than tier b.
 func Dearer(a, b string) bool { return Rank(a) > Rank(b) }
 
-// SeatSpec is one seat's configured harness and model in inputs/run-config.json.
+// SeatSpec is one seat's configured harness and model: the value of each entry of the run
+// configuration's `seats` (record.RunConfig.Seats), which the record reads strictly.
 type SeatSpec struct {
 	Harness string `json:"harness"`
 	Model   string `json:"model"`
@@ -106,20 +116,52 @@ func ParseSeatSpec(raw string) (SeatSpec, error) {
 	return SeatSpec{Harness: "claude", Model: raw}, nil
 }
 
-// SeatConfigs reads the per-seat {harness, model} map from inputs/run-config.json (nil if absent
-// or unparseable) — the ONE place the run-config seats map is read.
-func SeatConfigs(runDir string) map[string]SeatSpec {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
-	if err != nil {
-		return nil
+// TieredSeats is the per-seat map a bulk and a judgment spec stand for: every configurable seat
+// (Seats) on the spec of its class, the judgment spec for a judgment seat and the bulk spec for
+// every other. A zero spec configures no seat of its class. It is the ONE expansion of the two
+// class specs into seats: setup's --bulk/--judgment, the engine probe's tiered run, and
+// feov-migrate's reshaping of an archived `model`/`judgmentModel` pair all go through it.
+func TieredSeats(bulk, judgment SeatSpec) map[string]SeatSpec {
+	out := map[string]SeatSpec{}
+	for _, id := range Seats() {
+		spec := bulk
+		if seatclass.ClassOf(baseOf(id)) == "judgment" {
+			spec = judgment
+		}
+		if spec != (SeatSpec{}) {
+			out[id] = spec
+		}
 	}
-	var cfg struct {
-		Seats map[string]SeatSpec `json:"seats"`
+	return out
+}
+
+// Seats is every seat a run configures a model for, sorted: the lane base (blue-lane, which
+// LookupSeat resolves each numbered lane through) and every roster seat with a base.
+func Seats() []string {
+	keys := []string{seatclass.Lane.Base}
+	for id, s := range seatclass.Seats {
+		if s.Base != "" && id != seatclass.Lane.Base {
+			keys = append(keys, id)
+		}
 	}
-	if json.Unmarshal(b, &cfg) != nil || len(cfg.Seats) == 0 {
-		return nil
+	sort.Strings(keys)
+	return keys
+}
+
+// Configurable reports whether seatID is a seat a run configures a model for (Seats).
+func Configurable(seatID string) bool {
+	if seatID == seatclass.Lane.Base {
+		return true
 	}
-	return cfg.Seats
+	s, ok := seatclass.Seats[seatID]
+	return ok && s.Base != ""
+}
+
+func baseOf(seatID string) string {
+	if seatID == seatclass.Lane.Base {
+		return seatclass.Lane.Base
+	}
+	return seatclass.Seats[seatID].Base
 }
 
 // LookupSeat returns the SeatSpec for seatID, resolving numbered lane instances (blue-lane-1, ...)
@@ -139,13 +181,27 @@ func LookupSeat(seats map[string]SeatSpec, seatID string) (SeatSpec, bool) {
 }
 
 // SameModel reports whether a served model matches the configured model: Anthropic tier match
-// when both are recognized Anthropic tiers, and exact case-insensitive ID match otherwise.
+// when both are recognized Anthropic tiers, Antigravity run_workflow tier match when configured
+// is an Antigravity tier, and exact case-insensitive ID match otherwise.
 func SameModel(configured, served string) bool {
 	if configured == "" || served == "" {
 		return false
 	}
 	if Recognized(configured) && Recognized(served) {
 		return Of(configured) == Of(served)
+	}
+	if RecognizedAntigravity(configured) {
+		s := strings.ToLower(strings.TrimSpace(served))
+		switch configured {
+		case "inherit":
+			return s != ""
+		case "flash_lite":
+			return strings.Contains(s, "flash-lite") || strings.Contains(s, "flash_lite")
+		case "flash":
+			return strings.Contains(s, "flash") && !strings.Contains(s, "flash-lite") && !strings.Contains(s, "flash_lite")
+		case "pro":
+			return strings.Contains(s, "pro")
+		}
 	}
 	return strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(served))
 }
