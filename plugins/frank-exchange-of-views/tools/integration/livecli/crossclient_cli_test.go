@@ -19,6 +19,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 func requireLiveCLI(t *testing.T, needClaude, needAgy bool) (claudeBin, agyBin string) {
@@ -30,14 +31,14 @@ func requireLiveCLI(t *testing.T, needClaude, needAgy bool) (claudeBin, agyBin s
 		var err error
 		claudeBin, err = exec.LookPath("claude")
 		if err != nil {
-			t.Skip("claude CLI not found on PATH; skipping live Claude test")
+			t.Fatalf("claude CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 		}
 	}
 	if needAgy {
 		var err error
 		agyBin, err = exec.LookPath("agy")
 		if err != nil {
-			t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+			t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 		}
 	}
 	return claudeBin, agyBin
@@ -123,28 +124,14 @@ func copyFileIfPresent(src, dst string, mode os.FileMode) {
 
 func newIsolatedAgyHome(t *testing.T) string {
 	t.Helper()
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("real home: %v", err)
+	fakeHome := testhome.NewLiveHome(t)
+	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
+		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	cliSrc := filepath.Join(realHome, ".gemini", "antigravity-cli")
-	if _, err := os.Stat(filepath.Join(cliSrc, "antigravity-oauth-token")); err != nil {
-		t.Skipf("antigravity-oauth-token not found under %s: skipping live agy test", cliSrc)
-	}
-
-	fakeHome := t.TempDir()
 	cliDst := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
-	if err := os.MkdirAll(cliDst, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"antigravity-oauth-token", "antigravity_state.pbtxt", "installation_id"} {
-		copyFileIfPresent(filepath.Join(cliSrc, name), filepath.Join(cliDst, name), 0o600)
-	}
 	if err := os.WriteFile(filepath.Join(cliDst, "settings.json"), []byte(`{"toolPermission":"always-proceed"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// Preserve Claude subscription credentials if present so setup billing checks run cleanly.
-	copyFileIfPresent(filepath.Join(realHome, ".claude", ".credentials.json"), filepath.Join(fakeHome, ".claude", ".credentials.json"), 0o600)
 	return fakeHome
 }
 
@@ -159,27 +146,9 @@ func cleanEnv(extra ...string) []string {
 	return append(env, extra...)
 }
 
-func agyEnv(fakeHome string) []string {
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "CLAUDE_") ||
-			strings.HasPrefix(e, "ANTIGRAVITY_") || strings.HasPrefix(e, "XDG_") ||
-			strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") ||
-			strings.HasPrefix(e, "GOMODCACHE=") || strings.HasPrefix(e, "GOFLAGS=") {
-			continue
-		}
-		env = append(env, e)
-	}
-	gc, _ := exec.Command("go", "env", "GOCACHE").Output()
-	gmc, _ := exec.Command("go", "env", "GOMODCACHE").Output()
-	env = append(env, "HOME="+fakeHome, "GOFLAGS=-modcacherw")
-	if s := strings.TrimSpace(string(gc)); s != "" {
-		env = append(env, "GOCACHE="+s)
-	}
-	if s := strings.TrimSpace(string(gmc)); s != "" {
-		env = append(env, "GOMODCACHE="+s)
-	}
-	return env
+func agyEnv(t *testing.T, fakeHome string) []string {
+	t.Helper()
+	return testhome.LiveEnv(t, fakeHome)
 }
 
 func newUUID(t *testing.T) string {
@@ -279,7 +248,7 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	modelsCmd := exec.CommandContext(ctx, agyBin, "models")
-	modelsCmd.Env = agyEnv(fakeHome)
+	modelsCmd.Env = agyEnv(t, fakeHome)
 	modelsOut, err := modelsCmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("agy models failed: %v\n%s", err, modelsOut)
@@ -298,7 +267,7 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	workDir := t.TempDir()
 	initGitRepo(t, workDir)
 	sessionID := newUUID(t)
-	setupEnv := append(agyEnv(fakeHome), seatenv.SessionVar+"="+sessionID)
+	setupEnv := append(agyEnv(t, fakeHome), seatenv.SessionVar+"="+sessionID)
 
 	// 1. Unknown Antigravity model MUST fail live model validation with exit 2 and create nothing.
 	badRunDir := filepath.Join(workDir, "research", "bad-agy-model")
@@ -462,7 +431,7 @@ func TestLiveCrossClientTranscriptIngestionCostAndServedModel(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	agyCmd.Dir = agyWork
-	agyCmd.Env = agyEnv(fakeHome)
+	agyCmd.Env = agyEnv(t, fakeHome)
 	if out, err := agyCmd.CombinedOutput(); err != nil {
 		t.Fatalf("agy -p failed: %v\n%s", err, out)
 	}
@@ -530,7 +499,7 @@ func TestLiveCrossClientShippedFEOVHooks(t *testing.T) {
 		"--cite", "README.md",
 	)
 	setupCmd.Dir = workDir
-	setupCmd.Env = append(agyEnv(fakeHome), seatenv.SessionVar+"="+leadSession)
+	setupCmd.Env = append(agyEnv(t, fakeHome), seatenv.SessionVar+"="+leadSession)
 	if out, err := setupCmd.CombinedOutput(); err != nil {
 		t.Fatalf("feov-record setup failed: %v\n%s", err, out)
 	}
@@ -569,7 +538,7 @@ func TestLiveCrossClientShippedFEOVHooks(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	agyCmd.Dir = workDir
-	agyCmd.Env = agyEnv(fakeHome)
+	agyCmd.Env = agyEnv(t, fakeHome)
 	var agyBuf bytes.Buffer
 	agyCmd.Stdout = &agyBuf
 	agyCmd.Stderr = &agyBuf

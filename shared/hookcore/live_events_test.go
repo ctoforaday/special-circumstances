@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // agyWorld is an isolated Antigravity home with one plugin installed and a workspace to run in.
@@ -19,8 +21,9 @@ type agyWorld struct {
 	env             []string
 }
 
-// newAgyWorld returns an isolated agy home holding the caller's credentials, or skips. Tool calls
-// proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
+// newAgyWorld returns an isolated agy home holding the caller's credentials, failing closed under
+// HOOKCORE_LIVE=1 if agy or credentials are missing. Tool calls proceed without prompting — the
+// setting a headless run needs, scoped to this throwaway home.
 func newAgyWorld(t *testing.T) *agyWorld {
 	t.Helper()
 	if os.Getenv("HOOKCORE_LIVE") != "1" {
@@ -31,15 +34,15 @@ func newAgyWorld(t *testing.T) *agyWorld {
 	}
 	bin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy binary not found on PATH: %v", err)
+		t.Fatalf("agy binary not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
-	w := &agyWorld{bin: bin, home: t.TempDir(), work: t.TempDir()}
+	w := &agyWorld{bin: bin, home: testhome.NewLiveHome(t), work: t.TempDir()}
 	copyAgyCredentials(t, w.home)
 	settings := filepath.Join(w.home, ".gemini", "antigravity-cli", "settings.json")
 	if err := os.WriteFile(settings, []byte(`{"toolPermission":"always-proceed"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	w.env = liveTestEnv(w.home)
+	w.env = liveTestEnv(t, w.home)
 	return w
 }
 

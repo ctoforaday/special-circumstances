@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 type marketplaceEntry struct {
@@ -73,7 +75,7 @@ func readMarketplacePinSpecs(t *testing.T, repoRoot string) []marketplacePinSpec
 func installArchivedPluginsForAgy(t *testing.T, agyBin, fakeHome, repoRoot string, pins []marketplacePinSpec) string {
 	t.Helper()
 	extractBase := t.TempDir()
-	env := liveTestEnv(fakeHome)
+	env := liveTestEnv(t, fakeHome)
 
 	for _, pin := range pins {
 		tarPath := filepath.Join(extractBase, pin.Name+".tar")
@@ -159,7 +161,7 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+		t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 	repoRoot, err := filepath.Abs("../..")
 	if err != nil {
@@ -171,10 +173,10 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 	pins := readMarketplacePinSpecs(t, repoRoot)
 
 	t.Run("installed plugins fetch official binaries and enforce hooks in-repo", func(t *testing.T) {
-		fakeHome := t.TempDir()
+		fakeHome := testhome.NewLiveHome(t)
 		copyAgyCredentials(t, fakeHome)
 		installArchivedPluginsForAgy(t, agyBin, fakeHome, repoRoot, pins)
-		env := liveTestEnv(fakeHome)
+		env := liveTestEnv(t, fakeHome)
 
 		// Turn 1: SessionStart fires fetch-bin.sh in the background against the installed copies.
 		ctx1, cancel1 := context.WithTimeout(context.Background(), 90*time.Second)
@@ -280,10 +282,10 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 			t.Fatal("gray-area not found in marketplace pins")
 		}
 
-		fakeHome := t.TempDir()
+		fakeHome := testhome.NewLiveHome(t)
 		copyAgyCredentials(t, fakeHome)
 		extractBase := installArchivedPluginsForAgy(t, agyBin, fakeHome, repoRoot, []marketplacePinSpec{gaPin})
-		env := liveTestEnv(fakeHome)
+		env := liveTestEnv(t, fakeHome)
 
 		// Build a minimal source-tree workspace WITH .agents/plugins.json restored.
 		shadowWS := t.TempDir()

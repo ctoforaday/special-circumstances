@@ -16,6 +16,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/telecli"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // TestLiveAntigravityLinkAndSend drives the shipped hook and both binaries through a real agy:
@@ -39,25 +40,14 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	}
 	agy, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy not found on PATH: %v", err)
+		t.Fatalf("agy not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip(err)
+	home := testhome.NewLiveHome(t)
+	work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir()
+	if err := testhome.StageAgyAccessToken(home); err != nil {
+		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	token := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(token); err != nil {
-		t.Skipf("no agy credentials at %s", token)
-	}
-
-	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
 	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
-	copyFile(t, token, filepath.Join(agyDir, "antigravity-oauth-token"), 0o600)
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		if _, err := os.Stat(filepath.Join(realHome, ".gemini", "antigravity-cli", extra)); err == nil {
-			copyFile(t, filepath.Join(realHome, ".gemini", "antigravity-cli", extra), filepath.Join(agyDir, extra), 0o600)
-		}
-	}
 	// Tool calls proceed without prompting: the setting a headless run needs, scoped to this home.
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
 
@@ -80,16 +70,7 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	}
 	telepathy := filepath.Join(plugin, "bin", "telepathy")
 
-	var env []string
-	for _, e := range os.Environ() {
-		k, _, _ := strings.Cut(e, "=")
-		if k == "HOME" || strings.HasPrefix(k, "CLAUDE_") || strings.HasPrefix(k, "FEOV_") ||
-			strings.HasPrefix(k, "ANTIGRAVITY_") || strings.HasPrefix(k, "XDG_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env, "HOME="+home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
+	env := testhome.LiveEnv(t, home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
 
 	turn := func(conv, prompt string) string {
 		t.Helper()
@@ -266,25 +247,14 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	}
 	agy, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy not found on PATH: %v", err)
+		t.Fatalf("agy not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
-	realHome, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip(err)
+	home := testhome.NewLiveHome(t)
+	work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir()
+	if err := testhome.StageAgyAccessToken(home); err != nil {
+		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	token := filepath.Join(realHome, ".gemini", "antigravity-cli", "antigravity-oauth-token")
-	if _, err := os.Stat(token); err != nil {
-		t.Skipf("no agy credentials at %s", token)
-	}
-
-	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
 	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
-	copyFile(t, token, filepath.Join(agyDir, "antigravity-oauth-token"), 0o600)
-	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
-		if _, err := os.Stat(filepath.Join(realHome, ".gemini", "antigravity-cli", extra)); err == nil {
-			copyFile(t, filepath.Join(realHome, ".gemini", "antigravity-cli", extra), filepath.Join(agyDir, extra), 0o600)
-		}
-	}
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
 
 	src, err := filepath.Abs("../../..")
@@ -305,16 +275,7 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	}
 	telepathy := filepath.Join(plugin, "bin", "telepathy")
 
-	var env []string
-	for _, e := range os.Environ() {
-		k, _, _ := strings.Cut(e, "=")
-		if k == "HOME" || strings.HasPrefix(k, "CLAUDE_") || strings.HasPrefix(k, "FEOV_") ||
-			strings.HasPrefix(k, "ANTIGRAVITY_") || strings.HasPrefix(k, "XDG_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env, "HOME="+home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
+	env := testhome.LiveEnv(t, home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
 
 	listBrain := func() map[string]bool {
 		m := map[string]bool{}

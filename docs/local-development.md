@@ -285,11 +285,18 @@ HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveAntigravity' .
 HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
 ```
 
-Each agy test runs in a throwaway home holding a copy of your agy credentials, on
-`gemini-3.8-flash-low`, a few turns at a time. Run them after a change to hookcore's Antigravity
-paths, to a plugin's root `hooks.json`, or to `telepathy send`/`link`, and after an agy upgrade. A
-model-driven assertion can miss on one run, so a single red is a reason to read the test's log
-before it is a verdict.
+Each live test runs in a throwaway home created with `shared/testhome.NewLiveHome` and
+`LiveEnv`/`LiveClaudeEnv`, holding only a short-lived access token (Claude via
+`CLAUDE_CODE_OAUTH_TOKEN`, Antigravity via a minimal refresh-stripped token file, never copying
+refresh tokens into temp homes, `#1890`). Both hosts must be signed in (`claude auth login` and
+`agy`) with at least 15 minutes remaining on their access tokens; `StageAgyAccessToken` auto-renews
+a short or expired host Antigravity access token under a cross-process lock via one host turn (or
+renew manually with `agy -p ok --model gemini-3.8-flash-low`; renew Claude with `claude auth login`
+or `claude -p "Reply with the single word ok" --model haiku --max-turns 1` in your real HOME). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable
+credentials fail closed rather than skipping. Run them on `gemini-3.8-flash-low`, a few turns at a
+time. Run them after a change to hookcore's Antigravity paths, to a plugin's root `hooks.json`, or
+to `telepathy send`/`link`, and after an agy upgrade. A model-driven assertion can miss on one run,
+so a single red is a reason to read the test's log before it is a verdict.
 
 ## Environment that will bite you
 
