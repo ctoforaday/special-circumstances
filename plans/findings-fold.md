@@ -180,7 +180,7 @@ a gap schema; "lens era" = the 24 from 2026-10-09; its 48 docket rows are anothe
 | proposals by blue (§III.B2) | 10; the minter would accept 0; 5 lack a prior exchange | kept: they mirror the raiser's offer of text |
 | section gaps (§III.B0) | 12 in 9 runs; whether each heading stood at the mint NOT MEASURED | kept: their rarity is the missing anchor |
 | grade-movement docketing (§III.B4) | 0 archived; 8 on replay, all before the rule went live (2026-10-20) | kept pending the grade investigation (§VI) |
-| the anchor lock (§III.B5) | 22 blue acts refused on 12 dockets; 9 other gaps wait | the lock; one docketing per chain |
+| the freeze on report subjects (§III.B5) | 22 blue acts refused on 12 dockets; 9 other gaps wait (a whole-subject count, an upper bound under F-FREEZE) | the statement hold |
 | last-epoch rulings (§III.B4) | 3 at epoch ≥ 11, 2 with no Part B cell; 0 remands there | `lensSitsAfter`; F-LAST |
 
 The bench's first ruling on each of the 48: repaired 23, repaired_with_regression 7, defect_owed_elsewhere 7,
@@ -237,13 +237,11 @@ R1 takes 81, or `main`'s + 1 after a merge (check 2); `protogen`, `schemagen`, `
 - Rows A01–A12 and A13 (appendix): every writer, reader, view, anchor kind, item kind
   (`finding_on_gap`), help page and agent text of the finding goes. A small defect is taught as a gap
   graded below medium in a `by_grade` class.
-- **Redirects name the refused seat's road, per case** (audit p3-A gap 2). Part A lands with Part B,
-  so the dispute road is Part B's proposed act; no redirect names a finding or a docket motion
-  without an act. `oneGapRefusal(m, g, subject)` (`onegapperclass.go:199`; five arms,
-  `:80,105,123,144,154`) gains the refused seat as a parameter — its callers hold it, the
-  `seatID` of `requireOneGapPerClassAndSubject` — and already holds G's minter (`heldGap`); G's
-  exchange count is one read (`GapExchanges`), so the tool states the road rather than the seat
-  working it out:
+- **Redirects name the refused seat's road, per case** (audit p3-A gap 2). Part A lands with Part B, so the dispute
+  road is Part B's proposed act; no redirect names a finding or a docket motion without an act. `oneGapRefusal(m, g,
+  subject)` (`onegapperclass.go:199`; five arms, `:80,105,123,144,154`) gains the refused seat as a parameter — its
+  callers hold it, the `seatID` of `requireOneGapPerClassAndSubject` — and already holds G's minter (`heldGap`); G's
+  exchange count is one read (`GapExchanges`), so the tool states the road rather than the seat working it out:
   - **G is the refused seat's own** (seat = G's minter): "Gap G is yours and is open on <subject>
     with class <c>: <problem>. To restate its defect, supersede it (`mint --supersedes G`); to
     reweigh it, regrade it. Nothing was written."
@@ -260,7 +258,7 @@ R1 takes 81, or `main`'s + 1 after a merge (check 2); `protogen`, `schemagen`, `
   (§III.B2); the own-gap case cannot arise there (it admits the minter). Its closed-ancestor refusal
   names the new gap as the road (§III.B2).
   `requireSupersededOffDocket`'s refusal ("what you found goes in your closing argument") states
-  that the parties' statements hold until the ruling (§III.B5).
+  that the parties' statements hold until the ruling or a party's concession (§III.B5).
 - **The voice lens's composed-source audit** (`composedsource.go:28-30`, `red-lens-voice.md:15`, ruled
   2026-11-10): narration in another lens's gap row is the voice lens's gap on that gap, raised to its
   minter (§III.B7, X13), as the 2026-11-10 ruling had it reach the minter.
@@ -433,15 +431,17 @@ keep one table. On a gap subject the raiser's statement may hold grades; they ad
 `--for-raiser` applies them with any wording as one act of A's (§III.B0), under the same
 `lensSitsAfter`.
 
-**Every docketing has an answer that lands, in every sitting:** impasse and a close proposal —
-`--for-author`; a regrade proposal — `--for-raiser`; grade movement — `--keep`. No cell depends on
-`lensSitsAfter` but a raiser's applied statement (wording, grades or both), and on `partiesSitAfter` but a
-remand. Oracle `side_stated_nothing` excludes the regrade proposal's `--for-raiser`: the raiser's grades
-are on the record. **A concession is no answer of the bench, and the proof needs none:** it ends D at the
-conceding act's row (G's non-carry `Close`, the built end; the author's act carrying `answers = G` and `accepted`);
-then no D stands for `benchHeld`, no closing is owed and a ruling is refused. After the author's, G stays open and any
-docketing waits on the raiser's owed re-audit (`lensFirst`, built); the raiser closes G, or, kept at its limits, G is
-docketed again and `--for-raiser` finds the statement applied (`requireRoadApplied`, built) and closes it `repaired`.
+**Every docketing has an answer that lands, in every sitting:** impasse and a close proposal — `--for-author`; a
+regrade proposal — `--for-raiser`; grade movement — `--keep`. No cell depends on `lensSitsAfter` but a raiser's
+applied statement (wording, grades or both), and on `partiesSitAfter` but a remand. Oracle `side_stated_nothing`
+excludes the regrade proposal's `--for-raiser`: the raiser's grades are on the record. **A concession is no answer of
+the bench, and the proof needs none:** it ends D at the conceding act's row (G's non-carry `Close`, the built end; the
+author's act carrying `answers = G` and `accepted`); then no D stands for `benchHeld`, no closing is owed and a ruling
+is refused. After the author's, G stays open and any docketing waits on the raiser's owed re-audit (`lensFirst`,
+built); the raiser closes G, or, kept at its limits, G is docketed again and `--for-raiser` finds the statement
+applied (`requireRoadApplied`'s already-applied arm: built for a pair and a retire, [NEW] for a fate, coverage,
+wording or grades the record holds) and closes it `repaired` (F-CONCEDE). Under `Docketing{PROPOSAL, M}` the raiser's
+close ends M with D, unruled, as the built proposal-standing rule reads a close (`gapstate.go:242-248`).
 
 **Justified asymmetries** (the review's J1–J5, each with its reason): silence (above); grade movement
 has no parties (its moves may be any party's, #1646); a regrade ruling leaves G open (applying the
@@ -600,8 +600,9 @@ While D stands on G, an act on S lands only if every statement stated at D still
 - the raiser's own amend and regrade of G are refused while a docketing or a proposal stands on G, and its close while
   a proposal stands undocketed, but the act carrying `accepts = M` of the standing proposal. Built for the amend
   (`requireSupersededOffDocket`, which excepts M) and the close (`requireNoStandingDocket`, `actjudge.go:118`, which
-  gains that exception and loses its docketing arm). **[NEW] for the regrade**, which meets no such check (validate's
-  arm `record.go:1242-1262`, judgeAct, `cli/seat/regrade.go`, the help): judgeAct's `Regrade` arm calls
+  gains that exception; judgeAct's close arm asks only its proposal arm, since a close under a docketing is the
+  concession, and its docketing refusal names the concession). **[NEW] for the regrade**, which meets no such check
+  (validate's arm `record.go:1242-1262`, judgeAct, `cli/seat/regrade.go`, the help): judgeAct's `Regrade` arm calls
   `requireNoStandingDocket`, the bench's regrade and a ruling's application exempt. Migrate's replay runs no judgeAct,
   so R0 measures it (§III.B8 (2));
 - **the lock** (picked 2026-11-25, "lock the anchor"; F-FREEZE keeps statements held for every report
@@ -759,10 +760,10 @@ Owed by this spec, each one translation with a test on an archived run:
   `view/view.go:622`, `benchanswer.go:213`, `docketing.go:504`, `gapacts.go`, `impasse.go`. Seat-class
   hits (`blue-respond`'s inquiry, question, failed-check and held-out duties; debate.js `roleOfParty`
   and `closingsOnly`) are M27's O lines.
-- **Agent text** (`scripts/agentgen/src/*`, then `agentgen`): `lead-judge.md` (sides by party, not role;
-  the predicate), `red-chair.md`, `fragments/lens-duties.md`, `fragments/lens-audit-and-mint.md`
-  (accept by your own act; your gap on another lens's gap; your turn), `red-lens-voice.md:15`,
-  `blue-researcher.md`.
+- **Agent text** (`scripts/agentgen/src/*`, then `agentgen`): `lead-judge.md` (sides by party, not role; the
+  predicate), `red-chair.md`, `fragments/lens-duties.md`, `fragments/lens-audit-and-mint.md` (accept by your own act;
+  your gap on another lens's gap; your turn; your close of a docketed gap concedes), `red-lens-voice.md:15`,
+  `blue-researcher.md` (your `--accept G` of a docketed gap's statement concedes).
 - **`debate.js`** (`enginegen` regions and authored prose): the lens prompt's proposal and turn
   sentences; the terminal prompt (`prompt-judge-terminal.golden`): for-raiser applies nothing there.
 - **`terms.json`** (then `vocabgen`, `vocabdoc`): `raiser`, `author` added; `side`, `docket motion`,
@@ -793,7 +794,7 @@ Oracles (any count fails): `docketing_without_landing_answer`, `statement_applie
 | T-B48 `TestTheRaiserAcceptsByItsOwnAct` [NEW] (replaces T-B5–T-B7's accept rows) | `regrade --accept M`, `close --accept M` write the act with `accepts = M`, every M10 effect, no `MotionRule`; an accepted M reads as answered in every M26 (15) reader (no `Docketing{PROPOSAL}` at the window's end, F5 admits the next filing, `Ruled()` true); a second answer refused; refused while docketed; an unaccepted M docketed at the window's end; B's accept of A's proposal on G2; `--accept` with an `M-` and a `G-` id each resolves its kind, any other refused | an accept writes a ruling, or skips a check |
 | T-B49 `TestTheAuthorAcceptsTheRaisersStatement` [NEW] | per kind (a gap's wording and its grades each), `--accept G` writes the stated bytes and `answers = G`, and an estoppel row exactly where the statement is a pair; while docketed it lands; `--accept` resolves a `G-` id as a gap; `accepted` set on each; a composed section's accept writes one `Inquiry` per stated fate; a hand-written edit equal to the stated text lands under the freeze, answers and concedes nothing and places no estoppel row | a kind has no accept, one writes other bytes, or a comparison places a bar |
 | T-B45 `TestAChangeToAGapsSubjectIsItsLensTurn` (amended) | per row of §III.B0, an unnamed change readies the raiser, resets no stall, discharges no remand; the named act answers; an inquiry fate, a coverage and a reaching retire without `answers` are turns; an edit meeting a section, the heading's rename included, is its turn and one outside it is not; an owed-but-frozen item readies its seat once per cause, per kind | a turn moves a stall or a named act does not |
-| T-B50 `TestEveryDocketingHasALandingAnswer` [NEW] (replaces T-B46's open case) | each positions-table cell × {dispatched, held-out, terminal, assembly}, a gap subject's grade statement included: what lands and what is refused, naming the reason; `--restore` where every axis nets to zero lands with no `Regrade`; the raiser's regrade and amend of G under each cause, and its close under a standing proposal, refused naming it, its `--accept M` landing; per cause and subject kind, each party's concession (the raiser's close; the author's `--accept G`, none at a regrade proposal or grade movement) ends D with no ruling, after which a ruling is refused and no closing is owed; after the author's, G's docketing waits on the raiser's re-audit; a composed section's stated fates apply on `--for-raiser` | a docketing has no landing answer, a statement lands where no lens sits after, the raiser moves G while it stands but by its close, or a concession leaves D standing |
+| T-B50 `TestEveryDocketingHasALandingAnswer` [NEW] (replaces T-B46's open case) | each positions-table cell × {dispatched, held-out, terminal, assembly}, a gap subject's grade statement included: what lands and what is refused, naming the reason; `--restore` where every axis nets to zero lands with no `Regrade`; the raiser's regrade and amend of G under each cause, and its close under a standing proposal, refused naming it, its `--accept M` landing; per cause and subject kind, each party's concession (the raiser's close; the author's `--accept G`, none at a regrade proposal or grade movement) ends D with no ruling, after which a ruling is refused and no closing is owed; the raiser's close under a proposal docketing ends M unruled; after the author's, G's docketing waits on the raiser's re-audit; a composed section's stated fates apply on `--for-raiser` | a docketing has no landing answer, a statement lands where no lens sits after, the raiser moves G while it stands but by its close, or a concession leaves D standing |
 | T-B46 `TestNoRaiserStatementLandsWhereNoLensSitsAfter` (amended) | `--for-raiser` applying a statement and `--remand` refused in the held-out epoch's and final epoch's sittings and the assembly; per author kind, a remand in the epoch before the held-out one: refused with blue the author, admitted with a lens; for-raiser admitted there; a party's report change in a closings-only sitting refused | either lands there or is refused before |
 | T-B51 `TestATombstoneEndsAtItsSubjectsNextChange` [NEW] | per subject kind, place a ruling tombstone, and an estoppel row where the kind takes one (a pair: sentence, anchor reword, section), then the author's change ends each and only that; a bench application ends none; a concession places no ruling tombstone | a kind keeps or ends wrongly |
 | T-B42 `TestEstoppelBindsOnlyThePrescribingLens` | per row of §III.B6's table, each tombstone refuses what its cell names and nothing else: the mint, the closing road and the reading discharge, for the prescriber and another lens; a closing's pair and a mint with no `fix_new` bar | a cell bars nothing, or another lens is barred |
@@ -950,7 +951,7 @@ Each is the lead's, disclosed with what flips; the spec above is written under i
 | F-CONSUME | Is the author bound once the raiser accepts its proposal? | no: the accept consumes the proposal (2026-11-25, disclosed) | party table; a re-proposal bar |
 | F-TWIN | One standing proposal per gap, or twins? | one (picked "One proposal", 2026-11-25; it sets aside the 11-23 ride-along "twins restored") | §III.B2's F5 |
 | F-COMPOSED | On an inquiry section assembly writes, what does the raiser state? | inquiry fates, each naming an inquiry it moves into or out of the section, as F-INQ rules for an inquiry gap (2026-11-25, lead call; replaces "none") | §III.B0's row, §III.B5's table, `missingText`, T-B49, T-B50 |
-| F-CONCEDE | What does a concession place? | what its act places anywhere: the author's accept of a pair its estoppel row, every other none; never a ruling tombstone, which marks a bench decision; consistent with F-CONSUME (the conceded-to party is unbound). A raiser that closed G may raise G's class on S again as a new gap at zero exchanges, stated | a concession tombstone barring the conceder until S's next change; §III.B6, T-B51 |
+| F-CONCEDE | What does a concession place? | what its act places anywhere: the author's accept of a pair its estoppel row, every other none; never a ruling tombstone, which marks a bench decision; consistent with F-CONSUME (the conceded-to party is unbound). A raiser that closed G may raise G's class on S again as a new gap at zero exchanges, stated. After the author's concession G stays open for its raiser to close, as after any accept | a concession tombstone barring the conceder until S's next change (§III.B6, T-B51); the author's concession closing G `repaired` |
 | F-REGRADE-ACCEPT | `regrade --accept` takes M (the raiser's accept, `accepts`) and G2 (A's accept of a grade statement, `answers`) on the same verb and gap: one flag or two? | one flag; the tool resolves the id as a motion or a gap (ids unique by construction) and refuses any other | §III.B2's accepts, §III.B9's `regrade` help, T-B48, T-B49 |
 
 **Peer notice owed (not sent; for the lead to route: `telepathy search 1830`, then `telepathy send`).** PR
