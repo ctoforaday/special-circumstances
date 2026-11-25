@@ -76,13 +76,18 @@ func (r *runner) handNext(seatID, agent string) {
 	lens := strings.HasPrefix(seatID, "red-lens-")
 	var queued map[string]bool
 	sitting := ""
+	var sittingID int64
 	if lens {
-		if w, err := record.WorkOfSeat(r.run(), "lens", seatID); err == nil {
+		// A LIST THAT DOES NOT READ IS SAID, never an oracle that silently holds nothing to account.
+		if w, err := record.WorkOfSeat(r.run(), "lens", seatID); err != nil {
+			r.noteActErr("queue oracle: " + seatID + "'s work list does not read before the writer runs: " + err.Error())
+		} else {
 			queued = map[string]bool{}
 			for _, e := range record.QueueOf(w) {
 				queued[e.Key] = true
 			}
-			sitting = fmt.Sprintf("%s#%s#%d", seatID, agent, w.SittingID())
+			sittingID = w.SittingID()
+			sitting = fmt.Sprintf("%s#%s#%d", seatID, agent, sittingID)
 		}
 	}
 	cmd := exec.Command(r.writer, "-run", r.runDir, "-phase", string(sittingwrite.Next),
@@ -110,8 +115,22 @@ func (r *runner) handNext(seatID, agent string) {
 		return
 	}
 	if lens && sitting != "" {
-		r.headMovesOnlyOnDischarge(seatID, sitting, queued, text)
+		r.headMovesOnlyOnDischarge(seatID, sitting, queued, text, r.writersRead(agent, sittingID))
 	}
+}
+
+// writersRead is the queue the writer read when it handed agent's sitting its current item, as it
+// stored it beside that item (sittingwrite.HandedOf), with the item's key; nil where it stored nothing.
+func (r *runner) writersRead(agent string, sitting int64) *handedRead {
+	key, queue, found, err := sittingwrite.HandedOf(r.runDir, agent, sitting)
+	if err != nil {
+		r.noteActErr("queue oracle: what the writer handed " + agent + " does not read: " + err.Error())
+		return nil
+	}
+	if !found {
+		return nil
+	}
+	return &handedRead{key: key, queue: queue}
 }
 
 // owesReportText is whether seatID's sitting is owed report text still to be handed: the head of its

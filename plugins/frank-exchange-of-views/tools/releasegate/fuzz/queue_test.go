@@ -3,6 +3,7 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -59,10 +60,25 @@ owed:
 	}
 }
 
+// handedRead is what the writer stored beside the item it handed last: the item's key, and the keys
+// queued in the read of the seat's list it handed it from.
+type handedRead struct {
+	key   string
+	queue []string
+}
+
 // headMovesOnlyOnDischarge holds the current item the writer named in text, what it handed the lens
 // after one of its calls to the record (handNext), to the one handed before while that one is still
 // queued. sitting keys what was handed: a new sitting starts from the head of its queue.
-func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[string]bool, text string) {
+//
+// "STILL QUEUED" IS THE WRITER'S OWN READ where it stored the item this call handed (writer, whose key
+// is the current item's): the writer hands the head of the queue exactly when the item it handed before
+// is gone from its read, so the oracle holds it to that read. Two reads of the oracle's own around the
+// writer's cannot see an item that leaves the queue and returns between them — a gap minted on it and
+// closed, a sentence's mark placed and lifted by a sibling seat — and they read that as the writer
+// moving the head with the item queued. Where the writer stored no item, or a later call's write
+// replaced it, the two reads around it decide.
+func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[string]bool, text string, writer *handedRead) {
 	current, handed := "", false
 	if i := strings.Index(text, "{"); i >= 0 {
 		var d struct {
@@ -96,7 +112,14 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[str
 	r.mu.Lock()
 	prevHead := r.lensHead[sitting]
 	r.mu.Unlock()
-	prevQueued := prevHead != "" && stillQueued(prevHead)
+	var prevQueued bool
+	switch {
+	case prevHead == "":
+	case writer != nil && handed && writer.key == current:
+		prevQueued = slices.Contains(writer.queue, prevHead)
+	default:
+		prevQueued = stillQueued(prevHead)
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.lensHead == nil {

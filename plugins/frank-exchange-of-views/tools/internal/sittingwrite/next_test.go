@@ -157,6 +157,57 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	}
 }
 
+// WHAT WAS HANDED READS BACK AS THE WRITER STORED IT: the current item's key, and the queue the writer
+// read when it handed it — what the release fuzz's queue oracle holds the writer to.
+func TestHandedOfReadsWhatTheWriterStored(t *testing.T) {
+	dir := newRun(t)
+	recordtest.Seed(t, dir,
+		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{
+			SeatIds: []string{"red-chair", "red-lens-evidence", "blue-respond", "judge"}}),
+		recordtest.At(t, record.HarnessSeat, "harness:ingest",
+			&recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}),
+		recordtest.At(t, "red-lens-evidence", "lens:register", &recordpb.Register{}),
+		recordtest.At(t, "red-lens-evidence", "lens:mint", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}),
+		recordtest.At(t, "blue-respond", "blue:grade", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
+			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
+				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}),
+		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
+			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
+	const chair = "frank-exchange-of-views:red-chair"
+	var out bytes.Buffer
+	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
+		t.Fatal(err)
+	}
+	run, err := record.NewRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := record.WorkOfSeat(run, "chair", "red-chair")
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := record.QueueOf(w)
+	if len(q) == 0 {
+		t.Fatal("fixture: the chair has nothing queued")
+	}
+	key, queue, found, err := HandedOf(dir, "agent_02", w.SittingID())
+	if err != nil || !found {
+		t.Fatalf("HandedOf found %v, err %v, want the delivery the writer stored", found, err)
+	}
+	if key != q[0].Key || !strings.Contains(out.String(), `"key": "`+key+`"`) {
+		t.Errorf("HandedOf's key is %q; the writer handed:\n%s", key, out.String())
+	}
+	if want := queueKeys(q); fmt.Sprint(queue) != fmt.Sprint(want) {
+		t.Errorf("HandedOf's queue is %v, want the queue the writer read, %v", queue, want)
+	}
+	if _, _, found, err := HandedOf(dir, "agent_03", w.SittingID()); err != nil || found {
+		t.Errorf("a sitting handed nothing reads found %v, err %v; want nothing found", found, err)
+	}
+}
+
 // EVERY DELIVERY FITS THE BUDGET, IN BYTES, WHATEVER THE BOARD HOLDS — and the current item arrives
 // whole but for its passage. An adversarial board: sixty other open gaps, forty readied gaps of the
 // lens's own, thirty estopped rulings, twenty long declarations and petitions, twenty notes, all in

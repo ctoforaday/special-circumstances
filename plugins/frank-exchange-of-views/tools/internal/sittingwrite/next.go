@@ -173,6 +173,17 @@ func handReportItem(run record.Run, seat string, w record.WorkJSON, q []record.Q
 	return err
 }
 
+// HandedOf is what agentID's sitting was handed last, as the writer stored it: the current item's key,
+// "" when nothing was queued, and every key queued in the read of the seat's list it was handed from.
+// found is false where the sitting holds no stored delivery.
+func HandedOf(runDir, agentID string, sitting int64) (key string, queue []string, found bool, err error) {
+	if err := deliveryAgent(agentID); err != nil {
+		return "", nil, false, err
+	}
+	d, had, err := readDelivered(deliveryPath(runDir, agentID, sitting))
+	return d.Key, d.Queue, had, err
+}
+
 // queueKeys is every entry's key, in queue order.
 func queueKeys(q []record.QueueEntry) []string {
 	keys := make([]string, len(q))

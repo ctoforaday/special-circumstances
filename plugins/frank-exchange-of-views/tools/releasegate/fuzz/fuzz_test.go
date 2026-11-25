@@ -668,6 +668,8 @@ type runner struct {
 	// lensMints: lens seat -> mints that LANDED, which fuzzLensStock bounds; the driver spreads its
 	// mints over the lenses debate.js dispatches.
 	lensMints map[string]int
+	// lensReadings: lens seat -> the drawn readings its sittings made, which fuzzLensReadings bounds.
+	lensReadings map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
@@ -816,9 +818,9 @@ type runner struct {
 	// step it reached, which the run's error names when no plan was readied for it.
 	forceUnsoundComputation bool
 	unsoundStage            string
-	// forceOwedComputation makes every blue-respond sitting of owedComputationSeed's run compute on the seeded sentence
-	// afresh, so each plan after one holds a computation nobody has checked, owed by the computation lens;
-	// owedComputations counts them, naming each script.
+	// forceOwedComputation makes blue-respond's sitting in owedComputationSeed's run compute on the seeded sentence
+	// afresh whenever the computation lens has retired (computeOwed), so the plan after it holds a computation
+	// nobody has checked, owed by a lens past its barren limit; owedComputations counts them, naming each script.
 	forceOwedComputation bool
 	owedComputations     int
 	// ownerWhys is, in owedComputationSeed's run, the computation owner's line of every plan, in order: what the
@@ -2813,6 +2815,29 @@ func (r *runner) minterOf(gapID string) string {
 // fuzzLensStock is the defects one lens finds in a run: past it, its sittings draw no fresh mint.
 const fuzzLensStock = 2
 
+// fuzzLensReadings is the sources one lens reads in a run beyond what it owes: past it, its sittings
+// draw no reading. A verify is a productive act (record.lensStates: a sitting that records a close, a
+// verify, a reproduce or an inquiry check, or mints fresh material, resets the barren count), so a
+// lens drawing a reading at every sitting never retires: the sweep drew none in 40 runs, no area went
+// stale, the chair's spot-check was never owed, and every spot-check it filed was refused.
+const fuzzLensReadings = 3
+
+// drawsReading is whether seatID's sitting draws a reading of a source, counting it against the lens's
+// stock (fuzzLensReadings). The readings it owes — an unchecked citation or computation, a reading
+// debt — are not drawn, and every one is made whatever the stock.
+func (r *runner) drawsReading(seatID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.lensReadings == nil {
+		r.lensReadings = map[string]int{}
+	}
+	if r.lensReadings[seatID] >= fuzzLensReadings {
+		return false
+	}
+	r.lensReadings[seatID]++
+	return true
+}
+
 // findsFresh reports whether a lens sitting now may put a fresh gap on the board: always in a drawn
 // run, and only at the first chair sitting in a run forced to a verdict.
 //
@@ -3234,18 +3259,27 @@ func (r *runner) judgeToReopen(seatID string) {
 }
 
 // computeOwed is blue-respond's act in owedComputationSeed's run: a fresh computation of the seeded sentence, which
-// the computation lens owes a check of until it sits, and an edit of the edit target. It draws nothing.
+// the computation lens owes a check of until it sits, once the owner has retired; and an edit of the edit
+// target. It draws nothing.
+//
+// THE COMPUTATION WAITS FOR THE OWNER TO RETIRE. The owner's check of it is a reproduce, which makes
+// its sitting productive (record.lensStates), so a computation every blue sitting kept the owner's
+// barren count at zero and no plan kept it from retiring by one: 0 in the sweep. The owner retires after
+// three quiet sittings, the plan names it a stale area, and the computation blue proves then is one a
+// lens past its barren limit owes, which keeps it from retiring.
 func (r *runner) computeOwed(seatID string) {
 	if !r.forceOwedComputation || seatID != "blue-respond" {
 		return
 	}
-	r.mu.Lock()
-	r.owedComputations++
-	n := r.owedComputations
-	r.mu.Unlock()
-	if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
-		r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
-			"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...)
+	if slices.Contains(r.staleAreas(), computationOwner) {
+		r.mu.Lock()
+		r.owedComputations++
+		n := r.owedComputations
+		r.mu.Unlock()
+		if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
+			r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
+				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...)
+		}
 	}
 	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A computation moves no head, and a fold names a debt that
 	// keeps a lens from retiring in the clause keptByDebt reads only while the lens is behind the
@@ -3834,7 +3868,7 @@ func (r *runner) ownOpenGapAbout(seatID, anchor string) bool {
 // keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
 // sittings because it owes, and what it owes. The reason's wording is the fold's
 // (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
-var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:the whole report was last served to it at its pin \d+|no sitting it sat through was served the whole report), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:its latest complete delivery of report text was cut at its pin \d+|no sitting it sat through holds a complete delivery of report text), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
 
 // tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
 // reopened blocker, by owner for a reopened computation, and each lens kept from retiring by a debt. A
@@ -5696,7 +5730,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// #277: settle a claim by COMPUTING it. The program is written into a bundle of its own and
 		// the tool runs it twice in fresh copies — so this drives the real interpreter, the store,
 		// the anchor splice and the reproducible/variant grading, not a stub.
+		// OWEDCOMPUTATIONSEED'S BLUE PROVES ONLY computeOwed's: a drawn computation the owner must check
+		// makes its sitting productive, and the run needs it barren three sittings running.
 		r.maybe(35, func() {
+			if r.forceOwedComputation {
+				return
+			}
 			body := "console.log('fuzz computation for " + seatID + "');"
 			drifts := r.coin(25)
 			if drifts {
@@ -6413,36 +6452,40 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
-				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
-				// A READING THAT MINTS IS A FRESH GAP. A forced run mints at its first sitting only
-				// (findsFresh), which is its bound, and owedComputationSeed's computation owner mints
-				// nothing (mintsFresh); past its stock a lens's sittings draw no fresh mint. A reading of a
-				// citation that would find against reads the source as backing instead, and a reading of
-				// a source the lens found reads it as absent, which mints nothing.
-				fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
-				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
-				// run has seen the refusal, every supports_with_bridge reading names none, so the
-				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
-				// enough to fail it by chance.
-				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
-				// THE KIND CYCLES OVER THE NAMED READINGS THE RECORD TOOK, so every kind lands once a run
-				// has three; a drawn kind left `summary` undriven across a whole sweep by chance.
-				bridge := bridgeKinds[r.bridgesLanded()%len(bridgeKinds)]
-				axes := func(outcome string, c *cmd) *cmd {
-					if outcome == "supports_with_bridge" && !kindless {
-						c = c.set("--bridge", bridge)
+				// A LENS RUNS OUT OF SOURCES TO READ, as it runs out of defects (drawsReading): past its
+				// stock of drawn readings a sitting reads only what it owes, so it can be barren and retire.
+				if r.drawsReading(seatID) {
+					outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+					// A READING THAT MINTS IS A FRESH GAP. A forced run mints at its first sitting only
+					// (findsFresh), which is its bound, and owedComputationSeed's computation owner mints
+					// nothing (mintsFresh); past its stock a lens's sittings draw no fresh mint. A reading of a
+					// citation that would find against reads the source as backing instead, and a reading of
+					// a source the lens found reads it as absent, which mints nothing.
+					fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
+					// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
+					// run has seen the refusal, every supports_with_bridge reading names none, so the
+					// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
+					// enough to fail it by chance.
+					kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
+					// THE KIND CYCLES OVER THE NAMED READINGS THE RECORD TOOK, so every kind lands once a run
+					// has three; a drawn kind left `summary` undriven across a whole sweep by chance.
+					bridge := bridgeKinds[r.bridgesLanded()%len(bridgeKinds)]
+					axes := func(outcome string, c *cmd) *cmd {
+						if outcome == "supports_with_bridge" && !kindless {
+							c = c.set("--bridge", bridge)
+						}
+						return c.set("--as", outcome).
+							set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
+							set("--reason", "fuzz: what the source actually says")
 					}
-					return c.set("--as", outcome).
-						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
-						set("--reason", "fuzz: what the source actually says")
-				}
-				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)
-				} else {
-					if outcome != "absent" && outcome != "unreachable" && !fresh {
-						outcome, kindless = "absent", false
+					if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
+						r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)
+					} else {
+						if outcome != "absent" && outcome != "unreachable" && !fresh {
+							outcome, kindless = "absent", false
+						}
+						r.readFoundSource(seatID, outcome, kindless, fresh, axes)
 					}
-					r.readFoundSource(seatID, outcome, kindless, fresh, axes)
 				}
 				// THE ONE-GAP RULE OVER A READING'S GAP, both arms (crossArmMints), and ONE URL READ AGAINST
 				// TWO SENTENCES (oneURLTwoSentences): the subject of a found source's reading is the sentence.
@@ -7194,11 +7237,11 @@ const unsoundComputationScript = "console.log('fuzz: the computation its owner j
 // unsoundComputationName is the file the unsound computation's bundle holds it as.
 const unsoundComputationName = "fuzz-unsound-computation.js"
 
-// owedComputationSeed is the seed whose run is FORCED to keep a computation nobody has checked before every plan
-// that follows a blue-respond sitting (forceOwedComputation), and whose computation lens mints nothing and
-// judges every computation sound (mintsFresh, judgement), so from its third sitting on it is a lens each
-// such plan keeps from retiring by an unchecked computation (computationOwedKept). It is within the six seeds the
-// race variant runs.
+// owedComputationSeed is the seed whose run is FORCED to put a computation nobody has checked before a plan
+// each time its computation lens has retired (forceOwedComputation, computeOwed), and whose computation lens
+// mints nothing, judges every computation sound (mintsFresh, judgement) and is handed no drawn computation
+// to check, so after its drawn readings it sits barren, retires, and is then a lens the plan keeps from
+// retiring by an unchecked computation (computationOwedKept). It is within the six seeds the race variant runs.
 //
 // Left to the draw, the arm needs blue's computation to land after the owner's last sitting of an epoch and
 // before a plan, while the owner is barren: the owner checks every unchecked computation before its
