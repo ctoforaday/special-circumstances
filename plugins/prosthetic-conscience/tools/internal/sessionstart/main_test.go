@@ -561,62 +561,40 @@ func TestAntigravitySessionStartRunsRealEnsureWithPluginRootOnly(t *testing.T) {
 		t.Fatalf("expected Antigravity SessionStart to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", stdout.String())
 	}
 
-	// N2 (D5): PreInvocation after SessionStart in the same host process must NOT re-run ensure.
-	preAfterStart, _ := json.Marshal(map[string]any{
+	// Unified per-turn-start ensure rule (matching gray-area-capture and feov-pretooluse):
+	// mid-turn PreInvocation(invocationNum==1) never runs ensure (closes D5), while every
+	// turn-start PreInvocation(invocationNum==0) runs ensure("PreInvocation") so resumed
+	// conversations and mid-conversation updates both self-heal.
+	turnBody := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-sc-turnstart-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(turnBody), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	midTurn, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+		"invocationNum":  1,
+	})
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(midTurn), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("mid-turn PreInvocation exit %d stderr=%s", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") {
+		t.Fatalf("mid-turn PreInvocation(invocationNum=1) must not run ensure, got: %s", stdout.String())
+	}
+
+	turnStart, _ := json.Marshal(map[string]any{
 		"hookEventName":  "PreInvocation",
 		"conversationId": "conv-ensure-sc",
 		"cwd":            proj,
 		"invocationNum":  0,
 	})
 	stdout.Reset()
-	stderr.Reset()
-	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(preAfterStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
-		t.Fatalf("PreInvocation after SessionStart exit %d stderr=%s", code, stderr.String())
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(turnStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("turn-start PreInvocation(0) exit %d stderr=%s", code, stderr.String())
 	}
-	if strings.Contains(stdout.String(), "agy-sc-self-heal-ok") {
-		t.Fatalf("PreInvocation after SessionStart must not re-run ensure, got: %s", stdout.String())
-	}
-
-	// N3: Resumed Antigravity conversation (no SessionStart) runs ensure ONCE on PreInvocation(invocationNum==0),
-	// and never on mid-turn PreInvocation(invocationNum==1).
-	resumeBody := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-sc-resume-heal-ok\"}\\n'\n"
-	if err := os.WriteFile(script, []byte(resumeBody), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	midTurn, _ := json.Marshal(map[string]any{
-		"hookEventName":  "PreInvocation",
-		"conversationId": "conv-ensure-resume",
-		"cwd":            proj,
-		"invocationNum":  1,
-	})
-	stdout.Reset()
-	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(midTurn), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
-		t.Fatalf("mid-turn PreInvocation exit %d stderr=%s", code, stderr.String())
-	}
-	if strings.Contains(stdout.String(), "agy-sc-resume-heal-ok") {
-		t.Fatalf("mid-turn PreInvocation(invocationNum=1) must not run ensure, got: %s", stdout.String())
-	}
-
-	resumeStart, _ := json.Marshal(map[string]any{
-		"hookEventName":  "PreInvocation",
-		"conversationId": "conv-ensure-resume",
-		"cwd":            proj,
-		"invocationNum":  0,
-	})
-	stdout.Reset()
-	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(resumeStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
-		t.Fatalf("resume PreInvocation(0) exit %d stderr=%s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "agy-sc-resume-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
-		t.Fatalf("expected resumed PreInvocation(0) to run fetch-bin.sh ensure, got: %s", stdout.String())
-	}
-
-	// Second turn in the same resumed host process must not re-run ensure (marker already written).
-	stdout.Reset()
-	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(resumeStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
-		t.Fatalf("second PreInvocation(0) exit %d", code)
-	}
-	if strings.Contains(stdout.String(), "agy-sc-resume-heal-ok") {
-		t.Fatalf("second PreInvocation(0) in same host process must not re-run ensure, got: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected turn-start PreInvocation(0) to run fetch-bin.sh ensure, got: %s", stdout.String())
 	}
 }

@@ -129,11 +129,7 @@ func needsResumeRestore(req hookcore.Request, hostID string, rec *hookfailures.R
 		return false
 	}
 	// Only check on invocationNum == 0 (first model step of a turn), never mid-turn.
-	var payload struct {
-		InvocationNum *int `json:"invocationNum"`
-	}
-	_ = json.Unmarshal(req.Raw, &payload)
-	if payload.InvocationNum != nil && *payload.InvocationNum != 0 {
+	if !hookcore.IsTurnStartPreInvocation(req.Raw) {
 		return false
 	}
 	if req.PluginDataDir == "" {
@@ -251,6 +247,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			rec.OKTTL(hookcore.StageHookUnmarshal(), scope)
 		}
 
+		// Run the version check on every turn start (invocationNum == 0, matching gray-area-capture
+		// and feov-pretooluse), independent of checkpoint-restore, so resumed conversations and
+		// mid-conversation updates both heal without paying the check on mid-turn model steps.
+		if hookcore.IsTurnStartPreInvocation(req.Raw) {
+			var err error
+			healed, err = ensure("PreInvocation")
+			if err != nil {
+				rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+			} else {
+				rec.OK(hookfailures.StageEnsure)
+			}
+		}
+
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a
 		// language-server restart (pinned by TestLiveAsymmetrySessionStartOnResume). Run
 		// checkpoint-restore once on the first PreInvocation (invocationNum == 0) for a
@@ -259,15 +268,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		var watch []string
 		hostID := hostProcessID()
 		if needsResumeRestore(req, hostID, rec) {
-			// Antigravity skips SessionStart on resumed conversations, so re-check binary versions
-			// once on the first PreInvocation (invocationNum == 0) of a resumed/post-restart session.
-			var err error
-			healed, err = ensure("PreInvocation")
-			if err != nil {
-				rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
-			} else {
-				rec.OK(hookfailures.StageEnsure)
-			}
 			if cpUnits := selectCheckpointUnit(units); len(cpUnits) > 0 {
 				var logged string
 				restoreText, watch, logged = merge(hookunit.Run(ctx, cpUnits))

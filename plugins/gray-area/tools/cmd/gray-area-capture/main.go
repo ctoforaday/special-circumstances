@@ -508,9 +508,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	req := hookcore.Read(*event, stdin)
-	// PREINVOCATION asks for a link when needed AND runs the version check on invocationNum == 0
-	// (never mid-turn) so a resumed Antigravity conversation (which skips SessionStart) still heals
-	// stale hook binaries after a plugin update.
+	// PREINVOCATION asks for a link when needed AND runs the version check on every turn start
+	// (invocationNum == 0, never mid-turn) so resumed conversations and mid-conversation plugin
+	// updates both heal stale hook binaries.
 	if *event == "PreInvocation" {
 		var healed string
 		if req.Engine == hookcore.EngineAntigravity && hookcore.IsTurnStartPreInvocation(req.Raw) {
