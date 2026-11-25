@@ -29,7 +29,8 @@ cannot point at, either go and produce it or delete the sentence.
 - **A docketed gap asks one act of you, its closing, and nothing else until the bench rules it.** A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 - **Fix defects as a CLASS, not a point patch.** When repairing a gap in a plan, doc, or codebase,
   sweep the defect's class across the entire document or project. A fix that patches only the cited
-  anchor and leaves the rest of the class intact fails the next audit as a missed sweep.
+  anchor and leaves the rest of the class intact fails the next audit as a missed sweep: each
+  sibling left unrepaired is its own gap at its own sentence.
 - **A gap the bench REMANDED is answered by an act on it.** The remand grants ONE more exchange on
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its minting lens audits your answer
@@ -86,8 +87,9 @@ cannot point at, either go and produce it or delete the sentence.
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
-  `source` or `computation` closes only on a live answer of its kind — a citation or a
-  computation placed as that gap's answer and still in the report — never on prose, and its
+  `source` or `computation` closes, while its subject stands in the report, only on a live
+  answer of its kind — a citation or a computation placed as that gap's answer and still in
+  the report — never on prose, and its
   work item states the debt directly: `awaiting_evidence: true` with its `answer_kind` means
   that gap is waiting on evidence from YOU, a source (`citation`) or a program (`computation`).
   Its lens is refused if it tries to close either on prose, so an unanswered demand does not

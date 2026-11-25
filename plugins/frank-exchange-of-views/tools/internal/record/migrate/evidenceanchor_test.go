@@ -98,7 +98,9 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			// met, which the close verb now refuses, replayed through the record unrefused (the refusals
 			// above are zero). Counted, so the arm is not vacuous. quadratic-formula's R2 merge closed
 			// two more, each of an R1 gap its successor's mint had already closed: migrate leaves those
-			// out as acts on a closed gap (epoch 62), so they are not counted here.
+			// out as acts on a closed gap (epoch 62), so they are not counted here. Nor is wave-a's: blue's
+			// claim retire had taken that gap's marker out of the report, so its demand was met (its
+			// subject had left) when its lens closed it.
 			sourceCloses[name] = len(column(t, db, `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
 			  WHERE c."carried_from" IS NULL AND g."check_kind" = 'source' AND NOT g."evidence_answered"`))
 			// A close its lens's sitting holds no delivery for is a lost act: its gap stays open, and
@@ -118,7 +120,7 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			t.Errorf("the delivered lens's close of an unanswered source gap replayed %d time(s), want once", replayed)
 		}
 	})
-	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "wave-a": 1, "-m23": 1}
+	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "-m23": 1}
 	got, total := map[string]int{}, 0
 	for name := range sourceCloses {
 		n := sourceCloses[name] + lostSourceCloses[name]
@@ -129,8 +131,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		}
 	}
-	if total != 7 || fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 7)", sourceCloses, lostSourceCloses, total, want)
+	if total != 6 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 6)", sourceCloses, lostSourceCloses, total, want)
 	}
 }
 

@@ -354,9 +354,9 @@ enum RunOutcome {
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
-// gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
-// as the gap's answer, a retire of the anchor the gap is about, or the
-// own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
+// gaps demand a live answer of their kind while their subject stands in the report
+// (recordpb.DemandClause): a citation or a computation placed as the gap's answer, or the own later
+// check of the anchor the gap is about that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
 enum CheckKind {

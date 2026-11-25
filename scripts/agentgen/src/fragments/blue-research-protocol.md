@@ -19,7 +19,7 @@
   its cases; (3) consistency sweep of the touched paragraph AND every other section stating
   the same fact; (4) the boundary case of each repair asked — "what does this fix mint?";
   (5) when two edits share text, their composition stated; (6) a fix to an enumerated class
-  either sweeps the siblings or declares the enumeration open; (7) every claim that rests on a
+  either sweeps the siblings or declares the enumeration open, and each sibling left unrepaired is its own gap at its own sentence; (7) every claim that rests on a
   source carries a tool-inserted citation anchor, no hand-typed footnotes; (8) new claims introduced while repairing tagged verified-at-leaf /
   derived / asserted — repair minimalism: a repair changes no more than the fix requires.
   (Each check is a measured blue regression class: same-paragraph contradictions,
