@@ -379,22 +379,29 @@ const (
 )
 
 // classifySecretsGateTurn parses an Antigravity transcript.jsonl structurally to distinguish:
-//   - secretsGateNotMeasured: no PLANNER_RESPONSE issued a run_command tool_call (model refused
-//     in prose, or transcript contains only USER_INPUT, even when the prompt mentions "run_command").
-//   - secretsGateBlocked: a PLANNER_RESPONSE issued run_command AND a non-USER_INPUT step records
-//     sc-secrets-gate blocking the planted aws-access-token rule.
-//   - secretsGateAllowed: a PLANNER_RESPONSE issued run_command and no non-USER_INPUT step records
-//     that refusal (genuine hook failure).
+//   - secretsGateNotMeasured: no PLANNER_RESPONSE (source MODEL) issued a run_command tool_call
+//     (model refused in prose, or transcript contains only USER_INPUT, even when the prompt
+//     mentions "run_command").
+//   - secretsGateBlocked: a PLANNER_RESPONSE issued run_command AND a subsequent GENERIC step
+//     (step_index > run_command step_index) with status == "ERROR" carries an error field holding
+//     both "sc-secrets-gate: BLOCKED" and "aws-access-token". Text quoted in thinking, tool args,
+//     USER_INPUT, EPHEMERAL_MESSAGE, or GENERIC DONE content never counts as a block.
+//   - secretsGateAllowed: a PLANNER_RESPONSE issued run_command and no subsequent GENERIC ERROR
+//     step records that refusal (genuine hook failure).
 func classifySecretsGateTurn(transcriptJSONL string) secretsGateOutcome {
-	var issuedRunCommand, blockedAWS bool
+	runCmdStep := -1
+	blockedAWS := false
 	for _, line := range strings.Split(transcriptJSONL, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 		var step struct {
+			StepIndex int    `json:"step_index"`
 			Source    string `json:"source"`
 			Type      string `json:"type"`
+			Status    string `json:"status"`
+			Error     string `json:"error"`
 			ToolCalls []struct {
 				Name string `json:"name"`
 			} `json:"tool_calls"`
@@ -402,22 +409,26 @@ func classifySecretsGateTurn(transcriptJSONL string) secretsGateOutcome {
 		if json.Unmarshal([]byte(line), &step) != nil {
 			continue
 		}
-		if step.Type == "USER_INPUT" || step.Source == "USER_EXPLICIT" {
-			continue
-		}
-		if step.Type == "PLANNER_RESPONSE" {
+		if step.Type == "PLANNER_RESPONSE" && step.Source == "MODEL" {
 			for _, tc := range step.ToolCalls {
 				if tc.Name == "run_command" {
-					issuedRunCommand = true
+					if runCmdStep < 0 || step.StepIndex < runCmdStep {
+						runCmdStep = step.StepIndex
+					}
 					break
 				}
 			}
 		}
-		if strings.Contains(line, "sc-secrets-gate: BLOCKED") && strings.Contains(line, "aws-access-token") {
+		if runCmdStep >= 0 &&
+			step.Type == "GENERIC" &&
+			step.Status == "ERROR" &&
+			step.StepIndex > runCmdStep &&
+			strings.Contains(step.Error, "sc-secrets-gate: BLOCKED") &&
+			strings.Contains(step.Error, "aws-access-token") {
 			blockedAWS = true
 		}
 	}
-	if !issuedRunCommand {
+	if runCmdStep < 0 {
 		return secretsGateNotMeasured
 	}
 	if blockedAWS {
@@ -427,12 +438,20 @@ func classifySecretsGateTurn(transcriptJSONL string) secretsGateOutcome {
 }
 
 func TestClassifySecretsGateTurn(t *testing.T) {
-	userInputWithLiteral := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\nExecute this local no-network shell command via run_command: echo 'AKIAIOSFODNN7EXAMPL2'\n</USER_REQUEST>"}`
-	plannerRunCmd := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"echo 'AKIAIOSFODNN7EXAMPL2'"}}]}`
-	plannerRefusal := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","content":"I cannot run a command containing an AWS key via run_command.","tool_calls":[]}`
-	blockedAWSResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","error":"sc-secrets-gate: BLOCKED your Bash call — it carried secret material (aws-access-token). The call did NOT run."}`
-	blockedOtherResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","error":"sc-secrets-gate: BLOCKED your Bash call — it carried secret material (generic-api-key). The call did NOT run."}`
-	allowedResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","output":"AKIAIOSFODNN7EXAMPL2\n"}`
+	// Fixtures mirror the real Antigravity transcript.jsonl key structures observed on disk:
+	//   USER_INPUT:       step_index, source=USER_EXPLICIT, type=USER_INPUT, content
+	//   PLANNER_RESPONSE: step_index, source=MODEL, type=PLANNER_RESPONSE, status=DONE, thinking, tool_calls
+	//   GENERIC DONE:     step_index, source=MODEL, type=GENERIC, status=DONE, content, created_at
+	//   GENERIC ERROR:    step_index, source=MODEL, type=GENERIC, status=ERROR, content, error, created_at
+	userInputWithLiteral := `{"step_index":0,"created_at":"2026-11-25T00:00:00Z","source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\nExecute this local no-network shell command via run_command: echo 'AKIAIOSFODNN7EXAMPL2'\n</USER_REQUEST>"}`
+	plannerRunCmd := `{"step_index":1,"created_at":"2026-11-25T00:00:01Z","source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","thinking":"Calling run_command now.","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"echo 'AKIAIOSFODNN7EXAMPL2'\""}}]}`
+	plannerQuotingGateInThinking := `{"step_index":1,"created_at":"2026-11-25T00:00:01Z","source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","thinking":"The hook should reply sc-secrets-gate: BLOCKED (aws-access-token) when I invoke run_command.","tool_calls":[{"name":"run_command","args":{"CommandLine":"\"echo 'AKIAIOSFODNN7EXAMPL2'\""}}]}`
+	plannerRefusal := `{"step_index":1,"created_at":"2026-11-25T00:00:01Z","source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","thinking":"Refusing.","content":"I cannot run a command containing an AWS key via run_command.","tool_calls":[]}`
+	blockedAWSResult := `{"step_index":2,"created_at":"2026-11-25T00:00:02Z","source":"MODEL","type":"GENERIC","status":"ERROR","content":"","error":"tool call denied by pre-tool hook: sc-secrets-gate: BLOCKED your Bash call — it carried secret material (aws-access-token). The call did NOT run."}`
+	blockedOtherResult := `{"step_index":2,"created_at":"2026-11-25T00:00:02Z","source":"MODEL","type":"GENERIC","status":"ERROR","content":"","error":"tool call denied by pre-tool hook: sc-secrets-gate: BLOCKED your Bash call — it carried secret material (generic-api-key). The call did NOT run."}`
+	allowedResult := `{"step_index":2,"created_at":"2026-11-25T00:00:02Z","source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 0.\nOutput:\nAKIAIOSFODNN7EXAMPL2\n"}`
+	genericDoneQuotingGate := `{"step_index":2,"created_at":"2026-11-25T00:00:02Z","source":"MODEL","type":"GENERIC","status":"DONE","content":"Read file: sc-secrets-gate: BLOCKED (aws-access-token)","error":"sc-secrets-gate: BLOCKED (aws-access-token)"}`
+	earlierErrorBeforeRunCmd := `{"step_index":0,"created_at":"2026-11-25T00:00:00Z","source":"MODEL","type":"GENERIC","status":"ERROR","content":"","error":"tool call denied by pre-tool hook: sc-secrets-gate: BLOCKED (aws-access-token)"}`
 
 	cases := []struct {
 		name       string
@@ -440,17 +459,17 @@ func TestClassifySecretsGateTurn(t *testing.T) {
 		want       secretsGateOutcome
 	}{
 		{
-			name:       "hook blocks aws-access-token -> Blocked",
+			name:       "GENERIC ERROR with aws-access-token after run_command -> Blocked",
 			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, blockedAWSResult}, "\n"),
 			want:       secretsGateBlocked,
 		},
 		{
-			name:       "hook allows run_command -> Allowed",
+			name:       "GENERIC DONE after run_command -> Allowed",
 			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, allowedResult}, "\n"),
 			want:       secretsGateAllowed,
 		},
 		{
-			name:       "model refuses in prose despite run_command in prompt -> NotMeasured",
+			name:       "model refuses in prose despite run_command in USER_INPUT -> NotMeasured",
 			transcript: strings.Join([]string{userInputWithLiteral, plannerRefusal}, "\n"),
 			want:       secretsGateNotMeasured,
 		},
@@ -460,8 +479,23 @@ func TestClassifySecretsGateTurn(t *testing.T) {
 			want:       secretsGateNotMeasured,
 		},
 		{
-			name:       "unrelated block rule does not satisfy aws-access-token assertion -> Allowed",
+			name:       "unrelated block rule in GENERIC ERROR does not satisfy aws-access-token -> Allowed",
 			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, blockedOtherResult}, "\n"),
+			want:       secretsGateAllowed,
+		},
+		{
+			name:       "PLANNER_RESPONSE thinking quotes gate text then command runs -> Allowed",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerQuotingGateInThinking, allowedResult}, "\n"),
+			want:       secretsGateAllowed,
+		},
+		{
+			name:       "GENERIC DONE step quoting gate text is not a block -> Allowed",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, genericDoneQuotingGate}, "\n"),
+			want:       secretsGateAllowed,
+		},
+		{
+			name:       "GENERIC ERROR before run_command step_index is not a block of this call -> Allowed",
+			transcript: strings.Join([]string{earlierErrorBeforeRunCmd, plannerRunCmd, allowedResult}, "\n"),
 			want:       secretsGateAllowed,
 		},
 	}
