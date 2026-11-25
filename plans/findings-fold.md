@@ -21,20 +21,21 @@ readers, the `F-` anchor kind and `Mint.found_by` are deleted; a small defect is
 Corroboration is dropped. Every redirect names the refused seat's own road (§III.A2): its own
 supersede or regrade, nothing to record, its gap on another lens's gap, or the author's proposal.
 
-**Part B — a gap has two parties.** Every gap stands on a subject, and has two parties: its raiser
-(the lens that minted it) and the subject's author (blue for report text, anchors, inquiries, question
-parts and sections; the minting lens for a gap's own text). Every check that today asks "is this seat
-blue" asks `authorOf(subject)` instead (§III.B0). The author answers a gap only by an act that names
-it, which spends an exchange; any other change to the subject is the raiser's turn to re-audit. The
-author may propose an act on the gap (a regrade or a close); the raiser accepts it by its own act, as
-the author accepts the raiser's stated text by its own. At impasse, grade movement or an unaccepted
-proposal the tool writes a `Docketing`; each side states its position in its closing; the bench sides
-with one or remands, and the tool applies the winner's statement — the bench writes nothing of its
-own. A raiser's statement lands only where a lens sits afterwards, and a remand only where both
-parties do. While a gap is docketed its subject holds the parties' statements, and a gap's own text is
-locked whole while a gap on it is docketed. A ruling and the author's accept of a stated pair leave a
-tombstone, stated once over every subject kind; a section is named by a heading checked at the mint. A gap on a gap is the same rule with the subject a
-gap, whose raiser may state grades as well as wording; a gap on that is refused.
+**Part B — a gap has two parties.** Every gap stands on a subject, and has two parties: its raiser (the lens that
+minted it) and the subject's author (blue for report text, anchors, inquiries, question parts and sections; the
+minting lens for a gap's own text). Every check that today asks "is this seat blue" asks `authorOf(subject)` instead
+(§III.B0). The author answers a gap only by an act that names it, which spends an exchange; any other change to the
+subject is the raiser's turn to re-audit. The author may propose an act on the gap (a regrade or a close); the raiser
+accepts it by its own act, as the author accepts the raiser's stated text by its own. At impasse, grade movement or an
+unaccepted proposal the tool writes a `Docketing`; each side states its position in its closing; the bench sides with
+one or remands, and the tool applies the winner's statement — the bench writes nothing of its own. A raiser's
+statement lands only where a lens sits afterwards, and a remand only where both parties do. While a gap is docketed
+its subject holds the parties' statements, and a gap's own text is locked whole while a gap on it is docketed; the one
+act the freeze admits beyond them is a party's concession (the raiser's close of G, the author's accept of the
+raiser's statement), which ends the docketing for the other side with no ruling. A ruling and the author's accept of a
+stated pair leave a tombstone, stated once over every subject kind; a section is named by a heading checked at the
+mint. A gap on a gap is the same rule with the subject a gap, whose raiser may state grades as well as wording; a gap
+on that is refused.
 
 **Success criteria — Part A.** (A1) `lens finding`, `show findings`, `mint --found-by` are unknown
 commands; `EVENT_TYPE_FINDING`, its body arm, `Mint.found_by` are reserved.
@@ -55,8 +56,9 @@ G's lens and moves no stall. (B5) Every docketing has at least one answer that l
 sitting; each answer writes exactly its row of the positions table (§III.B4); a side that stated
 nothing cannot win. (B6) A raiser's statement is applied exactly where `lensSitsAfter` holds, and a
 remand admitted exactly where `partiesSitAfter` holds. (B7) While D stands on G, no act makes a stated
-statement inapplicable, the raiser's own acts on G are refused, and G's text is locked while a gap on
-G is docketed; the author's concession lands. (B8) Every non-remand ruling places a ruling tombstone,
+statement inapplicable, the raiser's acts on G but its close are refused, and G's text is locked while
+a gap on G is docketed; either party's concession lands and ends D with no ruling — the raiser's close
+of G, the author's `--accept G` (`accepted`, `answers = G`). (B8) Every non-remand ruling places a ruling tombstone,
 the author's accept of a stated pair an estoppel tombstone; each bars per subject kind (§III.B6's
 table) and ends at its subject's next change by the author. (B9) `--supersedes` names only the minting seat's own open gap, one gap. (B10) Migration:
 every archived run (§II.4's populations), zero refusals, exactly §III.B8's residue. (B11) Release fuzz shows §III.B10's gates, oracles at
@@ -75,13 +77,14 @@ zero.
   how many of the 13 that releases is NOT MEASURED.
   Nothing new is added by Part A.
 - **Part B.** Grade motions never moved a grade: 9 archived, all blue's, 0 followed by the proposed
-  regrade (§II.4). The rewrite's own measure is deletion: one predicate (`authorOf`) replaces the
+  regrade (§II.4). The R0 replay (§II.4) measures how often each mechanism fires; under the lead's
+  reading of gblock's cut rule (2026-11-25, §VI) it cuts none. The rewrite's own measure is deletion: one predicate (`authorOf`) replaces the
   role tests, one predicate (`lensSitsAfter`) replaces the epoch labels, one end rule replaces five
   tombstone end arms, and the accept-as-ruling arm, the bystander filing path and the supersede
   proposal go (§III.R: about 45 symbols and 1,100 non-test lines). Added: `authorOf`,
   `lensSitsAfter`, `answers` on `Mint`, `Regrade`, `Inquiry` and `QuestionPart`, `accepts` on `Regrade`
-  and `Close`, the gap subject (`ABOUT_KIND_GAP`), and the closing's statement fields for a gap (wording
-  and grades), an inquiry and a question part.
+  and `Close`, `accepted` on five more bodies, the gap subject (`ABOUT_KIND_GAP`), and the closing's
+  statement fields for a gap (wording and grades), an inquiry or composed section (fates) and a question part.
 
 **Out of scope, stated.** Closure strength (#1930; it alone carries the run-3 regression loop, and the
 lineage past a close its detector would read is what X8 deletes) and an inquiry re-fate that undoes a
@@ -99,7 +102,7 @@ in an `events` log, one table per body arm, `gap_state` refreshed by trigger at 
 
 | Machinery | Where | Reused as |
 |---|---|---|
-| Freeze: docketed gap off blue's and the lens's lists; the minter's close and supersede refused while a docket stands unruled | `available.go:58-63`; `requireNoStandingDocket` `record.go:1806`; `requireSupersededOffDocket` `supersession.go:103` | the docket freeze (§III.B5) |
+| Freeze: docketed gap off blue's and the lens's lists; the minter's close and supersede refused while a docket stands unruled | `available.go:58-63`; `requireNoStandingDocket` `record.go:1806`; `requireSupersededOffDocket` `supersession.go:103` | the docket freeze (§III.B5); the close under a docketing, and the docketing's built `Close` end (`docketingsAt`), become the raiser's concession |
 | Readiness: cast minter and `blue-respond` owe closings; the bench is engaged on G once none is due; at `FinalSitting` and for held-out blue nothing is awaited — but at `FinalSitting` the plan's parties are emptied after (`dispatch.go:693-697`), so no bench row is written and the terminal sitting rules at the exit | `awaitClosings` `dispatch.go:380-407`; `dispatchnext.go:133` | the closings at a docketing (§III.B4) |
 | What the bench's current sitting is convened to rule: a docket sitting, the dockets on the gaps the dispatch rows that convened it name; a terminal or assemble sitting, every bench motion standing; it refuses the sitting's envelope while one stands | `benchHeld`/`docketHeld` `benchsitting.go:26-108`; `sitting.go:511` | the bench's admission, its docket arm keyed on the docketing (§III.B4) |
 | One transaction, several bodies; guards attach to the first body only | `appendBodies` `record.go:678-710` (`g := guards; if i > 0 { g = nil }`) | gains per-body guards (the raiser's accept, §III.B2) |
@@ -165,6 +168,26 @@ T-B13 and T-B43 run every archive present and assert each figure against its own
 | `motion_docket` rows | 39 (m35 8, 1565 5, mersenne 5, wave-b 4, m29 4, …); the 38 of `ce31/motions-residue.txt` missed one | audit p3-A |
 | Dockets by the structural rule (picked 2026-11-20: a chair docket in a `dispatch next` transaction is the dispatch's); their rulings; bench regrades | **Measured on B2a's replay (2026-11-22), with bundle-store m37/m38: 25 docketings written, 7 rulings kept, 17 ended rulings, 17 + 17 party docket events (is-91-prime-1883's docket and ruling included; corrected at B5), 2 superseded docketings and rulings, 41 opinions, 3 bench regrades, 5 spot-checks written as no event; §III.B8.** Pre-replay: 39 = 23 the dispatch's (22 ruled: 19 closing words, 3 remands; 1 unruled; 16 of the 19 end at their minter's own `Close` before the ruling, `amend5/sweep.py`) + 7 chair dockets in four runs holding no `plan` row + 5 minter's own + 4 blue; `ce31/archives.txt` omits `2026-11-11_eiffel-tower-height` (its 1 docket is the 39th). Bench rulings 38: closing words 35 (repaired 18, repaired_with_regression 6, defect_owed_elsewhere 6, carried 2, defect_accepted 1, not_a_defect 1, moot 1), remands 3; bench `Regrade` events **1** (eiffel 11-11 ev 669) | `~/.claude/scratch/1695/amend2/scripts/dockets.py` → `amend2/dockets.json` (§III.B8) |
 
+**The R0 replay** (2026-11-25, `~/.claude/scratch/1695/r0-replay.md`; 34 `record.db` in `successor-audit/x/`, 33 with
+a gap schema; "lens era" = the 24 from 2026-10-09; its 48 docket rows are another set than the 39 above):
+
+| Mechanism | R0 | Justifies |
+|---|---|---|
+| docketing at impasse (§III.B4) | 36; per-run median 1 in the lens era (13/24 runs), 0 over all 33 | the docketing and both closings |
+| a party's concession (§III.B5) | the lens closed 23 of the 36 impasse gaps before the ruling; 0 author accepts could land (no docketed text gap had a `fix_new`) | the raiser's close as a concession, not a refusal |
+| gap on a gap (§III.B7) | 84 findings on an open target (wording 70, grade 1, not-a-defect 13; 77 pairs); median 2.5 (19/24) | the gap subject; the grade-down road for the 13 |
+| the lens's turn (§III.B3) | 199 turns (72 without fates); 42 re-audits beyond the archive's, median 0.5 | the turn, at small extra cost |
+| proposals by blue (§III.B2) | 10; the minter would accept 0; 5 lack a prior exchange | kept: they mirror the raiser's offer of text |
+| section gaps (§III.B0) | 12 in 9 runs; whether each heading stood at the mint NOT MEASURED | kept: their rarity is the missing anchor |
+| grade-movement docketing (§III.B4) | 0 archived; 8 on replay, all before the rule went live (2026-10-20) | kept pending the grade investigation (§VI) |
+| the anchor lock (§III.B5) | 22 blue acts refused on 12 dockets; 9 other gaps wait | the lock; one docketing per chain |
+| last-epoch rulings (§III.B4) | 3 at epoch ≥ 11, 2 with no Part B cell; 0 remands there | `lensSitsAfter`; F-LAST |
+
+The bench's first ruling on each of the 48: repaired 23, repaired_with_regression 7, defect_owed_elsewhere 7,
+**remanded 5 of 47 ruled**, carried 2, defect_accepted, not_a_defect, moot 1 each, 1 unruled. "76 of 77" counts the
+round era's *carried* rulings (`constitutional-reform.md:9`), not remands. R0 replayed no impasse timing under §III.B3
+and read no heading at its mint, so §III.B8's measurements (1)–(5) stay owed.
+
 ### II.5 Names
 
 Each new name was grepped (`git grep -l -w -F <name> 8334980fe -- plugins scripts ':!*/vecembed/vocab.txt'`)
@@ -181,9 +204,10 @@ and each sense-bearing hit read.
 | `accepts` (`Regrade`, `Close`) | extended | the proposal the raiser's own act takes; extends `--accept` and `BlueEdit.accepted` (the offer taken). 162 prose hits of the word, same sense |
 | `answers` (`Mint`, `Regrade`, `Inquiry`, `QuestionPart`) | extended | `BlueEdit.answers`, `Retire.answers`, `Cite.answers`, `Computation.answers`: the gap the act responds to. Same sense on four more bodies |
 | `Closing.problem`, `required_fix`, `acceptance_check`; `Closing.severity`, `likelihood`, `impact`, `complexity_cost` | extended | `Mint`'s and `Regrade`'s names and senses (`Grade`): the wording and grades a gap on a gap states for G |
-| `Closing.status`, `method`, `coverage`, `fate_reason` | extended / coined | `Inquiry`'s and `QuestionPart`'s names; `fate_reason` (0 hits) holds the record's `reason`, because `Closing.text` already mounts `--reason` (the closing argument) |
+| `Closing.coverage`, `fate_reason`; `Closing.fates`, `FateStatement{inquiry, status, method, fate_reason}` | extended / coined | `Inquiry`'s and `QuestionPart`'s names; `fate_reason`, `fates` and `FateStatement` (0 identifier hits; "fates" is prose in agent text) hold the record's `reason` and one stated fate per inquiry, because `Closing.text` already mounts `--reason` (the closing argument) |
+| `accepted` (`Retire`, `Inquiry`, `QuestionPart`, `Mint`, `Regrade`) | extended | `BlueEdit.accepted` (`record.proto:1752`): the tool supplied the bytes of the statement taken; none of the five has the field |
 | `Docketing`, `DocketingCause`, `Tombstone`, `TombstoneKind`, `sided_with`, `moved_grades`, `docketing_id`, `--keep`, `--restore`, `--no-text` | built (B1–B6c) | checked free at their build; `docketing` extends the existing word for a gap put before the bench; `estopped` the work list's word for what may not be re-raised; `estoppel` the existing concept |
-| `docketed`, `turn`, `concession` | prose | `docketed` is the work list's `BlockerKind`; "the lens's turn" is `lensTurnActsOf`'s sense (2026-10-31); "concession" is prose for the author's act that applies the raiser's statement, no identifier |
+| `docketed`, `turn`, `concession` | prose | `docketed` is the work list's `BlockerKind`; "the lens's turn" is `lensTurnActsOf`'s sense (2026-10-31); "concession" is prose for a party's act that ends a docketing for the other side (the raiser's close, the author's accept), no identifier |
 
 ### II.6 Constraints
 
@@ -327,8 +351,9 @@ G, and S's **author**, `authorOf(S)`. Only they act on G.
 5. A raiser's statement is applied only where a lens sits afterwards; a remand is open only where
    both parties do.
 6. While G is docketed, no act may make a party's stated statement inapplicable, and the raiser does
-   not act on G; while a gap on G is docketed, G is locked. The author's concession (rule 3's accept)
-   lands.
+   not act on G; while a gap on G is docketed, G is locked. The one act the freeze admits is a party's
+   **concession** — the raiser's close of G, the author's rule-3 accept — which ends the docketing for
+   the other side with no ruling.
 7. A ruling, and the author's accept of a stated pair, leave a tombstone on G; it ends at S's next
    change by the author.
 
@@ -346,36 +371,33 @@ blue change escapes the turn and the end rule. A seat-class test that asks who m
 |---|---|---|---|---|---|---|---|
 | sentence (quote) | blue | `edit` (any), a cut (P12b) | `BlueEdit.answers` | a pair (`location`, `fix_new`): at the mint, or in its closing; planned as `edit --accept` | the bench's `BlueEdit` of the pair | an edit whose `reopened` names G; a pure cut once P12b lands | the sentence |
 | citation or computation (`anchor`) | blue | `retire --anchor`, an edit of its sentence, a new `cite`/`compute` | `Retire.answers`, `Cite.answers`, `Computation.answers` | a pair, or a retire (`Closing.retire`) | the bench's `BlueEdit` or `Retire` | the anchor's reword or retire | the anchor |
-| inquiry | blue | `inquiry record` | `Inquiry.answers` [NEW] | a fate: `Closing.status`, `method`, `fate_reason` | the bench's `Inquiry` | its next fate | the inquiry |
+| inquiry | blue | `inquiry record` | `Inquiry.answers` [NEW] | a fate: one `Closing.fates` entry naming S | the bench's `Inquiry` | its next fate | the inquiry |
 | question part, or the question (no ref) | blue | `question cover`, `question split` | `QuestionPart.answers` [NEW] | a coverage: `Closing.coverage`, `fate_reason` | the bench's `QuestionPart` | its next coverage or split | the part |
 | section in blue's text | blue | an edit whose span meets the section: from the heading holding G's token to the next heading at its level or above (`sectionStart`/`sectionEnd`, `passage.go`), the heading's rewrite included | `BlueEdit.answers` | a pair in its closing whose `location` is the heading or the section's opening block (a layout-fixed heading: the block only), planned by `PlanAccept` within the section | the bench's `BlueEdit` of the pair, the token carried | an edit meeting the section | the section, by its token |
-| composed section (assembly's three inquiry sections) | blue | a fate moving an inquiry into or out of it (`fateActsOf`, built) | `Inquiry.answers` | none ◆ assembly writes its text; Open F-COMPOSED | none: `--for-author` or `--remand` (`missingText`, built) | the next such fate | the section, by its key |
+| composed section (assembly's three inquiry sections) | blue | a fate moving an inquiry into or out of it (`fateActsOf`, built) | `Inquiry.answers` | fates (`Closing.fates`), each naming an inquiry it moves into or out of the section, as F-INQ for an inquiry gap (lead call F-COMPOSED) | the bench's `Inquiry` per stated fate | the next such fate | the section, by its key |
 | a gap G′ (`gap`) | G′'s minter A | A's amend (`mint --supersedes G′`), regrade, close of G′ | the amend's `Mint.answers` [NEW], or A's regrade's `Regrade.answers` [NEW] | a wording (`Closing.problem`, `required_fix`, `acceptance_check`), grades (`Closing.severity`, `likelihood`, `impact`, `complexity_cost`), or both | A's amend carrying any stated grades, or, for grades alone, A's regrade; under A's seat (below) | A's next amend, regrade or close of G′ | G′'s chain tip |
 
-- **Sections** (picked 2026-11-25, "Anchor headings"). `ResolveAbout` resolves `--about` by
-  `reportheading.HeadingKey` (every heading reader's key) to exactly one heading of the rendered report,
-  or one of `reportheading.InquirySections`; none or two refuse, naming the headings that exist. A
-  heading in blue's text takes G's token at the mint, placed by the tool at the heading's end
-  (`AppendPlaced`): the one anchor a heading holds (`anchortext.Attach`'s `ErrOnHeading` and
-  `PlanSplice`'s new-heading-anchor refusal admit a section gap's token and nothing else: a reversal of
-  a built refusal, its enforcers in census M29; `HeadingKey`
-  strips anchors; a gap token never prints). An edit carries it as any token, so a renamed heading keeps
-  its section. `bluedoc.ReopenedAnchors` lists the token for an edit meeting the section, and its six
-  readers (census M28) read it as a sentence's. A composed section's heading never changes, so it takes
-  no token. A tool-composed section other than the three takes no section gap (0 archived; refused
-  naming the record row it prints). Archived (30 SQLite archives): 10 section mints, 8 on composed
-  inquiry sections, 2 on other headings ("Open questions", "Technical foundations": whether each is a
-  line of blue's text keying one heading at its mint is NOT MEASURED, R0 (5); Translation 6).
-- **Who writes `--for-raiser`'s application.** The bench, under its seat (built), so the applied act
-  is no party's: it counts no exchange and ends no tombstone it places (built rule: an act under the
-  bench's seat is the ruling's). A gap's amend is the one exception, written under A's seat, because a
-  `Mint`'s writer is its gap's minter (`gap_state.minted_by` is the writer), and a bench-written amend
-  would make the bench G′'s owner. A grade statement alone is A's `Regrade` for the same reason, and
-  because the bench's own `Regrade` needs a docketing on the regraded gap (`requireRegradeWithinBenchLock`).
-  Either carries `answers = G` and the ruling's transaction, and locks no axis of G′: like an applied
-  pair, it stands until A's next change of G′. It inherits G′'s admission (picked 2026-11-25, "lock the
-  anchor"): it keeps G′'s class, subject, location and check kind, and checks only its stated text for
-  voice — no standing reading, live anchor or one-gap re-check; §III.B5 holds its other inputs.
+- **Sections** (picked 2026-11-25, "Anchor headings"). `ResolveAbout` resolves `--about` by `reportheading.HeadingKey`
+  (every heading reader's key) to exactly one heading of the rendered report, or one of
+  `reportheading.InquirySections`; none or two refuse, naming the headings that exist. A heading in blue's text takes
+  G's token at the mint, placed by the tool at the heading's end (`AppendPlaced`): the one anchor a heading holds
+  (`anchortext.Attach`'s `ErrOnHeading` and `PlanSplice`'s new-heading-anchor refusal admit a section gap's token and
+  nothing else: a reversal of a built refusal, its enforcers in census M29; `HeadingKey` strips anchors; a gap token
+  never prints). An edit carries it as any token, so a renamed heading keeps its section. `bluedoc.ReopenedAnchors`
+  lists the token for an edit meeting the section, and its six readers (census M28) read it as a sentence's. A
+  composed section's heading never changes, so it takes no token. A tool-composed section other than the three takes
+  no section gap (0 archived; refused naming the record row it prints). Archived (30 SQLite archives): 10 section
+  mints, 8 on composed inquiry sections, 2 on other headings ("Open questions", "Technical foundations": whether each
+  is a line of blue's text keying one heading at its mint is NOT MEASURED, R0 (5); Translation 6).
+- **Who writes `--for-raiser`'s application.** The bench, under its seat (built), so the applied act is no party's: it
+  counts no exchange and ends no tombstone it places (built rule: an act under the bench's seat is the ruling's). A
+  gap's amend is the one exception, written under A's seat, because a `Mint`'s writer is its gap's minter
+  (`gap_state.minted_by` is the writer), and a bench-written amend would make the bench G′'s owner. A grade statement
+  alone is A's `Regrade` for the same reason, and because the bench's own `Regrade` needs a docketing on the regraded
+  gap (`requireRegradeWithinBenchLock`). Either carries `answers = G` and the ruling's transaction, and locks no axis
+  of G′: like an applied pair, it stands until A's next change of G′. It inherits G′'s admission (picked 2026-11-25,
+  "lock the anchor"): it keeps G′'s class, subject, location and check kind, and checks only its stated text for voice
+  — no standing reading, live anchor or one-gap re-check; §III.B5 holds its other inputs.
 - **A gap on a gap on a gap is refused**, and so is a gap on a closed gap (`ResolveAbout`).
 
 **Party × right** (◆ marks a justified difference; its reason is in the row):
@@ -392,18 +414,19 @@ blue change escapes the turn and the end rule. A seat-class test that asks who m
 | Window to accept | its next sitting; else `Docketing{PROPOSAL}` | ◆ none: an unaccepted statement waits for impasse, because the raiser's offer is the gap itself |
 | State at a docketing | its statement, or `--no-text` | its closing word (none → `not_a_defect`), or its proposal |
 | Wins on silence | never; at a regrade proposal its position is G's recorded grades, a statement | ◆ yes, `not_a_defect`: "Blue's original text is its proposal" (gblock, 2026-11-20) |
-| Frozen while docketed | its amend, regrade, close of G, while a docketing or proposal stands (its `--accept M` lands) | any act making a stated statement inapplicable; on a gap subject, every act on G′ (the lock); its concession lands |
+| Frozen while docketed | its amend and regrade of G while a docketing or proposal stands, its close while a proposal stands undocketed (its `--accept M` lands there) | any act making a stated statement inapplicable; on a gap subject, every act on G′ (the lock) |
+| Concede (ends D for the other side, no ruling) | its close of G, any word its verb admits, at impasse or a proposal | `--accept G` of the raiser's stated statement, per subject kind ◆ none at a regrade proposal: the raiser's position is G's grades, nothing to apply |
 | Ends a tombstone | never ◆ the end is a change of S, which is the author's | by S's next change |
 
 **Docketing × answer** — the positions table (each cell is what the tool writes; `lensSitsAfter` is
 §III.B4):
 
-| Cause | Raiser's position | Author's position | `--for-raiser` | `--for-author` | `--remand` |
-|---|---|---|---|---|---|
-| impasse | its statement, or none | its word, else `not_a_defect` | applies the statement; G closes `repaired`. Needs `lensSitsAfter` and a statement | G closes with the word. Always lands | needs `partiesSitAfter`, within the limit |
-| proposal: close | as at impasse | the proposal's close | as at impasse | G closes with the proposal's word (the bench's closure). Always lands | as at impasse |
-| proposal: regrade | G's grades as they stand | the proposal's regrade | writes nothing; G stays at its grades; its axes lock. Always lands | the bench's `Regrade` of the stored grades; its axes lock. Lands while the move moves an axis | as at impasse |
-| grade movement | — (no party) | — | `--keep`: the moved grades stand; locks. Always lands | `--restore`: the bench's `Regrade` to each axis's first `from`, or none where every axis nets to zero; locks. Always lands | never: no exchange moves the record's grades |
+| Cause | Raiser's position | Author's position | `--for-raiser` | `--for-author` | `--remand` | Concession (before any ruling) |
+|---|---|---|---|---|---|---|
+| impasse | its statement, or none | its word, else `not_a_defect` | applies the statement; G closes `repaired`. Needs `lensSitsAfter` and a statement | G closes with the word. Always lands | needs `partiesSitAfter`, within the limit | the raiser's close of G; the author's `--accept G`, where a statement stands |
+| proposal: close | as at impasse | the proposal's close | as at impasse | G closes with the proposal's word (the bench's closure). Always lands | as at impasse | as at impasse |
+| proposal: regrade | G's grades as they stand | the proposal's regrade | writes nothing; G stays at its grades; its axes lock. Always lands | the bench's `Regrade` of the stored grades; its axes lock. Lands while the move moves an axis | as at impasse | the raiser's close of G; the author: none ◆ |
+| grade movement | — (no party) | — | `--keep`: the moved grades stand; locks. Always lands | `--restore`: the bench's `Regrade` to each axis's first `from`, or none where every axis nets to zero; locks. Always lands | never: no exchange moves the record's grades | none: no party |
 
 At grade movement the pair is `--keep | --restore` and names no side; the two columns hold them only to
 keep one table. On a gap subject the raiser's statement may hold grades; they add no cause and no cell:
@@ -414,7 +437,11 @@ keep one table. On a gap subject the raiser's statement may hold grades; they ad
 `--for-author`; a regrade proposal — `--for-raiser`; grade movement — `--keep`. No cell depends on
 `lensSitsAfter` but a raiser's applied statement (wording, grades or both), and on `partiesSitAfter` but a
 remand. Oracle `side_stated_nothing` excludes the regrade proposal's `--for-raiser`: the raiser's grades
-are on the record.
+are on the record. **A concession is no answer of the bench, and the proof needs none:** it ends D at the
+conceding act's row (G's non-carry `Close`, the built end; the author's act carrying `answers = G` and `accepted`);
+then no D stands for `benchHeld`, no closing is owed and a ruling is refused. After the author's, G stays open and any
+docketing waits on the raiser's owed re-audit (`lensFirst`, built); the raiser closes G, or, kept at its limits, G is
+docketed again and `--for-raiser` finds the statement applied (`requireRoadApplied`, built) and closes it `repaired`.
 
 **Justified asymmetries** (the review's J1–J5, each with its reason): silence (above); grade movement
 has no parties (its moves may be any party's, #1646); a regrade ruling leaves G open (applying the
@@ -442,9 +469,13 @@ Changed by this spec:
 - `Mint.answers`, `Regrade.answers`, `Inquiry.answers`, `QuestionPart.answers` [NEW]: the gap the act
   answers, as `BlueEdit.answers`. `Mint.answers` only on a `--supersedes` amend, and `Regrade.answers`
   only on a regrade of the seat's own gap, each naming an open gap about the gap it changes.
-- `Closing.problem`, `required_fix`, `acceptance_check`, `status`, `method`, `coverage`, `fate_reason`
-  [NEW], and `Closing.severity`, `likelihood`, `impact`, `complexity_cost` [NEW] (`Regrade`'s axes, on
-  a gap subject only): the raiser's statement for a gap, an inquiry and a question part (§III.B0).
+- `Closing.problem`, `required_fix`, `acceptance_check`, `coverage`, `fate_reason`, repeated `fates`
+  (`FateStatement{inquiry, status, method, fate_reason}`) [NEW], and `Closing.severity`, `likelihood`, `impact`,
+  `complexity_cost` [NEW] (`Regrade`'s axes, on a gap subject only): the raiser's statement for a gap, an inquiry or
+  composed section, and a question part (§III.B0).
+- `accepted` [NEW] on `Retire`, `Inquiry`, `QuestionPart`, `Mint`, `Regrade`: set by the author's `--accept G` only,
+  as `BlueEdit.accepted` by `edit --accept`; with `answers = G` under a standing docketing it is the author's
+  concession.
 - `ABOUT_KIND_SECTION`'s means: a report section named by its heading, checked at the mint; a heading
   in blue's text carries the gap's token (§III.B0).
 - `ABOUT_KIND_GAP = 3` un-reserved (branch-only reservation; `main` holds 3 with this meaning), means:
@@ -454,7 +485,8 @@ Changed by this spec:
 - `Close.successor` reserved; `DISPOSITION_REPAIRED_WITH_REGRESSION`, `AMENDS_PRIOR` reserved;
   `TelemetryLine.repair_regression` reserved (X8).
 - `gap_state.assignee` → `minted_by`, the mint event's seat (X9, X15).
-- `gap_state.standing_docketing` loses its `Close` end: a docketing ends at its ruling (X18; picked F-CLOSE, §VI).
+- `gap_state.standing_docketing` and `docketingsAt` end a docketing at its ruling or a party's concession: G's
+  non-carry `Close` (built, kept) or the author's act carrying `answers = G` and `accepted` (X18).
 - No `Disposition` value is added; no table or view but the new columns.
 
 Generated carriers: `protogen`, `schemagen`, `vocabgen`, `cmdtreegen`; `schema.epoch.json` and
@@ -472,30 +504,31 @@ Generated carriers: `protogen`, `schemagen`, `vocabgen`, `cmdtreegen`; `schema.e
 - **The raiser's accept.** `regrade --accept M` and `close --accept M`, the raiser's own verbs: the
   tool supplies M's stored act, the act's verb runs every check and companion body it has (built
   `seat.WriteRegrade`, `lens.WriteClose`), and the act carries `accepts = M`. One answer per M, asked
-  in the transaction (`requireUnanswered`); refused while a docketing stands on G (picked 2026-11-20).
+  in the transaction (`requireUnanswered`); refused while a docketing stands on G (picked 2026-11-20;
+  Open F-ACCEPT-DOCKETED), where the raiser's concession is its close of G.
   `--accept` resolves an `M-` id as a motion and a `G-` id as a gap (disjoint prefixes, `anchor.go`). The
   raiser's window is its next sitting; when it ends with M unaccepted, the dispatch writes
   `Docketing{PROPOSAL, M}`. `motion docket accept` and its ruling-shaped row go (X5).
 - **The author's answer.** Any act changing S that carries `answers = G` (§III.B0's column). The
   validate arm of each refuses `answers` naming a gap whose subject the act does not change, and an
   author that is not `authorOf(S)`.
-- **The author's accept.** Its changing verb with `--accept G`: the tool supplies the raiser's standing
-  statement (text: the latest of the mint's prescription and its closing's pair; every other kind:
-  its closing's statement, since the mint has no field for one), writes the act with `answers = G`,
-  and, where the statement is a pair, G's estoppel tombstone (§III.B6). `edit --accept` exists; `retire`, `inquiry record`,
-  `question cover`, `mint --supersedes` and `regrade` (grades stated on a gap about the seat's gap)
-  gain it. The docket freeze also admits a hand-written edit
-  equal to the stated text (built for text, `RedTextApplied`, picked 2026-11-23); it answers nothing
-  and places no estoppel row, because a bar is placed by the act the tool supplies, never by a
-  comparison at edit time (gblock, 2026-11-14: "cheaper to keep a real tombstone marker … than attempt
-  to police estoppel … by looking at diffs").
+- **The author's accept.** Its changing verb with `--accept G`: the tool supplies the raiser's standing statement
+  (text: the latest of the mint's prescription and its closing's pair; every other kind: its closing's statement,
+  since the mint has no field for one; on a composed section, one `Inquiry` per stated fate), writes the act with
+  `answers = G` and `accepted`, and, where the statement is a pair, G's estoppel tombstone (§III.B6). Under a
+  docketing it is the author's concession (§III.B5). `edit --accept` exists; `retire`, `inquiry record`, `question
+  cover`, `mint --supersedes` and `regrade` (grades stated on a gap about the seat's gap) gain it. The docket freeze
+  also admits a hand-written edit equal to the stated text (built for text, `RedTextApplied`, picked 2026-11-23); it
+  answers nothing, concedes nothing and places no estoppel row, because a bar is placed by the act the tool supplies,
+  never by a comparison at edit time (gblock, 2026-11-14: "cheaper to keep a real tombstone marker … than attempt to
+  police estoppel … by looking at diffs").
 - **The raiser's own acts on G.** Amend (`mint --supersedes G`: one gap, the seat's own, open; every
   other naming refused with its road), regrade, close. A defect found after a close is a new gap, no
   link (picked 2026-11-23).
 - **Routing.** G's work-list item, readiness and closing duty go to `authorOf(S)`: a gap on A's gap
   reaches A, not blue (`available.go`, `dispatch.go`'s class routing skips a `gap` subject,
   `closingowed.go`).
-- **Closings.** The raiser's closing states its statement (`closing-red`: a pair, a retire, a fate, a
+- **Closings.** The raiser's closing states its statement (`closing-red`: a pair, a retire, fates, a
   coverage, a wording, grades, or `--no-text`); the author's closing states its word (`closing-blue --as`;
   where the author is a lens, its `closing` verb admits `--as` on a gap whose subject it authors).
   Each statement is checked when stated as the author's verb would apply it (`blue.PlanAccept` for a
@@ -525,8 +558,8 @@ author's sitting was not engaged on G, the raiser's re-audit ends a round, as th
   grade-movement docketing is not written while a proposal stands, and no proposal is filed while a
   docketing stands, so a docketing holds a proposal exactly when its cause is `PROPOSAL`. It carries
   every duty the dispatch's motion carried (built B2a: closings owed, `docketHeld`, `benchSatFor`, the
-  PASS hold, the freeze), through `docketingsAt` and `gap_state.standing_docketing`. It ends only at its
-  ruling.
+  PASS hold, the freeze), through `docketingsAt` and `gap_state.standing_docketing`. It ends at its
+  ruling, or at a party's concession with no ruling (§III.B5).
 - **Closings.** At every docketing but grade movement both parties owe a closing (picked 2026-11-21,
   "Red gets its closing", in every sitting): the raiser's states its statement, the author's its word.
   A raiser's closing where `lensSitsAfter` fails is the bench's to read; its statement cannot apply.
@@ -536,42 +569,41 @@ author's sitting was not engaged on G, the raiser's re-audit ends a round, as th
   where the bench's current sitting is convened to rule D (`benchHeld`). The tool writes the
   positions-table cell, then the ruling, in one transaction; a second answer is refused. The bench
   writes no word, grade or text of its own.
-- **`lensSitsAfter(D)`.** True where the bench rules D in a dispatched sitting of epoch e and a lens is
-  dispatched in a later epoch — `MaxEpochs == 0`, or `!isFinalEpoch(e) && !isFinalEpoch(e+1)` — and
-  false in a terminal or assembly sitting. It is computed from what the ruling's write sees (the
-  sitting's kind, the latest stored plan's epoch and limit). `--for-raiser` that applies a statement
-  is refused where it is false, naming the reason ("no lens sits after this ruling to audit what it
-  would apply"). `--remand` is refused where `partiesSitAfter(D)` fails: `lensSitsAfter(D)`, and G's
-  author dispatched, not for closings only, in a later epoch (lead call F-REMAND: one more exchange needs
-  both parties). With blue the author, a remand in the epoch before the held-out one is refused, since
-  blue sits there for closings only; with a lens author it is admitted. The closings-only sitting has the same reason and keeps its built
-  reach (`requireClosingsOnlySitting`): in the final epoch every party sits for its closings only, and
-  in the held-out epoch blue does (2026-11-04, f28b4008c: "the plan readies no blue in the epoch before
-  the last"; narrowed by the 2026-11-21 pick "F-HO (b)" to a closing-only sitting). Its refusal text
-  states the reason, not the epoch. Residue, stated: a lens that authors a gap is not held out in the
-  held-out epoch, so its amend there is audited by the gap-on-gap's raiser only if that lens sits again.
+- **`lensSitsAfter(D)`.** True where the bench rules D in a dispatched sitting of epoch e and a lens is dispatched in
+  a later epoch — `MaxEpochs == 0`, or `!isFinalEpoch(e) && !isFinalEpoch(e+1)` — and false in a terminal or assembly
+  sitting. It is computed from what the ruling's write sees (the sitting's kind, the latest stored plan's epoch and
+  limit). `--for-raiser` that applies a statement is refused where it is false, naming the reason ("no lens sits after
+  this ruling to audit what it would apply"). `--remand` is refused where `partiesSitAfter(D)` fails:
+  `lensSitsAfter(D)`, and G's author dispatched, not for closings only, in a later epoch (lead call F-REMAND: one more
+  exchange needs both parties). With blue the author, a remand in the epoch before the held-out one is refused, since
+  blue sits there for closings only; with a lens author it is admitted. The closings-only sitting has the same reason
+  and keeps its built reach (`requireClosingsOnlySitting`): in the final epoch every party sits for its closings only,
+  and in the held-out epoch blue does (2026-11-04, f28b4008c: "the plan readies no blue in the epoch before the last";
+  narrowed by the 2026-11-21 pick "F-HO (b)" to a closing-only sitting). Its refusal text states the reason, not the
+  epoch. Residue, stated: a lens that authors a gap is not held out in the held-out epoch, so its amend there is
+  audited by the gap-on-gap's raiser only if that lens sits again.
 - **What a ruling places.** Every ruling but a remand places G's ruling tombstone (§III.B6). A ruling on
   a grade locks the axes it decided until that tombstone ends (picked 2026-11-21, "A ruling re-locks",
   "Ends with the tombstone"), and restarts their grade-movement window.
 - **Remand.** One more exchange with `--direction`; the remand limit as built.
-- **One docketing per chain** (picked 2026-11-25): D(G2) is not written while D(G) or a proposal stands
-  on G2's subject G, nor D(G) while D(G2) stands, and no proposal is filed on G while D(G2) stands (G is
-  locked, §III.B5); so no proposal on G stands under D(G2), and no raiser's window runs out under the
-  lock. The owed one is written at the first dispatch after that ruling, and its wait holds no sitting
-  (11-23). The first written rules first. Residue, stated: after a ruling in a terminal or assembly
-  sitting no dispatch follows, so the waiting docketing is never written and its gap stays open.
+- **One docketing per chain** (picked 2026-11-25): D(G2) is not written while D(G) or a proposal stands on G2's
+  subject G, nor D(G) while D(G2) stands, and no proposal is filed on G while D(G2) stands (G is locked, §III.B5); so
+  no proposal on G stands under D(G2), and no raiser's window runs out under the lock. The owed one is written at the
+  first dispatch after that ruling or concession, and its wait holds no sitting (11-23). The first written rules
+  first. Residue, stated: after a ruling in a terminal or assembly sitting no dispatch follows, so the waiting
+  docketing is never written and its gap stays open.
 
 #### III.B5 The docket freeze — `cli/blue/freeze.go`, `record/{freeze,record,supersession}.go` [MODIFY]
 
 While D stands on G, an act on S lands only if every statement stated at D still applies after it:
 
-- the raiser's own amend, regrade and close of G are refused while a docketing or a proposal stands on
-  G, but the act carrying `accepts = M` of the standing proposal. Built for the amend
-  (`requireSupersededOffDocket`, which excepts M) and the close (`requireNoStandingDocket`,
-  `actjudge.go:118`, which gains that exception). **[NEW] for the regrade**, which meets no such check
-  (validate's arm `record.go:1242-1262`, judgeAct, `cli/seat/regrade.go`, the help): judgeAct's `Regrade`
-  arm calls `requireNoStandingDocket`, the bench's regrade and a ruling's application exempt. Migrate's
-  replay runs no judgeAct, so R0 measures it (§III.B8 (2));
+- the raiser's own amend and regrade of G are refused while a docketing or a proposal stands on G, and its close while
+  a proposal stands undocketed, but the act carrying `accepts = M` of the standing proposal. Built for the amend
+  (`requireSupersededOffDocket`, which excepts M) and the close (`requireNoStandingDocket`, `actjudge.go:118`, which
+  gains that exception and loses its docketing arm). **[NEW] for the regrade**, which meets no such check (validate's
+  arm `record.go:1242-1262`, judgeAct, `cli/seat/regrade.go`, the help): judgeAct's `Regrade` arm calls
+  `requireNoStandingDocket`, the bench's regrade and a ruling's application exempt. Migrate's replay runs no judgeAct,
+  so R0 measures it (§III.B8 (2));
 - **the lock** (picked 2026-11-25, "lock the anchor"; F-FREEZE keeps statements held for every report
   subject): while D(G2) stands, A's amend, regrade and close of G, and A's `--accept M` of a proposal
   on G, are refused naming D(G2); A's `--accept G2` and the ruling's application, each carrying
@@ -580,9 +612,13 @@ While D stands on G, an act on S lands only if every statement stated at D still
 - an author act that leaves the raiser's stated statement unplannable is refused — for text, the built
   road re-plan (`requireRoadsHold`, `BenchRoadsHold`); for a retire, the anchor still standing; for a
   fate, coverage or wording, the record still open to it; for grades, each stated axis still moves — naming D;
-- the author's concession lands: its `--accept G`, or a hand-written edit equal to the stated text; the bench's
-  `--for-raiser` then records only its ruling (built, B6c);
-- after any ruling's application changes S, each other docketed gap on S whose statement no longer
+- **either party's concession lands and ends D for the other side, with no ruling** (picked 2026-11-25, "Either
+  party concedes"): the raiser's close of G under any cause but grade movement (the built `Close` end); the author's
+  `--accept G` of the raiser's statement, per subject kind (on a gap, A's amend or regrade taking G2's statement).
+  Each is the act its verb writes anywhere, admitted where its verb is (a closings-only sitting refuses the author's
+  report change); `lensSitsAfter` binds only the bench's application. A hand-written edit equal to the stated text
+  lands and concedes nothing: D stands, and `--for-raiser` records only its ruling (built, B6c);
+- after any ruling's application or concession changes S, each other docketed gap on S whose statement no longer
   plans re-owes its raiser's closing (built: the re-plan of every standing road);
 - an item a seat owes whose only remedy the freeze refuses holds the PASS but not the sitting (picked
   2026-11-23, "Owed-but-frozen doesn't block"), and readies its seat once per cause, per subject kind
@@ -595,7 +631,7 @@ While D stands on G, an act on S lands only if every statement stated at D still
 |---|---|---|---|
 | sentence, anchor, section in blue's text | the bench's `BlueEdit` or `Retire`: `PlanAccept` within S, voice, estoppel | the author's act on S; another ruling's application on S | the statement hold; the re-owed closing (residue: a re-owed statement is restated) |
 | inquiry; question part | the bench's `Inquiry` or `QuestionPart`: the transition from its state | the author's fate, cover or split | the statement hold |
-| composed section | none (no statement) | — | — |
+| composed section | the bench's `Inquiry` per stated fate: each transition, and each still moving its inquiry into or out of S | the author's fate on a stated inquiry | the statement hold |
 | gap | A's amend: voice only (inherited admission); A's regrade: `requireRegradeWithinBenchLock` | A's acts on G′; a ruling on D(G′) locking an axis | the lock; one docketing per chain (§III.B4) |
 
 An estoppel row cannot newly bar a stated statement: the one-gap rule holds G as its raiser's only gap of
@@ -623,13 +659,16 @@ transaction; no verb mounts the body.
   `EstoppelConflict` compares with the text the placing act wrote (the accepting `BlueEdit`'s new span,
   through the row's placing event), never `Mint.fix_new`, so a closing's pair bars and a mint with no
   `fix_new` is no longer skipped.
+- **A concession** places what its act places anywhere (lead call F-CONCEDE): the author's accept of a pair its
+  estoppel row, every other concession none. None places a ruling tombstone, which marks a bench decision
+  (`Tombstone`'s CHECK names the ruling's docketing).
 
 | Subject | A ruling tombstone refuses, to every minter | Reader | An estoppel tombstone refuses, to the prescriber |
 |---|---|---|---|
 | sentence | G's class on the sentence | the one-gap rule's quote arm (built) | its class quoting the applied text |
 | anchor | G's class on the anchor | anchor arm (built) | a reword: as a sentence; a retire: none |
 | inquiry; question part | G's class on it | inquiry and part arms (built) | none (no row) |
-| section | G's class on the section's token or key | **section arm [NEW]** | its class quoting the applied text |
+| section | G's class on the section's token or key | **section arm [NEW]** | its class quoting the applied text; a composed section: none (fates) |
 | gap | G's class on G′'s chain tip | **gap arm [NEW]**, through `supersessionsOf` | none (no row) |
 
 - **End.** Both end at S's next change by the author (§III.B0's column), written as an end row in that
@@ -643,22 +682,20 @@ transaction; no verb mounts the body.
 
 #### III.B7 A gap on a gap — `record/{about,onegapperclass,available,dispatch,closingowed,composedsource}.go`, `cli/lens/{mint,closing}.go` [MODIFY]
 
-Lens B mints G2 `--about-kind gap --about G` on lens A's open G: a defect in G's printed wording
-(problem, fix, check, which print in the risk matrix). S is G's chain tip: an amend closes G
-`superseded` and mints G′, and every reader of G2's subject resolves through `supersessionsOf`. A's
-amend or regrade naming G2 (`Mint.answers`, `Regrade.answers`) is its answer; A's close, or an amend or
-regrade naming no gap, is B's turn. G2's statement may dispute G's grades as well as its wording
-(picked 2026-11-24, F-GRADE "Add grade to it"). A dispute that G is no defect at all takes the
-grade-down road (picked 2026-11-25, "Grade it down"; 13 of the 70 archived disputes): G stays open at
-the applied grades (§I value case). While D(G2) stands G is locked, and D(G) waits (§III.B4, §III.B5).
-A's close of G leaves G2 open for B to close `moot`; a `--for-raiser` on G2 then has no G to amend and is
-refused, so the bench sides for A or remands. B's closing states the wording, grades or both; A's states its word. A
-for-raiser ruling writes A's amend from B's wording (with any stated grades), or A's regrade from
-B's grades alone, under A's seat, carrying G's class, `about`,
-`location` and check kind as the record holds them. Narration in another lens's gap row is the voice
-lens's gap on that gap (`composedsource.go`); `composedItemsOf` keeps handing it other lenses' open
-gaps. This is the channel universe-m12 lacked (047a476f7: "a lens that disputed another's gap had no
-channel that reached the minter").
+Lens B mints G2 `--about-kind gap --about G` on lens A's open G: a defect in G's printed wording (problem, fix, check,
+which print in the risk matrix). S is G's chain tip: an amend closes G `superseded` and mints G′, and every reader of
+G2's subject resolves through `supersessionsOf`. A's amend or regrade naming G2 (`Mint.answers`, `Regrade.answers`) is
+its answer; A's close, or an amend or regrade naming no gap, is B's turn. G2's statement may dispute G's grades as
+well as its wording (picked 2026-11-24, F-GRADE "Add grade to it"). A dispute that G is no defect at all takes the
+grade-down road (picked 2026-11-25, "Grade it down"; 13 of the 70 archived disputes): G stays open at the applied
+grades (§I value case). While D(G2) stands G is locked, and D(G) waits (§III.B4, §III.B5). A's close of G leaves G2
+open for B to close `moot`; a `--for-raiser` on G2 then has no G to amend and is refused, so the bench sides for A or
+remands. B's closing states the wording, grades or both; A's states its word. A concedes D(G2) by its amend or regrade
+with `--accept G2`, B by closing G2 (§III.B5). A for-raiser ruling writes A's amend from B's wording (with any stated
+grades), or A's regrade from B's grades alone, under A's seat, carrying G's class, `about`, `location` and check kind
+as the record holds them. Narration in another lens's gap row is the voice lens's gap on that gap
+(`composedsource.go`); `composedItemsOf` keeps handing it other lenses' open gaps. This is the channel universe-m12
+lacked (047a476f7: "a lens that disputed another's gap had no channel that reached the minter").
 
 #### III.B8 `migrate` — Part B (contract: record migration)
 
@@ -708,7 +745,7 @@ Owed by this spec, each one translation with a test on an archived run:
   so does the bench's application of it, as every red text into the report has since 2026-09-15
   (126a473d7).
 - **Help** (`cli/seat/help/*.md`, then `cmdtreegen`): `docket` (file: the author's; rule: the pair, what
-  each side states, `lensSitsAfter`'s refusal), `regrade` and `close` (`--accept M`; `regrade --answers`, `--accept G` on a gap about the seat's gap), `edit`, `retire`,
+  each side states, `lensSitsAfter`'s refusal), `regrade` and `close` (`--accept M`; a close under a docketing is the raiser's concession; `regrade --answers`, `--accept G` on a gap about the seat's gap), `edit`, `retire`,
   `inquiry`, `question` (`--accept G`; what an unnamed change is), `mint` (`--supersedes`: own open gap;
   `--answers` on an amend; `--about-kind gap`), `closing-red` (every statement kind, a gap's grades included), `closing-blue` and
   the lens's closing (`--as` for the author), `show work` (the turn item, `estopped`).
@@ -737,16 +774,16 @@ Owed by this spec, each one translation with a test on an archived run:
 Drives: the author's proposal (blue's and a lens's on a gap on its gap); the raiser's accept by its own
 act; the author's accept of a statement, per subject kind; an unnamed change per subject kind; the
 docketing, every cell of the positions table, in a dispatched, a held-out, a terminal and an assembly
-sitting; tombstone placement and end per kind (an estoppel row only where a pair is accepted); a gap on a gap, stating wording, grades and both.
+sitting; each party's concession under each cause and subject kind; tombstone placement and end per kind (an estoppel row only where a pair is accepted); a gap on a gap, stating wording, grades and both.
 Gates (each > 0, a zero fixed in the drive, never by deleting the key): `proposals_by_author_kind`,
 `raiser_accepts_by_act`, `author_accepts_by_kind`, `turns_by_input`, `answers_by_kind`,
 `bench_answers_by_cell`, `for_raiser_refused_no_lens_after`, `tombstones_ended_by_kind`,
 `estoppel_other_lens_admitted`, `gap_on_gap`, `gap_on_gap_grades`, `one_gap_redirects_ruled`,
-`raiser_act_refused_while_standing`, `gap_lock_refused`, `section_turns`, plus every built gate this spec keeps (§III.R B6 row).
+`raiser_act_refused_while_standing`, `gap_lock_refused`, `section_turns`, `concessions_by_party_kind`, `composed_fates_applied`, plus every built gate this spec keeps (§III.R B6 row).
 Oracles (any count fails): `docketing_without_landing_answer`, `statement_applied_no_lens_after`,
 `turn_counted_as_answer`, `non_author_filed`, `accept_written_as_ruling`, `two_answers`,
 `side_stated_nothing` (the regrade proposal's `--for-raiser` excluded), `bench_grade_of_its_own`,
-`two_docketings_on_a_chain`, `estopped_landed`, `ruling_overturned`.
+`two_docketings_on_a_chain`, `estopped_landed`, `ruling_overturned`, `ruled_after_concession`, `concession_placed_ruling_tombstone`.
 
 #### III.B11 Tests (driven through the command tree, as a seat runs it; T-ids of built tests kept)
 
@@ -754,18 +791,18 @@ Oracles (any count fails): `docketing_without_landing_answer`, `statement_applie
 |---|---|---|
 | T-B47 `TestTheAuthorIsTheSubjectsAuthor` [NEW] | per subject kind, `authorOf` at each site: who files, who answers, whose closing states a word, whose work list carries G, whose turn readies whom | any site reads a role |
 | T-B48 `TestTheRaiserAcceptsByItsOwnAct` [NEW] (replaces T-B5–T-B7's accept rows) | `regrade --accept M`, `close --accept M` write the act with `accepts = M`, every M10 effect, no `MotionRule`; an accepted M reads as answered in every M26 (15) reader (no `Docketing{PROPOSAL}` at the window's end, F5 admits the next filing, `Ruled()` true); a second answer refused; refused while docketed; an unaccepted M docketed at the window's end; B's accept of A's proposal on G2; `--accept` with an `M-` and a `G-` id each resolves its kind, any other refused | an accept writes a ruling, or skips a check |
-| T-B49 `TestTheAuthorAcceptsTheRaisersStatement` [NEW] | per kind (a gap's wording and its grades each), `--accept G` writes the stated bytes and `answers = G`, and an estoppel row exactly where the statement is a pair; while docketed it lands; `--accept` resolves a `G-` id as a gap; a hand-written edit equal to the stated text lands under the freeze, answers nothing and places no estoppel row | a kind has no accept, one writes other bytes, or a comparison places a bar |
+| T-B49 `TestTheAuthorAcceptsTheRaisersStatement` [NEW] | per kind (a gap's wording and its grades each), `--accept G` writes the stated bytes and `answers = G`, and an estoppel row exactly where the statement is a pair; while docketed it lands; `--accept` resolves a `G-` id as a gap; `accepted` set on each; a composed section's accept writes one `Inquiry` per stated fate; a hand-written edit equal to the stated text lands under the freeze, answers and concedes nothing and places no estoppel row | a kind has no accept, one writes other bytes, or a comparison places a bar |
 | T-B45 `TestAChangeToAGapsSubjectIsItsLensTurn` (amended) | per row of §III.B0, an unnamed change readies the raiser, resets no stall, discharges no remand; the named act answers; an inquiry fate, a coverage and a reaching retire without `answers` are turns; an edit meeting a section, the heading's rename included, is its turn and one outside it is not; an owed-but-frozen item readies its seat once per cause, per kind | a turn moves a stall or a named act does not |
-| T-B50 `TestEveryDocketingHasALandingAnswer` [NEW] (replaces T-B46's open case) | each positions-table cell × {dispatched, held-out, terminal, assembly}, a gap subject's grade statement included: what lands and what is refused, naming the reason; `--restore` where every axis nets to zero lands with no `Regrade`; the raiser's regrade, close and amend of G under each cause and under a standing proposal refused naming it, its `--accept M` landing | a docketing has no landing answer, a statement lands where no lens sits after, or the raiser moves G while it stands |
+| T-B50 `TestEveryDocketingHasALandingAnswer` [NEW] (replaces T-B46's open case) | each positions-table cell × {dispatched, held-out, terminal, assembly}, a gap subject's grade statement included: what lands and what is refused, naming the reason; `--restore` where every axis nets to zero lands with no `Regrade`; the raiser's regrade and amend of G under each cause, and its close under a standing proposal, refused naming it, its `--accept M` landing; per cause and subject kind, each party's concession (the raiser's close; the author's `--accept G`, none at a regrade proposal or grade movement) ends D with no ruling, after which a ruling is refused and no closing is owed; after the author's, G's docketing waits on the raiser's re-audit; a composed section's stated fates apply on `--for-raiser` | a docketing has no landing answer, a statement lands where no lens sits after, the raiser moves G while it stands but by its close, or a concession leaves D standing |
 | T-B46 `TestNoRaiserStatementLandsWhereNoLensSitsAfter` (amended) | `--for-raiser` applying a statement and `--remand` refused in the held-out epoch's and final epoch's sittings and the assembly; per author kind, a remand in the epoch before the held-out one: refused with blue the author, admitted with a lens; for-raiser admitted there; a party's report change in a closings-only sitting refused | either lands there or is refused before |
-| T-B51 `TestATombstoneEndsAtItsSubjectsNextChange` [NEW] | per subject kind, place a ruling tombstone, and an estoppel row where the kind takes one (a pair: sentence, anchor reword, section), then the author's change ends each and only that; a bench application ends none | a kind keeps or ends wrongly |
+| T-B51 `TestATombstoneEndsAtItsSubjectsNextChange` [NEW] | per subject kind, place a ruling tombstone, and an estoppel row where the kind takes one (a pair: sentence, anchor reword, section), then the author's change ends each and only that; a bench application ends none; a concession places no ruling tombstone | a kind keeps or ends wrongly |
 | T-B42 `TestEstoppelBindsOnlyThePrescribingLens` | per row of §III.B6's table, each tombstone refuses what its cell names and nothing else: the mint, the closing road and the reading discharge, for the prescriber and another lens; a closing's pair and a mint with no `fix_new` bar | a cell bars nothing, or another lens is barred |
 | T-B52 `TestASectionGapStandsOnItsHeading` [NEW] | the mint resolves a heading by key (none or two refused; a composed section admitted with no token; another tool section refused); the token lands on the heading, and every other anchor on a heading is still refused; a rename carrying it keeps the section; the for-raiser pair plans only within the section | a section gap lands unchecked, or another anchor lands on a heading |
 | T-B44 `TestAGapOnAGapGoesToItsMinter` (amended) | G2 reaches A; A's amend or regrade naming G2 answers; A's unnamed acts are B's turn; B states wording, grades, both; for-raiser writes A's amend (with the grades) or A's regrade under A's seat, locking no axis, after blue's edit of G's sentence and with A's standing reading lapsed; while D(G2) stands A's amend, regrade, close and `--accept M` on G refused, its `--accept G2` landing; D(G) owed while D(G2) stands written after its ruling, and the reverse; a proposal on G refused while D(G2) stands, and D(G2) not written while one stands; a grade stated on a ruling-locked axis refused when stated; a gap on G2 and on a closed gap refused | an application is refused after its statement, or two docketings stand on a chain |
 | T-B39 `TestOnlyAGapsPartiesFileOnIt` (amended) | a non-author filer refused at the surface and in validate, for blue on a gap subject and for a lens on a report subject | |
 | T-B40 `TestEveryDocketingIsRaiserAgainstAuthor` (renamed) | only the four answers; `SidedWith` 3, 4 refused; `sided_with` on a non-bench row refused | |
 | T-B41, T-B43 | `--supersedes` names only your own open gap; no archive keeps a link past a close; T-B43 asserts the count of migrated gaps standing where a ruling tombstone of their class stands (§III.B8's residue) | |
-| T-B19–T-B37 (built) | kept, re-keyed per §III.R: T-B19 (tombstones), T-B22–T-B24 (docketing), T-B26, T-B31 (migrate), T-B27–T-B29 (positions, grades, text), T-B30, T-B32–T-B34 (readers; T-B34 loses its `Close` end rows), T-B36, T-B37 | |
+| T-B19–T-B37 (built) | kept, re-keyed per §III.R: T-B19 (tombstones), T-B22–T-B24 (docketing), T-B26, T-B31 (migrate), T-B27–T-B29 (positions, grades, text), T-B30, T-B32–T-B34 (readers; T-B34 keeps its `Close` end rows, now the raiser's concession), T-B36, T-B37 | |
 | T-B1–T-B18 (built) | kept but T-B5–T-B7 (accept as ruling → T-B48) and T-B14, T-B16 (minter, not assignee) | |
 | T-B13 | every archived run migrates at epoch 81 with zero refusals and renders | a refusal |
 
@@ -793,7 +830,7 @@ the code (or `main`); every row is still to do.
 | X15 | 111 non-test files (census M26 (8)) | `assignee`, `assigneeSQL`, `assigneeOf` → `minter`, `minted_by` | B1–B6c | §II.5 |
 | X16 | 41 non-test files (M26 (4)) | `--for-red`/`--for-blue`, `SIDED_WITH_RED`/`BLUE`, `ForRed`/`ForBlue` → raiser/author | B2a | §II.5 |
 | X17 | 29 non-test files (M26 (1)) | every party-meaning role test → `authorOf` | main, B2a | §III.B0 |
-| X18 | `recordsql/gapstate.go`, `record/docketing.go` (`docketingsAt`) | a docketing's `Close` end | B2a | no verb reaches it; a docketing ends at its ruling |
+| X18 | `recordsql/gapstate.go`, `record/docketing.go` (`docketingsAt`) | the docketing's end gains the author's concession arm (`answers = G` and `accepted`); its `Close` end stays as the raiser's | B2a | either party concedes (§III.B5) |
 | X19 | `record/actjudge.go` (`requireClosingsOnlySitting`); `requireBenchDocketAnswer`'s new refusal is written so (it holds no epoch text today) | refusal texts naming an epoch where the reason is that no lens sits after | main, B2a | §III.B4: the refusal states its reason |
 | X20 | help `docket`, `regrade`, `close`, `edit`, `retire`, `mint`, `closing-red`; `cli/motion/verbs.go`; agentgen sources; `debate.js`; `terms.json`; docs | every text teaching `motion docket accept`, a bystander's filing, the supersede proposal, `--for-filer`/`--for-assignee`, `--superseded-by`, `repaired_with_regression`, "assignee", or a fate as an answer | B4, B4b, main | §III.B9 |
 
@@ -809,31 +846,21 @@ B7 (amendments 7–11) was never built; everything it planned is in this spec or
 |---|---|---|---|
 | B1 record | `Motion.act` regrade/close; singular `Mint.supersedes` (`flags/ancestor.go`); `Tombstone`, `tombstone_standing`; `benchOpinion` fields; grounds reserved; `dropCrossSeatLink` | `requireSupersedable` (`supersession.go:89`): own open gap only; `TombstoneKind`'s estoppel means: the prescribing lens | X1 (field 17), X9 |
 | B2 filing, accept, bench | `requireProposedAct`, `requireRegradeMoves`, `ProposedCloseClasses`, `StoredAct`; `seat.WriteRegrade`, `lens.WriteClose`; `requireNotEstoppedOn`; the grade window per axis | `requireDocketFiling` (`proposal.go:199`): filer = `authorOf`; `newAccept` → `--accept M` on the raiser's own verbs writing `accepts`; every reader of "is M answered" reads an act carrying `accepts = M` as M's answer — `gap_state.unruled_docket_{motion,filed}` and the trigger `motion_rule_docket_answers_a_filing` (`recordsql/gapstate.go`, `schema.go`), `Motion.Ruled()`/`rulingWord` (`motion.go`, `record.go`), `motion_answers` (`views.go`), `docketHeld` (`benchsitting.go`), F5's standing check and the window's end (`proposal.go`, `dispatch.go`), and the renderers (`report/motions.go`, `motionview.go`) — census M26 (15); `requireOriginator`'s wording (raiser); `requireNoStandingDocket` excepts the `accepts` M, and judgeAct's `Regrade` arm calls it (§III.B5); `grademovement.go:149`'s bench skip keeps its reason (the bench's application) and skips the applied regrade under A's seat (`answers`, the ruling's transaction) | X1, X4, X5 (the accept arm), X6; tests `proposalanswers_test.go` (cli, record) rewritten to T-B48 |
-| B2a docketing, sides | `Docketing`, `DocketingCause`, `docketingsAt`, `standingDocketings`, `archivedocket.go`; `docketing_id`, `moved_grades`, the CHECKs; `Positions`, `positionsAt`, `AnswerWord`, `requireBenchAnswerApplied`, `requireRoadApplied`; `applyText`; `Closing`'s road fields; `closingowed.go`'s fold; Translations 3–4; `Road`, `roadOf`, `requireRoadsHold`, `roadPlans` | `positionsAt`'s closing reader (a lens author's closing word) and `requireClosingStatement`, `IsClosingParty`, `closingPartiesOf`, `AnswerWord`'s `side == BLUE` arm: party by `authorOf`; `TextSide` = the raiser; `sided_with` bench-only, RAISER/AUTHOR (X16); `requireBenchDocketAnswer` gains `lensSitsAfter` and `partiesSitAfter`; `requireClosingsOnlySitting` keeps its reach, its text states the reason (X19); `standingRoadsAt` from the docketing only; `Closing` gains the statement fields; `closingTakesText` gains the gap, inquiry and part | X2, X3 (window loop), X18 |
+| B2a docketing, sides | `Docketing`, `DocketingCause`, `docketingsAt`, `standingDocketings`, `archivedocket.go`; `docketing_id`, `moved_grades`, the CHECKs; `Positions`, `positionsAt`, `AnswerWord`, `requireBenchAnswerApplied`, `requireRoadApplied`; `applyText`; `Closing`'s road fields; `closingowed.go`'s fold; Translations 3–4; `Road`, `roadOf`, `requireRoadsHold`, `roadPlans` | `positionsAt`'s closing reader (a lens author's closing word) and `requireClosingStatement`, `IsClosingParty`, `closingPartiesOf`, `AnswerWord`'s `side == BLUE` arm: party by `authorOf`; `TextSide` = the raiser; `sided_with` bench-only, RAISER/AUTHOR (X16); `requireBenchDocketAnswer` gains `lensSitsAfter` and `partiesSitAfter`; `requireClosingsOnlySitting` keeps its reach, its text states the reason (X19); `standingRoadsAt` from the docketing only; `Closing` gains the statement fields; `closingTakesText` gains the gap, inquiry and part; `missingText`'s composed-section arm reads the stated fates (F-COMPOSED); the docketing's end gains the author's concession (X18) | X2, X3 (window loop) |
 | B3 tombstones | `writeTombstones`, `tombstonesOwed`, `rulingPlacement`, `verbatimPlacement`, `requireTombstoneShape`, the standing readers; the one-gap rule's tombstone arm; the lock's end; replay writes once | `verbatimPlacement` placed by the author's accept of a pair only; `EstoppelConflict` takes the minting seat (X11) and reads the placing act's text; the one-gap rule gains the section and gap arms (§III.B6) | X5 (accept skip), X14 |
 | B4, B4b text | the carriers' structure; `ProposedCloseClasses` menu | every carrier per §III.B9, regenerated | X13, X15, X20 |
 | B5 migrate | `partb_test.go`'s three tests; `migratetombstone_test.go` | §III.B8's measurements; Translation 5; `TestEveryArchivedGapIsAssignedToItsChainsOrigin` → its writer | — |
 | B6, B6b fuzz | `exchangeunmeasured_test.go`, `oneproposal_test.go`, `lockreentry_test.go`, the tombstone drives, `BenchRoadsHold` and its test | `proposal_test.go`, `proposalgates_test.go`, `benchorders_test.go`, `fuzz_test.go`: §III.B10's drives and gates | X5's and X6's fuzz files and drives |
 | B6c freeze, owed-but-frozen | `RedTextApplied` (the concession), `requireRoadApplied`'s "already applied", `frozenIn`, `frozenDebtIn` (owed-but-frozen, picked), `lifecycleseed`, `gaproads`, `readingdebt`, `lensturn` drives | the freeze's subject arms (§III.B5) | X3 (successor arm), `cli/freeze_test.go`'s successor cases, `fuzz/bystander_test.go` |
-| (unbuilt) | — | §III.B0–B7's new work: `authorOf` (X17, ~30 sites), `lensSitsAfter`, `answers` ×4, `accepts` ×2, the `--accept G` flags, `ABOUT_KIND_GAP` and the gap subject, the closing's statement fields (a gap's grades included), the turn's inputs (X7), one tombstone end arm; the section token (`ResolveAbout`, the heading placement, `ReopenedAnchors`, Translation 6); the lock and one docketing per chain; `partiesSitAfter` | — |
+| (unbuilt) | — | §III.B0–B7's new work: `authorOf` (X17, ~30 sites), `lensSitsAfter`, `answers` ×4, `accepts` ×2, the `--accept G` flags, `ABOUT_KIND_GAP` and the gap subject, the closing's statement fields (a gap's grades and `fates` included), `accepted` ×5 and the concession end, the turn's inputs (X7), one tombstone end arm; the section token (`ResolveAbout`, the heading placement, `ReopenedAnchors`, Translation 6); the lock and one docketing per chain; `partiesSitAfter` | — |
 
-**Size** (estimate from the inventory): about 45 non-test symbols and 1,100 hand-written lines deleted;
-about 35 non-test files changed in meaning; 3 test files deleted whole (~830 lines) and about 25
-rewritten (~5,500 lines); the `assignee` rename (X15) is its own commit, ~140 files, but for its DDL half (R1); one epoch (81)
-with Translation 5 and the §III.B8 measurements.
+**Size** (estimate from the inventory): about 45 non-test symbols and 1,100 hand-written lines deleted; about 35
+non-test files changed in meaning; 3 test files deleted whole (~830 lines) and about 25 rewritten (~5,500 lines); the
+`assignee` rename (X15) is its own commit, ~140 files, but for its DDL half (R1); one epoch (81) with Translation 5
+and the §III.B8 measurements.
 
-**Edits outside Part B by this rewrite** (pointers only; no rule of Part A changed): the header and §I
-rewritten; §II.1's "Reused as" column re-pointed to §III.B0–B6 and the minter; §II.4's three rows
-re-labelled (lineage past a close; the owner before `--supersedes` narrowed; the structural docket
-rule) and pointed to §III.B8; §II.5 replaced by the names table; §II.2's grounds pointer → built B3;
-§III.A1's `ABOUT_KIND_GAP` and epoch pointers; §III.A2's `heldGap` and own-gap case (minter), the
-author's refusal (was "blue's"), the ruling-tombstone case → §III.B6, `requireSupersedable`'s two
-refusals → §III.B2, `requireSupersededOffDocket`'s refusal (no longer offers `motion docket accept`,
-which is deleted, X5; it states that statements hold until the ruling), the voice bullet → §III.B7 and
-X13, the proposal's route to the raiser; §III.A3's pointers → §III.B7, X10; §III.A5's grounds pointer;
-§III.A6's gate pointers → §III.B10; T-A3's "blue's refusal" → the author's; criterion A3's run count
-(36 at approval, 38 since the 2026-11-22 merge). Audit p10: §III.A1's epoch line; §III.A2's and T-A3's
-author case deleted (unreachable, X6); §III.A6's ruled cell → `one_gap_redirects_ruled`.
+**Edits outside Part B by this rewrite** are pointers only; no rule of Part A changed. They are in git:
+`git -C <wt> diff 8334980fe HEAD -- plans/findings-fold.md`, read outside §III.B0–§III.R.
 
 ### III.C Carrier/consumer census
 
@@ -872,7 +899,7 @@ runs on the PR's final head. An independent review of the built change precedes 
 |---|---|---|---|
 | A1–A4 | **built**: Part A | T-A1–T-A7 | 78 |
 | B1–B6c | **built**: §III.R's "matches" column | T-B1–T-B37 | 79, 80 |
-| R0 | §III.B8's measurements (1)–(5), (2) through the verbs' guards, on a scratch replay of the built branch with the turn and freeze rules patched in; results to gblock before R1 if any exceeds the residue | — | — |
+| R0 | the frequency replay ran 2026-11-25 (§II.4) and covers none of these: §III.B8's measurements (1)–(5), (2) through the verbs' guards, on a scratch replay of the built branch with the turn and freeze rules patched in; results to gblock before R1 if any exceeds the residue | — | — |
 | R1 | record: §III.B1's changes, the DDL halves of X15 and X16 (`gap_state.minted_by`, the `SidedWith` words) included; Translations 5 and 6 and the sides | T-B13, T-B43, `TestNoArchiveHoldsAnAcceptAsARuling` | 81 |
 | R2 | `authorOf` and every site (X17); the proposal and both accepts (X5, X6); the answer and the turn (X7) | T-B39, T-B45, T-B47, T-B48, T-B49 | — |
 | R3 | the docketing's predicates, positions, closings-only sitting (X19); the freeze, the regrade guard, the lock and one docketing per chain (X3, X18); tombstones and their per-kind bars (X11, X14) | T-B40, T-B42, T-B46, T-B50, T-B51; T-B19–T-B37 re-keyed | — |
@@ -894,7 +921,7 @@ COUNT; `uptime` before believing a timeout.
    - Part A: `git grep -n -E 'EVENT_TYPE_FINDING|recordpb\.Finding\b|found_by|FoundBy|found-by|ItemFindingOnGap|"fx"' HEAD -- plugins/frank-exchange-of-views scripts/agentgen ':!*/record/migrate/*' | grep -v reserved` → only the 14 O lines of `audit-p10/partA.txt` (absence tests, `payload-keys.txt`, `fx` test paths, `FoundBy` test names, the descriptor, the proto's "11 was EVENT_TYPE_FINDING"); A13's residual (867 lines on `fb593c3d4`, spot-read only) → adjudicated line by line in R5, O lines only.
    *Re-armed by:* any edit.
 6. **Help, read before and after, one command at a time.** `motion docket file`, `motion docket rule`, `lens regrade`, `lens close`, `lens mint`, `closing` (both sides, and a lens as author), `blue edit`, `blue retire`, `blue inquiry`, `blue question`, `show work`; the prompt goldens `prompt-judge-terminal.golden` and the lens prompt. *Re-armed by:* any help source or Go help text.
-7. **Delete-the-row**, by hand, each reverted; a row that stays green is a gap in the tests: `authorOf`'s gap arm (T-B44, T-B47); validate's non-author filer refusal (T-B39); `accepts` set on the act (T-B48); `Regrade.answers` on A's regrade naming G2 (T-B44); the estoppel row on `--accept G` of a pair, and its absence for every other kind (T-B49); each turn input, and each moved answer back into `gapActsOf` (T-B45); `lensSitsAfter` on for-raiser, on remand, on the closings-only sitting (T-B46, T-B50); each positions-table cell (T-B27, T-B50); the freeze's subject arms and the concession admission (T-B29, T-B49); the one end arm per kind (T-B51); `EstoppelConflict`'s seat and its applied-text read (T-B42); the section and gap ruling arms (T-B42); judgeAct's regrade guard (T-B50); the lock and the chain's one docketing (T-B44); `partiesSitAfter`'s author conjunct (T-B46); the section token's `reopened` arm (T-B45, T-B51); `ResolveAbout`'s heading check (T-B52); the docketing's `Close` end restored (T-B34). *Re-armed by:* any predicate, view or refusal change.
+7. **Delete-the-row**, by hand, each reverted; a row that stays green is a gap in the tests: `authorOf`'s gap arm (T-B44, T-B47); validate's non-author filer refusal (T-B39); `accepts` set on the act (T-B48); `Regrade.answers` on A's regrade naming G2 (T-B44); the estoppel row on `--accept G` of a pair, and its absence for every other kind (T-B49); each turn input, and each moved answer back into `gapActsOf` (T-B45); `lensSitsAfter` on for-raiser, on remand, on the closings-only sitting (T-B46, T-B50); each positions-table cell (T-B27, T-B50); the freeze's subject arms and the concession admission (T-B29, T-B49); each concession end arm, the raiser's and the author's (T-B50); the one end arm per kind (T-B51); `EstoppelConflict`'s seat and its applied-text read (T-B42); the section and gap ruling arms (T-B42); judgeAct's regrade guard (T-B50); the lock and the chain's one docketing (T-B44); `partiesSitAfter`'s author conjunct (T-B46); the section token's `reopened` arm (T-B45, T-B51); `ResolveAbout`'s heading check (T-B52); the docketing's `Close` end restored (T-B34). *Re-armed by:* any predicate, view or refusal change.
 8. **Full check.** `go -C scripts run ./check 2>&1 | tee ~/.claude/scratch/1695/build/check.log | tail -40` → read the fail count; planguard plans `lensSitsAfter`'s plan read and the freeze's re-plan. *Re-armed by:* every push.
 9. **Real data.** `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestEveryArchivedRun|TestNoMigratedArchive|TestAnArchived|TestACrossSeatLineageLinkDrops|TestAMintKeepsItsFirstAncestor|TestArchivedRunsCarryTheirTombstones|TestNoArchiveKeepsALinkPastAClose|TestNoArchiveHoldsAnAcceptAsARuling' ./internal/record/migrate/` → zero refusals and the residue counts. Then `scripts/universe.sh build`; grep the staged marketplace for a phrase of the change's help ("accept it by your own"); confirm `env | grep -c '^ANTHROPIC_API_KEY='` → 0 and `"apiKeySource":"none"`; one `--smoke` run on the merge candidate: every docket `Motion` is its gap's author's, every accept carries `accepts` and no `MotionRule`, every bench ruling names a docketing and applies its cell, no raiser statement applied where no lens sat after, no turn counted as an answer, every non-remand ruling followed by its tombstone row — each over a count > 0 (docket motions, accepts, bench rulings, tombstone rows), a zero failing the check. *Re-armed by:* the merge candidate.
 10. **CI only — release fuzz.** On the PR's final head, the four `release-fuzz` parts and `release-fuzz-tally` show §III.A6's and §III.B10's gates, every oracle at zero. *Re-armed by:* the merge candidate.
@@ -906,7 +933,8 @@ COUNT; `uptime` before believing a timeout.
 
 | # | Question | Options | Lead's recommendation |
 |---|---|---|---|
-| F-COMPOSED | "Anchor headings" covers headings blue writes; 8 of the 10 archived section gaps are on assembly's inquiry sections, whose text no party writes. What may the raiser state there? | none: `--for-author` or `--remand` (as built), stated \| the raiser states an inquiry, which the bench's application proposes | none, stated: the text is a projection of fates, which the inquiry's own gap disputes |
+| F-ACCEPT-DOCKETED | Under a proposal docketing, may the raiser concede by `--accept M` (the mirror of the author's `--accept G`), which the 2026-11-20 pick refuses while docketed? | refused, as picked: its concession is its close of G \| admitted as a concession, ending D | admit it: the 2026-11-25 concession makes each party's accept of the other's position its concession; the spec is written refused until ruled |
+| GRADE-INV | Grade-movement docketing (0 archived since it went live) is kept pending `~/.claude/scratch/1695/grade-investigation.md`, in progress by another agent: how grades and downgrades are defined and taught to seats | keep \| redefine \| cut | none until it lands; its result may change §III.B4's grade-movement cause, the positions table's last row, T-B50 and the fuzz's grade drives, and is read before R1 |
 
 ### Lead calls
 
@@ -921,6 +949,8 @@ Each is the lead's, disclosed with what flips; the spec above is written under i
 | F-REMAND | Which parties must sit after a remand? | both (2026-11-25, disclosed): `partiesSitAfter` | §III.B4; a futile remand with blue the author holds the PASS to the end |
 | F-CONSUME | Is the author bound once the raiser accepts its proposal? | no: the accept consumes the proposal (2026-11-25, disclosed) | party table; a re-proposal bar |
 | F-TWIN | One standing proposal per gap, or twins? | one (picked "One proposal", 2026-11-25; it sets aside the 11-23 ride-along "twins restored") | §III.B2's F5 |
+| F-COMPOSED | On an inquiry section assembly writes, what does the raiser state? | inquiry fates, each naming an inquiry it moves into or out of the section, as F-INQ rules for an inquiry gap (2026-11-25, lead call; replaces "none") | §III.B0's row, §III.B5's table, `missingText`, T-B49, T-B50 |
+| F-CONCEDE | What does a concession place? | what its act places anywhere: the author's accept of a pair its estoppel row, every other none; never a ruling tombstone, which marks a bench decision; consistent with F-CONSUME (the conceded-to party is unbound). A raiser that closed G may raise G's class on S again as a new gap at zero exchanges, stated | a concession tombstone barring the conceder until S's next change; §III.B6, T-B51 |
 | F-REGRADE-ACCEPT | `regrade --accept` takes M (the raiser's accept, `accepts`) and G2 (A's accept of a grade statement, `answers`) on the same verb and gap: one flag or two? | one flag; the tool resolves the id as a motion or a gap (ids unique by construction) and refuses any other | §III.B2's accepts, §III.B9's `regrade` help, T-B48, T-B49 |
 
 **Peer notice owed (not sent; for the lead to route: `telepathy search 1830`, then `telepathy send`).** PR
@@ -928,7 +958,7 @@ Each is the lead's, disclosed with what flips; the spec above is written under i
 `Close` the record writes, so `isRecordMoot` and its for-raiser exemption go; a cut under a docketing
 is refused by the freeze; a cut still ends a tombstone with its token (F16); the sides are
 `--for-raiser`/`--for-author`, and `--for-raiser` applying a statement is refused where no lens sits
-after; this plan's section and line references from before 2026-11-24 are stale. F-CLOSE: #1830 told, 2026-11-24.
+after; this plan's section and line references from before 2026-11-24 are stale. F-CLOSE (#1830 told 2026-11-24) is narrowed by "Either party concedes": a raiser's close ends a docketing as its concession; #1830 is owed that.
 
 ### Rulings carried
 
@@ -955,12 +985,14 @@ ruling's; RULINGS.md holds each in full.
 - 2026-11-23, successors: "How is it not just another gap? What was the source of the problem? How do we fix the problem at the source??? Why does it happen at all?" → picked: a defect after a close is a new gap with no link; `--supersedes` amends your own open gap; verbatim estoppel binds only the prescribing lens; #1930, #1931 filed.
 - 2026-11-23, two parties: "Can we successfully generalize two party dispute resolution to gaps? If the creating party could amend, then a gap raised on a gap would be resolved the same way a gap raised on text would?" → picked "Yes, as described"; "I want to make sure that when a gap is applied to a gap the gap underneath gets frozen or something"; "I think us allowing text to change out from under a gap when a gap is defined is causing a class of problem." → picked "Adopt", "Lens's turn, no exchange" (keeps 2026-10-31: "the lens's turn and NOT blue's answer"), "Yes, any last epoch", "Raiser states a fate"; the voice refusal on red's closing text (2026-09-15) and "minter", not "assignee", ride along.
 - 2026-11-24 (picked): "Rewrite Part B fresh"; "Author = subject's author".
+- 2026-11-25, R0: "I mean I don't know if it's the wrong thing to do of course" → picked "Replay first" (§II.4: Part B fires); picked "Either party concedes".
+- 2026-11-25, cuts: "Remove anything that doesn't break symmetry or where the rarity isn't a factor of frequency - I worry there are free section headings to file against. I worry that grade downgrades aren't well communicated as options by agents or that each has a poor definition that's so open to interpretation that it accepts" → the lead's reading cuts nothing: blue's proposals mirror the raiser's offer of text; the heading anchor's rarity is its missing mechanism; grade-movement docketing waits on GRADE-INV.
 - 2026-11-25, audit p10: "Why not just lock the inputs and have the tool reject something with a gap?" → picked "Adopt" (lock the anchor); "I see no other real path than a way to anchor on headings" → picked "Anchor headings"; picked "One proposal" and "Grade it down".
 - 2026-11-24, on the rewrite's forks (picked): F-FATE "Raiser's turn" — an inquiry fate, coverage or
   reaching retire that names no gap is the raiser's turn; `Inquiry` and `QuestionPart` gain `answers`
   (reverses the 2026-11-05 design that counted them as the author's answer). F-ACCEPT "Own act" — the
   raiser accepts by its own act carrying `accepts` (reverses the 2026-11-12 pick that the accept writes
   a `DocketRuling`). F-CLOSE "Ends at ruling" — a docketing ends at its ruling, never at a `Close`
-  (sets aside the relayed 2026-11-20 ruling "A Close ends a docketing"; #1830 told). F-GRADE "Add grade
+  (sets aside the relayed 2026-11-20 ruling "A Close ends a docketing"; #1830 told; narrowed 2026-11-25: a party's concession ends it too). F-GRADE "Add grade
   to it" — a gap on a gap may state grades; its minter answers with a regrade naming it; the bench
   sides as at any docketing (§III.B7).
