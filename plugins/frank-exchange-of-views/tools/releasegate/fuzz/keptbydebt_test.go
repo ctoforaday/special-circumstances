@@ -63,6 +63,9 @@ func TestKeptByDebtReadsThePlansLine(t *testing.T) {
 	if g == nil {
 		t.Fatalf("keptByDebt does not read the plan's line for a lens kept from retiring by a debt:\n%s\nplan why: %q", line, plan.Why)
 	}
+	if b := barrenSittings.FindStringSubmatch(line); b == nil || b[1] != strconv.Itoa(retiresAfterSittings) {
+		t.Errorf("barrenSittings reads %v from the line of a lens %d sittings barren:\n%s", b, retiresAfterSittings, line)
+	}
 	if n, _ := strconv.Atoi(g[1]); n != 3 || !owesAComputation(g[2], map[string]bool{"K-1": true}) {
 		t.Errorf("keptByDebt read %s barren sitting(s) owing %q, want 3 owing unchecked K-1, from:\n%s", g[1], g[2], line)
 	}

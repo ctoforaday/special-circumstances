@@ -695,6 +695,9 @@ type runner struct {
 	// reproduced records the COMPUTE gaps whose computation a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced gapSet
+	// rerunOnce is, in owedComputationSeed's run, the computations its owner has re-run for a compute gap
+	// (recomputeOpenComputations): it re-runs each once, so a gap left open is no reproduce every sitting.
+	rerunOnce map[string]bool
 	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
 	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
 	applyMisses map[string]int
@@ -3262,16 +3265,18 @@ func (r *runner) judgeToReopen(seatID string) {
 // the computation lens owes a check of until it sits, once the owner has retired; and an edit of the edit
 // target. It draws nothing.
 //
-// THE COMPUTATION WAITS FOR THE OWNER TO RETIRE. The owner's check of it is a reproduce, which makes
-// its sitting productive (record.lensStates), so a computation every blue sitting kept the owner's
-// barren count at zero and no plan kept it from retiring by one: 0 in the sweep. The owner retires after
-// three quiet sittings, the plan names it a stale area, and the computation blue proves then is one a
-// lens past its barren limit owes, which keeps it from retiring.
+// THE COMPUTATION WAITS FOR THE OWNER'S BARREN COUNT. The owner's check of it is a reproduce, which
+// makes its sitting productive (record.lensStates), so a computation every blue sitting kept the owner's
+// barren count at zero and no plan kept it from retiring by one: 0 in the sweep. Blue proves it once the
+// plan of this epoch reads the owner two barren sittings in a row (ownerBarrenAtLeast) or retired (a
+// stale area). Lenses sit before blue in an epoch, so the owner's sitting of this epoch — owing nothing,
+// its drawn readings spent, its compute gaps re-run once — is its third barren one, and the next plan
+// holds a lens past its barren limit kept from retiring by a computation nobody has judged.
 func (r *runner) computeOwed(seatID string) {
 	if !r.forceOwedComputation || seatID != "blue-respond" {
 		return
 	}
-	if slices.Contains(r.staleAreas(), computationOwner) {
+	if slices.Contains(r.staleAreas(), computationOwner) || r.ownerBarrenAtLeast(retiresAfterSittings-1) {
 		r.mu.Lock()
 		r.owedComputations++
 		n := r.owedComputations
@@ -3869,6 +3874,31 @@ func (r *runner) ownOpenGapAbout(seatID, anchor string) bool {
 // sittings because it owes, and what it owes. The reason's wording is the fold's
 // (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
 var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:its latest complete delivery of report text was cut at its pin \d+|no sitting it sat through holds a complete delivery of report text), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+
+// barrenSittings reads a plan's lens fold line for the sittings in a row with no productive act, in the
+// fold's words (record.lensStates), as keptByDebt does; TestKeptByDebtReadsThePlansLine holds both to the
+// line a plan prints.
+var barrenSittings = regexp.MustCompile(`^red-lens-[a-z-]+: .* \((\d+) sitting\(s\) in a row with no fresh material mint;`)
+
+// retiresAfterSittings is the fold's barren limit (record's retiresAfter): a lens that many sittings in a
+// row barren, owing nothing, is retired.
+const retiresAfterSittings = 3
+
+// ownerBarrenAtLeast is whether the computation owner's line of the latest plan reads n or more barren
+// sittings in a row.
+func (r *runner) ownerBarrenAtLeast(n int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.ownerWhys) == 0 {
+		return false
+	}
+	g := barrenSittings.FindStringSubmatch(r.ownerWhys[len(r.ownerWhys)-1])
+	if g == nil {
+		return false
+	}
+	k, _ := strconv.Atoi(g[1])
+	return k >= n
+}
 
 // tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
 // reopened blocker, by owner for a reopened computation, and each lens kept from retiring by a debt. A
@@ -9577,6 +9607,20 @@ func (r *runner) recomputeOpenComputations(seatID string) {
 				r.reproduced.add(id)
 			}
 			continue
+		}
+		// OWEDCOMPUTATIONSEED'S OWNER RE-RUNS EACH ONCE: a reproduce is a productive act, and one at every
+		// sitting while a compute gap stays open kept its barren count at zero in all twelve plans.
+		if r.forceOwedComputation {
+			r.mu.Lock()
+			done := r.rerunOnce[at]
+			if r.rerunOnce == nil {
+				r.rerunOnce = map[string]bool{}
+			}
+			r.rerunOnce[at] = true
+			r.mu.Unlock()
+			if done {
+				continue
+			}
 		}
 		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--anchor", at, "--as", r.judgement(), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
