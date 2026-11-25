@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -72,20 +75,19 @@ func (r *runner) handNext(seatID, agent string) {
 		agent = r.deliveryAgentOf(seatID)
 	}
 	// THE QUEUE OF A LENS IS READ BEFORE THE WRITER RUNS, for the oracle that holds its current item to
-	// the one handed before while that one is still queued (headMovesOnlyOnDischarge).
+	// the one handed before while that one is still queued (headMovesOnlyOnDischarge), with the record's
+	// last event id, so a failure says whether anything landed between the oracle's reads.
 	lens := strings.HasPrefix(seatID, "red-lens-")
-	var queued map[string]bool
+	var reads queueReads
 	sitting := ""
 	var sittingID int64
 	if lens {
+		reads.beforeID, reads.idErr = r.lastEventID()
 		// A LIST THAT DOES NOT READ IS SAID, never an oracle that silently holds nothing to account.
 		if w, err := record.WorkOfSeat(r.run(), "lens", seatID); err != nil {
 			r.noteActErr("queue oracle: " + seatID + "'s work list does not read before the writer runs: " + err.Error())
 		} else {
-			queued = map[string]bool{}
-			for _, e := range record.QueueOf(w) {
-				queued[e.Key] = true
-			}
+			reads.before = queueSet(w)
 			sittingID = w.SittingID()
 			sitting = fmt.Sprintf("%s#%s#%d", seatID, agent, sittingID)
 		}
@@ -115,22 +117,81 @@ func (r *runner) handNext(seatID, agent string) {
 		return
 	}
 	if lens && sitting != "" {
-		r.headMovesOnlyOnDischarge(seatID, sitting, queued, text, r.writersRead(agent, sittingID))
+		var err error
+		if reads.writerID, err = r.lastEventID(); err != nil && reads.idErr == nil {
+			reads.idErr = err
+		}
+		// THE READ AFTER THE WRITER, made only where the oracle needs it; the last event id is read after
+		// the list, so an id unmoved since the read before the writer means nothing landed between them.
+		reads.after = func() (map[string]bool, int64, error) {
+			w, err := record.WorkOfSeat(r.run(), "lens", seatID)
+			id, idErr := r.lastEventID()
+			if err == nil {
+				err = idErr
+			}
+			return queueSet(w), id, err
+		}
+		reads.delivery = func() string { return r.storedDelivery(agent, sittingID) }
+		reads.between = r.eventsBetween
+		r.headMovesOnlyOnDischarge(seatID, sitting, text, reads)
 	}
 }
 
-// writersRead is the queue the writer read when it handed agent's sitting its current item, as it
-// stored it beside that item (sittingwrite.HandedOf), with the item's key; nil where it stored nothing.
-func (r *runner) writersRead(agent string, sitting int64) *handedRead {
-	key, queue, found, err := sittingwrite.HandedOf(r.runDir, agent, sitting)
+// queueSet is the keys queued on a lens's list.
+func queueSet(w record.WorkJSON) map[string]bool {
+	queued := map[string]bool{}
+	for _, e := range record.QueueOf(w) {
+		queued[e.Key] = true
+	}
+	return queued
+}
+
+// lastEventID is the id of the record's latest event.
+func (r *runner) lastEventID() (int64, error) {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
 	if err != nil {
-		r.noteActErr("queue oracle: what the writer handed " + agent + " does not read: " + err.Error())
-		return nil
+		return 0, err
 	}
-	if !found {
-		return nil
+	var id int64
+	err = db.QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&id)
+	return id, err
+}
+
+// eventsBetween names the events after id a up to id b, each as its id, type and seat, for a failure to
+// say what landed between two reads.
+func (r *runner) eventsBetween(a, b int64) string {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		return "not read: " + err.Error()
 	}
-	return &handedRead{key: key, queue: queue}
+	rows, err := db.Query(`SELECT "id", "type", "seat_id" FROM "events" WHERE "id" > ? AND "id" <= ? ORDER BY "id" LIMIT 40`, a, b)
+	if err != nil {
+		return "not read: " + err.Error()
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id int64
+		var typ, seat string
+		if err := rows.Scan(&id, &typ, &seat); err != nil {
+			return "not read: " + err.Error()
+		}
+		out = append(out, fmt.Sprintf("%d %s %s", id, typ, seat))
+	}
+	if err := rows.Err(); err != nil {
+		return "not read: " + err.Error()
+	}
+	return "[" + strings.Join(out, "; ") + "]"
+}
+
+// storedDelivery is what the writer stored as handed to agent's sitting — its current item's key and
+// the queue it read — as the file's bytes, for a failure to show; never a verdict's input.
+func (r *runner) storedDelivery(agent string, sitting int64) string {
+	b, err := os.ReadFile(filepath.Join(r.runDir, ".work-delivery", fmt.Sprintf("%s-%d.json", agent, sitting)))
+	if err != nil {
+		return "not read: " + err.Error()
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // owesReportText is whether seatID's sitting is owed report text still to be handed: the head of its
