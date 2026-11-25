@@ -254,4 +254,4 @@ func isSuccessorOfAny(succ map[string][]string, g string) bool {
 }
 
 // ReportHead is the report head on the landing record — the pin a dispatch row records.
-func (l *Landing) ReportHead() (int64, error) { return reportHeadAt(l.w.q) }
+func (l *Landing) ReportHead() (int64, error) { return ReportHeadAt(l.w.q) }

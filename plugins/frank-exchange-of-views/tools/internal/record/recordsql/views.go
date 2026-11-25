@@ -1,9 +1,11 @@
 package recordsql
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // ViewsDDL is the fold, expressed once, where every reader can see it.
@@ -604,6 +606,85 @@ CREATE VIEW "report_op" AS
   UNION ALL
   SELECT ra."event_id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra;
+
+-- A SEAT'S SITTING AND ITS ENDS, one row per opening that carries an agent, built over "sittings" as
+-- seat_of_agent is built over agent_binding. The agent is the one the opening names (a hook bracket's,
+-- or a register no bracket preceded); an opening with no agent is no row here, and it is sat through
+-- by construction, closing at the seat's next opening.
+--
+--   over        — the seat opened a later sitting: this one has ended, closed or not.
+--   closed      — a sitting_close of the agent whose latest opening carrying that agent before it is
+--                 this one; admitted, the same for an envelope_admitted. A seat the harness nudged is
+--                 closed at its first stop and admitted after it: one sitting that finished.
+--   sat_through — the agent's first close after the opening, before the seat's next opening: the
+--                 sitting the pin, the retirement count and a debt's lapse read as over.
+--
+-- Every term is an id comparison over the rows as they stand.
+CREATE VIEW "agent_sitting" AS
+WITH "opening" AS (
+  SELECT s."id" AS "sitting_id", s."seat_id" AS "seat_id", e."sitting" AS "sitting", e."epoch" AS "epoch",
+         COALESCE(NULLIF(so."agent_id", ''), NULLIF(r."agent_id", '')) AS "agent_id",
+         (SELECT MIN(n."id") FROM "sittings" n WHERE n."seat_id" = s."seat_id" AND n."id" > s."id") AS "next_opening"
+  FROM "sittings" s
+  JOIN "events" e ON e."id" = s."id"
+  LEFT JOIN "sitting_open" so ON so."event_id" = s."id"
+  LEFT JOIN "register" r ON r."event_id" = s."id"
+)
+SELECT o."sitting_id", o."seat_id", o."sitting", o."epoch", o."agent_id", o."next_opening",
+       o."next_opening" IS NOT NULL AS "over",
+       EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = o."agent_id" AND c."event_id" > o."sitting_id"
+                 AND NOT EXISTS (SELECT 1 FROM "opening" o2 WHERE o2."agent_id" = o."agent_id"
+                                   AND o2."sitting_id" > o."sitting_id" AND o2."sitting_id" < c."event_id")) AS "closed",
+       EXISTS (SELECT 1 FROM "envelope_admitted" a WHERE a."agent_id" = o."agent_id" AND a."event_id" > o."sitting_id"
+                 AND NOT EXISTS (SELECT 1 FROM "opening" o2 WHERE o2."agent_id" = o."agent_id"
+                                   AND o2."sitting_id" > o."sitting_id" AND o2."sitting_id" < a."event_id")) AS "admitted",
+       COALESCE((SELECT MIN(c."event_id") FROM "sitting_close" c WHERE c."agent_id" = o."agent_id" AND c."event_id" > o."sitting_id")
+                  < COALESCE(o."next_opening", 9223372036854775807), 0) AS "sat_through"
+FROM "opening" o
+WHERE o."agent_id" IS NOT NULL;
+
+-- A COMPLETED DELIVERY OF REPORT TEXT TO A SEAT: one row per report_read, which the tool writes when
+-- it hands a delivery's last item into the seat's context, every item cut from the report at "head".
+-- sat_through is the sitting's (agent_sitting; a sitting whose opening carries no agent is sat through).
+--
+-- whole is a lens's: whether this delivery was the whole report — fewer than two earlier rows of the
+-- lens in sat-through sittings (its first whole delivery, then its full re-read), or an upheld
+-- position naming the lens whose ruling precedes this row with no row of the lens between them. Every
+-- other delivery is the changes since the pin and the lens's own gap passages. NULL for a seat that is
+-- not a lens. Every term is an id comparison over the rows as they stand.
+CREATE VIEW "report_delivery" AS
+SELECT r."event_id" AS "event_id", e."seat_id" AS "seat_id", e."sitting_id" AS "sitting_id", r."head" AS "head",
+       COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = e."sitting_id"), 1) AS "sat_through",
+       CASE WHEN e."seat_id" IN (` + lensSeatsSQL() + `) THEN (` + wholeDeliverySQL(`r."event_id"`, `e."seat_id"`) + `) END AS "whole"
+FROM "report_read" r
+JOIN "events" e ON e."id" = r."event_id";
+
+-- THE EVENTS THAT MOVE THE REPORT HEAD: one row per event whose type is in HeadMoves — each event
+-- that changes report text. The report head is the latest of them; a pin, a delivery's cut and an
+-- area's changes are read against this one set.
+CREATE VIEW "head_move" AS
+SELECT "id" AS "event_id" FROM "events" WHERE "type" IN (` + headMovesSQL() + `);
+
+-- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move with an id after
+-- both the lens's pin — the head of its latest sat-through delivery — and the last change the chair
+-- has borne for it, the highest change stamped on the latest spot-check naming it. Which lenses are
+-- stale areas (retired, behind the head) is the plan's to say; this is every lens's list, read for
+-- the stale ones.
+CREATE VIEW "area_change" AS
+WITH "lens" AS (
+  SELECT DISTINCT v."value" AS "seat_id" FROM "cast_seat_ids" v WHERE v."value" IN (` + lensSeatsSQL() + `)
+), "bound" AS MATERIALIZED (
+  SELECT l."seat_id",
+         MAX(COALESCE((SELECT MAX(r."head") FROM "report_read" r JOIN "events" e ON e."id" = r."event_id"
+                        WHERE e."seat_id" = l."seat_id"
+                          AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = e."sitting_id"), 1)), 0),
+             COALESCE((SELECT MAX(c."value") FROM "spot_check_changes" c
+                        WHERE c."event_id" = (SELECT MAX(a."event_id") FROM "spot_check_areas" a WHERE a."value" = l."seat_id")), 0)) AS "after"
+  FROM "lens" l
+)
+SELECT b."seat_id" AS "seat_id", h."event_id" AS "change"
+FROM "bound" b
+JOIN "head_move" h ON h."event_id" > b."after";
 ` + GapRefreshViewDDL()
 
 // NotActs is every event type that is not an act of its seat's — the one definition of an act, read
@@ -630,6 +711,19 @@ var NotActs = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED,
 	recordpb.EventType_EVENT_TYPE_PLAN,
 }
+
+// HeadMoves is every event type that moves the report head — each that changes report text: a lane's
+// part and blue's edit. A retire is not one: the anchor leaves and its text stays, an anchor fact that
+// reaches seats through their work lists (gblock 2026-11-20). It is the one definition of "the report
+// moved", read by the head_move view (and through it area_change and the report head) and by the Go
+// folds over a prefix of the stream (the report head off the stream, a spot-check's stamped changes).
+var HeadMoves = []recordpb.EventType{
+	recordpb.EventType_EVENT_TYPE_REPORT_PART,
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
+}
+
+// IsHeadMove is whether an event of type t moves the report head (HeadMoves).
+func IsHeadMove(t recordpb.EventType) bool { return slices.Contains(HeadMoves, t) }
 
 // evidenceAnchorArmsSQL is the evidence_anchor view's placing arms: one per EvidenceTables row,
 // reading the row's placing table and id column. Every placing table names the gap it answers in
@@ -669,10 +763,43 @@ func evidenceChecksSQL() string {
 	return strings.Join(words, ", ")
 }
 
+// lensSeatsSQL is the roster's lens seats as quoted words, comma-separated.
+func lensSeatsSQL() string {
+	seats := seatclass.SeatsOfRole("lens")
+	words := make([]string, len(seats))
+	for i, id := range seats {
+		words[i] = "'" + id + "'"
+	}
+	return strings.Join(words, ",")
+}
+
+// wholeDeliverySQL is whether a lens's delivery row (its event id at row, the lens at seat) is the
+// whole report: report_delivery's "whole", and the statement that decides a lens's next delivery,
+// which asks it of the row it is about to write (row = the next id). One fragment, two readers, as
+// demandReachSQL is for demand_reach and gap_refresh.
+func wholeDeliverySQL(row, seat string) string {
+	return `(SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+          WHERE pe."seat_id" = ` + seat + ` AND p."event_id" < ` + row + `
+            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2
+     OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = ` + seat + `
+                  AND u."event_id" < ` + row + `
+                  AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+                                   WHERE pe."seat_id" = ` + seat + ` AND p."event_id" > u."event_id" AND p."event_id" < ` + row + `))`
+}
+
 // notActsSQL is NotActs as the quoted words of events.type, comma-separated.
 func notActsSQL() string {
 	words := make([]string, len(NotActs))
 	for i, t := range NotActs {
+		words[i] = "'" + recordpb.Word(t) + "'"
+	}
+	return strings.Join(words, ",")
+}
+
+// headMovesSQL is HeadMoves as the quoted words of events.type, comma-separated.
+func headMovesSQL() string {
+	words := make([]string, len(HeadMoves))
+	for i, t := range HeadMoves {
 		words[i] = "'" + recordpb.Word(t) + "'"
 	}
 	return strings.Join(words, ",")

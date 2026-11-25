@@ -14,13 +14,13 @@ stmt 5292bd746d5b | constrained-scan | report_part | x1 | via report_op
 stmt 565b38213bb3 | automatic-index | seat_of_agent (agent_id=?) | x1 | via seat_metrics
 stmt 5db0579b06c0 | constrained-scan | blue_edit | x1 | via change
 stmt 68044d32f65b | automatic-index | x (event_id=?) | x1 | via change
-stmt afa3d2ec318a | constrained-scan | anchor | x2 | via report_op
-stmt afa3d2ec318a | constrained-scan | blue_edit | x1 | via report_op
-stmt afa3d2ec318a | constrained-scan | report_part | x1 | via report_op
-stmt afa3d2ec318a | correlated-scan | anchor | x2 | via report_op
-stmt afa3d2ec318a | correlated-scan | blue_edit | x1 | via report_op
-stmt afa3d2ec318a | correlated-scan | report_op | x1 | via report_op
-stmt afa3d2ec318a | correlated-scan | report_part | x1 | via report_op
+stmt 6e4d3199fe77 | constrained-scan | anchor | x2 | via report_op
+stmt 6e4d3199fe77 | constrained-scan | blue_edit | x1 | via report_op
+stmt 6e4d3199fe77 | constrained-scan | report_part | x1 | via report_op
+stmt 6e4d3199fe77 | correlated-scan | anchor | x2 | via report_op
+stmt 6e4d3199fe77 | correlated-scan | blue_edit | x1 | via report_op
+stmt 6e4d3199fe77 | correlated-scan | report_op | x1 | via report_op
+stmt 6e4d3199fe77 | correlated-scan | report_part | x1 | via report_op
 stmt d8f359712b4d | constrained-scan | gap_state | x1 | via gap
 view gap_refresh | automatic-index | answered (gap_id=?) | x1 | via gap_refresh
 view gap_refresh | automatic-index | bench (gap_id=?) | x3 | via gap_refresh

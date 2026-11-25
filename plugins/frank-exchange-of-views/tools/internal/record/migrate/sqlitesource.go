@@ -254,9 +254,9 @@ func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[in
 	// capture never went.
 	case t == "seat_turn":
 		return nil
-	// `report_checkpoint` is the report's text as an event left it, a fold of the events' report ops
-	// that the write path stamps beside them. The replay writes every event through that path, so the
-	// destination's checkpoints are its own folds; the source's are not carried.
+	// `report_checkpoint` is the report's text as it stands, a fold of the events' report ops that the
+	// write path restamps beside them. The replay writes every event through that path, so the
+	// destination's checkpoint is its own fold; the source's is not carried.
 	case t == "report_checkpoint":
 		return nil
 	// `demand_lineage` is each gap's demand lineage, a fold of the mints' rows that the write path's triggers

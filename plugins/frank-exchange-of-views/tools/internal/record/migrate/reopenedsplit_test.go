@@ -53,7 +53,7 @@ func TestEveryArchivedAnchorReopensAsWhenItsSentenceWasSplitAlone(t *testing.T) 
 				{"none", report, false},
 				{"every sentence's words", word.ReplaceAllString(report, "the very"), true},
 				{"every other anchored sentence", everyOther, true},
-				{"every anchor stripped bare", bare, false},
+				{"every anchor stripped bare", bare, true},
 			} {
 				got, want := bluedoc.ReopenedAnchors(report, c.after), reopenedSplitPerAnchor(report, c.after)
 				if !slices.Equal(got, want) {
@@ -70,15 +70,25 @@ func TestEveryArchivedAnchorReopensAsWhenItsSentenceWasSplitAlone(t *testing.T) 
 
 // reopenedSplitPerAnchor is ReopenedAnchors with each anchor's sentence read off a split of its own.
 func reopenedSplitPerAnchor(before, after string) []string {
-	bare := map[string]bool{}
+	bare, wasBare := map[string]bool{}, map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(after) {
 		bare[id] = true
+	}
+	for _, id := range claimcount.BareAnchorIDs(before) {
+		wasBare[id] = true
 	}
 	var out []string
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
 		b, okB := sentenceSplitAlone(before, anchor.Token(id))
 		a, okA := sentenceSplitAlone(after, anchor.Token(id))
-		if !okB || !okA || bare[id] {
+		if !okB || !okA {
+			continue
+		}
+		// An anchor the edit left bare is reopened: its sentence is gone.
+		if bare[id] {
+			if !wasBare[id] {
+				out = append(out, id)
+			}
 			continue
 		}
 		if b != a {

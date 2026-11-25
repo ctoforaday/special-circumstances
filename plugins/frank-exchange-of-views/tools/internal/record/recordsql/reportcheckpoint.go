@@ -12,22 +12,21 @@ import (
 // reportCheckpointEvery is how many report ops a reader replays at most, less one, after the
 // checkpoint it starts from (ReportCheckpointDDL).
 //
-// THE SPACING TRADES A READER'S REPLAY AGAINST THE ROWS THE RECORD STORES. A reader replays up to
-// reportCheckpointEvery-1 ops on every read of the report, and the record stores a copy of the text
+// THE SPACING TRADES A READER'S REPLAY AGAINST THE WRITES THAT RESTAMP THE ROW. A reader replays up to
+// reportCheckpointEvery-1 ops on every read of the report, and the write folds and rewrites the text
 // every reportCheckpointEvery ops. Measured on a 1,863-event run (257 ops, a 4.4 kB report): the
 // whole replay is 16 ms, one op about 0.13 ms whatever the text's length, so the worst reader at 8 is
-// under a millisecond, and the stored text is an eighth of a copy per op.
+// under a millisecond.
 const reportCheckpointEvery = 8
 
-// Newest is the event a read of the report as it stands now reads at: above every event's id.
+// Newest is the upper bound of a read of every op the record holds: above every event's id.
 const Newest int64 = math.MaxInt64
 
-// ReportSource is where a read of the report as of an event starts: the newest checkpoint at or
-// below that event, and the ops after it up to the event. Parted is whether a checkpoint was found —
-// the text it holds always holds a part, since a fold that holds none fails. Where none was found,
-// the record holds no op at or below the event, and Text is empty. Failure is the checkpoint's
-// failure where the report did not replay through it (ReportCheckpointDDL): the report as of the
-// event is that failure, whatever the ops after it.
+// ReportSource is where a read of the report as it stands starts: the newest checkpoint, and the ops
+// after it. Parted is whether a checkpoint was found — the text it holds always holds a part, since a
+// fold that holds none fails. Where none was found, the record holds no op, and Text is empty.
+// Failure is the checkpoint's failure where the report did not replay through it
+// (ReportCheckpointDDL): the report is that failure, whatever the ops after it.
 type ReportSource struct {
 	Text    string
 	Parted  bool
@@ -44,11 +43,13 @@ func (src ReportSource) Fold(replay func(text string, parted bool, ops []reportp
 	return replay(src.Text, src.Parted, src.Ops)
 }
 
-// ReportSourceAt reads the report's source as of event at (Newest for the report as it stands now).
+// ReportSourceAt reads the report's source as it stands now. No reader reads the report as it stood
+// at a past event: what an edit changed is on its row (BlueEdit.old_paragraphs, new_paragraphs), and
+// a part's report is the parts up to it (record.ReportAtPart).
 //
 // A MISSING CHECKPOINT IS AN ERROR, NEVER A LONGER REPLAY. Every insert that adds the record's first
 // op writes a checkpoint, and so does every insert that brings the ops since the last one to
-// reportCheckpointEvery (stampReportCheckpoint). So an op at or below at with no checkpoint below it,
+// reportCheckpointEvery (stampReportCheckpoint). So an op with no checkpoint below it,
 // or a tail of reportCheckpointEvery ops or more, is a record this binary's write path did not write,
 // and the read says so rather than replaying from wherever it can.
 //
@@ -58,7 +59,7 @@ func (src ReportSource) Fold(replay func(text string, parted bool, ops []reportp
 // one this write path never leaves, refused as above while every other seat writes (release fuzz seeds
 // 5, 37, 40, a lens's `verify --url` rendering beside the other lenses' anchors). So a handle is read
 // through a read transaction of its own; a transaction the caller holds is its own snapshot.
-func ReportSourceAt(q Querier, at int64) (ReportSource, error) {
+func ReportSourceAt(q Querier) (ReportSource, error) {
 	if db, ok := q.(*sql.DB); ok {
 		tx, err := BeginRead(db)
 		if err != nil {
@@ -70,7 +71,7 @@ func ReportSourceAt(q Querier, at int64) (ReportSource, error) {
 	var src ReportSource
 	var cp int64
 	var text, failure sql.NullString
-	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "event_id" <= ? ORDER BY "event_id" DESC LIMIT 1`, at).
+	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "one" = 1`).
 		Scan(&cp, &text, &failure)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -79,7 +80,7 @@ func ReportSourceAt(q Querier, at int64) (ReportSource, error) {
 	default:
 		src.Text, src.Parted, src.Failure = text.String, true, failure.String
 	}
-	if src.Ops, err = ReportOpsBetween(q, cp, at); err != nil {
+	if src.Ops, err = ReportOpsBetween(q, cp, Newest); err != nil {
 		return src, err
 	}
 	if !src.Parted && len(src.Ops) > 0 {
@@ -116,8 +117,8 @@ func ReportOpsBetween(q Querier, after, upto int64) ([]reportproj.ReportOp, erro
 	return ops, rows.Err()
 }
 
-// stampReportCheckpoint writes the report's text as event id leaves it, where id is the first event
-// to add a report op, or brings the ops since the last checkpoint to reportCheckpointEvery. It runs
+// stampReportCheckpoint replaces the checkpoint with the report's text as event id leaves it, where id
+// is the first event to add a report op, or brings the ops since the checkpoint to reportCheckpointEvery. It runs
 // in InsertTx after the body is written, so the event's own ops are on the report_op view, and every
 // write of an event — a seat's act, a migration's replay, a seeded fixture — keeps the checkpoints
 // a reader requires (ReportSourceAt).
@@ -127,7 +128,7 @@ func ReportOpsBetween(q Querier, after, upto int64) ([]reportproj.ReportOp, erro
 //
 // AN OP THE REPORT CANNOT REPLAY THROUGH IS NOT REFUSED HERE: which ops land is the write path's
 // guards' decision, and the checkpoint records what folding them gives — the replay's failure, where
-// it fails, which every read as of the checkpoint or after it then states (ReportSourceAt).
+// it fails, which every read of the report from then on states (ReportSourceAt).
 func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	var mine int64
 	if err := tx.QueryRow(`SELECT count(*) FROM "report_op" WHERE "event_id" = ?`, id).Scan(&mine); err != nil {
@@ -138,7 +139,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	}
 	var cp, since int64
 	if err := tx.QueryRow(`SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at")
-	  FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c`).Scan(&cp, &since); err != nil {
+	  FROM (SELECT coalesce((SELECT "event_id" FROM "report_checkpoint" WHERE "one" = 1), 0) AS "at") c`).Scan(&cp, &since); err != nil {
 		return fmt.Errorf("reading the report's last checkpoint: %w", err)
 	}
 	if cp > 0 && since < reportCheckpointEvery {
@@ -150,7 +151,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	var src ReportSource
 	if cp > 0 {
 		var text, failure sql.NullString
-		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint" WHERE "event_id" = ?`, cp).Scan(&text, &failure); err != nil {
+		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint" WHERE "one" = 1`).Scan(&text, &failure); err != nil {
 			return fmt.Errorf("reading the report checkpoint at event %d: %w", cp, err)
 		}
 		src = ReportSource{Text: text.String, Parted: true, Failure: failure.String}
@@ -165,7 +166,8 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	} else {
 		text = folded
 	}
-	if _, err := tx.Exec(`INSERT INTO "report_checkpoint" ("event_id", "text", "failure") VALUES (?, ?, ?)`, id, text, failure); err != nil {
+	if _, err := tx.Exec(`INSERT INTO "report_checkpoint" ("one", "event_id", "text", "failure") VALUES (1, ?, ?, ?)
+	  ON CONFLICT ("one") DO UPDATE SET "event_id" = excluded."event_id", "text" = excluded."text", "failure" = excluded."failure"`, id, text, failure); err != nil {
 		return fmt.Errorf("writing the report checkpoint at event %d: %w", id, err)
 	}
 	return nil

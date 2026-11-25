@@ -81,9 +81,9 @@ func changesAfter(changes []int64, pin int64) []int64 {
 // either is refused: a seat that could state the changes could state 42 over a record holding 4.
 //
 // The pin is the lens fold's (lensStates): the latest head the whole report was served to the lens
-// at in a sitting it sat through. A change is an event that moves the report head — a blue_edit or a
-// report_part (reportHeadOf) — so the changes after a stale area's pin are exactly what moved the
-// head past it.
+// at in a sitting it sat through. A change is an event that moves the report head — a report_part or
+// a blue_edit (recordsql.HeadMoves) — so the changes after a stale area's pin are exactly what moved
+// the head past it.
 func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 	if len(b.GetPins()) > 0 || len(b.GetChanges()) > 0 {
 		return fmt.Errorf("a spot-check's pins and changes are stamped by the tool from the record — the changes to the report behind each area's pin — and never supplied by a seat; record it without them")
@@ -96,21 +96,16 @@ func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 		return err
 	}
 	ids := win.IDs(evs)
-	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
-	reads := servedOf(evs, ids, win)
+	reads := servedOf(win)
 	earliest := int64(math.MaxInt64)
 	for _, a := range b.GetAreas() {
-		pin := pinOf(reads[a], ends, a, math.MaxInt64)
+		pin := pinOf(reads[a], math.MaxInt64)
 		b.Pins = append(b.Pins, pin)
 		earliest = min(earliest, pin)
 	}
 	for i, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
-			if ids[i] > earliest {
-				b.Changes = append(b.Changes, ids[i])
-			}
+		if recordsql.IsHeadMove(e.GetType()) && ids[i] > earliest {
+			b.Changes = append(b.Changes, ids[i])
 		}
 	}
 	return nil

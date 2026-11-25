@@ -104,7 +104,7 @@ func TestTheLensSittingNowIsNotReadAsFailed(t *testing.T) {
 	m := loadedT(t, b.evs...)
 	ids := m.At.IDs(m.Events)
 	_, openings := dispatchLedger(m.Events, ids, m.At)
-	ends := satThroughOf(m.Events, ids, m.At, openings)
+	ends := satThroughOf(m.At, openings)
 	o := openings[evLens][0]
 	if ends.sat(evLens, o) || ends.short[o] != "has not closed yet" {
 		t.Errorf("the open sitting reads %q, sat through %v — want not closed yet, and not sat through", ends.short[o], ends.sat(evLens, o))
@@ -206,7 +206,7 @@ func TestEachEndOfASittingHasItsOwnAnswer(t *testing.T) {
 	m := loadedT(t, b.evs...)
 	ids := m.At.IDs(m.Events)
 	_, openings := dispatchLedger(m.Events, ids, m.At)
-	ends := satThroughOf(m.Events, ids, m.At, openings)
+	ends := satThroughOf(m.At, openings)
 	os := openings[evLens]
 	if len(os) != 3 {
 		t.Fatalf("fixture: %d sittings of the lens, want 3", len(os))

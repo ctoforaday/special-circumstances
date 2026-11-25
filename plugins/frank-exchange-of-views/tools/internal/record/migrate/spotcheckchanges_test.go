@@ -77,7 +77,7 @@ func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
 				}
 				earliest = min(earliest, pins[i])
 			}
-			want := int64sOf(t, db, `SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > `+itoa(earliest)+` AND "id" < `+itoa(spot)+` ORDER BY "id"`)
+			want := int64sOf(t, db, `SELECT "event_id" FROM "head_move" WHERE "event_id" > `+itoa(earliest)+` AND "event_id" < `+itoa(spot)+` ORDER BY "event_id"`)
 			got := int64sOf(t, db, `SELECT "value" FROM "spot_check_changes" ORDER BY "ord"`)
 			if len(want) == 0 || !slices.Equal(got, want) {
 				t.Errorf("stamped changes %v; the migrated record holds %v after pin %d", got, want, earliest)

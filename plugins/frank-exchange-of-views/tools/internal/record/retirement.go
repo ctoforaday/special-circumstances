@@ -32,8 +32,8 @@ import (
 // new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
 // a computation it owns that nobody has judged — and
 // while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
-// sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits and
-// the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
+// sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits
+// and the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
 // limit it costs at most one sitting per head move that finds it unsat-on; an item it never
 // discharges keeps it ready only when the report has changed.
 //
@@ -162,7 +162,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
 	out := map[string][]string{}
 	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	minted := map[string]string{}
 	for _, g := range gaps {
 		minted[g.id] = g.mintedBy
@@ -264,14 +264,14 @@ type StaleArea struct {
 func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string, composed map[string][]composedSource) []lensFold {
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
-	reads := servedOf(evs, ids, win)
+	ends := satThroughOf(win, openings)
+	reads := servedOf(win)
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], ends, seat, math.MaxInt64)}
+		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], math.MaxInt64)}
 		sat := map[int64]bool{}
 		var sittings []int64
 		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is
@@ -370,15 +370,12 @@ func freshMaterialOfStates(gaps []WorkGapState) map[string]bool {
 	return out
 }
 
-// reportHeadOf is the report head off the stream: the last blue_edit or report_part, by row id.
+// reportHeadOf is the report head off the stream: the last head move (recordsql.HeadMoves), by row id.
 func reportHeadOf(evs []*Event, ids []int64) int64 {
 	var head int64
 	for i, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
-			if ids[i] > head {
-				head = ids[i]
-			}
+		if recordsql.IsHeadMove(e.GetType()) && ids[i] > head {
+			head = ids[i]
 		}
 	}
 	return head
@@ -496,8 +493,8 @@ func lastReadOf(evs []*Event, ids []int64, win WindowIndex, seatID string) LastR
 	if cur == nil {
 		return LastReadJSON{Kind: "undispatched"}
 	}
-	reads := servedOf(evs, ids, win)[seatID]
-	ls := LastReadJSON{Pin: pinOf(reads, satThroughOf(evs, ids, win, openings), seatID, cur.at), Head: cur.pin}
+	reads := servedOf(win)[seatID]
+	ls := LastReadJSON{Pin: pinOf(reads, cur.at), Head: cur.pin}
 	if now, sitting := sittingFor(openings[seatID], *cur); sitting {
 		for _, r := range reads {
 			if r.opening == now && (ls.Kind == "" || r.head > ls.Pin) {

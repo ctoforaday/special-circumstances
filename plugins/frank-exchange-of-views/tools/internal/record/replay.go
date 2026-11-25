@@ -95,7 +95,9 @@ func MergedEvents(run Run) (Merged, error) {
 		return Merged{}, err
 	}
 	if db == nil {
-		return Merged{At: windowIndexOf(nil, nil)}, nil
+		at := windowIndexOf(nil, nil)
+		at.viewsRead = true
+		return Merged{At: at}, nil
 	}
 	evs, ws, err := recordsql.Events(db)
 	if err != nil {
@@ -103,6 +105,9 @@ func MergedEvents(run Run) (Merged, error) {
 	}
 	at := windowIndexOf(evs, ws)
 	if at.reach, err = reachingRetiresOf(db); err != nil {
+		return Merged{}, err
+	}
+	if err := at.readViews(db); err != nil {
 		return Merged{}, err
 	}
 	return Merged{Events: evs, At: at}, nil

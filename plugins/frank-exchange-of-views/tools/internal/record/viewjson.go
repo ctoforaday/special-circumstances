@@ -1173,7 +1173,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
+	r.report.src, r.report.srcErr = reportSourceAt(q)
 	// THE DEBT'S INPUT IS LOCATED ON THE LIST'S ONE RENDER, inside its snapshot: a render that fails is
 	// the list's error, never a list with no found-source debt. A record with nothing to locate asks
 	// for no render here (locatesAnything).

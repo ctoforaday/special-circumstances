@@ -132,7 +132,7 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 		}
 	}
 	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	var out []ClosingDuty
 	for _, m := range motionsAt(evs, ids, win) {
 		if m == nil || m.Subject != "docket" || m.GapID == "" {

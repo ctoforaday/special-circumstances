@@ -10011,7 +10011,7 @@ func forcedTrajectory(t *testing.T, runDir string, result map[string]any) string
 		plans = append(plans, fmt.Sprintf("epoch %d parties[%s] docket%v blockers[%s] pass %v", p.Epoch, strings.Join(parties, " "), p.Docket, strings.Join(blockers, " "), p.PassPermitted))
 	}
 	var failed []string
-	for _, f := range record.FailedSittingsOf(board.Events, board.At) {
+	for _, f := range record.FailedSittingsOf(board.At) {
 		failed = append(failed, fmt.Sprintf("%s#%d@epoch%d", f.SeatID, f.Sitting, f.Epoch))
 	}
 	return fmt.Sprintf("epochs %v, termination %v; failed sittings %v; plans: %s", result["epochs"], result["termination"], failed, strings.Join(plans, " | "))

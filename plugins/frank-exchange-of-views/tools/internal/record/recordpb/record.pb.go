@@ -5437,6 +5437,11 @@ type BlueEdit struct {
 	// It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
 	// referent needs looking at again. A verification of a reopened anchor is stale rather than
 	// wrong, which is a different fact and gets a different word.
+	//
+	// AN ANCHOR THE EDIT LEAVES BARE IS LISTED: its sentence is gone, which changes its referent as
+	// surely as a rewrite. Only a gap or finding anchor can be left bare — an edit that bares an
+	// evidence anchor is refused — so its readers take it as the gap's sentence changing: estoppel
+	// ends the gap's prescription, the gap's acts count the edit, and the change lists it.
 	Reopened []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
 	// ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
 	//
@@ -5459,7 +5464,22 @@ type BlueEdit struct {
 	// quote occurs byte-for-byte exactly once, the edit takes the literal span instead — and the
 	// choice is RECORDED, because replay cannot re-derive it: an event written before this field
 	// existed, whose trimmed span was a no-op, must still replay as one.
-	ExactSpan     *bool `protobuf:"varint,9,opt,name=exact_span,json=exactSpan,proto3,oneof" json:"exact_span,omitempty"`
+	ExactSpan *bool `protobuf:"varint,9,opt,name=exact_span,json=exactSpan,proto3,oneof" json:"exact_span,omitempty"`
+	// old_paragraphs and new_paragraphs are the whole paragraphs this edit touched — each an
+	// anchor.Blocks block: a paragraph, a heading, a list item's first paragraph, a table line, a
+	// footnote definition, a fence — before it and after it, with their anchor tokens, in report
+	// order and with the breaks between them kept. The tool stamps both at the write from the report
+	// the edit lands on and the report it makes: old_paragraphs every block the replaced span
+	// touched, new_paragraphs every block that holds the replacement.
+	//
+	// THEY ARE THE EDIT'S OWN RECORD OF WHAT IT CHANGED. Nothing else on the record says it without
+	// rebuilding the report at the edit, so a seat's delivery of a change, the standing reading's
+	// reword chain and the retried-reading refusal read them, and never a past report. `old`/`new`
+	// stay what they are: the fragments the seat typed and the tool applied. A stamped paragraph is
+	// not a touched sentence: a sentence the two runs both hold, anchors stripped, the edit left
+	// alone; `reopened` is computed from the two runs, sentence by sentence.
+	OldParagraphs *string `protobuf:"bytes,10,opt,name=old_paragraphs,json=oldParagraphs,proto3,oneof" json:"old_paragraphs,omitempty"`
+	NewParagraphs *string `protobuf:"bytes,11,opt,name=new_paragraphs,json=newParagraphs,proto3,oneof" json:"new_paragraphs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5555,6 +5575,20 @@ func (x *BlueEdit) GetExactSpan() bool {
 		return *x.ExactSpan
 	}
 	return false
+}
+
+func (x *BlueEdit) GetOldParagraphs() string {
+	if x != nil && x.OldParagraphs != nil {
+		return *x.OldParagraphs
+	}
+	return ""
+}
+
+func (x *BlueEdit) GetNewParagraphs() string {
+	if x != nil && x.NewParagraphs != nil {
+		return *x.NewParagraphs
+	}
+	return ""
 }
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
@@ -8264,7 +8298,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"ReportPart\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x84\x03\n" +
+	"\x05_text\"\x82\x04\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
@@ -8275,7 +8309,10 @@ const file_record_proto_rawDesc = "" +
 	"\breopened\x18\a \x03(\tR\breopened\x12\x1f\n" +
 	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01B\v\n" +
+	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01\x12*\n" +
+	"\x0eold_paragraphs\x18\n" +
+	" \x01(\tH\bR\roldParagraphs\x88\x01\x01\x12*\n" +
+	"\x0enew_paragraphs\x18\v \x01(\tH\tR\rnewParagraphs\x88\x01\x01B\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +
@@ -8284,7 +8321,9 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\x13\n" +
 	"\x11_applied_verbatimB\v\n" +
 	"\t_acceptedB\r\n" +
-	"\v_exact_span\"\x9a\x04\n" +
+	"\v_exact_spanB\x11\n" +
+	"\x0f_old_paragraphsB\x11\n" +
+	"\x0f_new_paragraphs\"\x9a\x04\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
@@ -8452,10 +8491,10 @@ const file_record_proto_rawDesc = "" +
 	"\athrough\x18\x02 \x01(\x03B\x0f\x82\xb5\x18\v\"\tevents.idH\x01R\athrough\x88\x01\x01B\t\n" +
 	"\a_gap_idB\n" +
 	"\n" +
-	"\b_through\"\xc5\x01\n" +
+	"\b_through\"\xd6\x01\n" +
 	"\n" +
-	"ReportRead\x12\xad\x01\n" +
-	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
+	"ReportRead\x12\xbe\x01\n" +
+	"\x04head\x18\x01 \x01(\x03B\xa4\x01\x82\xb5\x18\x9f\x01\b\x01\x1a\x8f\x01the events.id of the report head the text was served at — the latest head move (a report_part or a blue_edit) when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +

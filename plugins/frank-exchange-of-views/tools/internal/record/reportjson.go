@@ -49,12 +49,11 @@ func ReportLines(report string) []ReportLineJSON {
 	return out
 }
 
-// reportHeadAt is the report head on q: the latest blue_edit or report_part, by row id, 0 where
-// the record holds neither.
-func reportHeadAt(q recordsql.Querier) (int64, error) {
+// ReportHeadAt is the report head on q: the latest head move (the head_move view), by row id, 0
+// where the record holds none.
+func ReportHeadAt(q recordsql.Querier) (int64, error) {
 	var head int64
-	_, err := queryRowAt(q, []any{&head},
-		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')`)
+	_, err := queryRowAt(q, []any{&head}, `SELECT COALESCE(MAX("event_id"), 0) FROM "head_move"`)
 	return head, err
 }
 
@@ -67,7 +66,7 @@ func ReportAtHead(run Run) (report string, head int64, err error) {
 		if report, rerr = RenderAt(q); rerr != nil {
 			return rerr
 		}
-		head, rerr = reportHeadAt(q)
+		head, rerr = ReportHeadAt(q)
 		return rerr
 	})
 	return report, head, err

@@ -134,7 +134,7 @@ func composedUnhad(evs []*Event, ids []int64, win WindowIndex, open []blockerGap
 		return nil
 	}
 	_, openings := dispatchLedger(evs, ids, win)
-	through := satThroughOf(evs, ids, win, openings).through[composedSourceAuditor]
+	through := satThroughOf(win, openings).through[composedSourceAuditor]
 	if os := openings[composedSourceAuditor]; before && len(os) > 0 {
 		through = slices.DeleteFunc(slices.Clone(through), func(o int64) bool { return o >= os[len(os)-1] })
 	}
