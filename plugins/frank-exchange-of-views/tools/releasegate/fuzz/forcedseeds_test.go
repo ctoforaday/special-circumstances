@@ -90,7 +90,7 @@ func TestForcedSeedsAreOneTable(t *testing.T) {
 						if holdsIntLiteral(value) {
 							t.Errorf("%s: %s is a forced seed declared outside %s; declare it in the table there", at, name.Name, forcedSeedsFile)
 						}
-						continue // one the table's seeds derive (forcedVerifiedSeeds) is no seed of its own
+						continue // one the table's seeds derive (forcedPassSeeds) is no seed of its own
 					}
 					lits, other := intLiterals(value)
 					if len(lits) == 0 || other {

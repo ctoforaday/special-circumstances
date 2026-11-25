@@ -264,8 +264,8 @@ func TestTheWriteRefusesAPlanNoPrintingWrites(t *testing.T) {
 	mustAppend(t, sit(t, run, "red-chair"), &recordpb.Plan{Printed: proto.String(good)})
 }
 
-// THE KEY IS WHAT THE PLAN DECIDES: the same whatever epoch asks it and whatever verdict the asking
-// sitting recorded, and moved by any other field — a blocker of any kind and the reasons included.
+// THE KEY IS WHAT THE PLAN DECIDES: the same whatever epoch asks it and whether the asking
+// sitting recorded the PASS, and moved by any other field — a blocker of any kind and the reasons included.
 func TestThePlanKeyLeavesOutOnlyWhatTheAskingSittingSays(t *testing.T) {
 	var unkeyed []string
 	for _, f := range PlanFields() {
@@ -273,15 +273,15 @@ func TestThePlanKeyLeavesOutOnlyWhatTheAskingSittingSays(t *testing.T) {
 			unkeyed = append(unkeyed, f.JSON)
 		}
 	}
-	if strings.Join(unkeyed, ",") != "epoch,final_sitting,verdict" {
-		t.Fatalf("the key leaves out %v, want epoch, final_sitting and verdict", unkeyed)
+	if strings.Join(unkeyed, ",") != "epoch,final_sitting,passed" {
+		t.Fatalf("the key leaves out %v, want epoch, final_sitting and passed", unkeyed)
 	}
 	base := Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
 		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}}.WithKey()
 	later := base
-	later.Epoch, later.FinalSitting, later.Verdict = 5, true, "FAIL"
+	later.Epoch, later.FinalSitting, later.Passed = 5, true, true
 	if later.WithKey().Key != base.Key {
-		t.Errorf("the key moved with the epoch or the verdict")
+		t.Errorf("the key moved with the epoch or the PASS")
 	}
 	for name, change := range map[string]func(*Plan){
 		"the head": func(p *Plan) { p.Head = 5 },

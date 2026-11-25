@@ -14,9 +14,10 @@ import (
 
 // aboutShapes are the --about-kinds whose reference is an id of a known shape.
 var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
-	recordpb.AboutKind_ABOUT_KIND_INQUIRY: flags.InquiryID,
-	recordpb.AboutKind_ABOUT_KIND_GAP:     flags.GapID,
-	recordpb.AboutKind_ABOUT_KIND_ANCHOR:  flags.AboutAnchor,
+	recordpb.AboutKind_ABOUT_KIND_INQUIRY:  flags.InquiryID,
+	recordpb.AboutKind_ABOUT_KIND_QUESTION: flags.QuestionPartID,
+	recordpb.AboutKind_ABOUT_KIND_GAP:      flags.GapID,
+	recordpb.AboutKind_ABOUT_KIND_ANCHOR:   flags.AboutAnchor,
 }
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that
@@ -43,8 +44,11 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 		}
 	}
 	// HALF AN ANCHOR IS NOT AN ANCHOR. Accepting a kind with no reference would record what sort of
-	// thing this is about without saying which one, and a reader cannot follow that anywhere.
-	if kind == "" || ref == "" {
+	// thing this is about without saying which one, and a reader cannot follow that anywhere. THE
+	// QUESTION IS THE ONE KIND WHOSE REFERENCE MAY BE ABSENT: there is one question, and a part of it
+	// no question part covers has no id to name — the gap is about the question itself.
+	questionWhole := kind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_QUESTION) && ref == ""
+	if (kind == "" || ref == "") && !questionWhole {
 		return nil, nil, fmt.Errorf("--about-kind and --about are one anchor and are given together — " +
 			"the kind says what sort of thing you are naming, the reference says which one")
 	}
@@ -63,7 +67,7 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	// the record lacks, and `--about '<!--computation:K-050249f6-->'` was told no computation on the
 	// record carries an id one did (universe-m37). An anchor's token is taken whole, as the other
 	// anchor flags take it, and the bare id is what is stored.
-	if shape := aboutShapes[k]; shape != nil {
+	if shape := aboutShapes[k]; shape != nil && ref != "" {
 		v := shape()
 		if err := v.Set(ref); err != nil {
 			return nil, nil, feov.Errorf(feov.Validation, "--about with --about-kind %s: %v", kind, err)
@@ -74,6 +78,16 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		if err := RequireInquiryRef(run, ref, "--about"); err != nil {
 			return nil, nil, err
+		}
+	case recordpb.AboutKind_ABOUT_KIND_QUESTION:
+		if ref != "" {
+			db, err := openRunForRead(run)
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := requireQuestionPartRef(db, ref, "--about"); err != nil {
+				return nil, nil, err
+			}
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:
 		db, err := openRunForRead(run)

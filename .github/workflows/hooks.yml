@@ -33,6 +33,13 @@ permissions:
 # the cap; go-cache-prune's line states what all of them come to against the repository's 10 GB.
 env:
   GO_CACHE_MAX_MIB: "2048"
+  # THE HELPERS CI BUILDS NONE OF, space-separated. native-scope drops their native-build legs and
+  # nativehelper.Require skips their tests, saying so, in every job. feov-embed is here because
+  # its pinned ONNX Runtime source sits in microsoft/onnxruntime, which Microsoft took private on
+  # Nov 17 2026, so its build cannot fetch it. A release tag still refuses while a helper is
+  # listed: dist demands every helper. Empty this, and return feov-embed's six tests to
+  # native-run's NATIVE_RUN_MUST_PASS, once the repository is public again.
+  NATIVE_HELPERS_PAUSED: feov-embed
 
 defaults:
   run:
@@ -392,6 +399,7 @@ jobs:
         TestEmbeddedTraineddataPin
         TestEveryOpFitsTheDeadline
         TestFrameChannelSurvivesLibraryStdout
+        TestStdoutOutsideARequestReachesStderr
         TestHelperExitsOnStdinEOF
         TestCorpusGoldens
         TestDetectGridOnRealCrop
@@ -402,12 +410,6 @@ jobs:
         TestTextCellTableKeepsItsRowsThroughTheEngine
         TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
         TestReleaseLayoutFindsItsHelper
-        TestEmbedWithBuiltHelper
-        TestTokenizerParity400
-        TestEmbedLoadsTheExportForItsArch
-        TestEmbedFidelityMeetsS5
-        TestEmbedSpeedMeetsS6
-        TestEveryEmbedOpFitsTheDeadline
       # The target-scoped names: selftest-libc runs on the Linux legs only.
       NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
@@ -881,6 +883,19 @@ jobs:
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
+      # A FAILED NIGHTLY SWEEP KEEPS ITS RUN DIRECTORIES. TestFuzzDebate removes a passing run's
+      # directory and keeps a failing one's for inspection, but on the runner that directory dies
+      # with the job: seeds 13 and 20 failed on the nightlies of 2026-11-16 and -17 (a lens's reading
+      # debt left standing at its envelope) and neither failed in 48 local reruns, so the record each
+      # left was the one thing that could say why. Linux only, where TMPDIR is the tmpfs above.
+      - name: Upload the failing fuzz runs
+        if: failure() && github.event_name == 'schedule' && runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nightly-fuzz-failed-runs
+          path: /dev/shm/tmp/fuzz-run-*/
+          retention-days: 14
+          if-no-files-found: ignore
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
@@ -1655,6 +1670,15 @@ jobs:
     # the six were unverified prose, and rule-sweep's `--selftest` was the lone exception
     # (#157 §3). A guard nothing tests is indistinguishable from a clean repo.
     runs-on: ubuntu-latest
+    # The clients installed below stay the clients every step runs. A client that starts its
+    # full CLI (agy: `agy agents`, which pluginparity's load test calls) spawns a background
+    # updater that replaces the running executable in place, so the install-shape contract
+    # would read a version nobody installed. Each client's own switch turns that off for every
+    # step and test; agy honours AGY_CLI_DISABLE_AUTO_UPDATE only at the exact value "true".
+    # The nightly still tests the latest build: it installs it.
+    env:
+      AGY_CLI_DISABLE_AUTO_UPDATE: "true"
+      DISABLE_AUTOUPDATER: "1"
     defaults:
       run:
         working-directory: scripts
@@ -1672,9 +1696,42 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: restore
+          # The plugins' go.sum files too: the install-shape contract builds their release.
           dependency-files: |
             scripts/go.sum
-      - run: go test ./...
+            plugins/prosthetic-conscience/tools/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.sum
+      # THE HARNESS CLIENTS FOR REAL HARNESS VALIDATION (#1872). A pull request and a push get
+      # exactly the versions scripts/installshape/clients.json pins, so a client release cannot
+      # redden an unrelated pull request. The nightly and a dispatch get whatever the installers
+      # serve today instead, and the install-shape contract then names both versions on every
+      # failure: a client that moved a layout surfaces there once, and the pins move when it
+      # passes. agy's manifest serves only its latest build, so its pin is a URL and sha512.
+      - name: Install claude and agy (pinned; latest on the nightly)
+        env:
+          LATEST: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [ "$LATEST" = true ]; then
+            curl -fsSL https://claude.ai/install.sh | bash
+            pins="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
+            echo "INSTALLSHAPE_CLIENTS=latest" >> "$GITHUB_ENV"
+          else
+            curl -fsSL https://claude.ai/install.sh | bash -s -- "$(jq -er .claude.version installshape/clients.json)"
+            pins="$(jq -c .agy installshape/clients.json)"
+          fi
+          curl -fsSL "$(jq -er .url <<<"$pins")" -o "$RUNNER_TEMP/agy.tar.gz"
+          printf '%s  %s\n' "$(jq -er .sha512 <<<"$pins")" "$RUNNER_TEMP/agy.tar.gz" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/agy.tar.gz" -O antigravity > "$HOME/.local/bin/agy"
+          chmod +x "$HOME/.local/bin/agy"
+          rm -f "$RUNNER_TEMP/agy.tar.gz"
+          echo "claude $("$HOME/.local/bin/claude" --version), agy $("$HOME/.local/bin/agy" --version)"
+      - run: go test -skip '^TestInstallShapeContract$' ./...
+      # Its own step, verbose, so the log shows the root the client handed each shape's hooks.
+      - name: Install-shape contract (real clients, no login)
+        run: go test -count=1 -v -run '^TestInstallShapeContract$' ./installshape/
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
       # path/bytes pair could hand one file another file's contents. That shipped, and was found
@@ -1921,37 +1978,58 @@ jobs:
           EMPTY="$(mktemp -d)"
           node -e "
             const fs = require('fs');
-            const files = fs.globSync('plugins/*/.claude-plugin/hooks.json');
-            if (!files.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
+            const claudeFiles = fs.globSync('plugins/*/.claude-plugin/hooks.json');
+            const agyFiles = fs.globSync('plugins/*/hooks.json');
+            if (!claudeFiles.length || !agyFiles.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
             const rows = [];
-            for (const f of files) {
+            for (const f of claudeFiles) {
               const plugin = f.split('/')[1];
               const h = JSON.parse(fs.readFileSync(f, 'utf8'));
-              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) rows.push(plugin + '\t' + k.command);
+              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) rows.push('claude\t' + plugin + '\t' + k.command);
+            }
+            for (const f of agyFiles) {
+              const plugin = f.split('/')[1];
+              const h = JSON.parse(fs.readFileSync(f, 'utf8'));
+              for (const grp of Object.values(h)) for (const evs of Object.values(grp)) for (const e of evs) {
+                if (e.command) rows.push('agy\t' + plugin + '\t' + e.command);
+                for (const k of (e.hooks || [])) rows.push('agy\t' + plugin + '\t' + k.command);
+              }
             }
             fs.writeFileSync('/tmp/hook-cmds.txt', rows.join('\n') + '\n');
-            console.log(files.length + ' hooks.json, ' + rows.length + ' hook command(s) extracted');
+            console.log((claudeFiles.length + agyFiles.length) + ' hooks.json, ' + rows.length + ' hook command(s) extracted');
           "
           onejson='const s = require("fs").readFileSync(0, "utf8").trim(); if (s) { if (s.split("\n").length !== 1) process.exit(1); JSON.parse(s); }'
           tab="$(printf '\t')"
-          while IFS="$tab" read -r plugin cmd; do
+          while IFS="$tab" read -r harness plugin cmd; do
             [ -z "$cmd" ] && continue
-            if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
-              echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+            if [ "$harness" = claude ]; then
+              if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+              fi
+              # The SessionStart ensure entry runs no binary: on an empty root it has no script, and
+              # silence is its correct degradation. Every command that names a binary must warn.
+              case "$cmd" in
+                *'${CLAUDE_PLUGIN_ROOT}/bin/'*)
+                  grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; } ;;
+              esac
+            else
+              if ! (cd "$EMPTY" && timeout 2 bash -c "$cmd") </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+              fi
             fi
-            # The SessionStart ensure entry runs no binary: on an empty root it has no script, and
-            # silence is its correct degradation. Every command that names a binary must warn.
-            case "$cmd" in
-              *'${CLAUDE_PLUGIN_ROOT}/bin/'*)
-                grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; } ;;
-            esac
             if [ -s /tmp/hook-stdout.txt ]; then
               echo "guard printed to stdout on an empty root for: $cmd"; exit 1
             fi
             copy="$(mktemp -d)/$plugin"
             cp -R "plugins/$plugin" "$copy"
-            if ! CLAUDE_PLUGIN_ROOT="$copy" SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/dev/null; then
-              echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+            if [ "$harness" = claude ]; then
+              if ! CLAUDE_PLUGIN_ROOT="$copy" SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/dev/null; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+              fi
+            else
+              if ! (cd "$copy" && SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd") <<<'{"conversationId":"1"}' >/tmp/hook-stdout.txt 2>/dev/null; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+              fi
             fi
             node -e "$onejson" </tmp/hook-stdout.txt || { echo "guard printed more than one line, or invalid JSON, handing off for: $cmd"; exit 1; }
           done < /tmp/hook-cmds.txt
@@ -2042,13 +2120,32 @@ jobs:
         shell: bash
         env:
           FEOV_RELEASE_GATE: "1"
+        # THE FAILURE IS NAMED, NOT TAILED. `go test -v` prints in order, so a seed that fails
+        # early sits hundreds of lines above the end; the 1.75.0 tag run (43555663288, attempt 1)
+        # printed eighty PASS lines and FAIL, and which seed failed was lost. The failing lines
+        # come first, then the end, and the whole log is uploaded as the release-fuzz parts do.
         run: |
-          out=$(go test -v -count=1 -timeout=100m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
-          echo "$out" | grep -E "^(--- |ok)" | tail -30
-          grep -qE '^--- PASS: TestFuzzDebate \(' <<<"$out" || {
+          log="$RUNNER_TEMP/release-gate-fuzz.log"
+          go test -v -count=1 -timeout=100m ./releasegate/fuzz/ >"$log" 2>&1 || {
+            grep -E '^[[:space:]]*--- FAIL|^panic:|seed [0-9]+ FAILED|fuzz runs failed' "$log" | head -60 || true
+            echo "--- end of the log:"
+            tail -40 "$log"
+            exit 1
+          }
+          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -qE '^--- PASS: TestFuzzDebate \(' "$log" || {
             echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
+      - uses: actions/upload-artifact@v7
+        if: (failure() || cancelled()) && steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        with:
+          name: release-gate-fuzz-log
+          path: ${{ runner.temp }}/release-gate-fuzz.log
+          if-no-files-found: ignore
+          retention-days: 14
+          # A re-run of the release replaces its own log rather than failing on the name.
+          overwrite: true
       # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
       #
       # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so

@@ -56,22 +56,31 @@ func TestTheProbeDispatchesTheProductionAgent(t *testing.T) {
 // something: if a constitution stops declaring WebSearch, `verify --url` becomes unperformable again
 // and no run would say so.
 func TestTheAuditingConstitutionsDeclareTheToolsTheirVerbsNeed(t *testing.T) {
-	for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher"} {
-		cp, cerr := repotree.Plugin("agents", agent+".md")
-		if cerr != nil {
-			t.Fatal(cerr)
-		}
-		b, err := os.ReadFile(cp)
-		if err != nil {
-			t.Fatal(err)
-		}
-		head := string(b)
-		if i := strings.Index(head[3:], "---"); i > 0 {
-			head = head[:i+6]
-		}
-		for _, tool := range []string{"WebSearch", "Bash", "Read"} {
-			if !strings.Contains(head, tool) {
-				t.Errorf("%s does not declare %s — a seat that must fetch a source it FINDS cannot, and `verify --url` is unperformable", agent, tool)
+	carriers := []struct {
+		dir   string
+		tools []string
+	}{
+		{"agents-claude", []string{"WebSearch", "Bash", "Read"}},
+		{"agents", []string{"search_web", "run_command", "read_file"}},
+	}
+	for _, c := range carriers {
+		for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher"} {
+			cp, cerr := repotree.Plugin(c.dir, agent+".md")
+			if cerr != nil {
+				t.Fatal(cerr)
+			}
+			b, err := os.ReadFile(cp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			head := string(b)
+			if i := strings.Index(head[3:], "---"); i > 0 {
+				head = head[:i+6]
+			}
+			for _, tool := range c.tools {
+				if !strings.Contains(head, tool) {
+					t.Errorf("%s/%s does not declare %s — a seat that must fetch a source it FINDS cannot, and `verify --url` is unperformable", c.dir, agent, tool)
+				}
 			}
 		}
 	}

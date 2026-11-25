@@ -125,4 +125,25 @@ func TestTheTarballPacksTheNamedTranscripts(t *testing.T) {
 	if names := tarNames(t, out); len(names) != 1 || names[0] != "agent-a1.jsonl" {
 		t.Errorf("tarball entries = %v, want [agent-a1.jsonl]", names)
 	}
+
+	// Colliding Antigravity basenames (transcript_full.jsonl) are disambiguated by agent id.
+	p1 := filepath.Join(dir, "conv1", "transcript_full.jsonl")
+	p2 := filepath.Join(dir, "conv2", "transcript_full.jsonl")
+	for _, p := range []string{p1, p2} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		write(t, p, "{}\n")
+	}
+	out2 := filepath.Join(dir, "agy.tar.gz")
+	if err := writeTarball(out2, []record.Transcript{
+		{AgentID: "agy-111", Path: p1},
+		{AgentID: "agy-222", Path: p2},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	names2 := tarNames(t, out2)
+	if len(names2) != 2 || names2[0] != "agent-agy-111-transcript_full.jsonl" || names2[1] != "agent-agy-222-transcript_full.jsonl" {
+		t.Errorf("antigravity tarball entries = %v, want distinct agent-prefixed names", names2)
+	}
 }

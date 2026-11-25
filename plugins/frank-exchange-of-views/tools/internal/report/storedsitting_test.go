@@ -145,7 +145,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		if len(at) != 1 || at[0] != 2 {
 			t.Errorf("show debate puts blue's closing in epoch(s) %v, want [2]", at)
 		}
-		d := debate(fam)
+		d := debate(fam, nil)
 		contains("debate.md", d, "### Epoch 2")
 		absent("debate.md", d, "### Epoch 1\n")
 	})

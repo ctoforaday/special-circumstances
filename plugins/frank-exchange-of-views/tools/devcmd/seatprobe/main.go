@@ -92,7 +92,7 @@ func main() {
 		bin        = flag.String("bin", "", "path to the feov-record binary the board is built with")
 		board      = flag.String("board", "arithmetic", "board name, or `all`")
 		dir        = flag.String("dir", "", "directory to build boards under (REQUIRED)")
-		constDir   = flag.String("constitutions", "", "directory holding the seat constitutions (default: the plugin's agents/)")
+		constDir   = flag.String("constitutions", "", "directory holding the seat constitutions (default: the plugin's agents-claude/)")
 		model      = flag.String("model", "haiku", "model for the dispatched seat")
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
@@ -126,7 +126,7 @@ func main() {
 		*pluginDir = p
 	}
 	if *constDir == "" {
-		*constDir = filepath.Join(*pluginDir, "agents")
+		*constDir = filepath.Join(*pluginDir, "agents-claude")
 	}
 	if *debatePath == "" {
 		*debatePath = filepath.Join(*pluginDir, "skills", "research-protocol", "scripts", "debate.js")

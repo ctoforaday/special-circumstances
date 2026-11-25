@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -483,5 +488,116 @@ func TestSchemaAnnouncesTheBuildField(t *testing.T) {
 	if schema < 5 {
 		t.Errorf("schema = %d; capture_build was added, so a reader gating on the version "+
 			"cannot tell a row that omits it from one written before it existed", schema)
+	}
+}
+
+func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hooks.json invokes POSIX sh")
+	}
+	pluginRoot := t.TempDir()
+	binDir := filepath.Join(pluginRoot, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildCmd := exec.Command("go", "build", "-o", filepath.Join(binDir, buildid.ExeName("gray-area-capture")), ".")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("build gray-area-capture: %v\n%s", err, out)
+	}
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks.json"))
+	if err != nil {
+		t.Fatalf("cannot read root hooks.json: %v", err)
+	}
+	var top map[string]map[string][]struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(raw, &top); err != nil {
+		t.Fatalf("root hooks.json is not valid JSON: %v", err)
+	}
+
+	project := t.TempDir()
+	pluginData := t.TempDir()
+	home := t.TempDir()
+	driven := 0
+	for _, events := range top {
+		for event, entries := range events {
+			for _, e := range entries {
+				driven++
+				// 1. Degrades cleanly when binary is missing
+				emptyRoot := t.TempDir()
+				degCmd := exec.Command("sh", "-c", e.Command)
+				degCmd.Dir = emptyRoot
+				degCmd.Env = append(os.Environ(), "PLUGIN_ROOT="+emptyRoot, "PLUGIN_DATA="+pluginData, "HOME="+home)
+				degCmd.Stdin = strings.NewReader("{}")
+				if out, err := degCmd.Output(); err != nil || len(out) != 0 {
+					t.Errorf("%s command failed to degrade cleanly when binary missing: err=%v out=%q", event, err, out)
+				}
+
+				// 2. Runs against built binary and satisfies strict .exa.hooks_pb schema
+				payload, err := json.Marshal(map[string]any{
+					"hookEventName":       event,
+					"conversationId":      "conv-ga-1873",
+					"cwd":                 project,
+					"workspacePaths":      []string{project},
+					"invocationNum":       0,
+					"continuation_active": false,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				cmd := exec.Command("sh", "-c", e.Command)
+				cmd.Dir = pluginRoot
+				cmd.Env = append(os.Environ(),
+					"ANTIGRAVITY_CONVERSATION_ID=conv-ga-1873",
+					"PLUGIN_ROOT="+pluginRoot,
+					"PLUGIN_DATA="+pluginData,
+					"HOME="+home,
+				)
+				cmd.Stdin = strings.NewReader(string(payload))
+				var out, errb bytes.Buffer
+				cmd.Stdout, cmd.Stderr = &out, &errb
+				if err := cmd.Run(); err != nil {
+					t.Errorf("%s hook exited non-zero: %v\nstderr: %s", event, err, errb.String())
+					continue
+				}
+				s := strings.TrimSpace(out.String())
+				if s == "" {
+					continue
+				}
+				dec := json.NewDecoder(bytes.NewReader([]byte(s)))
+				dec.DisallowUnknownFields()
+				switch event {
+				case "SessionStart", "PreInvocation", "PostInvocation":
+					var res struct {
+						InjectSteps []struct {
+							EphemeralMessage string `json:"ephemeralMessage"`
+							SystemMessage    *struct {
+								SystemMessage string `json:"systemMessage"`
+							} `json:"systemMessage"`
+							ErrorMessage *struct {
+								ModelMessage string `json:"modelMessage"`
+								UserMessage  string `json:"userMessage"`
+							} `json:"errorMessage"`
+						} `json:"injectSteps"`
+						TerminationBehavior string `json:"terminationBehavior"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict .exa.hooks_pb schema: %v\n%s", event, err, s)
+					}
+				case "Stop":
+					var res struct {
+						Decision string `json:"decision"`
+						Reason   string `json:"reason"`
+					}
+					if err := dec.Decode(&res); err != nil {
+						t.Errorf("%s stdout failed strict StopHookResult: %v\n%s", event, err, s)
+					}
+				}
+			}
+		}
+	}
+	if driven == 0 {
+		t.Fatal("drove 0 Antigravity hooks from gray-area hooks.json")
 	}
 }

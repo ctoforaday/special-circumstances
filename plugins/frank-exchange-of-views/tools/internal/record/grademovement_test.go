@@ -70,10 +70,8 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 		}
 	})
 
-	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
 	b := movedBoard(t, [2]string{"G1", "low"}, [2]string{"G2", "low_medium"}) // 2.0 + 0.5 = 2.5
 	openChairSitting(b)
-	b.add("red-chair", fail) // the terminal act, so its duty does not hold the work list open
 	run := b.seed()
 
 	// The gate list: both gaps, the bench's.
@@ -90,7 +88,7 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 			t.Errorf("%s is owned by %q, want the bench", bl.Subject, bl.Owner)
 		}
 	}
-	// The gate refuses PASS naming each, and the total; a FAIL is not held.
+	// The gate refuses PASS naming each, and the total.
 	passErr := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if passErr == nil {
 		t.Fatal("the gate admits a PASS over grade movement past the threshold")
@@ -99,9 +97,6 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 		if !strings.Contains(passErr.Error(), w) {
 			t.Errorf("the PASS refusal does not say %q: %v", w, passErr)
 		}
-	}
-	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, fail); err != nil {
-		t.Errorf("a FAIL is refused over a bench-owned blocker: %v", err)
 	}
 	// The plan dockets both, readies their parties for their closings — blue-respond's alone, the
 	// minter being no cast lens — and permits no PASS. The bench sits once the closings are in.

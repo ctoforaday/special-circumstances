@@ -17,8 +17,8 @@ import (
 // a seat's act, a migration's replay and a seeded fixture alike — and nothing reads a regrade row
 // without its result. Each earlier regrade carries its own, so the grade before r is one row, not a
 // fold over the gap's history. Both inputs are fixed once r is written — the record is append-only —
-// so the stamped grades are the gap's grades from r until its next regrade, and gap_grade reads them
-// as they are.
+// so the stamped grades are the gap's grades from r until its next regrade, and gap_refresh reads the
+// latest as they are.
 //
 // WHATEVER RESULT A REGRADE ARRIVES WITH IS OVERWRITTEN, never kept: a kept value is a grade set
 // nothing re-derived, stored with nothing to stop it being stale or wrong. A seat cannot supply one —

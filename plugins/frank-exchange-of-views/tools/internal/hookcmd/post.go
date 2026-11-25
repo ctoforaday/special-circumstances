@@ -1,6 +1,7 @@
 package hookcmd
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -36,7 +37,11 @@ func Post(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		rec.Fail(StageAdmission, "cannot read or parse the PostToolUse payload — a seat's accepted envelope was not recorded as admitted")
 		return nil
 	}
-	if req.ToolName == envelopeTool {
+	applyAgySitting(&req, cwdOfRequest(req), rec)
+	if req.Engine == hookcore.EngineAntigravity && req.ToolError != "" {
+		return PostFailure(bytes.NewReader(req.Raw), stdout, rec)
+	}
+	if isEnvelopeTool(req.ToolName, req.Engine) {
 		admit(req, rec)
 		return nil
 	}

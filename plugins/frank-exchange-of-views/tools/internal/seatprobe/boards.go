@@ -70,6 +70,23 @@ type Inquiry struct {
 	Method string
 }
 
+// QuestionPart is a part of the question blue split out, with the coverage blue recorded on it if
+// there is one.
+type QuestionPart struct {
+	Text string
+	// Coverage, when set, is the coverage blue recorded on it (`question cover`); with none the part is
+	// open, and blue owes it one. CoverWhy is blue's reason for it, which the logic lens judges.
+	Coverage, CoverWhy string
+	// Checked has the logic lens's check stand on the coverage, so the part holds nothing.
+	Checked bool
+}
+
+// settledQuestion is the question every board carries unless it sets its own: one part, covered and
+// checked, so it holds nothing and baits nothing. A board about something else would otherwise hold
+// the PASS on an unsplit question and offer every seat an item the board is not about.
+var settledQuestion = []QuestionPart{{Text: "the question the report's title asks", Coverage: "covered",
+	CoverWhy: "the report's findings answer the question its title asks", Checked: true}}
+
 // Motion is an adjudication already on the board — an ask a seat must answer, or an answered one
 // it may press.
 //
@@ -111,6 +128,10 @@ type Board struct {
 	Report    string
 	Gaps      []Gap
 	Inquiries []Inquiry
+	// Question is the parts the question is split into, settledQuestion where it is nil; Unsplit
+	// stages no part at all, which holds the PASS until blue splits the question.
+	Question []QuestionPart
+	Unsplit  bool
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
@@ -154,6 +175,10 @@ type Board struct {
 func arithmetic() Board {
 	return Board{
 		Name: "arithmetic", Seat: "blue-respond",
+		Question: []QuestionPart{
+			{Text: "how large the corpus is", Coverage: "covered", CoverWhy: "the Findings state the corpus's size and its breakdown by source", Checked: true},
+			{Text: "how fast the corpus is growing"},
+		},
 		Report: `# How large is the corpus, and how fast is it growing? — research report
 
 ## TL;DR
@@ -176,7 +201,7 @@ Each figure was independently checked.
 
 The remaining cases are out of scope.
 `,
-		RedNarrative: "Epoch 1, FAIL. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
+		RedNarrative: "Epoch 1. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
 		Gaps: []Gap{
 			{
 				Key: "sum", Class: "figure_recount_fails",
@@ -230,6 +255,7 @@ The remaining cases are out of scope.
 			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and " + recordpb.DemandClause + ". A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
+			{Seat: "blue-respond", Verb: "question cover", Because: "The question is split into two parts and the second, how fast the corpus is growing, has no coverage recorded: a part with none holds the PASS, and blue's work list names it. The report does answer it (roughly 8% a month), so the accounted act records it covered with what answers it — leaving it open, or answering in prose, leaves the PASS held."},
 			{Seat: "blue-respond", Verb: "inquiry propose", Because: "Answering the computation gaps opens an inquiry this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and an inquiry may be proposed AT ANY POINT in the run, not only at the start. An inquiry that occurs mid-repair is one a later run needs on the record."},
 		},
 	}
@@ -240,6 +266,7 @@ The remaining cases are out of scope.
 func sources() Board {
 	return Board{
 		Name: "sources", Seat: "blue-respond",
+		Unsplit: true,
 		Report: `# Does the standard require what we say it requires? — research report
 
 ## TL;DR
@@ -259,7 +286,7 @@ An earlier draft of this report claimed the floor was 90 days.
 
 Each claim below rests on a cited source.
 `,
-		RedNarrative: "Epoch 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
+		RedNarrative: "Epoch 1. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
 		Claims:       []string{"The standard mandates a 30-day retention floor for every record class it covers."},
 		Gaps: []Gap{
 			{
@@ -288,6 +315,7 @@ Each claim below rests on a cited source.
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
+			{Seat: "blue-respond", Verb: "question split", Because: "The question this run was asked is split into no part, so nothing states which parts of it the report answers, and the PASS is held until it is: blue's work list names the split. The title asks whether the standard requires what the report says — the retention floor and the ban on early deletion are the parts a reader would ask answered."},
 			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. An edit that cuts a cited sentence is refused for leaving its citation bare; the retire takes the citation off the sentence, keeping it word for word, and records why it went."},
 		},
 	}
@@ -314,7 +342,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
-		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second.",
+		RedNarrative: "Epoch 1. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation_status_overclaim",
@@ -524,7 +552,7 @@ The working group's standard has been withdrawn since the benchmark was run.
 			Script:   "print('improvement: 40%')",
 		}},
 		Expect: []Expectation{
-			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis, against its own budget. The withdrawn standard is exactly that — a methodology claim whose foundation is gone, which no source reading of the sentence carries: a defect a reading finds against its source is minted by the reading's own act and counts under the reading's verb."},
+			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis. The withdrawn standard is exactly that — a methodology claim whose foundation is gone, which no source reading of the sentence carries: a defect a reading finds against its source is minted by the reading's own act and counts under the reading's verb."},
 			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty. The methodology claim also rests on a standard BLUE NEVER CITED, so there is no anchor to read it by: the lens reads the standard it found with `--url`, and the reading mints the gap blue answers with a citation — the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A computation is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
@@ -773,7 +801,7 @@ Design A is cheaper to operate than design B.
 
 The comparison rests on the operator's own cost model, which is not published.
 `,
-		RedNarrative: "Epoch 1, FAIL. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
+		RedNarrative: "Epoch 1. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
 		Gaps: []Gap{
 			{
 				Key: "unpublished", Class: "unverified_composition",
@@ -850,6 +878,8 @@ The fall coincides with the cache layer's release.
 func lensInquiry() Board {
 	return Board{
 		Name: "lens-inquiry", Seat: "red-lens-logic",
+		Question: []QuestionPart{{Text: "whether 91 is prime", Coverage: "covered",
+			CoverWhy: "the Findings show 91 = 7 × 13, so the report answers it: 91 is not prime"}},
 		Report: `# Is 91 prime? — research report
 
 ## TL;DR
@@ -874,7 +904,8 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 		},
 		Expect: []Expectation{
 			{Seat: "red-lens-logic", Verb: "inquiry check", Because: "Q1 is settled and no check stands on it: its fate claims trial division found the factor 7, and the report's Findings and Method deliver exactly that. A settled inquiry with no standing check holds the PASS, the logic lens's work list names it, and the check with its reason is the one act that clears it."},
-			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it, and which takes none of the logic lens's mint budget."},
+			{Seat: "red-lens-logic", Verb: "question check", Because: "The question's one part, whether 91 is prime, is recorded covered and no check stands on it: a covered part with no standing check holds the PASS, and the logic lens's work list names it. The report's TL;DR and Findings answer it whole, so its coverage stands and the check is the act that clears it."},
+			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it."},
 		},
 	}
 }

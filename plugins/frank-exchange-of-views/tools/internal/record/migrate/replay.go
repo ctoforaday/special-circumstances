@@ -425,6 +425,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
 			// and TranslateReadingBlockers carries an archived reading blocker to its reading debt.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanVerdict(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
@@ -443,7 +447,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
+				if err := CarryPlanPass(pl, batch.Querier()); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
@@ -539,7 +543,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: u.Error()})
 				res.AcceptedLosses[old.Word] = undeliveredLoss
-				lost.noteLoss(body, old.ID, old.Word)
+				if err := lost.noteLoss(batch.Querier(), body, old.ID, old.Word); err != nil {
+					return nil, err
+				}
 				if _, seen := newID[old.ID]; !seen {
 					var last int64
 					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
@@ -581,7 +587,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: dependentLoss(gap, from, err)})
 				res.AcceptedLosses[old.Word] = dependentLossWhy
-				lost.noteLoss(body, old.ID, old.Word)
+				if err := lost.noteLoss(batch.Querier(), body, old.ID, old.Word); err != nil {
+					return nil, err
+				}
 				if _, seen := newID[old.ID]; !seen {
 					var last int64
 					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {

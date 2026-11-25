@@ -16,24 +16,33 @@ import (
 // a record tool it concluded was broken. That transcript and a transcript of a seat that chose not
 // to read its help score identically.
 func TestEveryDispatchedAgentGrantsTheToolsItsSeatNeeds(t *testing.T) {
-	for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher", "lead-judge"} {
-		p, err := repotree.Plugin("agents", agent+".md")
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := GrantedTools(p)
-		if err != nil {
-			t.Errorf("%s: %v", agent, err)
-			continue
-		}
-		have := map[string]bool{}
-		for _, g := range got {
-			have[g] = true
-		}
-		// Bash is the one the record tool needs. Read is how the seat sees the artifact.
-		for _, want := range []string{"Bash", "Read"} {
-			if !have[want] {
-				t.Errorf("%s declares no %s — a seat dispatched under it cannot run the record tool and will report the tool as broken", agent, want)
+	carriers := []struct {
+		dir   string
+		tools []string
+	}{
+		// Bash/run_command is what the record tool needs. Read/read_file is how the seat sees the artifact.
+		{"agents-claude", []string{"Bash", "Read"}},
+		{"agents", []string{"run_command", "read_file"}},
+	}
+	for _, c := range carriers {
+		for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher", "lead-judge"} {
+			p, err := repotree.Plugin(c.dir, agent+".md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := GrantedTools(p)
+			if err != nil {
+				t.Errorf("%s/%s: %v", c.dir, agent, err)
+				continue
+			}
+			have := map[string]bool{}
+			for _, g := range got {
+				have[g] = true
+			}
+			for _, want := range c.tools {
+				if !have[want] {
+					t.Errorf("%s/%s declares no %s — a seat dispatched under it cannot run the record tool and will report the tool as broken", c.dir, agent, want)
+				}
 			}
 		}
 	}

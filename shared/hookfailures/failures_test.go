@@ -266,6 +266,182 @@ func TestAFailingStageIsSaidOnceEveryNotifyPeriod(t *testing.T) {
 	}
 }
 
+// TTLStage associates a TTL with a stage so any event/harness merge prunes expired entries
+// once shown, marks un-announced recoveries as Recovered to show once and drop, resets Since when
+// a recovered entry fails again, and never loses still-failing or non-TTL stages.
+func TestStageTTLSemantics(t *testing.T) {
+	plugin, path := isolate(t)
+	ttlA := TTLStage{Stage: stageA, TTL: 30 * time.Minute}
+
+	// 1. G2 + H3: Fail at t=0 on non-displaying PreInvocation, recover (OKTTL) at +1m before ever being
+	// shown -> displaying event at +2m shows it ONCE with singular recovered header & cleared footer
+	// (never "failing since") and drops it.
+	g2a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	g2a.FailTTL(ttlA, "conv-rec", "drain failed")
+	g2a.Persist()
+	g2b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	g2b.OKTTL(ttlA, "conv-rec")
+	g2b.Persist()
+	g2c := New(plugin, "test-hook", "PreToolUse", noon.Add(2*time.Minute), io.Discard)
+	recMsg := g2c.Settle()
+	if !strings.Contains(recMsg, "1 stage failed and has since worked") ||
+		!strings.Contains(recMsg, "has since worked at") ||
+		!strings.Contains(recMsg, "Each recovered entry above has been cleared.") ||
+		strings.Contains(recMsg, "failing since") {
+		t.Fatalf("singular recovered message unexpected: %q", recMsg)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("recovered entry survived its one-time announcement: %+v", recorded(t, path))
+	}
+	g2d := New(plugin, "test-hook", "PreToolUse", noon.Add(12*time.Minute), io.Discard)
+	if again := g2d.Settle(); again != "" {
+		t.Fatalf("recovered entry re-announced at +12m: %q", again)
+	}
+
+	// 1b. H3 plural recovered-only header: 2 recovered stages use plural "2 stages failed and have since worked".
+	p1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	p1.FailTTL(ttlA, "conv-p1", "err1")
+	p1.FailTTL(ttlA, "conv-p2", "err2")
+	p1.Persist()
+	p2 := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	p2.OKTTL(ttlA, "conv-p1")
+	p2.OKTTL(ttlA, "conv-p2")
+	p2.Persist()
+	p3 := New(plugin, "test-hook", "PreToolUse", noon.Add(2*time.Minute), io.Discard)
+	if pmsg := p3.Settle(); !strings.Contains(pmsg, "2 stages failed and have since worked") || !strings.Contains(pmsg, "Each recovered entry above has been cleared.") {
+		t.Fatalf("plural recovered message unexpected: %q", pmsg)
+	}
+
+	// 1b2. J3: mixed failing + recovered renders both header and mixed footer.
+	m1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	m1.FailTTL(ttlA, "conv-mrec", "transient")
+	m1.Fail(stageB, "still broken")
+	m1.Persist()
+	m2 := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	m2.OKTTL(ttlA, "conv-mrec")
+	m2.Persist()
+	m3 := New(plugin, "test-hook", "PreToolUse", noon.Add(2*time.Minute), io.Discard)
+	if mmsg := m3.Settle(); !strings.Contains(mmsg, "1 stage(s) failing, 1 recovered") ||
+		!strings.Contains(mmsg, "Each recovered entry above has been cleared; each failing entry clears when its stage next works") {
+		t.Fatalf("mixed failing+recovered message unexpected: %q", mmsg)
+	}
+	m4 := New(plugin, "test-hook", "PreInvocation", noon.Add(3*time.Minute), io.Discard)
+	m4.OK(stageB)
+	m4.Persist()
+
+	// 1c. H2 + H5: fail@0 -> OK@1m (Recovered) -> fail@2m clears Recovered AND resets Since to +2m,
+	// so Settle@3m renders "failing since <+2m>" and NOT "has since worked".
+	h2a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	h2a.FailTTL(ttlA, "conv-flaky", "first fail")
+	h2a.Persist()
+	h2b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	h2b.OKTTL(ttlA, "conv-flaky")
+	h2b.Persist()
+	h2c := New(plugin, "test-hook", "PreInvocation", noon.Add(2*time.Minute), io.Discard)
+	h2c.FailTTL(ttlA, "conv-flaky", "second fail")
+	h2c.Persist()
+	h2d := New(plugin, "test-hook", "PreToolUse", noon.Add(3*time.Minute), io.Discard)
+	flakyMsg := h2d.Settle()
+	wantSince := noon.Add(2 * time.Minute).UTC().Format(time.RFC3339)
+	if !strings.Contains(flakyMsg, "failing since "+wantSince) || strings.Contains(flakyMsg, "has since worked") {
+		t.Fatalf("fail->OK->fail message = %q, want 'failing since %s' without 'has since worked'", flakyMsg, wantSince)
+	}
+	// Clean up conv-flaky before continuing.
+	h2e := New(plugin, "test-hook", "PreInvocation", noon.Add(4*time.Minute), io.Discard)
+	h2e.OKTTL(ttlA, "conv-flaky")
+	h2e.Persist()
+
+	// 1d. G4: FailTTL (TTL 30m) followed by plain FailIn on the same key resets ExpiresAfter to 0.
+	g4a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	g4a.FailTTL(ttlA, "conv-g4", "bounded")
+	g4a.Persist()
+	g4b := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	g4b.FailIn(stageA, "conv-g4", "plain")
+	g4b.Persist()
+	if got, ok := entry(recorded(t, path), stageA, "conv-g4"); !ok || got.ExpiresAfter != 0 {
+		t.Fatalf("plain FailIn after FailTTL kept sticky TTL: ok=%v got=%+v", ok, got)
+	}
+	g4c := New(plugin, "test-hook", "PreInvocation", noon.Add(2*time.Minute), io.Discard)
+	g4c.OKIn(stageA, "conv-g4")
+	g4c.Persist()
+
+	// 2. Record a TTL stage on non-displaying PreInvocation and a non-TTL stageB.
+	r1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	r1.FailTTL(ttlA, "conv-ended", "drain failed")
+	r1.Fail(stageB, "permanent failure")
+	r1.Persist()
+
+	// 3. Un-announced (Notified is zero): +31m non-displaying merge must NOT prune before shown.
+	r2 := New(plugin, "test-hook", "PreInvocation", noon.Add(31*time.Minute), io.Discard)
+	r2.Persist()
+	if _, ok := entry(recorded(t, path), stageA, "conv-ended"); !ok {
+		t.Fatalf("un-announced TTL entry was pruned before ever being shown")
+	}
+
+	// 4. Displaying event (Stop, e.g. from Claude) at +31m shows it and stamps Notified.
+	r3 := New(plugin, "test-hook", "Stop", noon.Add(31*time.Minute), io.Discard)
+	msg := r3.Settle()
+	if !strings.Contains(msg, "conv-ended") {
+		t.Fatalf("displaying event at +31m did not show un-announced TTL entry: %q", msg)
+	}
+
+	// 5. Now that Notified is set and now-Last >= 30m, ANY subsequent merge prunes stageA while
+	// leaving non-TTL stageB untouched.
+	r4 := New(plugin, "test-hook", "Stop", noon.Add(32*time.Minute), io.Discard)
+	r4.Persist()
+	rec := recorded(t, path)
+	if _, ok := entry(rec, stageA, "conv-ended"); ok {
+		t.Fatalf("shown + expired TTL entry was not pruned: %+v", rec)
+	}
+	if _, ok := entry(rec, stageB, ""); !ok {
+		t.Fatalf("non-TTL stageB was wrongly pruned: %+v", rec)
+	}
+
+	// 6. Still-failing entry ages from Last, NOT Since: fail at t=0, fail again at t=20m, show at
+	// t=20m, settle at t=35m (now-Since=35m >= 30m, now-Last=15m < 30m) -> MUST be kept.
+	r5a := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	r5a.FailTTL(ttlA, "conv-active", "still failing")
+	r5a.Persist()
+	r5b := New(plugin, "test-hook", "Stop", noon.Add(20*time.Minute), io.Discard)
+	r5b.FailTTL(ttlA, "conv-active", "still failing")
+	r5b.Settle()
+	r5c := New(plugin, "test-hook", "Stop", noon.Add(35*time.Minute), io.Discard)
+	r5c.Persist()
+	if _, ok := entry(recorded(t, path), stageA, "conv-active"); !ok {
+		t.Fatalf("still-failing entry was expired from Since instead of Last")
+	}
+
+	// 7. G3: Failing-now is never expired even if now-Last >= TTL, AND preserves Since and Notified.
+	r6 := New(plugin, "test-hook", "Stop", noon.Add(60*time.Minute), io.Discard)
+	r6.FailTTL(ttlA, "conv-active", "failing right now")
+	r6.Persist()
+	got, ok := entry(recorded(t, path), stageA, "conv-active")
+	if !ok {
+		t.Fatalf("entry failing in current invocation was wrongly expired")
+	}
+	if !got.Since.Equal(noon) || !got.Notified.Equal(noon.Add(20*time.Minute)) {
+		t.Fatalf("failing-now entry was pruned and re-created: Since=%s Notified=%s, want %s / %s",
+			got.Since, got.Notified, noon, noon.Add(20*time.Minute))
+	}
+}
+
+// G6: A non-TTL stage recorded on a non-displaying event clears immediately on OK before ever being shown.
+func TestNonTTLEntryClearsOnOKBeforeShown(t *testing.T) {
+	plugin, path := isolate(t)
+	r1 := New(plugin, "test-hook", "PreInvocation", noon, io.Discard)
+	r1.Fail(stageB, "transient")
+	r1.Persist()
+	if _, ok := entry(recorded(t, path), stageB, ""); !ok {
+		t.Fatalf("stageB was not persisted")
+	}
+	r2 := New(plugin, "test-hook", "PreInvocation", noon.Add(time.Minute), io.Discard)
+	r2.OK(stageB)
+	r2.Persist()
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("non-TTL entry was not cleared by OK before being shown: %+v", recorded(t, path))
+	}
+}
+
 // A healthy invocation writes nothing at all — not even the directory.
 func TestAHealthyInvocationWritesNothing(t *testing.T) {
 	plugin, path := isolate(t)

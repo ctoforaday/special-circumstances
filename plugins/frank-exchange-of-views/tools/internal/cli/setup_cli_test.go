@@ -145,7 +145,7 @@ func TestSetupCLIArgParsing(t *testing.T) {
 	cwd := recordtest.TmpRun(t)
 	runDir := filepath.Join(cwd, "research", "2026-01-01_cli-test")
 
-	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--bulk", "haiku", "--judgment", "haiku", "--k-max", "3", "--mint-budget", "2",
+	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--bulk", "haiku", "--judgment", "haiku", "--k-max", "3",
 		"--cite", "a/path@abc1234", "--cite", "b/path")
 	if r.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", r.code, r.stderr)

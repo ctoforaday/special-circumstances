@@ -44,6 +44,7 @@ Available Commands:
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  question    split the question the run was asked into question parts, and record how the report covers each — `split` splits one out, `cover` records its coverage
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -88,6 +89,7 @@ Available Commands:
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  question    split the question the run was asked into question parts, and record how the report covers each — `split` splits one out, `cover` records its coverage
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -124,7 +126,7 @@ Available Commands:
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
@@ -146,7 +148,7 @@ Use "feov-record [command] --help" for more information about a command.
 $ help --seat-id red-lens-evidence
 exit 0
 stdout:
-feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
+feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps and, as the originator, regrades and closes them.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -175,6 +177,7 @@ Available Commands:
 Command groups — each holds commands THIS page does not list:
   inquiry     judge an inquiry blue settled — `check` records that its latest fate stands as the report's account of it
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  question    judge a question part's coverage — `check` records that it stands as the report's account of that part of the question
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -210,7 +213,7 @@ Available Commands:
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
-  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -257,6 +260,7 @@ Available Commands:
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  question    split the question the run was asked into question parts, and record how the report covers each — `split` splits one out, `cover` records its coverage
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -291,7 +295,7 @@ Available Commands:
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 

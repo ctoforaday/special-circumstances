@@ -30,7 +30,13 @@ func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 	const sentence = "Costs rose sharply in the first quarter, then fell."
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Costs\n\nQ1 was hard. "+sentence+"\n")
-	if _, err := mintQuote(t, runDir, "k1", "Costs rose sharply"); err != nil {
+	gap, err := mintQuote(t, runDir, "k1", "Costs rose sharply")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The chair's item is its ruling on blue's grade motion: a chair's queue holds no report text here.
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
+		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded"); err != nil {
 		t.Fatal(err)
 	}
 	open := func(agent, agentType string) string {

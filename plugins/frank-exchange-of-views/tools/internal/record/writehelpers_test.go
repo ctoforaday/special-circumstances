@@ -165,3 +165,9 @@ func sitRead(t *testing.T, run Run, seat string) Identity {
 	delivered(t, id)
 	return id
 }
+
+// repairClose is the gap's minting lens closing it repaired.
+func repairClose(gap string) *recordpb.Close {
+	return &recordpb.Close{GapId: proto.String(gap), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}
+}

@@ -2,6 +2,8 @@ package doctor_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +23,13 @@ var (
 func buildDoctorBinary(t *testing.T) string {
 	t.Helper()
 	builtDoctorOnce.Do(func() {
-		tmp, err := os.MkdirTemp("", "sc-doctor-test-bin-")
+		// Inside the isolated home, which the exit removes: built once and shared by every test,
+		// the binary has no test to own it, and a directory of its own here was never removed.
+		if hooktest.Dir() == "" {
+			doctorBuildErr = fmt.Errorf("no isolated home: TestMain must run hooktest.Isolated")
+			t.Fatal(doctorBuildErr)
+		}
+		tmp, err := os.MkdirTemp(hooktest.Dir(), "sc-doctor-test-bin-")
 		if err != nil {
 			doctorBuildErr = err
 			t.Fatalf("failed to create temp dir for doctor binary: %v", err)

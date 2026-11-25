@@ -92,7 +92,8 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 // THE OPENING END STORES WHAT IT HANDED, AND THE FIRST CALL AFTER IT COMPARES AGAINST THAT: nothing
 // moved, so nothing is said. A lost file hands the head of the queue again. The chain is every
 // seat's: the chair is the seat here, since a lens's first sitting opens with report text, which the
-// opening end never hands — its first call does.
+// opening end never hands — its first call does. The chair's item is its ruling on blue's grade
+// motion.
 func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
@@ -100,6 +101,14 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 			SeatIds: []string{"red-chair", "red-lens-evidence", "blue-respond", "judge"}}),
 		recordtest.At(t, record.HarnessSeat, "harness:ingest",
 			&recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}),
+		recordtest.At(t, "red-lens-evidence", "lens:register", &recordpb.Register{}),
+		recordtest.At(t, "red-lens-evidence", "lens:mint", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}),
+		recordtest.At(t, "blue-respond", "blue:grade", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
+			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
+				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}),
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
 			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
 	const chair = "frank-exchange-of-views:red-chair"

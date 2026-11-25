@@ -22,7 +22,9 @@ func runAs(t *testing.T, bin, cwd, session string, args ...string) setupRun {
 	c.Dir = cwd
 	env := []string{"CLAUDE_PROJECT_DIR=" + recordtest.TmpRun(t)}
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, seatenv.SessionVar+"=") && !strings.HasPrefix(kv, "FEOV_") {
+		if !strings.HasPrefix(kv, seatenv.SessionVar+"=") &&
+			!strings.HasPrefix(kv, seatenv.AgySessionVar+"=") &&
+			!strings.HasPrefix(kv, "FEOV_") {
 			env = append(env, kv)
 		}
 	}

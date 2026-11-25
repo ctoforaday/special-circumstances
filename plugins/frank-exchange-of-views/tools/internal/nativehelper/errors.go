@@ -22,6 +22,10 @@ var (
 	ErrProtocol = errors.New("helper-protocol")
 )
 
+// ErrRequestTooLarge is a request the client refuses to send: its frame exceeds MaxPayload or
+// MaxFields. It is none of the five failures: nothing is written, and the helper stays up.
+var ErrRequestTooLarge = errors.New("request-too-large")
+
 // Error carries the details each failure names. Kind is one of the five sentinels above.
 type Error struct {
 	Kind   error

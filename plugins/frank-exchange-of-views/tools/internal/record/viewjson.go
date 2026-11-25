@@ -1106,8 +1106,8 @@ type WorkGapState struct {
 
 // workReads is every answer the work list takes off the record, read on one snapshot (workReadsAt)
 // and folded after it closes (workGapStatesOf): the stream, the gap view's rows, the two list
-// tables, the gaps' edits, the report's rows, the bench's remands and, on a lens's list, its mint
-// standing. absent is a run with no record yet, which has no work.
+// tables, the gaps' edits, the report's rows and the bench's remands. absent is a run with no record
+// yet, which has no work.
 type workReads struct {
 	absent              bool
 	evs                 []*Event
@@ -1119,16 +1119,19 @@ type workReads struct {
 	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
 	found   []locatedReading
 	remands map[string][]remandRow
-	budget  *budgetRead
+	// parts is every question part (questionPartsAt), on the list's snapshot.
+	parts []QuestionPartRow
+	// wholeQuestion is the findings about the question as a whole since its latest split
+	// (wholeQuestionNotesOf), on the same snapshot.
+	wholeQuestion []string
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
 // reportSourceAt), folded on the first ask and kept.
 //
-// THE WORK LIST RENDERS THE REPORT ONCE. Its gap locations, its mint budget's measure and its
-// unverifiable citations each read the report; each rendering it from the rows was the same fold
-// done again, and the budget's own render read the rows a second time off a connection outside the
-// list's snapshot. A pointer, so every copy of workReads asks the one fold.
+// THE WORK LIST RENDERS THE REPORT ONCE. Its gap locations and its unverifiable citations each read
+// the report; each rendering it from the rows was the same fold done again. A pointer, so every copy
+// of workReads asks the one fold.
 type reportRender struct {
 	src      recordsql.ReportSource
 	srcErr   error
@@ -1154,21 +1157,8 @@ type workGapRow struct {
 	closure     gapClosure
 }
 
-// workReadsAt reads the work list's answers off q, the read transaction every one of them comes off,
-// and, where ask names a lens, its mint standing off the same q (lensMintStanding). A standing that
-// does not read is the list's sentence (mintBudgetOf), not the list's error.
-func workReadsAt(q recordsql.Querier, ask *budgetAsk) (workReads, error) {
-	r, err := workListReadsAt(q)
-	if err != nil || ask == nil {
-		return r, err
-	}
-	st, err := lensMintStanding(q, r.report.get, &heldStream{evs: r.evs, win: r.win}, ask.params, ask.seatID, ask.area)
-	r.budget = &budgetRead{st: st, err: err}
-	return r, nil
-}
-
-// workListReadsAt reads the work list's own answers off q.
-func workListReadsAt(q recordsql.Querier) (workReads, error) {
+// workReadsAt reads the work list's answers off q, the read transaction every one of them comes off.
+func workReadsAt(q recordsql.Querier) (workReads, error) {
 	r := workReads{report: &reportRender{}}
 	var err error
 	if r.evs, r.win, err = eventsAt(q); err != nil || noRecord(q) {
@@ -1200,6 +1190,14 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 			return r, err
 		}
 	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
+	}
+	found, err := questionFindingsAt(q)
+	if err != nil {
+		return r, err
+	}
+	r.wholeQuestion = wholeQuestionNotesOf(r.parts, found)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1446,7 +1444,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 // to its raw walk. The seat-addressed halves (sitting, counterparty) need a role and seat and
 // are added by WorkJSONBytes.
 func WorkJSONOfRun(run Run) (WorkJSON, error) {
-	r, err := workView(run, nil)
+	r, err := workView(run)
 	if err != nil {
 		return WorkJSON{}, err
 	}
@@ -1490,13 +1488,13 @@ func unverifiableIn(r workReads) unverifiableFunc {
 	}
 }
 
-// workView reads the work list's answers on one snapshot of the record (workReadsAt), with ask's
-// mint standing where it names a lens; its callers fold them after the transaction closes.
-func workView(run Run, ask *budgetAsk) (workReads, error) {
+// workView reads the work list's answers on one snapshot of the record (workReadsAt); its callers
+// fold them after the transaction closes.
+func workView(run Run) (workReads, error) {
 	var r workReads
 	err := readSnapshot(run, func(q recordsql.Querier) error {
 		var err error
-		r, err = workReadsAt(q, ask)
+		r, err = workReadsAt(q)
 		return err
 	})
 	return r, err
@@ -1563,8 +1561,8 @@ func epochOfSeatOnBoard(evs []*Event, win WindowIndex, seatID string) int {
 // Seats write in parallel, so every question here is asked of the one snapshot the events came off,
 // and the list is folded after that transaction closes (workView).
 func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
-	// The stream through the loader (no fold), the gap facts off the view, a lens's standing.
-	r, err := workView(run, budgetAskOf(run, role, seatID))
+	// The stream through the loader (no fold), the gap facts off the view.
+	r, err := workView(run)
 	if err != nil {
 		return WorkJSON{}, err
 	}
@@ -1582,15 +1580,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
-	var budget *MintBudgetJSON
-	var budgetLine string
-	if role == "lens" {
-		budget, budgetLine = mintBudgetOf(r.budget)
-		if budget != nil && budget.Measured {
-			reads.mintsLeft = &budget.Left
-		}
-	}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
 	textItems, err := reportTextItems(run, role, seatID, w.Sitting.Open)
@@ -1608,23 +1598,10 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 				}
 			}
 		}
-		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. The count and the
-		// measure are the write path's own reads (lensMintStanding), asked of the snapshot above, so
-		// the list states the number the next mint is judged against, from the same record as the
-		// gaps it lists. The count is the seat's open gaps, so its own mint or close moves it and so
-		// does a bench ruling that closes one; the units may move under a blue edit between this read
-		// and the mint.
-		//
-		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
-		// it follows the statement that the list is empty where SittingOf made one.
-		w.Sitting.MintBudget = budget
-		if budgetLine != "" {
-			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine, Kind: ItemBudget})
-		}
 	}
 	if role == "bench" || role == "chair" {
-		// LAST, AND NEVER BLOCKING, like the lens's budget: a fact about the run, not work. The two
-		// seats that rule are the two whose prompts send them to the law.
+		// LAST, AND NEVER BLOCKING: a fact about the run, not work. The two seats that rule are the
+		// two whose prompts send them to the law.
 		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run), Kind: ItemLaw})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
@@ -1942,12 +1919,11 @@ type DebateOutcomeJSON struct {
 // believed the help — `.red_closings | map(.gap_id)` — was told it could not iterate over null.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
-	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
-	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// Passed is the epoch's RECORDED PASS, and it is here because `red` is PROSE. A position may
+	// say "my verdict is PASS" while the record holds none — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
-	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch,
-	// which is a different fact from a verdict of fail and must not read as one.
-	Verdict      string              `json:"verdict"`
+	// concluded the opposite of the record. False means no PASS was recorded for this epoch.
+	Passed       bool                `json:"passed"`
 	Red          []string            `json:"red"`
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
@@ -2087,8 +2063,8 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
 			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}, Served: []DebateServedJSON{}}
 		for _, e := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
-				rj.Verdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+				rj.Passed = true
 			}
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both

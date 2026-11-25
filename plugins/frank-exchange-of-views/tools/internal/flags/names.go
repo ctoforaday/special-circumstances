@@ -116,6 +116,11 @@ const (
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
 
+	// A question part's TEXT: the part of the question it names, as a reader of the subject asks it.
+	// Its own flag, as an inquiry's question is: the part's coverage is recorded by another verb, whose
+	// --reason is the account of that coverage.
+	PartText = "text"
+
 	// The computation axis. --dir is the bundle that settles a claim — the program and the files it
 	// reads, run by the command after `--`; --cites names the METHOD
 	// citation it applies — the source that says trial division decides primality. The method
@@ -140,10 +145,6 @@ const (
 	// from the wrong working directory, printed the shell's complaint, exited 0, and were cited
 	// as re-runnable enumerations of something they never enumerated.
 	ExpectError = "expect-error"
-	// AllowSubstitution is the operator's standing consent to a model tier the environment will
-	// not serve. It sits on `setup` and NOT on any seat verb, because a seat carrying it would be
-	// the party under test excusing itself; the decision is made once and recorded on the run.
-	AllowSubstitution = "allow-substitution"
 
 	// Confidence is how sure a seat is of a determination it just made — orthogonal to WHAT
 	// the determination was (--as). One word, one question, and the question is "how sure are
@@ -279,14 +280,12 @@ const (
 	Cite           = "cite"
 	Lanes          = "lanes"
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
-	K                   = "k"
-	KMax                = "k-max"
-	MintBudget          = "mint-budget"
-	ConvergenceFraction = "convergence-fraction"
-	MaxEpochs           = "max-epochs"
-	BinDir              = "bin-dir"
-	RunID               = "run-id"
-	ScriptPath          = "script-path"
+	K          = "k"
+	KMax       = "k-max"
+	MaxEpochs  = "max-epochs"
+	BinDir     = "bin-dir"
+	RunID      = "run-id"
+	ScriptPath = "script-path"
 
 	// The operator `take-over` command: the session that leads a live run, named so a run is never
 	// taken from a lead the caller did not name.
@@ -330,13 +329,13 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method,
-		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
+		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}

@@ -23,11 +23,15 @@ import (
 //
 // WHEN IT ASKS. PreInvocation fires before every model step of a turn (invocationNum 0, 1, 2 …),
 // so it asks on the turn's first step only: an ephemeral message is dropped after the turn, and
-// repeating it every step would cost a step's attention for nothing. It asks only when there is no
-// record for this conversation, or the recorded server no longer accepts a connection — a restarted
-// server listens on a new port. It never asks where linking would fail: no runtime directory, or no
-// telepathy binary beside this one.
+// repeating it every step would cost a step's attention for nothing. It asks only when neither
+// this server nor this conversation has a live server record — a restarted server listens on a new
+// port and has a new PID/start time. It never asks where linking would fail: no runtime directory,
+// or no telepathy binary beside this one.
 func linkRequest(req hookcore.Request, runtimeDir, telepathy string, dial func(addr string) bool) string {
+	return linkRequestWithHost(req, runtimeDir, telepathy, peer.HostServer, dial)
+}
+
+func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hostFn func() peer.ServerIdentity, dial func(addr string) bool) string {
 	if req.Engine != hookcore.EngineAntigravity || req.SessionID == "" || runtimeDir == "" || telepathy == "" {
 		return ""
 	}
@@ -38,7 +42,15 @@ func linkRequest(req hookcore.Request, runtimeDir, telepathy string, dial func(a
 	if p.InvocationNum != 0 {
 		return ""
 	}
-	s, err := peer.LookupServer(runtimeDir, req.SessionID)
+	if hostFn != nil {
+		host := hostFn()
+		if host.PID > 0 && host.StartTime > 0 {
+			if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && dial(hs.Address) {
+				return ""
+			}
+		}
+	}
+	s, err := peer.LookupConversationServer(runtimeDir, req.SessionID)
 	if err == nil && s != nil && dial(s.Address) {
 		return ""
 	}

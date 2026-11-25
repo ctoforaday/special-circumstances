@@ -8,8 +8,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -21,7 +20,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 drive: red-lens-evidence reads its delivery
@@ -44,14 +43,13 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ position --run {RUN} --seat-id red-chair --reason the board is  going in
 exit 0
 stdout:
 position POSITION001 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
@@ -70,8 +68,7 @@ $ motion grade rule --run {RUN} --seat-id red-chair --id MOTION001 --as rejected
 exit 0
 stdout:
 motion MOTION001 ruled rejected
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
@@ -84,8 +81,7 @@ $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason my rul
 exit 0
 stdout:
 motion MOTION002 filed (docket)
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · gap GAP001 is docketed for the bench (motion MOTION002) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
@@ -109,13 +105,13 @@ stdout:
 minted GAP002
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
 exit 0
 stdout:
 closed GAP002 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
 exit 2
@@ -126,7 +122,7 @@ $ motion docket file --run {RUN} --seat-id red-lens-evidence --id GAP002 --reaso
 exit 0
 stdout:
 motion MOTION004 filed (docket)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -138,8 +134,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
@@ -151,8 +146,7 @@ $ position --run {RUN} --seat-id red-chair --reason the board is clean going in
 exit 0
 stdout:
 position POSITION002 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 8 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules

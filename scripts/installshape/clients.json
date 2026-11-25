@@ -1,0 +1,10 @@
+{
+  "claude": {
+    "version": "2.1.329"
+  },
+  "agy": {
+    "version": "1.5.13",
+    "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.13-5999302598852608/linux-x64/cli_linux_x64.tar.gz",
+    "sha512": "014b37387703acab1f47cd532c8bb60167a6a3537b0f9891de03f1b1ffa9614307bc83c4b2f7551273b0877d722716b0cd9e26782f6b2a50705db4f05e18c68f"
+  }
+}

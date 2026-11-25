@@ -199,7 +199,10 @@ func TestTheAssetPinsAreReadPerArch(t *testing.T) {
 	}
 }
 
-func TestNativeDigestReadsTheEnginePins(t *testing.T) {
+// TestEnginePinsReadTheOCRPins: EnginePins reads the one tesseract, leptonica and eng.traineddata
+// record each, and refuses none or two. devcmd/nativedigest's TestAnEnginePinBumpReachesTheGeneratedFile
+// carries a bump through the command build.sh runs.
+func TestEnginePinsReadTheOCRPins(t *testing.T) {
 	native := fixture(t)
 	pins := filepath.Join(native, "feov-ocr", "PINS.txt")
 	e, err := EnginePins(pins)
@@ -213,10 +216,6 @@ func TestNativeDigestReadsTheEnginePins(t *testing.T) {
 	write(t, native, "feov-ocr/PINS.txt", strings.Replace(string(b), "tesseract-5.5.3", "tesseract-5.5.4", 1))
 	if e, err := EnginePins(pins); err != nil || e.Tesseract != "5.5.4" {
 		t.Errorf("a renamed tesseract record reads %+v, %v; want 5.5.4", e, err)
-	}
-	gen, err := Render(native)
-	if err != nil || !strings.Contains(string(gen), `Tesseract: "5.5.4"`) {
-		t.Errorf("the rendered file does not carry the bumped pin: %v\n%s", err, gen)
 	}
 	write(t, native, "feov-ocr/PINS.txt", strings.Replace(string(b), "tesseract-5.5.3.tar.gz", "something.tar.gz", 1))
 	if _, err := EnginePins(pins); err == nil || !strings.Contains(err.Error(), pins) {

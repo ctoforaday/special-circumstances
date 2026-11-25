@@ -27,14 +27,14 @@ import (
 // THE RULES ARE ASKED OF THE NAMED GAPS ONLY. gap_refresh answers each column per gap, through the
 // statements every other reader reads: evidence_anchor, the remand view, and demand_reach's arms
 // rendered over the named gaps (demandReachSQL); the materiality rule is one Go expression
-// (materialSQL) both gap_grade and gap_refresh render. Each read is driven from the named gaps
+// (materialSQL) gap_refresh renders. Each read is driven from the named gaps
 // through an index, so a refresh costs the same on a record of any size. The rules are DDL: the
 // event-schema epoch's DDL hash covers them.
 var GapStateDDL = `
 -- ONE ROW PER GAP: the gap view's columns that change after the mint, as the record now holds them.
 -- minted_event is the gap's mint event; closed_event is its first closing act, of any arm (a close, a
--- closing docket ruling, the mint that superseded it), which convergence_at and the window index ask
--- of a point in the record; every other column is the gap view's column of that name.
+-- closing docket ruling, the mint that superseded it), which the window index asks of a point in the
+-- record; every other column is the gap view's column of that name.
 CREATE TABLE "gap_state" (
   "minted_event"            INTEGER PRIMARY KEY,
   "gap_id"                  TEXT NOT NULL UNIQUE,
@@ -288,8 +288,7 @@ SELECT
   k."supersede_event"                                                         AS "supersede_event",
   k."open"                                                                    AS "open",
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = k."minted")  AS "supersedes_count",
-  -- THE CURRENT GRADES: the latest regrade's stamped result, else the mint's (the stretch gap_grade
-  -- holds open now).
+  -- THE CURRENT GRADES: the latest regrade's stamped result, else the mint's.
   g."severity"                                                                AS "current_severity",
   g."likelihood"                                                              AS "current_likelihood",
   g."impact"                                                                  AS "current_impact",
@@ -329,8 +328,8 @@ LEFT JOIN "answered" an ON an."gap_id" = k."gap_id";
 
 // materialSQL is THE MATERIALITY RULE over a gap's class default and its severity's mass (SQL
 // expressions): the class's default says 'always' or 'never', and a 'by_grade' class is material at a
-// severity of medium (mass 2.0) and above (gblock, 2026-09-08). gap_grade states it at every stretch
-// of the record, gap_refresh at the stretch that stands now.
+// severity of medium (mass 2.0) and above (gblock, 2026-09-08). gap_refresh states it over the grades
+// that stand now.
 func materialSQL(classMaterial, severityMass string) string {
 	return `(` + classMaterial + ` = 'always' OR (` + classMaterial + ` = 'by_grade' AND COALESCE(` + severityMass + `, 0.0) >= 2.0))`
 }

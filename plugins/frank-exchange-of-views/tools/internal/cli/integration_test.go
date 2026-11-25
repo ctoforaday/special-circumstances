@@ -258,8 +258,8 @@ func registerChairOnce(t *testing.T, runDir string) {
 
 // registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and completes its delivery of
 // the whole report where one is ingested, as a lens's first sitting does. A seat registers before it
-// acts, and a lens's mints are counted against its budget by seat id, so every mint helper here sits
-// the same lens rather than a fresh one per call. The delivery is the lens's pin (report_read, written
+// acts, and a gap is its minting lens's to close, so every mint helper here sits the same lens rather
+// than a fresh one per call. The delivery is the lens's pin (report_read, written
 // by the delivery writer as it hands the last item): a lens that sat and was never delivered the report
 // is still ready at the head and owes its first whole delivery, and every PASS these fixtures drive
 // waits on it.

@@ -102,4 +102,12 @@ func TestObserveReadsThePathItIsHanded(t *testing.T) {
 	if _, err := Observe(agy); err == nil || !strings.Contains(err.Error(), "antigravity transcript carrying no model field") {
 		t.Errorf("antigravity transcript must report NotMeasured reason; got %v", err)
 	}
+
+	agyWithModel := filepath.Join(dir, "transcript_with_model.jsonl")
+	if err := os.WriteFile(agyWithModel, []byte(`{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","model":"gemini-3.5-flash-lite","input_tokens":100,"output_tokens":20}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if o, err := Observe(agyWithModel); err != nil || o.Served != "gemini-3.5-flash-lite" {
+		t.Errorf("antigravity transcript with top-level model: got %+v err=%v, want gemini-3.5-flash-lite", o, err)
+	}
 }

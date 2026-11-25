@@ -45,7 +45,7 @@ func TestTheReplayWritesAnArchivedPassOverANowAlwaysGap(t *testing.T) {
 	}
 	passes := 0
 	for _, e := range fam.Events {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && g.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 			passes++
 		}
 	}
@@ -62,7 +62,7 @@ func TestTheReplayWritesAnArchivedPassOverANowAlwaysGap(t *testing.T) {
 // THE SAME BOARD, LIVE, IS REFUSED: the PASS gate is the live write's act judgement.
 func TestLivePassOverOpenAlwaysGapRefused(t *testing.T) {
 	res, dst := migrateArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
-	_, err := record.Append(record.Identity{Run: dst, SeatID: "red-chair"}, &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
+	_, err := record.Append(record.Identity{Run: dst, SeatID: "red-chair"}, &recordpb.Gate{})
 	if err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN") || !strings.Contains(err.Error(), migratedID(res, "G", "G3")) {
 		t.Fatalf("a live PASS over the open always-class G3 must be refused: %v", err)
 	}
@@ -169,7 +169,7 @@ func migratedPass(t *testing.T, archive string) (*migration.Manifest, record.Fam
 	}
 	var passes []*recordpb.Gate
 	for _, e := range fam.Events {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && g.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 			passes = append(passes, g)
 		}
 	}
@@ -232,8 +232,8 @@ func TestAStampedAdmissionIsNotCarried(t *testing.T) {
 	if len(bodies) != 1 {
 		t.Fatalf("the PASS translated to %d bodies, want 1", len(bodies))
 	}
-	if g, ok := bodies[0].(*recordpb.Gate); !ok || g.GetVerdict() != recordpb.Verdict_VERDICT_PASS {
-		t.Errorf("the PASS translated to %v, want the verdict kept", bodies[0])
+	if _, ok := bodies[0].(*recordpb.Gate); !ok {
+		t.Errorf("the PASS translated to %v, want the gate", bodies[0])
 	}
 }
 

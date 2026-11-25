@@ -82,6 +82,8 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 			on = []string{answering[b.GetAnchor()]}
 		case *recordpb.Inquiry:
 			on = fates[e]
+		case *recordpb.QuestionPart:
+			on = fates[e]
 		case *recordpb.Motion:
 			on = []string{b.GetDocket().GetGapId(), b.GetGrade().GetGapId()}
 		}
@@ -127,7 +129,9 @@ func fateActsOf(evs []*Event) map[*Event][]string {
 	superseded := supersessionsOf(evs)
 	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
 	aboutSection := map[string][]string{} // a section's heading key → the gaps minted about it
+	aboutPart := map[string][]string{}    // a question part's id, "" for the question → the gaps minted about it
 	prior := map[string]*recordpb.Inquiry{}
+	priorCoverage := map[string]*recordpb.QuestionPart{}
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
@@ -137,6 +141,35 @@ func fateActsOf(evs []*Event) map[*Event][]string {
 			case recordpb.AboutKind_ABOUT_KIND_SECTION:
 				k := reportheading.HeadingKey(b.GetAboutRef())
 				aboutSection[k] = append(aboutSection[k], b.GetGapId())
+			case recordpb.AboutKind_ABOUT_KIND_QUESTION:
+				aboutPart[b.GetAboutRef()] = append(aboutPart[b.GetAboutRef()], b.GetGapId())
+			}
+		// A QUESTION PART BLUE RECORDED IS ITS ACT ON THE GAPS ABOUT WHAT IT CHANGED, as a fate is
+		// (questionpart.go): a part split out acts on the gaps about the question that name no part —
+		// a part the record did not hold — and a coverage that differs from the part's previous one,
+		// in its value or its reason, on the gaps about that part.
+		case *recordpb.QuestionPart:
+			if seatclass.RoleOfSeat(e.GetSeatId()) != "blue" {
+				continue
+			}
+			var on []string
+			if b.GetSupersedesCoverage() == "" {
+				on = slices.Clone(aboutPart[""])
+			} else {
+				was := priorCoverage[b.GetPartId()]
+				priorCoverage[b.GetPartId()] = b
+				if was != nil && was.GetCoverage() == b.GetCoverage() && was.GetReason() == b.GetReason() {
+					continue
+				}
+				on = slices.Clone(aboutPart[b.GetPartId()])
+			}
+			on = slices.DeleteFunc(on, func(g string) bool {
+				at, ok := superseded[g]
+				return ok && at < i
+			})
+			if len(on) > 0 {
+				slices.Sort(on)
+				out[e] = slices.Compact(on)
 			}
 		case *recordpb.Inquiry:
 			was := prior[b.GetInquiryId()]

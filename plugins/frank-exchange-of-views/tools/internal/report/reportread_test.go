@@ -26,7 +26,7 @@ func TestTheTranscriptSaysWhichLensWasDeliveredWhatAtWhichHead(t *testing.T) {
 	}
 	want := "### REPORT DELIVERED — " + lens + "\nthe whole report, delivered to " + lens + " at head 1"
 	f := famOf(t, evs)
-	if got := debate(f); !strings.Contains(got, want) {
+	if got := debate(f, nil); !strings.Contains(got, want) {
 		t.Errorf("the assembled transcript does not say the report was served:\n%s", got)
 	}
 	md, err := view.MarkdownFrom(view.Input{Gaps: f.Gaps, Events: f.Events, At: f.At}, "debate", "")
@@ -61,7 +61,7 @@ func TestTheTranscriptSaysALensWasDeliveredTheChangesSinceItsPin(t *testing.T) {
 	}
 	want := "### REPORT DELIVERED — " + lens + "\nthe changes since head 1 and its own gaps' passages, delivered to " + lens + " at head 1"
 	f := famOf(t, evs)
-	if got := debate(f); !strings.Contains(got, want) {
+	if got := debate(f, nil); !strings.Contains(got, want) {
 		t.Errorf("the assembled transcript does not say the third delivery was the changes:\n%s", got)
 	}
 	var whole []bool

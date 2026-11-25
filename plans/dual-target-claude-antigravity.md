@@ -13,7 +13,7 @@
 
 **Rulings this plan implements (settled — 2026-10-18, updated 2026-11-01 for `agy 1.4.12` / `claude 2.1.309`).**
 
-1. **Manifests:** Place `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json` in all four plugins, generated from `.claude-plugin/plugin.json` by `scripts/marketplacegen` (the shared fields `name`, `displayName`, `version`, `description`, `author`, `license`, `keywords`; Claude-only `dependencies` and `hooks` omitted so `(*pluginValidator).checkManifestKeys` emits `0` warnings) and held to it by `marketplacegen -check`, `scripts/versionguard` and `scripts/pluginparity`. Register the workspace's plugins for Antigravity with `.agents/plugins.json` (`{"entries":[{"path":"plugins"}]}`) — without it `agy` looks only in `.agents/plugins/<name>/` and the workspace holds no plugin ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)).
+1. **Manifests:** Place `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json` in all four plugins, generated from `.claude-plugin/plugin.json` by `scripts/marketplacegen` (the shared fields `name`, `displayName`, `version`, `description`, `author`, `license`, `keywords`; Claude-only `dependencies` and `hooks` omitted so `(*pluginValidator).checkManifestKeys` emits `0` warnings) and held to it by `marketplacegen -check`, `scripts/versionguard` and `scripts/pluginparity`. No workspace registration loads the checkout's `plugins/`: both harnesses run installed copies (§III.9, [#1792](https://github.com/ctoforaday/special-circumstances/issues/1792)).
 2. **Hook Manifest Coexistence (No Symlinks, Zero Validator Warnings):** Relocate Claude Code's hook manifest from `hooks/hooks.json` to `.claude-plugin/hooks.json` (declared via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) while keeping `hooks/fetch-bin.sh` and `hooks/README.md` in `hooks/`, and place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json`, validated by `scripts/validatejson` ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)). This eliminates the unconditional `hooks/hooks.json: never loaded` warning in `agy 1.4.12` (`(*pluginValidator).checkHooks` at `0x98ca0c5`) and gives each harness its own unambiguous hook manifest. Future migration to Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories (`com.google*/hooks/hooks.json` and `com.anthropic*/hooks/hooks.json`) is tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456).
 3. **One Common Wire-Adapter Library (`hookcore`):** Abstract all four hook process boundaries (`env`, `stdin`, `stdout`, `stderr` + `exitCode`) in one pure-stdlib package authored at `shared/hookcore` under the `shared` Go module (`module github.com/ctoforaday/special-circumstances/shared`), referenced directly via standard Go module dependencies (`require` + `replace`) without code-copying generators ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470), [#1471](https://github.com/ctoforaday/special-circumstances/issues/1471), [#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).
 4. **Skills & Agents Parity:** Convert `tools:` in `scripts/agentgen/src/fragments/seat-tools.md` (regenerating all 11 `frank-exchange-of-views` agents via `scripts/agentgen`) and `plugins/prosthetic-conscience/agents/{plan-auditor,probe}.md` to dual-target YAML sequences (including both classic Antigravity tool names and `agy 1.4.10+` `oneharness` tool names `read_file`, `write_file`, `edit_file`) enforced by `scripts/frontmatter`, withholding `WebFetch`/`read_url_content`/`read_browser_page` in `frank-exchange-of-views` to preserve its evidence-cache invariant; update the 6 `${CLAUDE_PLUGIN_ROOT}` skills to fall back to bare binary names on `PATH` ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469)).
@@ -46,9 +46,9 @@
    - [x] Six CLI-invoking `SKILL.md` binary execution path fallbacks (`doctor`, 4 `audit-*`, `feov/research`).
 2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[COMPLETED]` (`16b9664d0`)
    - [x] `.antigravity-plugin/plugin.json` generated for all 4 plugins from `.claude-plugin/plugin.json` via `scripts/marketplacegen`.
-   - [x] `.agents/plugins.json` workspace registration created and verified.
+   - [x] No workspace registration: both harnesses run installed copies only (§III.9, #1792).
    - [x] `scripts/versionguard` checks `.antigravity-plugin/plugin.json` against `.claude-plugin/plugin.json` and release tags.
-   - [x] `scripts/pluginparity` verifies `.agents/plugins.json` discovery and manifest schema parity.
+   - [x] `scripts/pluginparity` verifies manifest schema parity and fails a workspace registration (`.agents/plugins.json`).
    - [x] `scripts/pluginparity/harness_load_test.go` live tests verify Claude and Antigravity validate, install, and load all plugins and agents.
    - [x] Relocate Claude hook manifests to `.claude-plugin/hooks.json` (`"hooks": "./.claude-plugin/hooks.json"`).
    - [x] Place Antigravity named-hook group manifests at `<plugin_root>/hooks.json`.
@@ -135,44 +135,37 @@ plugins/prosthetic-conscience/
 
 - **`[NEW]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area,sleeper-service}/.antigravity-plugin/plugin.json` & `[MODIFY]` `scripts/marketplacegen`:**
   Generated by `scripts/marketplacegen` from `.claude-plugin/plugin.json`. Contains shared fields `name`, `displayName`, `version`, `description`, `author`, `license`, and `keywords`. Omits Claude-only `"dependencies"` and `"hooks"` (which `agy plugin validate --strict` flags as unknown manifest fields).
-- **`[NEW]` `.agents/plugins.json`:**
-  Registers workspace plugin paths (`{"entries":[{"path":"plugins"}]}`) so Antigravity workspace discovery (`agy --add-dir <repo> agents`) locates all 4 plugins; without this registration `agy` searches only `.agents/plugins/<name>/` and discovers 0 workspace plugins.
+- **No `.agents/plugins.json`:**
+  A workspace registration makes Antigravity load the checkout's `plugins/<name>` in place of the installed copy, and those hooks do nothing in a source tree (§III.9, #1792). `scripts/pluginparity` fails the file.
 - **`[MOVE]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/hooks/hooks.json` → `plugins/{...}/.claude-plugin/hooks.json` & `[MODIFY]` `.claude-plugin/plugin.json`:**
   Relocate Claude's hook manifest into `.claude-plugin/hooks.json` and declare `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json` so `(*pluginValidator).checkHooks` (`0x98ca0c5`) never sees `hooks/hooks.json`. Update all 8 repository consumers (detailed in §III.7 C6).
 - **`[MODIFY]` `scripts/versionguard/main.go`, `carriers.go`, & `versionguard_test.go`:**
   Add `.antigravity-plugin/plugin.json` as a version carrier per plugin so any tag or version bump checks both `.claude-plugin/plugin.json` and `.antigravity-plugin/plugin.json`.
-- **`[MODIFY]` `scripts/pluginparity/main.go`, `pluginparity_test.go`, & `harness_load_test.go`:**
-  Assert that `.agents/plugins.json` discovers the exact plugins declared in `.claude-plugin/marketplace.json`, stays within the workspace/repo root without `..` or external symlinks (`agy 1.5.2`), and that every plugin carries `.antigravity-plugin/plugin.json` with matching shared fields (including optional `"category"` from `1.5.3` and `extensions["com.google.antigravity"]` from `1.5.2`) and no unknown Claude fields. In `harness_load_test.go`, run live CLI tests invoking real `claude` and `agy` binaries (`agy plugin validate --strict` and `--json` with zero `hooks/hooks.json` tolerance, asserting `v.Components.Hooks == 1` on the 3 hook-bearing plugins, plus negative controls for `$PLUGIN_ROOT` in `hooks.json` and Claude tool names in `matcher` — [#1872](https://github.com/ctoforaday/special-circumstances/issues/1872)).
+- **`[MODIFY]` `scripts/pluginparity/main.go`, `pluginparity_test.go`, `harness_load_test.go`, & `.github/workflows/hooks.yml` ([#1872](https://github.com/ctoforaday/special-circumstances/issues/1872)):**
+  Assert that no `.agents/plugins.json` exists (§III.9), and that every plugin carries `.antigravity-plugin/plugin.json` with matching shared fields (including optional `"category"` from `1.5.3` and `extensions["com.google.antigravity"]` from `1.5.2`) and no unknown Claude fields. Rather than duplicating `agy` or `claude` validator rules in Go, `.github/workflows/hooks.yml` installs the real `claude` (`https://claude.ai/install.sh`) and `agy` (`manifests/linux_amd64.json` from `third_party/jetski/cli/updater/auto_updater.go`) Linux binaries in CI, and `harness_load_test.go` fails (`t.Fatalf`) when `CI=true` and either binary is missing, running real `claude plugin validate --strict` and `agy plugin validate --strict --json` (with zero `hooks/hooks.json` tolerance and asserting `v.Components.Hooks == 1` on the 3 hook-bearing plugins, plus one `agy plugin install <plugins/name>` per plugin into an isolated HOME and `agy agents`).
 - **`[NEW]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/hooks.json`:**
   Antigravity named-hook group manifests at the plugin root. In `agy 1.4.12`, `jsonhook.executeCommandModeHook` (`0x80aff00`) set `cmd.Dir` to `<plugin_root>` without setting `PLUGIN_ROOT` or `PLUGIN_DATA`; `agy 1.5.3` added `PLUGIN_ROOT` and `PLUGIN_DATA` to plugin hook subprocess environments, while `agy 1.5.6` reinforced `(*pluginValidator).checkHookCommand` to warn (and fail `--strict`) whenever a hook command string references `${PLUGIN_ROOT}` or `$PLUGIN_ROOT` (since hooks execute with `cwd` set to `<plugin_root>`). Each entry therefore uses `R="${PWD}"` so `B="$R/bin/<binary>"` and `F="$R/hooks/fetch-bin.sh"` resolve cleanly and bypass `checkHookCommand`'s static file-existence check when `bin/` is not yet populated:
   - `plugins/prosthetic-conscience/hooks.json`: registers `SessionStart` (`sc-sessionstart`), `PreInvocation` (`sc-sessionstart -event PreInvocation`), `PreTool` (`sc-pretooluse`, Antigravity-only matcher `read_url_content|read_browser_page|search_web|run_command` so `(*pluginValidator).checkHookMatcher` at `0x98ca820` emits `0` warnings), `PostTool` (`sc-posttooluse`, matcher `.*`), and `PostInvocation` (`sc-stop`).
   - `plugins/frank-exchange-of-views/hooks.json`: registers `PreInvocation` (`fetch-bin.sh ensure SessionStart`), `PreTool` (`feov-pretooluse`, matcher `.*`), and `PostTool` (`feov-posttoolusefailure`, matcher `.*`).
   - `plugins/gray-area/hooks.json`: registers `SessionStart` (`gray-area-capture -event SessionStart`), `PreInvocation` (`gray-area-capture -event PreInvocation`: the `telepathy link` request, #1754) and `PostInvocation` (`gray-area-capture -event Stop`).
-- **`[MODIFY]` `scripts/validatejson/hooks.go`, `scripts/validatejson/hooks_test.go`, & `scripts/validatejson/main.go` ([#1872](https://github.com/ctoforaday/special-circumstances/issues/1872)):**
-  Update `isPluginHooks` to match `plugins/*/.claude-plugin/hooks.json` (Claude schema) and add `isAntigravityPluginHooks` for `plugins/*/hooks.json`. Because `agy` is not installed on CI runners, `validatejson` must statically enforce the `agy 1.4.10`–`1.5.6` `(*pluginValidator)` strict checks:
-  1. Reject `$PLUGIN_ROOT`, `${PLUGIN_ROOT}`, `$PLUGIN_DATA`, `${PLUGIN_DATA}`, `$CLAUDE_PLUGIN_ROOT`, and `${CLAUDE_PLUGIN_ROOT}` inside `plugins/*/hooks.json` `command` strings (`agy 1.5.6`);
-  2. Reject Claude Code tool names (`Bash`, `Read`, `Write`, `Edit`, `MultiEdit`, `Glob`, `Grep`, `LS`, `WebFetch`, `WebSearch`, `NotebookEdit`, `Task`, `TodoWrite`) in `plugins/*/hooks.json` `matcher` alternatives (`agy 1.4.10`);
-  3. Enforce documented key allowlists on Antigravity hook group/entry objects and `.antigravity-plugin/plugin.json`, and refuse any tracked `plugins/*/hooks/hooks.json` (`agy 1.4.12`).
+- **`[MODIFY]` `scripts/validatejson/hooks.go`, `scripts/validatejson/hooks_test.go`, & `scripts/validatejson/main.go`:**
+  Update `isPluginHooks` to match `plugins/*/.claude-plugin/hooks.json` (Claude schema) and add `isAntigravityPluginHooks` for `plugins/*/hooks.json` (Antigravity named-hook group JSON syntax check; full semantic validation runs via real `claude plugin validate --strict` and `agy plugin validate --strict` in `harness_load_test.go` — [#1872](https://github.com/ctoforaday/special-circumstances/issues/1872)).
 - **`[MODIFY]` `scripts/fetchbingen/fetch-bin.sh`, `scripts/fetchbingen/main.go`, & `scripts/internal/hookfailures/failures.go`:**
   - In `scripts/fetchbingen/fetch-bin.sh`: resolve `ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}`; in `field()`, read `$ROOT/.claude-plugin/plugin.json` (falling back to `$ROOT/.antigravity-plugin/plugin.json`); in `speak()`, when `[ -n "${ANTIGRAVITY_CONVERSATION_ID:-}" ] || [ -n "${PLUGIN_ROOT:-}" ]` and `CLAUDE_PLUGIN_ROOT` is unset (Antigravity) and `SC_ENSURE_INTERNAL` is not `1`, emit `{"injectSteps":[{"systemMessage":{"systemMessage":"%s"}}]}` on `SessionStart`/`PreInvocation` (no `metadata`: on `agy 1.5.3` a `metadata` object makes `hookcaller` panic with "type mismatch: cannot convert string to message" and the message is dropped — #1774) and nothing on `stdout` for `PreTool`/`PreToolUse`/`PostTool`/`PostToolUse`/`PostInvocation`/`Stop` (because `protojson.Unmarshal` with `DiscardUnknown: false` rejects `systemMessage` on those result messages).
   - In `scripts/fetchbingen/main.go`: check both `plugins/<p>/.claude-plugin/hooks.json` (`${CLAUDE_PLUGIN_ROOT}` guard) and `plugins/<p>/hooks.json` (`${PWD}` guard).
   - In `scripts/internal/hookfailures/failures.go` (`Ensure`): fall back from `os.Getenv("CLAUDE_PLUGIN_ROOT")` to `os.Getenv("PLUGIN_ROOT")` to `os.Executable()` grandparent / `os.Getwd()` and pass `SC_ENSURE_INTERNAL=1` in the child environment so `Ensure` continues parsing `{"systemMessage":"..."}` uniformly. Regenerate via `go -C scripts run ./fetchbingen` and `go -C scripts run ./hookfailgen`.
 
-#### III.2.1 The Hook Staging & Manifest Activation Invariant (Live-Discovery Safety)
+#### III.2.1 Hook Manifest Activation
 
 > [!IMPORTANT]
-> **The Active Workspace Hook Invariant:** Because Google Antigravity discovers and registers `<plugin_root>/hooks.json` live from any active repository listed in `.agents/plugins.json` or discovered during development, a hook declaration in `hooks.json` is **immediately live in the developer's session**.
+> A hook declared in a plugin's root `hooks.json` reaches a session only through an installed copy (§III.9): Antigravity loads `~/.gemini/config/plugins/<name>/hooks.json`, and no workspace registration loads this checkout's `plugins/`. A hook whose fallback script (`fetch-bin.sh`) emits invalid protojson makes Antigravity's `protojson` unmarshaler fail with `unknown field "systemMessage"` and blocks every later tool call in that session, so a `hooks.json` change is proved in an isolated HOME (`HOOKCORE_LIVE=1`) before it ships in a release.
 >
-> Declaring a hook in `hooks.json` whose underlying binary is unmigrated, uncompiled, or whose fallback script (`fetch-bin.sh`) emits invalid protojson causes Antigravity's `protojson` unmarshaler to fail with `unknown field "systemMessage"`, blocking every subsequent tool call in the workspace.
->
-> **Mandatory 5-Stage Staging Gate:**
-> 1. **Stage 1 (Manifest Foundation — No Root Hooks):** Author `.antigravity-plugin/plugin.json`, `.agents/plugins.json`, and relocate Claude manifests to `.claude-plugin/hooks.json`. Root `<plugin>/hooks.json` MUST NOT exist (or must declare `{}`) at this stage.
-> 2. **Stage 2 (Wire Adapter Library):** Author and test `shared/hookcore` in isolated test harnesses with dual-engine table-driven contract fixtures.
-> 3. **Stage 3 (Binary Migration & Local Build):** Wire plugin hook entrypoints onto `hookcore`. Build binaries into `<plugin>/bin/` so the hook command executes compiled native code.
-> 4. **Stage 4 (Fallback Verification):** Verify that fallback mechanisms (`fetch-bin.sh`) under missing binaries degrade silently on tool events (`PreToolUse`/`PostToolUse`), emitting `{}` with exit `0` and never Claude-specific fields like `systemMessage`.
-> **As built (2026-11-10, #1792):** nothing builds binaries into a checkout's `plugins/<name>/bin/`, and `fetch-bin.sh` refuses to fetch into a source tree. A workspace-discovered plugin's hooks therefore exit without acting: an Antigravity session whose workspace is this repository runs with no secrets gate and no capture. The failure is silent, not the blocking failure R9 predicts.
->
-> 5. **Stage 5 (Manifest Activation):** ONLY AFTER Stages 1–4 are green may `<plugin>/hooks.json` be created and committed to register the hook event. Any hook event whose binary is not yet migrated must be omitted from `<plugin>/hooks.json`.
+> **Activation order:**
+> 1. **Manifests:** `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json`; Claude's hooks in `.claude-plugin/hooks.json`.
+> 2. **Wire adapter:** `shared/hookcore`, tested with dual-engine table-driven contract fixtures.
+> 3. **Binaries:** plugin hook entrypoints built on `hookcore` and published as release assets; an installed copy's `fetch-bin.sh` fetches them, and every install path runs `fetch-bin.sh fetch` before it returns (§III.9).
+> 4. **Fallback:** with binaries missing, `fetch-bin.sh` degrades silently on tool events (`PreToolUse`/`PostToolUse`), emitting `{}` with exit `0` and never Claude-specific fields like `systemMessage`.
+> 5. **Activation:** an event enters `<plugin>/hooks.json` only once its binary is released; an event whose binary is not migrated is omitted.
 
 ---
 
@@ -520,6 +513,66 @@ Claude Code installs from the marketplace pin and updates with `claude plugin up
 - **Never copy files by hand.** A manifest-only copy (11-07) reports the new version while `hooks.json`, agents and skills stay old.
 - **Detect by contents, not label.** The doctor's version check reads the manifest and `.fetch/installed`, so a half-updated plugin reads as current. `sc-doctor -fix` under Antigravity compares the installed contents with the pinned tag (a commit marker written at install) and reinstalls through `agy plugin install` on a mismatch (#1796).
 - **Scheduled update.** A machine's agy daemon restart runs the reinstall before the daemon starts. This box does that with `~/.local/bin/agy-update-plugins`, an `ExecStartPre` of `antigravity-cli-daemon.service`, until the doctor ships the behaviour.
+
+
+### III.9 System-Level Install for Both Harnesses ([#1792](https://github.com/ctoforaday/special-circumstances/issues/1792))
+
+**Ruling (gblock, 2026-11-20):** "both of you should be installing plugins at system level, both of you should be using official binaries, both of you should have your own plugin.json files that contain your own harness specific behaviours, and both of you should have your own hooks file."
+
+**Measured** by Antigravity conversation 31aafaf1 on 2026-11-20 (agy 1.5.13, isolated HOME):
+- **Workspace copies shadow installed ones completely.** With `.agents/plugins.json` (`{"entries":[{"path":"plugins"}]}`), only the workspace copy's hooks fire (`PWD=<ws>/plugins/<name>`). Without it, the installed copy's hooks fire (`PWD=~/.gemini/config/plugins/<name>`) in a session whose workspace is this repository.
+- **agy loads hooks only from `<plugin>/hooks.json`.** `.antigravity-plugin/hooks.json` is "never loaded", and a `hooks` field in `.antigravity-plugin/plugin.json` is an "unknown field … ignored". Both register 0 hooks (agrees with Q1).
+- **An installed copy's `fetch-bin.sh` fills `bin/` with the official release assets on the first hook under agy, SHA-256 verified.** It needs no `sc-doctor -fix`. Measured on the archived tag `gray-area--v0.21.0`, whose `bin/` holds only `.gitkeep`.
+- **`.antigravity-plugin/plugin.json` accepts only** `name`, `displayName`, `version`, `description`, `logo`, `suggestedPrompts`, `author`, `homepage`, `repository` and `disabled`.
+
+Before this change, every in-repo agy session ran the main checkout's `plugins/<name>` hooks. `fetch-bin.sh` refused to fetch into that source tree, so none of them acted. The daemon logs record a refusal every day from 2026-11-04 07:15: no secrets gate, no push-freeze guard, and no gray-area capture.
+
+**The layout, one column per harness:**
+
+| | Claude Code | Antigravity |
+|---|---|---|
+| Installed at | `~/.claude/plugins/cache/special-circumstances/<name>/<version>/` | `~/.gemini/config/plugins/<name>/` |
+| Manifest | `.claude-plugin/plugin.json`, including `"hooks"` | `.antigravity-plugin/plugin.json` (the fields above) |
+| Hooks file | `.claude-plugin/hooks.json` | `hooks.json` at the plugin root, the only place agy reads |
+| Binaries | Official release assets, fetched by `hooks/fetch-bin.sh` into the installed `bin/` | The same |
+| Installed and updated by | `claude plugin install` / `update` from the marketplace pin | `sc-doctor -fix` from the marketplace pin |
+
+No session loads a plugin from a workspace or a checkout.
+
+**Changes:**
+1. **Delete `.agents/plugins.json`.**
+2. **`scripts/pluginparity`:**
+   - `antigravityPluginProblems` keeps the manifest-parity checks and drops workspace discovery.
+   - A new check fails when `.agents/plugins.json` exists, because a workspace entry shadows the installed copy and runs source-tree hooks that do nothing.
+   - `TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins` drops its workspace-discovery subtests. Its bulk install (`agy plugin install <repo>`, which relied on the manifest) becomes one `agy plugin install plugins/<name>` per plugin into a temporary HOME, and it asserts that agy discovers all four from the installed copies, with no `--add-dir`.
+3. **First install under agy.**
+   - `sc-doctor -fix` today reinstalls only plugins agy already has. It now also installs every marketplace plugin agy lacks, at its pinned tag, or at `origin/main` for a source-only plugin such as `sleeper-service`, which has no release (`parseMarketplacePins` already resolves both).
+   - Bootstrap: `agy plugin install <checkout>/plugins/prosthetic-conscience`, then run `sh ~/.gemini/config/plugins/prosthetic-conscience/hooks/fetch-bin.sh fetch` so `sc-doctor` is present, then `/prosthetic-conscience:doctor --fix`. The fix installs the other plugins and re-pins prosthetic-conscience itself to its tag.
+   - **Every install path fetches binaries before it returns.** After each `agy plugin install`, `sc-doctor -fix` and the nightly updater run the installed plugin's `hooks/fetch-bin.sh fetch`, the synchronous download, verify and install.
+   - Why: a hook's `fetch-bin.sh hook` downloads in the background (about 3–8 s), and until it finishes that plugin's hooks do nothing, including the secrets gate. Fetching at install time closes that window for every path except a hand install.
+4. **README "On Google Antigravity"** describes that bootstrap and drops the bulk install.
+5. **`fetch-bin.sh` keeps refusing a source tree.** With no workspace loading, no session reaches that branch except a development run that builds its own binaries.
+6. **Developing a plugin change under agy** happens in an isolated HOME that installs the checkout's plugin with locally built binaries, as hookcore's live tests do. It never happens in a developer's own session. This is agy's counterpart of `universe.sh`.
+7. **§III.2.1 is rewritten in the present tense.** No workspace discovery exists, so the "Active Workspace Hook Invariant" and Stage 3's build-into-checkout go.
+8. **`AGENTS.md`'s hook-execution line** names both install locations.
+9. **This box.** `agy-nightly` already installs from the pinned tags, so the change takes effect once the manifest is gone from the main checkout. A running agy daemon picks it up at its next restart.
+
+**Delivery, two PRs in order:**
+1. Antigravity conversation 31aafaf1 owns the first: `sc-doctor -fix` installs missing marketplace plugins and fetches at install, with unit tests. It lands before the manifest goes.
+2. The Claude session (8a3d5199) owns the second: delete `.agents/plugins.json`, the pluginparity guard and test, README, `AGENTS.md`, and this section's companions. It is paired with 31aafaf1's live test, which needs the manifest gone.
+
+Coordinate with the install-shape contract work in the `install-contract` worktree (Claude session 004f9d8b, `scripts/installshape`), which drives the same install path.
+
+**Verification (adds to §V):**
+- **Live test** (`HOOKCORE_LIVE=1`, isolated HOME):
+  - Setup: archive the three tagged plugins at their pinned tags and `sleeper-service` at `HEAD`, each with `bin/` empty, and install them. Use this repository as the workspace, without `.agents/plugins.json`.
+  - Turn 1 fires `SessionStart`. Poll until `.fetch/installed`, `bin/sc-pretooluse` and `bin/gray-area-capture` exist.
+  - Turn 2 runs a `run_command` carrying a planted key and asserts the secrets gate refuses it. It also asserts that gray-area captured the turn into the isolated catalogue.
+  - The planted key goes in Turn 2, not Turn 1: Turn 1 races the background fetch.
+- **Delete-the-row check:** restoring `.agents/plugins.json` fails pluginparity, and the live test then sees no installed hook fire.
+- **On this box after merge:**
+  - `for f in ~/.gemini/antigravity-cli/log/cli-*.log; do echo "$f $(grep -c 'refusing to fetch release binaries into source tree' $f)"; done` reads 0 for logs after the next daemon restart.
+  - `telepathy session <in-repo agy conversation>` reads `open`, with current acts, without a manual backfill.
 
 ---
 

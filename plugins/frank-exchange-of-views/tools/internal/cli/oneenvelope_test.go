@@ -92,8 +92,8 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		// delivery of report text (record.DeliveredTextRefusal), which answers before the gaps it names.
 		{kind: "delivered-text refusal", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
 			verb: "spot-check", path: "spot-check", role: "chair", code: "conflict", logged: true},
-		{kind: "bad value, its message several lines long", seat: chair, args: []string{"verdict", "--as", "MAYBE"},
-			verb: "verdict", path: "verdict", role: "chair", code: "validation", short: true, logged: true},
+		{kind: "bad value, its message several lines long", seat: bench, args: []string{"outcome", "--as", "MAYBE", "--reason", "r"},
+			verb: "outcome", path: "outcome", role: "bench", code: "validation", short: true, logged: true},
 
 		// A failure nothing coded is not the caller's ill-formed input.
 		{kind: "uncoded failure", seat: "operator", args: []string{"fetch", "--url", "http://127.0.0.1:1/x"},

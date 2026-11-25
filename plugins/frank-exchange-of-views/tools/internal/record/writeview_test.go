@@ -44,9 +44,3 @@ func dispatchStandsOn(t *testing.T, run Run, plan Plan) (bool, error) {
 	}
 	return dispatchStands(evs, win, plan), nil
 }
-
-// viewOf is a writeView over run's handle and files, for a test asking one check outside a write.
-func viewOf(t *testing.T, run Run) writeView {
-	t.Helper()
-	return writeView{q: recordOf(t, run), files: filesOf(run)}
-}

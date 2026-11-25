@@ -11,7 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// EVERY ARCHIVED EDIT IS STAMPED WITH THE PARAGRAPHS IT TOUCHED (EventSchema 79), from the replay
+// EVERY ARCHIVED EDIT IS STAMPED WITH THE PARAGRAPHS IT TOUCHED (EventSchema 80), from the replay
 // migrate already does: its old_paragraphs hold its old and its new_paragraphs its new, anchors
 // stripped, and its reopened anchors are the ones those two runs give.
 func TestEveryArchivedEditCarriesItsTouchedParagraphs(t *testing.T) {

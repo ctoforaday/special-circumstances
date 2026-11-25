@@ -222,7 +222,7 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 	// deliveries.
 	lensRereads(t, runDir)
 	chairSitsAgain(t, runDir)
-	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}
 }

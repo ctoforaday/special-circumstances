@@ -42,7 +42,6 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Dispatch is one agent() call debate.js made: the prompt a seat is given, and the routing that
@@ -139,13 +138,13 @@ func OccasionOf(prompt string) string {
 	return ""
 }
 
-// Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
+// Envelope is what a stubbed seat returns. debate.js branches on these fields — the PASS, the
 // gap list — so the backend supplying them decides which dispatch sites the
 // capture run reaches at all.
 type Envelope map[string]any
 
 // Relay is e carrying a chair's relay: the chair's envelope IS the plan, so each of the plan's
-// fields is a key of the envelope. A verdict the sitting recorded is the plan's `verdict`.
+// fields is a key of the envelope. A PASS the sitting recorded is the plan's `passed`.
 func (e Envelope) Relay(plan map[string]any) {
 	for k, v := range plan {
 		e[k] = v
@@ -209,23 +208,10 @@ var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
 // re-prompt); label is always set.
 type Backend func(seatID, label, prompt string) Envelope
 
-// TieredSeats builds a Claude per-seat map from bulk and judgment models, populating every
-// debating seat on seatclass.Seats plus seatclass.Lane.Base.
+// TieredSeats is the per-seat map a Claude bulk and judgment model stand for
+// (modeltier.TieredSeats), as setup writes it from --bulk and --judgment.
 func TieredSeats(bulk, judgment string) map[string]modeltier.SeatSpec {
-	out := map[string]modeltier.SeatSpec{
-		seatclass.Lane.Base: {Harness: "claude", Model: bulk},
-	}
-	for id, def := range seatclass.Seats {
-		if def.Base == "" {
-			continue
-		}
-		m := bulk
-		if seatclass.ClassOf(def.Base) == "judgment" {
-			m = judgment
-		}
-		out[id] = modeltier.SeatSpec{Harness: "claude", Model: m}
-	}
-	return out
+	return modeltier.TieredSeats(modeltier.SeatSpec{Harness: "claude", Model: bulk}, modeltier.SeatSpec{Harness: "claude", Model: judgment})
 }
 
 // Config is the run debate.js is driven through. These are the `args` a real workflow invocation
@@ -261,7 +247,7 @@ type Config struct {
 // behaviours it wants to check, drives the real loop under each, and reads what it actually
 // decided. Nothing here restates a rule; every field is a value debate.js computed.
 type Outcome struct {
-	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED. debate.js
+	// Verdict is the terminal stamp: HALTED, VERIFIED, QUALIFIED, CEILING or UNVERIFIED. debate.js
 	// composes it from halted / red's verdict / the ceiling arm.
 	Verdict string
 	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).

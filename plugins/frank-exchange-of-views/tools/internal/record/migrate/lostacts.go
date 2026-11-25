@@ -18,8 +18,8 @@ import (
 // and the gaps about them, never off the refusal's wording; an act refused that names no lost gap
 // stays a refusal.
 
-// lostGaps is each gap a loss touched — its close dropped, or its mint lost — and the source act
-// that was lost.
+// lostGaps is each gap a loss touched — its close dropped, its mint lost, or the ruling on the
+// docket motion about it dropped — and the source act that was lost.
 type lostGaps map[string]lostAct
 
 // lostAct is the lost source act a gap's loss came from.
@@ -28,15 +28,31 @@ type lostAct struct {
 	word  string
 }
 
-// noteLoss records what a lost act takes with it: the gap a close closed, or the gap a mint
-// created.
-func (l lostGaps) noteLoss(body proto.Message, oldID int64, word string) {
+// noteLoss records what a lost act takes with it: the gap a close closed, the gap a mint created,
+// or the gaps a ruling's docket motion is about — a lost ruling leaves them open, as a lost close
+// does.
+func (l lostGaps) noteLoss(q recordsql.Querier, body proto.Message, oldID int64, word string) error {
 	switch b := body.(type) {
 	case *recordpb.Close:
 		l[b.GetGapId()] = lostAct{oldID, word}
 	case *recordpb.Mint:
 		l[b.GetGapId()] = lostAct{oldID, word}
+	case *recordpb.MotionRule:
+		rows, err := q.Query(`SELECT d."gap_id" FROM "motion" m JOIN "motion_docket" d ON d."event_id" = m."event_id" WHERE m."motion_id" = ?`, b.GetMotionId())
+		if err != nil {
+			return fmt.Errorf("asking which gaps motion %s docketed: %w", b.GetMotionId(), err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var g string
+			if err := rows.Scan(&g); err != nil {
+				return err
+			}
+			l[g] = lostAct{oldID, word}
+		}
+		return rows.Err()
 	}
+	return nil
 }
 
 // dependsOn is the lost act a refused body depends on: a lost gap it names, or a lost gap about an

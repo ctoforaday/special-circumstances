@@ -138,7 +138,7 @@ type Gap struct {
 	HasClosed   bool
 	// ClosedEvent is the events.id of the gap's FIRST closing act, of any arm (gap_state's
 	// closed_event), 0 while it is open. No later append moves it, so it answers whether the gap
-	// was open at any point of the record (Family.CountsAt), by the rule convergence_at reads.
+	// was open at any point of the record (Family.CountsAt).
 	ClosedEvent int64
 	Mint        *recordpb.Mint
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
@@ -175,8 +175,8 @@ type Gap struct {
 	// The closure's word follows it: a bench ruling after red's close overrules red's word.
 	BenchClosedLast bool
 	// Material is the gap's materiality NOW: its class's default, and for a `by_grade` class its
-	// current severity against the floor. It is the gap view's "material" column (gap_grade's
-	// standing row), which FamilyOf reads.
+	// current severity against the floor. It is the gap view's "material" column, which FamilyOf
+	// reads.
 	Material bool
 }
 

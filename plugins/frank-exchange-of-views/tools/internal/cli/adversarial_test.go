@@ -129,7 +129,7 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "PASS is refused while a motion is unanswered",
 			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:     seatStep{"verdict", "--seat-id", "red-chair", "--as", "PASS"},
+			act:     seatStep{"verdict", "--seat-id", "red-chair"},
 			refused: "filed and never ruled",
 			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a grade " +
 				"motion never ruled. The gate counted open GAPS only. PASS claims nothing is left " +
@@ -140,7 +140,7 @@ func adversarialCases() []adversarialCase {
 			// The lens closes G1 at its next sitting, its full re-read, delivered before the close: a
 			// PASS waits on both whole deliveries.
 			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"register", "--seat-id", "red-lens-evidence"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:   seatStep{"verdict", "--seat-id", "red-chair", "--as", "PASS"},
+			act:   seatStep{"verdict", "--seat-id", "red-chair"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",
 		},

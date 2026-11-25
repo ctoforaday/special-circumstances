@@ -71,7 +71,7 @@ func sourceReadingAnchors(t *testing.T, srcDir string) map[int64]string {
 // census makes of an archived plan with its migrated one is of what the other translations did to it.
 func kindsTranslated(t *testing.T, printed string) string {
 	t.Helper()
-	pl := &recordpb.Plan{Printed: proto.String(printed)}
+	pl := &recordpb.Plan{Printed: proto.String(verdictTranslated(printed))}
 	if err := migrate.TranslatePlanParties(pl); err != nil {
 		t.Fatalf("a stored plan's parties do not translate: %v", err)
 	}
@@ -79,6 +79,19 @@ func kindsTranslated(t *testing.T, printed string) string {
 		t.Fatalf("a stored plan does not translate: %v", err)
 	}
 	return pl.GetPrinted()
+}
+
+// verdictTranslated is an archived plan's printed verdict as the replay translates it
+// (TranslatePlanVerdict), spelled in the plan's own key order: the verdict is the plan's last key, and
+// `passed` takes its place.
+func verdictTranslated(printed string) string {
+	if v := `,"verdict":"PASS"}`; strings.HasSuffix(printed, v) {
+		return strings.TrimSuffix(printed, v) + `,"passed":true}`
+	}
+	if v := `,"verdict":"FAIL"}`; strings.HasSuffix(printed, v) {
+		return strings.TrimSuffix(printed, v) + "}"
+	}
+	return printed
 }
 
 // THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 48, 59). Four archives

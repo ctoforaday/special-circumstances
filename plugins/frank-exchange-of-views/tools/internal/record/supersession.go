@@ -116,28 +116,6 @@ func requireSupersededOffDocket(q recordsql.Querier, m *recordpb.Mint) error {
 	return nil
 }
 
-// supersedesOwnOpen reports whether m names, in its `supersedes`, an open gap seatID minted that takes
-// one of its mints: the mint closes that gap in the same act, so seatID holds as many against its budget
-// after it as before, and it takes none (requireMintWithinBudget). An ancestor among answering — a gap
-// outside the budget, a reading's or one answering a failed check of seatID's (ownAnswersAt) — frees
-// no mint by closing, so a successor of it takes one like any other.
-func supersedesOwnOpen(q recordsql.Querier, seatID string, m *recordpb.Mint, answering map[string]bool) (bool, error) {
-	for _, anc := range m.GetSupersedes() {
-		if answering[anc] {
-			continue
-		}
-		var own bool
-		found, err := queryRowAt(q, []any{&own}, `SELECT "open" AND COALESCE("minted_by", '') = ? FROM "gap" WHERE "gap_id" = ?`, seatID, anc)
-		if err != nil {
-			return false, err
-		}
-		if found && own {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // requireNotSuperseded refuses an act on a gap a supersession closed, naming its successor.
 func requireNotSuperseded(q recordsql.Querier, id, flag string) error {
 	if id == "" {

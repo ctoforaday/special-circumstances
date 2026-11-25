@@ -169,7 +169,7 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		b.New = proto.String(p.carry(text[start:end], b.GetNew()))
 	}
 	after := reportproj.ApplySplice(text, start, end, b.GetNew())
-	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 79): the replay holds the report
+	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 80): the replay holds the report
 	// before the edit and after it, which nothing after migration can rebuild without replaying
 	// again, so the archived edit is given what a live edit stamps at its write — and its reopened
 	// anchors computed from them as a live edit's are, an anchor it left bare included.

@@ -2,10 +2,8 @@ package report
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -23,14 +21,19 @@ import (
 //
 // A UNIFORM RUN IS ONE LINE, AND A DISAGREEMENT IS NAMED SEAT BY SEAT. The run's stamp is the one
 // most registrations carry; every registration that differs is listed with the differing parts in
-// bold. Setup's hook provenance (inputs/run-config.json) is set beside the stamps, and a
-// contradiction between the two — hooks setup saw none of stamping seats, or hooks setup saw
-// installed and seats no hook served — is stated rather than left for the reader to cross-check.
+// bold.
+//
+// A HOOK BUILD THAT IS NOT ITS OWN FEOV-RECORD BUILD IS NAMED SEAT BY SEAT TOO (#751). The record
+// binary a seat runs and the hook that injected its environment are installed separately, so a
+// record binary built from a working tree can run beside hooks from an older install while every
+// registration agrees with every other. Each registration that carries both stamps is compared with
+// itself; one with no hook stamp has no hook build to compare, and is read only against the others.
+// The section says nothing about what was installed: the stamps are what ran.
 //
 // THE VALUES ARE THE RECORD'S, never re-derived: a registration with no hook stamp renders as
 // having none, and `unknown` (an unstamped build) is said to be indistinguishable from another
 // unstamped build rather than read as agreement.
-func registrations(run record.Run, fam record.Family) string {
+func registrations(fam record.Family) string {
 	type reg struct {
 		seat string
 		s    stamp
@@ -62,38 +65,49 @@ func registrations(run record.Run, fam record.Family) string {
 	}
 
 	// THE EXCEPTIONS, grouped by seat and stamp in the order they registered, so a seat that
-	// registered twice with one odd stamp is one line with its count.
+	// registered twice with one odd stamp is one line with its count. The registrations whose hook
+	// build is not their feov-record build are grouped the same way.
 	type exception struct {
 		seat string
 		s    stamp
 		n    int
 	}
-	var odd []*exception
-	at := map[reg]*exception{}
+	group := func(list []*exception, at map[reg]*exception, r reg) []*exception {
+		if x := at[r]; x != nil {
+			x.n++
+			return list
+		}
+		x := &exception{seat: r.seat, s: r.s, n: 1}
+		at[r] = x
+		return append(list, x)
+	}
+	var odd, mixed []*exception
+	oddAt, mixedAt := map[reg]*exception{}, map[reg]*exception{}
 	unknown := common.unknown()
-	stamped := 0 // registrations a hook stamped
+	nMixed := 0
 	for _, r := range regs {
-		if r.s.hook != "" {
-			stamped++
+		if r.s.mixed() {
+			nMixed++
+			mixed = group(mixed, mixedAt, r)
 		}
 		if r.s == common {
 			continue
 		}
 		unknown = unknown || r.s.unknown()
-		if x := at[r]; x != nil {
-			x.n++
-			continue
-		}
-		x := &exception{seat: r.seat, s: r.s, n: 1}
-		at[r] = x
-		odd = append(odd, x)
+		odd = group(odd, oddAt, r)
 	}
 
-	verdict, contradicts := hookSide(run, stamped, len(regs))
+	var flags []string
+	if len(odd) > 0 {
+		flags = append(flags, "NOT UNIFORM")
+	}
+	if nMixed > 0 {
+		flags = append(flags, "MIXED BUILDS")
+	}
 	var b strings.Builder
 	b.WriteString("**Builds and hooks")
-	if len(odd) > 0 || contradicts {
-		b.WriteString(" — NOT UNIFORM")
+	if len(flags) > 0 {
+		b.WriteString(" — " + strings.Join(flags, ", "))
 	}
 	b.WriteString(".** ")
 	if len(odd) == 0 {
@@ -103,9 +117,6 @@ func registrations(run record.Run, fam record.Family) string {
 	}
 	if unknown {
 		b.WriteString(" `" + buildid.Unknown + "` is a build without a commit stamp, so registrations that agree on it may still have run different binaries.")
-	}
-	if verdict != "" {
-		b.WriteString(" " + verdict)
 	}
 	if len(odd) > 0 {
 		b.WriteString("\n\nThe registrations that differ, with the differing parts in bold:\n")
@@ -117,6 +128,16 @@ func registrations(run record.Run, fam record.Family) string {
 			fmt.Fprintf(&b, "\n- `%s`%s: %s", x.seat, times, x.s.phrase(common))
 		}
 	}
+	if nMixed > 0 {
+		fmt.Fprintf(&b, "\n\n%d of %s ran a hook build other than their own feov-record build, so the hooks and the record binary came from different builds:\n", nMixed, plural(len(regs), "registration"))
+		for _, x := range mixed {
+			times := ""
+			if x.n > 1 {
+				times = fmt.Sprintf(" (%d registrations)", x.n)
+			}
+			fmt.Fprintf(&b, "\n- `%s`%s: feov-record build `%s`, hook build `%s`", x.seat, times, x.s.tool, x.s.hook)
+		}
+	}
 	return b.String()
 }
 
@@ -124,6 +145,11 @@ func registrations(run record.Run, fam record.Family) string {
 type stamp struct{ tool, hook, via string }
 
 func (s stamp) unknown() bool { return s.tool == buildid.Unknown || s.hook == buildid.Unknown }
+
+// mixed is whether the hook that served the registration is another build than the feov-record
+// binary that wrote it. The stamps are compared as stored; a registration no hook stamped has no
+// hook build to compare.
+func (s stamp) mixed() bool { return s.hook != "" && s.hook != s.tool }
 
 // phrase writes the stamp as a list a singular or a plural subject can both carry, with each part
 // that differs from against in bold. A zero against bolds nothing.
@@ -162,63 +188,6 @@ func viaPhrase(via string) string {
 	return "run directory by `" + via + "`"
 }
 
-// hookSide is setup's hook provenance in one sentence, and whether it contradicts the stamps:
-// hooks setup saw none of while a hook stamped a registration, or hooks setup saw installed while
-// a registration carries no hook stamp. A handle with no run directory (a family built in a test)
-// has no configuration to read, and says nothing.
-func hookSide(run record.Run, stamped, total int) (string, bool) {
-	if run.Dir() == "" {
-		return "", false
-	}
-	p, ok, err := hookprovenance.Read(run.Dir())
-	if err != nil {
-		return "**Setup's account of the installed hooks cannot be read:** " + err.Error() + ".", true
-	}
-	if !ok {
-		return "**Setup recorded nothing about the installed hooks**, so nothing here can be compared with what it saw.", true
-	}
-	var b strings.Builder
-	contradicts := false
-	switch p.State {
-	case "installed":
-		fmt.Fprintf(&b, "Setup found the hooks installed, cached as %s %s", pluralWord(len(p.Versions), "version"), andList(p.Versions))
-		if len(p.Versions) > 1 {
-			b.WriteString("; which of them served a seat is not something setup can see")
-		}
-		b.WriteString(".")
-		var short []string
-		for _, v := range sortedVersions(p.Missing) {
-			if len(p.Missing[v]) > 0 {
-				short = append(short, v+" registers "+strings.Join(p.Missing[v], ", "))
-			}
-		}
-		if len(short) > 0 {
-			contradicts = true
-			b.WriteString(" **A cached version registers hook binaries it does not ship:** " + strings.Join(short, "; ") + ".")
-		}
-		if unstamped := total - stamped; unstamped > 0 {
-			contradicts = true
-			fmt.Fprintf(&b, " **Yet %d of %d registrations carry no hook stamp.**", unstamped, total)
-		}
-	default:
-		contradicts = stamped > 0
-		fmt.Fprintf(&b, "**Setup found the hooks %s:** %s.", p.State, strings.TrimSuffix(p.Why, "."))
-		if stamped > 0 {
-			fmt.Fprintf(&b, " **Yet %d of %d registrations were stamped by a hook**, so the hooks that served this run are not the ones setup could see.", stamped, total)
-		}
-	}
-	return b.String(), contradicts
-}
-
-func sortedVersions(m map[string][]string) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
 // plural writes "1 seat", "3 seats".
 func plural(n int, word string) string { return fmt.Sprintf("%d %s", n, pluralWord(n, word)) }
 
@@ -227,12 +196,4 @@ func pluralWord(n int, word string) string {
 		return word
 	}
 	return word + "s"
-}
-
-// andList writes "a", "a and b", "a, b and c".
-func andList(words []string) string {
-	if len(words) < 2 {
-		return strings.Join(words, "")
-	}
-	return strings.Join(words[:len(words)-1], ", ") + " and " + words[len(words)-1]
 }

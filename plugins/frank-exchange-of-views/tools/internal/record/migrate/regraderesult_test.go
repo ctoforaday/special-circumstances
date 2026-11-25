@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 )
 
-// overlaidResults is each regrade's grades by the overlay gap_grade derived before the write path
+// overlaidResults is each regrade's grades by the overlay the record derived before the write path
 // stored them: on each axis, the latest regrade at or before this one that named the axis, else the
 // mint's grade. It is the oracle the stored result grades are held to, and it lives here only.
 const overlaidResults = `

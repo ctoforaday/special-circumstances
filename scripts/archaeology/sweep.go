@@ -37,6 +37,7 @@ import (
 // new surface shape is a deliberate act here, not a silent gap.
 var agentFacing = []string{
 	"plugins/*/agents/*.md",
+	"plugins/*/agents-claude/*.md",
 	"plugins/*/skills/*/SKILL.md",
 	"plugins/*/skills/*/*.md",
 	"plugins/*/skills/*/scripts/*.js",

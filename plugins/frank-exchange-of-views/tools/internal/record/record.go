@@ -34,11 +34,9 @@ package record
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -395,24 +393,6 @@ func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.O
 			"and where this command takes nothing but your seat id, your first act that records makes it for you%s. "+
 			"Every act you record in this sitting is already attributed to %s",
 		seatID, held, first, seatID)
-}
-
-// allowSubstitution reads the operator's standing decision from run-config.
-//
-// ABSENT MEANS NO. A run whose config predates the field, or whose config cannot be read, is a run
-// that never consented to a substitution — the failing direction of a gate has to be the safe one.
-func allowSubstitution(run Run) bool {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return false
-	}
-	var cfg struct {
-		Allow bool `json:"allowModelSubstitution"`
-	}
-	if json.Unmarshal(b, &cfg) != nil {
-		return false
-	}
-	return cfg.Allow
 }
 
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
@@ -966,16 +946,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the mint budget, the report-voice refusal and a retired --about
-		// anchor judge what a seat may mint next, and run on the live write alone (judgeAct); the
-		// minting seat's place on the roster is asked of every writer.
+		// The one-gap-per-class rule, the report-voice refusal and a retired --about anchor judge
+		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
+		// place on the roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
 		if err := requireMintSubject(b); err != nil {
 			return err
 		}
-		if _, _, err := mintAreaOf(seatID); err != nil {
+		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
 		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
@@ -1618,6 +1598,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireInquiryCheck(w, seatID, b); err != nil {
 			return err
 		}
+	// A QUESTION PART IS SPLIT OUT WITH ITS TEXT, AND ITS COVERAGE IS RECORDED WITH A REASON
+	// (questionpart.go); its check judges it as it stands, by its owner.
+	case *recordpb.QuestionPart:
+		if err := requireQuestionPart(q, b); err != nil {
+			return err
+		}
+	case *recordpb.QuestionPartCheck:
+		if err := requireQuestionPartCheck(w, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
 	case *recordpb.Cite:
@@ -1670,6 +1660,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// parse would print no accessed date and say nothing of why.
 		if b.FetchedAt != nil && AccessedOn(b.GetFetchedAt()) == "" {
 			return fmt.Errorf("cite carries fetched_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the copy was fetched", b.GetFetchedAt())
+		}
+		// WHEN A WEB ARCHIVE TOOK THE COPY belongs to a copy read at a copy url: the url's own bytes
+		// were taken live, and no archive took them. It is a time, as the fetch index stamped it.
+		if b.CopyCapturedAt != nil {
+			if b.CopyUrl == nil {
+				return fmt.Errorf("cite carries copy_captured_at and no copy_url — a capture time is when a web archive took the copy the citation read, and the url's own bytes were not taken from one")
+			}
+			if AccessedOn(b.GetCopyCapturedAt()) == "" {
+				return fmt.Errorf("cite carries copy_captured_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the web archive took the copy", b.GetCopyCapturedAt())
+			}
 		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
@@ -1918,11 +1918,15 @@ func requireMintSubject(m *recordpb.Mint) error {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
-		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, a question part, or a gap already on the board")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's
 	// fate; on report text it would hold the PASS with no fate to answer it.
 	case m.GetClass() == recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		return fmt.Errorf("--class out_of_scope is an inquiry's defect — a real question, but not the one this run was asked — and blue answers it with the inquiry's fate, so its gap is about the inquiry: `--about-kind inquiry --about <its id>`. Report text that strays from the question is a defect of another class")
+	// COVERAGE MISSTATED IS THE QUESTION'S DEFECT, always material, and blue answers it with a question
+	// part or its coverage; on report text it would hold the PASS with no such act to answer it.
+	case m.GetClass() == recordpb.GapClass_GAP_CLASS_COVERAGE_MISSTATED && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_QUESTION:
+		return fmt.Errorf("--class coverage_misstated is the question's defect — a question part's coverage the report does not bear out, or a part of the question no part covers — and blue answers it with `question cover` or `question split`, so its gap is about the question: `--about-kind question --about <the part's id>`, or `--about-kind question` alone for a part of the question no part covers")
 	}
 	return nil
 }

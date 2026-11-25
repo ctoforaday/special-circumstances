@@ -89,7 +89,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		NamingWalked: 2, NamingWrong: map[string]string{"line": "a"},
 		DrivenView: map[string]bool{"board": true}, MootSpent: true, LookedFirst: 1, RegisteredTwice: 2, SittingsClosed: 7, SittingsLeftOpen: 1, AdmittedNeverClosed: 1, FailedSittings: 2,
 		ClassLanded: map[string]bool{"false_universal": true},
-		Either:      map[string][2]int{"close — why": {1, 2}}, Envelope: map[string]int{"blue: ok": 1}, Fail: map[string]int{"x": 1},
+		Either:      map[string][2]int{"close — why": {1, 2}}, Envelope: map[string]int{"blue: ok": 1},
 	}
 	b := processTally{
 		ExecRuns: map[string]int{"lens mint": 2, "close": 1}, ExecFail: map[string]int{},
@@ -100,7 +100,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		NamingWalked: 3, NamingWrong: map[string]string{"line": "b", "other": "c"},
 		DrivenView: map[string]bool{"gaps": true}, LookedFirst: 4, RegisteredTwice: 3, SittingsClosed: 5, SittingsLeftOpen: 2, AdmittedNeverClosed: 3, FailedSittings: 4,
 		ClassLanded: map[string]bool{"self_attestation": true},
-		Either:      map[string][2]int{"close — why": {3, 4}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 2}, Fail: map[string]int{"y": 1},
+		Either:      map[string][2]int{"close — why": {3, 4}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 2},
 	}
 	want := processTally{
 		ExecRuns: map[string]int{"lens mint": 5, "close": 1}, ExecFail: map[string]int{"lens mint": 3},
@@ -111,7 +111,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		NamingWalked: 5, NamingWrong: map[string]string{"line": "a", "other": "c"},
 		DrivenView: map[string]bool{"board": true, "gaps": true}, MootSpent: true, LookedFirst: 5, RegisteredTwice: 5, SittingsClosed: 12, SittingsLeftOpen: 3, AdmittedNeverClosed: 4, FailedSittings: 6,
 		ClassLanded: map[string]bool{"false_universal": true, "self_attestation": true},
-		Either:      map[string][2]int{"close — why": {4, 6}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 3}, Fail: map[string]int{"x": 1, "y": 1},
+		Either:      map[string][2]int{"close — why": {4, 6}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 3},
 	}
 	var got processTally
 	got.add(a)
@@ -144,7 +144,7 @@ func TestThePartsFoldToWhatTheWholeSweepFolds(t *testing.T) {
 	const n, of = 12, 4
 	whole := sampleRuns(t, n)
 	want := foldRuns(whole)
-	if want.completed != n || want.forcedVerdict == "" || !hasForcedVerifiedExits(want) || !want.limitForced {
+	if want.completed != n || want.forcedVerdict == "" || !hasForcedPassExits(want) || !want.limitForced {
 		t.Fatalf("the sample does not reach the forced seeds' facts: %+v", want)
 	}
 
@@ -328,11 +328,11 @@ func TestTheFoldReadsEveryRunFieldAndWritesEveryFoldField(t *testing.T) {
 	}
 }
 
-// hasForcedVerifiedExits is whether the fold kept the exit of verifiedSeed's run and of each
-// position seed's: the gate holds each to VERIFIED, and an exit the fold drops is one it never asks.
-func hasForcedVerifiedExits(f sweepFold) bool {
-	for _, seed := range []int64{verifiedSeed, positionLensSeed, positionGapsSeed, positionOverruledSeed} {
-		if f.verifiedExits[seed].verdict == "" {
+// hasForcedPassExits is whether the fold kept the exit of every forced-PASS run (forcedPassSeeds):
+// the gate holds each to the outcome its PASS derives, and an exit the fold drops is one it never asks.
+func hasForcedPassExits(f sweepFold) bool {
+	for seed := range forcedPassSeeds {
+		if f.passExits[seed].verdict == "" {
 			return false
 		}
 	}

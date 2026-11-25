@@ -58,7 +58,7 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 	}
 	// The plan is the chair's envelope and the read every seat's: a walk that reaches neither read no
 	// schema, and every key would then be "undeclared" or "absent".
-	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["bench_owed"] {
+	if schemas == 0 || !keys["parties"] || !keys["passed"] || !keys["bench_owed"] {
 		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the record's read — this is measuring nothing", schemas, len(keys))
 	}
 	return keys

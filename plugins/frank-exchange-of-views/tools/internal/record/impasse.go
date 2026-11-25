@@ -323,6 +323,11 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
 				movement[g] = append(movement[g], id)
 			}
+		case *recordpb.QuestionPart:
+			// A QUESTION PART BLUE RECORDED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf).
+			for _, g := range fates[e] {
+				movement[g] = append(movement[g], id)
+			}
 		case *recordpb.Inquiry:
 			// A FATE BLUE CHANGED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf): those anchored on
 			// the inquiry, which no edit can answer, and those anchored on a section that prints it,

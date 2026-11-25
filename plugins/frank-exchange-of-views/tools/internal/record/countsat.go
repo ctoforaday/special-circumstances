@@ -21,8 +21,8 @@ func (c PointCounts) GapsOpen() int { return c.GapsMinted - c.GapsClosed }
 
 // CountsAt is the record's counts as it stood at the event whose events.id is point.
 //
-// A GAP IS OPEN AT A POINT UNTIL ITS FIRST CLOSING ACT (Gap.ClosedEvent, gap_state's closed_event) —
-// the rule convergence_at judges a verdict by — so at the record's newest event the open and closed
+// A GAP IS OPEN AT A POINT UNTIL ITS FIRST CLOSING ACT (Gap.ClosedEvent, gap_state's closed_event),
+// so at the record's newest event the open and closed
 // counts are the board's own. An anchor is retired at a point by the first retire naming it
 // (evidence_anchor's retired_event), and a citation with no label is no anchor (EvidenceJSONOf).
 //

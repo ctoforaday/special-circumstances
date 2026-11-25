@@ -30,6 +30,10 @@ const (
 	// EnvCapture names the file a helper points fd 1 and fd 2 at during a request. The client
 	// owns it, so a request that crashes the helper still leaves its stderr readable.
 	EnvCapture = "NATIVE_HELPER_CAPTURE"
+	// EnvSelftestStdout set to 1 makes a native/frame helper write to stdout outside any request:
+	// before the first and after each response, as selftest-stdout writes during one. A test sets
+	// it to show those writes reach stderr, never the frame stream.
+	EnvSelftestStdout = "NATIVE_HELPER_SELFTEST_STDOUT"
 	// DefaultDeadline bounds one request, the handshake included, from the moment its frame is
 	// written. Every request the client sends is sized to finish in a quarter of it.
 	DefaultDeadline = 120 * time.Second
@@ -157,7 +161,15 @@ func executableDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if p, err = filepath.EvalSymlinks(p); err != nil {
+	return resolvedDir(p)
+}
+
+// resolvedDir is the directory of the file p names once every symlink on the way is followed: an
+// executable started through a link finds its helper beside the file the link names, never beside
+// the link. os.Executable already resolves on Linux; on macOS and Windows it can return the link.
+func resolvedDir(p string) (string, error) {
+	p, err := filepath.EvalSymlinks(p)
+	if err != nil {
 		return "", err
 	}
 	return filepath.Dir(p), nil
@@ -288,7 +300,8 @@ func (c *Client) handshake(p *process) error {
 
 // Do sends one request and returns its response. A helper failure kills the helper and returns
 // one of the five errors; the request is not retried, and the next request spawns a fresh
-// helper. An op that ran and refused returns its response and an *OpError.
+// helper. An op that ran and refused returns its response and an *OpError. A request over the
+// frame's bounds is ErrRequestTooLarge: nothing is sent, and the helper stays up.
 func (c *Client) Do(op Op, fields ...[]byte) (Response, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -296,6 +309,9 @@ func (c *Client) Do(op Op, fields ...[]byte) (Response, error) {
 		return Response{}, err
 	}
 	f, err := c.exchange(c.proc, op, fields)
+	if errors.Is(err, ErrRequestTooLarge) {
+		return Response{}, err
+	}
 	if err != nil {
 		c.proc = nil
 		return Response{}, err
@@ -341,13 +357,19 @@ func (c *Client) KillProcessForTest() {
 }
 
 // exchange writes one request and reads its response under the deadline, and checks the frame:
-// the protocol version, the echoed id and op, the status and stderr fields. Any failure kills p.
+// the protocol version, the echoed id and op, the status and stderr fields. Any failure kills p,
+// except a request over the frame's bounds, which is refused before anything is written.
 func (c *Client) exchange(p *process, op Op, fields [][]byte) (Frame, error) {
-	p.id++
-	b, err := EncodeFrame(Frame{Version: ProtocolVersion, Op: op, ID: p.id, Fields: fields})
+	b, err := EncodeFrame(Frame{Version: ProtocolVersion, Op: op, ID: p.id + 1, Fields: fields})
 	if err != nil {
-		p.kill()
-		return Frame{}, &Error{Kind: ErrProtocol, Helper: c.name, Path: p.path, Op: op, Detail: "request refused before sending: " + err.Error()}
+		return Frame{}, fmt.Errorf("nativehelper: %s: %w: %s not sent, the helper stays up: %w", c.name, ErrRequestTooLarge, op, err)
+	}
+	p.id++
+	// The capture holds the previous request's diagnostics until the helper truncates it at this
+	// request's start; a helper that dies before then must not report them as this request's.
+	p.captureStale = nil
+	if err := os.Truncate(p.capture(), 0); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		p.captureStale = err
 	}
 	type result struct {
 		f     Frame
@@ -421,7 +443,13 @@ type process struct {
 	done    chan struct{}
 	waitErr error
 	id      uint32
+	// captureStale is why the capture could not be cleared before the request in flight; reap
+	// then reports that instead of reading it.
+	captureStale error
 }
+
+// capture is the file the helper points fd 1 and fd 2 at during a request.
+func (p *process) capture() string { return filepath.Join(p.dir, "capture") }
 
 func spawn(path string) (*process, error) {
 	dir, err := os.MkdirTemp("", "nativehelper-")
@@ -445,7 +473,7 @@ func spawn(path string) (*process, error) {
 	p.cmd.Stdin = inR
 	p.cmd.Stdout = outW
 	p.cmd.Stderr = p.stderr
-	p.cmd.Env = append(os.Environ(), EnvCapture+"="+filepath.Join(dir, "capture"))
+	p.cmd.Env = append(os.Environ(), EnvCapture+"="+p.capture())
 	p.cmd.WaitDelay = closeGrace
 	err = p.cmd.Start()
 	inR.Close()
@@ -475,7 +503,9 @@ func (p *process) reap() (string, []byte) {
 		<-p.done
 	}
 	var b bytes.Buffer
-	if capture, dropped, err := readTail(filepath.Join(p.dir, "capture")); err == nil {
+	if p.captureStale != nil {
+		fmt.Fprintf(&b, "nativehelper: the capture file was not read: clearing it before the request failed: %v\n", p.captureStale)
+	} else if capture, dropped, err := readTail(p.capture()); err == nil {
 		b.Write(BoundStderr(capture, dropped))
 	}
 	b.Write(p.stderr.Bytes())

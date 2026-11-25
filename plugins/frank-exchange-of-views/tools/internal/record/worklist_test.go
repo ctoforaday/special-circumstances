@@ -40,7 +40,7 @@ func openChairSitting(b *stage) *stage {
 		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 }
 
-var passGate = &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
+var passGate = &recordpb.Gate{}
 
 func blockingItems(s SittingJSON) []string {
 	var out []string

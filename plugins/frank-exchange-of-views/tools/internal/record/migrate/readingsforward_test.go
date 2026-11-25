@@ -114,7 +114,7 @@ func TestAFindingAboutAnAnchorIsNoRaise(t *testing.T) {
 		t.Fatalf("the archive holds no proof P-e8532ebe to seed after")
 	}
 	to := recordtest.TmpRun(t)
-	if err := copyChannels(from, to); err != nil {
+	if _, err := copyChannels(from, to); err != nil {
 		t.Fatal(err)
 	}
 	dst := runtest.New(t, to)

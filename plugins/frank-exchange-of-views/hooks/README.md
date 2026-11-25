@@ -102,8 +102,8 @@ compares it with what the seat was last handed — the current item's key and di
 queued beside it, one file per seat sitting under the run's `.work-delivery/`. The current item stays
 current until it leaves the queue; a moved one is handed again marked `changed_since_delivered`;
 another item leaving is one line; nothing changed is nothing. Two calls returning together hand the
-next item once: the comparison runs under an O_EXCL marker, and the call that does not take it hands
-nothing. What the writer prints is the seat's, passed on as `additionalContext` — which reaches a
+next item once: the comparison runs under a file lock (gofrs/flock), and the call that does not take
+it hands nothing. What the writer prints is the seat's, passed on as `additionalContext` — which reaches a
 Workflow seat's context and an Agent subagent's alike, up to the harness's 10,000-character cap, past
 which it is spilled to a file in the PARENT session with a two-kilobyte preview (measured on 2.1.318);
 a delivery is held to 9,000 bytes (`sittingwrite.DeliveryBudget`) by construction: past it, parts of an

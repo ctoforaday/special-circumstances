@@ -169,7 +169,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 // exercises the happy path cannot tell a gate from a report.
 //
 // THE VIOLATION IS WRITTEN BY HAND, and that is not a shortcut. The live gate in record.Append
-// refuses `chair verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
+// refuses `chair verdict` while any gap is open ("1 gap(s) still OPEN: G1"), so the
 // #67 contradiction cannot be produced through the tool at all. A record that reached this state
 // some other way — a hand-edited shard, a legacy run, a live gate that regressed — is exactly
 // and only what an after-the-fact verifier is for, so that is the record this test builds.
@@ -192,7 +192,7 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	// the gap it existed to contradict. None of that is a hazard now. There is one record, nothing
 	// is displaced, and seeding is an insert.
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", "red-chair:verdict",
-		&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
+		&recordpb.Gate{}))
 
 	out, err := run(t, "verify", "--run", runDir, "--seat-id", "operator")
 	if err == nil {
