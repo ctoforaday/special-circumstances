@@ -159,74 +159,81 @@
   MATERIALIZE met
     MERGE (UNION)
       LEFT
-        MATERIALIZE answered
-          MATERIALIZE placed
-            COMPOUND QUERY
-              LEFT-MOST SUBQUERY
-                SEARCH x USING INDEX cite_answers (answers=?)
-                USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
-              UNION ALL
-                SEARCH x USING INDEX computation_answers (answers=?)
-                USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
-          SCAN p
-          USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
-          BLOOM FILTER ON d (gap_id=?)
-          SEARCH d USING AUTOMATIC COVERING INDEX (gap_id=?)
-          USE TEMP B-TREE FOR GROUP BY
-          CORRELATED SCALAR SUBQUERY
-            SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-        SCAN answered
-        USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION ALL)
+        MERGE (UNION)
           LEFT
-            MATERIALIZE reach
-              SCAN d
-              SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              SEARCH l USING PRIMARY KEY (gap_id=?)
-              SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH x USING COVERING INDEX cite_label (label>?)
-            BLOOM FILTER ON r (anchor=?)
-            SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
-            CORRELATED SCALAR SUBQUERY
-              SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            CORRELATED SCALAR SUBQUERY
-              SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            CORRELATED SCALAR SUBQUERY
-              MATERIALIZE checks
+            MATERIALIZE answered
+              MATERIALIZE placed
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    SEARCH x USING INDEX verify_anchor (anchor=?)
-                    LIST SUBQUERY
-                      SCAN reach
-                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                    SEARCH x USING INDEX cite_answers (answers=?)
+                    USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
                   UNION ALL
-                    SEARCH x USING INDEX reproduce_computation_id (computation_id=?)
-                    LIST SUBQUERY
-                      SCAN reach
-                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-              BLOOM FILTER ON h (anchor=? AND seat=?)
-              SEARCH h USING AUTOMATIC COVERING INDEX (anchor=? AND seat=?)
-              USE TEMP B-TREE FOR ORDER BY
+                    SEARCH x USING INDEX computation_answers (answers=?)
+                    USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
+              SCAN p
+              USING INDEX sqlite_autoindex_gap_dirty_1 FOR IN-OPERATOR
+              BLOOM FILTER ON d (gap_id=?)
+              SEARCH d USING AUTOMATIC COVERING INDEX (gap_id=?)
+              USE TEMP B-TREE FOR GROUP BY
+              CORRELATED SCALAR SUBQUERY
+                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+              CORRELATED SCALAR SUBQUERY
+                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+              CORRELATED SCALAR SUBQUERY
+                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+            SCAN answered
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH x USING COVERING INDEX computation_id (computation_id>?)
-            BLOOM FILTER ON r (anchor=?)
-            SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
-            CORRELATED SCALAR SUBQUERY
-              SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            CORRELATED SCALAR SUBQUERY
-              SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            CORRELATED SCALAR SUBQUERY
-              BLOOM FILTER ON h (anchor=? AND seat=?)
-              SEARCH h USING AUTOMATIC COVERING INDEX (anchor=? AND seat=?)
-              USE TEMP B-TREE FOR ORDER BY
-            USE TEMP B-TREE FOR ORDER BY
+            MERGE (UNION ALL)
+              LEFT
+                MATERIALIZE reach
+                  SCAN d
+                  SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                  SEARCH l USING PRIMARY KEY (gap_id=?)
+                  SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH x USING COVERING INDEX cite_label (label>?)
+                BLOOM FILTER ON r (anchor=?)
+                SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                CORRELATED SCALAR SUBQUERY
+                  MATERIALIZE checks
+                    COMPOUND QUERY
+                      LEFT-MOST SUBQUERY
+                        SEARCH x USING INDEX verify_anchor (anchor=?)
+                        LIST SUBQUERY
+                          SCAN reach
+                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                      UNION ALL
+                        SEARCH x USING INDEX reproduce_computation_id (computation_id=?)
+                        LIST SUBQUERY
+                          SCAN reach
+                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  BLOOM FILTER ON h (anchor=? AND seat=?)
+                  SEARCH h USING AUTOMATIC COVERING INDEX (anchor=? AND seat=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                USE TEMP B-TREE FOR ORDER BY
+              RIGHT
+                SEARCH x USING COVERING INDEX computation_id (computation_id>?)
+                BLOOM FILTER ON r (anchor=?)
+                SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                CORRELATED SCALAR SUBQUERY
+                  BLOOM FILTER ON h (anchor=? AND seat=?)
+                  SEARCH h USING AUTOMATIC COVERING INDEX (anchor=? AND seat=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        SCAN d
+        SEARCH l USING PRIMARY KEY (gap_id=?)
+        SEARCH ra EXISTS USING COVERING INDEX retire_anchors_value (value=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE latest_remand
     CO-ROUTINE (subquery)
       CO-ROUTINE (subquery)

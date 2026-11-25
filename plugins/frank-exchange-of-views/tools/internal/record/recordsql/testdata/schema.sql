@@ -311,9 +311,9 @@ CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
+INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. The demand on its close: a gap whose check kind is `source` or `computation` owes a live answer while its subject stands in the report — the anchor it is about, or the claim its marker marks (or, for a demand carried from an ancestor, the ancestor''s anchor or marker), which leaves the report only with that marker. While its subject stands, the gap closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once the seat whose check it carries checks the anchor it is about again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); once its subject has left the report, nothing more is owed. A demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
-INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it');
+INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: a gap whose check kind is `source` or `computation` owes a live answer while its subject stands in the report — the anchor it is about, or the claim its marker marks (or, for a demand carried from an ancestor, the ancestor''s anchor or marker), which leaves the report only with that marker. While its subject stands, the gap closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once the seat whose check it carries checks the anchor it is about again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); once its subject has left the report, nothing more is owed. A demand its lens no longer holds goes before the bench, whose closing ruling is not held to it');
 
 CREATE TABLE "enum_source_text_origin" (
   "value" TEXT PRIMARY KEY,
@@ -1213,7 +1213,8 @@ END;
 CREATE TRIGGER "gap_dirty_retire_anchors" AFTER INSERT ON "retire_anchors" BEGIN
   INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
   SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
-      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."value") WHERE "x" IS NOT NULL;
+      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."value"
+      UNION SELECT "gap_id" FROM "demand_lineage" WHERE "from_gap" = NEW."value") WHERE "x" IS NOT NULL;
 END;
 CREATE TRIGGER "gap_dirty_cite" AFTER INSERT ON "cite" BEGIN
   INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
@@ -1999,7 +2000,10 @@ WHERE a."about_kind" = 'anchor'
   --   2. an anchor the demand reaches is retired: the one the gap is about, or one an ancestor it
   --      carries the demand from reaches, retired since the heir's mint;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
-  --      read it is at or after the gap's mint and holds. Another seat's check meets nothing.
+  --      read it is at or after the gap's mint and holds. Another seat's check meets nothing;
+  --   4. a gap marker of the demand's lineage has left the report: the gap's own, or an ancestor's
+  --      retired since the heir's mint. The claim a marker marks leaves the report only with it, and
+  --      a retire is the one act that takes a marker out, so retire_anchors is the subject's state.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0
   UNION
   SELECT r."gap_id"
@@ -2008,6 +2012,11 @@ WHERE a."about_kind" = 'anchor'
         ELSE (SELECT h."holds" AND h."event_id" >= r."minted" FROM "checks" h
               WHERE h."anchor" = r."anchor" AND h."seat" = r."seat" AND h."check_kind" = r."check_kind"
               ORDER BY h."event_id" DESC LIMIT 1) END
+  UNION
+  SELECT l."gap_id"
+  FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
+  WHERE EXISTS (SELECT 1 FROM "retire_anchors" ra
+                WHERE ra."value" = l."from_gap" AND (l."from_gap" = l."gap_id" OR ra."event_id" > "d"."minted"))
 ),
 "latest_remand" AS MATERIALIZED (
   -- THE LATEST REMAND ON EACH NAMED GAP (the remand view): its direction is the live one.

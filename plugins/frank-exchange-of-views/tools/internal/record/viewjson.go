@@ -157,9 +157,9 @@ type GapJSON struct {
 	// gate reads, so the board and the gate cannot disagree about what is owed.
 	AwaitingEvidence bool   `json:"awaiting_evidence"`
 	AnswerKind       string `json:"answer_kind"`
-	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — a live
-	// answer of its kind, the anchor it is about retired, or its own
-	// check of that anchor made again since the mint and holding.
+	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — while
+	// its subject stands in the report, by a live answer of its kind or its own check of the anchor
+	// it is about made again since the mint and holding; and once that subject has left the report.
 	EvidenceAnswered bool `json:"evidence_answered"`
 	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
 	// retire that left none of them live, while no closing act other than a carry follows it; null

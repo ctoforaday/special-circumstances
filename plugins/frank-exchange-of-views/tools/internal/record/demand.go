@@ -141,7 +141,7 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 		ways = append(ways, strings.Join(retire, ", or "))
 	}
 	ways = append(ways, again...)
-	return feov.Errorf(feov.Conflict, "gap %s was minted --check-kind %s, and nothing meets its live-answer demand, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
+	return feov.Errorf(feov.Conflict, "gap %s was minted --check-kind %s, and nothing meets its live-answer demand while its subject stands in the report, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
 		"The demand: %s. What meets it on this gap: %s; another seat's check meets nothing. "+
 		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
 		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
@@ -160,7 +160,7 @@ func appendNew(list []string, s string) []string {
 // closes it in the same act (supersession.go), and that closing goes through neither the close verb
 // nor judgeAct's Close case, so a `source` or `computation` gap whose demand nothing meets would close
 // unanswered by being superseded. The successor carries the ancestor's check kind instead, and with it
-// the demand, which it cannot close without its own live answer. An ancestor whose demand is met, whose
+// the demand, which it cannot close without its own live answer or its subject leaving the report. An ancestor whose demand is met, whose
 // check kind owes none, or that is already closed (the supersede is lineage only) is unaffected.
 
 // SupersessionAdmitted asks of run, before the mint's write, what the write holds a mint's

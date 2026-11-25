@@ -39,12 +39,14 @@
   it — your citation's, or one the lens found — is the lens's debt until it mints the gap on that
   reading, which is the gap you answer: about the citation, or quoting the sentence; the debt readies
   the lens, never you.
-- **A GAP THAT ASKS FOR A SOURCE OR A PROGRAM CLOSES ONLY ON A LIVE ANSWER OF ITS KIND.** A gap whose
-  check kind is `source` or `computation` is closed by its lens only once a citation or computation of
-  that kind, placed as that gap's answer, is still in the report; or once you retire the anchor the
-  gap is about; or once the lens whose check the gap carries checks that anchor again and the check
-  holds. Prose never meets it, and neither does a check clearing: an edit
-  that fixes the sentence leaves the gap owed until one of those stands.
+- **A GAP THAT ASKS FOR A SOURCE OR A PROGRAM CLOSES ONLY ON A LIVE ANSWER OF ITS KIND, WHILE ITS
+  SUBJECT STANDS IN THE REPORT.** Its subject is the anchor it is about, or the claim its marker marks,
+  which leaves the report only with that marker. While it stands, a gap whose check kind is `source`
+  or `computation` is closed by its lens only once a citation or computation of that kind, placed as
+  that gap's answer, is still in the report, or once the lens whose check the gap carries checks the
+  anchor it is about again and the check holds; once its subject has left the report, nothing more is
+  owed. Prose never meets it, and neither does a check clearing: an edit that fixes the sentence
+  leaves the gap owed until one of those stands.
 - **A GAP A LENS MINTS ON A SOURCE IT FOUND IS ANSWERED WITH A CITATION.** A source a lens found and
   read against a sentence places no citation, and names no gap: where it backs a sentence the report
   cites nothing for, the gap the lens mints on that reading asks you to cite a source for that

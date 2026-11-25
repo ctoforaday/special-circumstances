@@ -157,6 +157,40 @@ func (r *runner) lastEventID() (int64, error) {
 	return id, err
 }
 
+// deliveryTrail is what a refused envelope's failure says of the seat's report text: each delivery
+// row of the seat (event, sitting, head, whether it sat through), its latest sitting, and the record's
+// last forty events, so a delivery the drive did not complete names where it stopped.
+func (r *runner) deliveryTrail(seatID string) string {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		return "not read: " + err.Error()
+	}
+	rows, err := db.Query(`SELECT "event_id", COALESCE("sitting_id", 0), "head", "sat_through" FROM "report_delivery" WHERE "seat_id" = ? ORDER BY "event_id"`, seatID)
+	if err != nil {
+		return "not read: " + err.Error()
+	}
+	var deliveries []string
+	for rows.Next() {
+		var ev, sitting, head int64
+		var sat bool
+		if err := rows.Scan(&ev, &sitting, &head, &sat); err != nil {
+			rows.Close()
+			return "not read: " + err.Error()
+		}
+		deliveries = append(deliveries, fmt.Sprintf("%d@sitting %d head %d sat %v", ev, sitting, head, sat))
+	}
+	rows.Close()
+	var latest int64
+	if err := db.QueryRow(`SELECT COALESCE(MAX("sitting_id"), 0) FROM "agent_sitting" WHERE "seat_id" = ?`, seatID).Scan(&latest); err != nil {
+		return "not read: " + err.Error()
+	}
+	last, err := r.lastEventID()
+	if err != nil {
+		return "not read: " + err.Error()
+	}
+	return fmt.Sprintf("deliveries %v; latest sitting %d; last events %s", deliveries, latest, r.eventsBetween(max(last-40, 0), last))
+}
+
 // eventsBetween names the events after id a up to id b, each as its id, type and seat, for a failure to
 // say what landed between two reads.
 func (r *runner) eventsBetween(a, b int64) string {

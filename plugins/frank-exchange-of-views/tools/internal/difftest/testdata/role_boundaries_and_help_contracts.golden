@@ -3,7 +3,7 @@ exit 2
 stderr:
 feov-record: mint: requires --check, --check-kind, --impact, --likelihood, --problem, --severity
 
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. It proves the fix at the gap's one sentence: a defect at several sentences is a gap at each site, each with its own check
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
