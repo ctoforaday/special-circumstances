@@ -87,7 +87,7 @@ zero.
 **Out of scope, stated.** Closure strength (#1930; it alone carries the run-3 regression loop, and the
 lineage past a close its detector would read is what X8 deletes). A raiser's statement on an inquiry-kind subject
 (an inquiry, the question or a part, a coverage, a composed section): those subjects stay as built (§III.B0) pending the
-issue to be filed, "inquiries/questions/coverage as records treated like report text" (2026-11-25), into which an
+#1942, "inquiries/questions/coverage as records treated like report text" (2026-11-25), into which an
 inquiry re-fate that undoes a closure with no link (#1931) folds. How grades and downgrades are defined and taught
 (#1940, after #1695). `reopens_on`/`final` on a closing ruling stay the bench's stated opinion, read by no gate.
 The mint cap (#1828). Low-grade friction (#1798). Petition and position motions.
@@ -392,7 +392,7 @@ blue change escapes the turn and the end rule. A seat-class test that asks who m
   locking none. Either act inherits G′'s admission ("lock the anchor"): class, subject, location and check kind kept,
   the stated text checked for voice only.
 - **Inquiry kinds stay as built** (2026-11-25: "Perhaps we should open an issue and deal with inquiry problems as a
-  general audit?"; issue to be filed: inquiries/questions/coverage as records treated like report text). The raiser
+  general audit?"; #1942, inquiries/questions/coverage as records treated like report text). The raiser
   states nothing and the author has no `--accept G`: the bench rules for the author or remands (a regrade proposal's
   `--for-raiser`, which applies nothing, lands as anywhere). F-INQ and F-COMPOSED are withdrawn. The 10-31 turn rule
   stays as ruled for fates (F-FATE) — an unnamed fate, coverage or split is the raiser's turn, an act carrying
