@@ -639,4 +639,35 @@ func TestAntigravitySessionStartRunsRealEnsureWithPluginRootOnly(t *testing.T) {
 	if !strings.Contains(stdout.String(), "agy-ga-self-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
 		t.Fatalf("expected Antigravity gray-area-capture SessionStart to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", stdout.String())
 	}
+
+	// N3: Resumed Antigravity conversation runs ensure on PreInvocation(invocationNum==0) and skips mid-turn (invocationNum==1).
+	preBody := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-ga-pre-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(preBody), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	midPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-ga-resume",
+		"invocationNum":  1,
+	})
+	stdout.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(midPayload), &stdout, &stderr, proj, noon, okStat(2)); code != 0 {
+		t.Fatalf("PreInvocation(1) exit %d stderr=%s", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "agy-ga-pre-heal-ok") {
+		t.Fatalf("mid-turn PreInvocation(1) must not run ensure, got: %s", stdout.String())
+	}
+
+	turnStartPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-ga-resume",
+		"invocationNum":  0,
+	})
+	stdout.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(turnStartPayload), &stdout, &stderr, proj, noon, okStat(2)); code != 0 {
+		t.Fatalf("PreInvocation(0) exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-ga-pre-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected Antigravity gray-area-capture PreInvocation(0) to emit ensure message, got: %s", stdout.String())
+	}
 }

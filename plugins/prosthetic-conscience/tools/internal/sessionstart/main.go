@@ -259,6 +259,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		var watch []string
 		hostID := hostProcessID()
 		if needsResumeRestore(req, hostID, rec) {
+			// Antigravity skips SessionStart on resumed conversations, so re-check binary versions
+			// once on the first PreInvocation (invocationNum == 0) of a resumed/post-restart session.
+			var err error
+			healed, err = ensure("PreInvocation")
+			if err != nil {
+				rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+			} else {
+				rec.OK(hookfailures.StageEnsure)
+			}
 			if cpUnits := selectCheckpointUnit(units); len(cpUnits) > 0 {
 				var logged string
 				restoreText, watch, logged = merge(hookunit.Run(ctx, cpUnits))

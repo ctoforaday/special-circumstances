@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -244,5 +245,21 @@ func TestCheckPluginsWiresBothClaudeAndAgyGuards(t *testing.T) {
 	badAgy := `{"demo-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":"R=\"${PWD}\"; exec \"$R/bin/x\""}]}}`
 	if got := checkPlugins(setup(t, validClaude, badAgy), []string{"demo"}, want); len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), "does not hand") {
 		t.Fatalf("checkPlugins did not wire Antigravity agyGuardProblems: %v", got)
+	}
+
+	// N4 (M4c): runIn (called directly by main) must return non-zero and report problems on stderr.
+	badRoot := setup(t, validClaude, badAgy)
+	if err := os.MkdirAll(filepath.Join(badRoot, "plugins", "demo", "tools", "cmd", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(badRoot, filepath.Dir(src)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srcBody := []byte("#!/bin/sh\n# stub\n")
+	_ = os.WriteFile(filepath.Join(badRoot, src), srcBody, 0o644)
+	_ = os.WriteFile(filepath.Join(badRoot, "plugins", "demo", "hooks", "fetch-bin.sh"), render(srcBody), 0o644)
+	var outBuf, errBuf bytes.Buffer
+	if code := runIn(badRoot, true, &outBuf, &errBuf); code == 0 || !strings.Contains(errBuf.String(), "does not hand") {
+		t.Fatalf("runIn(-check) must fail on bad agy guard: code=%d stdout=%q stderr=%q", code, outBuf.String(), errBuf.String())
 	}
 }

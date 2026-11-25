@@ -508,13 +508,24 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	req := hookcore.Read(*event, stdin)
-	// PREINVOCATION ONLY ASKS FOR A LINK. Antigravity fires it before every model step, so it does
-	// none of SessionStart's work, which its own SessionStart event carries once per conversation.
-	// It exists because SessionStart does not fire when a conversation resumes on a new server
-	// (observed, agy 1.5.0), which is exactly when a link goes stale.
+	// PREINVOCATION asks for a link when needed AND runs the version check on invocationNum == 0
+	// (never mid-turn) so a resumed Antigravity conversation (which skips SessionStart) still heals
+	// stale hook binaries after a plugin update.
 	if *event == "PreInvocation" {
+		var healed string
+		if req.Engine == hookcore.EngineAntigravity && hookcore.IsTurnStartPreInvocation(req.Raw) {
+			r := newReport(*event, now, stderr)
+			msg, err := ensure("PreInvocation")
+			if err != nil {
+				r.fail(hookfailures.StageEnsure, err.Error())
+			} else {
+				r.OK(hookfailures.StageEnsure)
+			}
+			healed = hookfailures.JoinMessages(msg, r.Settle())
+		}
 		return hookcore.Respond(req, hookcore.Response{
 			AdditionalContext: linkRequest(req, os.Getenv("XDG_RUNTIME_DIR"), findTelepathy(), answers),
+			Say:               healed,
 		}, stdout, stderr, nil)
 	}
 	var in hookInput

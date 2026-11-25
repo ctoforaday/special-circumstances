@@ -223,8 +223,18 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	}
 	if req.HookEventName == "PreInvocation" {
 		req.Event = "PreInvocation"
+		var healed string
+		if req.Engine == hookcore.EngineAntigravity && hookcore.IsTurnStartPreInvocation(req.Raw) {
+			msg, err := hookfailures.Ensure("PreInvocation")
+			if err != nil {
+				rec.Fail(hookfailures.StageEnsure, "feov-pretooluse: "+err.Error())
+			} else {
+				rec.OK(hookfailures.StageEnsure)
+			}
+			healed = msg
+		}
 		logAgyFailedToolSteps(req, in, cwd, rec)
-		hookcore.Respond(req, hookcore.Response{}, stdout, os.Stderr, nil)
+		hookcore.Respond(req, hookcore.Response{Say: healed}, stdout, os.Stderr, nil)
 		return nil
 	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it

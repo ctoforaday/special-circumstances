@@ -255,6 +255,18 @@ func PluginRoot(envClaude, envPluginRoot, exePath string) string {
 	return ""
 }
 
+// IsTurnStartPreInvocation reports whether raw is an Antigravity PreInvocation payload carrying
+// an explicit invocationNum == 0 (the first model step of a user turn, never mid-turn steps).
+func IsTurnStartPreInvocation(raw []byte) bool {
+	var p struct {
+		InvocationNum *int `json:"invocationNum"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil || p.InvocationNum == nil {
+		return false
+	}
+	return *p.InvocationNum == 0
+}
+
 // PluginDataDir resolves the plugin's private persistent state directory.
 func PluginDataDir(envClaude, envPluginData, artifactDirPath, pluginName, projectDir string) string {
 	if envClaude != "" {

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -58,38 +59,43 @@ func main() {
 		fmt.Fprintln(os.Stderr, "fetchbingen:", err)
 		os.Exit(1)
 	}
+	os.Exit(runIn(root, *check, os.Stdout, os.Stderr))
+}
+
+func runIn(root string, check bool, stdout, stderr io.Writer) int {
 	body, err := os.ReadFile(filepath.Join(root, src))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "fetchbingen:", err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, "fetchbingen:", err)
+		return 1
 	}
 	want := render(body)
 	plugins, err := targets(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "fetchbingen:", err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, "fetchbingen:", err)
+		return 1
 	}
 
-	if !*check {
+	if !check {
 		for _, p := range plugins {
 			dst := filepath.Join(root, "plugins", p, "hooks", "fetch-bin.sh")
 			if err := os.WriteFile(dst, want, 0o644); err != nil {
-				fmt.Fprintln(os.Stderr, "fetchbingen:", err)
-				os.Exit(1)
+				fmt.Fprintln(stderr, "fetchbingen:", err)
+				return 1
 			}
 		}
-		fmt.Printf("fetchbingen: wrote fetch-bin.sh into %d plugin(s): %s\n", len(plugins), strings.Join(plugins, ", "))
-		return
+		fmt.Fprintf(stdout, "fetchbingen: wrote fetch-bin.sh into %d plugin(s): %s\n", len(plugins), strings.Join(plugins, ", "))
+		return 0
 	}
 	problems := checkPlugins(root, plugins, want)
 	if len(problems) > 0 {
 		for _, s := range problems {
-			fmt.Fprintln(os.Stderr, "fetchbingen:", s)
+			fmt.Fprintln(stderr, "fetchbingen:", s)
 		}
-		fmt.Fprintf(os.Stderr, "fetchbingen: edit %s and run `go -C scripts run ./fetchbingen`; a guard's event literal must be the key it sits under.\n", src)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "fetchbingen: edit %s and run `go -C scripts run ./fetchbingen`; a guard's event literal must be the key it sits under.\n", src)
+		return 1
 	}
-	fmt.Printf("fetchbingen: %d plugin(s) match %s, every guard names its own event, and every event has one hook\n", len(plugins), src)
+	fmt.Fprintf(stdout, "fetchbingen: %d plugin(s) match %s, every guard names its own event, and every event has one hook\n", len(plugins), src)
+	return 0
 }
 
 // checkPlugins runs every fetchbingen verification pass across plugins under root.

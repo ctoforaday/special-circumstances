@@ -1,5 +1,8 @@
-// Package pluginroot is the single shared plugin-root resolver for hookcore, hookfailures, and
-// sc-doctor across Claude Code and Antigravity.
+// Package pluginroot holds the shared plugin-root resolution core and directory-marker predicate
+// used by hookfailures.Ensure, hookcore.PluginRoot, and sc-doctor across Claude Code and
+// Antigravity. Callers that need extra fallbacks extend Resolve rather than duplicating it:
+// hookcore.PluginRoot adds a cwd fallback, and sc-doctor adds -root, Antigravity home-install,
+// and unconditional-grandparent fallbacks.
 package pluginroot
 
 import (
@@ -35,11 +38,11 @@ func Resolve(envClaude, envPluginRoot string, executable func() (string, error))
 	return ""
 }
 
-// IsPluginDir reports whether dir looks like a plugin root.
-//
-// The five markers cover every shipped and development plugin layout across both harnesses:
-//   - .claude-plugin/plugin.json: Claude Code plugin manifest
+// IsPluginDir reports whether dir holds one of sc-doctor's five plugin-root markers, kept as one
+// shared set so sc-doctor's behaviour is unchanged while hookcore and hookfailures share the same
+// predicate:
 //   - .antigravity-plugin/plugin.json: Antigravity plugin manifest
+//   - .claude-plugin/plugin.json: Claude Code plugin manifest
 //   - plugin.json: root manifest accepted by Antigravity
 //   - requirements.json: toolchain manifest read by sc-doctor and sc-toolchain-nudge
 //   - tools/cmd: Go hook-binary checkout layout
