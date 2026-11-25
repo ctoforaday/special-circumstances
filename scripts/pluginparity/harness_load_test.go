@@ -48,8 +48,8 @@ func harnessCLI(t *testing.T, name string) string {
 			return p
 		}
 	}
-	if os.Getenv("CI") == "true" {
-		t.Fatalf("%s is not installed (PATH or ~/.local/bin) on CI: real harness validation must run on every PR", name)
+	if os.Getenv("CI") == "true" || os.Getenv("HOOKCORE_LIVE") == "1" {
+		t.Fatalf("%s is not installed (PATH or ~/.local/bin) under CI/HOOKCORE_LIVE=1: real harness validation must run", name)
 	}
 	t.Skipf("%s is not installed (PATH or ~/.local/bin): its load test did not run", name)
 	return ""
@@ -189,8 +189,9 @@ func copyTree(t *testing.T, src string) string {
 
 // isolatedEnv is the process environment with every config, cache and data root pointed at home,
 // so a harness reads and writes nothing of the developer's own installation.
-func isolatedEnv(home string) []string {
-	return testhome.LiveEnv(home,
+func isolatedEnv(t *testing.T, home string) []string {
+	t.Helper()
+	return testhome.LiveEnv(t, home,
 		"CLAUDE_CONFIG_DIR="+filepath.Join(home, ".claude"),
 		"XDG_CONFIG_HOME="+filepath.Join(home, ".config"),
 		"XDG_CACHE_HOME="+filepath.Join(home, ".cache"),
@@ -199,9 +200,10 @@ func isolatedEnv(home string) []string {
 	)
 }
 
-// tempHome creates an isolated HOME directory and retries removal on cleanup so a harness child
-// process (such as Antigravity's language server) flushing its logs as it exits does not fail
-// t.TempDir()'s RemoveAll. A home that still will not go fails the test.
+// tempHome creates an isolated HOME directory, registers the #1890 structural guard before
+// removal, and retries removal on cleanup so a harness child process (such as Antigravity's
+// language server) flushing its logs as it exits does not fail t.TempDir()'s RemoveAll. A home
+// that still will not go fails the test.
 //
 // A DETACHED UPDATER IN THE HOME FAILS THE TEST. agy without its updater switch starts
 // `agy --bg-updater` in the background; it outlives the test, writes
@@ -225,6 +227,7 @@ func tempHome(t *testing.T) string {
 		}
 		t.Errorf("the test HOME survived its removal: %v", err)
 	})
+	testhome.GuardLiveTempHome(t, home)
 	return home
 }
 
@@ -241,7 +244,7 @@ func run(t *testing.T, home, bin string, args ...string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Env = isolatedEnv(home)
+	cmd.Env = isolatedEnv(t, home)
 	cmd.Dir = home
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -428,7 +431,7 @@ func runMustFail(t *testing.T, home, bin string, args ...string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Env = isolatedEnv(home)
+	cmd.Env = isolatedEnv(t, home)
 	cmd.Dir = home
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -652,7 +655,6 @@ func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
 		if err := testhome.StageAgyAccessToken(home); err != nil {
 			t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 		}
-		testhome.GuardLiveTempHome(t, home)
 		return home
 	}
 
@@ -686,7 +688,7 @@ func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, agy, "-p", "Reply OK.", "--agent", "probe", "--model", "gemini-3.8-flash-low", "--output-format", "text")
-		cmd.Env = isolatedEnv(home)
+		cmd.Env = isolatedEnv(t, home)
 		cmd.Dir = home
 		out, err := cmd.CombinedOutput()
 		if err == nil || !strings.Contains(string(out), `tool "Read" not found in registry`) {

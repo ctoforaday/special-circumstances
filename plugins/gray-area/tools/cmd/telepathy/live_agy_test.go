@@ -40,13 +40,13 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	}
 	agy, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy not found on PATH: %v", err)
+		t.Fatalf("agy not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
-	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+	home := testhome.NewLiveHome(t)
+	work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir()
 	if err := testhome.StageAgyAccessToken(home); err != nil {
 		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	testhome.GuardLiveTempHome(t, home)
 	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
 	// Tool calls proceed without prompting: the setting a headless run needs, scoped to this home.
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
@@ -70,7 +70,7 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	}
 	telepathy := filepath.Join(plugin, "bin", "telepathy")
 
-	env := testhome.LiveEnv(home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
+	env := testhome.LiveEnv(t, home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
 
 	turn := func(conv, prompt string) string {
 		t.Helper()
@@ -247,13 +247,13 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	}
 	agy, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy not found on PATH: %v", err)
+		t.Fatalf("agy not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
-	home, work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+	home := testhome.NewLiveHome(t)
+	work, runtimeDir, stateDir := t.TempDir(), t.TempDir(), t.TempDir()
 	if err := testhome.StageAgyAccessToken(home); err != nil {
 		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	testhome.GuardLiveTempHome(t, home)
 	agyDir := filepath.Join(home, ".gemini", "antigravity-cli")
 	writeFile(t, filepath.Join(agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`)
 
@@ -275,7 +275,7 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	}
 	telepathy := filepath.Join(plugin, "bin", "telepathy")
 
-	env := testhome.LiveEnv(home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
+	env := testhome.LiveEnv(t, home, "XDG_RUNTIME_DIR="+runtimeDir, "XDG_STATE_HOME="+stateDir)
 
 	listBrain := func() map[string]bool {
 		m := map[string]bool{}

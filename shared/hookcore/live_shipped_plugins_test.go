@@ -28,9 +28,10 @@ func copyGhCredentials(fakeHome string) {
 	}
 }
 
-// liveTestEnv delegates to testhome.LiveEnv so all live harness tests share one env isolation helper.
-func liveTestEnv(fakeHome string, extra ...string) []string {
-	return testhome.LiveEnv(fakeHome, extra...)
+// liveTestEnv delegates to testhome.LiveEnv so all live harness tests share one guarded env isolation helper.
+func liveTestEnv(t *testing.T, fakeHome string, extra ...string) []string {
+	t.Helper()
+	return testhome.LiveEnv(t, fakeHome, extra...)
 }
 
 // copyAgyCredentials stages the refresh-stripped Antigravity access token (#1890) so agy -p does
@@ -139,7 +140,7 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+		t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -147,7 +148,7 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	copyAgyCredentials(t, fakeHome)
 	stageShippedPlugin(t, fakeHome, repoRoot, "prosthetic-conscience")
 	stageShippedPlugin(t, fakeHome, repoRoot, "frank-exchange-of-views")
@@ -163,7 +164,7 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(t, fakeHome)
 
 	out, runErr := cmd.CombinedOutput()
 	output := string(out)
@@ -206,7 +207,7 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+		t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -214,7 +215,7 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	copyAgyCredentials(t, fakeHome)
 	stageShippedPlugin(t, fakeHome, repoRoot, "prosthetic-conscience")
 
@@ -230,7 +231,7 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(t, fakeHome)
 
 	out, _ := cmd.CombinedOutput()
 	output := string(out)
@@ -258,7 +259,7 @@ func TestLiveShippedAntigravityFetchBinSay(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+		t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -266,7 +267,7 @@ func TestLiveShippedAntigravityFetchBinSay(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	copyAgyCredentials(t, fakeHome)
 
 	// Stage a mock plugin where a binary is missing, so fetch-bin.sh emits a systemMessage notification
@@ -311,7 +312,7 @@ func TestLiveShippedAntigravityFetchBinSay(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(t, fakeHome)
 
 	out, runErr := cmd.CombinedOutput()
 	output := string(out)
@@ -409,7 +410,7 @@ func TestLiveShippedClaudePlugins(t *testing.T) {
 	}
 	claudeBin := findClaudeBin()
 	if claudeBin == "" {
-		t.Skip("claude CLI not found on PATH; skipping live Claude test")
+		t.Fatalf("claude CLI not found on PATH under HOOKCORE_LIVE=1")
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -459,7 +460,7 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 	}
 	claudeBin := findClaudeBin()
 	if claudeBin == "" {
-		t.Skip("claude CLI not found; skipping live Claude test")
+		t.Fatalf("claude CLI not found on PATH under HOOKCORE_LIVE=1")
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -519,7 +520,7 @@ func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+		t.Fatalf("agy CLI not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -527,7 +528,7 @@ func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	copyAgyCredentials(t, fakeHome)
 	stageShippedPlugin(t, fakeHome, repoRoot, "prosthetic-conscience")
 
@@ -564,7 +565,7 @@ func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
 
 	copyGhCredentials(fakeHome)
 
-	baseEnv := liveTestEnv(fakeHome,
+	baseEnv := liveTestEnv(t, fakeHome,
 		"ANTIGRAVITY_AGENT=1",
 		"PLUGIN_ROOT="+destPlugin,
 		"SC_MARKETPLACE_REPO="+repoRoot,

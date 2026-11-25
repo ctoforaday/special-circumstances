@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // TestLiveAntigravityFailedRunCommandDrainedOnPreInvocation exercises the real agy CLI on a
@@ -24,10 +26,10 @@ func TestLiveAntigravityFailedRunCommandDrainedOnPreInvocation(t *testing.T) {
 	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy binary not found on PATH: %v", err)
+		t.Fatalf("agy binary not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	copyAgyCredentials(t, fakeHome)
 
 	pluginDir := filepath.Join(fakeHome, ".gemini", "config", "plugins", "hookprobe")
@@ -60,7 +62,7 @@ func TestLiveAntigravityFailedRunCommandDrainedOnPreInvocation(t *testing.T) {
 		"--output-format", "text",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(t, fakeHome)
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Run(); err != nil {

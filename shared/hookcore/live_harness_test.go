@@ -153,16 +153,15 @@ func TestLiveClaudeContract(t *testing.T) {
 
 	claudeBin, err := exec.LookPath("claude")
 	if err != nil {
-		t.Skipf("claude binary not found on PATH: %v", err)
+		t.Fatalf("claude binary not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	// 1. Isolate test in a dedicated fake home directory (lending only the access token via env, #1890).
-	fakeHome := t.TempDir()
-	claudeEnv, err := testhome.LiveClaudeEnv(fakeHome)
+	fakeHome := testhome.NewLiveHome(t)
+	claudeEnv, err := testhome.LiveClaudeEnv(t, fakeHome)
 	if err != nil {
 		t.Fatalf("claude credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	testhome.GuardLiveTempHome(t, fakeHome)
 
 	// Set up temporary plugin directory for Claude Code
 	pluginDir := t.TempDir()
@@ -302,15 +301,14 @@ func TestLiveAntigravityContract(t *testing.T) {
 
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
-		t.Skipf("agy binary not found on PATH: %v", err)
+		t.Fatalf("agy binary not found on PATH under HOOKCORE_LIVE=1: %v", err)
 	}
 
 	// 1. Isolate test in a dedicated fake home directory (staging only the refresh-stripped access token, #1890).
-	fakeHome := t.TempDir()
+	fakeHome := testhome.NewLiveHome(t)
 	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
 		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
-	testhome.GuardLiveTempHome(t, fakeHome)
 	fakeAgyDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
 	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
 	settingsPath := filepath.Join(fakeAgyDir, "settings.json")
@@ -398,7 +396,7 @@ func TestLiveAntigravityContract(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	cmd.Env = liveTestEnv(fakeHome)
+	cmd.Env = liveTestEnv(t, fakeHome)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
