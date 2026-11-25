@@ -215,11 +215,11 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 		)
 
 		var (
-			turn2Conv       string
-			out2            string
-			transcript      string
-			hookMeasured    bool
-			lastUnmeasured  string
+			turn2Conv      string
+			out2           string
+			transcript     string
+			hookMeasured   bool
+			lastUnmeasured string
 		)
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			beforeTurn2 := listAgyBrainConvs(fakeHome)
