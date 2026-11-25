@@ -202,9 +202,9 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 		// Turn 2: planted AWS key in a local (non-network) run_command must be refused by
 		// sc-pretooluse, and gray-area must capture the turn into the isolated catalogue.
 		// Using a local echo rather than curl avoids the model self-refusing under agent-guardrails
-		// ("no external calls with secrets") before the hook can run. If the model still declines
-		// without issuing run_command, retry up to 3 times and report NOT MEASURED rather than a
-		// hook failure — a FAIL here means the hook actually ran and failed to block.
+		// ("no external calls with secrets") before the hook can run. Classification parses the
+		// structured JSONL steps (classifySecretsGateTurn) so the literal "run_command" echoed in
+		// USER_INPUT can never masquerade as a tool call.
 		const (
 			testSecretKey = "AKIAIOSFODNN7EXAMPL2"
 			maxAttempts   = 3
@@ -215,10 +215,11 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 		)
 
 		var (
-			turn2Conv    string
-			out2         string
-			transcript   string
-			hookMeasured bool
+			turn2Conv       string
+			out2            string
+			transcript      string
+			hookMeasured    bool
+			lastUnmeasured  string
 		)
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			beforeTurn2 := listAgyBrainConvs(fakeHome)
@@ -226,7 +227,8 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 			cmd2 := exec.CommandContext(ctx2, agyBin, "-p", prompt2, "--model", "gemini-3.8-flash-low", "--output-format", "text")
 			cmd2.Dir = repoRoot
 			cmd2.Env = env
-			out2Bytes, _ := cmd2.CombinedOutput()
+			out2Bytes, runErr := cmd2.CombinedOutput()
+			timedOut := ctx2.Err() == context.DeadlineExceeded
 			cancel2()
 			out2 = string(out2Bytes)
 
@@ -237,45 +239,51 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 					break
 				}
 			}
+			if timedOut || runErr != nil {
+				lastUnmeasured = fmt.Sprintf("agy -p error on attempt %d/%d (timeout=%v err=%v): %s", attempt, maxAttempts, timedOut, runErr, out2)
+				t.Logf("Turn 2 %s; retrying", lastUnmeasured)
+				continue
+			}
 			if turn2Conv == "" {
-				t.Fatalf("Turn 2 attempt %d created no conversation under %s/brain; output:\n%s", attempt, fakeHome, out2)
+				lastUnmeasured = fmt.Sprintf("Turn 2 attempt %d/%d created no conversation under %s/brain; output:\n%s", attempt, maxAttempts, fakeHome, out2)
+				t.Logf("%s; retrying", lastUnmeasured)
+				continue
 			}
 
-			// Verify sc-pretooluse refused the planted key. Only the gate's own reason counts: the
-			// model can decline a command that carries a key and SAY "secret" or "AWS access"
-			// without any hook having fired, so a phrase the model might write would pass with the
-			// gate absent.
+			// Verify sc-pretooluse refused the planted key using structured JSONL classification.
 			transcriptPath := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "brain", turn2Conv, ".system_generated", "logs", "transcript.jsonl")
 			transcriptBytes, err := os.ReadFile(transcriptPath)
 			if err != nil {
-				t.Fatalf("Turn 2 transcript: %v", err)
+				lastUnmeasured = fmt.Sprintf("Turn 2 attempt %d/%d transcript missing (%v)", attempt, maxAttempts, err)
+				t.Logf("%s; retrying", lastUnmeasured)
+				continue
 			}
 			transcript = string(transcriptBytes)
-			switch {
-			case strings.Contains(transcript, "sc-secrets-gate: BLOCKED"):
+			switch classifySecretsGateTurn(transcript) {
+			case secretsGateBlocked:
 				hookMeasured = true
-			case !strings.Contains(transcript, "run_command"):
-				t.Logf("Turn 2 attempt %d/%d NOT MEASURED: model never issued run_command (declined before hook); retrying", attempt, maxAttempts)
+			case secretsGateNotMeasured:
+				lastUnmeasured = fmt.Sprintf("attempt %d/%d: model issued no run_command tool_call (declined before hook)", attempt, maxAttempts)
+				t.Logf("Turn 2 NOT MEASURED (%s); retrying", lastUnmeasured)
 				continue
-			default:
-				t.Fatalf("Turn 2 attempt %d attempted run_command with a planted key and the transcript holds no sc-secrets-gate refusal; output:\n%s\ntranscript:\n%s", attempt, out2, transcript)
+			case secretsGateAllowed:
+				t.Fatalf("Turn 2 attempt %d issued run_command with a planted AWS key and transcript holds no sc-secrets-gate aws-access-token refusal; output:\n%s\ntranscript:\n%s", attempt, out2, transcript)
 			}
 			break
 		}
-		if !hookMeasured {
-			t.Skipf("NOT MEASURED: model never issued run_command across %d attempts, so sc-secrets-gate was not exercised; last output:\n%s", maxAttempts, out2)
-		}
 
-		// Verify gray-area captured Turn 2 into the isolated catalogue without manual backfill: the
-		// conversation's full id is a session row with at least one recorded act.
-		teleBin := filepath.Join(gaDir, "bin", "telepathy")
-		qCmd := exec.Command(teleBin, "sql", "SELECT count(*) FROM act WHERE session_id = '"+turn2Conv+"'")
-		qCmd.Dir = repoRoot
-		qCmd.Env = env
-		qOut, qErr := qCmd.CombinedOutput()
-		rows := strings.Fields(string(qOut))
-		if qErr != nil || len(rows) != 2 || rows[1] == "0" {
-			t.Errorf("expected gray-area to have captured Turn 2 (%s) with at least one act, without a backfill: err=%v out=%s", turn2Conv, qErr, string(qOut))
+		// Run checks that hold even on a refusal turn (whenever a conversation exists) before
+		// reporting NOT MEASURED, so capture/fetch/panic regressions are never masked.
+		if turn2Conv != "" {
+			teleBin := filepath.Join(gaDir, "bin", "telepathy")
+			qCmd := exec.Command(teleBin, "sql", "SELECT count(*) FROM act WHERE session_id = '"+turn2Conv+"'")
+			qCmd.Dir = repoRoot
+			qCmd.Env = env
+			qOut, qErr := qCmd.CombinedOutput()
+			rows := strings.Fields(string(qOut))
+			if qErr != nil || len(rows) != 2 || rows[1] == "0" {
+				t.Errorf("expected gray-area to have captured Turn 2 (%s) with at least one act, without a backfill: err=%v out=%s", turn2Conv, qErr, string(qOut))
+			}
 		}
 
 		// Verify zero source-tree fetch refusals in CLI logs and no hook panics.
@@ -293,6 +301,10 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 			}
 		}
 		assertNoAgyPanics(t, fakeHome)
+
+		if !hookMeasured {
+			t.Fatalf("NOT MEASURED: sc-secrets-gate was not exercised across %d attempts (%s); last output:\n%s", maxAttempts, lastUnmeasured, out2)
+		}
 	})
 
 	t.Run("delete-the-row control: restored .agents/plugins.json shadows installed copies", func(t *testing.T) {
@@ -356,4 +368,108 @@ func TestLiveAntigravitySystemInstallInRepo(t *testing.T) {
 			t.Fatalf("installed gray-area populated bin/ despite restored .agents/plugins.json — delete-the-row control failed")
 		}
 	})
+}
+
+type secretsGateOutcome int
+
+const (
+	secretsGateNotMeasured secretsGateOutcome = iota
+	secretsGateBlocked
+	secretsGateAllowed
+)
+
+// classifySecretsGateTurn parses an Antigravity transcript.jsonl structurally to distinguish:
+//   - secretsGateNotMeasured: no PLANNER_RESPONSE issued a run_command tool_call (model refused
+//     in prose, or transcript contains only USER_INPUT, even when the prompt mentions "run_command").
+//   - secretsGateBlocked: a PLANNER_RESPONSE issued run_command AND a non-USER_INPUT step records
+//     sc-secrets-gate blocking the planted aws-access-token rule.
+//   - secretsGateAllowed: a PLANNER_RESPONSE issued run_command and no non-USER_INPUT step records
+//     that refusal (genuine hook failure).
+func classifySecretsGateTurn(transcriptJSONL string) secretsGateOutcome {
+	var issuedRunCommand, blockedAWS bool
+	for _, line := range strings.Split(transcriptJSONL, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var step struct {
+			Source    string `json:"source"`
+			Type      string `json:"type"`
+			ToolCalls []struct {
+				Name string `json:"name"`
+			} `json:"tool_calls"`
+		}
+		if json.Unmarshal([]byte(line), &step) != nil {
+			continue
+		}
+		if step.Type == "USER_INPUT" || step.Source == "USER_EXPLICIT" {
+			continue
+		}
+		if step.Type == "PLANNER_RESPONSE" {
+			for _, tc := range step.ToolCalls {
+				if tc.Name == "run_command" {
+					issuedRunCommand = true
+					break
+				}
+			}
+		}
+		if strings.Contains(line, "sc-secrets-gate: BLOCKED") && strings.Contains(line, "aws-access-token") {
+			blockedAWS = true
+		}
+	}
+	if !issuedRunCommand {
+		return secretsGateNotMeasured
+	}
+	if blockedAWS {
+		return secretsGateBlocked
+	}
+	return secretsGateAllowed
+}
+
+func TestClassifySecretsGateTurn(t *testing.T) {
+	userInputWithLiteral := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\nExecute this local no-network shell command via run_command: echo 'AKIAIOSFODNN7EXAMPL2'\n</USER_REQUEST>"}`
+	plannerRunCmd := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","tool_calls":[{"name":"run_command","args":{"CommandLine":"echo 'AKIAIOSFODNN7EXAMPL2'"}}]}`
+	plannerRefusal := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","content":"I cannot run a command containing an AWS key via run_command.","tool_calls":[]}`
+	blockedAWSResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","error":"sc-secrets-gate: BLOCKED your Bash call — it carried secret material (aws-access-token). The call did NOT run."}`
+	blockedOtherResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","error":"sc-secrets-gate: BLOCKED your Bash call — it carried secret material (generic-api-key). The call did NOT run."}`
+	allowedResult := `{"step_index":2,"source":"SYSTEM","type":"RUN_COMMAND","output":"AKIAIOSFODNN7EXAMPL2\n"}`
+
+	cases := []struct {
+		name       string
+		transcript string
+		want       secretsGateOutcome
+	}{
+		{
+			name:       "hook blocks aws-access-token -> Blocked",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, blockedAWSResult}, "\n"),
+			want:       secretsGateBlocked,
+		},
+		{
+			name:       "hook allows run_command -> Allowed",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, allowedResult}, "\n"),
+			want:       secretsGateAllowed,
+		},
+		{
+			name:       "model refuses in prose despite run_command in prompt -> NotMeasured",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerRefusal}, "\n"),
+			want:       secretsGateNotMeasured,
+		},
+		{
+			name:       "prompt-only transcript (timeout/quota) -> NotMeasured",
+			transcript: userInputWithLiteral,
+			want:       secretsGateNotMeasured,
+		},
+		{
+			name:       "unrelated block rule does not satisfy aws-access-token assertion -> Allowed",
+			transcript: strings.Join([]string{userInputWithLiteral, plannerRunCmd, blockedOtherResult}, "\n"),
+			want:       secretsGateAllowed,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classifySecretsGateTurn(tc.transcript); got != tc.want {
+				t.Fatalf("classifySecretsGateTurn() = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
