@@ -161,6 +161,7 @@ func (d drive) benchClosesG1() {
 	}
 	for _, m := range record.MotionsOf(b.Events, b.At) {
 		if m.Subject == "docket" && !m.Ruled() {
+			benchSitsOn(d.t, d.run, "G1")
 			ruleDocket(d.t, d.run, m.ID, "repaired")
 			return
 		}
@@ -220,14 +221,24 @@ func answerDrives() []answerDrive {
 	return []answerDrive{
 		{name: "position, the chair", row: rowPosition, helps: []string{"chair position"},
 			drive: oncePerSitting(rowPosition, "red-chair", "position")},
-		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
-			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
+		// A SPOT-CHECK STANDS ON A STALE AREA'S DELIVERED CHANGES: the run has one, and the next sitting's
+		// follows a head move the first did not bear.
+		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"}, drive: func(d drive) {
+			chairOwesAStaleArea(d.t, d.run, lensSeat)
+			d.admitted("the first", "red-chair", "spot-check", "--reason", "the first")
+			d.endsWithRow(d.refused("a second in the sitting", "red-chair", "spot-check", "--reason", "the second"), rowSpotCheck)
+			moveReportHead(d.t, d.run)
+			d.nextSitting("red-chair")
+			d.admitted("the next sitting's", "red-chair", "spot-check", "--reason", "the first was wrong")
+		}},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
 			// AFTER A PASS the write path still admits the next sitting's verdict; that no chair
 			// sitting follows one is the engine's rule, held by the simulator
 			// (tests/simulator debate.test.mjs, "a chair that records PASS ends the debate even if it
 			// relayed parties").
 			d.closeG1(lensSeat)
+			// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+			lensRereads(d.t, d.run)
 			d.nextSitting("red-chair")
 			d.admitted("a PASS", "red-chair", "verdict")
 			d.endsWithRow(d.refused("a second verdict after the PASS", "red-chair", "verdict"), rowVerdict)
@@ -351,6 +362,7 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
+			benchSitsOn(d.t, d.run, "G1")
 			rule := func(text string) []string {
 				return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
 					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}

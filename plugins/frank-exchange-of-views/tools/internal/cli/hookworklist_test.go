@@ -11,77 +11,100 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
-// THE LIST A SEAT IS HANDED AND THE LIST IT ASKS FOR PLACE A GAP THE SAME WAY.
-//
-// The work list reaches a seat twice: delivered at dispatch by feov-sitting-write, through the
-// SubagentStart hook, and fetched by the seat's own read. Both are record.WorkJSONBytes over one
-// record, and they answered differently — nine of nine delivered lists read every quote gap
-// `unrendered` while the same seat's read, a second later at the same head, read it `marked`. The
-// renderer is REGISTERED by a linked package, so the answer was a property of the BINARY, and an
-// in-process comparison cannot see it: this test binary links the renderer whichever way the
-// writer is built. So the writer is driven as the process the hook spawns.
-func TestTheDeliveredWorkListPlacesAGapWhereTheFetchedOneDoes(t *testing.T) {
+// AT DISPATCH A SEAT IS HANDED THE HEAD OF ITS QUEUE, OR ONE LINE WHEN THAT HEAD IS REPORT TEXT, AND
+// NEVER REPORT TEXT (constitution-gaps §III.3.2, ruling 2026-11-14). The SubagentStart hook spawns
+// feov-sitting-write's opening end; it hands a seat its configuration names the head of its queue, as
+// the record queues it — not the whole list, which `show work` still prints — and where that head is
+// report text, the one line saying it arrives one item per tool call. A configuration that
+// seats several seats is handed nothing. The writer is driven as the process the hook spawns, so what
+// is asserted is what the shipped binary hands.
+func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a binary")
 	}
-	const base = "# Costs\n\nQ1 was hard. Costs rose sharply in the first quarter, then fell.\n"
+	const sentence = "Costs rose sharply in the first quarter, then fell."
 	runDir := newRun(t)
-	writeReport(t, runDir, base)
-	id, err := mintQuote(t, runDir, "k1", "Costs rose sharply")
+	writeReport(t, runDir, "# Costs\n\nQ1 was hard. "+sentence+"\n")
+	gap, err := mintQuote(t, runDir, "k1", "Costs rose sharply")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	states := func(t *testing.T, doc string) map[string]string {
+	// The chair's item is its ruling on blue's grade motion: a chair's queue holds no report text here.
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
+		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded"); err != nil {
+		t.Fatal(err)
+	}
+	open := func(agent, agentType string) string {
 		t.Helper()
-		var w record.WorkJSON
-		if err := json.Unmarshal([]byte(doc), &w); err != nil {
-			t.Fatalf("not a work list (%v):\n%s", err, doc)
+		cmd := exec.Command(testbuild.Binary(t, "feov-sitting-write"),
+			"-run", runDir, "-phase", "open", "-agent-id", agent, "-agent-type", agentType)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("feov-sitting-write -phase open as %s: %v: %s", agentType, err, stderr.String())
 		}
-		got := map[string]string{}
-		for _, g := range w.Open {
-			got[g.ID] = g.LocationState
+		return string(out)
+	}
+	head := func(seatID string) record.QueueEntry {
+		t.Helper()
+		w, err := record.WorkOfSeat(runtest.Open(t, runDir), seatclass.RoleOfSeat(seatID), seatID)
+		if err != nil {
+			t.Fatal(err)
 		}
-		return got
+		q := record.QueueOf(w)
+		if len(q) == 0 {
+			t.Fatalf("%s's queue is empty, so the opening end has no head to hand", seatID)
+		}
+		return q[0]
 	}
 
-	// THE CHAIR'S LIST, which arrives whole: a lens's arrives one item at a time, and its index places
-	// no gap. The renderer is linked or not per binary, so one seat's list answers for the writer.
-	fetched, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-chair")
-	if err != nil {
-		t.Fatal(err)
+	// THE CHAIR'S HEAD IS NO REPORT TEXT: it is handed that item, under its standing, and not the list.
+	if h := head("red-chair"); h.Kind == record.ItemReportText {
+		t.Fatalf("the fixture's chair is owed report text, so its arm measures nothing: %+v", h)
 	}
-	want := states(t, fetched)
-	if want[id] != record.LocationMarked {
-		t.Fatalf("the fixture does not hold a marked gap, so equality below would compare nothing: %v", want)
-	}
-
-	cmd := exec.Command(testbuild.Binary(t, "feov-sitting-write"),
-		"-run", runDir, "-phase", "open", "-agent-id", "agent_01",
-		"-agent-type", "frank-exchange-of-views:red-chair")
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("feov-sitting-write: %v: %s", err, stderr.String())
-	}
-	at := strings.Index(string(out), "{")
+	chair := open("agent_chair_01", seatclass.Seats["red-chair"].AgentType)
+	at := strings.Index(chair, "{")
 	if at < 0 {
-		t.Fatalf("the writer handed the seat no work list:\n%s", out)
+		t.Fatalf("the writer handed the chair no item:\n%s", chair)
 	}
-	got := states(t, string(out[at:]))
-	if len(got) != len(want) {
-		t.Fatalf("the delivered list holds %d gap(s) and the fetched one %d", len(got), len(want))
+	var handed struct {
+		Sitting map[string]json.RawMessage `json:"sitting"`
+		Current *struct {
+			Key string `json:"key"`
+		} `json:"current"`
 	}
-	for gap, state := range want {
-		if got[gap] != state {
-			t.Errorf("gap %s is %q in the list the hook delivers and %q in the one the seat fetches — one record, one head",
-				gap, got[gap], state)
-		}
+	if err := json.Unmarshal([]byte(chair[at:]), &handed); err != nil {
+		t.Fatalf("not a handed item (%v):\n%s", err, chair)
+	}
+	if want := head("red-chair").Key; handed.Current == nil || handed.Current.Key != want {
+		t.Errorf("the chair was handed %+v; want the head of its queue, %s", handed.Current, want)
+	}
+	if _, whole := handed.Sitting["open"]; whole {
+		t.Errorf("the chair was handed its whole list at dispatch; `show work` prints it, the opening end hands the head:\n%s", chair)
+	}
+	if strings.Contains(chair, sentence) {
+		t.Errorf("the chair's dispatch carries report text:\n%s", chair)
+	}
+
+	// THE LENS'S HEAD IS REPORT TEXT: it is handed the one line, and none of the text.
+	lensType := seatclass.Seats[lensSeat].AgentType
+	lens := open("agent_lens_01", lensType)
+	if h := head(lensSeat); h.Kind != record.ItemReportText {
+		t.Fatalf("the fixture's lens is owed no report text at its new sitting, so its arm measures nothing: %+v", h)
+	}
+	if strings.TrimSpace(lens) == "" || strings.Contains(lens, "{") || strings.Contains(lens, sentence) || strings.Count(strings.TrimSpace(lens), "\n") != 0 {
+		t.Errorf("the lens was handed more than the one line saying its report text arrives one item per call:\n%s", lens)
+	}
+
+	// A CONFIGURATION THAT SEATS SEVERAL SEATS IS HANDED NOTHING.
+	if blue := open("agent_blue_01", "frank-exchange-of-views:blue-researcher"); blue != "" {
+		t.Errorf("blue-researcher's dispatch was handed %q; a configuration that seats several gets nothing", blue)
 	}
 }
 

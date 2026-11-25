@@ -6,19 +6,24 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // AN ARCHIVED SPOT-CHECK ARRIVES STAMPED (EventSchema 71). Before the stamp, a spot-check's areas
 // carried nothing of what changed behind their pins, and its prose said what it liked. Migrated, the
 // replay stamps each area's pin and the changes to the report after it off the migrated record: each
-// pin is the one the chair's own last plan before it listed for that stale area, and the changes are
-// every blue_edit and report_part between the earliest pin and the spot-check.
+// pin is the head the lens was last served the report at, and the changes are every blue_edit and
+// report_part between the earliest pin and the spot-check. A spot-check stands only on a delivery in
+// the chair's sitting: an archived one the manifest lists as lost is written as no event, one that
+// stands is held to its chair's last plan, and the stamp is always read on a delivered source.
 //
 // THE RESIDUE, accepted: an archive from before the whole-report serve was recorded (#1458; m32 has
 // no report_read) holds no pin the live rule can read, so every area stamps pin 0 and every change
 // before the spot-check, where its own plan listed the dispatch-era pins.
 func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
+	// An archived spot-check the manifest lists as lost (the chair's sitting holds no delivery) is
+	// written as no event; one that stands is held to the plan's pins and the changes behind them.
 	for _, c := range []struct {
 		archive string
 		areas   int
@@ -32,6 +37,15 @@ func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
 			res, dst := migrateArchive(t, c.archive)
 			if len(res.Refusals) != 0 {
 				t.Fatalf("refusals: %+v", res.Refusals)
+			}
+			if lost := migrate.LostByWord(res)["spot_check"]; lost > 0 {
+				if lost != res.In["spot_check"] {
+					t.Fatalf("%d of %d spot-checks lost; this test reads the archive's one", lost, res.In["spot_check"])
+				}
+				if n := len(int64sOf(t, openRO(t, dst.Dir()), `SELECT "event_id" FROM "spot_check"`)); n != 0 {
+					t.Errorf("the migrated record holds %d spot-check(s), and the manifest lists its one lost", n)
+				}
+				return
 			}
 			db := openRO(t, dst.Dir())
 			var spot int64
@@ -84,6 +98,30 @@ func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
 			}
 		})
 	}
+	// The stamp is held on a source whose chair was delivered the report before it spot-checked: the
+	// lens's area is stamped at the head the lens was served, and the change is blue's edit after it.
+	t.Run("delivered chair", func(t *testing.T) {
+		_, _, dir := migrate.MigratedDeliveredBench(t)
+		db := openRO(t, dir)
+		var spot int64
+		if err := db.QueryRow(`SELECT "event_id" FROM "spot_check"`).Scan(&spot); err != nil {
+			t.Fatal(err)
+		}
+		areas := wordsOf(t, db, `SELECT "value" FROM "spot_check_areas" ORDER BY "ord"`)
+		pins := int64sOf(t, db, `SELECT "value" FROM "spot_check_pins" ORDER BY "ord"`)
+		if len(areas) != 1 || len(pins) != 1 {
+			t.Fatalf("the migrated spot-check names areas %v at pins %v, want the lens's one", areas, pins)
+		}
+		served := int64sOf(t, db, `SELECT r."head" FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = '`+areas[0]+`' ORDER BY r."event_id"`)
+		if len(served) == 0 || pins[0] != served[len(served)-1] {
+			t.Errorf("area %s stamped at pin %d; the lens was served the report at %v", areas[0], pins[0], served)
+		}
+		want := int64sOf(t, db, `SELECT "event_id" FROM "head_move" WHERE "event_id" > `+itoa(pins[0])+` AND "event_id" < `+itoa(spot)+` ORDER BY "event_id"`)
+		got := int64sOf(t, db, `SELECT "value" FROM "spot_check_changes" ORDER BY "ord"`)
+		if len(want) == 0 || !slices.Equal(got, want) {
+			t.Errorf("stamped changes %v; the migrated record holds %v after pin %d", got, want, pins[0])
+		}
+	})
 }
 
 func int64sOf(t *testing.T, db *sql.DB, query string) []int64 {

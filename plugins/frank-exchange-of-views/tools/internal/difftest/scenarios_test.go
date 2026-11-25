@@ -79,6 +79,8 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				// A close stands on the lens's delivery, so the lens reads it before the close rules answer.
+				readStep("red-lens-evidence"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "partial_control_coverage", "--check-kind", "document", "--check", "refetch",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium", "--problem", "source moved"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001"),
@@ -174,6 +176,8 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				// The lens's closes stand on its delivery, so it reads it before the repeats are refused.
+				readStep("red-lens-evidence"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
@@ -229,6 +233,9 @@ func scenarios() []scenario {
 		},
 		{
 			name: "projections_debate_changelog_citations", // oracle: R2 projections
+			// The bench rules on the passages delivered to a sitting a dispatch convened: a cast run, so
+			// the chair's dispatch readies it once both closings are filed.
+			cast: castOf("evidence"),
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -239,7 +246,6 @@ func scenarios() []scenario {
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/paper", "--trust", "high"),
-				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
 				// the bench rules on that filing. The differential drives both because the
 				// projection under test reads the JOIN — the gap is on the filing and the
@@ -249,6 +255,10 @@ func scenarios() []scenario {
 				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+				readStep("judge"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),
@@ -285,6 +295,11 @@ func scenarios() []scenario {
 			// question skipped; the sixth remands with --final, which the write refuses because a
 			// remand owes the direction its --direction states; and the seventh closes the gap with
 			// a --direction, which the write refuses because a ruling that closes sends no exchange.
+			//
+			// THE BENCH RULES ON THE PASSAGES DELIVERED TO A SITTING A DISPATCH CONVENED, or every attempt
+			// pins the delivered-text refusal instead of its field: both parties file their closings, the
+			// chair's dispatch readies the bench, and the bench reads the docketed gap's passage first.
+			cast: castOf("evidence"),
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -293,7 +308,15 @@ func scenarios() []scenario {
 					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
 					"--reason", "contested, and not red's to close"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				readStep("red-lens-evidence"),
+				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
+				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
+				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+				readStep("judge"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",

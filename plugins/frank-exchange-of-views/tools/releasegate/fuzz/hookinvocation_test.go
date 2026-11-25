@@ -81,7 +81,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 			case strings.Contains(m.Matcher, "Bash"):
 				tool = "Bash"
 			case m.Matcher != "" && !strings.ContainsAny(m.Matcher, "|*.^$()[]"):
-				// A matcher naming one tool — PostToolUse's envelope tool — is driven with that tool,
+				// A matcher naming one tool is driven with that tool,
 				// so the hook takes the path it takes in a session rather than its early return.
 				tool = m.Matcher
 			}

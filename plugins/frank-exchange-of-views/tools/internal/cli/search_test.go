@@ -182,10 +182,10 @@ func TestRankedSearchStatesCutAndScope(t *testing.T) {
 	}
 }
 
-// A RANKED SEARCH OF THE REPORT IS NO WHOLE READ: it serves a lens a cut list of paragraphs, so it
-// records no read and does not move the lens's pin. The bare read beside it does, which is what
-// makes the zero a measurement.
-func TestSearchDoesNotAdvanceServeReportPin(t *testing.T) {
+// A RANKED SEARCH OF THE REPORT RECORDS NOTHING AND MOVES NO PIN, as no read of the report does: a lens's
+// pin moves only on a delivery the writer completes. The writer's delivery beside it records one, which
+// is what makes the zero a measurement.
+func TestSearchDoesNotAdvanceTheLensPin(t *testing.T) {
 	vecembedtest.UseFake(t)
 	runDir, _ := searchRun(t)
 	registerSeatOnce(t, runDir, lensSeat)
@@ -202,20 +202,26 @@ func TestSearchDoesNotAdvanceServeReportPin(t *testing.T) {
 		}
 		return n
 	}
-	before := reads()
+	pin := func() int64 {
+		t.Helper()
+		p, err := record.PinAt(openRunDB(t, runDir), lensSeat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	before, pinBefore := reads(), pin()
 	for _, args := range [][]string{{"--search", "rising cost"}, {"--json", "--search", "rising cost"}} {
 		if out, err := run(t, append([]string{"show", "report", "--run", runDir, "--seat-id", lensSeat}, args...)...); err != nil {
 			t.Fatalf("show report %s: %v\n%s", strings.Join(args, " "), err, out)
 		}
 	}
-	if after := reads(); after != before {
-		t.Errorf("show report --search recorded %d whole read(s); a ranked search is no whole read", after-before)
+	if after := reads(); after != before || pin() != pinBefore {
+		t.Errorf("show report --search recorded %d read(s) and moved the pin %d -> %d; a ranked search records nothing", after-before, pinBefore, pin())
 	}
-	if out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
-		t.Fatalf("the bare read: %v\n%s", err, out)
-	}
-	if reads() != before+1 {
-		t.Errorf("the bare read recorded no whole read, so the count above measures nothing")
+	writerHands(t, runDir, "agent_lens_searched", lensSeat)
+	if reads() != before+1 || pin() == pinBefore {
+		t.Errorf("the writer's delivery recorded %d read(s) and left the pin at %d, so the count above measures nothing", reads()-before, pin())
 	}
 }
 

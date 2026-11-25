@@ -1376,9 +1376,9 @@ func debate(fam record.Family, coverage partsAt) string {
 			if kept[e] {
 				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+ownBlock(e.GetRegrade().GetBasis()))
 			}
-			// THE REPORT SERVED TO A LENS: which lens was given the whole report at which head.
-			if rr, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
-				epoch = append(epoch, record.ServedLine(e.GetSeatId(), rr.GetHead()))
+			// THE REPORT TEXT DELIVERED TO A SEAT: which seat had a delivery completed at which head.
+			if _, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
+				epoch = append(epoch, fam.At.DeliveryLine(e))
 			}
 		}
 

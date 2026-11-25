@@ -56,7 +56,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		{
 			name: "a second docket ruling is refused",
 			act: func(t *testing.T, run Run) error {
-				judge := sit(t, run, "judge")
+				judge := benchSits(t, run)
 				mustAppend(t, judge, docketRule("M2", "the bench rules"))
 				_, err := Append(judge, finalDocketRule())
 				return err
@@ -198,7 +198,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
 	mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why"))
-	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
+	mustAppend(t, benchSits(t, run), docketRule("M2", "the bench remands"))
 
 	motions := motionReadersAgree(t, run)
 	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "red-chair"}); got != want {
@@ -251,6 +251,12 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 			ids := make([]Identity, len(seats))
 			for i, s := range seats {
 				ids[i] = sit(t, run, s)
+			}
+			// THE BENCH'S RULING STANDS ONLY ON DELIVERED PASSAGES, and the race is the answers', not the
+			// delivery's: the judge's sitting holds its delivery at the report's head, so the guard that
+			// refuses it is first-wins alone.
+			if err := RecordDelivery(run, benchSeat, st.head()); err != nil {
+				t.Fatal(err)
 			}
 			start := make(chan struct{})
 			errs := make([]error, len(ids))

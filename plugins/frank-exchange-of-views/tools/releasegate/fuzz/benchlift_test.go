@@ -79,9 +79,19 @@ func (r *runner) mustExec(t *testing.T, args ...string) string {
 }
 
 // hearing is the bench's docket sitting over gapID as the drive sits it: the bench sets a grade, then
-// remands the gap.
+// remands the gap. THE BENCH SITS ON A DOCKETED GAP ONCE NO OTHER PARTY'S CLOSING IS AWAITED, and only a
+// sitting the plan convenes on the gap is delivered its passage, which the bench's ruling stands on: so
+// each party owing its closing sits and files it before the chair plans.
 func (r *runner) hearing(t *testing.T, gapID string) {
 	t.Helper()
+	for _, party := range []struct{ role, seat string }{{"blue", "blue-respond"}, {"lens", liftLens}} {
+		if len(r.closingsOwedBy(party.seat)) == 0 {
+			continue
+		}
+		r.dispatchSits(party.role, party.seat)
+		r.fileClosings(party.seat)
+		r.dispatchReturns(party.seat, false)
+	}
 	r.chairPlans(t)
 	r.dispatchSits("bench", "judge", "docket")
 	r.benchSetsGrade("judge", gapID)

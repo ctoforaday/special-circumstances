@@ -25,6 +25,8 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	// the chair sits again and epoch 2 passes — by then the lens is not one that has never sat (which
 	// holds a PASS).
 	registerLensOnce(t, runDir)
+	// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+	lensRereads(t, runDir)
 	chair("register")
 	chair("verdict")
 

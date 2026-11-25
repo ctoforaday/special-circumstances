@@ -156,15 +156,14 @@ func citeTokens(report string) []string {
 	return out
 }
 
-// sit opens seat's next sitting and serves it the report, as a lens's audit does.
+// sit opens seat's next sitting and completes the delivery of report text it is owed there, as the
+// delivery writer does over a lens's first calls.
 func (b readingBoard) sit(seat string) {
 	b.t.Helper()
 	if _, err := run(b.t, "register", "--run", b.runDir, "--seat-id", seat); err != nil {
 		b.t.Fatalf("register %s: %v", seat, err)
 	}
-	if _, err := run(b.t, "show", "report", "--run", b.runDir, "--seat-id", seat); err != nil {
-		b.t.Fatalf("serve %s the report: %v", seat, err)
-	}
+	deliverIfOwed(b.t, b.runDir, seat)
 }
 
 // citeReading is a reading of citation anchor with outcome as.

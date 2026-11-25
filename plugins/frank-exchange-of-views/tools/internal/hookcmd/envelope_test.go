@@ -19,7 +19,7 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	refusal, checkErr := "", error(nil)
 	var asked []string
 	prev := envelopeAnswer
-	envelopeAnswer = func(dir, agent string, _ []byte) (hookgate.EnvelopeAnswer, error) {
+	envelopeAnswer = func(dir, agent, _ string, _ []byte) (hookgate.EnvelopeAnswer, error) {
 		asked = append(asked, dir+" | "+agent)
 		return hookgate.EnvelopeAnswer{Refusal: refusal}, checkErr
 	}
@@ -84,7 +84,7 @@ func TestTheHookWritesTheEnvelopeTheRecordSupplies(t *testing.T) {
 	var stated string
 	prev := envelopeAnswer
 	const read = `{"event":7,"bench_owed":[],"halted":false}`
-	envelopeAnswer = func(_, _ string, input []byte) (hookgate.EnvelopeAnswer, error) {
+	envelopeAnswer = func(_, _, _ string, input []byte) (hookgate.EnvelopeAnswer, error) {
 		stated = string(input)
 		return hookgate.EnvelopeAnswer{Envelope: json.RawMessage(`{"key":"k","notes":"n"}`), Read: json.RawMessage(read)}, nil
 	}
@@ -141,7 +141,7 @@ func TestTheHookWritesTheRecordsReadOverAnythingTyped(t *testing.T) {
 	const read = `{"event":7,"bench_owed":["petition"],"halted":false}`
 	answer := hookgate.EnvelopeAnswer{Read: json.RawMessage(read)}
 	prev := envelopeAnswer
-	envelopeAnswer = func(string, string, []byte) (hookgate.EnvelopeAnswer, error) { return answer, nil }
+	envelopeAnswer = func(string, string, string, []byte) (hookgate.EnvelopeAnswer, error) { return answer, nil }
 	t.Cleanup(func() { envelopeAnswer = prev })
 	type doc struct {
 		H struct {

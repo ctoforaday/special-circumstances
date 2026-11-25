@@ -132,6 +132,11 @@ func TestAnUnverifiedEndNamesTheReadingDebtStanding(t *testing.T) {
 	b := readingRunCast(t, rdReport, rdCited, rdBacked)
 	b.mustRead(lensL, citeReading(b.c1, "refutes")...)
 	b.mustRead(lensK, citeReading(b.c2, "supports")...)
+	// Every lens sits once more for its full re-read, so no lens owes a whole delivery and the debt
+	// stays the one subject the clause can name.
+	for _, s := range []string{lensL, lensM, lensN, lensP, lensK} {
+		b.sit(s)
+	}
 	if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
 		t.Fatal(err)
 	}

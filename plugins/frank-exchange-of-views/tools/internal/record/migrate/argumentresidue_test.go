@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -88,14 +90,34 @@ func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
 				t.Fatalf("%s is archived and its residue is not stated in argumentResidue", name)
 			}
 			res, run := migrateArchive(t, name+".tar.gz")
-			closings := res.In["closing"] - res.Out["closing"]
-			positions := res.In["position"] - res.Out["position"]
-			if closings != want.closings || positions != want.positions {
-				t.Errorf("migrate wrote %d closing(s) and %d position(s) as no event, want %d and %d", closings, positions, want.closings, want.positions)
-			}
 			fam, err := record.FamilyOf(run)
 			if err != nil {
 				t.Fatal(err)
+			}
+			// A LOST ACT MOVES THE DUTIES ON ITS GAP, AND ONLY THERE. A bench ruling lost for want of
+			// a delivery leaves its docket motion unruled, so the docketing never ends: a closing
+			// filed after the archived ruling answers it (the write accepts it, so it is written
+			// rather than dropped), a party's later sitting reads it missing, and a later close or
+			// supersession reads it not owed. A lost close takes the closing act that made a duty not
+			// owed. touched is each gap a lost close closed or a lost ruling's motion docketed.
+			touched := migrate.LostCloseGaps(t, name+".tar.gz", res)
+			lostRulings := migrate.LostRulingMotions(t, name+".tar.gz", res)
+			for _, e := range fam.Events {
+				if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && lostRulings[m.GetMotionId()] && m.GetDocket().GetGapId() != "" {
+					touched[m.GetDocket().GetGapId()] = true
+				}
+			}
+			closings := res.In["closing"] - res.Out["closing"]
+			positions := res.In["position"] - res.Out["position"]
+			reaccepted := 0
+			for _, e := range fam.Events {
+				if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok && touched[c.GetGapId()] {
+					reaccepted++
+				}
+			}
+			if positions != want.positions || closings > want.closings || want.closings-closings > reaccepted {
+				t.Errorf("migrate wrote %d closing(s) and %d position(s) as no event, want %d and %d, less at most the %d closing(s) written on a gap whose ruling or close is lost",
+					closings, positions, want.closings, want.positions, reaccepted)
 			}
 			minter := map[string]string{}
 			for _, e := range fam.Events {
@@ -111,11 +133,15 @@ func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
 					t.Errorf("the migrated record holds a position from %s, which is not the chair", e.GetSeatId())
 				}
 			}
-			duties := map[string]int{}
+			duties, moved := map[string]int{}, map[string]int{}
 			for _, d := range record.ClosingDuties(fam.Events, fam.At) {
 				party := "lens"
 				if d.Party == "blue-respond" {
 					party = "blue"
+				}
+				if touched[d.GapID] {
+					moved[party]++
+					continue
 				}
 				duties[party+":"+string(d.State)]++
 			}
@@ -123,8 +149,27 @@ func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
 			for _, s := range record.PositionSittings(fam.Events, fam.At, record.AfterTheRun) {
 				sittings[string(s.State)]++
 			}
-			if got := tally(duties); got != want.duties {
-				t.Errorf("closing duties read %q, want %q", got, want.duties)
+			// A duty on no touched gap reads as stated; the stated tally less those is the touched
+			// duties' share, which must hold exactly as many duties per party as the fold now reads
+			// on touched gaps. A duty that moves on an untouched gap breaks the first.
+			if len(moved) == 0 {
+				if got := tally(duties); got != want.duties {
+					t.Errorf("closing duties read %q, want %q", got, want.duties)
+				}
+			} else {
+				rest := parseTally(t, want.duties)
+				for k, n := range duties {
+					if rest[k] -= n; rest[k] < 0 {
+						t.Errorf("closing duties on gaps no lost act names read %q, more %s than the stated %q", tally(duties), k, want.duties)
+					}
+				}
+				share := map[string]int{}
+				for k, n := range rest {
+					share[strings.SplitN(k, ":", 2)[0]] += n
+				}
+				if tally(share) != tally(moved) {
+					t.Errorf("the stated duties %q less those on untouched gaps %q leave %v per party; the fold reads %v on gaps a lost act names", want.duties, tally(duties), share, moved)
+				}
 			}
 			if got := tally(sittings); got != want.sittings {
 				t.Errorf("chair sittings' positions read %q, want %q", got, want.sittings)
@@ -146,4 +191,22 @@ func tally(m map[string]int) string {
 	}
 	slices.Sort(parts)
 	return strings.Join(parts, ",")
+}
+
+// parseTally reads tally's "k=n,…" back into counts.
+func parseTally(t *testing.T, s string) map[string]int {
+	t.Helper()
+	out := map[string]int{}
+	if s == "" {
+		return out
+	}
+	for _, kv := range strings.Split(s, ",") {
+		k, v, ok := strings.Cut(kv, "=")
+		n, err := strconv.Atoi(v)
+		if !ok || err != nil {
+			t.Fatalf("stated tally %q does not read: %q", s, kv)
+		}
+		out[k] = n
+	}
+	return out
 }

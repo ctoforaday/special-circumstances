@@ -4,8 +4,9 @@
 
     [BLUE] — authored by blue INSIDE the report (the lanes' parts, then the synthesizer's and
              blue's acts),
-             audited by red every sitting (red
-             re-reads the full report each sitting), and SHIPPED AS WRITTEN here, in the
+             audited by red every sitting (a lens is delivered the whole report at its
+             first sitting and its full re-read at its next, and every edit since its pin
+             after that), and SHIPPED AS WRITTEN here, in the
              order written. A synthesis surface authored at assembly would be authored after
              red's last audit, so it lives in the audited document instead. A missing one is
              never filled: it ships nothing.

@@ -26,6 +26,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -126,6 +127,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 		t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	}
 	seatID := testDispatchedSeat(args)
+	deliverBeforeActing(t, args, seatID)
 	root := NewRootFor(seatID)
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
@@ -147,6 +149,50 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	// The error is STILL RETURNED. The binary exits 2 whenever it rendered a refusal, so "this call
 	// failed" stays true for the tests that assert one.
 	return out.String(), errOut.String(), err
+}
+
+// deliverBeforeActing completes the seat's delivery of report text before an act that stands only on
+// delivered text: a lens's close, the chair's spot-check, a ruling on a motion. Live, the delivery
+// writer hands the seat its report text one item after each of its tool calls and writes the
+// report_read with the last item (sittingwrite.WriteNextItem); the harness runs no hooks, so it
+// completes the delivery here, from the seat's own list: only where that list holds a report-text item
+// is the seat owed a delivery this sitting. A seat owed none — its sitting already holds one, no report
+// yet, a chair with nothing stale — acts as it stands, and the write's own refusal is what a test sees.
+//
+// Delivering at the act rather than at the register is what the live seat does: it acts after its
+// delivery is complete, and a delivery cut at the register would pin a head every later edit in the
+// fixture moves past.
+func deliverBeforeActing(t *testing.T, args []string, seatID string) {
+	t.Helper()
+	var words []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			break
+		}
+		words = append(words, a)
+	}
+	switch {
+	case len(words) >= 1 && (words[0] == "close" || words[0] == "spot-check"):
+	case len(words) >= 3 && words[0] == "motion" && words[2] == "rule":
+	default:
+		return
+	}
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "lens" && role != "chair" && role != "bench" {
+		return
+	}
+	dir := flagValue(args, "--run")
+	if dir == "" {
+		r, err := seatenv.Resolve("", nil)
+		if err != nil {
+			return
+		}
+		dir = r
+	}
+	if _, err := record.OpenRun(dir); err != nil {
+		return
+	}
+	deliverIfOwed(t, dir, seatID)
 }
 
 // assertRefusalNamesItsCommandOnce reads a refusal `run` returned against the command that
@@ -895,7 +941,7 @@ func TestProseChannelResolution(t *testing.T) {
 // close carries its evidence or it does not happen: the anchor triple is the
 // difference between an auditable closure and an assertion.
 func TestCloseRequiresItsAnchor(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -954,7 +1000,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 }
 
 func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -987,7 +1033,7 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 
 // close --file carries the full closure record; a missing one is an error.
 func TestCloseRecordsItsProse(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -1103,7 +1149,7 @@ func TestBlueVerbContracts(t *testing.T) {
 // gap rides the filing. That is why the fixture files a docket motion first: without it the
 // refusal under test would be the dangling-motion one.
 func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
-	runDir := newRun(t)
+	runDir := docketRun(t)
 	seatID := "judge"
 	// The gap must EXIST: `motion docket file --id` is a reference and is checked at write time,
 	// so without a real gap the FILING below would be refused and this test would never reach the
@@ -1119,6 +1165,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
+	benchSitsOn(t, runDir, "G1")
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
 	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
@@ -1234,7 +1281,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		return err
 	}
 	docket := func(t *testing.T) (string, string) {
-		runDir := newRun(t)
+		runDir := docketRun(t)
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
 		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
@@ -1242,7 +1289,9 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-		return runDir, docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+		m := docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+		benchSitsOn(t, runDir, "G1")
+		return runDir, m
 	}
 	// with is the stated set with f answered v; omitting is the stated set with f never passed.
 	with := func(f, v string) map[string]string {
@@ -1470,6 +1519,8 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+		lensRereads(t, runDir)
 		chairSitsAgain(t, runDir)
 	}
 
@@ -1549,6 +1600,8 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
 	}
+	// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+	lensRereads(t, runDir)
 	chairSitsAgain(t, runDir)
 	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
@@ -1700,10 +1753,8 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 // skipped duty, which is precisely what the event stream exists to prevent.
 func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
+	// A spot-check is the chair's over a stale area; nothing is sampled from the empty archive.
+	runDir := staleAreaRun(t)
 	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "archive empty at round start; floor not applicable")
 	if err != nil {
@@ -1740,10 +1791,8 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 // its duty" were the same event.
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
+	// A spot-check is the chair's over a stale area; nothing is sampled from the empty archive.
+	runDir := staleAreaRun(t)
 	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
@@ -1769,7 +1818,7 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 // word is --reason now, the one prose spelling, and this pins that close reads it.
 func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	const prose = "verified at the leaf; digits match the cited arm"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
 		t.Fatal(err)
@@ -1902,6 +1951,77 @@ func castRun(t *testing.T) string {
 	return dir
 }
 
+// staleAreaRun is castRun brought to the state a chair's spot-check stands on: a stale area
+// (chairOwesAStaleArea) in the cast lens's own area.
+func staleAreaRun(t *testing.T) string {
+	t.Helper()
+	dir := castRun(t)
+	chairOwesAStaleArea(t, dir, lensSeat)
+	return dir
+}
+
+// chairOwesAStaleArea brings a cast run to the state a chair's spot-check stands on: lens's area is
+// stale and the chair's open sitting owes its changes. The chair is delivered report text only for a
+// stale area's changes it has not borne, and a spot-check stands only on a sitting that holds that
+// delivery, so a chair with nothing stale has no spot-check to record. Each of lens's sittings follows
+// a chair dispatch naming it, as the workflow sends it, and takes the delivery it is owed (both whole
+// deliveries first, then the changes since its pin); between sittings the head moves. Three sittings
+// in a row with no fresh material mint retire the lens at its pin, and the next head move leaves its
+// area behind that pin. The harness delivers the chair's owed changes before its spot-check
+// (deliverBeforeActing).
+func chairOwesAStaleArea(t *testing.T, dir, lens string) {
+	t.Helper()
+	owes := func() bool {
+		w, err := record.WorkOfSeat(runtest.Open(t, dir), "chair", "red-chair")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, it := range w.Sitting.Open {
+			if it.Kind == record.ItemReportText {
+				return true
+			}
+		}
+		return false
+	}
+	for i := 0; i < 6; i++ {
+		if i > 1 {
+			moveReportHead(t, dir)
+		}
+		chairSitsAgain(t, dir)
+		if owes() {
+			return
+		}
+		if out, err := run(t, "dispatch", "next", "--run", dir, "--seat-id", "red-chair"); err != nil {
+			t.Fatalf("dispatch next: %v\n%s", err, out)
+		}
+		if _, err := run(t, "register", "--run", dir, "--seat-id", lens); err != nil {
+			t.Fatalf("register %s: %v", lens, err)
+		}
+		deliverIfOwed(t, dir, lens)
+	}
+	t.Fatalf("the fixture left no stale area: after six sittings of %s the chair's list owes no report text", lens)
+}
+
+// moveReportHead appends a part to the report, as an ingest does: a head move every lens's pin is
+// then behind.
+func moveReportHead(t *testing.T, dir string) {
+	t.Helper()
+	n := countType(t, dir, recordpb.EventType_EVENT_TYPE_REPORT_PART)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, dir), SeatID: record.HarnessSeat},
+		&recordpb.ReportPart{Text: proto.String(fmt.Sprintf("\n# Addendum %d\n\nA paragraph the report gained after the lens's pin.\n", n+1))}); err != nil {
+		t.Fatalf("moving the report head: %v", err)
+	}
+}
+
+// castNewRun is newRun on the cast setup writes for the whole roster: a stale area is a cast lens's.
+func castNewRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	recordtest.Seed(t, dir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
+	return dir
+}
+
 // castSeats sits the seats castRun's cast names beside blue-synthesize: the lens castRun dispatched,
 // then the chair's next sitting, then blue and the bench.
 func castSeats(t *testing.T, runDir string) {
@@ -1923,6 +2043,26 @@ func chairSitsAgain(t *testing.T, runDir string) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("register red-chair: %v", err)
 	}
+}
+
+// findingsRun is newRun with a report holding the Findings section these fixtures' gaps are about. A
+// close and a ruling on a motion about gaps stand only on report text delivered to their seat, and no
+// report text is delivered while no report exists, so a fixture that closes or rules has one.
+func findingsRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	ingestReport(t, dir, "# Findings\n\nThe finding these gaps are about sits in this section.\n")
+	return dir
+}
+
+// docketRun is findingsRun on a cast run: the bench rules a docket motion only in a sitting a dispatch
+// convened on its gap (benchSitsOn), and only a cast run has a dispatch.
+func docketRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	seedCast(t, dir)
+	ingestReport(t, dir, "# Findings\n\nThe finding these gaps are about sits in this section.\n")
+	return dir
 }
 
 // newRun makes a run directory as `setup` leaves it before any seat sits: the empty record. A gap's

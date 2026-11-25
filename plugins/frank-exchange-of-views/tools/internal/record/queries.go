@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -143,6 +144,9 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, erro
 }
 
 // eventsOfAt is EventsOf asked of q, which is nil on a run with no record yet.
+//
+// A READ THAT LOADS REPORT READS ALSO READS THE VIEWS: a report read's line is its report_delivery
+// row (WindowIndex.delivery), so an index holding one without the rows could only panic.
 func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
 	if noRecord(q) {
 		return nil, WindowIndex{}, nil
@@ -155,7 +159,13 @@ func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, Win
 	if err != nil {
 		return nil, WindowIndex{}, err
 	}
-	return evs, narrowedIndexOf(evs, ws), nil
+	win := narrowedIndexOf(evs, ws)
+	if slices.Contains(types, recordpb.EventType_EVENT_TYPE_REPORT_READ) {
+		if err := win.readViews(q); err != nil {
+			return nil, WindowIndex{}, err
+		}
+	}
+	return evs, win, nil
 }
 
 // Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch

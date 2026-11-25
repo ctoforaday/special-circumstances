@@ -235,7 +235,7 @@ func TestEveryBoardSentToTheTranscriptStagesOne(t *testing.T) {
 			}
 			return "", nil
 		}
-		if err := Build(runtest.Open(t, t.TempDir()), b, exec); err != nil {
+		if err := Build(runtest.Open(t, t.TempDir()), b, exec, nil); err != nil {
 			t.Errorf("board %q: build: %v", name, err)
 			continue
 		}

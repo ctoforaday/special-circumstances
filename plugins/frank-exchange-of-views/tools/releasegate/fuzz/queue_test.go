@@ -3,12 +3,10 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
@@ -21,8 +19,8 @@ var subjectlessOwed = map[record.ItemKind]bool{
 // queueHolds holds a lens's work list, on whatever board the sweep reached, to its delivery one item
 // at a time: every item carries a kind; every item it owes carries a subject (bar the run-scoped
 // kinds) and is on its queue (record.QueueOf) under a key no other entry holds; its delivery at
-// dispatch fits sittingwrite.DeliveryBudget, in bytes as the writer measures it; and the item the writer's next phase hands it as current
-// moves only when the one before it has left the queue.
+// dispatch fits sittingwrite.DeliveryBudget, in bytes as the writer measures it. The item the writer
+// hands it as current, after each of its calls to the record, is held by headMovesOnlyOnDischarge.
 func (r *runner) queueHolds(seatID string) {
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
@@ -55,32 +53,39 @@ owed:
 		r.noteActErr(fmt.Sprintf("queue oracle: %s owes %q and it is not queued", seatID, it.What))
 		return
 	}
-	if text := sittingwrite.RenderLensDelivery(w); len(text) > sittingwrite.DeliveryBudget {
+	if text := sittingwrite.RenderDispatchDelivery(w); len(text) > sittingwrite.DeliveryBudget {
 		r.noteActErr(fmt.Sprintf("queue oracle: %s's delivery is %d bytes, over the budget of %d (%s)", seatID, len(text), sittingwrite.DeliveryBudget, sectionBytes(text)))
 		return
 	}
-	r.headMovesOnlyOnDischarge(seatID, fmt.Sprintf("%s#%d", seatID, w.SittingID()), keys)
 }
 
-// headMovesOnlyOnDischarge asks the writer what the lens is handed next, as the PostToolUse hook does,
-// and holds the current item it names to the one handed before while that one is still queued.
-// sitting keys what was handed: a new sitting starts from the head of its queue.
-func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[string]bool) {
-	if r.writer == "" {
-		return
-	}
-	agentType := seatclass.Seats[seatID].AgentType
-	out, err := exec.Command(r.writer, "-run", r.runDir, "-phase", string(sittingwrite.Next),
-		"-agent-id", "fuzz-queue-"+seatID, "-agent-type", agentType).Output()
-	if err != nil {
-		r.noteActErr("queue oracle: the writer's next phase failed for " + seatID + ": " + err.Error())
-		return
-	}
-	text := string(out)
-	if strings.Contains(text, "COULD NOT BE READ") {
-		r.noteActErr("queue oracle: " + seatID + "'s next item could not be read: " + firstLine(text))
-		return
-	}
+// queueReads is what the queue oracle reads around one call of the writer's (handNext): the lens's
+// queue before it runs and the record's last event id before that read, the last event id when the
+// writer returns, and — made only where the oracle needs them — the queue after it with the last event
+// id after that read, the writer's stored delivery, and the events between two ids. The ids and the
+// delivery only say what a failure was; whether it fails reads the two queues.
+type queueReads struct {
+	before   map[string]bool
+	beforeID int64
+	writerID int64
+	idErr    error
+	after    func() (map[string]bool, int64, error)
+	delivery func() string
+	between  func(a, b int64) string
+}
+
+// headMovesOnlyOnDischarge holds the current item the writer named in text, what it handed the lens
+// after one of its calls to the record (handNext), to the one handed before while that one is still
+// queued. sitting keys what was handed: a new sitting starts from the head of its queue.
+//
+// STILL QUEUED IS THE QUEUE READ BEFORE THE WRITER AND THE ONE READ AFTER IT: a seat sitting beside this
+// one (blue fating an inquiry, a sibling's gap) can take the item off the queue in between, and the
+// writer then rightly hands the next one. An item that leaves the queue between the reads with no event
+// landed between them is not an item that left: the same record read twice gave two lists, the work
+// list's defect, and the run fails on it; a worked item still queued with nothing landed around the
+// writer is no flap either. Every failure names the three event ids, the events between
+// the oracle's reads, and what the writer stored as handed.
+func (r *runner) headMovesOnlyOnDischarge(seatID, sitting, text string, reads queueReads) {
 	current, handed := "", false
 	if i := strings.Index(text, "{"); i >= 0 {
 		var d struct {
@@ -92,42 +97,48 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[str
 			current, handed = d.Current.Key, true
 		}
 	}
-	// queued was read before the writer ran, and a seat sitting beside this one (blue fating an
-	// inquiry, a sibling's gap) can take the item off the queue in between: the writer then rightly
-	// hands the next one. The item counts as still queued only if the queue read AFTER the writer
-	// holds it too.
-	stillQueued := func(key string) bool {
-		if !queued[key] {
-			return false
-		}
-		w, err := record.WorkOfSeat(r.run(), "lens", seatID)
-		if err != nil {
-			return true
-		}
-		for _, e := range record.QueueOf(w) {
-			if e.Key == key {
-				return true
-			}
-		}
-		return false
-	}
 	r.mu.Lock()
 	prevHead := r.lensHead[sitting]
 	r.mu.Unlock()
-	prevQueued := prevHead != "" && stillQueued(prevHead)
+	fail := func(what string, afterID int64) {
+		landed := "no event landed between the oracle's reads"
+		switch {
+		case reads.idErr != nil:
+			landed = "the record's last event id did not read: " + reads.idErr.Error()
+		case afterID != reads.beforeID && reads.between != nil:
+			landed = "events landed between the oracle's reads: " + reads.between(reads.beforeID, afterID)
+		}
+		stored := "not read"
+		if reads.delivery != nil {
+			stored = reads.delivery()
+		}
+		r.noteActErr(fmt.Sprintf("queue oracle: %s: %s; event ids: %d before the writer, %d when it returned, %d after the read after it; %s; the writer stored as handed: %s",
+			seatID, what, reads.beforeID, reads.writerID, afterID, landed, stored))
+	}
+	if handed && prevHead != "" && prevHead != current && reads.before[prevHead] {
+		after, afterID, err := reads.after()
+		quiet := reads.idErr == nil && afterID == reads.beforeID
+		switch {
+		case err != nil:
+			fail(fmt.Sprintf("its work list does not read after the writer handed %s in place of %s, the item it was working: %v", current, prevHead, err), afterID)
+			return
+		case after[prevHead] && quiet:
+			fail(fmt.Sprintf("not a flap: it was handed %s as current while %s, the item it was working, is still queued, and nothing changed the record around the writer", current, prevHead), afterID)
+			return
+		case after[prevHead]:
+			fail(fmt.Sprintf("it was handed %s as current while %s, the item it was working, is still queued", current, prevHead), afterID)
+			return
+		case quiet:
+			fail(fmt.Sprintf("the work list's defect: %s, the item it was working, is queued in the read before the writer and missing from the read after it, and nothing changed the record between them", prevHead), afterID)
+			return
+		}
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.lensHead == nil {
 		r.lensHead = map[string]string{}
 	}
-	prev, had := r.lensHead[sitting]
 	if handed {
-		if had && prev != "" && prev == prevHead && prevQueued && current != prev {
-			if r.actErr == "" {
-				r.actErr = fmt.Sprintf("queue oracle: %s was handed %s as current while %s, the item it was working, is still queued", seatID, current, prev)
-			}
-			return
-		}
 		r.lensHead[sitting] = current
 	}
 }

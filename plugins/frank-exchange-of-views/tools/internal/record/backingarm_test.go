@@ -246,7 +246,7 @@ func TestEvidenceAnchorIsTheLedgersAnchorSet(t *testing.T) {
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			t.Parallel()
 			migrated := filepath.Join(t.TempDir(), "run")
-			if err := archiveMigrate(recordtest.RequireArchive(t, name), migrated); err != nil {
+			if _, err := archiveMigrate(recordtest.RequireArchive(t, name), migrated); err != nil {
 				t.Fatalf("migrating %s: %v", name, err)
 			}
 			if err := recordsql.CloseUnder(migrated); err != nil {

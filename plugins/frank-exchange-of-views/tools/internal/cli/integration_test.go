@@ -1,13 +1,19 @@
 package cli
 
 import (
+	"io"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"regexp"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -22,7 +28,8 @@ import (
 // These tests drive the real multi-seat sequences: red mints, blue disputes, red answers,
 // the bench rules, and each side reads back the state the others set.
 
-// seatRun sets up a run directory with every seat registered, the way the engine does.
+// seatRun sets up a run directory with every seat registered, the way the engine does: on the cast
+// setup writes, which the chair's dispatch plans against (a bench convened on a docket, benchSitsOn).
 func seatRun(t *testing.T) string {
 	return seatRunReport(t, "")
 }
@@ -36,6 +43,9 @@ func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
+	// The cast names every seat on the roster, so a test may register any lens beside these four.
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
 	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
 		// The bench owes an OCCASION and no other seat may pass one — ask the same question the
 		// write path asks rather than keeping a list of which ids are the bench.
@@ -246,20 +256,37 @@ func registerChairOnce(t *testing.T, runDir string) {
 	registerSeatOnce(t, runDir, "red-chair")
 }
 
-// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and serves it the whole report
-// where one is ingested, as a lens's audit does. A seat registers before it acts, and a gap is its
-// minting lens's to close, so every mint helper here sits the same lens rather than a fresh one per
-// call. The read is the lens's pin (record.ServeReport): a lens that sat and was never
-// served the report is still ready at the head, and every PASS these fixtures drive waits on it.
+// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and completes its delivery of
+// the whole report where one is ingested, as a lens's first sitting does. A seat registers before it
+// acts, and a gap is its minting lens's to close, so every mint helper here sits the same lens rather
+// than a fresh one per call. The delivery is the lens's pin (report_read, written
+// by the delivery writer as it hands the last item): a lens that sat and was never delivered the report
+// is still ready at the head and owes its first whole delivery, and every PASS these fixtures drive
+// waits on it.
 func registerLensOnce(t *testing.T, runDir string) {
 	t.Helper()
 	registerSeatOnce(t, runDir, lensSeat)
-	if _, head, err := record.ReportAtHead(runtest.Open(t, runDir)); err != nil || head == 0 {
-		return
+	deliverIfOwed(t, runDir, lensSeat)
+}
+
+// lensRereads opens `lensSeat`'s next sitting and completes its delivery there: the whole report once
+// more, its full re-read. A lens is delivered the whole report at its first sitting and again at its
+// next, and a PASS is held (whole_report_owed) while a lens that has sat lacks either, so a fixture
+// that drives a PASS sits its lens through both.
+func lensRereads(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("register %s for its full re-read: %v", lensSeat, err)
 	}
-	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
-		t.Fatalf("serve %s the report: %v", lensSeat, err)
-	}
+	deliverIfOwed(t, runDir, lensSeat)
+}
+
+// deliverIfOwed completes seatID's delivery in its open sitting where its list holds report text it is
+// owed — the state the delivery writer leaves once it has handed the last item. A seat owed none (no
+// report yet, its sitting already holds its delivery) is left as it stands.
+func deliverIfOwed(t *testing.T, runDir, seatID string) {
+	t.Helper()
+	deliverytest.DeliverIfOwed(t, runtest.Open(t, runDir), seatID)
 }
 
 func registerSeatOnce(t *testing.T, runDir, seatID string) {
@@ -283,4 +310,30 @@ func sitToAssemble(t *testing.T, runDir string) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
 		t.Fatalf("registering the bench's assembly sitting: %v", err)
 	}
+}
+
+// writerHands runs the shipped delivery writer's next phase for seatID under agent, as the PostToolUse
+// hook runs it after each of the seat's calls, until the head of the seat's queue is no
+// report text: one item per call, and the report_read written as the last is handed. It returns the
+// number of items handed. An agent the record does not bind is resolved by the seat's configuration.
+func writerHands(t *testing.T, runDir, agent, seatID string) int {
+	t.Helper()
+	owes := func() bool {
+		w, err := record.WorkOfSeat(runtest.Open(t, runDir), seatclass.RoleOfSeat(seatID), seatID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		q := record.QueueOf(w)
+		return len(q) > 0 && q[0].Kind == record.ItemReportText
+	}
+	for n := 0; n < 200; n++ {
+		if !owes() {
+			return n
+		}
+		if err := sittingwrite.WriteNextItem(runDir, agent, seatclass.Seats[seatID].AgentType, string(hookcore.EngineClaude), io.Discard); err != nil {
+			t.Fatalf("the writer's next phase for %s: %v", seatID, err)
+		}
+	}
+	t.Fatalf("%s is still owed report text after 200 items: the writer stopped handing it", seatID)
+	return 0
 }

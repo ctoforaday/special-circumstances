@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -68,37 +69,51 @@ func TestLivePassOverOpenAlwaysGapRefused(t *testing.T) {
 }
 
 // thisBinaryRun is a source written by THIS binary: a mint of an `always` class, a mint of a
-// `never` class, and a spot-check naming an area.
+// `never` class, and a spot-check naming an area. A spot-check stands only on report text delivered
+// to the chair, and the chair is delivered a stale area's changes: so a second lens retires through
+// three barren sittings, the report moves past its pin, and the chair's delivery is that change.
 func thisBinaryRun(t *testing.T) string {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	run := runtest.Open(t, dir)
-	lens, chair := "red-lens-evidence", "red-chair"
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: []string{lens, chair}}); err != nil {
-		t.Fatal(err)
+	lens, stale, chair := "red-lens-evidence", "red-lens-logic", "red-chair"
+	app := func(seat string, body proto.Message) {
+		t.Helper()
+		if _, err := record.Append(record.Identity{Run: run, SeatID: seat}, body); err != nil {
+			t.Fatalf("%s %T: %v", seat, body, err)
+		}
 	}
-	for _, s := range []string{lens, chair} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: s}, "", ""); err != nil {
+	register := func(seat string) {
+		t.Helper()
+		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: seat}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
+	app(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{lens, stale, chair}})
+	app(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nA claim the lens audits.\n")})
+	var head int64
+	if err := openRO(t, dir).QueryRow(`SELECT MAX("event_id") FROM "report_part"`).Scan(&head); err != nil {
+		t.Fatal(err)
+	}
+	register(chair)
+	for range 3 {
+		app(chair, &recordpb.Dispatch{Pin: proto.Int64(head), SeatId: proto.String(stale)})
+		register(stale)
+		deliverytest.Deliver(t, run, stale)
+	}
+	register(lens)
+	deliverytest.Deliver(t, run, lens)
 	mint := func(id string, class recordpb.GapClass, sev recordpb.Grade) *recordpb.Mint {
 		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: class.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: sev.Enum(),
 			Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
 	}
-	for _, act := range []struct {
-		seat string
-		body proto.Message
-	}{
-		{lens, mint("G-00000001", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW)},
-		{lens, mint("G-00000002", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH)},
-		{chair, &recordpb.SpotCheck{Areas: []string{lens}, Reason: proto.String("read the changes since the pin")}},
-	} {
-		if _, err := record.Append(record.Identity{Run: run, SeatID: act.seat}, act.body); err != nil {
-			t.Fatalf("%T: %v", act.body, err)
-		}
-	}
+	app(lens, mint("G-00000001", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW))
+	app(lens, mint("G-00000002", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH))
+	app(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("\n## Method\n\nA later part.\n")})
+	register(chair)
+	deliverytest.Deliver(t, run, chair)
+	app(chair, &recordpb.SpotCheck{Areas: []string{stale}, Reason: proto.String("read the changes since the pin")})
 	return dir
 }
 
@@ -180,9 +195,25 @@ func TestAnArchivedPassIsCarriedAsHistory(t *testing.T) {
 			if g := fam.Gap(c.gap); g == nil || !g.Open || !g.Material || g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
 				t.Fatalf("fixture: %s is not an open, material gap of an always class on the migrated record: %+v", c.gap, g)
 			}
+			// A gap whose archived close is a lost act stays open on the migrated board, so the
+			// carried PASS stands over it too: verify names the gap the PASS stood over and exactly
+			// those, each still material.
+			want := []string{c.gap}
+			for g := range migrate.LostCloseGaps(t, c.archive, res) {
+				gp := fam.Gap(g)
+				if gp == nil || !gp.Open {
+					t.Errorf("%s's archived close is lost, and the migrated family reads it %+v, not open", g, gp)
+					continue
+				}
+				if gp.Material {
+					want = append(want, g)
+				}
+			}
+			slices.Sort(want)
 			for _, ck := range verify.Run(fam) {
-				if ck.Name == "pass-closes-all-gaps" && (ck.OK || ck.NA || !slices.Equal(ck.Violations, []string{c.gap})) {
-					t.Errorf("verify must read the carried PASS against its board and name %s: %+v", c.gap, ck)
+				got := slices.Sorted(slices.Values(ck.Violations))
+				if ck.Name == "pass-closes-all-gaps" && (ck.OK || ck.NA || !slices.Equal(got, want)) {
+					t.Errorf("verify must read the carried PASS against its board and name %v (%s and the gaps whose close was lost): %+v", want, c.gap, ck)
 				}
 			}
 		})
@@ -301,17 +332,32 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 		const name = "2026-10-18_is-91-prime-m28.tar.gz"
 		res, _, got := common(t, name)
 		src := mintsOf(t, recordtest.RequireArchive(t, name))
-		if len(got) != len(src) || len(src) == 0 {
-			t.Fatalf("%d mint(s) migrated of the source's %d", len(got), len(src))
+		// A mint refused because it supersedes a gap a lost close left open is that same loss,
+		// listed in the manifest; every other mint comes forward.
+		lostMints := migrate.LostMintGaps(t, name, res)
+		for id := range lostMints {
+			if _, ok := src[id]; !ok {
+				t.Fatalf("lost mint of %s is not among the source's mints", id)
+			}
+			delete(src, id)
 		}
+		if len(got) != len(src) || len(src) == 0 {
+			t.Fatalf("%d mint(s) migrated of the source's %d less its %d lost", len(got), len(src), len(lostMints))
+		}
+		// The coined class's one mint supersedes a gap whose close is lost, so it is lost with it:
+		// the coined class is then translated nowhere and restamps nothing (the sleeper case below
+		// holds the translation count).
 		const coined = "G-79f965fd"
-		restamped := map[string]bool{coined: true}
+		restamped := map[string]bool{}
+		if !lostMints[coined] {
+			restamped[coined] = true
+		}
 		for id, m := range got {
 			if m[0] == "report_voice" {
 				restamped[id] = true
 			}
 		}
-		if len(restamped) < 2 {
+		if len(restamped) < 1 {
 			t.Fatalf("fixture: m28 holds no report_voice mint; the residue this test pins is a voice stamp moved to always")
 		}
 		for id, s := range src {
@@ -326,7 +372,11 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 				t.Errorf("mint %s migrated stamped %q, want %q; the source stamped %q", id, got[id][1], want, s[1])
 			}
 		}
-		if want := []migration.ClassTranslation{{From: "audited-artifact-sibling-halo", To: "verification_scope_blindspot", Mints: 1}}; !slices.Equal(res.ClassTranslations, want) {
+		want := []migration.ClassTranslation{{From: "audited-artifact-sibling-halo", To: "verification_scope_blindspot", Mints: 1}}
+		if lostMints[coined] {
+			want = nil
+		}
+		if !slices.Equal(res.ClassTranslations, want) {
 			t.Errorf("class_translations = %+v, want %+v", res.ClassTranslations, want)
 		}
 		filled := map[string]bool{}

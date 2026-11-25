@@ -168,11 +168,12 @@ func TestALensLastSittingSkipsASittingThatNeverClosed(t *testing.T) {
 }
 
 // A FAILED CHECK IS READIED ONCE PER CAUSE, AND A SITTING THAT NEVER CLOSED IS NOT THE ONE: the
-// lens whose check read nothing is readied again.
+// lens whose check read nothing is readied again. Its later sitting is served the whole report (its
+// full re-read), so what readies it is the check.
 func TestAFailedCheckIsReadiedAgainAfterASittingThatNeverClosed(t *testing.T) {
 	for _, unclosed := range []bool{true, false} {
 		b := retBoard(t).sit(2, evLens).cite("C-1").verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE).
-			dispatch(2, evLens).bracket(evLens, "a1")
+			dispatch(2, evLens).bracket(evLens, "a1").served(evLens, 2)
 		if unclosed {
 			b.bracket(evLens, "a2")
 		} else {

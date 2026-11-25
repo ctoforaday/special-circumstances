@@ -175,9 +175,15 @@ func actRows() map[string]actRow {
 			act: func(_ actVars, text string) []string {
 				return []string{"carry", "--id", "G1", "--carried-from", "2", "--as", "repaired", "--reason", text}
 			}},
-		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
-			return []string{"spot-check", "--reason", text}
-		}},
+		// A spot-check stands on a stale area's delivered changes, so the row's run has one.
+		"chair spot-check": {seat: "red-chair",
+			setup: func(t *testing.T, runDir string) actVars {
+				chairOwesAStaleArea(t, runDir, lensSeat)
+				return nil
+			},
+			act: func(_ actVars, text string) []string {
+				return []string{"spot-check", "--reason", text}
+			}},
 		"bench declare": {seat: "judge", act: prose("declare")},
 		"bench certify": {seat: "judge", act: prose("certify")},
 		"bench halt":    {seat: "judge", act: prose("halt")},
@@ -217,7 +223,9 @@ func actRows() map[string]actRow {
 			}},
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
-				return actVars{"m": docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")}
+				m := docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")
+				benchSitsOn(t, runDir, "G1")
+				return actVars{"m": m}
 			},
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",

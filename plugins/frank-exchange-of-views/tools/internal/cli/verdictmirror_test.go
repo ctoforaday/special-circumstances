@@ -23,9 +23,11 @@ import (
 // AND THE MIRROR IS THE RECORD: one database file, openable alone, carrying the verdict the act
 // just committed — not a database, log and shared memory copied at three different moments.
 func TestTheVerdictCheckpointKeepsTheRecordLockedAndMirrorsOneConsistentDatabase(t *testing.T) {
-	// The lens castRun dispatched sits, so nothing holds the PASS the chair records next.
+	// The lens castRun dispatched sits, and sits once more for its full re-read, so nothing holds the
+	// PASS the chair records next.
 	runDir := castRun(t)
 	registerLensOnce(t, runDir)
+	lensRereads(t, runDir)
 	chairSitsAgain(t, runDir)
 	// A FILE IN THE MIRROR THAT IS NOT THE SNAPSHOT is removed: a log beside a fresh database
 	// is replayed into it by the next open.

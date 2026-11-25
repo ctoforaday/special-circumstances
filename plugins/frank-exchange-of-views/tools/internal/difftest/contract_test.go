@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // command builds an invocation of the built binary.
@@ -122,6 +123,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	stage("register", "--run", runDir, "--seat-id", "blue-lane-2")
 	stage("register", "--run", runDir, "--seat-id", "blue-synthesize")
 	stage("register", "--run", runDir, "--seat-id", "blue-respond")
+	// THE LENS READS ITS DELIVERY, once the lane's part is the report: its close rows below stand on report
+	// text delivered to it, so each reaches the guard its row is named for — the docketed gap, the
+	// repeated close and the chair's carry after it — rather than the delivered-text refusal. The
+	// chair's spot-check rows have no stale area to be handed, and pin that refusal.
+	(&replayDrive{t: t, bin: bin, writer: testbuild.Binary(t, "feov-sitting-write"), runDir: runDir}).read("red-lens-evidence")
 	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. AFTER the ingest: a finding anchors into
 	// the report, and one filed before it is refused — which this setup did, unread, for as

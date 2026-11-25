@@ -258,6 +258,11 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   prose only), so an open voice gap holds the PASS whatever its grade. Narration in a retired voice
   lens's area reaches the board through the chair's spot-check and its position naming the class,
   which the bench may not overrule; read a VERIFIED stamp over narration as a defect in that route.
+- **Report text reaches a seat only on its work list**, one item after each tool call, whichever tool, and
+  the tool records each delivery as a `report_read` when its last item is handed. A delivery that
+  cannot advance ends that seat's turn: its sitting closes failed, and the reason is a (TOOL, DEFECT)
+  entry in `run.md`'s Log section. Under Antigravity report text is not yet delivered, so a run with
+  a lens there cannot PASS and ends CEILING or UNVERIFIED.
 - Archive the run before the container is reclaimed. `research/` is gitignored, so `run-archive/`
   is the only part that outlives it — records and computations only, gzipped; the fetched-source cache is
   re-fetchable and about 100× larger.

@@ -78,6 +78,8 @@ func TestALowGradePlaceholderMintDoesNotHoldTheGate(t *testing.T) {
 			if _, err := mintClass(t, runDir, "k1", c.class, "low", ""); err != nil {
 				t.Fatalf("mint: %v", err)
 			}
+			// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+			lensRereads(t, runDir)
 			chairSitsAgain(t, runDir)
 			_, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 			switch {

@@ -90,7 +90,11 @@ type Response struct {
 	PreCompactSteer   string
 	Say               string
 	Warnings          string
-	TerminateTurn     bool // PreInvocation: emits terminationBehavior="terminate" + errorMessage on Antigravity
+	// TerminateTurn ends the agent's turn, with Reason as what it is told. On Claude Code a PostToolUse
+	// renders it as "continue": false with Reason as "stopReason", on exit 0; on Antigravity a
+	// PreInvocation renders it as terminationBehavior "terminate" with Reason as an errorMessage step.
+	// Every other event renders no stop.
+	TerminateTurn bool
 }
 
 // CanonicalToolName maps raw wire tool names from either harness to canonical names.
@@ -763,7 +767,10 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		return 0
 
 	case "PostToolUse", "PostToolUseFailure":
-		if resp.Feedback != "" {
+		// A STOP GOES OUT ON EXIT 0: the client reads a non-zero exit as feedback and ignores the
+		// document, so feedback beside a stop is written to stderr and the turn ends all the same.
+		stop := req.Event == "PostToolUse" && resp.TerminateTurn
+		if resp.Feedback != "" && !stop {
 			fmt.Fprintln(stderr, resp.Feedback)
 			if resp.Say != "" {
 				out := map[string]any{"systemMessage": resp.Say}
@@ -772,7 +779,10 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			}
 			return 2
 		}
-		if resp.AdditionalContext != "" || resp.Say != "" {
+		if stop && resp.Feedback != "" {
+			fmt.Fprintln(stderr, resp.Feedback)
+		}
+		if resp.AdditionalContext != "" || resp.Say != "" || stop {
 			out := map[string]any{}
 			if resp.AdditionalContext != "" {
 				out["hookSpecificOutput"] = map[string]any{
@@ -782,6 +792,12 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			}
 			if resp.Say != "" {
 				out["systemMessage"] = resp.Say
+			}
+			if stop {
+				out["continue"] = false
+				if resp.Reason != "" {
+					out["stopReason"] = resp.Reason
+				}
 			}
 			b, _ := json.Marshal(out)
 			fmt.Fprintln(stdout, string(b))

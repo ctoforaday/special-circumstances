@@ -21,7 +21,7 @@ func TestAntigravityFinishEnvelopeUnwrapsAndRewrapsResult(t *testing.T) {
 	var seenInput string
 	prev := envelopeAnswer
 	const read = `{"event":7,"bench_owed":[],"halted":false}`
-	envelopeAnswer = func(_, _ string, input []byte) (hookgate.EnvelopeAnswer, error) {
+	envelopeAnswer = func(_, _, _ string, input []byte) (hookgate.EnvelopeAnswer, error) {
 		seenInput = string(input)
 		return hookgate.EnvelopeAnswer{Read: json.RawMessage(read)}, nil
 	}
@@ -76,7 +76,7 @@ func TestAntigravityFinishEnvelopeUnwrapsAndRewrapsResult(t *testing.T) {
 func TestAntigravityFinishEnvelopeDeny(t *testing.T) {
 	cwd, _ := hookRun(t)
 	prev := envelopeAnswer
-	envelopeAnswer = func(_, _ string, _ []byte) (hookgate.EnvelopeAnswer, error) {
+	envelopeAnswer = func(_, _, _ string, _ []byte) (hookgate.EnvelopeAnswer, error) {
 		return hookgate.EnvelopeAnswer{Refusal: "open blocker stands"}, nil
 	}
 	t.Cleanup(func() { envelopeAnswer = prev })
@@ -170,7 +170,7 @@ func TestAntigravityPostRunCommandQueuesNextItemForPreInvocation(t *testing.T) {
 	t.Setenv("PLUGIN_DATA", t.TempDir())
 	cwd, _ := hookRun(t)
 	prevNext := handNextItem
-	handNextItem = func(_, _, _ string) (string, error) {
+	handNextItem = func(_, _, _, _ string) (string, error) {
 		return "NEXT ITEM: gap-42", nil
 	}
 	t.Cleanup(func() { handNextItem = prevNext })

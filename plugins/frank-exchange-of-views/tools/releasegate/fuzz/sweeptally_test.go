@@ -1021,8 +1021,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE UNJUDGED-COMPUTATION DEBT IS FED BY CONSTRUCTION, not left to the draw (gblock, 2026-10-25): the
 		// draw rarely holds it, since the owner checks every computation it owes in the sitting it is offered
 		// one, and a sweep of 40 drew it zero times (#1604). owedComputationSeed's run proves a fresh sentence
-		// in every blue sitting while the owner, which mints nothing in that run (mintsFresh), is barren, so a fold holds the owner for a computation it has
-		// not yet sat to judge. TestALensThatOwesIsNotRetired (internal/record) proves the rule itself.
+		// each time its owner, which mints nothing in that run (mintsFresh), has sat barren to retirement, so a fold holds
+		// the owner for a computation it has not yet sat to judge. TestALensThatOwesIsNotRetired (internal/record) proves the rule itself.
 		if f.owedKept == 0 || f.computationOwedKept == 0 {
 			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged computation, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", f.owedKept, f.computationOwedKept, f.completed)
 		}

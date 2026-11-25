@@ -15,6 +15,7 @@ func TestTheBenchSetsAGradeAndAReconsiderationComesOnNewGrounds(t *testing.T) {
 	runDir := seatRun(t)
 	g := mintGap(t, runDir, "bench-orders", "spec_underspecification")
 	motion := docketFile(t, runDir, "red-chair", g, "contested, and the bench's to settle")
+	benchSitsOn(t, runDir, g)
 
 	if _, err := runAt(t, "regrade", "--run", runDir, "--seat-id", "judge", "--id", g, "--severity", "high",
 		"--reason", "the defect misleads every reader of the section"); err != nil {

@@ -147,9 +147,10 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		// The plan is the dispatch verb's second record: it stores the plan it prints beside the
 		// rows, and no flag supplies a byte of it.
 		"plan": "written by `dispatch next` beside its dispatch rows, from the plan it prints",
-		// The report read is the lens's whole read of the report: the tool stamps the head it served,
-		// and no flag supplies it.
-		"report_read": "written by a lens's whole `show report`, from the head it serves",
+		// The report read is the delivery writer's: feov-sitting-write records it when it hands a
+		// seat its last report-text item, stamped with the head the delivery was cut at, and no flag
+		// supplies it.
+		"report_read": "written by feov-sitting-write when it hands a seat its last report-text item, from the head the delivery was cut at; no verb records one",
 		// The envelope admission is the harness's: feov-sitting-write records it when the PostToolUse
 		// hook sees the call returning a seat's envelope succeed, keyed to the agent the hook names.
 		"envelope_admitted": "written by feov-sitting-write when the call returning a seat's envelope succeeds; no verb records one",

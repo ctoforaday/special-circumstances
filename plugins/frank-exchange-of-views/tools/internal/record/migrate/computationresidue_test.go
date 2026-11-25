@@ -550,10 +550,46 @@ func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 				}
 			})
 		}
-		if kept != want[name] {
-			t.Errorf("%s: seats' arguments name the proof store %d time(s), want %d", name, kept, want[name])
+		// A lost act (a close, spot-check or bench ruling with no delivery in its sitting) is written
+		// as no event, so the paths its translation would carry are not on the migrated record.
+		lost := lostProofStorePaths(t, name)
+		if kept != want[name]-lost {
+			t.Errorf("%s: seats' arguments name the proof store %d time(s), want %d less the %d in its lost acts", name, kept, want[name], lost)
 		}
 	}
+}
+
+// lostProofStorePaths counts the proof-store paths in the argument fields of the named run's lost
+// acts, as their translations would have carried them.
+func lostProofStorePaths(t *testing.T, name string) int {
+	t.Helper()
+	res, _ := MigratedArchive(t, name)
+	lost := LostIDs(res)
+	if len(lost) == 0 {
+		return 0
+	}
+	evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, ev := range evs {
+		if !lost[ev.ID] {
+			continue
+		}
+		bodies, err := Entries().Translate(ev)
+		if err != nil {
+			t.Fatalf("%s: translating lost act %d: %v", name, ev.ID, err)
+		}
+		for _, b := range bodies {
+			eachString(b.ProtoReflect(), func(field, v string) {
+				if argumentFields[field] && field != "Computation.drift" && field != "Computation.invariant" {
+					n += len(proofStorePath.FindAllString(v, -1))
+				}
+			})
+		}
+	}
+	return n
 }
 
 // RESIDUE: A PROGRAM'S BYTES ARE WHAT IT WROTE. A store path inside what a program printed stays:

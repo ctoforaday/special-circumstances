@@ -8,7 +8,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid/a --trust high
 exit 2
@@ -22,7 +23,8 @@ $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --l
 exit 0
 stdout:
 finding recorded: FINDING001 (evidence) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id red-lens-logic
 exit 0
@@ -34,13 +36,15 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity high --likelihood high --impact high --quote A claim sits under S4. --reason a leap of faith
 exit 0
 stdout:
 finding recorded: FINDING002 (logic) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -52,10 +56,12 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+  · lens red-lens-logic owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
@@ -64,17 +70,20 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: refetch and diff
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ position --run {RUN} --seat-id red-chair --reason round one: the cited source does not say this
 exit 0
 stdout:
 position POSITION001 recorded
-NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (9 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+  · lens red-lens-logic owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ═══ EVENTS ═══

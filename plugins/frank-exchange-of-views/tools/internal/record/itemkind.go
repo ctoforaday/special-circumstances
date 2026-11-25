@@ -4,7 +4,7 @@ package record
 //
 // An item's sentence names its gap, anchor or motion, and nothing else did: a reader that wanted to
 // know which gap an item was about matched the id out of `what`, and the release fuzz did exactly
-// that (strings.Contains over the sentence). A lens handed its work one item at a time needs each
+// that (strings.Contains over the sentence). A seat handed its work one item at a time needs each
 // item's identity as a key — to say which item is current, to tell an item that changed from one
 // that is new, and to see one leave its list — and a key recovered from prose is the pattern
 // facts-are-fields refuses. So every item carries its kind and its subject, set where the item is
@@ -18,8 +18,9 @@ type ItemKind string
 // BlockerKind does, and an item's kind is one of these or a BlockerKind — never a second word for a
 // blocker.
 const (
-	// ItemAudit is a lens's audit of the report: its first read, its read since it was last served
-	// the report whole, or the sitting's read once served (LastReadJSON.Kind says which).
+	// ItemAudit is a lens's audit of the report: its first audit, its audit of what this sitting delivers
+	// while its pin is behind the head, or the sitting's audit once its delivery is complete
+	// (LastReadJSON.Kind says which).
 	ItemAudit ItemKind = "audit"
 	// ItemReaudit is a lens's own open gap that blue answered, or whose sentence an edit changed,
 	// since the lens last acted on it — or that blue was engaged on and left unanswered (blueAnswers).
@@ -60,6 +61,12 @@ const (
 	ItemComposedSource ItemKind = "composed_source"
 	// ItemNothingOwed is the statement that a seat's list is complete, not empty.
 	ItemNothingOwed ItemKind = "nothing_owed"
+	// ItemReportText is report text owed into the seat's context this sitting, handed one item after
+	// each of its tool calls: a lens's whole report or the changes since its pin and its own
+	// gap passages (subject the report), the chair's stale area's unborne changes (an area), the
+	// bench's passage of a gap a motion is about (a gap). It blocks until the sitting holds the
+	// delivery (report_read).
+	ItemReportText ItemKind = "report_text"
 )
 
 // ItemKinds is every kind an item can carry: the PASS blockers' kinds, in table order, then the
@@ -71,7 +78,7 @@ func ItemKinds() []ItemKind {
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
 		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
-		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed)
+		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
 }
 
 // SubjectKind is what kind of thing an item is about.

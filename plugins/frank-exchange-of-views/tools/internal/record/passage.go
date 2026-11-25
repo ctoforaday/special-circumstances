@@ -15,7 +15,8 @@ import "strings"
 // mislead on research prose" — a paragraph that reads as an overclaim alone may be qualified two
 // paragraphs later, and a citation that looks unsupported may be carried by the preceding sentence.
 // That rule is correct. A SECTION is what it actually asks for: the passage IN ITS CONTEXT, which
-// is the opposite of a hunk. `show report` stays available and unchanged for the full re-read.
+// is the opposite of a hunk. The whole report, and a lens's full re-read, arrive on the work list as
+// report text; `show report` stays a read that records nothing.
 //
 // THE BOUND IS GENEROUS ON PURPOSE (gblock's call). Measured on that run's report — 12,348
 // characters over 21 sections — the median section is 372 characters and the largest is 2,795. At

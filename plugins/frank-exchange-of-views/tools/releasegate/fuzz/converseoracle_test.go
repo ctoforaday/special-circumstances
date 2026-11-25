@@ -34,7 +34,8 @@ const (
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
-// lens reads the report and mints the gap; the chair then sits for the last epoch and stores its
+// lens reads the report and mints the gap, and on the paths where it closes the gap, sits once more
+// for its full re-read; the chair then sits for the last epoch and stores its
 // plan. It returns the runner and the plan that sitting printed.
 func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	t.Helper()
@@ -97,10 +98,19 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 				"--relief", "fuzz relief", "--reason", "fuzz petition basis")
 		}
 		r.dispatchReturns(converseLens, false)
-	case benchCloses:
+		// THE LENS SITS AGAIN FOR ITS FULL RE-READ: a lens is delivered the whole report at its first
+		// sitting and at its next, and the PASS is held (whole_report_owed) until it has had both, so a
+		// run whose chair is permitted the PASS is one whose lens sat for the second.
+		r.dispatchSits("lens", converseLens)
 		r.dispatchReturns(converseLens, false)
+	case benchCloses:
+		// THE BENCH SITS ON A DOCKETED GAP ONCE NO OTHER PARTY'S CLOSING IS AWAITED, and only a sitting the
+		// plan convenes on the gap is delivered its passage, which the bench's ruling stands on: blue
+		// dockets the gap while the lens sits, and the lens files its closing on it before it returns.
 		r.register("blue", "blue-respond")
 		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
+		must("closing", "--seat-id", converseLens, "--id", open[0], "--reason", "fuzz: the lens's closing on the docketed gap")
+		r.dispatchReturns(converseLens, false)
 		r.dispatchSits("chair", "red-chair")
 		must("--json", "dispatch", "next", "--seat-id", "red-chair")
 		r.dispatchReturns("red-chair", false)

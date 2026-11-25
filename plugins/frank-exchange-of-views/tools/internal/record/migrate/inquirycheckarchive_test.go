@@ -3,6 +3,7 @@ package migrate_test
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"maps"
 	"slices"
 	"testing"
@@ -62,8 +63,11 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 			if res.In["inquiry_review"] != c.reviews || res.Out["inquiry_review"] != 0 {
 				t.Errorf("reviews: %d in, %d out; want %d in and none out", res.In["inquiry_review"], res.Out["inquiry_review"], c.reviews)
 			}
-			if n := countOf(t, ddb, `SELECT count(*) FROM "motion_rule"`); n != c.motionRules-c.rulings {
-				t.Errorf("the migrated record holds %d ruling(s), want the archive's %d less its %d on an inquiry", n, c.motionRules, c.rulings)
+			// A bench ruling on a motion about gaps with no delivery in its sitting is a lost act,
+			// listed in the manifest; every other ruling not on an inquiry arrives.
+			lost := migrate.LostByWord(res)["motion_rule"]
+			if n := countOf(t, ddb, `SELECT count(*) FROM "motion_rule"`); n != c.motionRules-c.rulings-lost {
+				t.Errorf("the migrated record holds %d ruling(s), want the archive's %d less its %d on an inquiry and its %d lost", n, c.motionRules, c.rulings, lost)
 			}
 			if n := countOf(t, ddb, `SELECT count(*) FROM "motion"`); n != c.motionsArchive-c.filings {
 				t.Errorf("the migrated record holds %d motion(s), want the archive's %d less its %d on an inquiry", n, c.motionsArchive, c.filings)

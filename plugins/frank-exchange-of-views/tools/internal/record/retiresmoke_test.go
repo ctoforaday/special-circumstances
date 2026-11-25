@@ -21,7 +21,7 @@ const mersenneArchive = "2026-10-30_mersenne-31-prime-sum.tar.gz"
 // from a number: migrate renumbers events.id.
 func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	const lens, blue = computationSeat, "blue-respond"
-	whole := archivedEvents(t, mersenneArchive)
+	whole, lost := archivedRun(t, mersenneArchive)
 	// place is the 1-based place of the first event at or after from that match holds — its events.id
 	// in every replay of a prefix that holds it.
 	place := func(what string, from int, match func(*Event) bool) int {
@@ -53,8 +53,38 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		})
 	}
 	full := archiveAt(t, mersenneArchive, whole, len(whole))
-	// benchClosing is the bench's ruling that closed gap: its last closing docket ruling.
+	// rulingLost is whether the migration lost the bench's ruling on a docket motion about gap (its
+	// manifest's lost_acts: the bench's sitting held no delivery of report text), and that motion.
+	rulingLost := func(gap string) (string, bool) {
+		for _, e := range whole {
+			m, ok := recordpb.BodyAs[*recordpb.Motion](e)
+			if !ok || m.GetDocket().GetGapId() != gap {
+				continue
+			}
+			if slices.ContainsFunc(lost, func(a LostAct) bool { return a.Word == "motion_rule" && a.Motion == m.GetMotionId() }) {
+				return m.GetMotionId(), true
+			}
+		}
+		return "", false
+	}
+	// benchClosing is the bench's ruling that closed gap: its last closing docket ruling. Where the
+	// migration lost that ruling, it is 0: the record holds no bench closing of the gap, its docket
+	// stands unruled on the bench's gavel.
 	benchClosing := func(gap string) int {
+		if motion, ok := rulingLost(gap); ok {
+			var n int
+			if err := readSnapshot(full, func(q recordsql.Querier) error {
+				return q.QueryRow(`SELECT COUNT(*) FROM "gap" WHERE "gap_id" = ? AND "bench_close_event" IS NOT NULL`, gap).Scan(&n)
+			}); err != nil || n != 0 {
+				t.Fatalf("the migration lost the bench's ruling on %s's docket %s, and the record holds a bench closing of it (%d, %v)", gap, motion, n, err)
+			}
+			if !slices.ContainsFunc(mustBlockers(t, full), func(b Blocker) bool {
+				return b.Kind == BlockerUnruledMotion && b.Subject == motion && b.Owner == benchSeat
+			}) {
+				t.Errorf("the bench's ruling on %s's docket %s is lost, and the motion does not stand unruled on the bench's gavel", gap, motion)
+			}
+			return 0
+		}
 		var at int
 		if err := readSnapshot(full, func(q recordsql.Querier) error {
 			return q.QueryRow(`SELECT "bench_close_event" FROM "gap" WHERE "gap_id" = ? AND "bench_close_event" IS NOT NULL`, gap).Scan(&at)
@@ -96,7 +126,7 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	b221, b342, s788 := benchClosing("G-221322e1"), benchClosing("G-342d3cdc"), mintOf("G-c7f98181")
 	_, s1Closed, s1Register := sittingAfter(r1)
 	_, s2Closed, s2Register := sittingAfter(r2)
-	if !(c221 < cA0 && cA0 < r1 && r1 < r2 && r1 < s1Register && s1Register < s1Closed && r2 < s2Register && s2Register < s2Closed && s1Closed < b221) {
+	if !(c221 < cA0 && cA0 < r1 && r1 < r2 && r1 < s1Register && s1Register < s1Closed && r2 < s2Register && s2Register < s2Closed && (b221 == 0 || s1Closed < b221)) {
 		t.Fatalf("the archive's order is not the smoke's: close %d, supersede %d, retire %d, retire %d, sittings (%d,%d) (%d,%d), bench %d",
 			c221, cA0, r1, r2, s1Register, s1Closed, s2Register, s2Closed, b221)
 	}
@@ -138,13 +168,16 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	}
 
 	// THE FINAL STATE: both gaps a retire met are answered and closed — G-342d3cdc by the bench,
-	// G-78817cfa by its successor's mint.
+	// G-78817cfa by its successor's mint. Where the bench's ruling on G-342d3cdc is lost, it reads
+	// open with its demand met, its docket standing (benchClosing).
+	_, lost342 := rulingLost("G-342d3cdc")
 	for _, g := range []string{"G-342d3cdc", "G-78817cfa"} {
-		if c := cols(len(whole), g); c.open || !c.answered || c.awaiting {
-			t.Errorf("final: %s reads %+v, want closed and its demand met", g, c)
+		wantOpen := g == "G-342d3cdc" && lost342
+		if c := cols(len(whole), g); c.open != wantOpen || !c.answered || c.awaiting {
+			t.Errorf("final: %s reads %+v, want open %v and its demand met", g, c, wantOpen)
 		}
 	}
-	if b342 == 0 || s788 < r2 {
+	if (b342 == 0 && !lost342) || s788 < r2 {
 		t.Errorf("the bench closed G-342d3cdc at %d, and G-c7f98181's mint closed G-78817cfa at %d, after the retire %d", b342, s788, r2)
 	}
 
@@ -174,14 +207,21 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		t.Errorf("the plan through %d does not engage %s on G-342d3cdc, which the retire at %d reached: parties %+v, why %q", r1+1, lens, r1, plan.Parties, plan.Why)
 	}
 
-	// G-221322e1: CLOSED BEFORE THE RETIRE TOOK ITS ANSWER, AND IT STAYS CLOSED.
-	for _, n := range []int{c221, r1 - 1, r1, r1 + 1, s1Register, s1Closed, b221 - 1, b221, len(whole)} {
+	// G-221322e1: CLOSED BEFORE THE RETIRE TOOK ITS ANSWER, AND IT STAYS CLOSED. Its answers stay
+	// retired until the bench's closing ruling, and to the end where that ruling is lost; a closing
+	// ruling clearing them is then held by TestADocketedGapsAnswersRetiredItemWaitsOnTheBench's
+	// "closed by the bench" arm, on a bench that sits with its delivery.
+	upTo := b221
+	if b221 == 0 {
+		upTo = len(whole) + 1
+	}
+	for _, n := range []int{c221, r1 - 1, r1, r1 + 1, s1Register, s1Closed, upTo - 1, min(upTo, len(whole)), len(whole)} {
 		c := cols(n, "G-221322e1")
 		if c.open {
 			t.Errorf("through %d G-221322e1 is open: a retire moves no closure", n)
 		}
 		want := sql.NullInt64{}
-		if n >= r1 && n < b221 {
+		if n >= r1 && n < upTo {
 			want = sql.NullInt64{Int64: int64(r1), Valid: true}
 		}
 		if c.retired != want {
@@ -192,7 +232,7 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	// motion stands unruled from before the retire until the bench's closing ruling, which is a later
 	// closing act. A docketed gap is off its lens's list, so this gap's item is never listed; the
 	// listed arm is G-a0c6ca1e's, below.
-	for _, n := range []int{r1 + 1, s1Register, s1Closed, b221 - 1, b221} {
+	for _, n := range []int{r1 + 1, s1Register, s1Closed, upTo - 1, min(upTo, len(whole))} {
 		if lists(n, "lens", lens, retiredItem("G-221322e1")) {
 			t.Errorf("through %d the lens's list holds G-221322e1's answers-retired item, with a docket motion standing unruled on it", n)
 		}
@@ -236,7 +276,11 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	// THROUGH THE EVENT BEFORE THE ACT THAT CLOSED IT, each gap a retire met is answered: its lens's close
 	// is the demand's to admit (the close itself is driven through the CLI in
 	// TestTheSmokesMetGapsCloseThroughTheCLI).
-	for g, n := range map[string]int{"G-342d3cdc": b342 - 1, "G-78817cfa": s788 - 1} {
+	through342 := b342 - 1
+	if lost342 {
+		through342 = len(whole)
+	}
+	for g, n := range map[string]int{"G-342d3cdc": through342, "G-78817cfa": s788 - 1} {
 		if c := cols(n, g); !c.open || !c.answered {
 			t.Errorf("through %d %s reads %+v, want open with its demand met", n, g, c)
 		}

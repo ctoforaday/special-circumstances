@@ -62,8 +62,9 @@ func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 // THE ARCHIVE IS THE FIXTURE. is-91-prime-b's blue-respond sat for G2 (register, log), and the
 // engine's sitting-record re-prompt registered again under agent_blue_respond_sitting_record and filed
 // a position, a revision and a log. Migrated, that register repairs nothing, so its acts are no
-// sitting's: the third blue sitting holds its own register and log, and record-parity is unmoved
-// because that sitting found G2 closed before it sat.
+// sitting's: the third blue sitting holds its own register and log. That sitting found G2 closed
+// before it sat; G2's close is a lost act (its lens's sitting holds no delivery), so the migrated
+// sitting finds it open and nothing else.
 func TestIs91PrimeBsReprompt(t *testing.T) {
 	tarball := archivePath(t, "2026-09-09_is-91-prime-b.tar.gz")
 	runDir := t.TempDir()
@@ -101,7 +102,16 @@ func TestIs91PrimeBsReprompt(t *testing.T) {
 	// ITS OWN REGISTER, AND NO LOG. The entry that sitting filed asserted a clean sitting, and
 	// that type is retired — clean is derived from a bracketed sitting that filed nothing — so the
 	// migration carries the register forward and drops the entry.
-	if got := strings.Join(types, ","); got != "register" || len(ss[2].Open) != 0 {
-		t.Errorf("blue sitting 3 = open %v, acts %s; want nothing open and its own register — the re-prompt repairs nothing once migrated", ss[2].Open, got)
+	// A gap open to that sitting is one whose archived close is a lost act (its lens's sitting holds
+	// no delivery): G2 was closed before the sitting in the archive, and only the loss leaves it open.
+	lostClose := migrate.LostCloseGaps(t, "2026-09-09_is-91-prime-b.tar.gz", res)
+	var notLost []string
+	for _, g := range ss[2].Open {
+		if !lostClose[g] {
+			notLost = append(notLost, g)
+		}
+	}
+	if got := strings.Join(types, ","); got != "register" || len(notLost) != 0 {
+		t.Errorf("blue sitting 3 = open %v (of which %v not left open by a lost close), acts %s; want nothing open but lost closes' gaps, and its own register — the re-prompt repairs nothing once migrated", ss[2].Open, notLost, got)
 	}
 }

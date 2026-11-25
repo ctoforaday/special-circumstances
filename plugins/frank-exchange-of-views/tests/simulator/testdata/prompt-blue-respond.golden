@@ -1,9 +1,10 @@
-prompt sha256: 2da6fa27ea642683fa280ff366e9190324596ea05e3c0366cf998188ee4cb7ec
+prompt sha256: 68e7fecc6fd2092ecf9bf35794de667ac02df47fb951f077526213587edcf37a
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G-00000002.
 WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.
 READ YOUR MANUAL FIRST; then pull your working set — the report and your work list — together, in one message.
+YOUR ITEMS ARRIVE ONE AT A TIME, each after a tool call of yours; the index lists the rest.
 SEAT_ID: blue-respond.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.

@@ -971,6 +971,69 @@ func TestRespondUpdatedInputEmitsWithoutExplicitDecision(t *testing.T) {
 	}
 }
 
+// A CLAUDE CODE PostToolUse CARRIES THE STOP AS continue:false WITH ITS REASON AS stopReason, on exit 0
+// (a non-zero exit is read as feedback, not a stop), beside whatever else the response says; a
+// response that does not terminate renders neither key, and the stop is PostToolUse's alone.
+func TestRespondClaudePostToolUseTerminateTurn(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		event     string
+		resp      Response
+		stop      bool
+		context   string
+		say       string
+		stderrHas string
+	}{
+		{name: "the stop alone", event: "PostToolUse", resp: Response{TerminateTurn: true, Reason: "the delivery cannot advance"}, stop: true},
+		{name: "the stop beside context and a line", event: "PostToolUse",
+			resp: Response{TerminateTurn: true, Reason: "r", AdditionalContext: "ctx", Say: "say"}, stop: true, context: "ctx", say: "say"},
+		{name: "the stop with feedback stays exit 0", event: "PostToolUse",
+			resp: Response{TerminateTurn: true, Reason: "r", Feedback: "fb"}, stop: true, stderrHas: "fb"},
+		{name: "no stop", event: "PostToolUse", resp: Response{AdditionalContext: "ctx", Reason: "r"}, context: "ctx"},
+		{name: "PostToolUseFailure carries no stop", event: "PostToolUseFailure", resp: Response{TerminateTurn: true, Reason: "r", AdditionalContext: "ctx"}, context: "ctx"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := Respond(Request{Engine: EngineClaude, Event: c.event}, c.resp, &stdout, &stderr, nil); code != 0 {
+				t.Fatalf("exit %d, want 0; stderr %s", code, stderr.String())
+			}
+			var doc map[string]any
+			if err := json.Unmarshal(stdout.Bytes(), &doc); err != nil {
+				t.Fatalf("output %q does not parse: %v", stdout.String(), err)
+			}
+			cont, hasCont := doc["continue"]
+			reason, hasReason := doc["stopReason"]
+			if c.stop {
+				if cont != false || reason != c.resp.Reason {
+					t.Errorf("continue=%v stopReason=%v, want false and %q: %s", cont, reason, c.resp.Reason, stdout.String())
+				}
+			} else if hasCont || hasReason {
+				t.Errorf("a response that does not stop rendered continue or stopReason: %s", stdout.String())
+			}
+			hso, _ := doc["hookSpecificOutput"].(map[string]any)
+			if got, _ := hso["additionalContext"].(string); got != c.context {
+				t.Errorf("additionalContext %q, want %q", got, c.context)
+			}
+			if got, _ := doc["systemMessage"].(string); got != c.say {
+				t.Errorf("systemMessage %q, want %q", got, c.say)
+			}
+			if !strings.Contains(stderr.String(), c.stderrHas) {
+				t.Errorf("stderr %q does not hold %q", stderr.String(), c.stderrHas)
+			}
+		})
+	}
+}
+
+// An Antigravity PostToolUse carries nothing back to the agent's turn: TerminateTurn there renders no stop.
+func TestRespondAntigravityPostToolUseIgnoresTerminateTurn(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	req := Request{Engine: EngineAntigravity, Event: "PostToolUse", SessionID: "conv-stop", PluginDataDir: t.TempDir()}
+	Respond(req, Response{TerminateTurn: true, Reason: "r"}, &stdout, &stderr, nil)
+	if out := stdout.String(); strings.Contains(out, "continue") || strings.Contains(out, "terminat") || strings.Contains(out, "stopReason") {
+		t.Errorf("an Antigravity PostToolUse rendered a stop: %s", out)
+	}
+}
+
 func TestAntigravity153To156PayloadFields(t *testing.T) {
 	// 1. PreToolUse with hookEventName, top-level cwd (empty workspacePaths), and toolCall.id (agy 1.5.4+)
 	preInput := `{

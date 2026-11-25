@@ -37,7 +37,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			Direction:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
@@ -48,6 +48,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 // offers it exactly where a seat that cannot produce an anchor will read it.
 func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,8 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Problem: proto.String("p"),
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, mint); err != nil {
+	// The lens mints, and closes from the sitting that holds its delivery.
+	if _, err := Append(sitRead(t, mustRun(t, runDir), evLens), mint); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +76,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 		AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified and holds"),
 	}
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, anchored); err != nil {
+	if err := validateRun(mustRun(t, runDir), evLens, recordpb.EventType_EVENT_TYPE_CLOSE, anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
 }
@@ -82,14 +84,17 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 // And a GENUINE carry still works: close once with an anchor, then restate it.
 func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id := NewID("gap")
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	// The lens mints and closes from the sitting that holds its delivery; the chair carries.
+	lens := sitRead(t, mustRun(t, runDir), evLens)
+	if _, err := Append(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{GapId: proto.String(id), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"), Prose: proto.String("verified at the leaf")}); err != nil {
+	if _, err := Append(lens, &recordpb.Close{GapId: proto.String(id), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"), Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}); err != nil {

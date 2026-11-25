@@ -145,7 +145,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('question_part_check', 
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_part', 'a lane''s part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool handed a delivery''s last report-text item into the seat''s context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens''s latest in a sitting it sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'red checking a recorded computation against its bundle''s re-run, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');

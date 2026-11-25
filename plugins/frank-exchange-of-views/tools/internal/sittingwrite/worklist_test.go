@@ -15,7 +15,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE OPENING END HANDS THE SEAT ITS WORK LIST (#1122).
+// THE SEAT'S WORK LIST ARRIVES WHOLE ONCE A SITTING (#1122): at the opening end, or — where the sitting
+// opens with report text — as the first item after it.
 //
 // The list is the seat-facing projection's own bytes, so what is asserted here is DELIVERY and the
 // ordering that makes it correct — not the list's content, which record.SittingOf owns and its own
@@ -42,12 +43,28 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
 		t.Fatal(err)
 	}
-	out := forSeat.String()
-	if !strings.HasPrefix(out, lensArrived[:40]) {
+	// A LENS'S FIRST SITTING OPENS WITH THE WHOLE REPORT, so the opening end hands the one line that
+	// says report text arrives on its calls, and the list arrives after the report text has: the
+	// first item past it carries the standing the opening line held back.
+	if got := forSeat.String(); got != reportTextArrives+"\n" {
+		t.Fatalf("the opening end handed %q, want the one line that report text arrives on the seat's calls", got)
+	}
+	var report, listed bytes.Buffer
+	if err := WriteNextItem(dir, "agent_01", "frank-exchange-of-views:red-lens-evidence", "claude", &report); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(report.String(), "One paragraph.") {
+		t.Fatalf("the first call did not hand the report text:\n%s", report.String())
+	}
+	if err := WriteNextItem(dir, "agent_01", "frank-exchange-of-views:red-lens-evidence", "claude", &listed); err != nil {
+		t.Fatal(err)
+	}
+	out := listed.String()
+	if !strings.HasPrefix(out, dispatchArrived[:40]) {
 		t.Fatalf("the list arrived without the preamble that says it arrived:\n%s", out)
 	}
 	body := out[strings.Index(out, "{"):]
-	var d lensDelivery
+	var d seatDelivery
 	if err := json.Unmarshal([]byte(body), &d); err != nil {
 		t.Fatalf("what was handed to the lens is not its delivery (%v):\n%s", err, body)
 	}
@@ -80,9 +97,14 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 			t.Errorf("the list was rendered before the span it depends on: %q", it.What)
 		}
 	}
-	// THE FIRST READ IS THE AUDIT, AND IT IS THE CURRENT ITEM.
-	if d.Current == nil || d.Current.Kind != record.ItemAudit {
-		t.Errorf("a lens dispatched for its first read was handed %+v as current, want its audit", d.Current)
+	// THE FIRST READ IS THE AUDIT, AND THE REPORT TEXT JUST HANDED IS ITS TEXT: once delivered, the
+	// audit is a note on the standing, not an item queued again.
+	audit := false
+	for _, it := range all {
+		audit = audit || it.Kind == record.ItemAudit
+	}
+	if d.Current != nil || !audit {
+		t.Errorf("a lens handed its first report text was handed %+v as current, audit noted %v — want nothing queued and the audit on its standing", d.Current, audit)
 	}
 }
 
@@ -134,7 +156,7 @@ func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
 			t.Errorf("the failure does not say %q — a seat would read it as a clean board:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, arrived[:40]) {
+	if strings.Contains(out, dispatchArrived[:40]) {
 		t.Errorf("a failed render carried the preamble that says the list arrived:\n%s", out)
 	}
 }

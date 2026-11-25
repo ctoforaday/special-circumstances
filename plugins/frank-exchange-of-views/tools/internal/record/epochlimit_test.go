@@ -9,7 +9,7 @@ import (
 // blue has not yet acted on.
 func epochTwo(t *testing.T) *stage {
 	return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
+		register("red-chair").readFully(2, evLens).mint(evLens, "G1", "high").
 		register("red-chair") // epoch 2
 }
 

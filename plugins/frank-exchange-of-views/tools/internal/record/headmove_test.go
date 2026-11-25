@@ -14,12 +14,12 @@ import (
 // so the head stays at the last edit or part, a lens that read the report there is not readied again,
 // and area_change holds nothing for it. The anchor fact reaches seats through their work lists.
 func TestARetireDoesNotMoveTheReportHeadOrReadyTheLensBehindIt(t *testing.T) {
-	plan0 := planOf(t, retBoard(t).sit(2, evLens))
+	plan0 := planOf(t, retBoard(t).readFully(2, evLens))
 	if lensReady(plan0) {
 		t.Fatalf("a lens that has read the report at the head is not ready before the retire: %+v", plan0)
 	}
 	before := plan0.Head
-	b := retBoard(t).sit(2, evLens).retire("C1")
+	b := retBoard(t).readFully(2, evLens).retire("C1")
 	retire := int64(b.n)
 	run := b.seed()
 

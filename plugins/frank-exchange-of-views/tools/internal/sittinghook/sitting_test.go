@@ -336,7 +336,7 @@ func TestTheEnvelopeHandoffCarriesTheCallAndReadsTheWritersAnswer(t *testing.T) 
 		t.Skipf("cannot place a writer beside the test binary: %v", err)
 	}
 	t.Cleanup(func() { _ = os.Remove(stub) })
-	answer, err := Envelope(t.TempDir(), "a1", []byte(`{"notes":"n"}`))
+	answer, err := Envelope(t.TempDir(), "a1", "claude", []byte(`{"notes":"n"}`))
 	if err != nil || string(answer.Envelope) != `{"notes":"n"}` {
 		t.Errorf("the writer was not handed the call's arguments (%v): %+v", err, answer)
 	}

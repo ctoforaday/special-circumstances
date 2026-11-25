@@ -64,7 +64,12 @@ type Manifest struct {
 	// write (migrate/outcomes.go): the record holds one outcome, the latest. Empty is stated as [].
 	SupersededOutcomes []SupersededOutcome `json:"superseded_outcomes"`
 	Accepted           map[string]string   `json:"accepted_losses,omitempty"`
-	IDs                map[string]string   `json:"ids,omitempty"` // archived id or finding label -> migrated id
+	// LostActs is each archived act written as no event because the write refuses it and no
+	// translation can make it stand: an accepted loss, one row per act, its word's reason in
+	// Accepted. An archived close, spot-check or ruling on a motion about gaps that its sitting
+	// holds no delivery of report text for is one (record.DeliveredTextRefusal).
+	LostActs []Refusal         `json:"lost_acts,omitempty"`
+	IDs      map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id
 	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
 	GapAnchors GapPlacement `json:"gap_anchors"`

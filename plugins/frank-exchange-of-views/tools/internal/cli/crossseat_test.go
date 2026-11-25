@@ -161,7 +161,8 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 // a spot-check naming nothing, with --reason, is exactly that path. The claim was unverified self-report, which
 // is the friction-channel defect Gray Area exists to catch — so the refutation gets a test.
 func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
-	runDir := seatRun(t)
+	// A spot-check is the chair's over a stale area; the archive it samples is empty.
+	runDir := staleAreaRun(t)
 	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
