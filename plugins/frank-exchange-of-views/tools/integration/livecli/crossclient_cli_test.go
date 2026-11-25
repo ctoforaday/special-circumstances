@@ -257,6 +257,9 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	if !strings.Contains(string(modelsOut), targetAgyModel) {
 		t.Fatalf("expected live `agy models` output to include %q, got:\n%s", targetAgyModel, modelsOut)
 	}
+	// `feov-record setup` validates Antigravity seats against run_workflow's declared tier names
+	// (inherit, flash_lite, flash, pro), not raw underlying model IDs.
+	const targetAgyTier = "flash"
 
 	pluginStage := filepath.Join(t.TempDir(), "frank-exchange-of-views")
 	srcRoot := feovPluginRoot(t)
@@ -297,7 +300,7 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 		"--topic", "live cross-client setup",
 		"--bulk", "haiku",
 		"--judgment", "sonnet",
-		"--seat", "red-lens-dark-side=antigravity:"+targetAgyModel,
+		"--seat", "red-lens-dark-side=antigravity:"+targetAgyTier,
 		"--cite", "README.md",
 	)
 	goodCmd.Dir = workDir
@@ -319,8 +322,8 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	if err := json.Unmarshal(cfgBytes, &cfg); err != nil {
 		t.Fatalf("unmarshal run-config.json: %v\n%s", err, cfgBytes)
 	}
-	if got := cfg.Seats["red-lens-dark-side"]; got.Harness != "antigravity" || got.Model != targetAgyModel {
-		t.Fatalf("red-lens-dark-side = %+v, want antigravity:%s", got, targetAgyModel)
+	if got := cfg.Seats["red-lens-dark-side"]; got.Harness != "antigravity" || got.Model != targetAgyTier {
+		t.Fatalf("red-lens-dark-side = %+v, want antigravity:%s", got, targetAgyTier)
 	}
 	if got := cfg.Seats["red-chair"]; got.Harness != "claude" || got.Model != "sonnet" {
 		t.Fatalf("red-chair = %+v, want claude:sonnet", got)
@@ -343,8 +346,8 @@ func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	if err := json.Unmarshal(tiersOut, &tierRep); err != nil {
 		t.Fatalf("decode show tiers output: %v\n%s", err, tiersOut)
 	}
-	if got := tierRep.ConfiguredSeats["red-lens-dark-side"]; got.Harness != "antigravity" || got.Model != targetAgyModel {
-		t.Fatalf("tiers configuredSeats[red-lens-dark-side] = %+v, want antigravity:%s", got, targetAgyModel)
+	if got := tierRep.ConfiguredSeats["red-lens-dark-side"]; got.Harness != "antigravity" || got.Model != targetAgyTier {
+		t.Fatalf("tiers configuredSeats[red-lens-dark-side] = %+v, want antigravity:%s", got, targetAgyTier)
 	}
 
 	dashCmd := exec.Command(feovRecord, "dashboard", "--seat-id", "operator", runDir, filepath.Join(runDir, "trajectories"))

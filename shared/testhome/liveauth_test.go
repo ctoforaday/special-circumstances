@@ -281,6 +281,7 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 		"PLUGIN_ROOT=/host/plugin",
 		"PLUGIN_DATA=/host/plugin-data",
 		"XDG_CONFIG_HOME=/host/xdg",
+		"APPDATA=/host/appdata",
 	}
 	fakeHome := t.TempDir()
 	env, extraDirs, err := testhome.BuildLiveEnv(base, fakeHome, host, "CLAUDE_CODE_OAUTH_TOKEN=lent-access-token")
@@ -301,7 +302,7 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 	if kv["CLAUDE_CODE_OAUTH_TOKEN"] != "lent-access-token" {
 		t.Fatalf("lent extra token lost: %q", kv["CLAUDE_CODE_OAUTH_TOKEN"])
 	}
-	for _, stripped := range []string{"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTIGRAVITY_CSRF_TOKEN", "FEOV_RUN", "PLUGIN_ROOT", "PLUGIN_DATA", "XDG_CONFIG_HOME"} {
+	for _, stripped := range []string{"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTIGRAVITY_CSRF_TOKEN", "FEOV_RUN", "PLUGIN_ROOT", "PLUGIN_DATA", "XDG_CONFIG_HOME", "APPDATA"} {
 		if v, ok := kv[stripped]; ok {
 			t.Errorf("BuildLiveEnv did not strip %s (got %q)", stripped, v)
 		}
@@ -577,21 +578,35 @@ func TestGuardLiveTempHomeStructuralMatrix(t *testing.T) {
 
 	t.Run("host token rotated mid-test then copied under renamed path is caught at cleanup", func(t *testing.T) {
 		rotHost := t.TempDir()
-		rotDir := filepath.Join(rotHost, ".claude")
-		rotFile := filepath.Join(rotDir, ".credentials.json")
-		_ = os.MkdirAll(rotDir, 0o700)
-		_ = os.WriteFile(rotFile, []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-INITIAL"}}`), 0o600)
+		rotClaudeDir := filepath.Join(rotHost, ".claude")
+		rotClaudeFile := filepath.Join(rotClaudeDir, ".credentials.json")
+		rotAgyDir := filepath.Join(rotHost, ".gemini", "antigravity-cli")
+		rotAgyFile := filepath.Join(rotAgyDir, "antigravity-oauth-token")
+		_ = os.MkdirAll(rotClaudeDir, 0o700)
+		_ = os.MkdirAll(rotAgyDir, 0o700)
+		_ = os.WriteFile(rotClaudeFile, []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-INITIAL"}}`), 0o600)
+		_ = os.WriteFile(rotAgyFile, []byte(`{"token":{"refresh_token":"1//AGY-INITIAL"}}`), 0o600)
 
 		g := testhome.NewHostRefreshGuardFrom(rotHost)
-		// Host legitimately rotates mid-test, then a rogue child copies the NEW token under a renamed path.
-		const rotatedSecret = "sk-ant-ort01-ROTATED-MID-TEST"
-		_ = os.WriteFile(rotFile, []byte(fmt.Sprintf(`{"claudeAiOauth":{"refreshToken":%q}}`, rotatedSecret)), 0o600)
+		// Host legitimately rotates both tokens mid-test, then a rogue child copies each NEW token
+		// under a renamed path (pins both Claude and Antigravity re-reads, closing N4b).
+		const rotatedClaude = "sk-ant-ort01-ROTATED-MID-TEST"
+		const rotatedAgy = "1//AGY-ROTATED-MID-TEST"
+		_ = os.WriteFile(rotClaudeFile, []byte(fmt.Sprintf(`{"claudeAiOauth":{"refreshToken":%q}}`, rotatedClaude)), 0o600)
+		_ = os.WriteFile(rotAgyFile, []byte(fmt.Sprintf(`{"token":{"refresh_token":%q}}`, rotatedAgy)), 0o600)
 
-		fake := t.TempDir()
-		_ = os.WriteFile(filepath.Join(fake, "sneaky-renamed-copy"), []byte(rotatedSecret), 0o600)
-		errs := runGuard(t, g, fake)
-		if len(errs) == 0 || !strings.Contains(errs[0], "host Claude refresh token") || strings.Contains(errs[0], rotatedSecret) {
-			t.Fatalf("expected mid-test rotated host token copy to be caught without secret leak, got %v", errs)
+		fakeClaude := t.TempDir()
+		_ = os.WriteFile(filepath.Join(fakeClaude, "sneaky-renamed-copy"), []byte(rotatedClaude), 0o600)
+		errs := runGuard(t, g, fakeClaude)
+		if len(errs) == 0 || !strings.Contains(errs[0], "host Claude refresh token") || strings.Contains(errs[0], rotatedClaude) {
+			t.Fatalf("expected mid-test rotated host Claude token copy to be caught without secret leak, got %v", errs)
+		}
+
+		fakeAgy := t.TempDir()
+		_ = os.WriteFile(filepath.Join(fakeAgy, "sneaky-agy-renamed-copy"), []byte(rotatedAgy), 0o600)
+		errs = runGuard(t, g, fakeAgy)
+		if len(errs) == 0 || !strings.Contains(errs[0], "host Antigravity refresh token") || strings.Contains(errs[0], rotatedAgy) {
+			t.Fatalf("expected mid-test rotated host Antigravity token copy to be caught without secret leak, got %v", errs)
 		}
 	})
 
@@ -690,7 +705,7 @@ func TestLiveTestsUseTesthome(t *testing.T) {
 						if s == "HOOKCORE_LIVE" {
 							fi.hasLive = true
 						}
-						if strings.HasPrefix(s, "HOME=") {
+						if strings.HasPrefix(s, "HOME=") || strings.HasPrefix(s, "USERPROFILE=") {
 							fi.rawHomeSetup = true
 						}
 					}
