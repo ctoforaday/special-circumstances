@@ -130,19 +130,10 @@ func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	}
 }
 
-// A VALUE ANOTHER PACKAGE OWNS IS NOT THE RECORD'S TO REFUSE. `hooks` is hookprovenance's shape, which
-// moves with no epoch bump, so a key that package adds or drops must not refuse the run's
-// configuration; the top-level key set stays strict, and `billing`, which the record owns, is typed.
-func TestTheRunConfigHoldsAnotherPackagesValueRaw(t *testing.T) {
+// A VALUE THE RECORD OWNS IS TYPED, TO ITS OWN KEYS. `billing` is BillingIdentity, so a key that
+// type does not declare refuses the run's configuration as a top-level one does.
+func TestTheRunConfigReadsBillingStrictly(t *testing.T) {
 	dir := t.TempDir()
-	writeRunConfig(t, dir, `{"k":2,"hooks":{"aFieldHookprovenanceMayAdd":1,"state":"x"}}`)
-	rc, err := readRunConfig(dir)
-	if err != nil {
-		t.Fatalf("a hooks value with a key the record does not declare refused the run's configuration: %v", err)
-	}
-	if !strings.Contains(string(rc.Hooks), "aFieldHookprovenanceMayAdd") {
-		t.Errorf("hooks read back as %s, want the value as written", rc.Hooks)
-	}
 	writeRunConfig(t, dir, `{"k":2,"billing":{"isolated":false,"notABillingField":1}}`)
 	if _, err := readRunConfig(dir); err == nil {
 		t.Error("a billing value with a key BillingIdentity does not declare read as a configuration")

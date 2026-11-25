@@ -1,6 +1,14 @@
 package nativehelper
 
-import "os"
+import (
+	"os"
+	"slices"
+	"strings"
+)
+
+// EnvPaused names the helpers CI builds none of, space-separated (scripts/releaseassets reads the
+// same variable to drop their native-build legs). A test that requires a paused helper skips.
+const EnvPaused = "NATIVE_HELPERS_PAUSED"
 
 // TB is the part of testing.TB that Require uses; it keeps package testing out of the shipped
 // binaries that import this package.
@@ -13,8 +21,10 @@ type TB interface {
 
 // Require is a running helper for a test, or the test's end:
 //
+//   - the helper named in NATIVE_HELPERS_PAUSED: the test skips, saying so, because CI builds
+//     none of it.
 //   - NATIVE_HELPER_DIR unset under GITHUB_ACTIONS: the test FAILS. CI never skips for want of a
-//     helper.
+//     helper it builds.
 //   - NATIVE_HELPER_DIR=none: the test skips, saying so.
 //   - NATIVE_HELPER_DIR unset outside CI: the test skips, saying so.
 //   - Otherwise the helper must be found there and pass its handshake, or the test fails; a
@@ -34,6 +44,9 @@ func Require(t TB, helper string) *Client {
 func require(t TB, name string, pins Pins) *Client {
 	t.Helper()
 	switch dir, set := os.LookupEnv(EnvDir); {
+	case slices.Contains(strings.Fields(os.Getenv(EnvPaused)), name):
+		t.Skipf("SKIPPED, NOT PASSED: %s names %s, so CI builds none and this test has none to run.", EnvPaused, name)
+		return nil
 	case !set && os.Getenv("GITHUB_ACTIONS") != "":
 		t.Fatalf("%s is unset under GITHUB_ACTIONS: CI runs this test against a built %s. Set %s to the directory holding it, or to none to run without one.",
 			EnvDir, name, EnvDir)

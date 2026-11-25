@@ -396,6 +396,7 @@ func (r *runner) readFoundClearing(seatID, quote string) int64 {
 	marked, once := sentenceMarked(cur, quote)
 	if !once {
 		noteEither([]string{"verify"}, "a clearing found-source reading of a sentence the report no longer holds once", false)
+		r.noteDebtDetail(seatID, "the clearing reading was not tried: the report no longer holds the sentence once")
 		return 0
 	}
 	outcome := "supports"
@@ -409,8 +410,10 @@ func (r *runner) readFoundClearing(seatID, quote string) int64 {
 		switch {
 		case ok && env.Code == string(feov.Validation) && strings.Contains(env.Error, "this sentence is marked by"):
 			noteEither(c.args, "a clearing found-source reading, refused by a cite marking the sentence in between", false)
+			r.noteDebtDetail(seatID, "the clearing reading was refused: "+firstLine(env.Error))
 		case ok && env.Code == string(feov.Validation) && strings.Contains(env.Error, "was not found in report.md"):
 			noteEither(c.args, "a clearing found-source reading, refused by the report's placement under blue's edit", false)
+			r.noteDebtDetail(seatID, "the clearing reading was refused: "+firstLine(env.Error))
 		default:
 			r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 		}

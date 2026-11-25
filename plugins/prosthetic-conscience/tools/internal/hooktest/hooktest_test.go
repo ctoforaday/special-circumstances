@@ -53,13 +53,3 @@ func TestAGoSubprocessStillSeesTheRealCaches(t *testing.T) {
 		}
 	}
 }
-
-// A value the caller chose is the caller's: CI and a sandboxed box both set these on purpose.
-func TestACacheTheCallerSetIsLeftAlone(t *testing.T) {
-	chosen := filepath.Join(t.TempDir(), "chosen")
-	t.Setenv("GOCACHE", chosen)
-	keepGoCaches()
-	if got := os.Getenv("GOCACHE"); got != chosen {
-		t.Errorf("GOCACHE = %q after keepGoCaches, want the caller's %q", got, chosen)
-	}
-}

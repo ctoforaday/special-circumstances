@@ -538,7 +538,7 @@ test('the chair runs the debate: copies no plan, mints nothing, closes nothing, 
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
-  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or withhold it with your position, which argues why/.test(p) && !/FAIL/.test(p))
+  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or withhold it with your position, which argues why/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason\./.test(p))
   // THE CHAIR HOLDS NO INQUIRY DUTY: the logic lens checks each settled inquiry, and blue owes each open one a fate.

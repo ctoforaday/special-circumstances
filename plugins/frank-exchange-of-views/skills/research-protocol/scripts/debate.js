@@ -14,10 +14,10 @@ export const meta = {
 //   Logic bugs are unit-testable for zero tokens: a Node harness stubs agent() with canned
 //   envelopes and drives every branch (args parsing, dispatch loop, contested docket, impasse,
 //   ceiling, null returns). Founding regressions: stringified args -> undefined paths (run 1);
-//   missing null-guard on agent() returns (run 2); lineage-blind docket + degenerate
-//   FAIL-with-empty-gaps (run 3 retrospective, report §3 rows 20-24).
-//   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, 1 round,
-//   model=haiku) exercises the pipeline for ~50k tokens.
+//   missing null-guard on agent() returns (run 2); lineage-blind docket (run 3 retrospective,
+//   report §3 rows 20-24).
+//   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, --k-max 2,
+//   haiku on every seat) exercises the pipeline for ~50k tokens.
 //   Per-seat models are REQUIRED — `seats` must name every debating seat (plus `blue-lane`)
 //   with `{ harness: 'claude', model }`. The engine throws rather than guess a tier or inherit
 //   the session model: a silently expensive (or silently cheap) tier was the #111 trap. NEVER

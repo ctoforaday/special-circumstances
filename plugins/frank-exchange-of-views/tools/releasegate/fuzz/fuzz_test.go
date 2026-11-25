@@ -543,6 +543,11 @@ type runner struct {
 	// debtLeft marks each seat whose sitting in progress leaves its reading debts standing (leaveDebt):
 	// its envelope is refused over them and the sitting ends without one (envelopeEnds).
 	debtLeft map[string]bool
+	// debtTried is, by lens, what answerReadingDebt's latest pass did about each reading debt it left
+	// standing, and debtDetail the latest silent refusal or give-up one of its acts met: envelopeEnds
+	// names both beside an envelope refused over a debt, which the anchor note (owedRecheck) never covers.
+	debtTried  map[string][]string
+	debtDetail map[string]string
 	// crossArmRuns is how many times the cross-arm drive ran this run (crossArmMints), and oneURLDone
 	// whether the one-url drive did (oneURLTwoSentences).
 	crossArmRuns int
@@ -10318,6 +10323,9 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		if why == "" {
 			why = "no re-check of an owed anchor was refused"
 		}
+		// A READING DEBT'S STORY IS ITS OWN: the anchor note above says nothing of one, so what the
+		// lens's last pass at its debts did, and what stopped it, is named beside it.
+		why += "; " + r.debtTriedWords(seatID)
 		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "]")
 	default:
 		noteEnvelope(seatID, "admitted")

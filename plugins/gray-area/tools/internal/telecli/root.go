@@ -48,21 +48,37 @@ type Env struct {
 	// the store opened, so an Env built without it keeps every verb's behaviour.
 	Boot func() (int64, bool)
 	// RuntimeDir is $XDG_RUNTIME_DIR, where Antigravity server records live; empty means none
-	// are kept. Getenv reads the calling process's environment. Both are injected so a test can
-	// stand in an Antigravity shell without being one.
-	RuntimeDir string
-	Getenv     func(string) string
+	// are kept. DaemonRoot is the Antigravity CLI root (~/.gemini/antigravity-cli) that the
+	// remote-control daemon serves; route 2 (daemon wake) is restricted to conversations under it.
+	// Getenv reads the calling process's environment. HostServer, CurrentDaemon, and
+	// ConversationBusy probe local Antigravity server/lock state. All are injected so tests can
+	// stand in an Antigravity shell or daemon without being one.
+	RuntimeDir       string
+	DaemonRoot       string
+	Getenv           func(string) string
+	HostServer       func() peer.ServerIdentity
+	CurrentDaemon    func() (peer.ServerIdentity, bool)
+	ConversationBusy func(agyRoot, conversation string, excludePID int) (bool, string)
 }
 
 // Defaults resolves the environment a real invocation runs in.
 func Defaults() Env {
-	e := Env{Now: time.Now, Boot: catalogue.BootTime, RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"), Getenv: os.Getenv}
+	e := Env{
+		Now:              time.Now,
+		Boot:             catalogue.BootTime,
+		RuntimeDir:       os.Getenv("XDG_RUNTIME_DIR"),
+		Getenv:           os.Getenv,
+		HostServer:       peer.HostServer,
+		CurrentDaemon:    peer.CurrentDaemon,
+		ConversationBusy: peer.ConversationBusy,
+	}
 	if dir, err := catalogue.DefaultDir(); err == nil {
 		e.Store = filepath.Join(dir, "catalogue.db")
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		e.ProjectsDir = filepath.Join(home, ".claude", "projects")
 		e.SessionsDir = filepath.Join(home, ".claude", "sessions")
+		e.DaemonRoot = filepath.Join(home, ".gemini", "antigravity-cli")
 	}
 	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
 	e.AnnotationsDirs = peer.DefaultAntigravityAnnotationsDirs()
@@ -149,7 +165,7 @@ func NewRoot(env Env) *cobra.Command {
 			if env.Getenv == nil || cmd.Name() == "link" {
 				return
 			}
-			if _, _, err := peer.Register(env.RuntimeDir, env.Getenv, env.Now()); err != nil {
+			if _, _, err := peer.RegisterWith(env.RuntimeDir, env.Getenv, env.hostServer(), env.Now()); err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy: this conversation's server was not recorded, so telepathy send cannot wake it: %v\n", err)
 			}
 		},

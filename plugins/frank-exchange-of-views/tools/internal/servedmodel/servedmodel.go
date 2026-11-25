@@ -89,6 +89,7 @@ func readWithKind(r io.Reader) (o Observation, ok bool, sawAntigravity bool) {
 		var j struct {
 			Source  string `json:"source"`
 			Type    string `json:"type"`
+			Model   string `json:"model"`
 			Message struct {
 				Model   string `json:"model"`
 				Content []struct {
@@ -120,6 +121,9 @@ func readWithKind(r io.Reader) (o Observation, ok bool, sawAntigravity bool) {
 		}
 		if o.Served == "" && j.Message.Model != "" {
 			o.Served = j.Message.Model
+		}
+		if o.Served == "" && j.Model != "" {
+			o.Served = j.Model
 		}
 	}
 	// A scan error over a partially-written file still yields what was read before it.

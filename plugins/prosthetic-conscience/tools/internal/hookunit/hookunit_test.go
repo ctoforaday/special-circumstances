@@ -1,8 +1,8 @@
 package hookunit
 
 import (
-	"fmt"
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 	"io"
 	"os"
 	"strings"
@@ -183,18 +183,4 @@ func testRecorder() *hookfailures.Recorder {
 }
 
 // No test in this package may write the real failure record.
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "pc-hookfailures-test-")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "TestMain:", err)
-		os.Exit(1)
-	}
-	defer os.RemoveAll(dir)
-	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
-		if err := os.Setenv(k, dir); err != nil {
-			fmt.Fprintln(os.Stderr, "TestMain:", err)
-			os.Exit(1)
-		}
-	}
-	os.Exit(m.Run())
-}
+func TestMain(m *testing.M) { os.Exit(testhome.Run(m, "pc-hookfailures-test-")) }

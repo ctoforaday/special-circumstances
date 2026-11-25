@@ -49,6 +49,25 @@ func Recognized(m string) bool {
 	return false
 }
 
+// AntigravityTiers are the model tiers Antigravity's run_workflow agent() primitive accepts.
+var AntigravityTiers = []string{"inherit", "flash_lite", "flash", "pro"}
+
+// RecognizedAntigravity reports whether m is one of the model tiers run_workflow's agent() accepts.
+func RecognizedAntigravity(m string) bool {
+	for _, t := range AntigravityTiers {
+		if m == t {
+			return true
+		}
+	}
+	return false
+}
+
+// RecognizedAntigravityServed reports whether a served model id maps to a known Antigravity tier
+// (flash_lite, flash, or pro).
+func RecognizedAntigravityServed(served string) bool {
+	return SameModel("flash_lite", served) || SameModel("flash", served) || SameModel("pro", served)
+}
+
 // Rank is a tier's position on the ladder. A tier not on it ranks dearest, matching Of's fallback.
 func Rank(tier string) int {
 	for i, k := range Order {
@@ -162,13 +181,27 @@ func LookupSeat(seats map[string]SeatSpec, seatID string) (SeatSpec, bool) {
 }
 
 // SameModel reports whether a served model matches the configured model: Anthropic tier match
-// when both are recognized Anthropic tiers, and exact case-insensitive ID match otherwise.
+// when both are recognized Anthropic tiers, Antigravity run_workflow tier match when configured
+// is an Antigravity tier, and exact case-insensitive ID match otherwise.
 func SameModel(configured, served string) bool {
 	if configured == "" || served == "" {
 		return false
 	}
 	if Recognized(configured) && Recognized(served) {
 		return Of(configured) == Of(served)
+	}
+	if RecognizedAntigravity(configured) {
+		s := strings.ToLower(strings.TrimSpace(served))
+		switch configured {
+		case "inherit":
+			return s != ""
+		case "flash_lite":
+			return strings.Contains(s, "flash-lite") || strings.Contains(s, "flash_lite")
+		case "flash":
+			return strings.Contains(s, "flash") && !strings.Contains(s, "flash-lite") && !strings.Contains(s, "flash_lite")
+		case "pro":
+			return strings.Contains(s, "pro")
+		}
 	}
 	return strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(served))
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -30,12 +31,15 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	removeFakes := nativehelpertest.CleanupAtExit()
 	code := m.Run()
 
-	if err := recordtest.CheckOrphanedHandles(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		if code == 0 {
-			code = 1
+	for _, check := range []func() error{removeFakes, recordtest.CheckOrphanedHandles} {
+		if err := check(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			if code == 0 {
+				code = 1
+			}
 		}
 	}
 	os.Exit(code)
