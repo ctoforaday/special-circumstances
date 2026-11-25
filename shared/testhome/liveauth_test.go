@@ -310,6 +310,17 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 		t.Errorf("BuildLiveEnv did not disable auto-updaters")
 	}
 
+	// Rejects fakeHome equal to hostHome or an ancestor of hostHome up front (SHOULD #6).
+	if _, _, err := testhome.BuildLiveEnv(base, host, host); err == nil || !strings.Contains(err.Error(), "is or contains host home") {
+		t.Fatalf("expected fakeHome==host refusal up front, got %v", err)
+	}
+	if _, _, err := testhome.BuildLiveEnv(base, filepath.Dir(host), host); err == nil || !strings.Contains(err.Error(), "is or contains host home") {
+		t.Fatalf("expected fakeHome ancestor-of-host refusal up front, got %v", err)
+	}
+	// Rejects any *REFRESH* env key name up front (SHOULD #6).
+	if _, _, err := testhome.BuildLiveEnv(base, fakeHome, host, "CLAUDE_CODE_OAUTH_REFRESH_TOKEN=non-host-val"); err == nil || !strings.Contains(err.Error(), "refresh credential") {
+		t.Fatalf("expected *REFRESH* env key refusal, got %v", err)
+	}
 	// Rejects CLAUDE_CONFIG_DIR pointing into hostHome.
 	if _, _, err := testhome.BuildLiveEnv(base, fakeHome, host, "CLAUDE_CONFIG_DIR="+filepath.Join(host, ".claude")); err == nil || !strings.Contains(err.Error(), "points into host home") {
 		t.Fatalf("expected host-home path refusal, got %v", err)
@@ -325,19 +336,45 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 		t.Fatalf("expected external CLAUDE_CONFIG_DIR returned for scan, got dirs=%v err=%v", extDirs, err)
 	}
 
-	// Scratch TMPDIR living under hostHome/.claude/scratch/tmp must work cleanly while still
-	// refusing hostHome itself and hostHome/.claude.
+	// Scratch TMPDIR living under hostHome/.claude/scratch/tmp must work cleanly on every OS
+	// (setting TMPDIR for Unix and TMP/TEMP for Windows where os.TempDir reads TMP/TEMP) while
+	// still refusing hostHome itself and hostHome/.claude.
 	scratchTmp := filepath.Join(host, ".claude", "scratch", "tmp")
 	scratchFake := filepath.Join(scratchTmp, "fake-home")
 	scratchState := filepath.Join(scratchTmp, "state-dir")
 	_ = os.MkdirAll(scratchFake, 0o700)
 	_ = os.MkdirAll(scratchState, 0o700)
 	t.Setenv("TMPDIR", scratchTmp)
+	t.Setenv("TMP", scratchTmp)
+	t.Setenv("TEMP", scratchTmp)
 	if _, _, err := testhome.BuildLiveEnv(base, scratchFake, host, "XDG_STATE_HOME="+scratchState); err != nil {
 		t.Fatalf("BuildLiveEnv under scratch TMPDIR failed: %v", err)
 	}
 	if _, _, err := testhome.BuildLiveEnv(base, scratchFake, host, "CLAUDE_CONFIG_DIR="+filepath.Join(host, ".claude")); err == nil {
 		t.Fatalf("expected host .claude refusal even under scratch TMPDIR")
+	}
+}
+
+// TestLiveEnvGuardsExternalClaudeConfigDir pins M11: calling the public testhome.LiveEnv must
+// register a cleanup guard covering both fakeHome and any external CLAUDE_CONFIG_DIR.
+func TestLiveEnvGuardsExternalClaudeConfigDir(t *testing.T) {
+	host := t.TempDir()
+	t.Setenv("HOME", host)
+	t.Setenv("USERPROFILE", host)
+
+	ft := &fakeLiveT{t: t}
+	fakeHome := t.TempDir()
+	extCfg := t.TempDir()
+	_ = testhome.LiveEnv(ft, fakeHome, "CLAUDE_CONFIG_DIR="+extCfg)
+	if len(ft.cleanups) == 0 {
+		t.Fatal("LiveEnv did not register cleanup guard")
+	}
+	if err := os.WriteFile(filepath.Join(extCfg, ".credentials.json"), []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-ext-leak"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ft.runCleanups()
+	if len(ft.errors) == 0 || !strings.Contains(ft.errors[0], "refreshToken") {
+		t.Fatalf("LiveEnv cleanup did not catch leaked refreshToken in external CLAUDE_CONFIG_DIR, got %v", ft.errors)
 	}
 }
 
@@ -504,6 +541,60 @@ func TestGuardLiveTempHomeStructuralMatrix(t *testing.T) {
 		}
 	})
 
+	t.Run("unreadable 0000 directory fails closed as not scanned (M4d)", func(t *testing.T) {
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Skip("0000 permissions check requires non-root Unix")
+		}
+		g := testhome.NewHostRefreshGuardFrom(host)
+		fake := t.TempDir()
+		d := filepath.Join(fake, "unreadable-dir")
+		_ = os.MkdirAll(d, 0o700)
+		_ = os.WriteFile(filepath.Join(d, "inner"), []byte("x"), 0o600)
+		if err := os.Chmod(d, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(d, 0o700) })
+		if errs := runGuard(t, g, fake); len(errs) == 0 || !strings.Contains(errs[0], "not scanned") {
+			t.Fatalf("expected unreadable dir 'not scanned' failure (M4d), got %v", errs)
+		}
+	})
+
+	t.Run("unparseable credential JSON fails closed as not scanned", func(t *testing.T) {
+		g := testhome.NewHostRefreshGuardFrom(host)
+		for _, rel := range []string{
+			filepath.Join(".claude", ".credentials.json"),
+			filepath.Join(".gemini", "antigravity-cli", "antigravity-oauth-token"),
+		} {
+			fake := t.TempDir()
+			dst := filepath.Join(fake, rel)
+			_ = os.MkdirAll(filepath.Dir(dst), 0o700)
+			_ = os.WriteFile(dst, []byte("{not valid json"), 0o600)
+			if errs := runGuard(t, g, fake); len(errs) == 0 || !strings.Contains(errs[0], "not scanned") {
+				t.Fatalf("expected unparseable %s 'not scanned' failure, got %v", rel, errs)
+			}
+		}
+	})
+
+	t.Run("host token rotated mid-test then copied under renamed path is caught at cleanup", func(t *testing.T) {
+		rotHost := t.TempDir()
+		rotDir := filepath.Join(rotHost, ".claude")
+		rotFile := filepath.Join(rotDir, ".credentials.json")
+		_ = os.MkdirAll(rotDir, 0o700)
+		_ = os.WriteFile(rotFile, []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-INITIAL"}}`), 0o600)
+
+		g := testhome.NewHostRefreshGuardFrom(rotHost)
+		// Host legitimately rotates mid-test, then a rogue child copies the NEW token under a renamed path.
+		const rotatedSecret = "sk-ant-ort01-ROTATED-MID-TEST"
+		_ = os.WriteFile(rotFile, []byte(fmt.Sprintf(`{"claudeAiOauth":{"refreshToken":%q}}`, rotatedSecret)), 0o600)
+
+		fake := t.TempDir()
+		_ = os.WriteFile(filepath.Join(fake, "sneaky-renamed-copy"), []byte(rotatedSecret), 0o600)
+		errs := runGuard(t, g, fake)
+		if len(errs) == 0 || !strings.Contains(errs[0], "host Claude refresh token") || strings.Contains(errs[0], rotatedSecret) {
+			t.Fatalf("expected mid-test rotated host token copy to be caught without secret leak, got %v", errs)
+		}
+	})
+
 	t.Run("missing root fails closed as not scanned", func(t *testing.T) {
 		g := testhome.NewHostRefreshGuardFrom(host)
 		gone := filepath.Join(t.TempDir(), "removed-before-cleanup")
@@ -550,15 +641,21 @@ func TestGuardLiveTempHomeStructuralMatrix(t *testing.T) {
 	})
 }
 
-// TestLiveTestsUseTesthome is the CI presence gate: any *_test.go file that gates on HOOKCORE_LIVE
-// and constructs an isolated HOME= child environment must import shared/testhome (so live tests
-// cannot silently bypass the guarded helpers).
+// TestLiveTestsUseTesthome is the CI presence gate: in any test package that gates on
+// HOOKCORE_LIVE (outside shared/testhome itself), no *_test.go file may set a child HOME= or call
+// Setenv("HOME", ...) directly — isolated homes must be constructed via shared/testhome.NewLiveHome
+// and LiveEnv/LiveClaudeEnv.
 func TestLiveTestsUseTesthome(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
-	var violations []string
+	type fileInfo struct {
+		rel          string
+		hasLive      bool
+		rawHomeSetup bool
+	}
+	byPkg := map[string][]fileInfo{}
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -573,38 +670,66 @@ func TestLiveTestsUseTesthome(t *testing.T) {
 		if !strings.HasSuffix(d.Name(), "_test.go") {
 			return nil
 		}
+		rel, _ := filepath.Rel(root, path)
+		relSlash := filepath.ToSlash(rel)
+		if strings.HasPrefix(relSlash, "shared/testhome/") {
+			return nil
+		}
 		fset := token.NewFileSet()
 		f, err := parser.ParseFile(fset, path, nil, 0)
 		if err != nil {
 			return err
 		}
-		var hasLive, setsHome, importsTesthome bool
-		for _, imp := range f.Imports {
-			if s, err := strconv.Unquote(imp.Path.Value); err == nil && s == "github.com/ctoforaday/special-circumstances/shared/testhome" {
-				importsTesthome = true
-			}
-		}
+		var fi fileInfo
+		fi.rel = relSlash
 		ast.Inspect(f, func(n ast.Node) bool {
-			if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-				if s, err := strconv.Unquote(lit.Value); err == nil {
-					if s == "HOOKCORE_LIVE" {
-						hasLive = true
+			switch node := n.(type) {
+			case *ast.BasicLit:
+				if node.Kind == token.STRING {
+					if s, err := strconv.Unquote(node.Value); err == nil {
+						if s == "HOOKCORE_LIVE" {
+							fi.hasLive = true
+						}
+						if strings.HasPrefix(s, "HOME=") {
+							fi.rawHomeSetup = true
+						}
 					}
-					if strings.HasPrefix(s, "HOME=") {
-						setsHome = true
+				}
+			case *ast.CallExpr:
+				if sel, ok := node.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Setenv" && len(node.Args) >= 1 {
+					if lit, ok := node.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+						if s, err := strconv.Unquote(lit.Value); err == nil && (s == "HOME" || s == "USERPROFILE") {
+							fi.rawHomeSetup = true
+						}
 					}
 				}
 			}
 			return true
 		})
-		if hasLive && setsHome && !importsTesthome {
-			rel, _ := filepath.Rel(root, path)
-			violations = append(violations, filepath.ToSlash(rel)+": HOOKCORE_LIVE test sets child HOME= without importing shared/testhome")
-		}
+		pkgDir := filepath.Dir(relSlash)
+		byPkg[pkgDir] = append(byPkg[pkgDir], fi)
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("walk repo: %v", err)
+	}
+	var violations []string
+	for _, files := range byPkg {
+		pkgHasLive := false
+		for _, fi := range files {
+			if fi.hasLive {
+				pkgHasLive = true
+				break
+			}
+		}
+		if !pkgHasLive {
+			continue
+		}
+		for _, fi := range files {
+			if fi.rawHomeSetup {
+				violations = append(violations, fi.rel+": HOOKCORE_LIVE test package sets HOME=/Setenv(\"HOME\") directly instead of using shared/testhome.NewLiveHome/LiveEnv")
+			}
+		}
 	}
 	for _, v := range violations {
 		t.Error(v)

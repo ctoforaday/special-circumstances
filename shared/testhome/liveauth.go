@@ -116,7 +116,7 @@ func stripAndBuildLiveEnv(base []string, fakeHome string, extra ...string) []str
 	for _, e := range base {
 		k, v, _ := strings.Cut(e, "=")
 		switch {
-		case k == "HOME", k == "USERPROFILE",
+		case k == "HOME", k == "USERPROFILE", k == "APPDATA",
 			k == "PLUGIN_ROOT", k == "PLUGIN_DATA",
 			k == "GOCACHE", k == "GOMODCACHE",
 			strings.HasPrefix(k, "XDG_"),
@@ -207,7 +207,7 @@ func ClaudeOAuthEnvFrom(hostHome string, minLifetime time.Duration) (string, err
 	exp := time.UnixMilli(creds.OAuth.ExpiresAt)
 	left := time.Until(exp)
 	if NeedsRenewal(left, minLifetime) {
-		return "", fmt.Errorf("testhome: Claude access token in %s expires in %s (need >= %s; sign in again with `claude auth login` or renew via `scripts/universe.sh`)",
+		return "", fmt.Errorf("testhome: Claude access token in %s expires in %s (need >= %s; sign in with `claude auth login` or run `claude -p \"Reply with the single word ok\" --model haiku --max-turns 1` in your real HOME)",
 			credPath, left.Round(time.Second), minLifetime)
 	}
 	return "CLAUDE_CODE_OAUTH_TOKEN=" + creds.OAuth.AccessToken, nil
@@ -218,6 +218,10 @@ func ClaudeOAuthEnvFrom(hostHome string, minLifetime time.Duration) (string, err
 func NeedsRenewal(left, minLifetime time.Duration) bool {
 	return left < minLifetime
 }
+
+// renewHostAgyTokenFn is the host renewal function used by StageAgyAccessToken (swappable in
+// package-internal tests to verify production wiring).
+var renewHostAgyTokenFn = renewHostAgyToken
 
 // StageAgyAccessToken stages a minimal, refresh-stripped Antigravity OAuth access token into
 // fakeHome (plus non-secret antigravity_state.pbtxt and installation_id companion files, #1890).
@@ -231,7 +235,7 @@ func StageAgyAccessToken(fakeHome string) error {
 		return fmt.Errorf("testhome: resolve user home for Antigravity credentials: %w", err)
 	}
 	lockPath := agyRenewLockPath(hostHome)
-	return StageAgyAccessTokenWithRenew(hostHome, fakeHome, DefaultMinTokenLifetime, lockPath, renewHostAgyToken)
+	return StageAgyAccessTokenWithRenew(hostHome, fakeHome, DefaultMinTokenLifetime, lockPath, renewHostAgyTokenFn)
 }
 
 // StageAgyAccessTokenFrom is StageAgyAccessToken scoped to an explicit hostHome and minimum
@@ -311,12 +315,8 @@ func renewHostAgyToken(hostHome string) error {
 		extra = append(extra, "XDG_STATE_HOME="+st)
 	}
 	cmd.Env = stripAndBuildLiveEnv(os.Environ(), hostHome, extra...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		firstLine, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
-		if len(firstLine) > 160 {
-			firstLine = firstLine[:160] + "..."
-		}
-		return fmt.Errorf("host `agy -p` renewal failed (%v): %s", err, firstLine)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("host `agy -p` renewal failed: %w", err)
 	}
 	return nil
 }
@@ -450,8 +450,9 @@ func NewHostRefreshGuardFrom(hostHome string) *HostRefreshGuard {
 	return g
 }
 
-// CheckLiveEnv verifies that no environment entry carries host refresh-token bytes and that no
-// home/config path variable points into hostHome (outside fakeHome and outside an isolated TMPDIR).
+// CheckLiveEnv verifies that fakeHome is neither hostHome nor an ancestor of it, that no
+// environment entry carries a *REFRESH* key or host refresh-token bytes, and that no home/config
+// path variable points into hostHome (outside fakeHome and outside an isolated TMPDIR).
 // It returns any external CLAUDE_CONFIG_DIR outside fakeHome so the caller can pass it to CheckTempHome.
 func (g *HostRefreshGuard) CheckLiveEnv(env []string, fakeHome string) ([]string, error) {
 	if g == nil {
@@ -459,7 +460,9 @@ func (g *HostRefreshGuard) CheckLiveEnv(env []string, fakeHome string) ([]string
 	}
 	canonHost := cleanOrCanon(g.hostHome)
 	canonFake := cleanOrCanon(fakeHome)
-	hostIsFake := canonHost != "" && canonHost == canonFake
+	if canonFake != "" && canonHost != "" && (canonFake == canonHost || isInside(canonHost, canonFake)) {
+		return nil, fmt.Errorf("testhome(#1890): fakeHome %q is or contains host home %q", fakeHome, g.hostHome)
+	}
 	hostClaudeDir := cleanOrCanon(filepath.Join(g.hostHome, ".claude"))
 	hostAgyDir := cleanOrCanon(filepath.Join(g.hostHome, ".gemini", "antigravity-cli"))
 	canonTmp := cleanOrCanon(os.TempDir())
@@ -469,6 +472,9 @@ func (g *HostRefreshGuard) CheckLiveEnv(env []string, fakeHome string) ([]string
 	var extraDirs []string
 	for _, entry := range env {
 		k, v, _ := strings.Cut(entry, "=")
+		if strings.Contains(strings.ToUpper(k), "REFRESH") {
+			return nil, fmt.Errorf("testhome(#1890): child env key %s carries a refresh credential", k)
+		}
 		if len(g.claudeRefresh) > 0 && bytes.Contains([]byte(v), g.claudeRefresh) {
 			return nil, fmt.Errorf("testhome(#1890): child env %s contains host Claude refresh token (sha256:%s)", k, g.claudeRefreshSum)
 		}
@@ -483,7 +489,7 @@ func (g *HostRefreshGuard) CheckLiveEnv(env []string, fakeHome string) ([]string
 			canonV := cleanOrCanon(v)
 			inFake := canonFake != "" && isInside(canonV, canonFake)
 			inTmp := tmpSafe && isInside(canonV, canonTmp)
-			if !hostIsFake && !inFake && !inTmp && canonHost != "" && pathOverlaps(canonV, canonHost) {
+			if !inFake && !inTmp && canonHost != "" && pathOverlaps(canonV, canonHost) {
 				return nil, fmt.Errorf("testhome(#1890): child env %s=%q points into host home %q", k, v, g.hostHome)
 			}
 			if k == "CLAUDE_CONFIG_DIR" && !inFake {
@@ -540,6 +546,35 @@ func (g *HostRefreshGuard) CheckTempHome(fakeHome string, extraDirs ...string) e
 	return nil
 }
 
+type tokenCheck struct {
+	label string
+	raw   []byte
+	sum   string
+}
+
+func (g *HostRefreshGuard) currentRefreshTokens() []tokenCheck {
+	var checks []tokenCheck
+	add := func(label string, tok []byte) {
+		if len(tok) == 0 {
+			return
+		}
+		sum := sha256Prefix(tok)
+		for _, c := range checks {
+			if c.label == label && bytes.Equal(c.raw, tok) {
+				return
+			}
+		}
+		checks = append(checks, tokenCheck{label: label, raw: tok, sum: sum})
+	}
+	add("host Claude refresh token", g.claudeRefresh)
+	add("host Antigravity refresh token", g.agyRefresh)
+	if g.hostHome != "" {
+		add("host Claude refresh token", readHostClaudeRefreshToken(g.hostHome))
+		add("host Antigravity refresh token", readHostAgyRefreshToken(g.hostHome))
+	}
+	return checks
+}
+
 func (g *HostRefreshGuard) scanRoot(root, canonRoot string, maxBytes int64) error {
 	if g.hostHome != "" {
 		canonHost := cleanOrCanon(g.hostHome)
@@ -556,6 +591,7 @@ func (g *HostRefreshGuard) scanRoot(root, canonRoot string, maxBytes int64) erro
 			}
 		}
 	}
+	tokens := g.currentRefreshTokens()
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return fmt.Errorf("testhome(#1890): not scanned: walk %s: %w", path, walkErr)
@@ -592,25 +628,33 @@ func (g *HostRefreshGuard) scanRoot(root, canonRoot string, maxBytes int64) erro
 			return fmt.Errorf("testhome(#1890): not scanned: read %s: %w", path, rerr)
 		}
 		if isCredentialJSONPath(path) {
-			if field := findNonEmptyRefreshField(data); field != "" {
+			field, perr := findNonEmptyRefreshField(data)
+			if perr != nil && isStrictCredentialFile(path) {
+				return fmt.Errorf("testhome(#1890): not scanned: parse credential file %s: %w", path, perr)
+			}
+			if field != "" {
 				return fmt.Errorf("testhome(#1890): temp home credential file %s contains non-empty %s", path, field)
 			}
 		}
-		if len(g.claudeRefresh) > 0 && bytes.Contains(data, g.claudeRefresh) {
-			return fmt.Errorf("testhome(#1890): temp home file %s contains host Claude refresh token (sha256:%s)", path, g.claudeRefreshSum)
-		}
-		if len(g.agyRefresh) > 0 && bytes.Contains(data, g.agyRefresh) {
-			return fmt.Errorf("testhome(#1890): temp home file %s contains host Antigravity refresh token (sha256:%s)", path, g.agyRefreshSum)
+		for _, tok := range tokens {
+			if bytes.Contains(data, tok.raw) {
+				return fmt.Errorf("testhome(#1890): temp home file %s contains %s (sha256:%s)", path, tok.label, tok.sum)
+			}
 		}
 		return nil
 	})
 }
 
-func isCredentialJSONPath(path string) bool {
+func isStrictCredentialFile(path string) bool {
 	base := filepath.Base(path)
-	if base == ".credentials.json" || base == "antigravity-oauth-token" {
+	return base == ".credentials.json" || base == "antigravity-oauth-token"
+}
+
+func isCredentialJSONPath(path string) bool {
+	if isStrictCredentialFile(path) {
 		return true
 	}
+	base := filepath.Base(path)
 	if strings.HasSuffix(base, ".json") {
 		slashed := filepath.ToSlash(path)
 		if strings.Contains(slashed, "/.claude/") || strings.Contains(slashed, "/.gemini/") {
@@ -621,13 +665,13 @@ func isCredentialJSONPath(path string) bool {
 }
 
 // findNonEmptyRefreshField parses JSON and returns "refreshToken" or "refresh_token" if any object
-// at any depth carries a non-empty string value under either key.
-func findNonEmptyRefreshField(raw []byte) string {
+// at any depth carries a non-empty string value under either key, or the JSON parse error.
+func findNonEmptyRefreshField(raw []byte) (string, error) {
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
-		return ""
+		return "", err
 	}
-	return walkRefreshField(v)
+	return walkRefreshField(v), nil
 }
 
 func walkRefreshField(v any) string {

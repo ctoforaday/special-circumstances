@@ -287,7 +287,7 @@ refresh tokens into temp homes, `#1890`). Both hosts must be signed in (`claude 
 `agy`) with at least 15 minutes remaining on their access tokens; `StageAgyAccessToken` auto-renews
 a short or expired host Antigravity access token under a cross-process lock via one host turn (or
 renew manually with `agy -p ok --model gemini-3.8-flash-low`; renew Claude with `claude auth login`
-or `scripts/universe.sh`). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable
+or `claude -p "Reply with the single word ok" --model haiku --max-turns 1` in your real HOME). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable
 credentials fail closed rather than skipping. Run them on `gemini-3.8-flash-low`, a few turns at a
 time. Run them after a change to hookcore's Antigravity paths, to a plugin's root `hooks.json`, or
 to `telepathy send`/`link`, and after an agy upgrade. A model-driven assertion can miss on one run,

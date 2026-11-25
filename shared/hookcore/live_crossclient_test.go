@@ -187,7 +187,7 @@ You are child-worker. Run the exact shell command requested and return its outpu
 	t.Run("Claude", func(t *testing.T) {
 		claudeBin := findClaudeBin()
 		if claudeBin == "" {
-			t.Skip("claude CLI not found; skipping live Claude subagent test")
+			t.Fatalf("claude CLI not found on PATH under HOOKCORE_LIVE=1")
 		}
 
 		stagedDir := t.TempDir()
