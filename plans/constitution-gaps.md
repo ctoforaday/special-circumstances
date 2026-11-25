@@ -2390,7 +2390,8 @@ from the repository root (`P=plugins/frank-exchange-of-views`). They are re-run 
   - `red-lens-voice.md:11-14`, which has no class-wide wording.
 
   Generated copies (the same grep with `$P/agents` added, on c7666d2f3):
-  - the seven `agents/red-lens-*.md` (`:38-50` from the fragment, `:431-438` the inlined `mint --check` help);
+  - the seven `agents/red-lens-*.md` (`:38-50` from the fragment, `:431-438` the inlined `mint --check` help), and
+    the same files' `agents-claude/` copies, which agentgen writes beside them (the grep omits that directory);
   - `skills/adversarial-audit/SKILL.md:48`;
   - `agents/blue-researcher.md:101, 218`;
   - `agents/blue-synthesizer.md:152` (from `blue-research-protocol.md:22`);
@@ -2793,8 +2794,12 @@ noted.
   - P5: parts with each coverage. Gate: the derived outcome; PASS refused while a part is open or unchecked.
   - P8: a close on own verbatim text (the closure line names it; a reword between the application and the close drops
     it; a reword after the close does not).
-  - **P12a** (one gap per site, demand): no record change and no new act, so no new drive. A gap on main whose own
-    marker a claim retire took is drawn by today's claim-retire drive.
+  - **P12a** (one gap per site, demand): no record change and no new act, so no new verb. No drawn drive reaches the
+    case: the generic mint quotes the stable anchor sentence no edit cuts, and `closeGap` answers the demand before
+    every close. The lifecycle seed (`lifecycleseed_test.go`) gains two arms, each cutting a claim onto the next to
+    leave a gap's `G-` marker standing where the claim was and retiring the claim with it: a `--quote` computation
+    gap's own marker, and a superseded `--quote` source ancestor's marker; `TestTheLifecycleSeedDrivesEveryArm` runs
+    them staged in plain `go test`.
     - **Gate:** after that retire, a `moot` close of a `--quote` computation or source gap lands, and after a claim
       retire of a superseded `--quote` ancestor's marker, the heir's `moot` close lands. A close of an about-anchor gap
       whose anchor stands is still refused.
@@ -3130,8 +3135,10 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        - Goldens via `UPDATE_GOLDENS=1 go test -count=1 <pkg>`. Read every changed line, and read the `mint`, `close`
          and `retire` `--help` before and after.
        - Then `go -C scripts run ./check`, and read the FAIL count: 0.
-       - **The release fuzz by hand** (a record-rule change, and §III.12 adds the sweep-tally cell
-         `QuoteGapMootAfterMarkerRetired`), the four parts and the tally as CI runs them:
+       - **The release fuzz is the PR's CI, never a local invocation** (AGENTS.md: "YOU MUST NOT run a release fuzz
+         invocation locally"): the four `release-fuzz` parts and `release-fuzz-tally` on the PR's final head, read for
+         their fail counts (a record-rule change, and §III.12 adds the sweep-tally cell
+         `QuoteGapMootAfterMarkerRetired`). What CI runs, for reading its logs:
          ```
          cd plugins/frank-exchange-of-views/tools
          unset $(env | grep -o '^FEOV_[A-Z_]*')
