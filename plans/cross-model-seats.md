@@ -150,8 +150,8 @@ Each seat runs **natively** in its target harness from the POV of the agent:
 - **`internal/seatturn/seatturn.go`:**
   - Auto-detect Antigravity `transcript.jsonl` lines (`"source": "MODEL"` and `"type": "PLANNER_RESPONSE"`) alongside Claude JSONL lines. Map `input_tokens`, `cache_read_tokens`, `output_tokens`, `created_at`, `thinking != ""`, `len(tool_calls) > 0` into `seatturn.Turn`.
 - **`internal/servedmodel/servedmodel.go`:**
-  - Read `model` from Claude `message.model` / `fallback` blocks as today.
-  - Empirically verified on `agy 1.5.8`: neither `agy -p --output-format json` nor Antigravity's `transcript.jsonl` `PLANNER_RESPONSE` emits a `model` field. Therefore `servedmodel.Observe` honestly returns `NotMeasured` (`"antigravity transcript carries no model field"`) rather than trusting a self-reported or sidecar-copied model.
+  - Read `model` from Claude `message.model` / `fallback` blocks and from Antigravity `transcript.jsonl` top-level `PLANNER_RESPONSE.model`.
+  - When an Antigravity transcript omits `model`, `servedmodel.Observe` returns `NotMeasured` (`"antigravity transcript carries no model field"`) rather than trusting a self-reported or sidecar-copied model. (Note: `agy -p --output-format json` still omits `model`, while `transcript.jsonl` `PLANNER_RESPONSE` records it; pinned by `TestLiveAsymmetries/transcript-model-field`.)
 - **`internal/record/servedmodel.go`, `internal/capture/capture.go`, `internal/cost/cost.go`, `internal/cli/tiers.go`:**
   - Look up each seat's configured `{ Harness, Model }` from `modeltier.SeatConfigs(runDir)[seatID]`.
   - Compare `served` against `configured.Model` (Anthropic tier match when both are recognized Anthropic models; exact normalized ID match otherwise; `NotMeasured` seats are reported without failing `capture`).
@@ -209,7 +209,7 @@ Every returned file accounted for:
 | Antigravity `PostToolUse` invokes `feov-posttoolusefailure` (`hooks.json:23`), breaking Antigravity seat envelope/next-item hooks. | High | High | Low | Fix `hooks.json:23` to `feov-posttooluse` in Phase 1 and verify with `HOOKCORE_LIVE=1`. |
 | `debate.js` and `debate.py` prompt/schema blocks drift over time. | Medium | High | Low | Extend `tools/devcmd/enginegen` to generate shared `SEATS`, `OCCASION`, `ENVELOPE`, and `PLAN` blocks into both files and enforce both with `enginegen -check`. |
 | Removing `model`/`judgmentModel` breaks `dashboard`, `universe.sh`, or `releasegate/fuzz` fixtures. | Medium | Medium | Low | Consumer Census above covers every caller; `go -C scripts run ./check` and `release-fuzz` CI catch any missed fixture. |
-| Antigravity `transcript.jsonl` omits `model`, causing `servedmodel` to report `NotMeasured` for Antigravity seats. | High (verified) | Low | Low | Explicitly return `NotMeasured` (never fabricate a self-reported sidecar), and treat `NotMeasured` as non-fatal in `capture` & `tiers` while still verifying `agy models` at `setup`. |
+| An Antigravity `transcript.jsonl` omits `model`, causing `servedmodel` to report `NotMeasured` for Antigravity seats. | Low (fallback path; `PLANNER_RESPONSE.model` is present and pinned by `TestLiveAsymmetries/transcript-model-field`) | Low | Low | Return `NotMeasured` when absent (never fabricate a self-reported sidecar), and treat `NotMeasured` as non-fatal in `capture` & `tiers` while still verifying `agy models` at `setup`. |
 
 ### Phased execution
 1. **Phase 1 (Go foundation & hooks):** Update `modeltier`, `setup`, `cli/setup.go`, `dashboard`, `seatturn`, `servedmodel`, `cost`, `capture`, `cli/tiers.go`, `hooks.json:23`, `hookcmd` per-`conversationId` delivery & `PreInvocation` termination, `releasegate/fuzz` fixtures, and `universe.sh`/`local-development.md`.

@@ -261,7 +261,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a
-		// language-server restart (pinned by TestLiveAsymmetrySessionStartOnResume). Run
+		// language-server restart (pinned by TestLiveAsymmetries/session-start-on-resume). Run
 		// checkpoint-restore once on the first PreInvocation (invocationNum == 0) for a
 		// (conversation, hosting-process) pair that has not yet been marked.
 		var restoreText string
