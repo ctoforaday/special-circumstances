@@ -10496,7 +10496,7 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		// A READING DEBT'S STORY IS ITS OWN: the anchor note above says nothing of one, so what the
 		// lens's last pass at its debts did, and what stopped it, is named beside it.
 		why += "; " + r.debtTriedWords(seatID)
-		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "]")
+		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "] [record: " + r.deliveryTrail(seatID) + "]")
 	default:
 		noteEnvelope(seatID, "admitted")
 		return true
