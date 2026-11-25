@@ -1,7 +1,7 @@
 ---
 name: red-lens-logic
 description: The logic and completeness lens of the research debate — one seat per strategic area, auditing the report for this class of defect and filing findings attributed to it. Dispatched by the engine; not a general-purpose agent.
-tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
+tools: [read_file, write_file, edit_file, find_by_name, list_dir, grep_search, run_command, search_web]
 skills: [frank-exchange-of-views:research-protocol, frank-exchange-of-views:adversarial-audit, prosthetic-conscience:critical-stance, prosthetic-conscience:terse-communication]
 maxTurns: 430
 ---

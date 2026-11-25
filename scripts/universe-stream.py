@@ -58,6 +58,33 @@ def main() -> int:
 
         kind = ev.get("type")
 
+        # Antigravity `agy -p --output-format stream-json` events use `"event"` instead of `"type"`.
+        agy_ev = ev.get("event")
+        if agy_ev == "init":
+            init = ev.get("init") or {}
+            say(f"session init (agy model={init.get('model', '?')})")
+            continue
+        if agy_ev == "step_update":
+            su = ev.get("step_update") or {}
+            stype = su.get("step_type", "")
+            state = su.get("state", "")
+            tool_name = su.get("tool_name") or (su.get("tool_call") or {}).get("name") or ""
+            if tool_name == "run_workflow" and "workflow" not in seats:
+                seats.add("workflow")
+                say("WORKFLOW DISPATCHED (agy run_workflow) — the debate runs from here")
+            elif stype == "tool_call" and state == "ACTIVE" and tool_name:
+                say(f"TOOL  {tool_name}")
+            elif state == "ERROR" and su.get("error"):
+                say("  ERROR   " + str(su.get("error"))[:160].replace("\n", " "))
+            continue
+        if agy_ev == "result":
+            res = ev.get("result") or {}
+            usage = res.get("usage") or {}
+            say(f"RESULT  {res.get('status', '?')}  turns={res.get('num_turns')}  tokens={usage.get('total_tokens', 0)}")
+            if res.get("status") != "SUCCESS" and res.get("error"):
+                say("  RESULT IS AN ERROR: " + str(res.get("error"))[:300])
+            continue
+
         # A SUBAGENT STARTING IS THE EVENT THAT MATTERS MOST — it is the one thing the previous
         # harness could never show, because it dispatched top-level processes and had no subagents.
         if kind == "system" and ev.get("subtype"):

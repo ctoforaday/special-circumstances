@@ -7,7 +7,7 @@ import (
 
 // THE RECORDED VERDICT REACHES THE DEBATE THE BENCH READS. The structured debate carries each
 // epoch's verdict beside the chair's prose because the prose can say PASS while the record holds
-// fail; an empty verdict means "none recorded", so a projection that never loaded the gates prints
+// none; an empty verdict means "none recorded", so a projection that never loaded the gates prints
 // that on every epoch of every run, in the bytes it would use for an epoch nobody judged (#1243).
 //
 // Driven through the real verb on a run directory — the bench's `inquest debate --json` — because

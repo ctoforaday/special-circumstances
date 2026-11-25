@@ -224,8 +224,8 @@ func TestSeatOverridesAndAntigravityDiscovery(t *testing.T) {
 	cfg.Bulk = "sonnet"
 	cfg.Judgment = "opus"
 	cfg.SeatOverrides = []string{
-		"red-lens-dark-side=antigravity:gpt-oss-120b-medium",
-		"red-lens-evidence=antigravity:gemini-4-argon-medium",
+		"red-lens-dark-side=antigravity:flash_lite",
+		"red-lens-evidence=antigravity:pro",
 	}
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
@@ -241,28 +241,23 @@ func TestSeatOverridesAndAntigravityDiscovery(t *testing.T) {
 	if err != nil || rc == nil {
 		t.Fatalf("the written configuration does not read: %v", err)
 	}
-	if got := rc.Seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
-		t.Errorf("run-config.json override = %+v, want antigravity:gpt-oss-120b-medium", got)
+	if got := rc.Seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "flash_lite"}) {
+		t.Errorf("run-config.json override = %+v, want antigravity:flash_lite", got)
 	}
-	if got := rc.Seats["red-lens-evidence"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gemini-4-argon-medium"}) {
-		t.Errorf("run-config.json first spinner-prefixed model override = %+v, want antigravity:gemini-4-argon-medium", got)
+	if got := rc.Seats["red-lens-evidence"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "pro"}) {
+		t.Errorf("run-config.json override = %+v, want antigravity:pro", got)
 	}
 	if got := rc.Seats["red-chair"]; got != (modeltier.SeatSpec{Harness: "claude", Model: "opus"}) {
 		t.Errorf("run-config.json judgment seat = %+v, want claude:opus", got)
 	}
 
-	// Missing Antigravity model refuses before creating the run.
-	cfg2, runDir2 := runCfg(t, func(name string, args []string) ExecResult {
-		if name == "agy" && len(args) > 0 && args[0] == "models" {
-			return ExecResult{Status: 0, Stdout: "other-model\n"}
-		}
-		return reports(strconv.Itoa(record.EventSchema))(name, args)
-	})
+	// Unrecognized Antigravity model tier refuses before creating the run.
+	cfg2, runDir2 := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	cfg2.SeatOverrides = []string{"red-lens-dark-side=antigravity:gpt-oss-120b-medium"}
 	out.Reset()
 	errb.Reset()
 	if code := Run(cfg2, &out, &errb); code != 2 || !strings.Contains(errb.String(), "MODEL DISCOVERY FAILED") {
-		t.Fatalf("missing agy model: exit %d stderr=%q", code, errb.String())
+		t.Fatalf("unrecognized agy tier: exit %d stderr=%q", code, errb.String())
 	}
 	if _, err := os.Stat(runDir2); !os.IsNotExist(err) {
 		t.Error("run directory was created despite failed model discovery")

@@ -51,9 +51,23 @@ func main() {
 		os.Exit(code)
 
 	case "SessionStart", "PreInvocation":
+		ctxMsg := "HOOKCORE_CONTEXT_NOTICE"
+		if req.Event == "PreInvocation" {
+			var parts []string
+			failed, drainErr := hookcore.DrainFailedToolSteps(req)
+			if drainErr != nil {
+				parts = append(parts, "HOOKCORE_DRAIN_ERR:"+drainErr.Error())
+			}
+			for _, st := range failed {
+				parts = append(parts, fmt.Sprintf("HOOKCORE_FAILED_STEP_CODE_%d:%s", st.ExitCode, st.Command))
+			}
+			if len(parts) > 0 {
+				ctxMsg = strings.Join(parts, "; ")
+			}
+		}
 		code := hookcore.Respond(req, hookcore.Response{
 			Say:               "HOOKCORE_SAY_NOTICE",
-			AdditionalContext: "HOOKCORE_CONTEXT_NOTICE",
+			AdditionalContext: ctxMsg,
 		}, os.Stdout, os.Stderr, nil)
 		os.Exit(code)
 

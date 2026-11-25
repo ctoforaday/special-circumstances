@@ -33,6 +33,13 @@ permissions:
 # the cap; go-cache-prune's line states what all of them come to against the repository's 10 GB.
 env:
   GO_CACHE_MAX_MIB: "2048"
+  # THE HELPERS CI BUILDS NONE OF, space-separated. native-scope drops their native-build legs and
+  # nativehelper.Require skips their tests, saying so, in every job. feov-embed is here because
+  # its pinned ONNX Runtime source sits in microsoft/onnxruntime, which Microsoft took private on
+  # Nov 17 2026, so its build cannot fetch it. A release tag still refuses while a helper is
+  # listed: dist demands every helper. Empty this, and return feov-embed's six tests to
+  # native-run's NATIVE_RUN_MUST_PASS, once the repository is public again.
+  NATIVE_HELPERS_PAUSED: feov-embed
 
 defaults:
   run:
@@ -403,12 +410,6 @@ jobs:
         TestTextCellTableKeepsItsRowsThroughTheEngine
         TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
         TestReleaseLayoutFindsItsHelper
-        TestEmbedWithBuiltHelper
-        TestTokenizerParity400
-        TestEmbedLoadsTheExportForItsArch
-        TestEmbedFidelityMeetsS5
-        TestEmbedSpeedMeetsS6
-        TestEveryEmbedOpFitsTheDeadline
       # The target-scoped names: selftest-libc runs on the Linux legs only.
       NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
@@ -882,6 +883,19 @@ jobs:
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
+      # A FAILED NIGHTLY SWEEP KEEPS ITS RUN DIRECTORIES. TestFuzzDebate removes a passing run's
+      # directory and keeps a failing one's for inspection, but on the runner that directory dies
+      # with the job: seeds 13 and 20 failed on the nightlies of 2026-11-16 and -17 (a lens's reading
+      # debt left standing at its envelope) and neither failed in 48 local reruns, so the record each
+      # left was the one thing that could say why. Linux only, where TMPDIR is the tmpfs above.
+      - name: Upload the failing fuzz runs
+        if: failure() && github.event_name == 'schedule' && runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nightly-fuzz-failed-runs
+          path: /dev/shm/tmp/fuzz-run-*/
+          retention-days: 14
+          if-no-files-found: ignore
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
@@ -1656,6 +1670,15 @@ jobs:
     # the six were unverified prose, and rule-sweep's `--selftest` was the lone exception
     # (#157 §3). A guard nothing tests is indistinguishable from a clean repo.
     runs-on: ubuntu-latest
+    # The clients installed below stay the clients every step runs. A client that starts its
+    # full CLI (agy: `agy agents`, which pluginparity's load test calls) spawns a background
+    # updater that replaces the running executable in place, so the install-shape contract
+    # would read a version nobody installed. Each client's own switch turns that off for every
+    # step and test; agy honours AGY_CLI_DISABLE_AUTO_UPDATE only at the exact value "true".
+    # The nightly still tests the latest build: it installs it.
+    env:
+      AGY_CLI_DISABLE_AUTO_UPDATE: "true"
+      DISABLE_AUTOUPDATER: "1"
     defaults:
       run:
         working-directory: scripts
@@ -1673,22 +1696,42 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: restore
+          # The plugins' go.sum files too: the install-shape contract builds their release.
           dependency-files: |
             scripts/go.sum
-      - name: Install claude and agy CLIs for real harness validation (#1872)
+            plugins/prosthetic-conscience/tools/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.sum
+      # THE HARNESS CLIENTS FOR REAL HARNESS VALIDATION (#1872). A pull request and a push get
+      # exactly the versions scripts/installshape/clients.json pins, so a client release cannot
+      # redden an unrelated pull request. The nightly and a dispatch get whatever the installers
+      # serve today instead, and the install-shape contract then names both versions on every
+      # failure: a client that moved a layout surfaces there once, and the pins move when it
+      # passes. agy's manifest serves only its latest build, so its pin is a URL and sha512.
+      - name: Install claude and agy (pinned; latest on the nightly)
+        env:
+          LATEST: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         run: |
           mkdir -p "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          curl -fsSL https://claude.ai/install.sh | bash
-          manifest="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
-          url="$(jq -r .url <<<"$manifest")"
-          sha="$(jq -r .sha512 <<<"$manifest")"
-          curl -fsSL "$url" -o /tmp/agy.tar.gz
-          printf '%s  /tmp/agy.tar.gz\n' "$sha" | sha512sum -c -
-          tar -xzf /tmp/agy.tar.gz -O antigravity > "$HOME/.local/bin/agy"
+          if [ "$LATEST" = true ]; then
+            curl -fsSL https://claude.ai/install.sh | bash
+            pins="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
+            echo "INSTALLSHAPE_CLIENTS=latest" >> "$GITHUB_ENV"
+          else
+            curl -fsSL https://claude.ai/install.sh | bash -s -- "$(jq -er .claude.version installshape/clients.json)"
+            pins="$(jq -c .agy installshape/clients.json)"
+          fi
+          curl -fsSL "$(jq -er .url <<<"$pins")" -o "$RUNNER_TEMP/agy.tar.gz"
+          printf '%s  %s\n' "$(jq -er .sha512 <<<"$pins")" "$RUNNER_TEMP/agy.tar.gz" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/agy.tar.gz" -O antigravity > "$HOME/.local/bin/agy"
           chmod +x "$HOME/.local/bin/agy"
-          rm -f /tmp/agy.tar.gz
-      - run: go test ./...
+          rm -f "$RUNNER_TEMP/agy.tar.gz"
+          echo "claude $("$HOME/.local/bin/claude" --version), agy $("$HOME/.local/bin/agy" --version)"
+      - run: go test -skip '^TestInstallShapeContract$' ./...
+      # Its own step, verbose, so the log shows the root the client handed each shape's hooks.
+      - name: Install-shape contract (real clients, no login)
+        run: go test -count=1 -v -run '^TestInstallShapeContract$' ./installshape/
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
       # path/bytes pair could hand one file another file's contents. That shipped, and was found

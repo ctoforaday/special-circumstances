@@ -544,26 +544,31 @@ func TestRequireFailsInCIWithoutAHelper(t *testing.T) {
 	}
 	helper := fake(t, "d1", ProtocolVersion, "")
 	for _, tc := range []struct {
-		name, ci, dir, want string
-		set                 bool
+		name, ci, dir, want, paused string
+		set                         bool
 	}{
-		{"CI without the variable fails", "true", "", "--- FAIL", false},
-		{"CI with none skips", "true", "none", "--- SKIP", false},
-		{"CI with a mistyped directory fails", "true", helper + "-typo", "--- FAIL", false},
-		{"outside CI without the variable skips", "", "", "--- SKIP", false},
-		{"outside CI with the variable empty fails", "", "", "--- FAIL", true},
-		{"CI with the helper passes", "true", helper, "--- PASS", false},
+		{"CI without the variable fails", "true", "", "--- FAIL", "", false},
+		{"CI with none skips", "true", "none", "--- SKIP", "", false},
+		{"CI with a mistyped directory fails", "true", helper + "-typo", "--- FAIL", "", false},
+		{"outside CI without the variable skips", "", "", "--- SKIP", "", false},
+		{"outside CI with the variable empty fails", "", "", "--- FAIL", "", true},
+		{"CI with the helper passes", "true", helper, "--- PASS", "", false},
+		{"CI with the helper paused skips", "true", "", "--- SKIP", "feov-other " + fakeName, false},
+		{"CI with another helper paused still fails", "true", "", "--- FAIL", "feov-other", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestRequireFailsInCIWithoutAHelper$", "-test.v", "-test.count=1")
 			env := []string{"NATIVEHELPER_REQUIRE_CHILD=1"}
 			for _, kv := range os.Environ() {
-				if !strings.HasPrefix(kv, "GITHUB_ACTIONS=") && !strings.HasPrefix(kv, EnvDir+"=") {
+				if !strings.HasPrefix(kv, "GITHUB_ACTIONS=") && !strings.HasPrefix(kv, EnvDir+"=") && !strings.HasPrefix(kv, EnvPaused+"=") {
 					env = append(env, kv)
 				}
 			}
 			if tc.ci != "" {
 				env = append(env, "GITHUB_ACTIONS="+tc.ci)
+			}
+			if tc.paused != "" {
+				env = append(env, EnvPaused+"="+tc.paused)
 			}
 			if tc.dir != "" || tc.set {
 				env = append(env, EnvDir+"="+tc.dir)

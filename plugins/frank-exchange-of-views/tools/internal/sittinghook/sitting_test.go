@@ -3,8 +3,8 @@ package sittinghook
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 	"io"
 	"os"
 	"path/filepath"
@@ -234,27 +234,8 @@ func testRecorder() *hookfailures.Recorder {
 // m.Run rather than giving them up: loopback-only networking before, the orphaned-handle check
 // after (#666).
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "feov-hookfailures-test-")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "TestMain:", err)
-		os.Exit(1)
-	}
-	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
-		if err := os.Setenv(k, dir); err != nil {
-			fmt.Fprintln(os.Stderr, "TestMain:", err)
-			os.Exit(1)
-		}
-	}
 	nonet.OnlyLoopback()
-	code := m.Run()
-	if err := recordtest.CheckOrphanedHandles(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		if code == 0 {
-			code = 1
-		}
-	}
-	os.RemoveAll(dir)
-	os.Exit(code)
+	os.Exit(testhome.Run(m, "feov-hookfailures-test-", recordtest.CheckOrphanedHandles))
 }
 
 // START SPEAKS THE SEAT'S WORK LIST, AND SPEAKS NOTHING ELSE (#1122).

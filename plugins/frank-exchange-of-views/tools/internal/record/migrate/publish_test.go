@@ -632,7 +632,10 @@ func TestAKilledMigrationLeavesToAsItWas(t *testing.T) {
 	marker := filepath.Join(recordtest.TmpRun(t), "blocked")
 	args, _ := json.Marshal(struct{ From, To, Marker string }{src, to, marker})
 	cmd := exec.Command(os.Args[0], "-test.run=^TestAKilledMigrationLeavesToAsItWas$", "-test.count=1")
-	cmd.Env = append(os.Environ(), killChildEnv+"="+string(args))
+	// The child is killed by design, so its TestMain never removes the temporary directories it
+	// made (testbuild's sandbox HOME and stub client); its TMPDIR is this test's, which goes with it.
+	childTmp := t.TempDir()
+	cmd.Env = append(os.Environ(), killChildEnv+"="+string(args), "TMPDIR="+childTmp, "TMP="+childTmp, "TEMP="+childTmp)
 	var out strings.Builder
 	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Start(); err != nil {

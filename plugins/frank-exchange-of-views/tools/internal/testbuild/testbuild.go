@@ -62,6 +62,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 // Main runs the test binary inside a sandbox: its own HOME, and the shared build directory
@@ -106,13 +108,26 @@ func Main(m *testing.M, after ...func() error) {
 	}
 	restoreClient, err := stubClient()
 	if err != nil {
-		restore()
+		if rerr := restore(); rerr != nil {
+			fmt.Fprintln(os.Stderr, "testbuild:", rerr)
+		}
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
 		os.Exit(1)
 	}
 	code := m.Run()
-	restoreClient()
-	restore()
+	// A DIRECTORY THIS PACKAGE MADE AND COULD NOT REMOVE FAILS THE PACKAGE. `go test` prints a
+	// passing package's stderr only under -v, so a printed warning on a green run is read by
+	// nobody: the sandbox HOME leaked a read-only module cache on every run that way, hundreds
+	// of directories and 30 GB, until the disk filled. A non-zero exit is the one report a
+	// green run cannot hide.
+	for _, undo := range []func() error{restoreClient, restore, Cleanup} {
+		if err := undo(); err != nil {
+			fmt.Fprintln(os.Stderr, "testbuild:", err)
+			if code == 0 {
+				code = 1
+			}
+		}
+	}
 	for _, check := range after {
 		if err := check(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -121,13 +136,12 @@ func Main(m *testing.M, after ...func() error) {
 			}
 		}
 	}
-	Cleanup()
 	os.Exit(code)
 }
 
 // stubClient puts a `claude` first on PATH that prints a version and nothing else: `setup` refuses a
 // client it cannot read, and CI has none. A test of that refusal injects its own Exec.
-func stubClient() (func(), error) {
+func stubClient() (func() error, error) {
 	dir, err := os.MkdirTemp("", "sc-testclient-")
 	if err != nil {
 		return nil, fmt.Errorf("no directory for the stub client: %w", err)
@@ -145,13 +159,13 @@ func stubClient() (func(), error) {
 		_ = os.RemoveAll(dir)
 		return nil, fmt.Errorf("putting the stub client on PATH: %w", err)
 	}
-	return func() {
+	return func() error {
 		if had {
 			_ = os.Setenv("PATH", old)
 		} else {
 			_ = os.Unsetenv("PATH")
 		}
-		_ = os.RemoveAll(dir)
+		return testhome.RemoveTree(dir)
 	}, nil
 }
 
@@ -209,24 +223,13 @@ func ClearDispatch() {
 	}
 }
 
-func sandboxHome() (func(), error) {
-	h, err := os.MkdirTemp("", "sc-testhome-")
-	if err != nil {
-		return nil, fmt.Errorf("no temp HOME: %w", err)
-	}
-	key := homeKey()
-	if err := os.Setenv(key, h); err != nil {
-		_ = os.RemoveAll(h)
-		return nil, fmt.Errorf("setting %s: %w", key, err)
-	}
-	return func() {
-		if realHomeSet {
-			_ = os.Setenv(key, realHome)
-		} else {
-			_ = os.Unsetenv(key)
-		}
-		_ = os.RemoveAll(h)
-	}, nil
+func sandboxHome() (func() error, error) {
+	// testhome also pins GOMODCACHE and GOCACHE before HOME moves, for every `go` a test starts
+	// (nativehelpertest builds its fake helper with the inherited environment): unpinned, such a
+	// build downloaded the module graph, read-only, into the sandbox, which then could not be
+	// removed. buildEnv states the same principle for the builds this package runs.
+	_, undo, err := testhome.New("sc-testhome-", homeKey())
+	return undo, err
 }
 
 // buildEnv is the environment for `go build`: this process's, with HOME put back to the real
@@ -257,10 +260,11 @@ func buildEnv() []string {
 // Called from Main after m.Run has returned, so every test goroutine that could read dir has
 // finished — which is what makes the unsynchronized read here safe, and why this is not
 // exported for use at any other moment.
-func Cleanup() {
+func Cleanup() error {
 	if dir != "" {
-		_ = os.RemoveAll(dir)
+		return testhome.RemoveTree(dir)
 	}
+	return nil
 }
 
 // ExeName is the file name a built command must have on THIS platform.

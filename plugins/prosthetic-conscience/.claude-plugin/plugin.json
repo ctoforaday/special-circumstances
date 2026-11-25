@@ -14,5 +14,9 @@
     "pair-programming",
     "code-review"
   ],
-  "hooks": "./.claude-plugin/hooks.json"
+  "hooks": "./.claude-plugin/hooks.json",
+  "agents": [
+    "./agents-claude/plan-auditor.md",
+    "./agents-claude/probe.md"
+  ]
 }

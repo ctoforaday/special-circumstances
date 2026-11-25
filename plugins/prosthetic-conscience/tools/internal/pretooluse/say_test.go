@@ -3,7 +3,11 @@ package pretooluse
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"io/fs"
+	"os"
 	"strings"
 	"testing"
 
@@ -70,17 +74,86 @@ func TestAMessageWithNoDecisionIsTheWholeResponse(t *testing.T) {
 	}
 }
 
-// A DECISION IS NEVER RISKED FOR A MESSAGE. A unit's decision document that this binary cannot
-// decode still goes out exactly as written — it is what protects the session — and the message
-// follows rather than replacing it.
-func TestAnUndecodableDecisionStillGoesOutIntact(t *testing.T) {
-	stdout, _, _ := fire(t, `{"tool_name":"Bash","tool_input":{"command":"git push"}}`,
-		[]hookunit.Unit{
-			stub("gate", `{"permissionDecision": NOT JSON`, ""),
-			saying("freeze", "sc-push-freeze-guard: a run is LIVE"),
-		})
-	if !strings.Contains(stdout, `{"permissionDecision": NOT JSON`) {
-		t.Fatalf("the decision was dropped or rewritten: %q", stdout)
+// A DECISION THIS HOOK CANNOT READ IS A DENY, ON BOTH HARNESSES, AND A RECORDED FAILURE. Written
+// to stdout as-is it would be a decision for neither: Claude Code runs a call whose stdout is not
+// its JSON, and Antigravity fails the step with "failed to unmarshal result from hook" (#1927). The
+// one unit that decides is the secrets gate, which fails closed, so this does too — and the defect
+// is announced, never absorbed.
+func TestAnUnreadableDecisionIsADenyOnBothHarnesses(t *testing.T) {
+	unreadable := map[string]string{
+		"not JSON":           `{"permissionDecision": NOT JSON`,
+		"no decision field":  `{"hookSpecificOutput":{"hookEventName":"PreToolUse"}}`,
+		"top-level decision": `{"permissionDecision":"deny"}`,
+		"unknown decision":   `{"hookSpecificOutput":{"permissionDecision":"block"}}`,
+	}
+	harnesses := map[string]string{
+		"claude":      `{"tool_name":"Bash","tool_input":{"command":"git push"}}`,
+		"antigravity": `{"conversationId":"c1","toolCall":{"name":"run_command","args":{"CommandLine":"git push"}}}`,
+	}
+	for name, doc := range unreadable {
+		for harness, payload := range harnesses {
+			t.Run(name+"/"+harness, func(t *testing.T) {
+				t.Setenv("XDG_STATE_HOME", t.TempDir())
+				stdout, _, code := fire(t, payload, []hookunit.Unit{stub("gate", doc, "")})
+				if code != 0 {
+					t.Fatalf("the block travels in the JSON, never the status: exit %d", code)
+				}
+				out := responseOf(t, stdout)
+				switch harness {
+				case "claude":
+					hso, _ := out["hookSpecificOutput"].(map[string]any)
+					if hso["permissionDecision"] != "deny" || !strings.Contains(fmt.Sprint(hso["permissionDecisionReason"]), "cannot read") {
+						t.Errorf("not a deny naming the unreadable decision: %q", stdout)
+					}
+					if !strings.Contains(fmt.Sprint(out["systemMessage"]), "could not be read") {
+						t.Errorf("the failure was not announced: %q", stdout)
+					}
+				case "antigravity":
+					if out["decision"] != "deny" || !strings.Contains(fmt.Sprint(out["deny_reason"]), "cannot read") {
+						t.Errorf("not an Antigravity deny naming the unreadable decision: %q", stdout)
+					}
+				}
+			})
+		}
+	}
+}
+
+// A call with no unreadable decision clears the failure an unreadable one recorded, so the record
+// says what is true now and stops announcing a defect that is gone.
+func TestACallWithoutAnUnreadableDecisionClearsTheFailure(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	payload := `{"tool_name":"Bash","tool_input":{"command":"git push"}}`
+	recorded := func() bool {
+		t.Helper()
+		path, err := hookfailures.Path("prosthetic-conscience")
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(path)
+		if errors.Is(err, fs.ErrNotExist) {
+			return false // the record removes itself when its last failure clears
+		}
+		if err != nil {
+			t.Fatalf("read the failure record: %v", err)
+		}
+		var r hookfailures.Record
+		if err := json.Unmarshal(b, &r); err != nil {
+			t.Fatalf("the failure record is not JSON: %v", err)
+		}
+		for _, f := range r.Failures {
+			if f.Stage == StageDecision {
+				return true
+			}
+		}
+		return false
+	}
+	fire(t, payload, []hookunit.Unit{stub("gate", `not json`, "")})
+	if !recorded() {
+		t.Fatal("an unreadable decision was not recorded as a failure")
+	}
+	fire(t, payload, []hookunit.Unit{stub("quiet", "", "")})
+	if recorded() {
+		t.Error("a call with no unreadable decision left the failure recorded")
 	}
 }
 

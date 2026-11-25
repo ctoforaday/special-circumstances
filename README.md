@@ -60,14 +60,15 @@ Plugins resolve when a session starts, so a mid-session install applies to the *
 
 ### On Google Antigravity
 
-Clone the repository and install all four plugins through `.agents/plugins.json` (or import from an existing Claude Code installation):
+Antigravity runs the plugins installed under `~/.gemini/config/plugins/`, each with its official release binaries. Install prosthetic-conscience from a clone, fetch its binaries, then let its doctor install the rest at the release tags pinned in `.claude-plugin/marketplace.json`:
 
 ```text
 git clone https://github.com/ctoforaday/special-circumstances.git
-agy plugin install ./special-circumstances
+agy plugin install ./special-circumstances/plugins/prosthetic-conscience
+sh ~/.gemini/config/plugins/prosthetic-conscience/hooks/fetch-bin.sh fetch
 ```
 
-To update an existing Antigravity installation to the release tags pinned in `.claude-plugin/marketplace.json`, run `/prosthetic-conscience:doctor --fix` inside an Antigravity session (or `sc-doctor -fix` with a checkout of the repository available): `sc-doctor` checks each installed plugin under `~/.gemini/config/plugins/` against its pinned tag, reinstalls any stale or half-updated plugin whole via `agy plugin install`, and provisions the release binaries.
+Then, inside an Antigravity session, run `/prosthetic-conscience:doctor --fix` (or `sc-doctor -fix` with the clone available). It installs every plugin the marketplace lists that Antigravity lacks, reinstalls any stale or half-updated one whole from its pinned tag, and fetches each plugin's release binaries before it returns. Run it again after a release to update.
 
 ## Try it
 
