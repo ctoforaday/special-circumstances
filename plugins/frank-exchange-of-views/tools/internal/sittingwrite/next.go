@@ -31,7 +31,8 @@ const deliveryDir = ".work-delivery"
 
 // delivered is what a seat sitting was last handed.
 type delivered struct {
-	// Key and Digest are the current item's (record.QueueEntry); Key is "" when nothing was queued.
+	// Key and Digest are the current item's (record.QueueEntry); Key is "" when nothing was queued. While
+	// report text is handed they stay the item it pre-empted, which resumes after it.
 	Key    string `json:"key"`
 	Digest string `json:"digest"`
 	// Queue is every key queued when it was handed, in queue order.
@@ -113,11 +114,14 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 	var text string
 	var now delivered
 	if had && prev.Report != nil && !prev.Listed {
-		// THE LIST ARRIVES WHOLE ONCE A SITTING: the opening end held it back behind the sitting's
-		// report text, so the first item after that text carries the standing and the index with it.
-		text, now = renderDispatch(w, q), delivered{Queue: queueKeys(q), Listed: true}
+		// THE LIST ARRIVES WHOLE ONCE A SITTING AFTER ITS REPORT TEXT: the opening end held it back behind
+		// the text, or the text pre-empted the item the seat was working, so the first item after the text
+		// carries the standing and the index with it. Its current item is the one the text pre-empted
+		// while it is still queued, and otherwise the head of the queue.
+		at := slices.IndexFunc(q, func(e record.QueueEntry) bool { return prev.Key != "" && e.Key == prev.Key })
+		text, now = renderDispatchAt(w, q, max(at, 0)), delivered{Queue: queueKeys(q), Listed: true}
 		if len(q) > 0 {
-			now.Key, now.Digest = q[0].Key, q[0].Digest
+			now.Key, now.Digest = q[max(at, 0)].Key, q[max(at, 0)].Digest
 		}
 	} else {
 		text, now = nextOf(w, q, prev, had)
@@ -152,11 +156,12 @@ func handReportItem(run record.Run, seat string, w record.WorkJSON, q []record.Q
 		if err != nil {
 			return stuck("the sitting's delivery file could not be read: %v", err)
 		}
+		// THE ITEM THE SEAT WAS WORKING STAYS ITS CURRENT ITEM through the report text that pre-empts it
+		// (handReportText keeps prev's key and digest), so the list after the text resumes it.
 		text, now, err := handReportText(run, seat, record.ReportTextSubjects(w), prev)
 		if err != nil {
 			return err
 		}
-		now.Key, now.Digest = q[0].Key, q[0].Digest
 		now.Queue = queueKeys(q)
 		now.Listed = prev.Listed
 		if err := writeDelivered(path, now); err != nil {

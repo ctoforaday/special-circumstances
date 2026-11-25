@@ -152,9 +152,14 @@ func RenderDispatchDelivery(w record.WorkJSON) string { return renderDispatch(w,
 
 // renderDispatch is RenderDispatchDelivery over the queue already read off w.
 func renderDispatch(w record.WorkJSON, q []record.QueueEntry) string {
-	d := seatDelivery{Sitting: standingOf(w, q), Index: indexOf(w, q, 1), Estopped: estoppedLines(w)}
-	if len(q) > 0 {
-		d.Current = itemOf(q[0], false)
+	return renderDispatchAt(w, q, 0)
+}
+
+// renderDispatchAt is renderDispatch with the entry at at as the current item.
+func renderDispatchAt(w record.WorkJSON, q []record.QueueEntry, at int) string {
+	d := seatDelivery{Sitting: standingOf(w, q), Index: indexOf(w, q, -1, at), Estopped: estoppedLines(w)}
+	if at < len(q) {
+		d.Current = itemOf(q[at], false)
 	}
 	return fitted(dispatchArrived, d)
 }
