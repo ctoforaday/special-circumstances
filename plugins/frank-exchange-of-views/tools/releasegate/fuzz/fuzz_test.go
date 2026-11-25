@@ -3925,12 +3925,12 @@ func (r *runner) ownOpenGapAbout(seatID, anchor string) bool {
 // keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
 // sittings because it owes, and what it owes. The reason's wording is the fold's
 // (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
-var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:its latest complete delivery of report text was cut at its pin \d+|no sitting it sat through holds a complete delivery of report text), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:its latest complete delivery of report text was cut at its pin \d+|no sitting it sat through holds a complete delivery of report text), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint, close, reading, computation check or inquiry check; it does not retire while it owes (.*)\)$`)
 
 // barrenSittings reads a plan's lens fold line for the sittings in a row with no productive act, in the
 // fold's words (record.lensStates), as keptByDebt does; TestKeptByDebtReadsThePlansLine holds both to the
 // line a plan prints.
-var barrenSittings = regexp.MustCompile(`^red-lens-[a-z-]+: .* \((\d+) sitting\(s\) in a row with no fresh material mint;`)
+var barrenSittings = regexp.MustCompile(`^red-lens-[a-z-]+: .* \((\d+) sitting\(s\) in a row with no fresh material mint, close, reading, computation check or inquiry check;`)
 
 // retiresAfterSittings is the fold's barren limit (record's retiresAfter): a lens that many sittings in a
 // row barren, owing nothing, is retired.

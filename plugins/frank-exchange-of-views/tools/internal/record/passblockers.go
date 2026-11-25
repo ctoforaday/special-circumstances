@@ -476,7 +476,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				why = append(why, b.foldWhy)
 			}
-			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head of the latest report text the tool delivered to it, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a delivery in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
+			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head of the latest report text the tool delivered to it, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint, close, reading, computation check or inquiry check retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a delivery in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
 				len(bs), strings.Join(why, "; "))
 		},
 	},

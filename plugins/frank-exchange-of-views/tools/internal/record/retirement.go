@@ -22,12 +22,13 @@ import (
 //
 // A lens that keeps finding nothing stops being asked: b5's chair readied the voice lens alone
 // eleven times as the head moved. So a lens RETIRES at its third sitting in a row that mints no
-// fresh material, and a head move does not ready a retired lens.
+// fresh material, closes no gap, records no reading and checks no computation or inquiry, and a head
+// move does not ready a retired lens.
 //
-// A LENS THAT OWES IS NOT RETIRED. Judging a computation and closing a gap mint nothing, so a lens could
-// retire holding work no other seat may do: universe-m23's voice lens retired with its gap open and
-// answered by blue, and nobody was readied to close it; a computation lens that only judges computations
-// retired, and every computation recorded after shipped "not judged". What a lens owes is each item its
+// A LENS THAT OWES IS NOT RETIRED. A lens's barren sittings can end with work still on its list that no
+// other seat may do: universe-m23's voice lens retired with its gap open and
+// answered by blue, and nobody was readied to close it; a computation lens with nothing to judge for three
+// sittings retired, and every computation recorded after shipped "not judged". What a lens owes is each item its
 // work list names as its own to clear that is still undone (lensOwesOf) — on a gap it minted, what is
 // new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
 // a computation it owns that nobody has judged — and
@@ -55,13 +56,14 @@ import (
 //
 // Nothing is ready before a report is ingested.
 
-// retiresAfter is how many sittings in a row with no fresh material mint retire a lens.
+// retiresAfter is how many barren sittings in a row — no fresh material mint, close, reading, computation
+// check or inquiry check — retire a lens.
 const retiresAfter = 3
 
 // lensFold is one cast lens, folded.
 type lensFold struct {
 	seat     string
-	barren   int      // trailing sittings with no fresh material mint
+	barren   int      // trailing barren sittings: no fresh material mint, close, reading or check
 	sittings int      // sittings it sat through
 	pin      int64    // the head of its latest report read in a sitting it sat through (pinOf); 0 when it has none
 	owes     []string // what it owes (lensOwesOf), each named
@@ -71,7 +73,7 @@ type lensFold struct {
 	why      string
 }
 
-// retired is a lens whose last retiresAfter sittings minted no fresh material and that owes nothing.
+// retired is a lens whose last retiresAfter sittings were barren and that owes nothing.
 func (f lensFold) retired() bool { return f.barren >= retiresAfter && len(f.owes) == 0 }
 
 // retiresWhy is the fold's clause on an unretired lens's retirement, in the terms that hold it: a
@@ -94,13 +96,13 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 	case head == 0:
 		return false, fmt.Sprintf("%s: not ready, no report has been ingested", f.seat)
 	case f.retired():
-		return false, fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", f.seat, f.pin, f.barren)
+		return false, fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material, closed nothing, recorded no reading and checked no computation or inquiry; not ready", f.seat, f.pin, f.barren)
 	case f.sittings == 0 && short != "":
 		return true, fmt.Sprintf("%s: has sat through no sitting — %s — audits the report at head %d", f.seat, short, head)
 	case f.sittings == 0:
 		return true, fmt.Sprintf("%s: never sat — audits the report at head %d", f.seat, head)
 	case head > f.pin:
-		why := fmt.Sprintf("%s: %s, behind head %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", f.seat, servedClause(f.pin), head, f.barren, f.retiresWhy())
+		why := fmt.Sprintf("%s: %s, behind head %d — audits the report (%d sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; %s)", f.seat, servedClause(f.pin), head, f.barren, f.retiresWhy())
 		if short != "" {
 			why += "; " + short
 		}
@@ -323,15 +325,15 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			default:
 				continue
 			}
-			// the sitting whose opening most recently precedes the mint
+			// the sitting whose opening most recently precedes the act
 			k := sort.Search(len(sittings), func(j int) bool { return sittings[j] >= ids[i] }) - 1
 			if k >= 0 {
 				productive[sittings[k]] = true
 			}
 		}
 		// A SITTING IT DID NOT SIT THROUGH IS NEITHER SAT NOR BARREN (satThrough): it is skipped, so
-		// the count runs on as if it had not been dispatched. A fresh material mint it made is on the
-		// record all the same, and resets the count.
+		// the count runs on as if it had not been dispatched. A fresh material mint, close, reading or check it
+		// made is on the record all the same, and resets the count.
 		for _, s := range sittings {
 			through := ends.sat(seat, s)
 			if through {
