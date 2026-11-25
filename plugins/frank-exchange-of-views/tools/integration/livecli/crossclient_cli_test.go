@@ -126,8 +126,9 @@ func newIsolatedAgyHome(t *testing.T) string {
 	t.Helper()
 	fakeHome := t.TempDir()
 	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
-		t.Skipf("antigravity credentials unavailable: %v", err)
+		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
+	testhome.GuardLiveTempHome(t, fakeHome)
 	cliDst := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
 	if err := os.WriteFile(filepath.Join(cliDst, "settings.json"), []byte(`{"toolPermission":"always-proceed"}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -147,26 +148,7 @@ func cleanEnv(extra ...string) []string {
 }
 
 func agyEnv(fakeHome string) []string {
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "CLAUDE_") ||
-			strings.HasPrefix(e, "ANTIGRAVITY_") || strings.HasPrefix(e, "XDG_") ||
-			strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") ||
-			strings.HasPrefix(e, "GOMODCACHE=") || strings.HasPrefix(e, "GOFLAGS=") {
-			continue
-		}
-		env = append(env, e)
-	}
-	gc, _ := exec.Command("go", "env", "GOCACHE").Output()
-	gmc, _ := exec.Command("go", "env", "GOMODCACHE").Output()
-	env = append(env, "HOME="+fakeHome, "GOFLAGS=-modcacherw")
-	if s := strings.TrimSpace(string(gc)); s != "" {
-		env = append(env, "GOCACHE="+s)
-	}
-	if s := strings.TrimSpace(string(gmc)); s != "" {
-		env = append(env, "GOMODCACHE="+s)
-	}
-	return env
+	return testhome.LiveEnv(fakeHome)
 }
 
 func newUUID(t *testing.T) string {

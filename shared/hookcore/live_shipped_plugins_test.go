@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -29,75 +28,21 @@ func copyGhCredentials(fakeHome string) {
 	}
 }
 
-var (
-	hostGoCacheOnce sync.Once
-	hostGoCache     string
-	hostGoModCache  string
-)
-
-func hostGoCaches() (string, string) {
-	hostGoCacheOnce.Do(func() {
-		goBin, err := exec.LookPath("go")
-		if err != nil {
-			goBin = "/usr/local/go/bin/go"
-		}
-		out, err := exec.Command(goBin, "env", "GOCACHE", "GOMODCACHE").Output()
-		if err == nil {
-			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-			if len(lines) >= 1 {
-				hostGoCache = strings.TrimSpace(lines[0])
-			}
-			if len(lines) >= 2 {
-				hostGoModCache = strings.TrimSpace(lines[1])
-			}
-		}
-	})
-	return hostGoCache, hostGoModCache
-}
-
-// liveTestEnv builds an isolated environment slice for tests running with a redirected fakeHome.
-// It preserves the host's GOCACHE and GOMODCACHE and enforces GOFLAGS=-modcacherw so that
-// any source builds inside fakeHome (such as sc-doctor -fix fallback compilation) write
-// writable module cache entries into the host cache rather than creating read-only entries
-// inside fakeHome that break t.TempDir() cleanup.
+// liveTestEnv delegates to testhome.LiveEnv so all live harness tests share one env isolation helper.
 func liveTestEnv(fakeHome string, extra ...string) []string {
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") ||
-			strings.HasPrefix(e, "ANTIGRAVITY_") || strings.HasPrefix(e, "XDG_") || strings.HasPrefix(e, "PLUGIN_ROOT=") ||
-			strings.HasPrefix(e, "GOCACHE=") || strings.HasPrefix(e, "GOMODCACHE=") || strings.HasPrefix(e, "GOFLAGS=") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env, "HOME="+fakeHome, "PATH="+os.Getenv("PATH"),
-		"AGY_CLI_DISABLE_AUTO_UPDATE=true", "DISABLE_AUTOUPDATER=1")
-	gc, gmc := hostGoCaches()
-	if gc != "" {
-		env = append(env, "GOCACHE="+gc)
-	}
-	if gmc != "" {
-		env = append(env, "GOMODCACHE="+gmc)
-	}
-	goflags := os.Getenv("GOFLAGS")
-	if goflags == "" {
-		goflags = "-modcacherw"
-	} else if !strings.Contains(goflags, "-modcacherw") {
-		goflags += " -modcacherw"
-	}
-	env = append(env, "GOFLAGS="+goflags)
-	env = append(env, extra...)
-	return env
+	return testhome.LiveEnv(fakeHome, extra...)
 }
 
 // copyAgyCredentials stages the refresh-stripped Antigravity access token (#1890) so agy -p does
-// not block on interactive OAuth, skipping when credentials are unavailable.
+// not block on interactive OAuth, failing closed under HOOKCORE_LIVE=1 when credentials are missing
+// or cannot be renewed, and registering the #1890 outcome guard on fakeHome.
 func copyAgyCredentials(t *testing.T, fakeHome string) {
 	t.Helper()
 	copyGhCredentials(fakeHome)
 	if err := testhome.StageAgyAccessToken(fakeHome); err != nil {
-		t.Skipf("antigravity credentials unavailable: %v", err)
+		t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 	}
+	testhome.GuardLiveTempHome(t, fakeHome)
 	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
 	settingsPath := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "settings.json")
 	if err := os.WriteFile(settingsPath, []byte(`{"toolPermission":"always-proceed"}`), 0600); err != nil {

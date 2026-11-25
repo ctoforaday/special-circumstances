@@ -190,29 +190,12 @@ func copyTree(t *testing.T, src string) string {
 // isolatedEnv is the process environment with every config, cache and data root pointed at home,
 // so a harness reads and writes nothing of the developer's own installation.
 func isolatedEnv(home string) []string {
-	var env []string
-	for _, kv := range os.Environ() {
-		k, _, _ := strings.Cut(kv, "=")
-		switch {
-		case k == "HOME", k == "USERPROFILE", k == "CLAUDE_CONFIG_DIR",
-			strings.HasPrefix(k, "XDG_"), strings.HasPrefix(k, "FEOV_"):
-			continue
-		}
-		env = append(env, kv)
-	}
-	return append(env,
-		"HOME="+home,
-		"USERPROFILE="+home,
+	return testhome.LiveEnv(home,
 		"CLAUDE_CONFIG_DIR="+filepath.Join(home, ".claude"),
 		"XDG_CONFIG_HOME="+filepath.Join(home, ".config"),
 		"XDG_CACHE_HOME="+filepath.Join(home, ".cache"),
 		"XDG_DATA_HOME="+filepath.Join(home, ".local", "share"),
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
-		// Each client's own updater switch. A client's updater replaces the running executable
-		// wherever it lives, whatever HOME says: `agy agents` alone swaps the developer's agy for
-		// the latest build. agy honours its variable only at the exact value "true".
-		"DISABLE_AUTOUPDATER=1",
-		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
 	)
 }
 
@@ -667,8 +650,9 @@ func TestLiveBothCLIsInstantiateAgentsWithValidTools(t *testing.T) {
 		t.Helper()
 		home := tempHome(t)
 		if err := testhome.StageAgyAccessToken(home); err != nil {
-			t.Skipf("no agy credentials: %v", err)
+			t.Fatalf("antigravity credentials unavailable under HOOKCORE_LIVE=1: %v", err)
 		}
+		testhome.GuardLiveTempHome(t, home)
 		return home
 	}
 

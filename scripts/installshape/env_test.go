@@ -194,6 +194,7 @@ func (b *box) credentialFiles() []string {
 		filepath.Join(b.home, ".claude", ".credentials.json"),
 		filepath.Join(b.home, ".config", "anthropic"),
 		filepath.Join(b.home, ".anthropic"),
+		filepath.Join(b.home, ".gemini", "antigravity-cli", "antigravity-oauth-token"),
 		filepath.Join(b.home, ".gemini", "oauth_creds.json"),
 		filepath.Join(b.home, ".gemini", "google_accounts.json"),
 		filepath.Join(b.home, ".aws"),
