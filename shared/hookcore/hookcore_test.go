@@ -1113,3 +1113,24 @@ func TestAntigravity153To156PayloadFields(t *testing.T) {
 		t.Errorf("PluginDataDir = %q, want /agy/plugin-data/prosthetic-conscience", reqEnv.PluginDataDir)
 	}
 }
+
+func TestIsTurnStartPreInvocation(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{"invocationNum 0", `{"conversationId":"c1","invocationNum":0}`, true},
+		{"invocationNum 1", `{"conversationId":"c1","invocationNum":1}`, false},
+		{"invocationNum absent", `{"conversationId":"c1"}`, false},
+		{"invalid JSON", `{not json`, false},
+		{"Claude payload", `{"session_id":"s1","hook_event_name":"PreToolUse","tool_name":"Bash"}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsTurnStartPreInvocation([]byte(tc.raw)); got != tc.want {
+				t.Errorf("IsTurnStartPreInvocation(%s) = %v, want %v", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
