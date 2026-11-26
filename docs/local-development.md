@@ -289,7 +289,11 @@ Each live test runs in a throwaway home created with `shared/testhome.NewLiveHom
 `LiveEnv`/`LiveClaudeEnv`, holding only a short-lived access token (Claude via
 `CLAUDE_CODE_OAUTH_TOKEN`, Antigravity via a minimal refresh-stripped token file, never copying
 refresh tokens into temp homes, `#1890`). Both hosts must be signed in (`claude auth login` and
-`agy`) with at least 15 minutes remaining on their access tokens; `StageAgyAccessToken` auto-renews
+`agy`) with at least 15 minutes remaining on their access tokens (`DefaultClaudeMinTokenLifetime`
+and `DefaultAgyMinTokenLifetime` = `agy`'s 5-minute refresh cliff + 10-minute test budget);
+`StageAgyAccessToken` auto-renews immediately below 5 minutes, waits past 5 minutes when within 90
+seconds of the cliff (`[5m, 6m25s]`), and fails fast with `ErrAgyTokenWaitTooLong` in `(6m25s, 15m)`
+without running a futile host turn (or
 a short or expired host Antigravity access token under a cross-process lock via one host turn (or
 renew manually with `agy -p ok --model gemini-3.8-flash-low`; renew Claude with `claude auth login`
 or `claude -p "Reply with the single word ok" --model haiku --max-turns 1` in your real HOME). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable

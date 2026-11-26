@@ -2,6 +2,7 @@ package testhome_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -191,12 +192,52 @@ func TestStageAgyAccessTokenFromAndRenewal(t *testing.T) {
 		t.Fatalf("expected below-floor lifetime error for 30s token, got %v", err)
 	}
 
-	// Pure renewal decision + StageAgyAccessTokenWithRenew (closes X4 & X5).
-	if !testhome.NeedsRenewal(14*time.Minute, 15*time.Minute) || testhome.NeedsRenewal(15*time.Minute, 15*time.Minute) {
+	// Pure renewal decision + boundary table + StageAgyAccessTokenWithRenew (closes X4, X5, M7, M8).
+	if testhome.DefaultAgyMinTokenLifetime != testhome.AgyRefreshThreshold+testhome.AgyTestRuntimeBudget {
+		t.Fatalf("DefaultAgyMinTokenLifetime (%s) != AgyRefreshThreshold (%s) + AgyTestRuntimeBudget (%s)",
+			testhome.DefaultAgyMinTokenLifetime, testhome.AgyRefreshThreshold, testhome.AgyTestRuntimeBudget)
+	}
+	if testhome.DefaultClaudeMinTokenLifetime != 15*time.Minute {
+		t.Fatalf("DefaultClaudeMinTokenLifetime = %s, want 15m", testhome.DefaultClaudeMinTokenLifetime)
+	}
+	if !testhome.NeedsRenewal(testhome.DefaultAgyMinTokenLifetime-time.Second, testhome.DefaultAgyMinTokenLifetime) ||
+		testhome.NeedsRenewal(testhome.DefaultAgyMinTokenLifetime, testhome.DefaultAgyMinTokenLifetime) {
 		t.Fatal("NeedsRenewal boundary check failed")
 	}
+
+	t.Run("PlanAgyTokenRenewal decision boundaries", func(t *testing.T) {
+		minLife := testhome.DefaultAgyMinTokenLifetime // 15m (5m cliff + 10m budget)
+		thresh := testhome.AgyRefreshThreshold         // 5m
+		maxWait := testhome.MaxAgyRefreshWait          // 90s
+		cases := []struct {
+			name       string
+			left       time.Duration
+			wantAction testhome.AgyRenewalAction
+			wantWait   time.Duration
+		}{
+			{"15m+1s stages immediately", 15*time.Minute + time.Second, testhome.AgyTokenStage, 0},
+			{"exact 15m stages immediately", 15 * time.Minute, testhome.AgyTokenStage, 0},
+			{"15m-1s fails fast with wait duration", 15*time.Minute - time.Second, testhome.AgyTokenFail, 10*time.Minute + 4*time.Second},
+			{"6m26s exceeds 90s maxWait and fails fast", 6*time.Minute + 26*time.Second, testhome.AgyTokenFail, 91 * time.Second},
+			{"6m25s hits exact 90s maxWait and waits then renews", 6*time.Minute + 25*time.Second, testhome.AgyTokenWaitThenRenew, 90 * time.Second},
+			{"5m+1s waits then renews (6s)", 5*time.Minute + time.Second, testhome.AgyTokenWaitThenRenew, 6 * time.Second},
+			{"exact 5m waits margin then renews (5s)", 5 * time.Minute, testhome.AgyTokenWaitThenRenew, 5 * time.Second},
+			{"5m-1s renews immediately", 5*time.Minute - time.Second, testhome.AgyTokenRenewNow, 0},
+			{"expired (-30s) renews immediately", -30 * time.Second, testhome.AgyTokenRenewNow, 0},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				gotAction, gotWait := testhome.PlanAgyTokenRenewal(tc.left, minLife, thresh, maxWait)
+				if gotAction != tc.wantAction || gotWait != tc.wantWait {
+					t.Fatalf("PlanAgyTokenRenewal(%s, %s) = (%s, %s), want (%s, %s)",
+						tc.left, minLife, gotAction, gotWait, tc.wantAction, tc.wantWait)
+				}
+			})
+		}
+	})
 	t.Run("auto-renews short token under process lock and succeeds", func(t *testing.T) {
-		h := writeTok(`{"token":{"access_token":"ya29.old","expiry":"2020-01-01T00:00:00Z"}}`)
+		short := time.Now().Add(2 * time.Minute).UTC().Format(time.RFC3339)
+		h := writeTok(fmt.Sprintf(`{"token":{"access_token":"ya29.old","expiry":%q}}`, short))
 		lockPath := filepath.Join(t.TempDir(), "renew.lock")
 		calls := 0
 		renewFn := func(hh string) error {
@@ -206,18 +247,127 @@ func TestStageAgyAccessTokenFromAndRenewal(t *testing.T) {
 				[]byte(fmt.Sprintf(`{"token":{"access_token":"ya29.fresh","refresh_token":"1//r","expiry":%q}}`, fresh)), 0o600)
 		}
 		dst := t.TempDir()
-		if err := testhome.StageAgyAccessTokenWithRenew(h, dst, 15*time.Minute, lockPath, renewFn); err != nil {
+		if err := testhome.StageAgyAccessTokenWithRenew(h, dst, testhome.DefaultAgyMinTokenLifetime, lockPath, renewFn); err != nil {
 			t.Fatalf("StageAgyAccessTokenWithRenew: %v", err)
 		}
 		if calls != 1 {
 			t.Fatalf("renew called %d times, want 1", calls)
 		}
 		// Second call with fresh token must NOT renew again.
-		if err := testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), 15*time.Minute, lockPath, renewFn); err != nil {
+		if err := testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, renewFn); err != nil {
 			t.Fatalf("second StageAgyAccessTokenWithRenew: %v", err)
 		}
 		if calls != 1 {
 			t.Fatalf("renew called %d times after token became fresh, want 1", calls)
+		}
+	})
+
+	t.Run("fails fast with ErrAgyTokenWaitTooLong without calling renew in dead-zone band (M8)", func(t *testing.T) {
+		midBand := time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339)
+		h := writeTok(fmt.Sprintf(`{"token":{"access_token":"ya29.mid","expiry":%q}}`, midBand))
+		lockPath := filepath.Join(t.TempDir(), "mid.lock")
+		calls := 0
+		renewFn := func(string) error {
+			calls++
+			return nil
+		}
+		err := testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, renewFn)
+		if err == nil {
+			t.Fatal("expected fail-fast error for 10m token below 15m floor")
+		}
+		if !errors.Is(err, testhome.ErrAgyTokenWaitTooLong) {
+			t.Fatalf("expected ErrAgyTokenWaitTooLong, got %v", err)
+		}
+		if errors.Is(err, testhome.ErrAgyTokenNotRefreshed) {
+			t.Fatalf("fail-fast branch must not wrap ErrAgyTokenNotRefreshed when agy never ran: %v", err)
+		}
+		if calls != 0 {
+			t.Fatalf("renew called %d times on fail-fast path, want 0", calls)
+		}
+	})
+
+	t.Run("fails with named ErrAgyTokenNotRefreshed without looping when renewal does not extend expiry", func(t *testing.T) {
+		unchanged := time.Now().Add(3 * time.Minute).UTC().Format(time.RFC3339)
+		h := writeTok(fmt.Sprintf(`{"token":{"access_token":"ya29.stuck","expiry":%q}}`, unchanged))
+		lockPath := filepath.Join(t.TempDir(), "stuck.lock")
+		calls := 0
+		renewFn := func(string) error {
+			calls++
+			return nil // simulates agy exiting 0 without rotating the token
+		}
+		err := testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, renewFn)
+		if err == nil {
+			t.Fatal("expected named failure when renewal did not advance expiry")
+		}
+		if !errors.Is(err, testhome.ErrAgyTokenNotRefreshed) {
+			t.Fatalf("expected ErrAgyTokenNotRefreshed, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "agy did not refresh") || !strings.Contains(err.Error(), testhome.AgyRefreshThreshold.String()) {
+			t.Fatalf("error must name reason and agy threshold (%s), got %q", testhome.AgyRefreshThreshold, err.Error())
+		}
+		if calls != 1 {
+			t.Fatalf("renew called %d times, want exactly 1 (must never loop)", calls)
+		}
+	})
+
+	t.Run("fails closed when renewal advances expiry but remains below floor", func(t *testing.T) {
+		before := time.Now().Add(1 * time.Minute).UTC().Format(time.RFC3339)
+		h := writeTok(fmt.Sprintf(`{"token":{"access_token":"ya29.short1","expiry":%q}}`, before))
+		lockPath := filepath.Join(t.TempDir(), "stillshort.lock")
+		calls := 0
+		renewFn := func(hh string) error {
+			calls++
+			slightlyNewer := time.Now().Add(2 * time.Minute).UTC().Format(time.RFC3339)
+			return os.WriteFile(filepath.Join(hh, ".gemini", "antigravity-cli", "antigravity-oauth-token"),
+				[]byte(fmt.Sprintf(`{"token":{"access_token":"ya29.short2","expiry":%q}}`, slightlyNewer)), 0o600)
+		}
+		err := testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, renewFn)
+		if err == nil || errors.Is(err, testhome.ErrAgyTokenNotRefreshed) || !strings.Contains(err.Error(), "expires in") {
+			t.Fatalf("expected below-floor error (not ErrAgyTokenNotRefreshed), got %v", err)
+		}
+		if calls != 1 {
+			t.Fatalf("renew called %d times, want 1", calls)
+		}
+	})
+
+	t.Run("fails closed without renewing when token file becomes corrupt while waiting on lock (M7)", func(t *testing.T) {
+		h := writeTok(`{"token":{"access_token":"ya29.stale","expiry":"2020-01-01T00:00:00Z"}}`)
+		lockPath := filepath.Join(t.TempDir(), "corrupt.lock")
+		locked := make(chan struct{})
+		release := make(chan struct{})
+		done := make(chan error, 1)
+		go func() {
+			blockerHome := writeTok(`{"token":{"access_token":"ya29.b","expiry":"2020-01-01T00:00:00Z"}}`)
+			done <- testhome.StageAgyAccessTokenWithRenew(blockerHome, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, func(bh string) error {
+				close(locked)
+				<-release
+				fresh := time.Now().Add(50 * time.Minute).UTC().Format(time.RFC3339)
+				_ = os.WriteFile(filepath.Join(bh, ".gemini", "antigravity-cli", "antigravity-oauth-token"),
+					[]byte(fmt.Sprintf(`{"token":{"access_token":"ya29.ok","expiry":%q}}`, fresh)), 0o600)
+				// Corrupt the waiter's token file while the waiter is queued on the lock.
+				return os.WriteFile(filepath.Join(h, ".gemini", "antigravity-cli", "antigravity-oauth-token"), []byte("{corrupt"), 0o600)
+			})
+		}()
+		<-locked
+		waiterDone := make(chan error, 1)
+		waiterCalls := 0
+		go func() {
+			waiterDone <- testhome.StageAgyAccessTokenWithRenew(h, t.TempDir(), testhome.DefaultAgyMinTokenLifetime, lockPath, func(string) error {
+				waiterCalls++
+				return nil
+			})
+		}()
+		time.Sleep(50 * time.Millisecond)
+		close(release)
+		if err := <-done; err != nil {
+			t.Fatalf("lock holder failed: %v", err)
+		}
+		err := <-waiterDone
+		if err == nil || !strings.Contains(err.Error(), "parse Antigravity credentials") {
+			t.Fatalf("expected parse error from post-lock re-check, got %v", err)
+		}
+		if waiterCalls != 0 {
+			t.Fatalf("waiter called renew %d times on corrupt token file, want 0", waiterCalls)
 		}
 	})
 
@@ -281,6 +431,7 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 		"PLUGIN_ROOT=/host/plugin",
 		"PLUGIN_DATA=/host/plugin-data",
 		"XDG_CONFIG_HOME=/host/xdg",
+		"APPDATA=/host/appdata",
 	}
 	fakeHome := t.TempDir()
 	env, extraDirs, err := testhome.BuildLiveEnv(base, fakeHome, host, "CLAUDE_CODE_OAUTH_TOKEN=lent-access-token")
@@ -301,7 +452,7 @@ func TestBuildLiveEnvStripsAndValidates(t *testing.T) {
 	if kv["CLAUDE_CODE_OAUTH_TOKEN"] != "lent-access-token" {
 		t.Fatalf("lent extra token lost: %q", kv["CLAUDE_CODE_OAUTH_TOKEN"])
 	}
-	for _, stripped := range []string{"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTIGRAVITY_CSRF_TOKEN", "FEOV_RUN", "PLUGIN_ROOT", "PLUGIN_DATA", "XDG_CONFIG_HOME"} {
+	for _, stripped := range []string{"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTIGRAVITY_CSRF_TOKEN", "FEOV_RUN", "PLUGIN_ROOT", "PLUGIN_DATA", "XDG_CONFIG_HOME", "APPDATA"} {
 		if v, ok := kv[stripped]; ok {
 			t.Errorf("BuildLiveEnv did not strip %s (got %q)", stripped, v)
 		}
@@ -577,21 +728,35 @@ func TestGuardLiveTempHomeStructuralMatrix(t *testing.T) {
 
 	t.Run("host token rotated mid-test then copied under renamed path is caught at cleanup", func(t *testing.T) {
 		rotHost := t.TempDir()
-		rotDir := filepath.Join(rotHost, ".claude")
-		rotFile := filepath.Join(rotDir, ".credentials.json")
-		_ = os.MkdirAll(rotDir, 0o700)
-		_ = os.WriteFile(rotFile, []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-INITIAL"}}`), 0o600)
+		rotClaudeDir := filepath.Join(rotHost, ".claude")
+		rotClaudeFile := filepath.Join(rotClaudeDir, ".credentials.json")
+		rotAgyDir := filepath.Join(rotHost, ".gemini", "antigravity-cli")
+		rotAgyFile := filepath.Join(rotAgyDir, "antigravity-oauth-token")
+		_ = os.MkdirAll(rotClaudeDir, 0o700)
+		_ = os.MkdirAll(rotAgyDir, 0o700)
+		_ = os.WriteFile(rotClaudeFile, []byte(`{"claudeAiOauth":{"refreshToken":"sk-ant-ort01-INITIAL"}}`), 0o600)
+		_ = os.WriteFile(rotAgyFile, []byte(`{"token":{"refresh_token":"1//AGY-INITIAL"}}`), 0o600)
 
 		g := testhome.NewHostRefreshGuardFrom(rotHost)
-		// Host legitimately rotates mid-test, then a rogue child copies the NEW token under a renamed path.
-		const rotatedSecret = "sk-ant-ort01-ROTATED-MID-TEST"
-		_ = os.WriteFile(rotFile, []byte(fmt.Sprintf(`{"claudeAiOauth":{"refreshToken":%q}}`, rotatedSecret)), 0o600)
+		// Host legitimately rotates both tokens mid-test, then a rogue child copies each NEW token
+		// under a renamed path (pins both Claude and Antigravity re-reads, closing N4b).
+		const rotatedClaude = "sk-ant-ort01-ROTATED-MID-TEST"
+		const rotatedAgy = "1//AGY-ROTATED-MID-TEST"
+		_ = os.WriteFile(rotClaudeFile, []byte(fmt.Sprintf(`{"claudeAiOauth":{"refreshToken":%q}}`, rotatedClaude)), 0o600)
+		_ = os.WriteFile(rotAgyFile, []byte(fmt.Sprintf(`{"token":{"refresh_token":%q}}`, rotatedAgy)), 0o600)
 
-		fake := t.TempDir()
-		_ = os.WriteFile(filepath.Join(fake, "sneaky-renamed-copy"), []byte(rotatedSecret), 0o600)
-		errs := runGuard(t, g, fake)
-		if len(errs) == 0 || !strings.Contains(errs[0], "host Claude refresh token") || strings.Contains(errs[0], rotatedSecret) {
-			t.Fatalf("expected mid-test rotated host token copy to be caught without secret leak, got %v", errs)
+		fakeClaude := t.TempDir()
+		_ = os.WriteFile(filepath.Join(fakeClaude, "sneaky-renamed-copy"), []byte(rotatedClaude), 0o600)
+		errs := runGuard(t, g, fakeClaude)
+		if len(errs) == 0 || !strings.Contains(errs[0], "host Claude refresh token") || strings.Contains(errs[0], rotatedClaude) {
+			t.Fatalf("expected mid-test rotated host Claude token copy to be caught without secret leak, got %v", errs)
+		}
+
+		fakeAgy := t.TempDir()
+		_ = os.WriteFile(filepath.Join(fakeAgy, "sneaky-agy-renamed-copy"), []byte(rotatedAgy), 0o600)
+		errs = runGuard(t, g, fakeAgy)
+		if len(errs) == 0 || !strings.Contains(errs[0], "host Antigravity refresh token") || strings.Contains(errs[0], rotatedAgy) {
+			t.Fatalf("expected mid-test rotated host Antigravity token copy to be caught without secret leak, got %v", errs)
 		}
 	})
 
@@ -690,7 +855,7 @@ func TestLiveTestsUseTesthome(t *testing.T) {
 						if s == "HOOKCORE_LIVE" {
 							fi.hasLive = true
 						}
-						if strings.HasPrefix(s, "HOME=") {
+						if strings.HasPrefix(s, "HOME=") || strings.HasPrefix(s, "USERPROFILE=") {
 							fi.rawHomeSetup = true
 						}
 					}
