@@ -7,28 +7,45 @@ titles are never accepted as targets).
 
 WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
 
-  claude-socket        a running Claude Code session's inbox socket. The session's
-                       inbound controls then decide: by default the text reaches it
-                       between tool calls, or starts a turn if it is idle; a session
-                       that bypasses permission prompts HOLDS it for its human's
-                       approval; crossSessionInbound "refuse" drops it unseen.
-  antigravity-server   the language server hosting the Antigravity conversation. It
-                       delivers the text and wakes the conversation if it is idle.
-  antigravity-mailbox  the conversation's on-disk mailbox. The text is QUEUED: it is
-                       read at the conversation's next turn, and nothing wakes it. The
-                       reason it was not delivered live is printed with it.
+  claude-socket              a running Claude Code session's inbox socket. The
+                             session's inbound controls then decide: by default the
+                             text reaches it between tool calls, or starts a turn if it
+                             is idle; a session that bypasses permission prompts HOLDS
+                             it for its human's approval; crossSessionInbound "refuse"
+                             drops it unseen.
+  antigravity-daemon         the current remote-control daemon's language server,
+                             through its record. It delivers the text, loading the
+                             conversation if it has to, and wakes it if idle.
+  antigravity-server-own     a language server whose record lists the conversation: of
+                             those still running, the one it linked to last. It
+                             delivers the text and wakes the conversation if idle.
+  antigravity-server-holder  the language server that has the conversation open,
+                             through a record that does not list it. It delivers the
+                             text and wakes the conversation if idle.
+  antigravity-mailbox        the conversation's on-disk mailbox. The text is QUEUED: it
+                             is read at the conversation's next turn, and nothing wakes
+                             it. Printed with it: why it was not delivered live, when
+                             the daemon started, and when the conversation last
+                             recorded a step — the two times that bound the wait.
 
 Live delivery to an Antigravity conversation runs on Linux only; on other platforms
 second-writer safety cannot be verified, so send always queues to the mailbox. On
-Linux, an Antigravity conversation is reached live through its own server record when
-that server is up, or through the current remote-control daemon's server record —
-written by any daemon-hosted conversation that linked since the daemon started — for
-conversations under the CLI daemon root (~/.gemini/antigravity-cli). Every live route
-checks that presence/<id>.lock is not held and no other process has conversations/<id>.db
-open (which would create a second writer). The server's token reaches nothing but an
-agent's shell commands, so when no daemon-hosted conversation has linked since a
-restart (a standalone interactive agy does not restore the daemon route), send queues
-to the mailbox and says so. telepathy link --help says where the record lives.
+Linux, send first finds who holds the conversation: its presence/<id>.lock, or its
+conversations/<id>.db open in any process. When nobody does, it tries the running
+server whose record lists the conversation and that it linked to last, then the
+current remote-control daemon's record — written by any daemon-hosted conversation
+that linked since the daemon started — which adopts conversations under the CLI
+daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds it,
+that server delivers. Before every attempt send checks again that no process but
+that server holds the conversation, because two writers corrupt it; any other
+holder, or a holder it cannot inspect, queues the message and is named. A record is
+used only while its server process is running; a record whose process cannot be
+judged (another pid namespace, a host with no machine id) is never used. The
+server's token reaches nothing but an agent's shell commands, so when no
+daemon-hosted conversation has linked since a restart (a standalone interactive agy
+does not restore the daemon route), send queues to the mailbox and says so.
+telepathy link --help says where the record lives; telepathy agents lists every
+conversation with messages still waiting.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, and the Claude Code socket does not report a hold or a drop. A

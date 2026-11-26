@@ -70,12 +70,8 @@ func ReadSessionFiles(dir string) ([]SessionFile, error) {
 // — a wrong answer indistinguishable from a right one. `procStart` makes the pair a durable
 // process identity.
 func Of(sf SessionFile, localDomain string, start func(int) (string, bool)) Liveness {
-	// A foreign pidDomain means the pid is not ours to interpret. Not Ended: unmeasurable.
-	if sf.PidDomain != "" && localDomain != "" && sf.PidDomain != localDomain {
+	if ForeignDomain(sf.PidDomain, localDomain) {
 		return Unknown
-	}
-	if localDomain == "" {
-		return Unknown // no way to establish our own domain: say so
 	}
 	got, ok := start(sf.PID)
 	if !ok {
@@ -85,4 +81,15 @@ func Of(sf SessionFile, localDomain string, start func(int) (string, bool)) Live
 		return Ended // pid reused by an unrelated process
 	}
 	return Live
+}
+
+// ForeignDomain reports whether a pid recorded under domain recorded is not ours to interpret
+// against local /proc, whose domain is local: either our own domain cannot be established, or the
+// record names a different one. A pid it covers reads Unknown, never Ended. An empty recorded domain
+// is not foreign here; a caller whose records always carry one treats its absence as Unknown itself.
+func ForeignDomain(recorded, local string) bool {
+	if local == "" {
+		return true // no way to establish our own domain: say so
+	}
+	return recorded != "" && recorded != local
 }

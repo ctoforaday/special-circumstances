@@ -27,9 +27,28 @@
 // Antigravity shell, it records that conversation's server (Register). A conversation that has
 // never run telepathy has no record, and gets the mailbox.
 //
-// The record is keyed by conversation, never by server alone: a server that does not host a
-// conversation ADOPTS it on SendAgentMessage and starts running it there, so sending a
-// conversation to any server but the one its own shell reported is a defect, not a fallback.
+// A record is keyed by server and lists the conversations that linked there, each with when it
+// last linked. Any server ADOPTS a conversation it does not host on SendAgentMessage and starts
+// running it there, so the one thing a send must never do is reach a conversation another process
+// already has open: two processes writing one conversation is the defect this package guards.
+//
+// # Choosing the server
+//
+// Send first asks who holds the conversation (ConversationBusy, excluding nobody): its presence
+// lock, or its conversations/<id>.db open in any process. Then:
+//
+//   - Nobody holds it: the Live record listing it that it linked to last, then the current
+//     remote-control daemon's record, which adopts it. Each attempt is preceded by the same probe,
+//     excluding only that server's pid, so a server that took the conversation while an earlier
+//     attempt failed stops the send rather than meeting a second writer.
+//   - A Live record's server holds it: that server delivers, once a probe excluding its pid finds
+//     nobody else. It is never bypassed for another server, because it has the conversation open.
+//   - The current daemon holds it and has no record: nothing can reach it until a conversation on
+//     it links, and the message queues saying so.
+//   - Anything else holds it, or the probe cannot inspect: the message queues, naming the holder.
+//
+// A record is a target only while RecordLiveness reads it Live. Route names which of the three
+// kinds of record carried the message.
 //
 // The mailbox is Antigravity's own on-disk queue: messages/<id>.json under the conversation's
 // brain directory, plus an empty undelivered/<id> marker. The client reads it at the
@@ -47,8 +66,14 @@ type Route string
 
 const (
 	RouteClaudeSocket Route = "claude-socket"
-	RouteAgyServer    Route = "antigravity-server"
-	RouteAgyMailbox   Route = "antigravity-mailbox"
+	// RouteAgyDaemon: the current remote-control daemon's record.
+	RouteAgyDaemon Route = "antigravity-daemon"
+	// RouteAgyOwnRecord: a record that lists the conversation, other than the daemon's.
+	RouteAgyOwnRecord Route = "antigravity-server-own"
+	// RouteAgyHolderRecord: the record of the server holding the conversation, which does not list
+	// it and is not the daemon's.
+	RouteAgyHolderRecord Route = "antigravity-server-holder"
+	RouteAgyMailbox      Route = "antigravity-mailbox"
 )
 
 // Delivery is what one send did.

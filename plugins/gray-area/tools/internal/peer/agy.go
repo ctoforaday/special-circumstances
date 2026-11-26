@@ -11,12 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/gofrs/flock"
+
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 )
 
 // The three variables Antigravity puts in the environment of an agent's shell commands.
@@ -35,18 +36,48 @@ type ServerIdentity struct {
 	Daemon    bool  `json:"daemon,omitempty"`
 }
 
+// RecordShape is the one shape of server record this binary reads and writes. A file in the
+// registry with any other shape is not a record: the reader refuses it and Prune deletes it.
+const RecordShape = 2
+
 // Server is one Antigravity language server launch, stored keyed by server in the runtime
 // directory so any conversation that links on a restarted daemon makes every idle conversation
 // on that daemon wakeable.
 type Server struct {
-	Key           string   `json:"key"`
-	PID           int      `json:"pid,omitempty"`
-	StartTime     int64    `json:"start_time,omitempty"`
-	Address       string   `json:"address"`
-	Token         string   `json:"token"`
-	Daemon        bool     `json:"daemon,omitempty"`
-	Conversations []string `json:"conversations,omitempty"`
-	RegisteredAt  int64    `json:"registered_at"` // when this server launch was first recorded
+	Shape     int    `json:"shape"`
+	Key       string `json:"key"`
+	PID       int    `json:"pid,omitempty"`
+	StartTime int64  `json:"start_time,omitempty"`
+	// PidDomain is catalogue.LocalPidDomain() of the process that wrote the record: a pid means
+	// something only inside the namespace it was read in, so a record from another one reads
+	// Unknown (RecordLiveness), never Ended.
+	PidDomain     string               `json:"pid_domain,omitempty"`
+	Address       string               `json:"address"`
+	Token         string               `json:"token"`
+	Daemon        bool                 `json:"daemon,omitempty"`
+	RegisteredAt  int64                `json:"registered_at"` // when this server launch was first recorded
+	Conversations []LinkedConversation `json:"conversations"`
+}
+
+// LinkedConversation is one conversation a server record lists, and when it last linked there.
+type LinkedConversation struct {
+	ID       string `json:"id"`
+	LinkedAt int64  `json:"linked_at"`
+}
+
+// Lists reports whether s lists conversation.
+func (s Server) Lists(conversation string) bool {
+	_, ok := s.linkedAt(conversation)
+	return ok
+}
+
+func (s Server) linkedAt(conversation string) (int64, bool) {
+	for _, c := range s.Conversations {
+		if c.ID == conversation {
+			return c.LinkedAt, true
+		}
+	}
+	return 0, false
 }
 
 // ServerKey returns the filename-safe registry key for a language server launch.
@@ -87,14 +118,16 @@ const (
 	NotAnAntigravityShell Linked = iota
 	// NoRuntimeDir: there is nowhere private to keep the record ($XDG_RUNTIME_DIR unset).
 	NoRuntimeDir
-	// AlreadyLinked: the record already names this server launch and conversation; nothing was written.
+	// AlreadyLinked: the record already named this server launch and conversation; its linked_at
+	// was refreshed.
 	AlreadyLinked
 	// Recorded: the record was written.
 	Recorded
 )
 
 // RegisterWith records the server of the Antigravity shell this process runs in, keyed by server,
-// using host to identify the server process launch.
+// using host to identify the server process launch. It sets the conversation's linked_at to now
+// whether or not the record already listed it.
 func RegisterWith(runtimeDir string, getenv func(string) string, host func() ServerIdentity, now time.Time) (Server, Linked, error) {
 	conv := getenv(EnvConversation)
 	addr := getenv(EnvAddress)
@@ -133,26 +166,33 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 	}
 	defer unlock()
 
+	linked := LinkedConversation{ID: conv, LinkedAt: now.Unix()}
 	s := Server{
+		Shape:         RecordShape,
 		Key:           key,
 		PID:           id.PID,
 		StartTime:     id.StartTime,
+		PidDomain:     catalogue.LocalPidDomain(),
 		Address:       addr,
 		Token:         tok,
 		Daemon:        id.Daemon,
-		Conversations: []string{conv},
 		RegisteredAt:  now.Unix(),
+		Conversations: []LinkedConversation{linked},
 	}
+	got := Recorded
 	if prev, err := LookupServerByKey(runtimeDir, key); err == nil && prev != nil &&
 		prev.Address == addr && prev.Token == tok {
-		if slices.Contains(prev.Conversations, conv) {
-			return *prev, AlreadyLinked, nil
+		s.RegisteredAt = prev.RegisteredAt
+		s.Daemon = prev.Daemon || id.Daemon
+		s.Conversations = nil
+		for _, c := range prev.Conversations {
+			if c.ID == conv {
+				got = AlreadyLinked
+				continue
+			}
+			s.Conversations = append(s.Conversations, c)
 		}
-		s = *prev
-		s.Conversations = append(slices.Clone(prev.Conversations), conv)
-		if id.Daemon {
-			s.Daemon = true
-		}
+		s.Conversations = append(s.Conversations, linked)
 	}
 
 	b, err := json.Marshal(s)
@@ -178,7 +218,7 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 	if err := renameRecord(tmp.Name(), filepath.Join(dir, key+".json")); err != nil {
 		return Server{}, NotAnAntigravityShell, err
 	}
-	return s, Recorded, nil
+	return s, got, nil
 }
 
 // LookupServerByKey reads one server record by its registry key. A missing record is (nil, nil).
@@ -197,6 +237,9 @@ func LookupServerByKey(runtimeDir, key string) (*Server, error) {
 	var s Server
 	if err := json.Unmarshal(b, &s); err != nil {
 		return nil, fmt.Errorf("server record %s is unreadable: %w", key, err)
+	}
+	if s.Shape != RecordShape {
+		return nil, fmt.Errorf("server record %s has shape %d, not %d", key, s.Shape, RecordShape)
 	}
 	if s.Key == "" || s.Address == "" || s.Token == "" {
 		return nil, fmt.Errorf("server record %s is incomplete", key)
@@ -247,9 +290,9 @@ func ListServers(runtimeDir string) ([]Server, error) {
 	return out, nil
 }
 
-// LookupConversationServer returns the most recently registered server record that includes
-// conversation. A missing record is (nil, nil).
-func LookupConversationServer(runtimeDir, conversation string) (*Server, error) {
+// LookupConversationServer returns the server record listing conversation that liveness reads
+// Live, choosing the one the conversation linked to most recently. None is (nil, nil).
+func LookupConversationServer(runtimeDir, conversation string, liveness func(Server) catalogue.Liveness) (*Server, error) {
 	if runtimeDir == "" || !safeName(conversation) {
 		return nil, nil
 	}
@@ -257,13 +300,122 @@ func LookupConversationServer(runtimeDir, conversation string) (*Server, error) 
 	if err != nil {
 		return nil, err
 	}
+	return NewestLiveListing(servers, conversation, liveness), nil
+}
+
+// NewestLiveListing is the record in servers that lists conversation, reads Live, and has the
+// greatest linked_at for it; nil when none does.
+func NewestLiveListing(servers []Server, conversation string, liveness func(Server) catalogue.Liveness) *Server {
+	var best *Server
+	var bestAt int64
 	for i := range servers {
-		if slices.Contains(servers[i].Conversations, conversation) {
+		at, ok := servers[i].linkedAt(conversation)
+		if !ok || liveness(servers[i]) != catalogue.Live {
+			continue
+		}
+		if best == nil || at > bestAt {
 			s := servers[i]
-			return &s, nil
+			best, bestAt = &s, at
 		}
 	}
-	return nil, nil
+	return best
+}
+
+// RecordLiveness is whether the language server a record names is still running: the catalogue's
+// three answers, by the catalogue's pid-domain rule. Live needs the record's pid to be running
+// under the record's start time in the record's own pid domain. Ended needs positive evidence: no
+// such process, or that pid running under a different start time. Everything else, including a
+// record keyed by address (no pid), a record with no domain, and a /proc that cannot be read, is
+// Unknown, which nothing deletes and nothing delivers to.
+func RecordLiveness(s Server) catalogue.Liveness {
+	return recordLiveness(s, catalogue.LocalPidDomain(), procStartTime)
+}
+
+func recordLiveness(s Server, localDomain string, start func(int) (int64, error)) catalogue.Liveness {
+	if s.PidDomain == "" || catalogue.ForeignDomain(s.PidDomain, localDomain) {
+		return catalogue.Unknown
+	}
+	if s.PID <= 0 || s.StartTime <= 0 {
+		return catalogue.Unknown
+	}
+	got, err := start(s.PID)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return catalogue.Ended
+	case err != nil:
+		return catalogue.Unknown
+	case got != s.StartTime:
+		return catalogue.Ended // the pid now belongs to another process
+	}
+	return catalogue.Live
+}
+
+// Prune deletes, under the registry lock, every file in the registry that is not a record of a
+// server that may still be running: a JSON object whose shape is not RecordShape, and a record
+// liveness reads Ended. It keeps everything else — a file it cannot read or parse, a record that
+// reads Unknown, and every file not named *.json, the lock among them. With no registry directory
+// it does nothing and creates nothing. It returns the names it deleted.
+func Prune(runtimeDir string, liveness func(Server) catalogue.Liveness) ([]string, error) {
+	dir := RegistryDir(runtimeDir)
+	if dir == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(dir); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	unlock, err := lockRegistry(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var removed []string
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".json") || !e.Type().IsRegular() {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		b, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(b, &fields) != nil || fields == nil {
+			continue
+		}
+		var shape int
+		if raw, ok := fields["shape"]; !ok || json.Unmarshal(raw, &shape) != nil || shape != RecordShape {
+			if os.Remove(path) == nil {
+				removed = append(removed, e.Name())
+			}
+			continue
+		}
+		var s Server
+		if json.Unmarshal(b, &s) != nil {
+			continue
+		}
+		if liveness(s) == catalogue.Ended {
+			if os.Remove(path) == nil {
+				removed = append(removed, e.Name())
+			}
+		}
+	}
+	return removed, nil
+}
+
+// userHZ is the Linux userspace clock-tick rate, in which /proc/<pid>/stat states a process's
+// start time. It is fixed by the kernel ABI; reading it through sysconf would need cgo.
+const userHZ = 100
+
+// StartTimeAt converts a start time in clock ticks since boot to the instant, given the boot in
+// Unix seconds.
+func StartTimeAt(bootUnix, ticks int64) time.Time {
+	return time.Unix(bootUnix, 0).Add(time.Duration(ticks) * time.Second / userHZ)
 }
 
 // AgyMessage is one message to an Antigravity conversation.
@@ -274,9 +426,9 @@ type AgyMessage struct {
 	Content   string
 }
 
-// SendAgyServer delivers m through the language server s. It wakes an idle conversation and, on a
-// restarted daemon, loads an unloaded conversation from disk and starts a turn.
-func SendAgyServer(client *http.Client, s Server, m AgyMessage) (Delivery, error) {
+// SendAgyServer delivers m through the language server s, reporting route as the route it took. It
+// wakes an idle conversation and loads an unloaded one from disk and starts a turn.
+func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (Delivery, error) {
 	body, err := json.Marshal(map[string]string{
 		"recipient": m.Recipient, "content": m.Content, "senderId": m.Sender, "displayTitle": m.Title,
 	})
@@ -292,14 +444,14 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage) (Delivery, error
 	req.Header.Set("x-codeium-csrf-token", s.Token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return Delivery{}, fmt.Errorf("its language server at %s did not answer (it has restarted or gone since the record was made): %w", s.Address, err)
+		return Delivery{}, fmt.Errorf("the language server recorded at %s did not answer (it has restarted or gone since the record was made): %w", s.Address, err)
 	}
 	defer resp.Body.Close()
 	msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 	if resp.StatusCode != http.StatusOK {
-		return Delivery{}, fmt.Errorf("its language server at %s answered HTTP %d: %s", s.Address, resp.StatusCode, bytes.TrimSpace(msg))
+		return Delivery{}, fmt.Errorf("the language server recorded at %s answered HTTP %d: %s", s.Address, resp.StatusCode, bytes.TrimSpace(msg))
 	}
-	return Delivery{Route: RouteAgyServer, Via: s.Address}, nil
+	return Delivery{Route: route, Via: s.Address}, nil
 }
 
 // agyMailboxMessage is the file Antigravity's own send_message writes into a recipient's mailbox.
@@ -350,7 +502,130 @@ func EnqueueAgy(conversationDir string, m AgyMessage, now time.Time) (Delivery, 
 	return Delivery{Route: RouteAgyMailbox, Via: path}, nil
 }
 
-// lockRegistry serialises concurrent RegisterWith read-modify-write updates in dir.
+// HolderKind is how a process was found holding a conversation.
+type HolderKind int
+
+const (
+	// HolderNone: no process but the excluded one holds the conversation.
+	HolderNone HolderKind = iota
+	// HolderPresenceLock: a process holds presence/<id>.lock.
+	HolderPresenceLock
+	// HolderDBOpen: a process has conversations/<id>.db (or its -wal/-shm) open.
+	HolderDBOpen
+	// HolderUninspectable: whether a process holds it could not be established.
+	HolderUninspectable
+)
+
+// Holder is what ConversationBusy found. PID is set for every kind but HolderNone and
+// HolderUninspectable; callers branch on PID and Kind, and Detail is only ever printed.
+type Holder struct {
+	PID    int
+	Kind   HolderKind
+	Detail string
+}
+
+// SystemSender is the sender agy stamps on its own notices in a mailbox. They are not mail between
+// agents.
+const SystemSender = "system"
+
+// ShellSender is the sender telepathy stamps on a message sent from outside any agent session.
+const ShellSender = "telepathy"
+
+// Waiting is one Antigravity conversation whose mailbox holds messages its client has not read.
+type Waiting struct {
+	Conversation string
+	// Messages counts every marker that is not one of agy's own notices: the readable ones and the
+	// unreadable ones.
+	Messages int
+	// Oldest is the earliest timestamp among the readable messages; zero when none is readable.
+	Oldest time.Time
+	// Yours counts the messages whose sender is the caller; FromShell those sent from outside any
+	// agent session; Unreadable those whose file is missing or does not parse; Notices agy's own.
+	Yours, FromShell, Unreadable, Notices int
+}
+
+// ScanMailboxes lists, across brainDirs, every conversation with at least one marker under
+// .system_generated/messages/undelivered — the client's own record of what it has not read — and
+// counts its messages; caller is the scanning session's sender id ("" or ShellSender for none).
+// A brain directory that does not exist holds no conversation. A directory that cannot be listed
+// is an error, returned beside whatever the other directories gave, never folded into "none".
+func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
+	var out []Waiting
+	var errs []error
+	for _, brain := range brainDirs {
+		convs, err := os.ReadDir(brain)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, c := range convs {
+			if !c.IsDir() {
+				continue
+			}
+			box := filepath.Join(brain, c.Name(), ".system_generated", "messages")
+			markers, err := os.ReadDir(filepath.Join(box, "undelivered"))
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			w := Waiting{Conversation: c.Name()}
+			for _, m := range markers {
+				if m.IsDir() {
+					continue
+				}
+				var msg agyMailboxMessage
+				b, err := os.ReadFile(filepath.Join(box, m.Name()+".json"))
+				if err != nil || json.Unmarshal(b, &msg) != nil {
+					w.Messages++
+					w.Unreadable++
+					continue
+				}
+				if msg.Sender == SystemSender {
+					w.Notices++
+					continue
+				}
+				at, err := time.Parse(time.RFC3339Nano, msg.Timestamp)
+				if err != nil {
+					w.Messages++
+					w.Unreadable++
+					continue
+				}
+				w.Messages++
+				if w.Oldest.IsZero() || at.Before(w.Oldest) {
+					w.Oldest = at
+				}
+				switch {
+				case msg.Sender == ShellSender:
+					w.FromShell++
+				case caller != "" && caller != ShellSender && msg.Sender == caller:
+					w.Yours++
+				}
+			}
+			if w.Messages > 0 || w.Notices > 0 {
+				out = append(out, w)
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Oldest.IsZero() != b.Oldest.IsZero() {
+			return !a.Oldest.IsZero()
+		}
+		if !a.Oldest.Equal(b.Oldest) {
+			return a.Oldest.Before(b.Oldest)
+		}
+		return a.Conversation < b.Conversation
+	})
+	return out, errs
+}
+
+// lockRegistry serialises RegisterWith's read-modify-write updates and Prune's deletions in dir.
 func lockRegistry(dir string) (func(), error) {
 	fl := flock.New(filepath.Join(dir, ".register.lock"), flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
 	if err := fl.Lock(); err != nil {

@@ -12,39 +12,41 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// ConversationBusy reports whether another live process holds conversation's presence lock
-// (<agyRoot>/presence/<conversation>.lock) or, on Linux, has <agyRoot>/conversations/<conversation>.db
-// open under any PID other than excludePID.
+// ConversationBusy reports the process, other than excludePID, that holds conversation: one holding
+// its presence lock (<agyRoot>/presence/<conversation>.lock, named by its pid from /proc/locks), or
+// one with <agyRoot>/conversations/<conversation>.db open (Linux). An excludePID of 0 excludes
+// nobody.
 //
 // Fails CLOSED: any unexpected error opening or probing the lock file, reading /proc, or
-// inspecting a same-UID process's file descriptors is treated as busy so telepathy send queues to
-// the mailbox rather than risking a second writer.
+// inspecting a same-UID process's file descriptors is HolderUninspectable, so telepathy send queues
+// to the mailbox rather than risking a second writer.
 //
 // Check-then-send race: a second process can still open the conversation in the window between
 // this check and the HTTP SendAgentMessage call. This guard prevents sending into an already-open
 // second writer; eliminating the race completely requires a server-side lock inside Antigravity.
-func ConversationBusy(agyRoot, conversation string, excludePID int) (bool, string) {
+func ConversationBusy(agyRoot, conversation string, excludePID int) Holder {
 	if agyRoot == "" || !safeName(conversation) {
-		return true, "conversation path cannot be validated for second-writer safety"
+		return Holder{Kind: HolderUninspectable, Detail: "the conversation's path cannot be validated"}
 	}
 	lockPath := filepath.Join(agyRoot, "presence", conversation+".lock")
 	fl := flock.New(lockPath, flock.SetFlag(os.O_RDONLY))
 	ok, err := fl.TryLock()
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			return true, fmt.Sprintf("cannot inspect presence/%s.lock: %v", conversation, err)
+			return Holder{Kind: HolderUninspectable, Detail: fmt.Sprintf("cannot inspect presence/%s.lock: %v", conversation, err)}
 		}
 	} else if !ok {
-		if !flockHeldOnlyBy(lockPath, excludePID) {
-			return true, fmt.Sprintf("presence/%s.lock is held by a live process", conversation)
+		pid, err := flockHolder(lockPath, excludePID)
+		if err != nil {
+			return Holder{Kind: HolderUninspectable, Detail: fmt.Sprintf("presence/%s.lock is held and its holder cannot be read: %v", conversation, err)}
+		}
+		if pid != 0 {
+			return Holder{PID: pid, Kind: HolderPresenceLock, Detail: fmt.Sprintf("pid %d holds presence/%s.lock", pid, conversation)}
 		}
 	} else {
 		_ = fl.Unlock()
 	}
-	if busy, why := otherDBHolder(agyRoot, conversation, excludePID); busy {
-		return true, why
-	}
-	return false, ""
+	return otherDBHolder(agyRoot, conversation, excludePID)
 }
 
 func renameRecord(src, dst string) error { return os.Rename(src, dst) }

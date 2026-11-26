@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/telecli"
 	"github.com/ctoforaday/special-circumstances/shared/testhome"
@@ -88,9 +89,12 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 		}
 		return string(out)
 	}
+	// The conversation's latest link, whether or not its server still runs: a one-shot turn's
+	// server exits with the turn, before this reads the record.
+	anyLiveness := func(peer.Server) catalogue.Liveness { return catalogue.Live }
 	record := func(conv string) string {
 		t.Helper()
-		s, err := peer.LookupConversationServer(runtimeDir, conv)
+		s, err := peer.LookupConversationServer(runtimeDir, conv, anyLiveness)
 		if err != nil || s == nil {
 			return ""
 		}
@@ -175,7 +179,7 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 		second = record(conv)
 		for _, s := range transcript(conv) {
 			b, _ := json.Marshal(s)
-			if second != first && strings.Contains(string(b), "through its language server at "+second) {
+			if second != first && strings.Contains(string(b), "the language server at "+second+"; it wakes if idle") {
 				viaServer = true
 			}
 			if s["type"] == "SYSTEM_MESSAGE" && strings.Contains(string(b), "LIVE_WAKE_7") {
@@ -200,7 +204,9 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 		t.Errorf("phase 2: %d session rows; a resume must not repeat SessionStart's work", n)
 	}
 
-	// 3. That server is gone: a send from outside any agent session queues and says why.
+	// 3. That server is gone: a send from outside any agent session queues and says why. The
+	//    record of the gone server is not a target, so the cause is the daemon's: the host's
+	//    daemon, unlinked in this test's runtime directory, or none running.
 	send := exec.Command(telepathy, "send", conv, "LIVE_MAILBOX_9")
 	send.Env = env
 	out, err := send.CombinedOutput()
@@ -208,8 +214,8 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 		t.Fatalf("telepathy send: %v\n%s", err, out)
 	}
 	if !strings.Contains(string(out), "QUEUED for antigravity conversation "+conv) ||
-		!strings.Contains(string(out), "its language server at "+second+" did not answer") {
-		t.Errorf("phase 3: send reported %q, want a mailbox delivery naming the dead server", out)
+		!(strings.Contains(string(out), "has not been linked since it started") || strings.Contains(string(out), "not delivered live: no daemon is running")) {
+		t.Errorf("phase 3: send reported %q, want a mailbox delivery naming the daemon's state", out)
 	}
 
 	// 4. The next turn receives it: a system message carrying the text, and the mailbox marker gone.
@@ -398,13 +404,13 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	// Positive control: while srvCmd is actively hosting C1, ConversationBusy must report C1 busy
 	// for any caller excluding a different PID (observing the real agy DB holder), and NOT busy
 	// when excluding srvCmd's own PID.
-	if busy, why := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid+1); !busy {
-		t.Fatalf("positive control failed: ConversationBusy(c1, otherPID) = false while real agy pid %d hosts C1", srvCmd.Process.Pid)
+	if h := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid+1); h.Kind == peer.HolderNone {
+		t.Fatalf("positive control failed: ConversationBusy(c1, otherPID) found no holder while real agy pid %d hosts C1", srvCmd.Process.Pid)
 	} else {
-		t.Logf("positive control: ConversationBusy detected real agy hosting C1: %s", why)
+		t.Logf("positive control: ConversationBusy detected real agy hosting C1: %+v", h)
 	}
-	if busy, why := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid); busy {
-		t.Fatalf("positive control failed: ConversationBusy(c1, srvPID=%d) = true (%s)", srvCmd.Process.Pid, why)
+	if h := peer.ConversationBusy(agyDir, c1, srvCmd.Process.Pid); h.Kind != peer.HolderNone {
+		t.Fatalf("positive control failed: ConversationBusy(c1, srvPID=%d) = %+v", srvCmd.Process.Pid, h)
 	}
 
 	runSend := func(target, msg string) (string, error) {
@@ -438,7 +444,7 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 		t.Fatalf("locked telepathy send failed: %v\n%s", err, outLocked)
 	}
 	if !strings.Contains(outLocked, "QUEUED for antigravity conversation "+c2) ||
-		!strings.Contains(outLocked, "second writer") {
+		!strings.Contains(outLocked, "sending live would create a second writer") {
 		t.Fatalf("expected locked send to refuse live route and queue, got:\n%s", outLocked)
 	}
 	msgDir := filepath.Join(agyDir, "brain", c2, ".system_generated", "messages")
@@ -461,7 +467,7 @@ func TestLiveAntigravityDaemonRestartWake(t *testing.T) {
 	if err != nil {
 		t.Fatalf("telepathy send to C2 failed: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "delivered to antigravity conversation "+c2+" through its language server at "+linkedSrv.Address) {
+	if !strings.Contains(out, "delivered to antigravity conversation "+c2+" via antigravity-daemon, the language server at "+linkedSrv.Address) {
 		t.Fatalf("expected live delivery to C2 through %s, got:\n%s", linkedSrv.Address, out)
 	}
 

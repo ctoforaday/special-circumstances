@@ -57,6 +57,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
 	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -524,7 +525,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			healed = hookfailures.JoinMessages(msg, r.Settle())
 		}
 		return hookcore.Respond(req, hookcore.Response{
-			AdditionalContext: linkRequest(req, os.Getenv("XDG_RUNTIME_DIR"), findTelepathy(), answers),
+			AdditionalContext: linkRequest(req, os.Getenv("XDG_RUNTIME_DIR"), findTelepathy(), peer.RecordLiveness),
 			Say:               healed,
 		}, stdout, stderr, nil)
 	}

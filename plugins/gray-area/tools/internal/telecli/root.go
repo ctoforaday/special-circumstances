@@ -16,8 +16,10 @@ package telecli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -50,15 +52,18 @@ type Env struct {
 	// RuntimeDir is $XDG_RUNTIME_DIR, where Antigravity server records live; empty means none
 	// are kept. DaemonRoot is the Antigravity CLI root (~/.gemini/antigravity-cli) that the
 	// remote-control daemon serves; route 2 (daemon wake) is restricted to conversations under it.
-	// Getenv reads the calling process's environment. HostServer, CurrentDaemon, and
-	// ConversationBusy probe local Antigravity server/lock state. All are injected so tests can
-	// stand in an Antigravity shell or daemon without being one.
+	// Getenv reads the calling process's environment. HostServer, CurrentDaemon,
+	// ConversationBusy and RecordLiveness probe local Antigravity server, lock and process state.
+	// GOOS is the platform live delivery is judged for (runtime.GOOS when empty). All are injected
+	// so tests can stand in an Antigravity shell, daemon or platform without being one.
 	RuntimeDir       string
 	DaemonRoot       string
 	Getenv           func(string) string
 	HostServer       func() peer.ServerIdentity
 	CurrentDaemon    func() (peer.ServerIdentity, bool)
-	ConversationBusy func(agyRoot, conversation string, excludePID int) (bool, string)
+	ConversationBusy func(agyRoot, conversation string, excludePID int) peer.Holder
+	RecordLiveness   func(peer.Server) catalogue.Liveness
+	GOOS             string
 }
 
 // Defaults resolves the environment a real invocation runs in.
@@ -71,6 +76,8 @@ func Defaults() Env {
 		HostServer:       peer.HostServer,
 		CurrentDaemon:    peer.CurrentDaemon,
 		ConversationBusy: peer.ConversationBusy,
+		RecordLiveness:   peer.RecordLiveness,
+		GOOS:             runtime.GOOS,
 	}
 	if dir, err := catalogue.DefaultDir(); err == nil {
 		e.Store = filepath.Join(dir, "catalogue.db")
@@ -83,6 +90,28 @@ func Defaults() Env {
 	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
 	e.AnnotationsDirs = peer.DefaultAntigravityAnnotationsDirs()
 	return e
+}
+
+// recordLiveness is the liveness every server record is judged by.
+func (e *Env) recordLiveness() func(peer.Server) catalogue.Liveness {
+	if e.RecordLiveness != nil {
+		return e.RecordLiveness
+	}
+	return peer.RecordLiveness
+}
+
+func (e *Env) goos() string {
+	if e.GOOS != "" {
+		return e.GOOS
+	}
+	return runtime.GOOS
+}
+
+// pruneServers deletes the server records whose server is gone, saying so on w when it cannot.
+func (e *Env) pruneServers(w io.Writer) {
+	if _, err := peer.Prune(e.RuntimeDir, e.recordLiveness()); err != nil {
+		fmt.Fprintf(w, "telepathy: server records not pruned: %v\n", err)
+	}
 }
 
 // agyTitle reads the Antigravity conversation's current title at display time from its .pbtxt
@@ -158,16 +187,20 @@ func NewRoot(env Env) *cobra.Command {
 		SilenceErrors: true,
 		// AN ANTIGRAVITY SHELL IS THE ONLY PLACE ITS SERVER'S TOKEN EXISTS, so every verb run from
 		// one records that conversation's server for telepathy send (peer.Register says why).
-		// A failure to record costs the caller nothing but a line: the verb still runs.
+		// Every verb, from any shell, then deletes the records of servers that are gone.
+		// A failure of either costs the caller nothing but a line: the verb still runs.
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			// link records the server itself and reports what it found; recording first here would
-			// make it report every link as already made.
-			if env.Getenv == nil || cmd.Name() == "link" {
+			// make it report every link as already made. It prunes after recording, as here.
+			if cmd.Name() == "link" {
 				return
 			}
-			if _, _, err := peer.RegisterWith(env.RuntimeDir, env.Getenv, env.hostServer(), env.Now()); err != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy: this conversation's server was not recorded, so telepathy send cannot wake it: %v\n", err)
+			if env.Getenv != nil {
+				if _, _, err := peer.RegisterWith(env.RuntimeDir, env.Getenv, env.hostServer(), env.Now()); err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "telepathy: this conversation's server was not recorded, so telepathy send cannot wake it: %v\n", err)
+				}
 			}
+			env.pruneServers(cmd.ErrOrStderr())
 		},
 	}
 	root.SetVersionTemplate("{{.Version}}\n")

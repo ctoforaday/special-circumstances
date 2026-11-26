@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 )
 
 // bringBack is how long a restarted Remote Control server brings its own sessions back for: "about
@@ -51,7 +53,19 @@ resume attempt is the check.
 --lost prints only those, one block each: where to resume from, the cloud id when
 capture recorded one, the last sign of life, the session's last recorded
 permission mode, and the commands that bring it back in that mode. The boot is
-/proc/stat's btime on Linux; elsewhere --lost refuses unless --boot is given.`,
+/proc/stat's btime on Linux; elsewhere --lost refuses unless --boot is given.
+
+Below the sessions, 'waiting for Antigravity' lists every Antigravity conversation
+whose mailbox holds a message its client has not read — running or not, however
+old, whatever --window says: a message telepathy send QUEUED waits there until the
+conversation's next turn. Each row counts the messages, gives the oldest one's time,
+and marks those this session sent ('yours') and those sent from outside any agent
+session ('from a shell'). agy's own notices are counted apart, as '+N agy notices'.
+A message leaves the list when the client reads it: the client's own record, the
+same whether or not the recipient runs telepathy. The client records no time of
+reading, so none is shown. A message whose file is missing or does not parse is
+counted as unreadable, never dropped; a directory that cannot be listed is said to
+be unmeasured, never shown as an empty list. --lost does not print it.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if window <= 0 {
@@ -210,6 +224,44 @@ func printAgents(out io.Writer, env *Env, rows []catalogue.Agent, rep catalogue.
 	}
 	if !measured {
 		fmt.Fprintf(out, "\n  %v to list the sessions a restart cut off.\n", errBootUnmeasured)
+	}
+	printWaiting(out, env)
+}
+
+// printWaiting is the 'waiting for Antigravity' section: every conversation whose mailbox holds a
+// message its client has not read, by the client's own undelivered markers.
+func printWaiting(out io.Writer, env *Env) {
+	waiting, errs := peer.ScanMailboxes(env.BrainDirs, senderID(env))
+	fmt.Fprintln(out)
+	if len(waiting) == 0 && len(errs) == 0 {
+		fmt.Fprintln(out, "no Antigravity conversation has a message waiting in its mailbox")
+		return
+	}
+	if len(waiting) > 0 {
+		fmt.Fprintln(out, "waiting for Antigravity — messages in a conversation's mailbox that its client has not read:")
+		fmt.Fprintf(out, "%-10s %7s  %-23s  %s\n", "SESSION", "WAITING", "OLDEST", "NOTE")
+		for _, w := range waiting {
+			oldest := "—"
+			if !w.Oldest.IsZero() {
+				oldest = utc(w.Oldest.Unix())
+			}
+			var note []string
+			for _, n := range []struct {
+				count int
+				label string
+			}{{w.Yours, "%d yours"}, {w.FromShell, "%d from a shell"}, {w.Unreadable, "%d unreadable"}, {w.Notices, "+%d agy notices"}} {
+				if n.count > 0 {
+					note = append(note, fmt.Sprintf(n.label, n.count))
+				}
+			}
+			if len(note) == 0 {
+				note = []string{"—"}
+			}
+			fmt.Fprintf(out, "%-10s %7d  %-23s  %s\n", catalogue.Short(w.Conversation), w.Messages, oldest, strings.Join(note, ", "))
+		}
+	}
+	for _, err := range errs {
+		fmt.Fprintf(out, "waiting messages not measured: %v\n", err)
 	}
 }
 

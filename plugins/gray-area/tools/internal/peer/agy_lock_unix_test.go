@@ -24,8 +24,8 @@ func TestConversationBusyDetectsHeldPresenceLock(t *testing.T) {
 	}
 
 	// Unlocked file is not busy.
-	if busy, why := ConversationBusy(agyRoot, conv, 0); busy {
-		t.Fatalf("unlocked file reported busy: %s", why)
+	if h := ConversationBusy(agyRoot, conv, 0); h.Kind != HolderNone {
+		t.Fatalf("unlocked file reported held: %+v", h)
 	}
 
 	// Acquire an exclusive lock on a separate open file description; ConversationBusy must see it held.
@@ -36,16 +36,17 @@ func TestConversationBusyDetectsHeldPresenceLock(t *testing.T) {
 	}
 	defer fl.Unlock()
 
-	busy, why := ConversationBusy(agyRoot, conv, 0)
-	if !busy || !strings.Contains(why, "presence/"+conv+".lock") {
-		t.Errorf("locked file: ConversationBusy = (%v, %q), want (true, naming presence/%s.lock)", busy, why, conv)
+	// The holder is named by its pid, read from /proc/locks: this test process.
+	h := ConversationBusy(agyRoot, conv, 0)
+	if h.Kind != HolderPresenceLock || h.PID != os.Getpid() || !strings.Contains(h.Detail, "presence/"+conv+".lock") {
+		t.Errorf("locked file: ConversationBusy = %+v, want the presence lock held by pid %d", h, os.Getpid())
 	}
 
 	if err := fl.Unlock(); err != nil {
 		t.Fatalf("Unlock: %v", err)
 	}
-	if busy, why := ConversationBusy(agyRoot, conv, 0); busy {
-		t.Errorf("after unlock: ConversationBusy = (%v, %q), want false", busy, why)
+	if h := ConversationBusy(agyRoot, conv, 0); h.Kind != HolderNone {
+		t.Errorf("after unlock: ConversationBusy = %+v, want none", h)
 	}
 }
 
@@ -65,8 +66,8 @@ func TestConversationBusyFailsClosedOnUnreadableLock(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(lockPath, 0o600) })
 
-	busy, why := ConversationBusy(agyRoot, conv, 0)
-	if !busy || !strings.Contains(why, "cannot inspect presence/"+conv+".lock") {
-		t.Errorf("unreadable lock: ConversationBusy = (%v, %q), want fail-closed (true, cannot inspect)", busy, why)
+	h := ConversationBusy(agyRoot, conv, 0)
+	if h.Kind != HolderUninspectable || h.PID != 0 || !strings.Contains(h.Detail, "cannot inspect presence/"+conv+".lock") {
+		t.Errorf("unreadable lock: ConversationBusy = %+v, want fail-closed (uninspectable, cannot inspect)", h)
 	}
 }

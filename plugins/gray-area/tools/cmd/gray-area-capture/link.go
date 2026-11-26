@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
@@ -24,14 +23,15 @@ import (
 // WHEN IT ASKS. PreInvocation fires before every model step of a turn (invocationNum 0, 1, 2 …),
 // so it asks on the turn's first step only: an ephemeral message is dropped after the turn, and
 // repeating it every step would cost a step's attention for nothing. It asks only when neither
-// this server nor this conversation has a live server record — a restarted server listens on a new
-// port and has a new PID/start time. It never asks where linking would fail: no runtime directory,
-// or no telepathy binary beside this one.
-func linkRequest(req hookcore.Request, runtimeDir, telepathy string, dial func(addr string) bool) string {
-	return linkRequestWithHost(req, runtimeDir, telepathy, peer.HostServer, dial)
+// this server nor this conversation has a server record that liveness reads Live — a restarted
+// server has a new PID/start time, and telepathy deletes the records of servers that are gone. It
+// never asks where linking would fail: no runtime directory, or no telepathy binary beside this
+// one.
+func linkRequest(req hookcore.Request, runtimeDir, telepathy string, liveness func(peer.Server) catalogue.Liveness) string {
+	return linkRequestWithHost(req, runtimeDir, telepathy, peer.HostServer, liveness)
 }
 
-func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hostFn func() peer.ServerIdentity, dial func(addr string) bool) string {
+func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hostFn func() peer.ServerIdentity, liveness func(peer.Server) catalogue.Liveness) string {
 	if req.Engine != hookcore.EngineAntigravity || req.SessionID == "" || runtimeDir == "" || telepathy == "" {
 		return ""
 	}
@@ -45,23 +45,20 @@ func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hos
 	if hostFn != nil {
 		host := hostFn()
 		if host.PID > 0 && host.StartTime > 0 {
-			if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && dial(hs.Address) {
+			if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && liveness(*hs) == catalogue.Live {
 				return ""
 			}
 		}
 	}
-	s, err := peer.LookupConversationServer(runtimeDir, req.SessionID)
-	if err == nil && s != nil && dial(s.Address) {
+	if s, err := peer.LookupConversationServer(runtimeDir, req.SessionID, liveness); err == nil && s != nil {
 		return ""
 	}
 	// A STALE LINK IS SAID TO BE STALE. Measured: a conversation whose history shows `linked` from an
 	// earlier turn ignored the plain request on the next one, after its server had restarted. The
-	// request has to say why the earlier link no longer counts.
-	why := "Other agents cannot yet wake this conversation with `telepathy send`."
-	if err == nil && s != nil {
-		why = "This conversation's earlier `telepathy link` points at a language server that is no longer running, so other agents cannot wake it."
-	}
-	return why + " Before your task, run this shell command once: " + shellQuote(telepathy) + " link — it prints `linked` and needs nothing further."
+	// record that would say whether there was an earlier link is deleted once its server is gone, so
+	// the request names the stale link conditionally, which is true with or without one.
+	return "Any earlier `telepathy link` in this conversation points at a language server that is no longer running, so other agents cannot wake it." +
+		" Before your task, run this shell command once: " + shellQuote(telepathy) + " link — it prints `linked` and needs nothing further."
 }
 
 // findTelepathy locates the binary linkRequest names; a variable so a test can stand one in.
@@ -82,16 +79,6 @@ func telepathyBeside() string {
 		return ""
 	}
 	return p
-}
-
-// answers reports whether a server accepts a connection at addr.
-func answers(addr string) bool {
-	c, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
-	if err != nil {
-		return false
-	}
-	c.Close()
-	return true
 }
 
 func shellQuote(s string) string {
