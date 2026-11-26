@@ -303,10 +303,7 @@ func (r *agyRouter) route() (peer.Delivery, bool) {
 
 	// ONE DISCOVERY, EXCLUDING NOBODY: who holds the conversation decides which server may reach it.
 	h := r.env.conversationBusy(r.agyRoot, r.c.id, 0)
-	switch {
-	case h.Kind == peer.HolderUninspectable:
-		return r.queue("%s", uninspectable(h))
-	case h.Kind == peer.HolderNone:
+	if h.Kind == peer.HolderNone {
 		return r.toUnheld()
 	}
 	if x := r.liveRecordOf(h.PID); x != nil {

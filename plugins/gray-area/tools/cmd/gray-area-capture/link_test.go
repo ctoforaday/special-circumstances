@@ -48,6 +48,11 @@ func TestLinkRequestSkipsWhenHostServerAlreadyLinkedByAnotherConversation(t *tes
 	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return host }, liveAs(catalogue.Live)); got != "" {
 		t.Errorf("another conv already linked this host server, yet linkRequest asked: %q", got)
 	}
+	// The host server's record counts only while its server runs: a record of a server that is gone
+	// is no reason to stay quiet.
+	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return host }, liveAs(catalogue.Ended)); !strings.HasPrefix(got, staleLinkWording) {
+		t.Errorf("the host server's record reads ended, yet linkRequest = %q", got)
+	}
 	// Early returns must not invoke hostFn (/proc walk).
 	called := false
 	reqStep1 := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(1))))
