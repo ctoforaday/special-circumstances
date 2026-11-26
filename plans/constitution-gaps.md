@@ -2080,7 +2080,10 @@ and `~/.claude/scratch/p12/r2/`):
         in record order: the sentence the anchor stood on, which stays, blue's `reason`, and the `anchors` it took out";
         the `claim_kept`, `removal_basis` and `superseded_by` clauses go with the fields. Its sibling, the `--anchor`
         flag help (`verbs.go:707`): "a retired one with the retire that took it out" becomes "one out of the report with
-        the act that took it out (`retired.by`: `retire` or `edit`)".
+        the act that took it out (`retired.by`: `retire` or `edit`)". Its Short (`verbs.go:298`) and the Long's
+        closing line (`:308`), "Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and
+        `reproduce`", become "Written by blue's `cite`, `compute`, `retire` and `edit` (whose cut takes the anchors on
+        the cut text out), and the lens's `verify` and `reproduce`": the view lists the removal the edit writes (site 10).
       - `report/layout.go:306` (`ReportTextNote`, printed on `show report`'s page on every surface that has it): "`show
         evidence` (the citations and computations, every reading of them, and every retire)" becomes "`show evidence`
         (the citations and computations, every reading of them, every retire, and the act — a retire or an edit's cut —
@@ -4243,17 +4246,27 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              while read -r s; do
                $B --seat-id operator manual --for $s > $S/manual.$s.txt || echo "manual failed: $s"        # empty
                sed -nE 's/^\$ feov-record ?(.*) --help$/\1/p' $S/manual.$s.txt | sed "s/^\$/root/; s|^|$s\t|"
-             done < $S/surfaces.txt > $S/help-pages.txt
+             done < $S/surfaces.txt > $S/help-pages.manual.txt
+             # the group pages: each proper prefix of a multi-word page that is not itself a page of that surface
+             awk -F'\t' '{print; k[$1"\t"$2]=1; n=split($2,w," "); q=""; for(i=1;i<n;i++){q=(i==1?w[1]:q" "w[i]); g[$1"\t"q]=1}}
+               END {for (x in g) if (!(x in k)) print x}' $S/help-pages.manual.txt | sort -u > $S/help-pages.txt
+             comm -13 <(sort $S/help-pages.manual.txt) $S/help-pages.txt > $S/help-groups.txt
              while IFS=$'\t' read -r s p; do
                mkdir -p $S/help/$s; v=${p#root}
                $B --seat-id $s $v --help > $S/help/$s/${p// /-}.txt 2>&1 || echo "render failed: $s $p"      # empty
              done < $S/help-pages.txt
              grep -rlE 'IS REQUIRED HERE|is not on your surface' $S/help                                    # empty
-             wc -l < $S/help-pages.txt; cat $S/help/*/*.txt | wc -l                                         # 330, 14192
-             cut -f2 $S/help-pages.txt | sort -u | wc -l; sha256sum $S/help/*/*.txt | cut -d' ' -f1 | sort -u | wc -l   # 70, 87
+             wc -l < $S/help-pages.txt; cat $S/help/*/*.txt | wc -l                                         # 401, 15579
+             wc -l < $S/help-groups.txt                                                                     # 71
+             cut -f2 $S/help-pages.txt | sort -u | wc -l; sha256sum $S/help/*/*.txt | cut -d' ' -f1 | sort -u | wc -l   # 79, 103
              ```
-             On main 7cfd3a396: 330 (surface, page) pairs, 14,192 lines; 70 distinct pages (the 54 the agent
-             definitions carry and 16 on `operator` alone); 87 distinct bodies. Each page is read in full as a seat reads
+             On main 7cfd3a396: 401 (surface, page) pairs, 15,579 lines; 79 distinct pages; 103 distinct bodies. 330
+             pairs are the pages `manual` renders (70 distinct: the 54 the agent definitions carry and 16 on `operator`
+             alone). The other 71 are the group pages `manual` leaves out, which a seat can still render with `--help`:
+             `motion`, `motion docket`, `motion grade`, `motion petition` (12 surfaces each), `motion position` (1),
+             `inquiry` (10), `question` (9), `inquest` (2) and `ops` (1). Their text is composed from in-scope literals
+             (`motion/command.go:51` with `GavelRoll()`, `:70` with `docketRoute(role)`, `motion/verbs.go:305`), so
+             reading them is how the composed group help is read whole. Each page is read in full as a seat reads
              it, its flag help included; a body byte-identical to one already read is read once, under its digest. The
              34 authored pages behind them are in `scope.txt` as files too.
            - **Reach, classified on main 7cfd3a396.** The shipped binaries are every `cmd/*` (8: `feov-record`, the
@@ -4369,13 +4382,18 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              tab, and the sites it fixed or `none`, and `diff <(cut -f1 $S/scope-reread.txt | sort) <(git diff
              --name-only <base>...HEAD | sort | comm -12 - <(sort $H/scope.txt))` is empty. Every (surface, page) whose
              render differs between `$S/help` and `$H/help`, or exists on one side only, is read again at the head;
-             `$S/help-reread.txt` holds one line per pair as `help-read.txt` does, with the head render's sha256. The
-             diff compares like keys, so a variant that changes on one surface alone names that pair, and a pair with no
-             line fails it:
+             `$S/help-reread.txt` holds one line per pair as `help-read.txt` does: a pair the head renders carries the
+             head render's sha256; a base-only pair (rendered at the base, by no page of its surface at the head) carries
+             the base render's sha256 and, as its sites, the reason the page left (`removed: <why>`). The diff compares
+             like keys, so a variant that changes on one surface alone names that pair, and a pair with no line fails
+             it; the digest loop then checks each line against the render it names, so a pair re-read at an intermediate
+             head and changed again fails it:
              ```
              sort -u $S/help-pages.txt $H/help-pages.txt | while IFS=$'\t' read -r s p; do k=$s/${p// /-}.txt
                cmp -s $S/help/$k $H/help/$k || printf '%s\t%s\n' "$s" "$p"; done > $H/help-changed.txt
              diff <(cut -f1,2 $S/help-reread.txt | sort) <(sort $H/help-changed.txt)                             # empty
+             while IFS=$'\t' read -r s p d _; do f=$H/help/$s/${p// /-}.txt; [ -f "$f" ] || f=$S/help/$s/${p// /-}.txt
+               [ "$(sha256sum < "$f" | cut -d' ' -f1)" = "$d" ] || echo "re-read under another render: $s $p"; done < $S/help-reread.txt   # empty
              ```
              Every changed golden line is read.
        - Re-armed by: any file in `$S/scope.txt` or `$H/scope.txt`, any change to the `cmd/*` set or to a reached
@@ -4959,7 +4977,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     help page, per (surface, page).
   - **Measured on main 7cfd3a396.** 22,120 Go items over 48,221 lines (14,482 literals, 15,890 lines; 7,638 comment
     groups, 32,331 lines) in 405 files; 106 text files, 13,354 lines; the generator mains, 802 lines: 62,377 lines.
-    The help renders: 330 (surface, page) pairs over 13 surfaces, 14,192 lines, 87 distinct bodies.
+    The help renders: 401 (surface, page) pairs over 13 surfaces (the 330 `manual` lists and its 71 group pages),
+    15,579 lines, 103 distinct bodies.
   - **Not taken:** the in-full read of all 513 files (120,560 lines); accept the phrase sweeps' residue, stated.
   - **The residue, accepted.** Text composed at run time from fragments that each read as neutral. Go prose reaches an
     agent only through literals, so it is small; the help renders read the composed help whole.
