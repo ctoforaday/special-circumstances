@@ -64,7 +64,12 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 				on = []string{b.GetAboutRef()}
 			}
 		case *recordpb.BlueEdit:
+			// A PURE CUT REACHES what a retire of the same anchors would (WindowIndex.Reaches): the
+			// gaps about an anchor it took out, never the gap whose own marker left with it.
 			on = []string{b.GetAnswers()}
+			for _, r := range win.Reaches(e) {
+				on = append(on, r.gap)
+			}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
 			for _, r := range win.Reaches(e) {

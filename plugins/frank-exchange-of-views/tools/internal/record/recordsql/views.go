@@ -337,7 +337,7 @@ FROM "placed" p;
 -- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
 -- it again, meets the demand (gap_refresh's met arms 2 and 3); this is the one statement of the
 -- reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
--- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- (record.reachingRemovalsOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
 -- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every

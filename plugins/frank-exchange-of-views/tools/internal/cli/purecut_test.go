@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -272,6 +273,7 @@ func TestACutIsHeldToL6(t *testing.T) {
 		if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetRemovedAnchors(); !slices.Equal(got, want) {
 			t.Errorf("removed_anchors = %v, want %v", got, want)
 		}
+		consistentL6(t, runDir)
 	}
 	t.Run("refused", func(t *testing.T) {
 		runDir, _, k := setup(t, kSentence)
@@ -307,10 +309,26 @@ func TestACutIsHeldToL6(t *testing.T) {
 		if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetRemovedAnchors(); len(got) != 2 || !slices.Contains(got, c) || !slices.Contains(got, k) {
 			t.Errorf("removed_anchors = %v, want %s and %s", got, c, k)
 		}
+		consistentL6(t, runDir)
 	})
 	t.Run("the computation cut first", func(t *testing.T) {
 		runDir, c, k := setup(t, kSentence)
 		lands(t, runDir, kSentence, k)
 		lands(t, runDir, cSentence, c)
 	})
+}
+
+// consistentL6 holds the record to consistency.Check's L6 fold: a landed cut leaves no computation in
+// the report naming a citation in no document.
+func consistentL6(t *testing.T, runDir string) {
+	t.Helper()
+	res, err := consistency.Check(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range res.Violations {
+		if v.Rule == "l6" {
+			t.Errorf("the landed cut left an L6 violation: %s", v)
+		}
+	}
 }

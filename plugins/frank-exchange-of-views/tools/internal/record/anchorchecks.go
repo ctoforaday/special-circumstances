@@ -78,7 +78,8 @@ type anchorStanding struct {
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has, or once
 	// it is retired.
 	edit int64
-	// retired is whether a retire has named the anchor: the first retire takes it out for good.
+	// retired is whether an act took the anchor out — a retire, or a pure cut's removed_anchors: the
+	// first takes it out for good.
 	retired bool
 	checks  []anchorCheck
 }
@@ -254,14 +255,20 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		}
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
-		// A RETIRE IS FIRST AND PERMANENT, the one definition every reader shares (the evidence_anchor
-		// view's MIN retire, AnchorRetiredAt, L6's NOT EXISTS): a retire takes the anchor out of the
-		// report, an edit invents no anchor, so no edit reopens it and no later retire names it again.
+		// A REMOVAL IS FIRST AND PERMANENT, the one definition every reader shares (the evidence_anchor
+		// view's MIN anchor_removal, AnchorRemovedAt, L6's NOT EXISTS): a retire or a pure cut takes
+		// the anchor out of the report, an edit invents no anchor, so no edit reopens it and no later
+		// act names it again.
 		// The fold says so rather than letting a later act it cannot see on the record move it.
 		case *recordpb.BlueEdit:
 			for _, a := range b.GetReopened() {
 				if s := l.byAnchor[a]; s != nil && !s.retired {
 					s.edit = w.ID
+				}
+			}
+			for _, a := range b.GetRemovedAnchors() {
+				if s := l.byAnchor[a]; s != nil && !s.retired {
+					s.edit, s.retired = 0, true
 				}
 			}
 		case *recordpb.Retire:
@@ -329,8 +336,8 @@ func StandingChecks(evs []*Event, win WindowIndex) []StandingCheck {
 	return out
 }
 
-// RetiredAnchors is every evidence anchor the ledger holds retired: a retire has named it, so it is in
-// no document. win supplies each event's events.id and sitting.
+// RetiredAnchors is every evidence anchor the ledger holds out of the report: a retire or a pure cut
+// took it out, so it is in no document. win supplies each event's events.id and sitting.
 func RetiredAnchors(evs []*Event, win WindowIndex) map[string]bool {
 	out := map[string]bool{}
 	for _, s := range anchorChecksOf(evs, win).order {

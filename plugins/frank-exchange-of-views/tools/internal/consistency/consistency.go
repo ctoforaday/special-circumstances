@@ -566,10 +566,44 @@ func Check(run record.Run) (Result, error) {
 		}
 	}
 
+	res.Violations = append(res.Violations, l6Violations(m.Events)...)
 	res.Unmeasured = staleness(run, m, func(v Violation) { res.Violations = append(res.Violations, v) })
 
 	sort.Slice(res.Violations, func(i, j int) bool { return res.Violations[i].String() < res.Violations[j].String() })
 	return res, nil
+}
+
+// l6Violations is L6 held independently of the rule's own query (ruling 9, F19): every computation no
+// retire or pure cut took out whose citation one did. No live write leaves one — the write refuses a
+// retire or a cut of a citation a computation still in the report applies (requireCitationUncited) —
+// so each is a computation in the report naming a citation in no document. Read off the events,
+// Retire.anchors beside BlueEdit.removed_anchors, never off anchor_removal, which the rule reads.
+func l6Violations(evs []*record.Event) []Violation {
+	removed := map[string]bool{}
+	var cites [][2]string // computation id, the citation it cites
+	for _, e := range evs {
+		switch b := e.GetBody().(type) {
+		case *recordpb.Event_Retire:
+			for _, a := range b.Retire.GetAnchors() {
+				removed[a] = true
+			}
+		case *recordpb.Event_BlueEdit:
+			for _, a := range b.BlueEdit.GetRemovedAnchors() {
+				removed[a] = true
+			}
+		case *recordpb.Event_Computation:
+			if c := b.Computation.GetCites(); c != "" {
+				cites = append(cites, [2]string{b.Computation.GetComputationId(), c})
+			}
+		}
+	}
+	var out []Violation
+	for _, kc := range cites {
+		if !removed[kc[0]] && removed[kc[1]] {
+			out = append(out, Violation{Rule: "l6", Anchor: kc[0], Detail: fmt.Sprintf("computation %s stays in the report and cites %s, which an act took out of it: the computation names a citation in no document", kc[0], kc[1])})
+		}
+	}
+	return out
 }
 
 // staleness holds every standing check to the sentence the report carries (plans/compute-and-show.md

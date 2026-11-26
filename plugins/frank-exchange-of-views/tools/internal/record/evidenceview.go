@@ -359,7 +359,10 @@ type EvidenceRetireJSON struct {
 // EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
 // recorded reason.
 type EvidenceRetiredJSON struct {
-	Event  int64  `json:"event"`
+	Event int64 `json:"event"`
+	// By is the act that took the anchor out: "retire", which keeps its sentence, or "edit", a pure
+	// cut that took the sentence with it (anchor_removal's by).
+	By     string `json:"by"`
 	Reason string `json:"reason"`
 }
 
@@ -473,15 +476,21 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 	// sentence's verdicts by anchor, and each bundle's bases.
 	reruns, acts := standingRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
-	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
-	// retired anchor back.
+	// THE ACT THAT HOLDS EACH REMOVED ANCHOR OUT is its first (anchorChecksOf), a retire or a pure cut:
+	// nothing brings a removed anchor back.
 	retiredBy := map[string]EvidenceRetiredJSON{}
 	for _, e := range evs {
-		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			for _, a := range r.GetAnchors() {
-				if _, first := retiredBy[a]; !first {
-					retiredBy[a] = EvidenceRetiredJSON{Event: win.Of(e).ID, Reason: r.GetReason()}
-				}
+		var took []string
+		var by EvidenceRetiredJSON
+		switch b := mustBody(e).(type) {
+		case *recordpb.Retire:
+			took, by = b.GetAnchors(), EvidenceRetiredJSON{Event: win.Of(e).ID, By: RemovedByRetire, Reason: b.GetReason()}
+		case *recordpb.BlueEdit:
+			took, by = b.GetRemovedAnchors(), EvidenceRetiredJSON{Event: win.Of(e).ID, By: RemovedByEdit, Reason: b.GetText()}
+		}
+		for _, a := range took {
+			if _, first := retiredBy[a]; !first {
+				retiredBy[a] = by
 			}
 		}
 	}

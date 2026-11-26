@@ -72,6 +72,11 @@ func (r *demandRecord) retire(anchors ...string) int64 {
 	return r.add("blue-respond", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r"), Anchors: anchors})
 }
 
+// cut is blue's pure cut that took anchors out with their sentence (BlueEdit.removed_anchors).
+func (r *demandRecord) cut(anchors ...string) int64 {
+	return r.add("blue-respond", recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String(""), Text: proto.String("r"), RemovedAnchors: anchors})
+}
+
 func (r *demandRecord) verify(seat, anchor, _ string, o recordpb.SourceOutcome) int64 {
 	v := &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String(anchor), Outcome: o.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}

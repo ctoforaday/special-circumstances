@@ -192,6 +192,25 @@ func TestACutReadiesItsRaiser(t *testing.T) {
 			t.Fatalf("the moot close of a --quote computation gap whose marker was cut was refused: %v", err)
 		}
 	})
+	t.Run("a failed check on a citation the cut took clears", func(t *testing.T) {
+		runDir, _, _ := raiserBoard(t)
+		c := citeSentence(t, runDir, "The sky is blue.", "https://water/1")
+		if _, err := run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", c,
+			"--as", "unreachable", "--confidence", "high", "--reason", "it would not load"); err != nil {
+			t.Fatalf("the unreachable verify of %s: %v", c, err)
+		}
+		g := materialGapAbout(t, runDir, c, "document")
+		if err := lensClose(t, runDir, lensSeat, g, "moot"); err == nil || !strings.Contains(err.Error(), "carries citation "+c) {
+			t.Fatalf("the close of %s over its standing failed check was not refused: %v", g, err)
+		}
+		if _, err := cut(t, runDir, "The sky is blue"+anchor.Token(c)+"."); err != nil {
+			t.Fatalf("the cut of %s's sentence: %v", c, err)
+		}
+		lensRereads(t, runDir)
+		if err := lensClose(t, runDir, lensSeat, g, "moot"); err != nil {
+			t.Errorf("the moot close of %s after the cut took %s was refused: %v", g, c, err)
+		}
+	})
 	t.Run("the lens keeps it", func(t *testing.T) {
 		runDir, g, _ := raiserBoard(t)
 		cutAnswering(t, runDir, g, "")

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -82,4 +83,123 @@ func TestAnchorRemovalIsOneView(t *testing.T) {
 			t.Errorf("%s's prescription still estops red after a pure cut took its sentence and marker", g)
 		}
 	})
+
+	// THE GO FOLDS OVER THE TWO REMOVING ACTS: each reads a pure cut's removed_anchors as it reads a
+	// retire's anchors.
+	t.Run("fold/countsat", func(t *testing.T) {
+		runDir := citedRun(t, "https://grass/1")
+		citeSentence(t, runDir, "The grass is green.", "https://grass/1")
+		if _, err := cut(t, runDir, "The grass is green."); err != nil {
+			t.Fatal(err)
+		}
+		fam, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := fam.CountsAt(math.MaxInt64); c.Citations != 1 || c.CitationsRetired != 1 {
+			t.Errorf("CountsAt after the cut of the citation's sentence = %+v, want 1 citation and 1 out", c)
+		}
+	})
+	t.Run("fold/answersretired", func(t *testing.T) {
+		runDir, g, _ := raiserBoard(t)
+		c := placeAnswer(t, runDir, "citation", "The sky is blue.", "https://water/1", g)
+		lensRereads(t, runDir)
+		if err := lensClose(t, runDir, lensSeat, g, "repaired"); err != nil {
+			t.Fatalf("the lens's close of %s on its answer %s: %v", g, c, err)
+		}
+		if _, err := cut(t, runDir, "The sky is blue"+anchor.Token(c)+"."); err != nil {
+			t.Fatalf("the cut of the answer's sentence: %v", err)
+		}
+		if items := lensItems(t, runDir); !anyHas(items, "the answers to gap "+g+", which you closed") || !anyHas(items, c) {
+			t.Errorf("no news that %s's answer %s left with its sentence:\n  %s", g, c, strings.Join(items, "\n  "))
+		}
+	})
+	t.Run("fold/evidenceview retiredBy", func(t *testing.T) {
+		runDir := citedRun(t, "https://grass/1")
+		c := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
+		if _, err := cut(t, runDir, "The grass is green"+anchor.Token(c)+"."); err != nil {
+			t.Fatal(err)
+		}
+		out, err := run(t, "show", "evidence", "--run", runDir, "--seat-id", lensSeat, "--anchor", c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var at struct {
+			Retired *record.EvidenceRetiredJSON `json:"retired"`
+		}
+		if err := json.Unmarshal([]byte(out), &at); err != nil {
+			t.Fatalf("show evidence --anchor %s did not parse: %v\n%s", c, err, out)
+		}
+		if at.Retired == nil || at.Retired.By != record.RemovedByEdit || at.Retired.Reason != "the claim cannot stand" {
+			t.Errorf("%s's removal as show evidence states it = %+v, want the cut with its reason", c, at.Retired)
+		}
+	})
+	t.Run("fold/anchorchecks", func(t *testing.T) {
+		runDir := citedRun(t, "https://grass/1")
+		c := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
+		if _, err := cut(t, runDir, "The grass is green"+anchor.Token(c)+"."); err != nil {
+			t.Fatal(err)
+		}
+		m, err := record.MergedEvents(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !record.RetiredAnchors(m.Events, m.At)[c] {
+			t.Errorf("the ledger does not hold %s out of the report after the cut of its sentence", c)
+		}
+	})
+	// A CUT REACHES THE GAPS ABOUT WHAT IT TOOK (WindowIndex.Reaches, gapActsOf): the lens of a gap about
+	// the cut citation holds a turn on it, and blue's list owes no evidence for it (its demand is met).
+	t.Run("fold/gapacts Reaches", func(t *testing.T) {
+		runDir, _, _ := raiserBoard(t)
+		c := citeSentence(t, runDir, "The sky is blue.", "https://water/1")
+		g := materialGapAbout(t, runDir, c)
+		if _, err := cut(t, runDir, "The sky is blue"+anchor.Token(c)+"."); err != nil {
+			t.Fatal(err)
+		}
+		if !lensEngagedOn(t, runDir, g) {
+			t.Errorf("the cut of %s, which %s is about, gave its lens no turn on it", c, g)
+		}
+	})
+	t.Run("fold/answeredByActThisSitting", func(t *testing.T) {
+		runDir, _, _ := raiserBoard(t)
+		c := citeSentence(t, runDir, "The sky is blue.", "https://water/1")
+		g := materialGapAbout(t, runDir, c)
+		dispatchBlueOnto(t, runDir, g)
+		registerBlue(t, runDir)
+		if _, err := cut(t, runDir, "The sky is blue"+anchor.Token(c)+"."); err != nil {
+			t.Fatal(err)
+		}
+		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", blueSeat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w record.WorkJSON
+		if err := json.Unmarshal([]byte(out), &w); err != nil {
+			t.Fatal(err)
+		}
+		for _, it := range w.Sitting.Open {
+			if it.Kind == record.ItemAwaitingEvidence && strings.Contains(it.What, g) {
+				t.Errorf("blue's list owes evidence for %s after its cut took the anchor %s is about: %q", g, g, it.What)
+			}
+		}
+	})
+}
+
+// materialGapAbout is a material gap of lensSeat's about the anchor c, of check kind kind ("source"
+// where none is given).
+func materialGapAbout(t *testing.T, runDir, c string, kind ...string) string {
+	t.Helper()
+	k := "source"
+	if len(kind) > 0 {
+		k = kind[0]
+	}
+	out, err := runMint(t, "--run", runDir, "--seat-id", lensSeat, "--key", "A", "--class", "spec_underspecification",
+		"--problem", "the source does not say it", "--fix", "cite one that does", "--check-kind", k,
+		"--check", "a source that says it", "--severity", "high", "--likelihood", "high", "--impact", "high",
+		"--about-kind", "anchor", "--about", c)
+	if err != nil {
+		t.Fatalf("mint --about %s: %v", c, err)
+	}
+	return gapID(out)
 }

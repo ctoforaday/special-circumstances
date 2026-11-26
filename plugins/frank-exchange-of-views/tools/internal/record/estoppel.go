@@ -322,8 +322,12 @@ type AnchorRemoval struct {
 	Reason, Sentence string
 }
 
-// RemovedByEdit is anchor_removal's "by" for a cut, whose edit took the anchor with its sentence.
-const RemovedByEdit = "edit"
+// RemovedByRetire and RemovedByEdit are anchor_removal's "by": a retire, which keeps the anchor's
+// sentence, and a cut, whose edit took the anchor with its sentence.
+const (
+	RemovedByRetire = "retire"
+	RemovedByEdit   = "edit"
+)
 
 // AnchorRemovedAt answers where an anchor went when it is no longer in the report: the act that took
 // it out, a retire off a sentence that stays or a cut that took the sentence. found is false for an

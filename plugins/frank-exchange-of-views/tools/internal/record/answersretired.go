@@ -65,7 +65,9 @@ func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int
 	return false
 }
 
-// retiredAnswersAt is the anchors placed as gap's answer that the retire at the place at took out.
+// retiredAnswersAt is the anchors placed as gap's answer that the act at the place at took out: a
+// retire's anchors or a pure cut's removed_anchors (anchor_removal, which gap_state's
+// answers_retired_event reads).
 func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string {
 	answering := map[string]bool{}
 	var out []string
@@ -73,11 +75,19 @@ func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string 
 		if id, g, ok := placedAnswer(e); ok && g == gap {
 			answering[id] = true
 		}
-		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && ids[i] == at {
-			for _, a := range r.GetAnchors() {
-				if answering[a] {
-					out = append(out, a)
-				}
+		if ids[i] != at {
+			continue
+		}
+		var took []string
+		switch b := mustBody(e).(type) {
+		case *recordpb.Retire:
+			took = b.GetAnchors()
+		case *recordpb.BlueEdit:
+			took = b.GetRemovedAnchors()
+		}
+		for _, a := range took {
+			if answering[a] {
+				out = append(out, a)
 			}
 		}
 	}

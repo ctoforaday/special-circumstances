@@ -145,7 +145,7 @@ func gapIs(gap, cond string) string {
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose int64
+	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose, sCut int64
 	at := func(v *int64) string { return fmt.Sprint(*v) }
 	none := func() []string { return nil }
 	return []gapStep{
@@ -240,21 +240,37 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
 			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
 		}},
-		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a retire takes its
-		// own marker out of the report with the claim it marks.
+		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a pure cut takes
+		// its own marker out of the report with the claim it marks.
 		{func() { r.mintQuote("Y", comp) }, func() []string { return []string{gapIs("Y", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
-		{func() { r.retire("Y") }, func() []string {
+		{func() { r.cut("Y") }, func() []string {
 			return []string{gapIs("Y", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
-		// And an heir's, once a retire after its mint takes out the marker of the --quote ancestor whose
-		// demand it carries.
+		// And an heir's, once a pure cut after its mint takes out the marker of the --quote ancestor whose
+		// demand it carries, with the claim it marks.
 		{func() { r.mintQuote("W", src) }, none},
 		{func() { r.mintQuote("X", src, "W") }, func() []string {
 			return []string{gapIs("X", `"open" AND "awaiting_evidence" AND NOT "evidence_answered"`)}
 		}},
-		{func() { r.retire("W") }, func() []string {
+		{func() { r.cut("W") }, func() []string {
 			return []string{gapIs("W", `"evidence_answered"`), gapIs("X", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
+		// An anchor-only retire of a closed ancestor's marker off its standing sentence meets no heir:
+		// the claim stands, so the demand it carries is unmet.
+		{func() { r.mintQuote("W2", src) }, none},
+		{func() { r.mintQuote("X2", src, "W2") }, none},
+		{func() { r.retire("W2") }, func() []string {
+			return []string{gapIs("X2", `"open" AND "awaiting_evidence" AND NOT "evidence_answered"`)}
+		}},
+		// A pure cut of the anchor a gap is about meets its demand, as a retire of it does.
+		{func() { r.cite("C3", "") }, none},
+		{func() { r.mintOf("Z", src, "C3") }, func() []string { return []string{gapIs("Z", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
+		{func() { r.cut("C3") }, func() []string { return []string{gapIs("Z", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
+		// A pure cut of a closed gap's answer anchor is its answers_retired_event.
+		{func() { r.mintOf("S", src, "") }, none},
+		{func() { r.cite("C4", "S") }, none},
+		{func() { r.close("S", "") }, func() []string { return []string{gapIs("S", `NOT "open" AND "answers_retired_event" IS NULL`)} }},
+		{func() { sCut = r.cut("C4") }, func() []string { return []string{gapIs("S", `"answers_retired_event" = `+at(&sCut))} }},
 	}
 }
 
@@ -293,8 +309,10 @@ func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 // triggers, is the refresh asked of every gap at once: the minter's re-read of its gap's anchor, an
 // upheld position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
 // a failing recheck, a carry close after the answers retire, a supersession of a closed gap, an older
-// docket standing again under a remand, a bench closure red's later close overrules, and a --quote
-// gap's demand met by the retire of its own marker, or of its ancestor's marker after the heir's mint.
+// docket standing again under a remand, a bench closure red's later close overrules, a --quote gap's
+// demand met by the pure cut of its own marker, or of its ancestor's marker after the heir's mint, and
+// unmet by an anchor-only retire of that marker, and the pure cut of an about-anchor and of a closed
+// gap's answer.
 func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	r := newDemandRecord(t)
 	for i, step := range gapStateSteps(r) {
@@ -308,7 +326,8 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	}
 	// THE FIRST CLOSING ACT, of each arm: A's by the mint superseding it, R's by red's first close
 	// (two closes follow it), D's by the bench (red's close follows it), the rest open.
-	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open", "Y": "open", "W": "mint", "X": "open"}
+	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open", "Y": "open", "W": "mint", "X": "open",
+		"W2": "mint", "X2": "open", "Z": "open", "S": "close"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -324,7 +343,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 12 {
+	if len(markers) != 13 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {

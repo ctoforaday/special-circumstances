@@ -314,6 +314,14 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() {
 				movement[g] = append(movement[g], id)
 			}
+			// A REACHING CUT moves each gap it reaches as a reaching retire does: it took out the
+			// anchor the gap is about (WindowIndex.Reaches). The gap whose own marker it took is not
+			// reached: that cut is its raiser's turn, not movement on it.
+			for _, r := range win.Reaches(e) {
+				if !slices.Contains(movement[r.gap], id) {
+					movement[r.gap] = append(movement[r.gap], id)
+				}
+			}
 		case *recordpb.Computation:
 			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
 				movement[g] = append(movement[g], id)
@@ -336,7 +344,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// An evidence-anchor retire moves the report as an edit does: the anchor leaves its sentence. A
+			// A retire answering a gap moves it as an edit does: the anchor leaves its sentence. A
 			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
 			// whatever gap it named (WindowIndex.Reaches).
 			if g := retireAnswers(e); g != "" {
