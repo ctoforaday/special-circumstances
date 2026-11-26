@@ -2,7 +2,7 @@
 exit 2
 feov-record: mint: requires --check, --check-kind, --impact, --likelihood, --severity
 
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. It proves the fix at the gap's one sentence: a defect at several sentences is a gap at each site, each with its own check
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
@@ -261,7 +261,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        record a defect you found as a graded gap on the board — a small one graded below medium
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it establishes the sentence it is attached to
@@ -308,7 +308,7 @@ Available Commands:
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -356,7 +356,7 @@ Available Commands:
   help        Help about any command
   ingest      record your part of the report — once per lane, before the report's first change
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -398,7 +398,7 @@ Available Commands:
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -441,7 +441,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -480,7 +480,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
@@ -578,10 +578,11 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position POSITION001 recorded
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ── a second position in one sitting
@@ -589,17 +590,12 @@ exit 2
 feov-record: position: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's spot-check
-exit 0
-spot-check recorded with its reason: named no archived closure
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
-  · lens red-lens-evidence is ready — PASS is refused while it is
-  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
+exit 2
+feov-record: spot-check: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 ── a second spot-check in one sitting
 exit 2
-feov-record: spot-check: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: spot-check: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 ── a closing on a gap nothing is before the bench on
 exit 2
@@ -617,11 +613,14 @@ dispatch against head 4:
   · red-lens-evidence: never sat — audits the report at head 4
   · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
   · blue-respond: the question is split into no question part — ready, to split it
+  · red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered
+  · red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ── exchange target: blue sits
@@ -681,7 +680,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
@@ -723,14 +722,14 @@ exit 0
 minted GAP003
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the lens closes it
 exit 0
 closed GAP003 (repaired)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
@@ -743,23 +742,25 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
   · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ── repeat target: the chair carries the closure
 exit 0
 carried the closure of GAP003 (repaired)
-NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (8 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
   · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ── a second carry of a gap in one sitting
@@ -771,7 +772,7 @@ exit 0
 minted GAP004
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
@@ -780,7 +781,7 @@ exit 0
 minted GAP005
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 

@@ -23,7 +23,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity high --likelihood high --impact high --problem r1 first
 exit 0
@@ -31,7 +32,8 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
 exit 0
@@ -39,7 +41,8 @@ stdout:
 minted GAP002
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -51,10 +54,11 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
@@ -63,12 +67,13 @@ stdout:
 minted GAP003
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ spot-check --run {RUN} --seat-id red-chair --ids GAP001, GAP002 --reason both re-read
 exit 2
 stderr:
-feov-record: spot-check: --ids names gap GAP001, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
+feov-record: spot-check: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ dispatch next --run {RUN} --seat-id red-chair
 exit 0
@@ -81,11 +86,14 @@ dispatch against head 3:
   · GAP002: open and not material (graded low) — readies nobody
   · GAP003: open and not material (graded low) — readies nobody
   · blue-respond: the question is split into no question part — ready, to split it
+  · red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered
+  · red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
-NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (8 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ register --run {RUN} --seat-id blue-respond
@@ -132,10 +140,10 @@ motion MOTION001 filed (docket, proposing a regrade)
 {"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:GAP003","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP003","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `spot-check` with --ids --reason: --ids names gap GAP001, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_LOG"}
+{"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `spot-check` with --ids --reason: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_LOG"}
 {"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_DISPATCH"}
-{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there\",\"GAP002: open and not material (graded low) — readies nobody\",\"GAP003: open and not material (graded low) — readies nobody\",\"blue-respond: the question is split into no question part — ready, to split it\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"]}"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_PLAN"}
+{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"whole_report_owed\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there\",\"GAP002: open and not material (graded low) — readies nobody\",\"GAP003: open and not material (graded low) — readies nobody\",\"blue-respond: the question is split into no question part — ready, to split it\",\"red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered\",\"red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"]}"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_PLAN"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":13,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","docket":{"gap_id":"GAP001"},"motion_id":"MOTION001","regrade":{"basis":"the second failure is not required","gap_id":"GAP001","severity":"GRADE_MEDIUM"}},"seat_id":"blue-respond","ts":15,"type":"EVENT_TYPE_MOTION"}

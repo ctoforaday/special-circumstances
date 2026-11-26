@@ -88,7 +88,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        record a defect you found as a graded gap on the board — a small one graded below medium
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it establishes the sentence it is attached to
@@ -131,7 +131,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
@@ -174,7 +174,7 @@ Available Commands:
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -216,7 +216,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them

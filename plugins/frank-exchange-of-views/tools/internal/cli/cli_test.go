@@ -1949,12 +1949,13 @@ func moveReportHead(t *testing.T, dir string) {
 	}
 }
 
-// castNewRun is newRun on the cast setup writes for the whole roster: a stale area is a cast lens's.
+// castNewRun is newRun on the cast setup writes for the whole roster and the lane seedReferents's
+// cases file from: a stale area is a cast lens's, and a lane registers only in the cast.
 func castNewRun(t *testing.T) string {
 	t.Helper()
 	dir := newRun(t)
 	recordtest.Seed(t, dir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
-		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
+		&recordpb.Cast{SeatIds: append(seatclass.SeatIDs(), "blue-lane-1")}))
 	return dir
 }
 

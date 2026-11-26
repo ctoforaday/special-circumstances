@@ -110,6 +110,8 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		// run whose chair is permitted the PASS is one whose lens sat for the second.
 		r.dispatchSits("lens", converseLens)
 		r.dispatchReturns(converseLens, false)
+	case benchCloses:
+		r.dispatchReturns(converseLens, false)
 		// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue sits on it once before it proposes.
 		r.exchangeOn(t)
 		r.dispatchSits("blue", "blue-respond")

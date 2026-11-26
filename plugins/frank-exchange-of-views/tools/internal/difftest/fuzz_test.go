@@ -237,8 +237,12 @@ func replay(t *testing.T, bin, writer string, cmds []cmd, cast []string) replayR
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
 	// A CAST, because the prologue asks `dispatch next` for the exchange a proposal waits on and for
-	// the bench's sitting, and a plan is folded only on a record holding one.
-	prepareRun(t, bin, runDir, m, nil, castOf("evidence", "logic", "dark-side"))
+	// the bench's sitting, and a plan is folded only on a record holding one: the tour's (tourCast),
+	// else the random sequences'.
+	if cast == nil {
+		cast = castOf("evidence", "logic", "dark-side")
+	}
+	prepareRun(t, bin, runDir, m, nil, cast)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
 	// before the bench as MOTION001, docketed as DOCKETING001 — the placeholders the prologue's own output is given below,
 	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, both
@@ -582,11 +586,11 @@ var tourArms = []fuzzArm{
 		},
 		func(string) []cmd { return []cmd{readStep("red-lens-evidence")} }),
 	// THE CHAIR'S CARRY RESTATES THE CLOSE JUST RECORDED, at its next sitting: the lens closed GAP001 in
-	// the chair's second sitting (the prologue's). A random sequence rarely holds a closure before
-	// a carry, since a proposal on a gap holds it while it stands.
+	// the chair's seventh sitting, the tour's drives opening the ones before it (measured). A random
+	// sequence rarely holds a closure before a carry, since a proposal on a gap holds it while it stands.
 	tourArm("chair carry", []string{"red-chair"}, []string{"carry"},
 		func(t string) []string {
-			return []string{"--id", "GAP001", "--carried-from", "2", "--as", "repaired", "--reason", t}
+			return []string{"--id", "GAP001", "--carried-from", "7", "--as", "repaired", "--reason", t}
 		},
 		func(name string) []cmd { return []cmd{fuzzStep(name+" · setup", []string{"register"}, "red-chair")} }),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
