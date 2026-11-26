@@ -38,7 +38,7 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 		{archive: "2026-10-29_is-91-prime-m36.tar.gz", reviews: 1, rulings: 5, inquiries: 5, acts: 12,
 			outcomes: []string{"verified"}, passes: 1, motionRules: 5},
 		{archive: "2026-10-27_is-91-prime-m35.tar.gz", reviews: 1, rulings: 6, inquiries: 7, acts: 22,
-			motionRules: 13, motionsArchive: 8, docketRulings: 6, dockets: 8},
+			motionRules: 13, motionsArchive: 8, docketRulings: 5, dockets: 8},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
 			src := openRO(t, recordtest.RequireArchive(t, c.archive))

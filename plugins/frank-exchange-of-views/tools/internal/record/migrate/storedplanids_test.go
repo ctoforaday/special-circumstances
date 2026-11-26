@@ -269,8 +269,8 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if firstDropped == 0 {
 		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
 	}
-	// Its 2 dispatch dockets are written as docketings, not motions, their 2 rulings as no event (a
-	// Close ended each first), and the 2 closings filed after those closes are refused (EventSchema 80).
+	// Its 2 dispatch dockets are written as docketings, not motions, and their 2 rulings stand: the
+	// Closes that came before them stand on no delivered text, so they are lost acts and end neither.
 	// An archived act the delivered-text rule refuses, or one refused for a gap such a loss took
 	// with it, is an accepted loss listed in lost_acts; the rest of what writes none is the
 	// renumbering this test drives.
@@ -280,7 +280,7 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 			delete(notLost, w)
 		}
 	}
-	if want := map[string]int{"anchor": 43, "class_new": 2, "close": 1, "finding": 68, "closing": 3, "inquiry_review": 8, "manifest_row": 16, "motion": 2, "motion_rule": 7, "position": 8}; !maps.Equal(notLost, want) {
+	if want := map[string]int{"anchor": 43, "class_new": 2, "close": 1, "finding": 68, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion": 2, "motion_rule": 5, "position": 8}; !maps.Equal(notLost, want) {
 		t.Errorf("m28's events that write none, less its lost acts %v: %v, want %v", migrate.LostByWord(res), notLost, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

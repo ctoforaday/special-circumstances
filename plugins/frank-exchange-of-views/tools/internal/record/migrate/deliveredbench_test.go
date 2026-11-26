@@ -13,15 +13,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// DeliveredBenchSource is an old record whose bench rules on a delivery, which no archived bench
-// sitting holds: every archived opinion and every archived bench ruling on a motion about gaps is a
-// lost act, as is every archived spot-check, so a translation of each is exercised here. A lens
-// registers, is served the report, mints two gaps — G2 settled by a source no citation answers — and closes G2 not a defect, naming G2 itself and G1 among its anchors as m30's
-// closures did; blue edits G1's
-// sentence; the chair registers, is served the report at that edit, and spot-checks the lens's area;
-// the bench registers, is served the report at the edit, and rules both — G1 deferred under the shard era's word "carried" with what would settle
-// it, G2 not a defect, after its lens closed it, with what would reopen it. It returns the run
-// directory.
+// DeliveredBenchSource is an old record whose lens and chair act on a delivery, which no archived
+// sitting holds: every archived close and spot-check of the report is a lost act, so a translation
+// of each is exercised here. A lens registers, is served the report, mints two gaps — G2 settled by a
+// source no citation answers — and closes G2 not a defect, naming G2 itself and G1 among its anchors
+// as m30's closures did; blue edits G1's sentence; the chair registers, is served the report at that
+// edit, and spot-checks the lens's area; the bench registers, reads the report as the archive's
+// bench did (a read the bench takes no delivery for, so it is written as no event), and gives an
+// opinion on each — G1 deferred under the shard era's word "carried" with what would settle it, G2
+// not a defect, after its lens closed it, with what would reopen it; an opinion is written as no
+// event (Translation 4). It returns the run directory.
 func DeliveredBenchSource(t *testing.T) string {
 	t.Helper()
 	return deliveredBench(t, true)
@@ -116,8 +117,8 @@ func deliveredBench(t *testing.T, anchorsField bool) string {
 }
 
 // MigratedDeliveredBench is DeliveredBenchSource migrated into a fresh run directory: its manifest,
-// the source as Migrate reads it, and the migrated directory. The fixture's rulings stand on the
-// bench's delivery, so the manifest lists no lost act.
+// the source as Migrate reads it, and the migrated directory. The fixture's close and spot-check stand
+// on their seats' deliveries, so the manifest lists no lost act.
 func MigratedDeliveredBench(t *testing.T) (*migration.Manifest, Source, string) {
 	t.Helper()
 	src := DeliveredBenchSource(t)

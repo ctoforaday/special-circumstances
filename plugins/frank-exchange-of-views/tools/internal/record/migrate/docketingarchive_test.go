@@ -77,16 +77,14 @@ var wantDocketResidue = map[string]docketResidue{
 		spotChecks: []int64{474}},
 	"2026-09-02_quadratic-formula.tar.gz": {opinions: []int64{456, 457, 458, 459, 460, 461, 462, 463, 659, 660, 661, 662, 663, 664, 665, 741, 804},
 		spotChecks: []int64{542, 710, 766}},
-	"2026-09-09_is-91-prime-a.tar.gz":                {party: []int64{132, 160}},
+	"2026-09-09_is-91-prime-a.tar.gz":                {party: []int64{132, 160}, spotChecks: []int64{163}},
 	"2026-09-10_is-91-prime-b3.tar.gz":               {party: []int64{150, 173}},
 	"2026-09-11_is-91-prime-b6.tar.gz":               {party: []int64{179, 180, 186, 187}},
-	"2026-10-12_is-91-prime-wave-b.tar.gz":           {party: []int64{325, 326, 431, 432, 489, 609, 615, 672}, spotChecks: []int64{698}},
+	"2026-10-12_is-91-prime-wave-b.tar.gz":           {party: []int64{325, 326, 431, 432, 489, 609, 615, 672}, spotChecks: []int64{626, 698}},
 	"2026-10-17_is-91-prime-07d.tar.gz":              {party: []int64{372, 383}},
-	"2026-10-18_is-91-prime-m28.tar.gz":              {ended: []int64{589, 659}},
-	"2026-10-18_is-91-prime-m29.tar.gz":              {superseded: []int64{351, 426}, ended: []int64{576}},
+	"2026-10-18_is-91-prime-m29.tar.gz":              {superseded: []int64{351, 426}},
 	"2026-10-24_is-91-prime-1565.tar.gz":             {ended: []int64{557, 558, 559, 560, 872}},
-	"2026-10-24_is-91-prime-m32.tar.gz":              {ended: []int64{483}},
-	"2026-10-27_is-91-prime-m35.tar.gz":              {party: []int64{404, 520, 584, 586}, ended: []int64{580, 581, 582, 583}},
+	"2026-10-27_is-91-prime-m35.tar.gz":              {party: []int64{404, 520, 584, 586}, ended: []int64{580, 581, 583}},
 	"2026-10-30_mersenne-31-prime-sum.tar.gz":        {party: []int64{541, 542, 667, 668, 780, 836, 881, 882}, ended: []int64{792}},
 	"2026-11-04_eiffel-tower-height.tar.gz":          {party: []int64{777, 885}},
 	"2026-11-11_eiffel-tower-height.tar.gz":          {benchRegrades: []int64{669}},
@@ -188,8 +186,8 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 		}
 	}
 	t.Logf("written as no event: %v; docketings written: %d", total, total["docketings"])
-	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "superseded dockets": 4, "ended rulings": 17,
-		"bench regrades": 3, "spot-checks": 5, "inquiry checks": 1, "docketings": 25} {
+	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "superseded dockets": 4, "ended rulings": 12,
+		"bench regrades": 3, "spot-checks": 7, "inquiry checks": 1, "docketings": 25} {
 		if total[what] != want {
 			t.Errorf("census: %s %d, want %d", what, total[what], want)
 		}
@@ -202,11 +200,15 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 // (ruled 2026-11-22: the live cause stands). A kept closing word is a for-blue answer with blue stating
 // none; a remand stays a remand with neither side nor grades; no ruling sets moved_grades; no bench
 // Regrade is on any migrated record; a docketing a Close ended reads closed by its assignee; m35
-// G-650ee728 stands unruled at the run's end.
+// G-650ee728 stands unruled at the run's end, and so does m29 G-6f6f47fb: its raiser's close (ev 561)
+// and, with it, its ruling (ev 576) are lost acts (the close stands on no delivered text; the ruling,
+// on a grade-movement docketing, keeps or restores no grade).
 func TestAnArchivedBenchWordTakesItsSide(t *testing.T) {
 	type kept struct{ gap, answer string }
 	wantKept := map[string][]kept{
-		"2026-10-27_is-91-prime-m35.tar.gz":              {{"G-91f0c8e6", "remanded"}},
+		"2026-10-18_is-91-prime-m28.tar.gz":              {{"G-1e4a7bb0", "blue not_a_defect"}, {"G-3a2c77c1", "blue not_a_defect"}},
+		"2026-10-24_is-91-prime-m32.tar.gz":              {{"G-fbdd91f9", "blue not_a_defect"}},
+		"2026-10-27_is-91-prime-m35.tar.gz":              {{"G-91f0c8e6", "remanded"}, {"G-1f1ae21f", "blue not_a_defect"}},
 		"2026-11-04_eiffel-tower-height.tar.gz":          {{"G-72aab1f2", "remanded"}, {"G-42584956", "blue not_a_defect"}},
 		"2026-11-11_eiffel-tower-height.tar.gz":          {{"G-6e7c400f", "remanded"}},
 		"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {{"G-deced912", "remanded"}},
@@ -241,7 +243,7 @@ func TestAnArchivedBenchWordTakesItsSide(t *testing.T) {
 				}
 				got = append(got, kept{k.gap, answer})
 			case k.standing:
-				if name != "2026-10-27_is-91-prime-m35.tar.gz" || k.gap != "G-650ee728" {
+				if !(name == "2026-10-27_is-91-prime-m35.tar.gz" && k.gap == "G-650ee728") && !(name == "2026-10-18_is-91-prime-m29.tar.gz" && k.gap == "G-6f6f47fb") {
 					t.Errorf("%s %s: a docketing stands at the run's end", name, k.gap)
 				}
 			default:

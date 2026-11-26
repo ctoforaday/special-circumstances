@@ -293,6 +293,9 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 		"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {"G-08b93634", "G-f822ce4a"},
 	}
 	wantRuled := map[string][]string{
+		"2026-10-18_is-91-prime-m28.tar.gz":              {"G-1e4a7bb0", "G-3a2c77c1"},
+		"2026-10-24_is-91-prime-m32.tar.gz":              {"G-fbdd91f9"},
+		"2026-10-27_is-91-prime-m35.tar.gz":              {"G-1f1ae21f"},
 		"2026-11-04_eiffel-tower-height.tar.gz":          {"G-42584956"},
 		"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {"G-ca807516"},
 	}
@@ -364,7 +367,7 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 	if !maps.EqualFunc(gotRuled, wantRuled, slices.Equal) {
 		t.Errorf("ruling placements %v, want %v", gotRuled, wantRuled)
 	}
-	if total != 44 {
-		t.Errorf("%d tombstone rows over the archives, want 44: 37 estoppel placements, 5 ends, 2 rulings", total)
+	if total != 48 {
+		t.Errorf("%d tombstone rows over the archives, want 48: 37 estoppel placements, 5 ends, 6 rulings", total)
 	}
 }
