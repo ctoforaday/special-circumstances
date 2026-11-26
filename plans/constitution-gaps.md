@@ -1396,7 +1396,7 @@ among them) and the 2 in `run-archive/bundle-store/` (m37, m38). The method is i
   | acts per cut marker | the edit, blue's claim retire, the lens's turn and its close: 114 archived claim retires, each a second act | the edit, the lens's turn and its close: the claim retire goes |
   | floating states | an open gap whose marker stands bare in `gone`, which its lens reads as its sentence until the retire; 9 archived gaps worked against a sentence that left (F18's 6, translation 4's 3) | none: no writer leaves a token bare. An open gap whose marker a cut took reads `gone` and is its lens's turn |
   | record shape | unchanged | one epoch; `Retire` loses 3 fields; `BlueEdit` gains `removed_anchors` and its child table; one new view, three changed; one marker |
-  | code | unchanged | claim mode deleted (`retire.go:55-155`, `:218-447`); the lens turn, delivered-text and gap-passage readers read the edit arm (§III.10c "The raiser's turn"); one `judgeAct` arm (L6 on the cut); of 9 Go fold sites over `Retire`, 7 read the edit's list or the index, 1 is re-keyed and 1 stays retire-only; 4 migrate translations that write; 28 claim-shape test files rewritten |
+  | code | unchanged | claim mode deleted (`retire.go:55-155`, `:218-447`); the lens turn, delivered-text and gap-passage readers read the edit arm (§III.10c "The raiser's turn"); one `judgeAct` arm (L6 on the cut); of 9 Go fold sites over `Retire`, 7 read the edit's list or the index, 1 is deleted as unreachable and 1 stays retire-only; 4 migrate translations that write; 28 claim-shape test files rewritten |
   | residue | none | no archived fate changes by migrate; m26's 11 tokens re-seated (F20, F22); every archived `F-` token treated as its `G-` neighbours are (F22) |
 
   Token and wall-clock cost per run is NOT measured for either version; the comparison counts acts and mechanisms.
@@ -1571,8 +1571,8 @@ and `~/.claude/scratch/p12/r2/`):
   - **What stays, now the cut's path.** An open gap reads `gone` from its marker's cut until its lens acts (§III.10c
     "The raiser's turn"). The open-gap `gone` readers stay: `blueanswered.go:61`'s `gone` arm and its `:98-99` item,
     and the engaged-lens `gone` clause (`debate.js:909` on main, the authored `lensPrompt`, outside both enginegen
-    regions). `sitting.go:328`'s (on main) "your retire this sitting took its sentence out" is re-keyed to a cut (the
-    fold table's `answeredByActThisSitting` row).
+    regions). `sitting.go:328`'s (on main) "your retire this sitting took its sentence out" is deleted: a cut of G's own
+    marker meets G's demand, so its case is unreachable (the fold table's `answeredByActThisSitting` row).
   - **One location state for a token not in the report** (`viewjson.go:2264-2316`). `gone` stays, the existing word
     and constant (`LocationGone`); no new term is coined (`terms.json` has no location-state entry, and `gone` is
     already rendered on the three help pages).
@@ -1597,7 +1597,7 @@ and `~/.claude/scratch/p12/r2/`):
       `cli/blueanswered_test.go:122`, `cli/gapanchor_test.go:414`; `retireanchor_test.go:457` is in the claim-shape
       list (§III.11). `record/envelope_test.go:205-236` ("a retire this sitting that took its sentence out admits it")
       drives the retired-this-sitting arm with two anchorless `Retire{Claim}` fixtures (`:227`, `:232`); it is
-      rewritten with a pure cut in their place, the arm re-keyed. The evidence rows' `gone` assertions
+      rewritten with a pure cut of G's marker in their place, which meets G's demand, and the arm is deleted. The evidence rows' `gone` assertions
       (`cli/evidencelocation_test.go:102`, `record/evidenceview_test.go:55`) stand.
   - **The other report-text writers:**
     - `ingest` refuses a part holding any anchor token. A part precedes every anchor op (`record/queries.go:378-383`),
@@ -1782,7 +1782,7 @@ and `~/.claude/scratch/p12/r2/`):
     |---|---|---|
     | `countsat.go:53-56` | `Retire.anchors` into the retired set | reads the list: a `BlueEdit` arm adds `removed_anchors` |
     | `answersretired.go:83` `retiredAnswersAt` | the answer anchors the act at `at` took out (the act is `gap_state.answers_retired_event`, from `anchor_removal`) | reads the list: a `BlueEdit` arm at `at`; its news line says "taken out" for a retire or a cut |
-    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case, under `AwaitingEvidence` (a gap whose demand is unmet: after a cut, a gap about an anchor that still stands, since a cut of a `--quote` gap's own marker meets its demand by arm 4) | re-keyed: `retired` reads whether blue's edit this sitting removed the gap's anchor (a `BlueEdit` arm on `removed_anchors`), since a retire never takes a sentence under P12b; its one reader (`sitting.go:328` on main) reads "your cut this sitting took its sentence out" |
+    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case, under `AwaitingEvidence` | deleted, with its `LocationGone` case (lead call 11-26, RULINGS.md): a retire never takes a sentence under P12b, and a cut of G's own marker meets G's demand by `met`'s arm 4, so G is never `AwaitingEvidence` once its marker is cut and a re-keyed arm would be unreachable. The function keeps its motion half as `movedThisSitting` |
     | `evidenceview.go:407` `Retires` | one row per retire act: claim, reason, anchors | stays retire-only (losing the three fields): the rows describe retire acts, and a cut is an edit; listing it there would read a cut as a retire. The cut's anchors reach the view through `:484` |
     | `evidenceview.go:484` `retiredBy` | the first act that took each anchor out, with its reason | reads the list: a `BlueEdit` arm records the edit's id and `--reason` |
     | `impasse.go:333` `exchangeFold` | the retire's answered gap and `win.Reaches(e)` | DB read: a `BlueEdit` arm adds `win.Reaches(e)`, so a cut reaching a gap moves it as a retire does (today an edit moves only its `--answers` gap, `:313-316`) |
@@ -4076,7 +4076,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          - `ClaimKept\|claim_kept\|RemovalBasis\|removal_basis\|RemovalVerified\|RemovalAsserted` returns 0 hits
            outside `migrate/` and `prose-rewrites.golden`;
          - `LocationGone\|GoneTeaching` returns `viewjson.go`'s constants, `locateAnchor`'s not-found return,
-           `LocationStates`, `blueanswered.go`'s `gone` arm and `sitting.go`'s re-keyed cut arm (§III.10c "What stays,
+           `LocationStates`, `blueanswered.go`'s `gone` arm (`sitting.go`'s cut arm is deleted as unreachable) (§III.10c "What stays,
            now the cut's path"), and `debate.js` keeps its `` `gone` `` clause;
          - `lensTurnActsOf` reads `removed_anchors` beside `reopened`;
          - `requireCitationUncited` is called from `judgeAct`'s `Retire` and `BlueEdit` arms, and its query reads
@@ -4455,7 +4455,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        10. restore `edit.go:275`'s carried-may-stand-bare arm;
        11. let the splice take a located token `new` does not carry;
        12. drop each `BlueEdit` arm the fold table adds (`countsat`, `answersretired`, `evidenceview:484`, `impasse`,
-           `gapacts`, `anchorchecks`, `answeredByActThisSitting`) and `Reaches`' widened type filter, one per run;
+           `gapacts`, `anchorchecks`) and `Reaches`' widened type filter, one per run. `answeredByActThisSitting`
+           has no such arm to drop: its re-keyed cut arm was unreachable (a cut of G's own marker meets `met`'s arm
+           4, so G is never awaiting evidence) and is deleted (lead call 11-26, RULINGS.md);
        13. drop `judgeAct`'s `BlueEdit` call of `requireCitationUncited` (`TestACutIsHeldToL6` case 1 lands);
        14. leave `requireCitationUncited`'s liveness query on `retire_anchors` (`TestACutIsHeldToL6` case 5: K left
            by a cut, and C's cut is still refused);
