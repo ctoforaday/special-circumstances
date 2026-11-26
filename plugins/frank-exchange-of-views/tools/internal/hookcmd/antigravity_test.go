@@ -792,7 +792,7 @@ func TestAntigravityRunFirstBindThenPanicDeliveredOnPreInvocation(t *testing.T) 
 }
 
 // J3: applyBoundAgySitting blanks ToolName/Command so it NEVER claims O_EXCL seat-<id>.bound
-// (which would otherwise block Pre's real bind from clearing a prior StageAgyBind conflict).
+// (keeping Run's deferred closure read-only on every return where AgentID is empty).
 func TestApplyBoundAgySittingNeverCreatesBoundMarker(t *testing.T) {
 	cwd, runDir := hookRun(t)
 	sdir := filepath.Join(runDir, agySittingsDir)
