@@ -37,7 +37,6 @@ func scenarios() []scenario {
 		base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
-		readStep("judge"),
 	}
 	// windowEnds is the assignee sitting twice: a proposal's assignee window ends, unaccepted, and
 	// the next dispatch dockets the proposal.
@@ -272,7 +271,6 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
-				readStep("judge"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001", "--remand",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),

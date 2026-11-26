@@ -556,7 +556,6 @@ var tourArms = []fuzzArm{
 				fuzzStep(name+" · setup", []string{"register"}, "red-chair"),
 				fuzzStep(name+" · setup", []string{"dispatch", "next"}, "red-chair"),
 				fuzzStep(name+" · setup", []string{"register"}, "judge", "--occasion", "docket"),
-				readStep("judge"),
 			}
 		}),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},

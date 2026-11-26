@@ -769,7 +769,7 @@ mounts the body.
 
 - **End.** Both end at S's next change by the author (§III.B0's column), written as an end row in that act's
   transaction; the placing act does not end its own. One end arm over every subject kind replaces the five per-kind
-  arms (X14). After P12b's merge (later than R1's merge of `main`, which it had not reached), an edit leaving G's token bare lists G in `reopened`, and a pure
+  arms (X14). Since R1's merge of `main` (64e9fbe8c), an edit leaving G's token bare lists G in `reopened`; after P12b's merge (later than R1's), a pure
   cut taking the token stamps it in `removed_anchors` (F16): either ends G's tombstones and is the raiser's turn, the
   cut readying the raiser, who closes `moot` where S is gone. The bench's application ends none, on a gap subject too (its amend or regrade of G′ is no change by A; A's
   next one ends G2's ruling tombstone): an estoppel row on another gap whose applied text it overwrites stands on text
