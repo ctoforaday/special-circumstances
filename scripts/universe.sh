@@ -63,6 +63,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST_HOME="$HOME"
 HOST_XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOST_HOME/.cache}"
+HOST_XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
 WORKDIR="${WORKDIR:-$HOST_HOME/.claude/scratch/universe}"
 MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
@@ -260,6 +261,12 @@ guard_no_live_run() {
 # THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these.
 universe_env() {
   export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
+  # A runtime directory of its own, for both harnesses: telepathy keeps Antigravity server records
+  # under $XDG_RUNTIME_DIR and every verb prunes the ones whose server is gone, so a universe run on
+  # the host's runtime directory would prune the host's records with a checkout-built binary.
+  export XDG_RUNTIME_DIR="$WORKDIR/run"
+  mkdir -p "$XDG_RUNTIME_DIR"
+  chmod 700 "$XDG_RUNTIME_DIR"
   if [ "$HARNESS" = "agy" ]; then
     export HOME="$WORKDIR/home"
     export XDG_CONFIG_HOME="$WORKDIR/home/.config"
@@ -376,7 +383,8 @@ PY
 )"
   if [ "$left" -lt "$AGY_TOKEN_MIN_MINUTES" ]; then
     log "antigravity access token has $left min left (< $AGY_TOKEN_MIN_MINUTES): renewing through the host login"
-    ( HOME="$HOST_HOME" XDG_CONFIG_HOME="$HOST_HOME/.config" XDG_CACHE_HOME="$HOST_HOME/.cache" XDG_DATA_HOME="$HOST_HOME/.local/share" \
+    ( if [ -n "$HOST_XDG_RUNTIME_DIR" ]; then export XDG_RUNTIME_DIR="$HOST_XDG_RUNTIME_DIR"; else unset XDG_RUNTIME_DIR; fi
+      HOME="$HOST_HOME" XDG_CONFIG_HOME="$HOST_HOME/.config" XDG_CACHE_HOME="$HOST_HOME/.cache" XDG_DATA_HOME="$HOST_HOME/.local/share" \
       agy -p "Reply with ok." --model "$AGY_MODEL" --output-format text --print-timeout 30s ) >/dev/null 2>&1 \
       || die "failed to renew host antigravity access token"
     left="$(python3 - "$host_tok" <<'PY'
