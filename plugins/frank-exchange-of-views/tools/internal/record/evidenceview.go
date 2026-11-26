@@ -348,12 +348,12 @@ type EvidenceJSON struct {
 // EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the sentence the anchor stood on,
 // which stays, why it went, and the anchors it took out.
 type EvidenceRetireJSON struct {
-	Event        int64    `json:"event"`
-	SeatID       string   `json:"seat_id"`
-	Epoch        int      `json:"epoch"`
-	Claim        string   `json:"claim"`
-	Reason       string   `json:"reason"`
-	Anchors      []string `json:"anchors"`
+	Event   int64    `json:"event"`
+	SeatID  string   `json:"seat_id"`
+	Epoch   int      `json:"epoch"`
+	Claim   string   `json:"claim"`
+	Reason  string   `json:"reason"`
+	Anchors []string `json:"anchors"`
 }
 
 // EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
