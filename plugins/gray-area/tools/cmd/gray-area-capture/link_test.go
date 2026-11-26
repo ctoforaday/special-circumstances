@@ -216,6 +216,21 @@ func TestPreInvocationDoesNotAskWhileTheConversationsServerRuns(t *testing.T) {
 // THE TWO OPENINGS ARE MEASURED SENTENCES, pinned word for word: the plain one is what a fresh
 // conversation acted on, and the stale one is what a conversation whose history showed `linked`
 // acted on after the plain one was ignored.
+// WITHOUT A PID DOMAIN NO RECORD READS LIVE, so the hook does not ask: it would ask on every turn.
+func TestLinkRequestNeverAsksWithoutAPidDomain(t *testing.T) {
+	was := localPidDomain
+	defer func() { localPidDomain = was }()
+	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
+	rt := t.TempDir()
+	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return peer.ServerIdentity{} }, liveAs(catalogue.Ended)); got == "" {
+		t.Fatal("with a pid domain, an unlinked conversation is not asked; the control is broken")
+	}
+	localPidDomain = func() string { return "" }
+	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return peer.ServerIdentity{} }, liveAs(catalogue.Ended)); got != "" {
+		t.Errorf("with no pid domain, linkRequest = %q, want no request", got)
+	}
+}
+
 func TestLinkRequestWordings(t *testing.T) {
 	if firstLinkWhy != "Other agents cannot yet wake this conversation with `telepathy send`." {
 		t.Errorf("the first-link opening changed: %q", firstLinkWhy)

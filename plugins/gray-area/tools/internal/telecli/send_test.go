@@ -430,6 +430,24 @@ func TestSendRefusesAPathOrAnEmptyMessage(t *testing.T) {
 	}
 }
 
+// LINK SAYS WHEN SEND CANNOT USE WHAT IT RECORDED, and why.
+func TestUnusableRecord(t *testing.T) {
+	for _, tc := range []struct {
+		s    peer.Server
+		l    catalogue.Liveness
+		want string
+	}{
+		{peer.Server{PID: 7, PidDomain: "linux:m:ns"}, catalogue.Live, ""},
+		{peer.Server{PidDomain: "linux:m:ns"}, catalogue.Unknown, "no Antigravity process was found above this shell"},
+		{peer.Server{PID: 7}, catalogue.Unknown, "this host has no pid domain"},
+		{peer.Server{PID: 7, PidDomain: "linux:m:ns"}, catalogue.Ended, "its server process reads ended"},
+	} {
+		if got := unusableRecord(tc.s, tc.l); (tc.want == "") != (got == "") || !strings.HasPrefix(got, tc.want) {
+			t.Errorf("unusableRecord(%+v, %s) = %q, want %q", tc.s, tc.l, got, tc.want)
+		}
+	}
+}
+
 func TestLinkReportsWhatItFound(t *testing.T) {
 	w := newSendWorld(t)
 	w.callerEnv = map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: "localhost:9", peer.EnvToken: "tok"}
@@ -441,6 +459,13 @@ func TestLinkReportsWhatItFound(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "already linked") {
 		t.Errorf("second link: exit %d, stdout %q", code, out)
 	}
+	// No Antigravity process above the shell: a record keyed by address, which send cannot judge.
+	w.env.RecordLiveness = func(peer.Server) catalogue.Liveness { return catalogue.Unknown }
+	out, _, code = w.run(t, "link")
+	if code != 0 || !strings.Contains(out, "but telepathy send cannot use the record: no Antigravity process was found above this shell") || strings.Contains(out, "now wakes it") {
+		t.Errorf("link with an unjudgeable record: exit %d, stdout %q", code, out)
+	}
+	w.env.RecordLiveness = func(peer.Server) catalogue.Liveness { return catalogue.Live }
 	w.callerEnv = map[string]string{"CLAUDE_CODE_SESSION_ID": "c"}
 	if _, errOut, code := w.run(t, "link"); code != 1 || !strings.Contains(errOut, "not an Antigravity agent's shell") {
 		t.Errorf("from a Claude shell: exit %d, stderr %q", code, errOut)

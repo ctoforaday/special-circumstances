@@ -26,7 +26,8 @@ import (
 // this server nor this conversation has a server record that liveness reads Live — a restarted
 // server has a new PID/start time, and telepathy deletes the records of servers that are gone. It
 // never asks where linking would fail: no runtime directory, or no telepathy binary beside this
-// one.
+// one; nor where no record could ever read Live: a host with no pid domain (no /etc/machine-id,
+// or not Linux), where asking would repeat on every turn for a record send never uses.
 //
 // Stated residue: it does not ask while the conversation's own record reads Live, even when the
 // server now hosting it is a different, unrecorded one (a standalone agy while the daemon hosts
@@ -36,7 +37,7 @@ func linkRequest(req hookcore.Request, runtimeDir, telepathy string, liveness fu
 }
 
 func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hostFn func() peer.ServerIdentity, liveness func(peer.Server) catalogue.Liveness) string {
-	if req.Engine != hookcore.EngineAntigravity || req.SessionID == "" || runtimeDir == "" || telepathy == "" {
+	if req.Engine != hookcore.EngineAntigravity || req.SessionID == "" || runtimeDir == "" || telepathy == "" || localPidDomain() == "" {
 		return ""
 	}
 	var p struct {
@@ -76,6 +77,10 @@ const (
 	firstLinkWhy = "Other agents cannot yet wake this conversation with `telepathy send`."
 	staleLinkWhy = "This conversation's earlier `telepathy link` points at a language server that is no longer running, so other agents cannot wake it."
 )
+
+// localPidDomain is the pid domain a record written on this host carries; a variable so a test can
+// stand in a host.
+var localPidDomain = catalogue.LocalPidDomain
 
 // findTelepathy locates the binary linkRequest names; a variable so a test can stand one in.
 var findTelepathy = telepathyBeside

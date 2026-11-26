@@ -18,7 +18,9 @@ every other one delete the records of servers that are gone, and keep a record
 whose process cannot be judged. Every other telepathy verb run from an Antigravity
 shell links as a side effect, and Gray Area's Antigravity hook asks for a link on
 the first step of any turn while neither its server nor the conversation has a
-running server's record.
+running server's record. A record whose server cannot be judged running (no
+Antigravity process above the shell, or a host with no machine id) is never used
+by send, and link says so; the hook does not ask on such a host.
 
 A Claude Code session needs no link: its inbox socket is advertised for it.
 

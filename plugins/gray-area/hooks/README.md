@@ -36,7 +36,9 @@ ride on `SessionStart`, because `SessionStart` does not fire when a conversation
 language server (observed, agy 1.5.0), and that is exactly when a link goes stale.
 
 The ask is one ephemeral message naming the telepathy binary beside the hook. It is sent only when
-neither this conversation nor the server hosting it has a record whose server process is running.
+neither this conversation nor the server hosting it has a record whose server process is running,
+and never on a host with no pid domain (no `/etc/machine-id`, or not Linux), where no record can be
+judged running and the ask would repeat on every turn.
 A conversation that has linked before is told its earlier link points at a server that is no longer
 running, because one whose history already showed `linked` ignored the plain request; one that
 never linked gets the plain request, because a fresh conversation ignored the stale wording. The
