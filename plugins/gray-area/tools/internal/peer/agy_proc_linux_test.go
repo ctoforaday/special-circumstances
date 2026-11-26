@@ -110,6 +110,9 @@ func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
 	if err != nil {
 		t.Skip("no flock(1) on this box")
 	}
+	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != initPidNamespace {
+		t.Skip("outside the initial pid namespace /proc/locks drops a dead locker's line rather than naming it")
+	}
 	agyRoot := t.TempDir()
 	const conv = "conv-passed-on"
 	lockPath := filepath.Join(agyRoot, "presence", conv+".lock")
@@ -136,18 +139,21 @@ func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
 
 func TestBlindSpot(t *testing.T) {
 	const flat, nested, ext4 = "NSpid:\t4242\n", "NSpid:\t4242\t17\n", 0xEF53
+	const container = "pid:[4026532198]"
 	for _, tc := range []struct {
-		status string
-		magic  uint32
-		want   string
+		status, ns string
+		magic      uint32
+		want       string
 	}{
-		{flat, ext4, ""},
-		{nested, ext4, "this process runs in a nested pid namespace"},
-		{"Pid:\t4242\n", ext4, "/proc/self/status has no NSpid line"},
-		{flat, 0x6969, "the lock is on NFS"},
+		{flat, initPidNamespace, ext4, ""},
+		{nested, initPidNamespace, ext4, "this process is outside the initial pid namespace"},
+		// A container with its own procfs: one pid in NSpid, as on the host.
+		{flat, container, ext4, "this process is outside the initial pid namespace"},
+		{"Pid:\t4242\n", initPidNamespace, ext4, "/proc/self/status has no NSpid line"},
+		{flat, initPidNamespace, 0x6969, "the lock is on NFS"},
 	} {
-		if got := blindSpot(tc.status, tc.magic); (tc.want == "") != (got == "") || !strings.HasPrefix(got, tc.want) {
-			t.Errorf("blindSpot(%q, %#x) = %q, want %q", tc.status, tc.magic, got, tc.want)
+		if got := blindSpot(tc.status, tc.ns, tc.magic); (tc.want == "") != (got == "") || !strings.HasPrefix(got, tc.want) {
+			t.Errorf("blindSpot(%q, %q, %#x) = %q, want %q", tc.status, tc.ns, tc.magic, got, tc.want)
 		}
 	}
 }
@@ -200,6 +206,9 @@ func TestLocksBlindSpotHere(t *testing.T) {
 	status, err := os.ReadFile("/proc/self/status")
 	if err != nil {
 		t.Skip(err)
+	}
+	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != initPidNamespace {
+		t.Skip("this test runs outside the initial pid namespace")
 	}
 	if nested, _ := nestedPidNamespace(string(status)); nested {
 		t.Skip("this test runs in a nested pid namespace")

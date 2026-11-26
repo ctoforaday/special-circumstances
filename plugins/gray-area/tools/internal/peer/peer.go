@@ -37,10 +37,13 @@
 // Send first asks who holds the conversation (ConversationBusy, excluding nobody): its presence
 // lock, or its conversations/<id>.db open in any process. Then:
 //
-//   - Nobody holds it: the Live record listing it that it linked to last, then the current
-//     remote-control daemon's record, which adopts it. Each attempt is preceded by the same probe,
-//     excluding only that server's pid, so a server that took the conversation while an earlier
-//     attempt failed stops the send rather than meeting a second writer.
+//   - Nobody holds it: the Live record listing it that it linked to last, then — only when that
+//     server could not be reached at all (UnreachedError) — the current remote-control daemon's
+//     record, which adopts it. Each attempt is preceded by the same probe, excluding only that
+//     server's pid, so a server that took the conversation meanwhile stops the send rather than
+//     meeting a second writer. A server that was sent the message and did not confirm it may have
+//     it, and may be loading the conversation where no probe yet sees it: the send ends there,
+//     with nothing queued and the delivery reported unknown.
 //   - A Live record's server holds it: that server delivers, once a probe excluding its pid finds
 //     nobody else. It is never bypassed for another server, because it has the conversation open.
 //   - The current daemon holds it and has no record: nothing can reach it until a conversation on

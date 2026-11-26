@@ -176,8 +176,10 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) Holder {
 //   - a pid it names has exited. /proc/locks names the process that TOOK a flock, and the lock
 //     lives as long as any descriptor sharing that open file, so a locker that passed its
 //     descriptor on and exited is named while the process now holding the lock is not;
-//   - it names no holder while this process runs in a nested pid namespace, where a lock whose
-//     owner is outside the namespace is left out of /proc/locks rather than listed;
+//   - it names no holder while this process is outside the initial pid namespace. /proc/locks
+//     leaves out a lock whose owner its procfs's namespace cannot see, and a container that
+//     mounts its own procfs shows one pid in NSpid like the host does, so only the namespace's
+//     identity tells the two apart;
 //   - it names no holder while the file is on a network filesystem, where a lock taken on
 //     another host is not in this host's /proc/locks.
 func flockHolders(path string) ([]int, error) {
@@ -220,21 +222,30 @@ func locksBlindSpot(path string) string {
 	if err != nil {
 		return "cannot read /proc/self/status to learn whether /proc/locks lists every holder: " + err.Error()
 	}
+	ns, err := os.Readlink("/proc/self/ns/pid")
+	if err != nil {
+		return "cannot read /proc/self/ns/pid to learn whether /proc/locks lists every holder: " + err.Error()
+	}
 	var sfs syscall.Statfs_t
 	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
 		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
 	}
-	return blindSpot(string(status), uint32(sfs.Type))
+	return blindSpot(string(status), ns, uint32(sfs.Type))
 }
 
-// blindSpot judges a process's /proc/self/status and the lock file's filesystem magic.
-func blindSpot(status string, fsMagic uint32) string {
+// initPidNamespace is /proc/self/ns/pid in the initial pid namespace: the kernel fixes its inode
+// (PROC_PID_INIT_INO, 0xEFFFFFFC).
+const initPidNamespace = "pid:[4026531836]"
+
+// blindSpot judges a process's /proc/self/status, its /proc/self/ns/pid link, and the lock file's
+// filesystem magic.
+func blindSpot(status, pidNamespace string, fsMagic uint32) string {
 	nested, known := nestedPidNamespace(status)
 	switch {
 	case !known:
 		return "/proc/self/status has no NSpid line, so whether /proc/locks lists every holder is unknown"
-	case nested:
-		return "this process runs in a nested pid namespace, whose /proc/locks leaves out a holder outside it"
+	case nested || pidNamespace != initPidNamespace:
+		return "this process is outside the initial pid namespace, where /proc/locks leaves out a holder it cannot see"
 	}
 	if name := networkFS(fsMagic); name != "" {
 		return "the lock is on " + name + ", where a lock taken on another host is not in this host's /proc/locks"

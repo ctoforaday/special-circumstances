@@ -337,16 +337,19 @@ func TestSendAgyServerSaysWhetherTheMessageCanHaveArrived(t *testing.T) {
 	}))
 	defer fail.Close()
 
-	client := &http.Client{Timeout: 200 * time.Millisecond}
+	// The refused case gets a long bound: a refused loopback connection can take a second to fail
+	// on Windows, and a deadline reached while dialling is not the refusal under test.
+	short, long := &http.Client{Timeout: 200 * time.Millisecond}, &http.Client{Timeout: 30 * time.Second}
 	for _, tc := range []struct {
 		name, addr string
+		client     *http.Client
 		unreached  bool
 	}{
-		{"refused", closed, true},
-		{"no answer", strings.TrimPrefix(hang.URL, "http://"), false},
-		{"error status", strings.TrimPrefix(fail.URL, "http://"), false},
+		{"refused", closed, long, true},
+		{"no answer", strings.TrimPrefix(hang.URL, "http://"), short, false},
+		{"error status", strings.TrimPrefix(fail.URL, "http://"), short, false},
 	} {
-		_, err := SendAgyServer(client, Server{Address: tc.addr, Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+		_, err := SendAgyServer(tc.client, Server{Address: tc.addr, Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
 		var u *UnreachedError
 		if err == nil || errors.As(err, &u) != tc.unreached {
 			t.Errorf("%s: err = %v, want unreached=%v", tc.name, err, tc.unreached)
