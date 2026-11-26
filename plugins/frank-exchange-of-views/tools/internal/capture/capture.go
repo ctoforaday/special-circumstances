@@ -198,7 +198,7 @@ func engineStop(run record.Run) (string, error) {
 		return "", nil
 	}
 	text := m.Events[stop].GetLog().GetText()
-	failed := record.FailedSittingsOf(m.Events, m.At)
+	failed := record.FailedSittingsOf(m.At)
 	if len(failed) == 0 {
 		return text, nil
 	}
@@ -1770,7 +1770,11 @@ func writeTarball(outPath string, transcripts []record.Transcript) error {
 		if err != nil {
 			return err
 		}
-		if err := tw.WriteHeader(&tar.Header{Name: filepath.Base(tr.Path), Mode: 0o644, Size: int64(len(b))}); err != nil {
+		name := filepath.Base(tr.Path)
+		if tr.AgentID != "" && !strings.Contains(name, tr.AgentID) {
+			name = fmt.Sprintf("agent-%s-%s", tr.AgentID, name)
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(b))}); err != nil {
 			return err
 		}
 		if _, err := tw.Write(b); err != nil {
@@ -1803,6 +1807,9 @@ func ingestSeatTurns(run record.Run, transcripts []record.Transcript) string {
 		agentID, turns := seatturn.Parse(string(b))
 		if len(turns) == 0 {
 			continue
+		}
+		if agentID == "" {
+			agentID = tr.AgentID
 		}
 		n, err := record.AppendSeatTurns(run, agentID, turns)
 		if err != nil {
@@ -1861,11 +1868,14 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 	// not compared instead of reading an empty list as a clean pass.
 	journalPresent := true
 	src := filepath.Join(transcriptDir, "journal.jsonl")
+	dst := filepath.Join(run.Dir(), "trajectories", "journal.jsonl")
 	if _, serr := os.Stat(src); os.IsNotExist(serr) {
 		journalPresent = false
 		lines = append(lines, "journal: none at "+src+" — this run was not driven by the Workflow tool, or its journal was never written; the relayed plans are NOT COMPARED with the record")
-	} else if err = copyFile(src, filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
-		return nil, "", false, err
+	} else if !samePathFile(src, dst) {
+		if err = copyFile(src, dst); err != nil {
+			return nil, "", false, err
+		}
 	}
 	var onRecord *record.Family
 	if f, ferr := record.FamilyOf(run); ferr == nil {
@@ -2067,6 +2077,12 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, b, 0o644)
+}
+
+func samePathFile(a, b string) bool {
+	fa, errA := os.Stat(a)
+	fb, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(fa, fb)
 }
 
 // ---- record archive ----

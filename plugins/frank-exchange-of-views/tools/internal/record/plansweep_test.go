@@ -35,7 +35,6 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ReportHasParts(run)
 	_, _, _ = PartStanding(run, "harness")
 	_, _ = ExistingProposalByText(run, "blue-respond", "q", "h")
-	_, _, _ = ServeReport(Identity{Run: run, SeatID: evLens})
 	// A proposed close and a proposed supersede, and a tombstone, so the decode reads their tables.
 	// A seat's proposal waits on the gap's one exchange: blue's edit leaves the lens its re-audit, so
 	// the round ends with the lens's sitting.
@@ -94,6 +93,17 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	if _, err := Append(Identity{Run: run, SeatID: "judge"}, &recordpb.Tombstone{GapId: proto.String("G1"),
 		Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), DocketingId: proto.String("K1")}); err != nil {
 		t.Fatal(err)
+	}
+	for _, seat := range []string{evLens, "red-chair", "judge"} {
+		_, _ = CutDelivery(run, seat, []string{evLens}, func(string, string) bool { return true })
+	}
+	if db, err := openRunForRead(run); err == nil && db != nil {
+		_, _, _ = DeliveryThisSitting(db, evLens)
+		_, _ = NextDeliveryWhole(db, evLens)
+		_, _ = PinAt(db, evLens)
+		_ = requireDeliveredText(db, evLens, "a close", []string{"G1"})
+		_, _ = motionGaps(db, "M1")
+		_ = requireReportRead(db, evLens, &recordpb.ReportRead{Head: proto.Int64(1)})
 	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
 	// The readers of the standing rows: the proposal arm, the class arm's held set and the work list's

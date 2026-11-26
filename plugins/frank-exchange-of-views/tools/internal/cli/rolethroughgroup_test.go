@@ -26,7 +26,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	board := seatprobe.Boards()["audit"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
-	if err := seatprobe.Build(runtest.Open(t, runDir), board, exec); err != nil {
+	if err := seatprobe.Build(runtest.Open(t, runDir), board, exec, seatprobe.InProcessHand(runDir)); err != nil {
 		t.Fatal(err)
 	}
 

@@ -31,10 +31,13 @@
 package sessionstart
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,6 +45,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikecounter"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchainnudge"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -92,6 +97,68 @@ func merge(results []hookunit.Result) (text string, watch []string, logged strin
 	return strings.Join(parts, "\n\n"), watch, strings.Join(logs, "\n")
 }
 
+// stageResumeMarker records read/write failures on the Antigravity resume-restore marker so a
+// broken marker fails loudly instead of silently skipping checkpoint restore on resume.
+const stageResumeMarker hookfailures.Stage = "resume-restore-marker"
+
+var hostProcessID = defaultHostProcessID
+
+func resumeMarkerPath(pluginDataDir, sessionID string) string {
+	safe := strings.NewReplacer("/", "_", "\\", "_", "..", "_").Replace(sessionID)
+	return filepath.Join(pluginDataDir, "session_restored_"+safe+".txt")
+}
+
+func writeResumeMarker(req hookcore.Request, hostID string, rec *hookfailures.Recorder) {
+	if req.PluginDataDir == "" || req.SessionID == "" {
+		return
+	}
+	p := resumeMarkerPath(req.PluginDataDir, req.SessionID)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		rec.Fail(stageResumeMarker, "cannot create resume marker dir: "+err.Error())
+		return
+	}
+	if err := os.WriteFile(p, []byte(hostID+"\n"), 0o600); err != nil {
+		rec.Fail(stageResumeMarker, "cannot write resume marker "+p+": "+err.Error())
+		return
+	}
+	rec.OK(stageResumeMarker)
+}
+
+func needsResumeRestore(req hookcore.Request, hostID string, rec *hookfailures.Recorder) bool {
+	if req.SessionID == "" {
+		return false
+	}
+	// Only check on invocationNum == 0 (first model step of a turn), never mid-turn.
+	if !hookcore.IsTurnStartPreInvocation(req.Raw) {
+		return false
+	}
+	if req.PluginDataDir == "" {
+		rec.Fail(stageResumeMarker, "PLUGIN_DATA unset; cannot check resume-restore marker")
+		return true
+	}
+	p := resumeMarkerPath(req.PluginDataDir, req.SessionID)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			rec.Fail(stageResumeMarker, "cannot read resume marker "+p+": "+err.Error())
+		}
+		return true
+	}
+	return strings.TrimSpace(string(b)) != hostID
+}
+
+func selectCheckpointUnit(units []hookunit.Unit) []hookunit.Unit {
+	if len(units) == 0 {
+		return []hookunit.Unit{checkpointrestore.Unit()}
+	}
+	for _, u := range units {
+		if u.Name == "sc-checkpoint-restore" {
+			return []hookunit.Unit{u}
+		}
+	}
+	return nil
+}
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
 	eventName := "SessionStart"
 	declare := func(fs *flag.FlagSet) {
@@ -109,14 +176,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", eventName, now, stderr)
-	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. It runs
-	// before the project root is resolved: the binaries are the machine's, and a session with no
-	// root still heals — only the message waits, because such a session writes nothing to stdout.
-	healed, err := ensure(eventName)
-	if err != nil {
-		rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
-	} else {
-		rec.OK(hookfailures.StageEnsure)
+	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. Run it on
+	// SessionStart only (not on every Antigravity PreInvocation model step, matching gray-area-capture).
+	// It runs before the project root is resolved: the binaries are the machine's, and a session with
+	// no root still heals — only the message waits, because such a session writes nothing to stdout.
+	var healed string
+	if eventName == "SessionStart" {
+		var err error
+		healed, err = ensure(eventName)
+		if err != nil {
+			rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+		} else {
+			rec.OK(hookfailures.StageEnsure)
+		}
 	}
 	ctx := hookunit.NewCtx(eventName, req.Raw, projectDir, now, rec)
 	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {
@@ -125,6 +197,99 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// announces it.
 		rec.Persist()
 		return 0
+	}
+
+	if eventName == "PreInvocation" && req.Engine == hookcore.EngineAntigravity {
+		var feedbackParts []string
+		scope := hookcore.DrainScopeKey(req)
+		failedSteps, drainErr := hookcore.DrainFailedToolSteps(req)
+		if drainErr != nil {
+			rec.FailTTL(hookcore.StageFailedStepDrain(), scope, "failed-step drain: "+drainErr.Error())
+		} else {
+			rec.OKTTL(hookcore.StageFailedStepDrain(), scope)
+		}
+		sawHookErr := false
+		for _, st := range failedSteps {
+			if st.HookError {
+				// Our hook's output failed to parse: record on hookfailures for the human,
+				// never strike the agent for our own hook defect.
+				sawHookErr = true
+				rec.FailTTL(hookcore.StageHookUnmarshal(), scope, "hook result failed to parse: "+strings.TrimSpace(st.Output))
+				continue
+			}
+			// Never strike tools without a command (e.g. Read or manage_task): their key would
+			// collapse to the tool name alone and trip anti-spinning on unrelated calls.
+			if ctx.ProjectDir == "" || strings.TrimSpace(st.Command) == "" {
+				continue
+			}
+			path := strikes.Path(ctx.ProjectDir)
+			state, err := strikes.Load(os.ReadFile, path)
+			if err != nil {
+				rec.FailIn(strikecounter.StageStrikesRead, ctx.ProjectDir, err.Error()+" — strikes are counted from zero until it can be read")
+			} else {
+				rec.OKIn(strikecounter.StageStrikesRead, ctx.ProjectDir)
+			}
+			rawInput, _ := json.Marshal(map[string]any{"command": st.Command})
+			key := strikes.Key(st.ToolName, rawInput)
+			count, tripped := strikes.Record(&state, key, now)
+			if err := strikes.Save(path, state); err != nil {
+				rec.FailIn(strikecounter.StageStrikesWrite, ctx.ProjectDir, "cannot write "+path+": "+err.Error()+
+					" — strikes are not being kept, so the 3-strike rule cannot trip")
+			} else {
+				rec.OKIn(strikecounter.StageStrikesWrite, ctx.ProjectDir)
+			}
+			if tripped {
+				errSummary := fmt.Sprintf("Command exited with code %d: %s", st.ExitCode, st.Output)
+				feedbackParts = append(feedbackParts, strikecounter.Message(st.ToolName, errSummary, key, count))
+			}
+		}
+		if !sawHookErr {
+			rec.OKTTL(hookcore.StageHookUnmarshal(), scope)
+		}
+
+		// Run the version check on every turn start (invocationNum == 0, matching gray-area-capture
+		// and feov-pretooluse), independent of checkpoint-restore, so resumed conversations and
+		// mid-conversation updates both heal without paying the check on mid-turn model steps.
+		if hookcore.IsTurnStartPreInvocation(req.Raw) {
+			var err error
+			healed, err = ensure("PreInvocation")
+			if err != nil {
+				rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+			} else {
+				rec.OK(hookfailures.StageEnsure)
+			}
+		}
+
+		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a
+		// language-server restart (pinned by TestLiveAsymmetrySessionStartOnResume). Run
+		// checkpoint-restore once on the first PreInvocation (invocationNum == 0) for a
+		// (conversation, hosting-process) pair that has not yet been marked.
+		var restoreText string
+		var watch []string
+		hostID := hostProcessID()
+		if needsResumeRestore(req, hostID, rec) {
+			if cpUnits := selectCheckpointUnit(units); len(cpUnits) > 0 {
+				var logged string
+				restoreText, watch, logged = merge(hookunit.Run(ctx, cpUnits))
+				if logged != "" {
+					fmt.Fprintln(stderr, logged)
+				}
+			}
+			writeResumeMarker(req, hostID, rec)
+		}
+
+		said := strings.TrimSpace(hookfailures.JoinMessages(healed, rec.Settle()))
+		resp := hookcore.Response{
+			AdditionalContext: strings.TrimSpace(restoreText),
+			WatchPaths:        watch,
+			Feedback:          strings.Join(feedbackParts, "\n\n"),
+			Say:               said,
+		}
+		return hookcore.Respond(req, resp, stdout, stderr, nil)
+	}
+
+	if req.Engine == hookcore.EngineAntigravity && eventName == "SessionStart" {
+		writeResumeMarker(req, hostProcessID(), rec)
 	}
 
 	if len(units) == 0 {

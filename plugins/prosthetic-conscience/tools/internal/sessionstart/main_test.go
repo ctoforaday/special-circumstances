@@ -6,11 +6,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 var noon = time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
@@ -188,3 +191,410 @@ func TestTheVersionCheckSpeaksInTheOneResponse(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+func TestPreInvocationDrainsFailedRunCommandsIntoStrikesAndFlushesPending(t *testing.T) {
+	t.Cleanup(func() { ensure = hookfailures.Ensure })
+	ensure = func(string) (string, error) { return "", nil }
+
+	proj := t.TempDir()
+	pluginData := t.TempDir()
+	t.Setenv("PLUGIN_DATA", pluginData)
+
+	// Queue a pending feedback message (as sc-posttooluse does on Antigravity).
+	hookcore.QueueSay(pluginData, "conv-preinv-1", "QUEUED_SAY_MSG")
+
+	// Write a transcript with 3 failing run_command calls of the same command so the 3-strike
+	// rule trips on PreInvocation.
+	tp := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+	tr := strings.Join([]string{
+		`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+		`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+		`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./..."}}]}`,
+		`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"DONE","content":"Command exited with code 1.\n\nCommand output:\nFAIL\n"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(tp, []byte(tr), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-preinv-1",
+		"cwd":            proj,
+		"transcriptPath": tp,
+		"invocationNum":  1,
+	})
+	var stdout, stderr bytes.Buffer
+	unitRan := false
+	units := []hookunit.Unit{{
+		Name: "should-not-run",
+		Run: func(*hookunit.Ctx) hookunit.Result {
+			unitRan = true
+			return hookunit.Result{Stdout: "SESSIONSTART_ONLY"}
+		},
+	}}
+	code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), units)
+	if code != 0 {
+		t.Fatalf("PreInvocation exit %d, stderr=%s", code, stderr.String())
+	}
+	if unitRan {
+		t.Error("PreInvocation must not run SessionStart units")
+	}
+	outStr := stdout.String()
+	if !strings.Contains(outStr, "QUEUED_SAY_MSG") {
+		t.Errorf("PreInvocation did not flush queued Say: %s", outStr)
+	}
+	if !strings.Contains(outStr, "anti-spinning:") || !strings.Contains(outStr, "failed 3 times") {
+		t.Errorf("PreInvocation did not trip 3-strike warning from drained run_command failures: %s", outStr)
+	}
+}
+
+func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
+	t.Cleanup(func() {
+		ensure = hookfailures.Ensure
+		hostProcessID = defaultHostProcessID
+	})
+	ensure = func(string) (string, error) { return "", nil }
+
+	makeUnits := func(cpCalls, nudgeCalls *int) []hookunit.Unit {
+		return []hookunit.Unit{
+			{
+				Name: "toolchain-nudge",
+				Run: func(*hookunit.Ctx) hookunit.Result {
+					*nudgeCalls++
+					return hookunit.Result{Name: "toolchain-nudge", Stdout: "NUDGE_BODY"}
+				},
+			},
+			{
+				Name: "sc-checkpoint-restore",
+				Run: func(*hookunit.Ctx) hookunit.Result {
+					*cpCalls++
+					return hookunit.Result{Name: "sc-checkpoint-restore", Stdout: "CHECKPOINT_RESTORED_BODY"}
+				},
+			},
+		}
+	}
+
+	fireAgy := func(t *testing.T, proj, event, conv string, invNum int, units []hookunit.Unit) (string, string) {
+		t.Helper()
+		m := map[string]any{
+			"hookEventName":  event,
+			"conversationId": conv,
+			"cwd":            proj,
+		}
+		if event == "PreInvocation" {
+			m["invocationNum"] = invNum
+		}
+		payload, _ := json.Marshal(m)
+		var stdout, stderr bytes.Buffer
+		code := run([]string{"-event", event}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), units)
+		if code != 0 {
+			t.Fatalf("%s exit %d stderr=%s", event, code, stderr.String())
+		}
+		return stdout.String(), stderr.String()
+	}
+
+	// 1. Fresh start: SessionStart marks (conv, hostA); first PreInvocation under hostA must NOT double-restore.
+	t.Run("FreshStartDoesNotDoubleRestore", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "1001:55555" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		fireAgy(t, proj, "SessionStart", "conv-fresh", 0, units)
+		if cpCalls != 1 || nudgeCalls != 1 {
+			t.Fatalf("SessionStart calls: cp=%d nudge=%d, want 1, 1", cpCalls, nudgeCalls)
+		}
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-fresh", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("PreInvocation after SessionStart double-restored checkpoint (cpCalls=%d, out=%s)", cpCalls, out)
+		}
+		if nudgeCalls != 1 {
+			t.Fatalf("PreInvocation must not run toolchain-nudge (nudgeCalls=%d)", nudgeCalls)
+		}
+	})
+
+	// 2. Resume: no SessionStart fired; first PreInvocation (invocationNum 0) restores ONCE,
+	// subsequent PreInvocation (invocationNum 0 or 1) in the same process does not re-restore.
+	t.Run("ResumeRestoresOnceOnFirstPreInvocation", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "2002:66666" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-resume", 0, units)
+		if cpCalls != 1 || !strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("resume PreInvocation(0) did not restore checkpoint: cpCalls=%d out=%s", cpCalls, out)
+		}
+		if nudgeCalls != 0 {
+			t.Fatalf("resume PreInvocation must not run toolchain-nudge (nudgeCalls=%d)", nudgeCalls)
+		}
+		// Next turn (invocationNum 0) and mid-turn (invocationNum 1) in same process must not re-restore.
+		fireAgy(t, proj, "PreInvocation", "conv-resume", 0, units)
+		fireAgy(t, proj, "PreInvocation", "conv-resume", 1, units)
+		if cpCalls != 1 {
+			t.Fatalf("subsequent PreInvocation re-restored checkpoint: cpCalls=%d, want 1", cpCalls)
+		}
+	})
+
+	// 3. Daemon restart: SessionStart ran under hostA; PreInvocation(0) under hostB restores ONCE.
+	t.Run("DaemonRestartRestoresOnceForNewHost", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "3003:77777" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		fireAgy(t, proj, "SessionStart", "conv-daemon", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("SessionStart cpCalls=%d, want 1", cpCalls)
+		}
+		// Simulate language server / daemon restart (new PID + start time).
+		hostProcessID = func() string { return "4004:88888" }
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-daemon", 0, units)
+		if cpCalls != 2 || !strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("post-restart PreInvocation(0) did not restore checkpoint: cpCalls=%d out=%s", cpCalls, out)
+		}
+		// Second PreInvocation under hostB must not re-restore.
+		fireAgy(t, proj, "PreInvocation", "conv-daemon", 0, units)
+		if cpCalls != 2 {
+			t.Fatalf("second PreInvocation under new host re-restored: cpCalls=%d, want 2", cpCalls)
+		}
+	})
+
+	// 4. Unreadable/unwritable marker fails loudly (rec.Fail -> stderr & Say), never silent skip.
+	t.Run("BrokenMarkerFailsLoudly", func(t *testing.T) {
+		proj := t.TempDir()
+		pluginData := t.TempDir()
+		t.Setenv("PLUGIN_DATA", pluginData)
+		hostProcessID = func() string { return "5005:99999" }
+		// Create a directory at the marker file path so both ReadFile and WriteFile fail.
+		if err := os.MkdirAll(resumeMarkerPath(pluginData, "conv-broken"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, stderr := fireAgy(t, proj, "PreInvocation", "conv-broken", 0, units)
+		if cpCalls != 1 {
+			t.Fatalf("broken marker should fail-safe to restoring checkpoint: cpCalls=%d", cpCalls)
+		}
+		if !strings.Contains(stderr, "resume marker") && !strings.Contains(out, "resume marker") {
+			t.Fatalf("broken marker failed silently: stdout=%s stderr=%s", out, stderr)
+		}
+	})
+
+	// 5. Mid-turn PreInvocation (invocationNum > 0) never runs checkpoint-restore even when unmarked.
+	t.Run("InvocationNumNonZeroSkipsRestore", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		hostProcessID = func() string { return "5555:12345" }
+		var cpCalls, nudgeCalls int
+		units := makeUnits(&cpCalls, &nudgeCalls)
+
+		out, _ := fireAgy(t, proj, "PreInvocation", "conv-midturn", 1, units)
+		if cpCalls != 0 || strings.Contains(out, "CHECKPOINT_RESTORED_BODY") {
+			t.Fatalf("mid-turn PreInvocation(1) ran checkpoint-restore: cpCalls=%d out=%s", cpCalls, out)
+		}
+	})
+
+	// 6. Unrecognized Bash GENERIC prose records stageFailedStepDrain scoped to the conversation,
+	// a peer conversation's clean drain does NOT clear it, and the same conversation's clean drain DOES clear it.
+	t.Run("DrainErrorRecordedScopedAndCleared", func(t *testing.T) {
+		proj := t.TempDir()
+		pluginData := t.TempDir()
+		t.Setenv("PLUGIN_DATA", pluginData)
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		hostProcessID = func() string { return "6006:11111" }
+
+		tpA := filepath.Join(t.TempDir(), "a.jsonl")
+		trBad := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"false"}}]}` + "\n" +
+			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","content":"unrecognized bash format\n"}` + "\n"
+		if err := os.WriteFile(tpA, []byte(trBad), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		tpB := filepath.Join(t.TempDir(), "b.jsonl")
+		if err := os.WriteFile(tpB, []byte(`{"step_index":1,"source":"MODEL","type":"GENERIC","status":"DONE","content":"ok\n"}`+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		readFailures := func() string {
+			p, err := hookfailures.Path("prosthetic-conscience")
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, _ := os.ReadFile(p)
+			return string(b)
+		}
+		fire := func(conv, tp string) string {
+			payload, _ := json.Marshal(map[string]any{
+				"hookEventName":  "PreInvocation",
+				"conversationId": conv,
+				"cwd":            proj,
+				"transcriptPath": tp,
+				"invocationNum":  1,
+			})
+			var stdout, stderr bytes.Buffer
+			code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil)
+			if code != 0 {
+				t.Fatalf("PreInvocation exit %d", code)
+			}
+			return stderr.String()
+		}
+
+		if errOut := fire("conv-drain-A", tpA); !strings.Contains(errOut, "failed-step drain:") {
+			t.Fatalf("drain error not recorded on stderr: %s", errOut)
+		}
+		if f := readFailures(); !strings.Contains(f, string(hookcore.StageFailedStepDrain().Stage)) || !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"expires_after"`) {
+			t.Fatalf("failures.json missing TTL-scoped StageFailedStepDrain for conv-drain-A: %s", f)
+		}
+		// Peer conversation clean drain must NOT clear conv-drain-A's entry.
+		fire("conv-drain-B", tpB)
+		if f := readFailures(); !strings.Contains(f, "conv-drain-A") {
+			t.Fatalf("peer conv-drain-B cleared conv-drain-A's failure entry: %s", f)
+		}
+		// Clean drain before being shown marks Recovered (does not silently drop); Stop shows it
+		// ONCE as recovered ("has since worked", NOT "failing since") and drops it immediately.
+		fire("conv-drain-A", tpA)
+		if f := readFailures(); !strings.Contains(f, "conv-drain-A") || !strings.Contains(f, `"recovered"`) {
+			t.Fatalf("un-announced StageFailedStepDrain should be marked recovered, not dropped: %s", f)
+		}
+		showRec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", time.Now(), &bytes.Buffer{})
+		if msg := showRec.Settle(); !strings.Contains(msg, "conv-drain-A") || !strings.Contains(msg, "has since worked") || strings.Contains(msg, "failing since") {
+			t.Fatalf("Stop Settle for recovered entry = %q, want 'has since worked' without 'failing since'", msg)
+		}
+		if f := readFailures(); strings.Contains(f, "conv-drain-A") {
+			t.Fatalf("recovered entry survived its one-time Stop announcement: %s", f)
+		}
+	})
+
+	// 7. Hook-unmarshal failures NEVER strike (neither Read nor run_command), record
+	// hookcore.StageHookUnmarshal with TTL, and clear on next clean drain after being shown.
+	t.Run("HookUnmarshalNeverStrikesAndRecordsAndClearsStage", func(t *testing.T) {
+		proj := t.TempDir()
+		t.Setenv("PLUGIN_DATA", t.TempDir())
+		t.Setenv("XDG_STATE_HOME", t.TempDir())
+		hostProcessID = func() string { return "7007:22222" }
+
+		tpBash := filepath.Join(t.TempDir(), "bash.jsonl")
+		trBash := strings.Join([]string{
+			`{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":2,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":4,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+			`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test"}}]}`,
+			`{"step_index":6,"source":"MODEL","type":"GENERIC","status":"ERROR","error":"failed to unmarshal","content":"Encountered error in step execution: failed to unmarshal result from hook jsonhook__sc_PreToolUse\n"}`,
+		}, "\n") + "\n"
+		if err := os.WriteFile(tpBash, []byte(trBash), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"hookEventName":  "PreInvocation",
+			"conversationId": "conv-hook-bash",
+			"cwd":            proj,
+			"transcriptPath": tpBash,
+			"invocationNum":  1,
+		})
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+			t.Fatalf("PreInvocation exit %d", code)
+		}
+		if strings.Contains(stdout.String(), "anti-spinning:") {
+			t.Fatalf("HookError must NEVER trip anti-spinning (even with a run_command): %s", stdout.String())
+		}
+		p, err := hookfailures.Path("prosthetic-conscience")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fb, _ := os.ReadFile(p); !strings.Contains(string(fb), string(hookcore.StageHookUnmarshal().Stage)) || !strings.Contains(string(fb), `"expires_after"`) {
+			t.Fatalf("failures.json missing TTL StageHookUnmarshal: %s", string(fb))
+		}
+		// Show on Stop, then next clean PreInvocation clears StageHookUnmarshal.
+		showRec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", time.Now(), &bytes.Buffer{})
+		_ = showRec.Settle()
+		stdout.Reset()
+		stderr.Reset()
+		if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+			t.Fatalf("PreInvocation clean exit %d", code)
+		}
+		if fb, _ := os.ReadFile(p); strings.Contains(string(fb), string(hookcore.StageHookUnmarshal().Stage)) {
+			t.Fatalf("clean PreInvocation did not clear StageHookUnmarshal after being shown: %s", string(fb))
+		}
+	})
+}
+
+func TestAntigravitySessionStartRunsRealEnsureWithPluginRootOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fetch-bin.sh is a POSIX shell script")
+	}
+	root := t.TempDir()
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "[ \"$1\" = ensure ] && [ \"$2\" = SessionStart ] && printf '{\"systemMessage\":\"agy-sc-self-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	t.Setenv("PLUGIN_ROOT", root)
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	proj := t.TempDir()
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "SessionStart",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+	})
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"-event", "SessionStart"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), []hookunit.Unit{
+		{Name: "noop", Run: func(*hookunit.Ctx) hookunit.Result { return hookunit.Result{Name: "noop"} }},
+	})
+	if code != 0 {
+		t.Fatalf("SessionStart exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-sc-self-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected Antigravity SessionStart to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", stdout.String())
+	}
+
+	// Unified per-turn-start ensure rule (matching gray-area-capture and feov-pretooluse):
+	// mid-turn PreInvocation(invocationNum==1) never runs ensure (closes D5), while every
+	// turn-start PreInvocation(invocationNum==0) runs ensure("PreInvocation") so resumed
+	// conversations and mid-conversation updates both self-heal.
+	turnBody := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-sc-turnstart-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(turnBody), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	midTurn, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+		"invocationNum":  1,
+	})
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(midTurn), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("mid-turn PreInvocation exit %d stderr=%s", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") {
+		t.Fatalf("mid-turn PreInvocation(invocationNum=1) must not run ensure, got: %s", stdout.String())
+	}
+
+	turnStart, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+		"invocationNum":  0,
+	})
+	stdout.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(turnStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("turn-start PreInvocation(0) exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected turn-start PreInvocation(0) to run fetch-bin.sh ensure, got: %s", stdout.String())
+	}
+}

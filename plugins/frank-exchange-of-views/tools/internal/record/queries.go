@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -143,6 +144,9 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, WindowIndex, erro
 }
 
 // eventsOfAt is EventsOf asked of q, which is nil on a run with no record yet.
+//
+// A READ THAT LOADS REPORT READS ALSO READS THE VIEWS: a report read's line is its report_delivery
+// row (WindowIndex.delivery), so an index holding one without the rows could only panic.
 func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
 	if noRecord(q) {
 		return nil, WindowIndex{}, nil
@@ -155,7 +159,13 @@ func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, Win
 	if err != nil {
 		return nil, WindowIndex{}, err
 	}
-	return evs, narrowedIndexOf(evs, ws), nil
+	win := narrowedIndexOf(evs, ws)
+	if slices.Contains(types, recordpb.EventType_EVENT_TYPE_REPORT_READ) {
+		if err := win.readViews(q); err != nil {
+			return nil, WindowIndex{}, err
+		}
+	}
+	return evs, win, nil
 }
 
 // Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch
@@ -238,8 +248,8 @@ func SeatsThatSat(run Run) ([]string, error) {
 // IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
 // replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
 // every checkpoint and every render that succeeded does; a fold from the empty text starts with none.
-// Two things rest on it: every read starts from the report checkpoint at or below the event it
-// reads at and folds only the ops after it (recordsql.ReportSourceAt), and the insert that lands a
+// Two things rest on it: every read starts from the newest report checkpoint and folds only the ops
+// after it (recordsql.ReportSourceAt), and the insert that lands a
 // checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint).
 // TestTheReportReplayIsAFold (internal/record/migrate) holds the renderer to it on archived runs.
 var reportRenderer = reportproj.Replay
@@ -256,11 +266,11 @@ func renderSource(src recordsql.ReportSource, err error) (string, error) {
 
 // reportSourceAt is recordsql.ReportSourceAt asked of q: a nil q is a run with no record yet, which
 // holds no checkpoint and no op.
-func reportSourceAt(q recordsql.Querier, at int64) (recordsql.ReportSource, error) {
+func reportSourceAt(q recordsql.Querier) (recordsql.ReportSource, error) {
 	if noRecord(q) {
 		return recordsql.ReportSource{}, nil
 	}
-	return recordsql.ReportSourceAt(q, at)
+	return recordsql.ReportSourceAt(q)
 }
 
 // ReportProjection returns the whole ordered stream of report ops, from the record's first part —
@@ -280,7 +290,7 @@ func ReportProjection(run Run) (ops []reportproj.ReportOp, err error) {
 // whose own writes the render then includes. It is the ONE render over a querier; RenderRun asks it
 // of the run's handle.
 func RenderAt(q recordsql.Querier) (string, error) {
-	return renderSource(reportSourceAt(q, recordsql.Newest))
+	return renderSource(reportSourceAt(q))
 }
 
 // RenderRun is RenderAt asked of run's record, opened for reading: a run that has recorded no part
@@ -301,10 +311,11 @@ func ReportProjectionAt(db recordsql.Querier) (ops []reportproj.ReportOp, err er
 	return recordsql.ReportOpsBetween(db, 0, recordsql.Newest)
 }
 
-// ReportAtPart is the report as it stood once seat's part was recorded: the checkpoint at or below
-// that part's event and the ops after it up to the part, folded. `ingest` asks it of the part it has
-// just recorded, so another lane's part recorded after it is not read as this one's. A seat with no
-// part is an error: there is no such report.
+// ReportAtPart is the report as it stood once seat's part was recorded: the report_part texts up to
+// and including that part, joined in id order (reportproj.JoinPart). Every part precedes the report's
+// first other op (ReportPart), so the parts are the whole report there, read off their rows with no
+// fold. `ingest` asks it of the part it has just recorded, so another lane's part recorded after it
+// is not read as this one's. A seat with no part is an error: there is no such report.
 func ReportAtPart(run Run, seat string) (string, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
@@ -322,7 +333,25 @@ func ReportAtPart(run Run, seat string) (string, error) {
 	if !found {
 		return "", fmt.Errorf("%s has recorded no part of the report", seat)
 	}
-	return renderSource(reportSourceAt(db, at))
+	return partsUpTo(db, at)
+}
+
+// partsUpTo is the report_part texts with an events.id at or below at, joined in id order.
+func partsUpTo(q recordsql.Querier, at int64) (string, error) {
+	rows, err := q.Query(`SELECT COALESCE("text", '') FROM "report_part" WHERE "event_id" <= ? ORDER BY "event_id"`, at)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	text := ""
+	for rows.Next() {
+		var part string
+		if err := rows.Scan(&part); err != nil {
+			return "", err
+		}
+		text = reportproj.JoinPart(text, part)
+	}
+	return text, rows.Err()
 }
 
 // ReportHasParts reports whether any lane has recorded its part of the report — whether the report

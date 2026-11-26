@@ -313,7 +313,7 @@ enum EventType {
   reserved "EVENT_TYPE_SITTING_LIMIT";
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
-  EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
+  EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool handed a delivery's last report-text item into the seat's context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens's latest in a sitting it sat through is its pin"];
   EVENT_TYPE_ENVELOPE_ADMITTED = 44 [(means) = "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"];
   EVENT_TYPE_INQUIRY_CHECK = 45 [(means) = "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"];
   EVENT_TYPE_QUESTION_PART = 46 [(means) = "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"];
@@ -359,9 +359,9 @@ enum RunOutcome {
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
-// gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
-// as the gap's answer, a retire of the anchor the gap is about, or the
-// own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
+// gaps demand a live answer of their kind while their subject stands in the report
+// (recordpb.DemandClause): a citation or a computation placed as the gap's answer, or the own later
+// check of the anchor the gap is about that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
 enum CheckKind {
@@ -1184,8 +1184,8 @@ message SpotCheck {
   optional string reason = 4 [(prose) = true];
 
   // The lens seats whose area the chair read the changes against this sitting — the plan's
-  // stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
-  // refused until a spot-check in the chair's sitting names every stale area. Validated against the
+  // stale_areas, each a retired lens whose pin the report head has moved past with changes no
+  // spot-check has borne. A PASS is refused until a spot-check has borne every stale area's changes. Validated against the
   // cast at the write.
   repeated string areas = 5;
 
@@ -1193,8 +1193,8 @@ message SpotCheck {
   // supplied by a seat (record.stampSpotCheckChanges). A chair's prose that counted the changes
   // itself recorded "42 edits since 260" over a record holding 4, and nothing could refuse it.
   //
-  // pins holds, for each of `areas` at the same index, the head the whole report was last served
-  // to that lens at in a sitting it sat through. changes holds the event id of every recorded
+  // pins holds, for each of `areas` at the same index, the head of that lens's latest complete
+  // delivery of report text in a sitting it sat through. changes holds the event id of every recorded
   // change to the report — each blue_edit and report_part, the events that move the head — after
   // the earliest of those pins, in record order; an area's changes are those after its own pin.
   // The ids are the record's own, so a migration's replay restamps them rather than translating
@@ -1736,6 +1736,11 @@ message BlueEdit {
   // It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
   // referent needs looking at again. A verification of a reopened anchor is stale rather than
   // wrong, which is a different fact and gets a different word.
+  //
+  // AN ANCHOR THE EDIT LEAVES BARE IS LISTED: its sentence is gone, which changes its referent as
+  // surely as a rewrite. Only a gap anchor can be left bare — an edit that bares an
+  // evidence anchor is refused — so its readers take it as the gap's sentence changing: estoppel
+  // ends the gap's prescription, the gap's acts count the edit, and the change lists it.
   repeated string reopened = 7;
 
   // ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
@@ -1761,6 +1766,22 @@ message BlueEdit {
   // choice is RECORDED, because replay cannot re-derive it: an event written before this field
   // existed, whose trimmed span was a no-op, must still replay as one.
   optional bool exact_span = 9;
+
+  // old_paragraphs and new_paragraphs are the whole paragraphs this edit touched — each an
+  // anchor.Blocks block: a paragraph, a heading, a list item's first paragraph, a table line, a
+  // footnote definition, a fence — before it and after it, with their anchor tokens, in report
+  // order and with the breaks between them kept. The tool stamps both at the write from the report
+  // the edit lands on and the report it makes: old_paragraphs every block the replaced span
+  // touched, new_paragraphs every block that holds the replacement.
+  //
+  // THEY ARE THE EDIT'S OWN RECORD OF WHAT IT CHANGED. Nothing else on the record says it without
+  // rebuilding the report at the edit, so a seat's delivery of a change, the standing reading's
+  // reword chain and the retried-reading refusal read them, and never a past report. `old`/`new`
+  // stay what they are: the fragments the seat typed and the tool applied. A stamped paragraph is
+  // not a touched sentence: a sentence the two runs both hold, anchors stripped, the edit left
+  // alone; `reopened` is computed from the two runs, sentence by sentence.
+  optional string old_paragraphs = 10;
+  optional string new_paragraphs = 11;
 }
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
@@ -2699,20 +2720,24 @@ enum TombstoneKind {
 
 // ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
 // report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
+// ReportRead is the tool handing a delivery's last report-text item into the seat's context; every
+// item of it was cut from the report at `head`. The delivery writer appends it, one per seat and
+// sitting, for a lens, the chair or the bench; a read through `show report` writes none. The seat and
+// the sitting are the envelope's.
 //
-// IT IS EVIDENCE THE TEXT WAS SERVED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
-// read what it was given; what it can say is that the whole text at this head reached the seat in
-// this sitting, which is what a read at an anchor or a selection cannot say.
+// IT IS EVIDENCE THE TEXT WAS DELIVERED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
+// read what it was given; what it can say is that every item of the delivery reached the seat's
+// context in this sitting, which is what a read through the selectors cannot say.
 //
-// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest read in a sitting it
-// sat through (lensStates), so a lens whose sitting opened at a head and that was never served the
-// report there is still ready at it — the dispatch's own pin is the head the chair asked it to read,
-// and opening a sitting is not reading.
+// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest delivery in a sitting
+// it sat through (report_delivery), so a lens whose sitting opened at a head and whose delivery there
+// never completed is still ready at it — the dispatch's own pin is the head the chair asked it to
+// audit, and opening a sitting is not reading.
 message ReportRead {
   optional int64 head = 1 [(sql) = {
     required: true
     references: "events.id"
-    why: "the events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran"
+    why: "the events.id of the report head the delivery was cut at — the latest head move (a report_part or a blue_edit) when its first item was cut"
   }];
 }
 

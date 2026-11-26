@@ -346,9 +346,9 @@ func (RunOutcome) EnumDescriptor() ([]byte, []int) {
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
-// gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
-// as the gap's answer, a retire of the anchor the gap is about, or the
-// own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
+// gaps demand a live answer of their kind while their subject stands in the report
+// (recordpb.DemandClause): a citation or a computation placed as the gap's answer, or the own later
+// check of the anchor the gap is about that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
 type CheckKind int32
@@ -4209,16 +4209,16 @@ type SpotCheck struct {
 	// ONE PROSE CHANNEL: what the spot-check found, or why it named nothing.
 	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	// The lens seats whose area the chair read the changes against this sitting — the plan's
-	// stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
-	// refused until a spot-check in the chair's sitting names every stale area. Validated against the
+	// stale_areas, each a retired lens whose pin the report head has moved past with changes no
+	// spot-check has borne. A PASS is refused until a spot-check has borne every stale area's changes. Validated against the
 	// cast at the write.
 	Areas []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
 	// WHAT CHANGED BEHIND EACH AREA'S PIN IS THE TOOL'S TO STATE, stamped at the write and never
 	// supplied by a seat (record.stampSpotCheckChanges). A chair's prose that counted the changes
 	// itself recorded "42 edits since 260" over a record holding 4, and nothing could refuse it.
 	//
-	// pins holds, for each of `areas` at the same index, the head the whole report was last served
-	// to that lens at in a sitting it sat through. changes holds the event id of every recorded
+	// pins holds, for each of `areas` at the same index, the head of that lens's latest complete
+	// delivery of report text in a sitting it sat through. changes holds the event id of every recorded
 	// change to the report — each blue_edit and report_part, the events that move the head — after
 	// the earliest of those pins, in record order; an area's changes are those after its own pin.
 	// The ids are the record's own, so a migration's replay restamps them rather than translating
@@ -5520,6 +5520,11 @@ type BlueEdit struct {
 	// It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
 	// referent needs looking at again. A verification of a reopened anchor is stale rather than
 	// wrong, which is a different fact and gets a different word.
+	//
+	// AN ANCHOR THE EDIT LEAVES BARE IS LISTED: its sentence is gone, which changes its referent as
+	// surely as a rewrite. Only a gap anchor can be left bare — an edit that bares an
+	// evidence anchor is refused — so its readers take it as the gap's sentence changing: estoppel
+	// ends the gap's prescription, the gap's acts count the edit, and the change lists it.
 	Reopened []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
 	// ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
 	//
@@ -5542,7 +5547,22 @@ type BlueEdit struct {
 	// quote occurs byte-for-byte exactly once, the edit takes the literal span instead — and the
 	// choice is RECORDED, because replay cannot re-derive it: an event written before this field
 	// existed, whose trimmed span was a no-op, must still replay as one.
-	ExactSpan     *bool `protobuf:"varint,9,opt,name=exact_span,json=exactSpan,proto3,oneof" json:"exact_span,omitempty"`
+	ExactSpan *bool `protobuf:"varint,9,opt,name=exact_span,json=exactSpan,proto3,oneof" json:"exact_span,omitempty"`
+	// old_paragraphs and new_paragraphs are the whole paragraphs this edit touched — each an
+	// anchor.Blocks block: a paragraph, a heading, a list item's first paragraph, a table line, a
+	// footnote definition, a fence — before it and after it, with their anchor tokens, in report
+	// order and with the breaks between them kept. The tool stamps both at the write from the report
+	// the edit lands on and the report it makes: old_paragraphs every block the replaced span
+	// touched, new_paragraphs every block that holds the replacement.
+	//
+	// THEY ARE THE EDIT'S OWN RECORD OF WHAT IT CHANGED. Nothing else on the record says it without
+	// rebuilding the report at the edit, so a seat's delivery of a change, the standing reading's
+	// reword chain and the retried-reading refusal read them, and never a past report. `old`/`new`
+	// stay what they are: the fragments the seat typed and the tool applied. A stamped paragraph is
+	// not a touched sentence: a sentence the two runs both hold, anchors stripped, the edit left
+	// alone; `reopened` is computed from the two runs, sentence by sentence.
+	OldParagraphs *string `protobuf:"bytes,10,opt,name=old_paragraphs,json=oldParagraphs,proto3,oneof" json:"old_paragraphs,omitempty"`
+	NewParagraphs *string `protobuf:"bytes,11,opt,name=new_paragraphs,json=newParagraphs,proto3,oneof" json:"new_paragraphs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5638,6 +5658,20 @@ func (x *BlueEdit) GetExactSpan() bool {
 		return *x.ExactSpan
 	}
 	return false
+}
+
+func (x *BlueEdit) GetOldParagraphs() string {
+	if x != nil && x.OldParagraphs != nil {
+		return *x.OldParagraphs
+	}
+	return ""
+}
+
+func (x *BlueEdit) GetNewParagraphs() string {
+	if x != nil && x.NewParagraphs != nil {
+		return *x.NewParagraphs
+	}
+	return ""
 }
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
@@ -7330,15 +7364,19 @@ func (x *Tombstone) GetEnds() bool {
 
 // ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
 // report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
+// ReportRead is the tool handing a delivery's last report-text item into the seat's context; every
+// item of it was cut from the report at `head`. The delivery writer appends it, one per seat and
+// sitting, for a lens, the chair or the bench; a read through `show report` writes none. The seat and
+// the sitting are the envelope's.
 //
-// IT IS EVIDENCE THE TEXT WAS SERVED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
-// read what it was given; what it can say is that the whole text at this head reached the seat in
-// this sitting, which is what a read at an anchor or a selection cannot say.
+// IT IS EVIDENCE THE TEXT WAS DELIVERED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
+// read what it was given; what it can say is that every item of the delivery reached the seat's
+// context in this sitting, which is what a read through the selectors cannot say.
 //
-// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest read in a sitting it
-// sat through (lensStates), so a lens whose sitting opened at a head and that was never served the
-// report there is still ready at it — the dispatch's own pin is the head the chair asked it to read,
-// and opening a sitting is not reading.
+// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest delivery in a sitting
+// it sat through (report_delivery), so a lens whose sitting opened at a head and whose delivery there
+// never completed is still ready at it — the dispatch's own pin is the head the chair asked it to
+// audit, and opening a sitting is not reading.
 type ReportRead struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Head          *int64                 `protobuf:"varint,1,opt,name=head,proto3,oneof" json:"head,omitempty"`
@@ -8492,7 +8530,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"ReportPart\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x84\x03\n" +
+	"\x05_text\"\x82\x04\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
@@ -8503,7 +8541,10 @@ const file_record_proto_rawDesc = "" +
 	"\breopened\x18\a \x03(\tR\breopened\x12\x1f\n" +
 	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01B\v\n" +
+	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01\x12*\n" +
+	"\x0eold_paragraphs\x18\n" +
+	" \x01(\tH\bR\roldParagraphs\x88\x01\x01\x12*\n" +
+	"\x0enew_paragraphs\x18\v \x01(\tH\tR\rnewParagraphs\x88\x01\x01B\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +
@@ -8512,7 +8553,9 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\x13\n" +
 	"\x11_applied_verbatimB\v\n" +
 	"\t_acceptedB\r\n" +
-	"\v_exact_span\"\x9a\x04\n" +
+	"\v_exact_spanB\x11\n" +
+	"\x0f_old_paragraphsB\x11\n" +
+	"\x0f_new_paragraphs\"\x9a\x04\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
@@ -8706,10 +8749,10 @@ const file_record_proto_rawDesc = "" +
 	"\a_gap_idB\a\n" +
 	"\x05_kindB\x0f\n" +
 	"\r_docketing_idB\a\n" +
-	"\x05_ends\"\xc5\x01\n" +
+	"\x05_ends\"\xd3\x01\n" +
 	"\n" +
-	"ReportRead\x12\xad\x01\n" +
-	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
+	"ReportRead\x12\xbb\x01\n" +
+	"\x04head\x18\x01 \x01(\x03B\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x1a\x8c\x01the events.id of the report head the delivery was cut at — the latest head move (a report_part or a blue_edit) when its first item was cut\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +
@@ -8747,7 +8790,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xea,\n" +
+	"\b_holding*\xb2-\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8780,8 +8823,8 @@ const file_record_proto_rawDesc = "" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x90\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\x12\xbf\x01\n" +
 	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xa5\x01\n" +
 	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\x12\xd8\x01\n" +
-	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xca\x01\n" +
-	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\x12\xbe\x02\n" +
+	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\x92\x02\n" +
+	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xf5\x01\x8a\xb5\x18\xf0\x01the tool handed a delivery's last report-text item into the seat's context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens's latest in a sitting it sat through is its pin\x12\xbe\x02\n" +
 	"\x1cEVENT_TYPE_ENVELOPE_ADMITTED\x10,\x1a\x9b\x02\x8a\xb5\x18\x96\x02the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed\x12\xd4\x01\n" +
 	"\x18EVENT_TYPE_INQUIRY_CHECK\x10-\x1a\xb5\x01\x8a\xb5\x18\xb0\x01the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands\x12\xca\x01\n" +
 	"\x18EVENT_TYPE_QUESTION_PART\x10.\x1a\xab\x01\x8a\xb5\x18\xa6\x01a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason\x12\xbf\x01\n" +

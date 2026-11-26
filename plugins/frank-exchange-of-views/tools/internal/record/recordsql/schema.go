@@ -146,10 +146,10 @@ END;
 // keep in step.
 //
 // THE REPORT CHECKPOINT IS THE ONE STORED ANSWER, and it is stored for three reasons none of these
-// metrics has (ReportCheckpointDDL). Its question is asked one way only — what the report says at
-// event N — by every reader of the report. Its answer is fixed once N is written: the record is
-// append-only and the report is a left fold of its ops (reportproj.Replay), so no later write moves
-// the text at N. And asking it again is the expensive read: a replay of every op from the empty text,
+// metrics has (ReportCheckpointDDL). Its question is asked one way only — what the report says
+// now — by every reader of the report. A checkpoint's answer is fixed once its event N is written:
+// the record is append-only and the report is a left fold of its ops (reportproj.Replay), so no later
+// write moves the text at N. And asking it again is the expensive read: a replay of every op from the empty text,
 // on every board, work list and report read. The second place the question lives is the renderer's
 // code at the time of the write: a record written before the renderer changed, at the same epoch,
 // keeps the text the older renderer gave, and nothing compares the two.
@@ -193,13 +193,11 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // event, stamped by the insert that writes the event (stampReportCheckpoint). It is not a
 // body — no seat writes it, and nothing on the wire carries it.
 //
-// A ROW EVERY reportCheckpointEvery OPS, NOT ONE ROW OVERWRITTEN. A reader reads the report as of an
-// event — the newest, or an older one (the report as a lane's part left it) — so it needs the
-// checkpoint at or below that event, and an overwritten row holds only the newest. A row per op would
-// store the whole text once per op. So a row lands at the first event that adds a report op, and
-// after that at the first event that brings the ops since the last row to reportCheckpointEvery; a
-// reader starts from the newest row at or below the event it reads at and replays fewer than
-// reportCheckpointEvery ops after it.
+// ONE ROW, THE REPORT AS IT STANDS. No reader reads the report as it stood at a past event (what an
+// edit changed is on its row, BlueEdit.old_paragraphs/new_paragraphs), so the table holds the newest
+// checkpoint only: restamped at the first event that adds a report op, and after that at the first
+// event that brings the ops since the row to reportCheckpointEvery, the row replaced each time. A
+// reader reads the report from it and replays fewer than reportCheckpointEvery ops after it.
 //
 // A ROW HOLDS THE TEXT OR THE REPLAY'S FAILURE, never both. The write path's guards decide which ops
 // land; the checkpoint records what folding them gives, and an op the report cannot replay through —
@@ -207,22 +205,15 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // on with the replay's own words, as a replay from the empty text does. A checkpoint after a failed
 // one carries the failure on: a left fold that failed at an op fails at every op after it.
 //
-// APPEND-ONLY BY TRIGGER, as events are: the text at an event is fixed once the event is written, so
-// a row that changed would be a report no write ever left.
+// THE ONE ROW IS HELD BY THE SCHEMA: "one" is its only key value, so a second row is refused.
 const ReportCheckpointDDL = `
 CREATE TABLE "report_checkpoint" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events" ("id"),
+  "one"      INTEGER PRIMARY KEY CHECK ("one" = 1),
+  "event_id" INTEGER NOT NULL REFERENCES "events" ("id"),
   "text"     TEXT,
   "failure"  TEXT,
   CHECK (("text" IS NULL) <> ("failure" IS NULL))
 ) STRICT;
-
-CREATE TRIGGER "report_checkpoint_is_append_only_update" BEFORE UPDATE ON "report_checkpoint" BEGIN
-  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be edited after it is written');
-END;
-CREATE TRIGGER "report_checkpoint_is_append_only_delete" BEFORE DELETE ON "report_checkpoint" BEGIN
-  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be removed after it is written');
-END;
 `
 
 // Schema returns the full DDL: the envelope, then one table per body type in a stable order.
@@ -295,6 +286,9 @@ CREATE INDEX "mint_ancestor" ON "mint" ("supersedes", "event_id");
 -- A gap's tombstones of one kind, in order (tombstone_standing; the readers by gap, every standing
 -- ruling row, every standing estoppel row): each read knows its kind.
 CREATE INDEX "tombstone_kind_gap" ON "tombstone" ("kind", "gap_id", "event_id");
+-- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
+-- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
+CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
 `
 
 func Schema() (string, error) {

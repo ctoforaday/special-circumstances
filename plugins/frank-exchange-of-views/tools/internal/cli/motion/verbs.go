@@ -228,7 +228,7 @@ func payloadKey(flag string) string {
 var ruleDetail = map[string]string{
 	"position": "\n\nA POSITION HAS NO FILING: the chair's position at a sitting that withheld a PASS its plan permitted is the filing, so the id is the position's own — the " +
 		"`A-` id your work list names with the chair's argument, which is what you rule on. A position filed at any other sitting is not before you, and its id is refused. " +
-		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
+		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until the whole report has been delivered to it on its work list in a sitting after your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
 		"`overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.",
 }
 

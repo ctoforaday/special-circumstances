@@ -372,7 +372,17 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 			}
 			return string(out), nil
 		}
-		if err := seatprobe.Build(probeRun, b, run); err != nil {
+		// THE WRITER IS THE PostToolUse HOOK'S: the build runs it after each of a seat's calls, from the
+		// directory -bin is in, with the same record root the build's calls carry.
+		writer := filepath.Join(filepath.Dir(bin), "feov-sitting-write"+filepath.Ext(bin))
+		if _, err := os.Stat(writer); err != nil {
+			return "", fmt.Errorf("the delivery writer the build hands report text with is not beside -bin: %w", err)
+		}
+		env := os.Environ()
+		if recordRoot != "" {
+			env = append(env, record.RecordRootEnv+"="+recordRoot)
+		}
+		if err := seatprobe.Build(probeRun, b, run, seatprobe.WriterHand(writer, runDir, env)); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which

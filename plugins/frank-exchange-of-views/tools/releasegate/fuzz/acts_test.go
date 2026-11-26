@@ -137,6 +137,26 @@ func (r *runner) refuseAs(agent string, code feov.Code, args ...string) {
 	}
 }
 
+// refuseUndelivered drives args to be refused by the delivered-text rule: a conflict whose envelope
+// says the act stands only on report text delivered to the seat. Another conflict — a once-per-sitting
+// refusal, a stale gap — is not that rule answering.
+func (r *runner) refuseUndelivered(args ...string) {
+	args = withJSON(args)
+	out, err := r.exec(args...)
+	argv := strings.Join(args, " ")
+	if err == nil {
+		r.noteActErr(argv + ": admitted, and the drive drives the delivered-text refusal: " + firstLine(out))
+		return
+	}
+	env, ok := refusalEnvelopeIn(out)
+	switch {
+	case !ok:
+		r.noteActErr(argv + ": refused under --json with no refusal envelope: " + firstLine(out))
+	case env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "stands only on report text delivered to you"):
+		r.noteActErr(fmt.Sprintf("%s: refused %q, and the drive drives the delivered-text refusal (conflict): %s", argv, env.Code, firstLine(env.Error)))
+	}
+}
+
 // refusalEnvelopeIn is the refusal envelope among out's lines — combined output, so a line on
 // stderr may sit beside it.
 func refusalEnvelopeIn(out string) (feov.RefusalEnvelope, bool) {

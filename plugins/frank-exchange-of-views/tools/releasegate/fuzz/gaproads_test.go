@@ -164,7 +164,7 @@ func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
 	}
 	r.disputeMovedGap(staleFiler)
 	r.dischargeOwed(staleFiler)
-	if refusal, err := record.EnvelopeRefusal(r.run(), staleFiler); err != nil || refusal != "" {
+	if refusal, err := record.EnvelopeRefusal(r.run(), staleFiler, true); err != nil || refusal != "" {
 		t.Errorf("the filer's sitting owes after its dispute landed: %q (%v)", refusal, err)
 	}
 	r.dispatchReturns(staleFiler, false)

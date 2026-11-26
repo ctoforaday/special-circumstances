@@ -1,7 +1,10 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
@@ -9,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A READING RECORDS WHAT ONE SOURCE DID FOR ONE SENTENCE, AND HOLDS NOTHING BY ITSELF (gblock,
@@ -49,10 +53,10 @@ func readingSentenceIn(report string, v *recordpb.Verify) ([2]int, bool) {
 
 // requireNotARetriedReading refuses a reading of a source the lens found (no anchor) that repeats one
 // the seat already recorded THIS SITTING: the same url and the SAME SENTENCE, whatever either's
-// outcome. The sentence is keyed as the reading debt keys it (ruled 2026-11-10): the stored reading's
-// sentence as of its event is the new claim's sentence on the report the act lands on — equal
-// (bluedoc.SameSentence), or reworded to it by the chain of edits since the stored reading
-// (rewordChainOf, a sub-floor phrase swap among the links). Where the stored sentence was removed, or
+// outcome. The sentence is keyed as the reading debt keys it (ruled 2026-11-10), read forward over
+// the paragraphs blue's edits stamped since the stored reading (repeatedReading): the sentence it
+// read is the new claim's sentence on the report the act lands on — equal (bluedoc.SameSentence), or
+// reworded to it by the chain of edits since (rewordChainOf, a sub-floor phrase swap among the links). Where the stored sentence was removed, or
 // the new claim locates in another sentence, there is no retry and the reading is recorded. The refusal names the stored reading's
 // event, its outcome and, where reworded, the edit that changed the sentence — which is how a
 // crash-retried reading learns its first write landed. "This sitting" is the equality
@@ -102,42 +106,17 @@ func requireNotARetriedReading(w writeView, seatID string, v *recordpb.Verify) e
 		return nil // the placement guard refuses a claim that locates nowhere, in its words
 	}
 	nowWords := anchortext.Visible(landing[now[0]:now[1]])
-	var edits []editAt
+	edits, err := editsAfter(q, readings[0].at)
+	if err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's edits could not be read, so whether this reading repeats one of this sitting cannot be told: %v", err)
+	}
 	for _, s := range readings {
-		atReading, err := renderSource(reportSourceAt(q, s.at))
+		reworded, repeats, err := repeatedReading(edits, s.at, &recordpb.Verify{Claim: &s.claim}, landing, nowWords)
 		if err != nil {
-			return feov.Wrap(feov.Conflict, err, "the report as of event %d does not render, so whether this reading repeats the one recorded there cannot be told: %v", s.at, err)
+			return feov.Wrap(feov.Conflict, err, "blue's edits of the sentence read at event %d do not read, so whether this reading repeats one of this sitting cannot be told: %v", s.at, err)
 		}
-		was, ok := readingSentenceIn(atReading, &recordpb.Verify{Claim: &s.claim})
-		if !ok {
+		if !repeats {
 			continue
-		}
-		wasWords := anchortext.Visible(atReading[was[0]:was[1]])
-		reworded := int64(0)
-		if !bluedoc.SameSentence(wasWords, nowWords) {
-			if edits == nil {
-				evs, win, err := eventsAt(q)
-				if err != nil {
-					return feov.Wrap(feov.Conflict, err, "the record's edits could not be read, so whether this reading repeats one of this sitting cannot be told: %v", err)
-				}
-				edits = editsOf(evs, win)
-			}
-			claim := s.claim
-			links, err := rewordChainOf(q, edits, s.at, wasWords, func(after string) bool {
-				_, ok := readingSentenceIn(after, &recordpb.Verify{Claim: &claim})
-				return !ok
-			})
-			if err != nil {
-				return feov.Wrap(feov.Conflict, err, "the report around blue's edits of the sentence read at event %d does not read, so whether this reading repeats one of this sitting cannot be told: %v", s.at, err)
-			}
-			if len(links) == 0 {
-				continue
-			}
-			last := links[len(links)-1]
-			if last.removed || !bluedoc.SameSentence(last.reworded, nowWords) {
-				continue
-			}
-			reworded = last.m.id
 		}
 		changed := ""
 		if reworded != 0 {
@@ -152,4 +131,68 @@ func requireNotARetriedReading(w writeView, seatID string, v *recordpb.Verify) e
 			v.GetUrl(), s.at, s.outcome, changed, tail)
 	}
 	return nil
+}
+
+// repeatedReading is whether a found-source reading at events.id `at` of v's claim is of the
+// sentence nowWords, and the edit that reworded it there, read forward from the reading over the
+// paragraphs blue's edits stamped: the sentence it read is equal to nowWords (bluedoc.SameSentence),
+// or the chain of edits since it (rewordChainOf, a sub-floor phrase swap among the links) rewords it
+// to nowWords. Where no edit since holds the claim, the sentence stands as it was read, and is the
+// one the claim locates in on landing.
+func repeatedReading(edits []editAt, at int64, v *recordpb.Verify, landing, nowWords string) (reworded int64, repeats bool, err error) {
+	run, was, found, err := claimSentenceAfter(edits, at, v)
+	if err != nil {
+		return 0, false, err
+	}
+	if !found {
+		sp, ok := readingSentenceIn(landing, v)
+		return 0, ok && bluedoc.SameSentence(anchortext.Visible(landing[sp[0]:sp[1]]), nowWords), nil
+	}
+	wasWords := anchortext.Visible(run[was[0]:was[1]])
+	if bluedoc.SameSentence(wasWords, nowWords) {
+		return 0, true, nil
+	}
+	links, err := rewordChainOf(edits, at, wasWords, func(before, after string) bool {
+		_, was := readingSentenceIn(before, v)
+		_, is := readingSentenceIn(after, v)
+		return was && !is
+	})
+	if err != nil || len(links) == 0 {
+		return 0, false, err
+	}
+	last := links[len(links)-1]
+	if last.removed || !bluedoc.SameSentence(last.reworded, nowWords) {
+		return 0, false, nil
+	}
+	return last.m.id, true, nil
+}
+
+// editsAfter is blue's edits with an events.id after `after`, in record order, as the reword chain
+// reads them: the fragments, the replay's span rule, the verbatim mark and the stamped paragraphs.
+func editsAfter(q recordsql.Querier, after int64) ([]editAt, error) {
+	rows, err := q.Query(`SELECT "event_id", "old", "new", "applied_verbatim", "exact_span", "old_paragraphs", "new_paragraphs"
+	  FROM "blue_edit" WHERE "event_id" > ? ORDER BY "event_id"`, after)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []editAt
+	for rows.Next() {
+		var id int64
+		var old, new, oldParas, newParas sql.NullString
+		var verbatim, exact sql.NullBool
+		if err := rows.Scan(&id, &old, &new, &verbatim, &exact, &oldParas, &newParas); err != nil {
+			return nil, err
+		}
+		ed := &recordpb.BlueEdit{Old: proto.String(old.String), New: proto.String(new.String),
+			AppliedVerbatim: proto.Bool(verbatim.Bool), ExactSpan: proto.Bool(exact.Bool)}
+		if oldParas.Valid {
+			ed.OldParagraphs = proto.String(oldParas.String)
+		}
+		if newParas.Valid {
+			ed.NewParagraphs = proto.String(newParas.String)
+		}
+		out = append(out, editAt{id: id, ed: ed})
+	}
+	return out, rows.Err()
 }

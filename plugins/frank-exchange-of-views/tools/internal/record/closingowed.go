@@ -144,7 +144,7 @@ func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
 		}
 	}
 	_, openings := dispatchLedger(evs, ids, win)
-	r.through = satThroughOf(evs, ids, win, openings).through
+	r.through = satThroughOf(win, openings).through
 	return r
 }
 

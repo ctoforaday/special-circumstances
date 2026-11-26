@@ -258,6 +258,11 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   prose only), so an open voice gap holds the PASS whatever its grade. Narration in a retired voice
   lens's area reaches the board through the chair's spot-check and its position naming the class,
   which the bench may not overrule; read a VERIFIED stamp over narration as a defect in that route.
+- **Report text reaches a seat only on its work list**, one item after each tool call, whichever tool, and
+  the tool records each delivery as a `report_read` when its last item is handed. A delivery that
+  cannot advance ends that seat's turn: its sitting closes failed, and the reason is a (TOOL, DEFECT)
+  entry in `run.md`'s Log section. Under Antigravity report text is not yet delivered, so a run with
+  a lens there cannot PASS and ends CEILING or UNVERIFIED.
 - Archive the run before the container is reclaimed. `research/` is gitignored, so `run-archive/`
   is the only part that outlives it — records and computations only, gzipped; the fetched-source cache is
   re-fetchable and about 100× larger.
@@ -276,15 +281,26 @@ credentials for either, so it skips them; a run here is the check.
 
 ```sh
 unset $(env | grep -o '^FEOV_[A-Z_]*')
-HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveAntigravity' .
+HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveShippedAntigravity|TestLiveAntigravity' .
 HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
 ```
 
-Each agy test runs in a throwaway home holding a copy of your agy credentials, on
-`gemini-3.8-flash-low`, a few turns at a time. Run them after a change to hookcore's Antigravity
-paths, to a plugin's root `hooks.json`, or to `telepathy send`/`link`, and after an agy upgrade. A
-model-driven assertion can miss on one run, so a single red is a reason to read the test's log
-before it is a verdict.
+Each live test runs in a throwaway home created with `shared/testhome.NewLiveHome` and
+`LiveEnv`/`LiveClaudeEnv`, holding only a short-lived access token (Claude via
+`CLAUDE_CODE_OAUTH_TOKEN`, Antigravity via a minimal refresh-stripped token file, never copying
+refresh tokens into temp homes, `#1890`). Both hosts must be signed in (`claude auth login` and
+`agy`) with at least 15 minutes remaining on their access tokens (`DefaultClaudeMinTokenLifetime`
+and `DefaultAgyMinTokenLifetime` = `agy`'s 5-minute refresh cliff + 10-minute test budget);
+`StageAgyAccessToken` auto-renews immediately below 5 minutes, waits past 5 minutes when within 90
+seconds of the cliff (`[5m, 6m25s]`), and fails fast with `ErrAgyTokenWaitTooLong` in `(6m25s, 15m)`
+without running a futile host turn (or
+a short or expired host Antigravity access token under a cross-process lock via one host turn (or
+renew manually with `agy -p ok --model gemini-3.8-flash-low`; renew Claude with `claude auth login`
+or `claude -p "Reply with the single word ok" --model haiku --max-turns 1` in your real HOME). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable
+credentials fail closed rather than skipping. Run them on `gemini-3.8-flash-low`, a few turns at a
+time. Run them after a change to hookcore's Antigravity paths, to a plugin's root `hooks.json`, or
+to `telepathy send`/`link`, and after an agy upgrade. A model-driven assertion can miss on one run,
+so a single red is a reason to read the test's log before it is a verdict.
 
 ## Environment that will bite you
 

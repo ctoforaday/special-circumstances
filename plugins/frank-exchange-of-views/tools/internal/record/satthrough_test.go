@@ -104,7 +104,7 @@ func TestTheLensSittingNowIsNotReadAsFailed(t *testing.T) {
 	m := loadedT(t, b.evs...)
 	ids := m.At.IDs(m.Events)
 	_, openings := dispatchLedger(m.Events, ids, m.At)
-	ends := satThroughOf(m.Events, ids, m.At, openings)
+	ends := satThroughOf(m.At, openings)
 	o := openings[evLens][0]
 	if ends.sat(evLens, o) || ends.short[o] != "has not closed yet" {
 		t.Errorf("the open sitting reads %q, sat through %v — want not closed yet, and not sat through", ends.short[o], ends.sat(evLens, o))
@@ -168,11 +168,12 @@ func TestALensLastSittingSkipsASittingThatNeverClosed(t *testing.T) {
 }
 
 // A FAILED CHECK IS READIED ONCE PER CAUSE, AND A SITTING THAT NEVER CLOSED IS NOT THE ONE: the
-// lens whose check read nothing is readied again.
+// lens whose check read nothing is readied again. Its later sitting is served the whole report (its
+// full re-read), so what readies it is the check.
 func TestAFailedCheckIsReadiedAgainAfterASittingThatNeverClosed(t *testing.T) {
 	for _, unclosed := range []bool{true, false} {
 		b := retBoard(t).sit(2, evLens).cite("C-1").verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE).
-			dispatch(2, evLens).bracket(evLens, "a1")
+			dispatch(2, evLens).bracket(evLens, "a1").served(evLens, 2)
 		if unclosed {
 			b.bracket(evLens, "a2")
 		} else {
@@ -206,7 +207,7 @@ func TestEachEndOfASittingHasItsOwnAnswer(t *testing.T) {
 	m := loadedT(t, b.evs...)
 	ids := m.At.IDs(m.Events)
 	_, openings := dispatchLedger(m.Events, ids, m.At)
-	ends := satThroughOf(m.Events, ids, m.At, openings)
+	ends := satThroughOf(m.At, openings)
 	os := openings[evLens]
 	if len(os) != 3 {
 		t.Fatalf("fixture: %d sittings of the lens, want 3", len(os))

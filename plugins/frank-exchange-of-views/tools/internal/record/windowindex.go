@@ -34,6 +34,45 @@ type WindowIndex struct {
 	// The whole-record loaders fill it from the same snapshot as the events; nil on a narrowed
 	// index, and on one a test built from bare windows.
 	reach map[int64][]reaching
+	// sittings and deliveries are the agent_sitting and report_delivery views, read by the whole-record
+	// loaders from the same snapshot as the events (readViews); viewsRead says they were. A reader of
+	// either on an index that did not read them panics: a zero there is the same bytes as a seat that
+	// never sat.
+	sittings   []recordsql.AgentSittingRow
+	deliveries []recordsql.DeliveryRow
+	viewsRead  bool
+}
+
+// readViews fills the index's view rows from q.
+func (x *WindowIndex) readViews(q recordsql.Querier) error {
+	var err error
+	if x.sittings, err = recordsql.AgentSittings(q); err != nil {
+		return err
+	}
+	if x.deliveries, err = recordsql.ReportDeliveries(q); err != nil {
+		return err
+	}
+	x.viewsRead = true
+	return nil
+}
+
+// deliveriesUpTo is the report_delivery rows with an event id at or before upTo.
+func (x WindowIndex) deliveriesUpTo(upTo int64) []recordsql.DeliveryRow {
+	x.mustViews()
+	var out []recordsql.DeliveryRow
+	for _, r := range x.deliveries {
+		if r.EventID <= upTo {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// mustViews panics where the index read no views.
+func (x WindowIndex) mustViews() {
+	if !x.viewsRead {
+		panic("record: a sitting's ends or a delivery were asked of an index that read no views — load the record whole (eventsAt, MergedEvents)")
+	}
 }
 
 // narrowedIndexOf indexes a narrowed read's windows, aligned by position with evs. Each window is
@@ -64,7 +103,9 @@ func windowIndexOf(evs []*Event, ws []recordsql.Window) WindowIndex {
 // run with no record yet, which holds no events.
 func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	if noRecord(q) {
-		return nil, windowIndexOf(nil, nil), nil
+		x := windowIndexOf(nil, nil)
+		x.viewsRead = true
+		return nil, x, nil
 	}
 	evs, ws, err := recordsql.Events(q)
 	if err != nil {
@@ -72,6 +113,9 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	}
 	x := windowIndexOf(evs, ws)
 	if x.reach, err = reachingRetiresOf(q); err != nil {
+		return nil, WindowIndex{}, err
+	}
+	if err := x.readViews(q); err != nil {
 		return nil, WindowIndex{}, err
 	}
 	return evs, x, nil

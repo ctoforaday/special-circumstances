@@ -111,7 +111,7 @@ func TestTheGateAdmitsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{}`), &out); err != nil || !strings.Contains(out.String(), `"envelope"`) || !strings.Contains(out.String(), `"record_read"`) {
+	if err := WriteEnvelopeAnswer(run, "AG", "claude", []byte(`{}`), &out); err != nil || !strings.Contains(out.String(), `"envelope"`) || !strings.Contains(out.String(), `"record_read"`) {
 		t.Fatalf("the chair's envelope was not answered with the plan and the record's read (%v): %q", err, out.String())
 	}
 	if got := admissions(t, run); len(got) != 0 {
@@ -143,7 +143,7 @@ func TestTheWritersAnswerIsTheRecordsRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{}`), &out); err != nil {
+	if err := WriteEnvelopeAnswer(run, "AG", "claude", []byte(`{}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	var answer hookgate.EnvelopeAnswer
@@ -166,7 +166,7 @@ func TestTheWritersAnswerIsTheRecordsRead(t *testing.T) {
 		t.Errorf("the read = %+v, want the record's %+v", read, want)
 	}
 	out.Reset()
-	if err := WriteEnvelopeAnswer(run, "UNBOUND", []byte(`{}`), &out); err != nil || out.Len() != 0 {
+	if err := WriteEnvelopeAnswer(run, "UNBOUND", "claude", []byte(`{}`), &out); err != nil || out.Len() != 0 {
 		t.Errorf("an agent bound to no seat answered (%v): %q", err, out.String())
 	}
 }

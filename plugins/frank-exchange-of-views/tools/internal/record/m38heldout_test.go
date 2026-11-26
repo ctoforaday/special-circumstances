@@ -369,7 +369,7 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 func TestASittingForTheClosingsAloneOwesOnlyTheClosings(t *testing.T) {
 	b := unsoundBoard(t).register("red-chair").dispatch(2, "blue-respond").register("blue-respond")
 	run := b.seed()
-	refusal, err := EnvelopeRefusal(run, "blue-respond")
+	refusal, err := EnvelopeRefusal(run, "blue-respond", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,7 +387,7 @@ func TestASittingForTheClosingsAloneOwesOnlyTheClosings(t *testing.T) {
 	}{{"blue held out", last + 1}, {"the final epoch", last}} {
 		t.Run(c.name, func(t *testing.T) {
 			writeRunConfig(t, b.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, c.max))
-			refusal, err := EnvelopeRefusal(run, "blue-respond")
+			refusal, err := EnvelopeRefusal(run, "blue-respond", true)
 			if err != nil {
 				t.Fatal(err)
 			}

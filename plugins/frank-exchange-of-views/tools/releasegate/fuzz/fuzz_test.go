@@ -547,6 +547,11 @@ type runner struct {
 	// debtLeft marks each seat whose sitting in progress leaves its reading debts standing (leaveDebt):
 	// its envelope is refused over them and the sitting ends without one (envelopeEnds).
 	debtLeft map[string]bool
+	// debtTried is, by lens, what answerReadingDebt's latest pass did about each reading debt it left
+	// standing, and debtDetail the latest silent refusal or give-up one of its acts met: envelopeEnds
+	// names both beside an envelope refused over a debt, which the anchor note (owedRecheck) never covers.
+	debtTried  map[string][]string
+	debtDetail map[string]string
 	// crossArmRuns is how many times the cross-arm drive ran this run (crossArmMints), and oneURLDone
 	// whether the one-url drive did (oneURLTwoSentences).
 	crossArmRuns int
@@ -676,6 +681,8 @@ type runner struct {
 	// lensMints: lens seat -> mints that LANDED, which fuzzLensStock bounds; the driver spreads its
 	// mints over the lenses debate.js dispatches.
 	lensMints map[string]int
+	// lensReadings: lens seat -> the drawn readings its sittings made, which fuzzLensReadings bounds.
+	lensReadings map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
@@ -825,14 +832,17 @@ type runner struct {
 	// step it reached, which the run's error names when no plan was readied for it.
 	forceUnsoundComputation bool
 	unsoundStage            string
-	// forceOwedComputation makes every blue-respond sitting of owedComputationSeed's run compute on the seeded sentence
-	// afresh, so each plan after one holds a computation nobody has checked, owed by the computation lens;
-	// owedComputations counts them, naming each script.
+	// forceOwedComputation makes blue-respond's sitting in owedComputationSeed's run compute on the seeded sentence
+	// afresh whenever the computation lens has retired (computeOwed), so the plan after it holds a computation
+	// nobody has checked, owed by a lens past its barren limit; owedComputations counts them, naming each script.
 	forceOwedComputation bool
 	owedComputations     int
 	// ownerWhys is, in owedComputationSeed's run, the computation owner's line of every plan, in order: what the
 	// sweep logs, so a forced run that keeps the owner fewer times than it plans says why.
 	ownerWhys []string
+	// ownerActs counts, in owedComputationSeed's run, the computation owner's admitted productive calls by
+	// verb (countOwnerAct).
+	ownerActs map[string]int
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
@@ -2248,13 +2258,11 @@ func holdsBlueOut(plan map[string]any) bool {
 	return record.Plan{MaxEpochs: int(maxEpochs), Epoch: int(epoch)}.BlueHeldOut()
 }
 
-// auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
-// auditRead is the lens's pin: a lens that is not served it at the head is ready at the head again,
-// until it is or retires. Most sittings read it, in either whole form; the rest read only a
-// selection, which serves part of it and moves nothing, so the sweep reaches a lens readied again at
-// a head it sat at. A forced run's lens reads it whole every sitting, so each sitting moves its pin:
-// a selection read leaves it ready at the head it sat at, which is one more sitting the bound does
-// not count.
+// auditRead is a lens sitting's read of the report through the selector reads, beside the report text
+// the writer hands it. The read records nothing and moves no pin: the lens's pin is the head of the
+// delivery the writer completed (readDelivery). Most sittings read the report whole, in either form;
+// the rest read a selection. The call is a call to the record, so the writer hands the lens its next
+// item after it.
 func (r *runner) auditRead(seatID string) {
 	switch n := r.rng.Intn(10); {
 	case r.forcedVerdict() || n < 5:
@@ -2406,8 +2414,33 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 // execAs is exec under a harness agent id, as the PreToolUse hook exports one into a dispatched
 // seat's shell; "" is exec's own environment, which carries none.
 func (r *runner) execAs(agent string, args ...string) (string, error) {
+	return r.execCall(agent, false, args...)
+}
+
+// isCompute is whether args is a `compute` call: the verb among the arguments before a `--`, after
+// which a computation's own command runs.
+func isCompute(args []string) bool {
+	if i := slices.Index(args, "--"); i >= 0 {
+		args = args[:i]
+	}
+	return slices.Contains(args, "compute")
+}
+
+// execCall runs a call of the binary. owed marks computeOwed's computation: IN OWEDCOMPUTATIONSEED'S
+// RUN IT IS THE ONLY ONE (computeOwed), because every computation is one its owner reproduces, a
+// productive sitting, and a run whose owner never sits barren to its limit never holds it kept by an
+// unjudged one. Any other `compute` of blue-respond's there — the one seat whose computation the
+// record admits — is the drive's defect, refused before it runs and failing the run by name; a lane's
+// `compute`, driven to its refusal (laneActsOnItsPart), records nothing and runs.
+func (r *runner) execCall(agent string, owed bool, args ...string) (string, error) {
+	if r.forceOwedComputation && !owed && isCompute(args) && seatOfCall(args) == "blue-respond" {
+		err := fmt.Errorf("%s: owedComputationSeed's run records no computation but computeOwed's, and the drive issued another", strings.Join(args, " "))
+		r.noteActErr("drive defect: " + err.Error())
+		return "", err
+	}
 	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
 	// --run as two more of its arguments.
+	seat := seatOfCall(args)
 	full := append([]string{}, args...)
 	if i := slices.Index(full, "--"); i >= 0 {
 		full = slices.Insert(full, i, "--run", r.runDir)
@@ -2423,8 +2456,37 @@ func (r *runner) execAs(agent string, args ...string) (string, error) {
 	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		return string(out), err
 	}
-	return string(out), err
+	// THE WRITER HANDS THE SEAT ITS NEXT ITEM AFTER A CALL THAT SUCCEEDED, as the PostToolUse hook does;
+	// a refused call reaches PostToolUseFailure, which hands nothing.
+	if seat != "" {
+		r.handNext(seat, agent)
+	}
+	if r.forceOwedComputation && seat == computationOwner {
+		r.countOwnerAct(args)
+	}
+	return string(out), nil
+}
+
+// ownerActVerbs are the verbs whose admitted call makes a lens's sitting productive (record.lensStates):
+// a mint, a close, a verify, a reproduce, an inquiry's check.
+var ownerActVerbs = []string{"mint", "close", "verify", "reproduce", "check"}
+
+// countOwnerAct tallies, in owedComputationSeed's run, an admitted call of the computation owner's by its
+// productive verb, so a run that never held it at its barren limit says what kept it productive.
+func (r *runner) countOwnerAct(args []string) {
+	for _, a := range args {
+		if slices.Contains(ownerActVerbs, a) {
+			r.mu.Lock()
+			if r.ownerActs == nil {
+				r.ownerActs = map[string]int{}
+			}
+			r.ownerActs[a]++
+			r.mu.Unlock()
+			return
+		}
+	}
 }
 
 // sit is the register a DISPATCH makes: every time debate.js hands a seat a prompt, that seat sits
@@ -2502,6 +2564,9 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.sittingAgent[seatID] = agent
 		r.mu.Unlock()
 	}
+	// THE SEAT READS WHAT ITS SITTING IS OWED BEFORE IT ACTS: the writer handed the first item after
+	// its register, and hands the rest one per call.
+	r.readDelivery(seatID, agent)
 	close(done)
 }
 
@@ -2868,6 +2933,31 @@ func (r *runner) minterOf(gapID string) string {
 // fuzzLensStock is the defects one lens finds in a run: past it, its sittings draw no fresh mint.
 const fuzzLensStock = 2
 
+// fuzzLensReadings is the sources one lens reads in a run beyond what it owes: past it, its sittings
+// draw no reading. A verify is a productive act (record.lensStates: a sitting that records a close, a
+// verify, a reproduce or an inquiry check, or mints fresh material, resets the barren count), so a
+// lens drawing a reading at every sitting never retires: the sweep drew none in 40 runs, no area went
+// stale, the chair's spot-check was never owed, and every spot-check it filed was refused.
+const fuzzLensReadings = 3
+
+// drawsReading is whether seatID's sitting draws a reading of a source, counting it against the lens's
+// stock (fuzzLensReadings). The readings it owes — an unchecked citation or computation, a reading
+// debt — are not drawn, and every one is made whatever the stock.
+func (r *runner) drawsReading(seatID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.lensReadings == nil {
+		r.lensReadings = map[string]int{}
+	}
+	// OWEDCOMPUTATIONSEED'S COMPUTATION OWNER DRAWS NONE: each would be a productive sitting before it can sit
+	// barren to its limit, and the run has twelve epochs to hold it kept by an unjudged computation.
+	if r.lensReadings[seatID] >= fuzzLensReadings || r.forceOwedComputation && seatID == computationOwner {
+		return false
+	}
+	r.lensReadings[seatID]++
+	return true
+}
+
 // findsFresh reports whether a lens sitting now may put a fresh gap on the board: always in a drawn
 // run, and only at the first chair sitting in a run forced to a verdict.
 //
@@ -3079,6 +3169,24 @@ func (r *runner) bridgeRefusalOwed() bool {
 	return r.bridgesRefused == 0
 }
 
+// bridgeDrive numbers the lens readings that name a --bridge, across every run of this process: the
+// kind a reading names is the next in bridgeKinds after the one before it, whichever run took it.
+//
+// THE CYCLE IS THE PROCESS'S, NOT THE RUN'S. A run's own count began every run at `summary`, so a kind
+// third in the cycle was driven only by a run naming three bridges, and a sweep whose runs name at
+// most two drove `near_restatement` nowhere (#1943). Numbered across the process, any three readings
+// in one part name every kind, and the first reading of each of three parts does too. The kind a
+// reading names then depends on the order the process's runs reached it, not on its seed alone.
+var bridgeDrive atomic.Int64
+
+// resetBridgeDrive starts the cycle at part's index, so a split sweep's parts open on different kinds.
+func resetBridgeDrive(part sweepPart) { bridgeDrive.Store(int64(part.K)) }
+
+// nextBridgeKind is the kind the next bridge-naming reading of this process names.
+func nextBridgeKind() string {
+	return bridgeKinds[int((bridgeDrive.Add(1)-1)%int64(len(bridgeKinds)))]
+}
+
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low
 // confidence, `supports` at low confidence — only exist if the two are drawn apart.
@@ -3282,18 +3390,32 @@ func (r *runner) judgeToReopen(seatID string) {
 }
 
 // computeOwed is blue-respond's act in owedComputationSeed's run: a fresh computation of the seeded sentence, which
-// the computation lens owes a check of until it sits, and an edit of the edit target. It draws nothing.
+// the computation lens owes a check of until it sits, once the owner has retired; and an edit of the edit
+// target. It draws nothing.
+//
+// THE COMPUTATION WAITS FOR THE OWNER'S BARREN LIMIT. The owner's check of it is a reproduce, which
+// makes its sitting productive (record.lensStates), so a computation every blue sitting kept the owner's
+// barren count at zero and no plan kept it from retiring by one: 0 in the sweep. Blue proves it once the
+// plan of this epoch reads the owner retired, or at its barren limit (ownerAtBarrenLimit), or names it a
+// stale area. It is the run's only computation (computesOwed): every other computation of the run would
+// be one more the owner reproduces, a productive sitting. The edit below lands in the same sitting, so
+// the head is past the owner's pin and the next plan holds the owner past its barren limit, behind the
+// head, kept from retiring by a computation nobody has judged.
 func (r *runner) computeOwed(seatID string) {
 	if !r.forceOwedComputation || seatID != "blue-respond" {
 		return
 	}
-	r.mu.Lock()
-	r.owedComputations++
-	n := r.owedComputations
-	r.mu.Unlock()
-	if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
-		r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
-			"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...)
+	if slices.Contains(r.staleAreas(), computationOwner) || r.ownerAtBarrenLimitNow() {
+		r.mu.Lock()
+		r.owedComputations++
+		n := r.owedComputations
+		r.mu.Unlock()
+		if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
+			if _, err := r.execCall("", true, append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
+				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil {
+				r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+			}
+		}
 	}
 	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A computation moves no head, and a fold names a debt that
 	// keeps a lens from retiring in the clause keptByDebt reads only while the lens is behind the
@@ -3882,7 +4004,38 @@ func (r *runner) ownOpenGapAbout(seatID, anchor string) bool {
 // keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
 // sittings because it owes, and what it owes. The reason's wording is the fold's
 // (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
-var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:the whole report was last served to it at its pin \d+|no sitting it sat through was served the whole report), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:its latest complete delivery of report text was cut at its pin \d+|no sitting it sat through holds a complete delivery of report text), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint, close, reading, computation check or inquiry check; it does not retire while it owes (.*)\)$`)
+
+// barrenSittings reads a plan's lens fold line for the sittings in a row with no productive act, in the
+// fold's words (record.lensStates), as keptByDebt does; TestKeptByDebtReadsThePlansLine holds both to the
+// line a plan prints.
+var barrenSittings = regexp.MustCompile(`^red-lens-[a-z-]+: .* \((\d+) sitting\(s\) in a row with no fresh material mint, close, reading, computation check or inquiry check;`)
+
+// retiresAfterSittings is the fold's barren limit (record's retiresAfter): a lens that many sittings in a
+// row barren, owing nothing, is retired.
+const retiresAfterSittings = 3
+
+// ownerAtBarrenLimit is whether line, the computation owner's line of a plan, reads it retired or at its
+// barren limit: retired, or retiresAfterSittings or more sittings in a row with no productive act.
+// TestKeptByDebtReadsThePlansLine holds it to the lines a plan prints for both.
+func ownerAtBarrenLimit(line string) bool {
+	if strings.HasPrefix(line, computationOwner+": retired (pin ") {
+		return true
+	}
+	g := barrenSittings.FindStringSubmatch(line)
+	if g == nil {
+		return false
+	}
+	k, _ := strconv.Atoi(g[1])
+	return k >= retiresAfterSittings
+}
+
+// ownerAtBarrenLimitNow is ownerAtBarrenLimit of the owner's line of the latest plan.
+func (r *runner) ownerAtBarrenLimitNow() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.ownerWhys) > 0 && ownerAtBarrenLimit(r.ownerWhys[len(r.ownerWhys)-1])
+}
 
 // tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
 // reopened blocker, by owner for a reopened computation, and each lens kept from retiring by a debt. A
@@ -4211,7 +4364,18 @@ func (r *runner) mintWith(seatID, class string) string {
 	if r.forceVerified {
 		directive = pick(r.rng, []string{dirApply, dirCounter})
 	}
+	// OWEDCOMPUTATIONSEED'S RUN MINTS NO GAP A COMPUTATION SETTLES (computesOwed): blue's answer to one is a
+	// computation its owner reproduces. The draw is the run's RNG all the same, so the run's other
+	// draws stay where they were.
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
+	if r.forceOwedComputation {
+		if directive == dirCompute || directive == dirComputeDrifts {
+			directive = dirApply
+		}
+		if kind == "computation" {
+			kind = "document"
+		}
+	}
 	if directive == dirCompute || directive == dirComputeDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
 		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
@@ -5590,14 +5754,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
-		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, and the driver models both
-		// halves. A retired lens does not sit again, so the plan lists each whose pin the
-		// head has moved past, and the PASS gate refuses a verdict until a spot-check this sitting
-		// names every one: with stale areas on the plan the drive always files it, or every run
-		// whose lenses retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
-		// With none, the chair samples the archive in about half its sittings and files nothing in
-		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
-		// drive that filed one every sitting would never put that in front of the oracle.
+		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, AND STANDS ONLY ON ITS SITTING'S
+		// DELIVERY, and the driver models both halves. A retired lens does not sit again, so the plan
+		// lists each area holding changes no spot-check has borne, the chair's sitting opens with those
+		// changes (readDelivery, at sit), and the PASS gate refuses a verdict until a spot-check names
+		// every one: with stale areas on the plan the drive always files it, or every run whose lenses
+		// retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
+		// With none, the chair is handed no report text, so its sitting holds no delivery: in about
+		// half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
+		// a chair whose areas have not changed owes no repeat, and one it filed would stand on nothing.
 		//
 		// A spot-check names no closure only when the board holds none.
 		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
@@ -5607,9 +5772,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			if closed := r.closedGapIDs(); len(closed) > 0 {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
-					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").admit()
+					set("--reason", "fuzz: re-read the closure record; the anchor still resolves")
 			} else {
-				sc.set("--reason", "fuzz: the archive was empty at round start").admit()
+				sc.set("--reason", "fuzz: the archive was empty at round start")
+			}
+			if len(stale) > 0 {
+				sc.admit()
+			} else {
+				r.refuseUndelivered(sc.all()...)
 			}
 		}
 	case "blue":
@@ -5779,7 +5949,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// #277: settle a claim by COMPUTING it. The program is written into a bundle of its own and
 		// the tool runs it twice in fresh copies — so this drives the real interpreter, the store,
 		// the anchor splice and the reproducible/variant grading, not a stub.
+		// OWEDCOMPUTATIONSEED'S BLUE PROVES ONLY computeOwed's: a drawn computation the owner must check
+		// makes its sitting productive, and the run needs it barren three sittings running.
 		r.maybe(35, func() {
+			if r.forceOwedComputation {
+				return
+			}
 			body := "console.log('fuzz computation for " + seatID + "');"
 			drifts := r.coin(25)
 			if drifts {
@@ -6539,34 +6714,40 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
-				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
-				// A READING THAT MINTS IS A FRESH GAP. A forced run mints at its first sitting only
-				// (findsFresh), which is its bound, and owedComputationSeed's computation owner mints
-				// nothing (mintsFresh); past its stock a lens's sittings draw no fresh mint. A reading of a
-				// citation that would find against reads the source as backing instead, and a reading of
-				// a source the lens found reads it as absent, which mints nothing.
-				fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
-				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
-				// run has seen the refusal, every supports_with_bridge reading names none, so the
-				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
-				// enough to fail it by chance.
-				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
-				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
-				axes := func(outcome string, c *cmd) *cmd {
-					if outcome == "supports_with_bridge" && !kindless {
-						c = c.set("--bridge", bridge)
+				// A LENS RUNS OUT OF SOURCES TO READ, as it runs out of defects (drawsReading): past its
+				// stock of drawn readings a sitting reads only what it owes, so it can be barren and retire.
+				if r.drawsReading(seatID) {
+					outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+					// A READING THAT MINTS IS A FRESH GAP. A forced run mints at its first sitting only
+					// (findsFresh), which is its bound, and owedComputationSeed's computation owner mints
+					// nothing (mintsFresh); past its stock a lens's sittings draw no fresh mint. A reading of a
+					// citation that would find against reads the source as backing instead, and a reading of
+					// a source the lens found reads it as absent, which mints nothing.
+					fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
+					// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
+					// run has seen the refusal, every supports_with_bridge reading names none, so the
+					// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
+					// enough to fail it by chance.
+					kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
+					// THE KIND CYCLES OVER THE PROCESS'S BRIDGE-NAMING READINGS (nextBridgeKind), taken where
+					// the flag is set, so every kind taken is a kind passed; a drawn kind left `summary`
+					// undriven across a whole sweep by chance.
+					axes := func(outcome string, c *cmd) *cmd {
+						if outcome == "supports_with_bridge" && !kindless {
+							c = c.set("--bridge", nextBridgeKind())
+						}
+						return c.set("--as", outcome).
+							set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
+							set("--reason", "fuzz: what the source actually says")
 					}
-					return c.set("--as", outcome).
-						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
-						set("--reason", "fuzz: what the source actually says")
-				}
-				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)
-				} else {
-					if outcome != "absent" && outcome != "unreachable" && !fresh {
-						outcome, kindless = "absent", false
+					if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
+						r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)
+					} else {
+						if outcome != "absent" && outcome != "unreachable" && !fresh {
+							outcome, kindless = "absent", false
+						}
+						r.readFoundSource(seatID, outcome, kindless, fresh, axes)
 					}
-					r.readFoundSource(seatID, outcome, kindless, fresh, axes)
 				}
 				// THE ONE-GAP RULE OVER A READING'S GAP, both arms (crossArmMints), and ONE URL READ AGAINST
 				// TWO SENTENCES (oneURLTwoSentences): the subject of a found source's reading is the sentence.
@@ -7284,11 +7465,11 @@ const unsoundComputationScript = "console.log('fuzz: the computation its owner j
 // unsoundComputationName is the file the unsound computation's bundle holds it as.
 const unsoundComputationName = "fuzz-unsound-computation.js"
 
-// owedComputationSeed is the seed whose run is FORCED to keep a computation nobody has checked before every plan
-// that follows a blue-respond sitting (forceOwedComputation), and whose computation lens mints nothing and
-// judges every computation sound (mintsFresh, judgement), so from its third sitting on it is a lens each
-// such plan keeps from retiring by an unchecked computation (computationOwedKept). It is within the six seeds the
-// race variant runs.
+// owedComputationSeed is the seed whose run is FORCED to put a computation nobody has checked before a plan
+// each time its computation lens has retired (forceOwedComputation, computeOwed), and whose computation lens
+// mints nothing, judges every computation sound (mintsFresh, judgement) and is handed no drawn computation
+// to check, so after its drawn readings it sits barren, retires, and is then a lens the plan keeps from
+// retiring by an unchecked computation (computationOwedKept). It is within the six seeds the race variant runs.
 //
 // Left to the draw, the arm needs blue's computation to land after the owner's last sitting of an epoch and
 // before a plan, while the owner is barren: the owner checks every unchecked computation before its
@@ -8275,6 +8456,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.reopenedOwnerErr != "" && res.err == "" {
 		res.err = r.reopenedOwnerErr
 	}
+	// OWEDCOMPUTATIONSEED'S RUN THAT PROVED NO COMPUTATION FAILS BY NAME: its owner never read retired or at
+	// its barren limit at a blue sitting, and the sweep's debt gate would read it as a draw that held none.
+	if r.forceOwedComputation && r.owedComputations == 0 && res.err == "" {
+		res.err = fmt.Sprintf("forced owed computation: no blue sitting found %s retired or at its barren limit, so computeOwed proved nothing; its productive calls %v; its line of each plan %q", computationOwner, r.ownerActs, r.ownerWhys)
+	}
 	if r.forceReopenedComputation && r.computationReopenedReadied[computationOwner] == 0 && res.err == "" {
 		stage := r.reopenStage
 		if stage == "" {
@@ -9128,6 +9314,7 @@ func TestFuzzDebate(t *testing.T) {
 	engageRefusalPending.Store(armed)
 	mootSpent.Store(false)
 	resetClassDrive(armed)
+	resetBridgeDrive(part)
 
 	// The DEFAULT is a modest smoke that proves the harness and catches gross regressions in
 	// ~15s on Linux — which is what the Linux legs, main pushes, tag builds and the nightly
@@ -10208,7 +10395,7 @@ func forcedTrajectory(t *testing.T, runDir string, result map[string]any) string
 		plans = append(plans, fmt.Sprintf("epoch %d parties[%s] docket%v blockers[%s] pass %v", p.Epoch, strings.Join(parties, " "), p.Docket, strings.Join(blockers, " "), p.PassPermitted))
 	}
 	var failed []string
-	for _, f := range record.FailedSittingsOf(board.Events, board.At) {
+	for _, f := range record.FailedSittingsOf(board.At) {
 		failed = append(failed, fmt.Sprintf("%s#%d@epoch%d", f.SeatID, f.Sitting, f.Epoch))
 	}
 	return fmt.Sprintf("epochs %v, termination %v; failed sittings %v; plans: %s", result["epochs"], result["termination"], failed, strings.Join(plans, " | "))
@@ -10421,7 +10608,7 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) bool {
 		noteEnvelope(seatID, "not driven early: the record owed no item naming "+strings.TrimSpace(standing))
 		return false
 	}
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	if err != nil {
 		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
 		return false
@@ -10468,12 +10655,12 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	for i := 0; i < 4 && err == nil && refusal != "" && (strings.HasPrefix(seatID, "red-lens-") || seatID == "blue-respond"); i++ {
 		// BLUE'S REMEDY OF A CHECK A LENS SITTING ALONGSIDE FAILED after blue's pass is owed the same way.
 		r.dischargeOwed(seatID)
 		if seatID == "blue-respond" {
-			refusal, err = record.EnvelopeRefusal(r.run(), seatID)
+			refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
 			continue
 		}
 		r.answerFailed(seatID)
@@ -10482,7 +10669,7 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		// its check.
 		r.checkInquiries(seatID)
 		r.checkQuestionParts(seatID)
-		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
+		refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
 	}
 	switch {
 	case err != nil:
@@ -10502,7 +10689,10 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		if why == "" {
 			why = "no re-check of an owed anchor was refused"
 		}
-		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "]")
+		// A READING DEBT'S STORY IS ITS OWN: the anchor note above says nothing of one, so what the
+		// lens's last pass at its debts did, and what stopped it, is named beside it.
+		why += "; " + r.debtTriedWords(seatID)
+		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "] [record: " + r.deliveryTrail(seatID) + "]")
 	default:
 		noteEnvelope(seatID, "admitted")
 		return true

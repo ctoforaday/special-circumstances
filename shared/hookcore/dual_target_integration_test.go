@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/testhome"
 )
 
 var (
@@ -185,7 +187,7 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	tempDir := t.TempDir()
+	tempDir := testhome.NewLiveHome(t)
 	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Dir = tempDir
 	cmd.Stdin = strings.NewReader(stdinPayload)
@@ -193,20 +195,7 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	// Clean environment
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "ANTIGRAVITY_") ||
-			strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "USERPROFILE=") ||
-			strings.HasPrefix(e, "XDG_") || strings.HasPrefix(e, "APPDATA=") {
-			continue
-		}
-		env = append(env, e)
-	}
-
-	env = append(env,
-		"HOME="+tempDir,
-		"USERPROFILE="+tempDir,
+	env := testhome.LiveEnv(t, tempDir,
 		"XDG_CONFIG_HOME="+tempDir,
 		"XDG_DATA_HOME="+tempDir,
 		"XDG_STATE_HOME="+tempDir,

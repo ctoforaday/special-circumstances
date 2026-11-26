@@ -37,6 +37,7 @@ func scenarios() []scenario {
 		base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
 		base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+		readStep("judge"),
 	}
 	// windowEnds is the assignee sitting twice: a proposal's assignee window ends, unaccepted, and
 	// the next dispatch dockets the proposal.
@@ -112,6 +113,8 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				// A close stands on the lens's delivery, so the lens reads it before the close rules answer.
+				readStep("red-lens-evidence"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "partial_control_coverage", "--check-kind", "document", "--check", "refetch",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium", "--problem", "source moved"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001"),
@@ -192,6 +195,8 @@ func scenarios() []scenario {
 			cmds: seq([]cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				// The lens's closes stand on its delivery, so it reads it before the repeats are refused.
+				readStep("red-lens-evidence"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
@@ -264,6 +269,10 @@ func scenarios() []scenario {
 				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
 			}, windowEnds, convene, []cmd{
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("dispatch", "next", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
+				readStep("judge"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "DOCKETING001", "--remand",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),

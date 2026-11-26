@@ -175,8 +175,16 @@ func newEdit() *cobra.Command {
 			// sentence nobody read, and nothing said so. Text moves through this verb alone,
 			// so the no-loss computation and the requires-review mark belong on this one channel.
 			//
-			// Computed from the render the validation used, which is the report the edit lands on.
-			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
+			// Computed from the paragraphs the edit touched, before and after (TouchedParagraphs),
+			// cut from the render the validation used, which is the report the edit lands on — and
+			// stamped on the edit, its own record of what it changed.
+			start, end, located := bluedoc.SpliceSpan(peek, oldStr, exact)
+			if !located {
+				return feov.Errorf(feov.Conflict, "the edit planned over the report and its span no longer locates in it by replay's rule: %q", oldStr)
+			}
+			oldParas, newParas := bluedoc.TouchedParagraphs(peek, planned, start, end)
+			body.OldParagraphs, body.NewParagraphs = proto.String(oldParas), proto.String(newParas)
+			body.Reopened = bluedoc.ReopenedAnchors(oldParas, newParas)
 			if err := refuseBaredAnchors(peek, planned, applied, gapID); err != nil {
 				return err
 			}

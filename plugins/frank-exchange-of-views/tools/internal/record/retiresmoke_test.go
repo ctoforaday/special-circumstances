@@ -21,7 +21,7 @@ const mersenneArchive = "2026-10-30_mersenne-31-prime-sum.tar.gz"
 // from a number: migrate renumbers events.id.
 func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	const lens, blue = computationSeat, "blue-respond"
-	whole := archivedEvents(t, mersenneArchive)
+	whole, _ := archivedRun(t, mersenneArchive)
 	// place is the 1-based place of the first event at or after from that match holds — its events.id
 	// in every replay of a prefix that holds it.
 	place := func(what string, from int, match func(*Event) bool) int {

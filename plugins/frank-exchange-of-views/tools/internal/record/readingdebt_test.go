@@ -29,13 +29,14 @@ const (
 	otherLens = "red-lens-logic"
 )
 
-// debtBoard is a run whose evidence lens has sat once at the head, with the found-source sentences
-// and citation C-1 on the report.
+// debtBoard is a run whose evidence lens has sat twice at the head, served the whole report in each
+// (its first sitting and its full re-read), with the found-source sentences and citation C-1 on the
+// report.
 func debtBoard(t *testing.T) *stage {
 	t.Helper()
 	return newStage(t).cast(evLens, otherLens, "red-chair", "blue-respond", "judge").
 		add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\n" + dbFirst + " " + dbSecond + " " + dbCited + anchor.Token("C-00000001") + ".\n")}).
-		register("red-chair").cite("C-00000001").dispatch(2, evLens).register(evLens).served(evLens, 2)
+		register("red-chair").cite("C-00000001").sit(2, evLens).dispatch(2, evLens).register(evLens).served(evLens, 2)
 }
 
 // readFound is seat's reading of url, a source it found, against claim with outcome o.
@@ -124,7 +125,7 @@ func TestAReadingDebtIsOnEverySurface(t *testing.T) {
 	if item == nil || !item.Blocks || item.Subject == nil || item.Subject.ID != "C-00000001" || item.What != debts[0].WorkItem() {
 		t.Errorf("the lens's list holds %+v, want a blocking reading_debt item about C-1 worded from the kind row", item)
 	}
-	refusal, err := EnvelopeRefusal(run, evLens)
+	refusal, err := EnvelopeRefusal(run, evLens, true)
 	if err != nil || !strings.Contains(refusal, debts[0].WorkItem()) {
 		t.Errorf("the lens's envelope refusal = %q, %v; want it to name the debt", refusal, err)
 	}
@@ -264,7 +265,7 @@ func TestAReadingDebtIsDischarged(t *testing.T) {
 			run := runOf(b.register("red-chair"))
 			wantDebts(t, run, c.want...)
 			if len(c.want) == 0 {
-				if refusal, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(refusal, "reading of ") {
+				if refusal, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(refusal, "reading of ") {
 					t.Errorf("the lens's envelope = %q, %v; want it admitted with no debt", refusal, err)
 				}
 			}
@@ -520,9 +521,9 @@ func TestALostQuoteDebtStands(t *testing.T) {
 		wantDebts(t, runOf(b.register("red-chair")))
 	})
 
-	// An edit whose `old` does not locate once in the report before it — an exact-span edit whose
-	// literal quote occurs once where the folded one occurs twice — is the read's error, never a debt
-	// reworded to "".
+	// An edit whose `old` does not locate once in the paragraphs it stamped before it — an exact-span
+	// edit whose literal quote occurs once where the folded one occurs twice — is the read's error,
+	// never a debt reworded to "".
 	t.Run("an old the fold cannot locate is the read's error", func(t *testing.T) {
 		const third = "The third claim stands on the measured  figures from every month of the year."
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").
@@ -531,7 +532,7 @@ func TestALostQuoteDebtStands(t *testing.T) {
 			readFound(evLens, dbURL, dbFirst, refutes)
 		b.add("blue-respond", &recordpb.BlueEdit{Old: proto.String("stands on the measured figures from every month"), New: proto.String("rests on the measured figures from every month"), Text: proto.String("edited"), ExactSpan: proto.Bool(true)})
 		_, err := PassBlockers(runOf(b.register("red-chair")))
-		if err == nil || !strings.Contains(err.Error(), "does not locate once in the report as of the event before it") {
+		if err == nil || !strings.Contains(err.Error(), "does not locate once in the paragraphs the edit stamped before it") {
 			t.Errorf("PassBlockers = %v, want the read's error naming the edit", err)
 		}
 	})
@@ -566,7 +567,7 @@ func TestAFoundAbsentReadingOfAMarkedSentenceOwesNothing(t *testing.T) {
 		b := debtBoard(t).readFound(evLens, dbURL, dbCited, absent)
 		run := runOf(b.register("red-chair"))
 		wantDebts(t, run)
-		if refusal, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(refusal, "reading of ") {
+		if refusal, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(refusal, "reading of ") {
 			t.Errorf("the envelope = %q, %v; want no debt on it", refusal, err)
 		}
 	})

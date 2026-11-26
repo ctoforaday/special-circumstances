@@ -174,6 +174,11 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runDir := seatRun(t)
 			mintGap(t, runDir, "a seeded gap", "policy_without_mechanism")
+			// A spot-check stands only on a stale area's delivered changes, so its row's run has one;
+			// without it the refusal measured would be the delivered-text one, not the flag's.
+			if c.verb[0] == "spot-check" {
+				chairOwesAStaleArea(t, runDir, "red-lens-logic")
+			}
 
 			// A PATH NO SEAT HOLDS IS REFUSED FOR ITS IDENTITY, and that refusal satisfied "it was
 			// refused" — an `opinion` case outlived its verb and went on passing, measuring nothing.

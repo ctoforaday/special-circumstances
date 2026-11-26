@@ -11,11 +11,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// movedBoard is a run whose lens sat twice at the head, with G1 and G2 minted by a lens outside
-// the cast (so no lens is ready) and graded by moves: each regrades one gap's severity.
+// movedBoard is a run whose lens sat twice at the head, served the whole report in each (its first
+// and its full re-read), with G1 and G2 minted by a lens outside the cast (so no lens is ready) and
+// graded by moves: each regrades one gap's severity.
 func movedBoard(t *testing.T, moves ...[2]string) *stage {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		dispatch(2, evLens).register(evLens).sit(2, evLens)
+		readFully(2, evLens)
 	b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
 	b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 	for _, m := range moves {

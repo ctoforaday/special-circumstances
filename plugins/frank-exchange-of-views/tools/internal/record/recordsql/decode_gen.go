@@ -2019,7 +2019,9 @@ func (t *blueEditTable) load(q Querier, after int64) error {
 		var c5 sql.NullInt64
 		var c6 sql.NullInt64
 		var c7 sql.NullInt64
-		if err := scanRows(q, "blue_edit", `SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span" FROM "blue_edit" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+		var c8 sql.NullString
+		var c9 sql.NullString
+		if err := scanRows(q, "blue_edit", `SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span", t."old_paragraphs", t."new_paragraphs" FROM "blue_edit" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9}, func() {
 			m := &recordpb.BlueEdit{}
 			if c0.Valid {
 				m.EditKey = ref(c0.String)
@@ -2044,6 +2046,12 @@ func (t *blueEditTable) load(q Querier, after int64) error {
 			}
 			if c7.Valid {
 				m.ExactSpan = ref(c7.Int64 != 0)
+			}
+			if c8.Valid {
+				m.OldParagraphs = ref(c8.String)
+			}
+			if c9.Valid {
+				m.NewParagraphs = ref(c9.String)
 			}
 			t.rows[id] = m
 		}); err != nil {

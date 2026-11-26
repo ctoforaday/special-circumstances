@@ -30,6 +30,7 @@ const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 // its ruling are acts on a closed gap and are left out of the migration. G-584d152f's lens minted a
 // successor superseding it while its docket stood unruled, which the live write refuses, so that
 // docket and its ruling are written as no event (EventSchema 80, ruled 2026-11-22).
+// Its bench rulings that sat with no delivery of report text are lost (the manifest's lost_acts).
 //
 //   - G-c3f84f98: blue's computation answered the kept grade; the lens reads it before any docket.
 //   - G-deced912, first: the lens audits blue's answer, and keeps. The dispute is real.
@@ -68,7 +69,34 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			t.Fatal(err)
 		}
 		lens := minted[g]
-		if slices.Contains(docketGaps(plan), g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
+		// AN EARLIER DOCKETING ON THE GAP WHOSE RULING THE MIGRATION LOST (its manifest's lost_acts: the
+		// bench's sitting held no delivery of report text) stands unruled, so the plan readies the bench
+		// on the gap for it, and neither the lens nor blue: a docketed gap is the bench's until it rules.
+		unruled := ""
+		for j, p := range whole[:i] {
+			d, ok := recordpb.BodyAs[*recordpb.Docketing](p)
+			if !ok || d.GetGapId() != g {
+				continue
+			}
+			ended := false
+			for _, f := range whole[j+1 : i] {
+				if r, ok := recordpb.BodyAs[*recordpb.MotionRule](f); ok && r.GetDocket().GetDocketingId() == d.GetDocketingId() {
+					ended = true
+				}
+				if c := f.GetClose(); c != nil && c.GetGapId() == g {
+					ended = true
+				}
+			}
+			if !ended {
+				unruled = d.GetDocketingId()
+			}
+		}
+		switch {
+		case unruled != "":
+			if slices.Contains(docketGaps(plan), g) || !slices.Contains(gapsOf(plan, benchSeat), g) || slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
+				t.Errorf("docketing %s on %s: its earlier docketing %s stands unruled, its ruling lost, so the plan must write nothing and ready the bench alone on it: to file %v, parties %+v", m.GetDocketingId(), g, unruled, docketGaps(plan), plan.Parties)
+			}
+		case slices.Contains(docketGaps(plan), g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g):
 			t.Errorf("docketing %s on %s: the plan must write nothing and ready %s alone on it: to file %v, parties %+v", m.GetDocketingId(), g, lens, docketGaps(plan), plan.Parties)
 		}
 		// WHAT THE LENS DID NEXT, off the run itself.

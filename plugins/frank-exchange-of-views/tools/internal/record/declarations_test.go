@@ -27,7 +27,7 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		holding  = byLens + " remains open and is material; " + byBench + " is construed with it, and " + inProse + " is cited."
 		laterOne = "the later holding names no gap"
 	)
-	run := corrRun(t)
+	run := withReport(t, corrRun(t))
 	// The cast seats the bench, so the dispatch may convene it (convene).
 	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	sit(t, run, "red-chair")
@@ -73,6 +73,7 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		}
 	}
 
+	delivered(t, lens)
 	mustAppend(t, lens, &recordpb.Close{GapId: proto.String(byLens), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("verified")})
 	d := mustDocketByDispatch(t, run, byBench)

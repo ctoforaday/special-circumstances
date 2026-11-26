@@ -53,7 +53,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		{
 			name: "a second docket ruling is refused",
 			act: func(t *testing.T, run Run) error {
-				judge := sit(t, run, "judge")
+				judge := benchSits(t, run)
 				mustAppend(t, judge, docketRule("D2", "the bench rules"))
 				_, err := Append(judge, finalDocketRule())
 				return err
@@ -212,7 +212,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
 
 	// The legal acts, through Append.
-	judge := sit(t, run, "judge")
+	judge := sitRead(t, run, "judge")
 	mustAppend(t, judge, heldBy(actRule("M1", false, "judge"), "D1"))
 	mustAppend(t, judge, docketRule("D2", "the bench remands"))
 	// A proposal on G2, a regrade, once the bench's remand lifted its docketing, left unruled by the
@@ -245,6 +245,12 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 		// The assignee sits BEFORE the race: a register is a write too, and the race under test is the
 		// answer's and the docketing's, not the sitting's.
 		lens := sit(t, run, evLens)
+		// THE BENCH'S RULING STANDS ONLY ON DELIVERED PASSAGES, and the race is the answers', not the
+		// delivery's: the judge's sitting holds its delivery at the report's head, so the guard that
+		// refuses it is first-wins alone.
+		if err := RecordDelivery(run, benchSeat, st.head()); err != nil {
+			t.Fatal(err)
+		}
 		start := make(chan struct{})
 		var acceptErr, docketErr error
 		var wg sync.WaitGroup

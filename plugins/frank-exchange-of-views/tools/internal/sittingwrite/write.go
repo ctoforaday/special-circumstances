@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"io"
 	"os"
 
@@ -72,7 +73,7 @@ const (
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
-func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) error {
+func WriteEnvelopeAnswer(runDir, agentID, engine string, input []byte, out io.Writer) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: an envelope is asked about with no agent id")
 	}
@@ -80,7 +81,7 @@ func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) er
 	if err != nil {
 		return err
 	}
-	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input)
+	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input, DeliversReportText(engine))
 	if err != nil || seat == "" {
 		return err
 	}
@@ -245,7 +246,7 @@ func Write(s Sitting, seat io.Writer) error {
 	if phase == Open && seat != nil {
 		injectWorkList(run, agentID, agentType, seat)
 	}
-	return ingestTurns(run, phase, transcriptPath)
+	return ingestTurns(run, phase, agentID, transcriptPath)
 }
 
 // ingestTurns reads the finished seat's transcript into per-turn rows.
@@ -254,7 +255,7 @@ func Write(s Sitting, seat io.Writer) error {
 // to exist and its failure is returned. A transcript that cannot be read or parsed loses
 // telemetry and nothing else, so it reports to stderr and lets the span stand — the alternative
 // is a non-zero exit that makes a readable span look like a failed write.
-func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
+func ingestTurns(run record.Run, phase Phase, fallbackAgentID, transcriptPath string) error {
 	if phase != Close || transcriptPath == "" {
 		return nil // no turns at the opening end, and none to read without a path
 	}
@@ -263,10 +264,13 @@ func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
 		fmt.Fprintf(os.Stderr, "sittingwrite: reading %s for its turns: %v\n", transcriptPath, err)
 		return nil
 	}
-	// THE AGENT COMES OFF THE TRANSCRIPT, not from the caller's flag. The lines state which agent
-	// produced them; the flag states which agent stopped. They agree, and preferring the record
-	// in the file keeps one source for the fact — see seatturn.Parse.
+	// THE AGENT COMES OFF THE TRANSCRIPT when present (Claude JSONL carries agentId on every line),
+	// falling back to the sitting's own agent id for Antigravity PLANNER_RESPONSE transcripts, which
+	// carry no per-line agentId field.
 	agentID, turns := seatturn.Parse(string(body))
+	if agentID == "" {
+		agentID = fallbackAgentID
+	}
 	if agentID == "" || len(turns) == 0 {
 		return nil
 	}
@@ -275,3 +279,8 @@ func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
 	}
 	return nil
 }
+
+// DeliversReportText is whether the harness named engine delivers report text into a seat's context:
+// every harness but Antigravity, whose hooks queue a PostToolUse answer until the seat's next
+// PreInvocation, so text handed there has not reached the seat when it would be recorded (#1827).
+func DeliversReportText(engine string) bool { return engine != string(hookcore.EngineAntigravity) }

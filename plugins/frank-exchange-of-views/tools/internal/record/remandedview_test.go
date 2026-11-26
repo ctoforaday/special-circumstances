@@ -21,7 +21,7 @@ import (
 // gap would pass any test that only checks the positive one, which is the shape #759 warned this
 // measurement would take.
 func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
-	run := mustRun(t, newRun(t))
+	run := withReport(t, mustRun(t, newRun(t)))
 	// The cast seats the bench, so the dispatch may convene it (convene); the evidence lens mints
 	// the gaps, and the dispatch files their dockets.
 	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))

@@ -56,7 +56,7 @@ func TestMergeTakesTheFirstDecisionAndKeepsEveryWarning(t *testing.T) {
 // only warns must still warn when another unit denies.
 func TestWarningSurvivesADenial(t *testing.T) {
 	stdout, stderr, code := fire(t, `{"tool_name":"Bash","tool_input":{"command":"x"}}`,
-		[]hookunit.Unit{stub("gate", `{"permissionDecision":"deny"}`, ""), stub("freeze", "", "a run is LIVE")})
+		[]hookunit.Unit{stub("gate", `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}`, ""), stub("freeze", "", "a run is LIVE")})
 	if code != 0 {
 		t.Fatalf("the block travels in the JSON, never the status: exit %d", code)
 	}

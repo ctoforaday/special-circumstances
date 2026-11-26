@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/shared/pluginroot"
 )
 
 // Engine represents the executing AI assistant harness.
@@ -90,7 +92,11 @@ type Response struct {
 	PreCompactSteer   string
 	Say               string
 	Warnings          string
-	TerminateTurn     bool // PreInvocation: emits terminationBehavior="terminate" + errorMessage on Antigravity
+	// TerminateTurn ends the agent's turn, with Reason as what it is told. On Claude Code a PostToolUse
+	// renders it as "continue": false with Reason as "stopReason", on exit 0; on Antigravity a
+	// PreInvocation renders it as terminationBehavior "terminate" with Reason as an errorMessage step.
+	// Every other event renders no stop.
+	TerminateTurn bool
 }
 
 // CanonicalToolName maps raw wire tool names from either harness to canonical names.
@@ -232,42 +238,33 @@ func findGitRoot(start string) string {
 	return ""
 }
 
-// PluginRoot resolves the plugin's root directory.
+// PluginRoot resolves the plugin's root directory via pluginroot.Resolve, falling back to the
+// current working directory when it carries a plugin marker (Antigravity hooks run with cwd at
+// the plugin root).
 func PluginRoot(envClaude, envPluginRoot, exePath string) string {
-	if envClaude != "" {
-		return envClaude
-	}
-	if envPluginRoot != "" {
-		return envPluginRoot
-	}
+	exeFn := os.Executable
 	if exePath != "" {
-		grandparent := filepath.Dir(filepath.Dir(exePath))
-		if isPluginDir(grandparent) {
-			return grandparent
-		}
+		exeFn = func() (string, error) { return exePath, nil }
 	}
-	if exe, err := os.Executable(); err == nil {
-		grandparent := filepath.Dir(filepath.Dir(exe))
-		if isPluginDir(grandparent) {
-			return grandparent
-		}
+	if r := pluginroot.Resolve(envClaude, envPluginRoot, exeFn); r != "" {
+		return r
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		if isPluginDir(cwd) {
-			return cwd
-		}
+	if cwd, err := os.Getwd(); err == nil && pluginroot.IsPluginDir(cwd) {
+		return cwd
 	}
 	return ""
 }
 
-func isPluginDir(dir string) bool {
-	if _, err := os.Stat(filepath.Join(dir, ".antigravity-plugin", "plugin.json")); err == nil {
-		return true
+// IsTurnStartPreInvocation reports whether raw is an Antigravity PreInvocation payload carrying
+// an explicit invocationNum == 0 (the first model step of a user turn, never mid-turn steps).
+func IsTurnStartPreInvocation(raw []byte) bool {
+	var p struct {
+		InvocationNum *int `json:"invocationNum"`
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude-plugin", "plugin.json")); err == nil {
-		return true
+	if err := json.Unmarshal(raw, &p); err != nil || p.InvocationNum == nil {
+		return false
 	}
-	return false
+	return *p.InvocationNum == 0
 }
 
 // PluginDataDir resolves the plugin's private persistent state directory.
@@ -763,7 +760,10 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		return 0
 
 	case "PostToolUse", "PostToolUseFailure":
-		if resp.Feedback != "" {
+		// A STOP GOES OUT ON EXIT 0: the client reads a non-zero exit as feedback and ignores the
+		// document, so feedback beside a stop is written to stderr and the turn ends all the same.
+		stop := req.Event == "PostToolUse" && resp.TerminateTurn
+		if resp.Feedback != "" && !stop {
 			fmt.Fprintln(stderr, resp.Feedback)
 			if resp.Say != "" {
 				out := map[string]any{"systemMessage": resp.Say}
@@ -772,7 +772,10 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			}
 			return 2
 		}
-		if resp.AdditionalContext != "" || resp.Say != "" {
+		if stop && resp.Feedback != "" {
+			fmt.Fprintln(stderr, resp.Feedback)
+		}
+		if resp.AdditionalContext != "" || resp.Say != "" || stop {
 			out := map[string]any{}
 			if resp.AdditionalContext != "" {
 				out["hookSpecificOutput"] = map[string]any{
@@ -782,6 +785,12 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			}
 			if resp.Say != "" {
 				out["systemMessage"] = resp.Say
+			}
+			if stop {
+				out["continue"] = false
+				if resp.Reason != "" {
+					out["stopReason"] = resp.Reason
+				}
 			}
 			b, _ := json.Marshal(out)
 			fmt.Fprintln(stdout, string(b))

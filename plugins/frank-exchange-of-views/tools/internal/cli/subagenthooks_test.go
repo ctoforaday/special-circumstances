@@ -102,7 +102,7 @@ func TestTheShippedSubagentHooksLandBothEndsOfASitting(t *testing.T) {
 	if opened != 1 || closed != 1 {
 		t.Fatalf("agent %s's sitting has %d opening(s) and %d close(s) on the record, want one of each", agent, opened, closed)
 	}
-	sittings := record.AgentSittingsOf(m.Events, m.At)
+	sittings := record.AgentSittingsOf(m.At)
 	if len(sittings) != 1 || sittings[0].SeatID != "red-chair" || !sittings[0].Closed {
 		t.Errorf("the record joins the hooks' ends as %+v, want one closed red-chair sitting", sittings)
 	}

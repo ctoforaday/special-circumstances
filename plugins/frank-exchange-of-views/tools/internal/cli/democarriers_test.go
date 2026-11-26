@@ -263,7 +263,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 		{"the citation anchor's lifecycle label", label("citation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
 		{"the computation anchor's lifecycle label", label("computation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
 		{"the generated blue-researcher definition", generated("agents", "blue-researcher.md"), []string{
-			"`source` or `computation` closes only on a live answer of its kind — a citation or a computation placed as that gap's answer and still in the report — never on prose",
+			"`source` or `computation` closes, while its subject stands in the report, only on a live answer of its kind — a citation or a computation placed as that gap's answer and still in the report — never on prose",
 			"`awaiting_evidence: true` with its `answer_kind` means that gap is waiting on evidence from YOU, a source (`citation`) or a program (`computation`)",
 			"discharge each with a citation or computation placed as that gap's answer",
 		}},

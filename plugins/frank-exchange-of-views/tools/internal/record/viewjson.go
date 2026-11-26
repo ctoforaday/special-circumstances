@@ -94,8 +94,8 @@ type GapJSON struct {
 	// context, which is what an auditor otherwise renders the whole report to get (#1091). Present
 	// only while the gap is `marked`: absent means READ THE REPORT, never "no context".
 	//
-	// IT DOES NOT REPLACE THE REPORT. `show report` is unchanged and the constitution's full
-	// re-read stands; this removes the navigating, not the audit.
+	// IT DOES NOT REPLACE THE REPORT. The constitution's full re-read is the whole-report delivery
+	// the work list owes; this removes the navigating, not the audit.
 	Passage string `json:"passage,omitempty"`
 	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text. Omitted
 	// when unset, so a gap anchored by quote reads as a quote gap.
@@ -147,9 +147,9 @@ type GapJSON struct {
 	// gate reads, so the board and the gate cannot disagree about what is owed.
 	AwaitingEvidence bool   `json:"awaiting_evidence"`
 	AnswerKind       string `json:"answer_kind"`
-	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — a live
-	// answer of its kind, the anchor it is about retired, or its own
-	// check of that anchor made again since the mint and holding.
+	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — while
+	// its subject stands in the report, by a live answer of its kind or its own check of the anchor
+	// it is about made again since the mint and holding; and once that subject has left the report.
 	EvidenceAnswered bool `json:"evidence_answered"`
 	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
 	// retire that left none of them live, while no closing act other than a carry follows it; null
@@ -737,8 +737,8 @@ type CounterpartyJSON struct {
 //
 // THE BAR IS SELF-SUFFICIENCY FOR ANY JOB THAT IS NOT READING THE WHOLE DOCUMENT (gblock's
 // ruling). A seat re-auditing, closing, or arguing one of its own gaps must need no second call.
-// The full re-read of the report stays what it always was — a duty, and the one thing this list
-// does not replace.
+// The report text a lens audits — the whole report, its full re-read, or each edit since its pin —
+// arrives as its own items of report text, which this list does not replace.
 type WorkGapJSON struct {
 	ID             string `json:"id"`
 	Severity       any    `json:"severity"`
@@ -1096,7 +1096,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
+	r.report.src, r.report.srcErr = reportSourceAt(q)
 	// THE DEBT'S INPUT IS LOCATED ON THE LIST'S ONE RENDER, inside its snapshot: a render that fails is
 	// the list's error, never a list with no found-source debt. A record with nothing to locate asks
 	// for no render here (locatesAnything).
@@ -1583,6 +1583,11 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
+	textItems, err := reportTextItems(run, role, seatID, w.Sitting.Open)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	w.Sitting.Open = append(textItems, w.Sitting.Open...)
 	if role == "bench" || role == "chair" {
 		// LAST, AND NEVER BLOCKING: a fact about the run, not work. The two seats that rule are the
 		// two whose prompts send them to the law.
@@ -1786,20 +1791,58 @@ type DebateEpochJSON struct {
 	// the lens saying, after its re-audit, that the gap stands and what its check still finds
 	// failing. The bench reads it with the closings.
 	RedKeeps []DebateKeepJSON `json:"red_keeps"`
-	// Served is each whole report the tool served a lens this epoch (ReportRead): the lens and the
-	// head, which is its pin once its sitting closes. Served, not read: the tool cannot see a read.
+	// Served is each delivery of report text the tool completed to a seat this epoch (ReportRead): the
+	// seat and the head the delivery was cut at, a lens's pin once its sitting closes. Delivered, not
+	// read: the tool records what it handed into the seat's context and cannot see a read.
 	Served []DebateServedJSON `json:"served"`
 }
 
-// DebateServedJSON is one whole report served to a lens: the lens and the head it was served at.
+// DebateServedJSON is one completed delivery of report text: the seat and the head it was cut at.
 type DebateServedJSON struct {
 	SeatID string `json:"seat_id"`
 	Head   int64  `json:"head"`
+	// Whole is the delivery being a lens's whole report; false for every other delivery — a lens's
+	// changes since its pin and its own gaps' passages, the chair's stale areas' changes, the bench's
+	// convened motions' passages (report_delivery).
+	Whole bool `json:"whole"`
 }
 
-// ServedLine is debate.md's line for a report served to a lens, word for word.
-func ServedLine(seatID string, head int64) string {
-	return fmt.Sprintf("### REPORT SERVED — %s\nthe whole report was served to %s at head %d", seatID, seatID, head)
+// delivery is the report_delivery row the report read e records, and its seat's pin before it: the
+// head of its latest delivery in a sitting it sat through, with an id below e's.
+func (x WindowIndex) delivery(e *Event) (row recordsql.DeliveryRow, pin int64) {
+	x.mustViews()
+	id := x.Of(e).ID
+	for _, r := range x.deliveries {
+		switch {
+		case r.EventID == id:
+			row = r
+		case r.EventID < id && r.SeatID == e.GetSeatId() && r.SatThrough && r.Head > pin:
+			pin = r.Head
+		}
+	}
+	return row, pin
+}
+
+// DeliveryLine is debate.md's line for the delivery the report read e records (its report_delivery
+// row), word for word: what was delivered to which seat, at which head — a lens's whole report, or the
+// changes since its pin and its own gaps' passages; the chair's stale areas' changes; the passages of
+// the gaps the bench's convened motions are about. The tool cannot see a read, so the line says what
+// it handed.
+func (x WindowIndex) DeliveryLine(e *Event) string {
+	row, pin := x.delivery(e)
+	seat := e.GetSeatId()
+	var what string
+	switch {
+	case row.Lens && row.Whole:
+		what = "the whole report"
+	case row.Lens:
+		what = fmt.Sprintf("the changes since head %d and its own gaps' passages", pin)
+	case seatclass.RoleOfSeat(seat) == "chair":
+		what = "the changes behind its stale areas' pins"
+	default:
+		what = "the passages of the gaps its convened motions are about"
+	}
+	return fmt.Sprintf("### REPORT DELIVERED — %s\n%s, delivered to %s at head %d", seat, what, seat, row.Head)
 }
 
 // DebateKeepJSON is one regrade that kept the grade: the gap, the seat whose regrade it
@@ -1915,8 +1958,12 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
 		}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
-			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: e.GetReportRead().GetHead()})
+		for _, e := range re {
+			if e.GetType() != recordpb.EventType_EVENT_TYPE_REPORT_READ {
+				continue
+			}
+			row, _ := win.delivery(e)
+			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: row.Head, Whole: row.Whole})
 		}
 		for _, c := range blueClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {

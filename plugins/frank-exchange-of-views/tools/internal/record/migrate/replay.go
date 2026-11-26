@@ -51,6 +51,7 @@ type Result struct {
 	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 80)
 	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 80)
 	Dockets             migration.DocketResidue       // Translations 3 and 4's residue: the source ids written as no event (EventSchema 80)
+	LostActs            []migration.Refusal           // archived acts the delivered-text rule refuses, written as no event (undeliveredLoss)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -58,6 +59,12 @@ type Result struct {
 
 	parts []string // each part of the report as the source wrote it, in record order
 }
+
+// undeliveredLoss is the accepted loss of an archived act the delivered-text rule refuses.
+const undeliveredLoss = "an archived close, spot-check or ruling on a motion about gaps stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
+
+// dependentLossWhy is the accepted loss of an archived act refused only because it depends on a lost act.
+const dependentLossWhy = "an archived act refused only because it depends on a gap a lost act took with it is that same loss; it is written as no event, each such act listed in lost_acts with the act it depended on"
 
 // preFieldFillWhy is the reason a mint whose source predates class_material records for the
 // stamp the live rule gives it.
@@ -237,6 +244,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// The learning pass writes nothing, so what it rewrote is not what the record holds.
 	rm.prose = nil
 	place := newPlacer(batch.Querier(), evs, rm.ids)
+	readDropped := readsDropped(evs, rm.seat)
 	admits := predatesAdmission(source) // its closed sittings are admitted at their close
 	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
 	// placed after an act and a source event that writes nothing each move every later row, so a
@@ -284,6 +292,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
+	lost := lostGaps{}                     // each gap a lost act took with it (lostacts.go)
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -311,6 +320,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		if err != nil {
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
+		}
+		if readDropped[old.ID] {
+			continue // a second serve in its seat's sitting, or another seat's (readsDropped)
 		}
 		bodies, err := reg.Translate(src)
 		if err != nil {
@@ -662,6 +674,31 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				continue
 			}
+			// AN ARCHIVED ACT THE DELIVERED-TEXT RULE REFUSES IS WRITTEN AS NO EVENT (gblock
+			// 2026-11-14): an archived close, spot-check or ruling on a motion about gaps whose sitting
+			// holds no delivery of report text stood on text the record never recorded reaching its
+			// seat. Nothing is synthesized to make it stand; it is an accepted loss, listed by act, and
+			// a pin or read point that named it names the last event written before it. The run's
+			// stamped outcome is carried as history.
+			if err := record.DeliveredTextRefusal(batch.Querier(), id.SeatID, body); err != nil {
+				var u *record.UndeliveredError
+				if !errors.As(err, &u) {
+					return nil, err
+				}
+				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: u.Error()})
+				res.AcceptedLosses[old.Word] = undeliveredLoss
+				if err := lost.noteLoss(batch.Querier(), body, old.ID, old.Word); err != nil {
+					return nil, err
+				}
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
+				continue
+			}
 			anchorAfter, err := place.step(body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
@@ -684,7 +721,26 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			ev, actID, err := batch.Write(id, body, ts)
 			if err != nil {
-				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+				gap, from, dep, derr := lost.dependsOn(batch.Querier(), body)
+				if derr != nil {
+					return nil, derr
+				}
+				if !dep {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+					continue
+				}
+				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: dependentLoss(gap, from, err)})
+				res.AcceptedLosses[old.Word] = dependentLossWhy
+				if err := lost.noteLoss(batch.Querier(), body, old.ID, old.Word); err != nil {
+					return nil, err
+				}
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
 				continue
 			}
 			res.Out[wordOf(ev)]++

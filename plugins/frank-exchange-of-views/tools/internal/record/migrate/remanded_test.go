@@ -1,11 +1,14 @@
 package migrate_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // THE ARCHIVE THAT HELD THE OLD WORD. is-7-prime-run2's bench deferred gap R1-1 under the
@@ -38,6 +41,56 @@ func TestIs7PrimeRun2Archive(t *testing.T) {
 		t.Errorf("R1-1 (%s) does not read open with its opinion gone", gap)
 	}
 	assertVerifies(t, dst)
+}
+
+// carriedOpinion is whether the named archive's event id is an opinion deferring its gap under the
+// shard era's word.
+func carriedOpinion(t *testing.T, archive string, id int64) bool {
+	t.Helper()
+	src, err := migrate.OpenJSONL(filepath.Join(recordtest.ExtractArchive(t, archive), "records"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	evs, err := src.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range evs {
+		if ev.ID == id {
+			d, _ := ev.Fields["disposition"].(string)
+			return ev.Word == "opinion" && d == "carried"
+		}
+	}
+	return false
+}
+
+// THE OLD WORD ON A RULING THAT STANDS. The archive's deferral is lost with its undelivered sitting,
+// so the shard era's "carried" is read through on a bench that was delivered the report: it arrives
+// as REMANDED, on the gap the opinion named.
+func TestACarriedOpinionOnADeliveredBenchMigratesRemanded(t *testing.T) {
+	res, _, dir := migrate.MigratedDeliveredBench(t)
+	fam, err := record.FamilyOf(runtest.Open(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gapOf := map[string]string{}
+	for _, e := range fam.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			gapOf[m.GetMotionId()] = m.GetDocket().GetGapId()
+		}
+	}
+	remanded := 0
+	for _, e := range fam.Events {
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket().GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+			remanded++
+			if gapOf[r.GetMotionId()] != res.IDs["G1"] {
+				t.Errorf("the remanded ruling answers %s, which docketed %q; want G1's %s", r.GetMotionId(), gapOf[r.GetMotionId()], res.IDs["G1"])
+			}
+		}
+	}
+	if remanded != 1 {
+		t.Errorf("%d remanded ruling(s), want the fixture's one carried opinion", remanded)
+	}
 }
 
 // The SQLite era's identity path takes the same respelling. No archived SQLite-era record holds

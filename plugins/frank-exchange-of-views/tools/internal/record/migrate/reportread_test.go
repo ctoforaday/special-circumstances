@@ -91,3 +91,49 @@ func TestAReportReadServedAtNothingMigratedIsRefused(t *testing.T) {
 		t.Fatalf("a report read naming no migrated event must be refused by name: %+v", res.Refusals)
 	}
 }
+
+// AN ARCHIVED SITTING KEEPS ITS LATEST SERVE, AND ONLY A LENS'S, THE CHAIR'S OR THE BENCH'S
+// (EventSchema 80): the write refuses a second report_read in a sitting and one under any other seat,
+// so migrate drops the earlier serves of a sitting and every other seat's, counted in the manifest.
+func TestAnArchivedSittingKeepsItsLatestServe(t *testing.T) {
+	old, ingest := readFixture(t, func(ingest int64) int64 { return ingest })
+	second := old.event(t, "red-lens-evidence", 1, ts3, "report_read")
+	old.row(t, "report_read", `"event_id", "head"`, second, ingest)
+	id := old.event(t, "blue-respond", 1, ts3, "register")
+	old.row(t, "register", `"event_id", "tool_version"`, id, "abc1234")
+	id = old.event(t, "blue-respond", 1, ts3, "report_read")
+	old.row(t, "report_read", `"event_id", "head"`, id, ingest)
+	src, err := migrate.OpenSQLite(old.records(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer src.Close()
+	dst := runtest.New(t, recordtest.TmpRun(t))
+	res, err := migrate.Replay(src, migrate.Entries(), dst, migrate.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Refusals) != 0 {
+		t.Fatalf("refusals: %+v", res.Refusals)
+	}
+	if res.In["report_read"] != 3 || res.Out["report_read"] != 1 {
+		t.Fatalf("report_read in %d out %d; want 3 in and 1 out", res.In["report_read"], res.Out["report_read"])
+	}
+	m, err := record.MergedEvents(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Events {
+		if _, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok && e.GetSeatId() != "red-lens-evidence" {
+			t.Errorf("a serve under %s was carried", e.GetSeatId())
+		}
+	}
+}
+
+// The gap-audit run holds one serve per lens sitting, lens seats only: the translation keeps all 47.
+func TestTheGapAuditRunKeepsEveryServe(t *testing.T) {
+	res, _ := migrateArchive(t, gapAuditArchive)
+	if res.In["report_read"] != 47 || res.Out["report_read"] != 47 {
+		t.Fatalf("report_read in %d out %d; want 47 and 47", res.In["report_read"], res.Out["report_read"])
+	}
+}

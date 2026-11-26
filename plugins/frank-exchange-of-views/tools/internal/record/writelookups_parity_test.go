@@ -18,8 +18,7 @@ import (
 // a marker id the torn-splice heal asks about.
 func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
-	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-chair"}
+	run := withReport(t, mustRun(t, runDir))
 	blue := Identity{Run: run, SeatID: "blue-respond"}
 
 	// Two registers under one agent id: the binding is the most recent claim.
@@ -40,9 +39,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("SeatsThatSat = (%v, %v), want the order the sittings opened", seats, err)
 	}
 
-	// Mints: the key lookup returns the first match.
+	// Mints, by the lens whose sitting holds its delivery: the key lookup returns the first match.
+	lens := sitRead(t, run, evLens)
 	for _, gid := range []string{"G1", "G2"} {
-		if _, err := Append(red, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		if _, err := Append(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(gid),
 			MintKey:         proto.String("k-" + gid),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
@@ -56,7 +56,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id.GetGapId() != "G2" {
+	if id, err := ExistingMintByKey(run, evLens, "k-G2"); err != nil || id.GetGapId() != "G2" {
 		t.Errorf("ExistingMintByKey = (%q, %v)", id.GetGapId(), err)
 	}
 	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id.GetGapId() != "" {
@@ -67,7 +67,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// A close, then the prior-closure question a --carried-from claim is checked against.
-	if _, err := Append(red, &recordpb.Close{GapId: proto.String("G1"),
+	if _, err := Append(lens, &recordpb.Close{GapId: proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")}); err != nil {

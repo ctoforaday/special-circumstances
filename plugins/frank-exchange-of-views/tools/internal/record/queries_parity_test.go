@@ -16,7 +16,8 @@ import (
 // exist at all (whose every answer must be the honest zero, never an error).
 func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
-	red := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
+	// The minting lens sits with its delivery of the ingested report, so its close stands.
+	lens := sitRead(t, withReport(t, mustRun(t, runDir)), evLens)
 	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
 	judge := Identity{Run: mustRun(t, runDir), SeatID: "judge"}
 
@@ -35,7 +36,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		if extra != nil {
 			extra(m)
 		}
-		if _, err := Append(red, m); err != nil {
+		if _, err := Append(lens, m); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -52,7 +53,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	mint("G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil)
 
 	// The regrade overlay: impact moves MEDIUM -> HIGH on G1; every other axis keeps the mint's.
-	if _, err := Append(red, &recordpb.Regrade{GapId: proto.String("G1"),
+	if _, err := Append(lens, &recordpb.Regrade{GapId: proto.String("G1"),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("new evidence")}); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +61,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Text: proto.String("7 is prime"), Exit: proto.Int32(0)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(red, &recordpb.Close{GapId: proto.String("G3"),
+	if _, err := Append(lens, &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")}); err != nil {

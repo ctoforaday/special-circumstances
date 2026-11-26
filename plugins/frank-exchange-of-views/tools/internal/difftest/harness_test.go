@@ -55,6 +55,11 @@ type cmd struct {
 	// mtimes, when set, are applied to matching shard files after the command —
 	// policy 4, for the winner-selection fallback.
 	mtimes map[string]time.Time
+	// drive, when set, is a step of the fuzz's own drive rather than a command a seat types: what a
+	// seat does that the record answers through the delivery writer (driveStep). verb and args are
+	// then empty, and drive names the step for the sequence's dump.
+	drive string
+	do    func(d *replayDrive)
 }
 
 type scenario struct {

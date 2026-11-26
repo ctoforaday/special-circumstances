@@ -4,9 +4,12 @@ Mirrors debate.js's roundless, record-driven debate engine using Antigravity's
 native run_workflow primitives (agent, parallel, phase, log).
 """
 
+import asyncio
 import json
 import os
 import re
+import subprocess
+import uuid
 
 a = json.loads(args) if isinstance(args, str) else (args or {})
 if "maxRounds" in a or "max_rounds" in a:
@@ -55,10 +58,10 @@ GRADE = json.loads("{\"enum\":[\"trivial\",\"low\",\"low_medium\",\"medium\",\"m
 RUN_OUTCOME = json.loads("{\"enum\":[\"VERIFIED\",\"CEILING\",\"HALTED\",\"UNVERIFIED\",\"QUALIFIED\"],\"type\":\"string\"}")
 BENCH_HEARINGS = json.loads("[\"petition\",\"position\"]")
 GAP_ID = json.loads("{\"pattern\":\"^(?:G-)[0-9a-f]{8}$\",\"type\":\"string\"}")
-STANDING_CLAUSES = json.loads("[{\"clause\":\"unchecked\",\"kind\":\"unchecked\"},{\"clause\":\"on a failed check\",\"kind\":\"failed_check\"},{\"clause\":\"on a reading debt\",\"kind\":\"reading_debt\"},{\"clause\":\"inquiries open\",\"kind\":\"open_inquiry\"},{\"clause\":\"inquiries unchecked\",\"kind\":\"unchecked_inquiry\"},{\"clause\":\"the question with no part split out\",\"kind\":\"question_unsplit\"},{\"clause\":\"question parts with no coverage\",\"kind\":\"open_part\"},{\"clause\":\"question parts unchecked\",\"kind\":\"unchecked_part\"}]")
+STANDING_CLAUSES = json.loads("[{\"clause\":\"unchecked\",\"kind\":\"unchecked\"},{\"clause\":\"on a failed check\",\"kind\":\"failed_check\"},{\"clause\":\"on a reading debt\",\"kind\":\"reading_debt\"},{\"clause\":\"inquiries open\",\"kind\":\"open_inquiry\"},{\"clause\":\"inquiries unchecked\",\"kind\":\"unchecked_inquiry\"},{\"clause\":\"the whole report not delivered to\",\"kind\":\"whole_report_owed\"},{\"clause\":\"the question with no part split out\",\"kind\":\"question_unsplit\"},{\"clause\":\"question parts with no coverage\",\"kind\":\"open_part\"},{\"clause\":\"question parts unchecked\",\"kind\":\"unchecked_part\"}]")
 BENCH_PARTY = json.loads("{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"minItems\":1,\"type\":\"array\"},\"seat_id\":{\"enum\":[\"judge\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"}")
 LENS_OR_BLUE_PARTY = json.loads("{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"seat_id\":{\"enum\":[\"blue-respond\",\"red-lens-adversary\",\"red-lens-architecture\",\"red-lens-computation\",\"red-lens-dark-side\",\"red-lens-evidence\",\"red-lens-logic\",\"red-lens-voice\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"}")
-PLAN = json.loads("{\"additionalProperties\":false,\"properties\":{\"blockers\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"material_gap\",\"remand_owed\",\"unchecked\",\"failed_check\",\"reading_debt\",\"no_report\",\"lens_ready\",\"stale_area\",\"grade_movement\",\"closing_owed\",\"docketed\",\"unruled_motion\",\"upheld_position\",\"open_inquiry\",\"unchecked_inquiry\",\"question_unsplit\",\"open_part\",\"unchecked_part\"],\"type\":\"string\"},\"owner\":{\"type\":\"string\"},\"subject\":{\"description\":\"the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds\",\"type\":\"string\"}},\"required\":[\"kind\",\"subject\",\"owner\"],\"type\":\"object\"},\"type\":\"array\"},\"ceiling\":{\"type\":\"boolean\"},\"docket\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"epoch\":{\"description\":\"the epoch the record has reached: the chair sittings opened so far, this one included\",\"type\":\"integer\"},\"epoch_limit_reached\":{\"description\":\"the run's epoch limit leaves undispatched a party the board readies — any but for the closings it owes, at the sitting that opens the run's last epoch; blue, the only one and owing no closing, at the sitting before it — so nobody else is dispatched, and ceiling is set for that reason\",\"type\":\"boolean\"},\"exchanges\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"count\":{\"type\":\"integer\"},\"gap_id\":{\"type\":\"string\"},\"unresolved\":{\"type\":\"integer\"}},\"required\":[\"gap_id\",\"count\",\"unresolved\"],\"type\":\"object\"},\"type\":\"array\"},\"final_sitting\":{\"description\":\"this chair sitting opens the run's last epoch: only the closings owed on docketed gaps are filed after it, and of the motions filed now only a petition is heard, by the bench at the exit\",\"type\":\"boolean\"},\"head\":{\"description\":\"events.id of the report head the parties audit\",\"type\":\"integer\"},\"key\":{\"description\":\"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed\",\"type\":\"string\"},\"max_epochs\":{\"description\":\"the run's epoch limit, a term setup records; 0 when the run is held to none\",\"type\":\"integer\"},\"parties\":{\"items\":{\"oneOf\":[{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"minItems\":1,\"type\":\"array\"},\"seat_id\":{\"enum\":[\"judge\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"},{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"seat_id\":{\"enum\":[\"blue-respond\",\"red-lens-adversary\",\"red-lens-architecture\",\"red-lens-computation\",\"red-lens-dark-side\",\"red-lens-evidence\",\"red-lens-logic\",\"red-lens-voice\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"}]},\"type\":\"array\"},\"pass_permitted\":{\"type\":\"boolean\"},\"passed\":{\"description\":\"true when the chair recorded the PASS in this sitting; absent while it has not\",\"type\":\"boolean\"},\"remand_owed\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"direction\":{\"description\":\"never blank: the record refuses a remand without one\",\"type\":\"string\"},\"gap_id\":{\"type\":\"string\"}},\"required\":[\"gap_id\",\"direction\"],\"type\":\"object\"},\"type\":\"array\"},\"stale_areas\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"pin\":{\"type\":\"integer\"},\"seat_id\":{\"type\":\"string\"}},\"required\":[\"seat_id\",\"pin\"],\"type\":\"object\"},\"type\":\"array\"},\"why\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"key\",\"head\",\"parties\",\"docket\",\"remand_owed\",\"exchanges\",\"pass_permitted\",\"stale_areas\",\"ceiling\",\"max_epochs\",\"epoch\",\"final_sitting\",\"epoch_limit_reached\",\"blockers\",\"why\"],\"type\":\"object\"}")
+PLAN = json.loads("{\"additionalProperties\":false,\"properties\":{\"blockers\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"material_gap\",\"remand_owed\",\"unchecked\",\"failed_check\",\"reading_debt\",\"no_report\",\"lens_ready\",\"stale_area\",\"grade_movement\",\"closing_owed\",\"docketed\",\"unruled_motion\",\"upheld_position\",\"whole_report_owed\",\"open_inquiry\",\"unchecked_inquiry\",\"question_unsplit\",\"open_part\",\"unchecked_part\"],\"type\":\"string\"},\"owner\":{\"type\":\"string\"},\"subject\":{\"description\":\"the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds\",\"type\":\"string\"}},\"required\":[\"kind\",\"subject\",\"owner\"],\"type\":\"object\"},\"type\":\"array\"},\"ceiling\":{\"type\":\"boolean\"},\"docket\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"epoch\":{\"description\":\"the epoch the record has reached: the chair sittings opened so far, this one included\",\"type\":\"integer\"},\"epoch_limit_reached\":{\"description\":\"the run's epoch limit leaves undispatched a party the board readies — any but for the closings it owes, at the sitting that opens the run's last epoch; blue, the only one and owing no closing, at the sitting before it — so nobody else is dispatched, and ceiling is set for that reason\",\"type\":\"boolean\"},\"exchanges\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"count\":{\"type\":\"integer\"},\"gap_id\":{\"type\":\"string\"},\"unresolved\":{\"type\":\"integer\"}},\"required\":[\"gap_id\",\"count\",\"unresolved\"],\"type\":\"object\"},\"type\":\"array\"},\"final_sitting\":{\"description\":\"this chair sitting opens the run's last epoch: only the closings owed on docketed gaps are filed after it, and of the motions filed now only a petition is heard, by the bench at the exit\",\"type\":\"boolean\"},\"head\":{\"description\":\"events.id of the report head the parties audit\",\"type\":\"integer\"},\"key\":{\"description\":\"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed\",\"type\":\"string\"},\"max_epochs\":{\"description\":\"the run's epoch limit, a term setup records; 0 when the run is held to none\",\"type\":\"integer\"},\"parties\":{\"items\":{\"oneOf\":[{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"minItems\":1,\"type\":\"array\"},\"seat_id\":{\"enum\":[\"judge\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"},{\"additionalProperties\":false,\"properties\":{\"gap_ids\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"seat_id\":{\"enum\":[\"blue-respond\",\"red-lens-adversary\",\"red-lens-architecture\",\"red-lens-computation\",\"red-lens-dark-side\",\"red-lens-evidence\",\"red-lens-logic\",\"red-lens-voice\"],\"type\":\"string\"}},\"required\":[\"seat_id\",\"gap_ids\"],\"type\":\"object\"}]},\"type\":\"array\"},\"pass_permitted\":{\"type\":\"boolean\"},\"passed\":{\"description\":\"true when the chair recorded the PASS in this sitting; absent while it has not\",\"type\":\"boolean\"},\"remand_owed\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"direction\":{\"description\":\"never blank: the record refuses a remand without one\",\"type\":\"string\"},\"gap_id\":{\"type\":\"string\"}},\"required\":[\"gap_id\",\"direction\"],\"type\":\"object\"},\"type\":\"array\"},\"stale_areas\":{\"items\":{\"additionalProperties\":false,\"properties\":{\"pin\":{\"type\":\"integer\"},\"seat_id\":{\"type\":\"string\"}},\"required\":[\"seat_id\",\"pin\"],\"type\":\"object\"},\"type\":\"array\"},\"why\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"key\",\"head\",\"parties\",\"docket\",\"remand_owed\",\"exchanges\",\"pass_permitted\",\"stale_areas\",\"ceiling\",\"max_epochs\",\"epoch\",\"final_sitting\",\"epoch_limit_reached\",\"blockers\",\"why\"],\"type\":\"object\"}")
 PLAN_FIELD_TYPES = json.loads("{\"blockers\":\"array\",\"ceiling\":\"boolean\",\"docket\":\"array\",\"epoch\":\"integer\",\"epoch_limit_reached\":\"boolean\",\"exchanges\":\"array\",\"final_sitting\":\"boolean\",\"head\":\"integer\",\"key\":\"string\",\"max_epochs\":\"integer\",\"parties\":\"array\",\"pass_permitted\":\"boolean\",\"remand_owed\":\"array\",\"stale_areas\":\"array\",\"why\":\"array\"}")
 PLAN_EMPTY_ONLY_WITH = json.loads("{\"blockers\":\"pass_permitted\"}")
 PLAN_ITEM_TYPES = json.loads("{\"blockers\":{\"kind\":\"string\",\"owner\":\"string\",\"subject\":\"string\"},\"exchanges\":{\"count\":\"integer\",\"gap_id\":\"string\",\"unresolved\":\"integer\"},\"parties\":{\"gap_ids\":\"array\",\"seat_id\":\"string\"},\"remand_owed\":{\"direction\":\"string\",\"gap_id\":\"string\"},\"stale_areas\":{\"pin\":\"integer\",\"seat_id\":\"string\"}}")
@@ -69,17 +72,18 @@ LENS_ENVELOPE = json.loads("{\"additionalProperties\":false,\"properties\":{\"re
 EMPTY_ENVELOPE = {
     "type": "object",
     "additionalProperties": False,
-    "properties": {"record_read": RECORD_READ},
+    "properties": {},
 }
 CHAIR_ENVELOPE = {
-    **PLAN,
-    "description": "The tool writes every field of the plan into this call. Return it empty, or holding only notes.",
-    "properties": {**PLAN["properties"], "notes": {"type": "string"}, "record_read": RECORD_READ},
+    "type": "object",
+    "additionalProperties": False,
+    "description": "The orchestrator reads the authoritative plan from the record after your sitting. Return it empty, or holding only notes.",
+    "properties": {"notes": {"type": "string"}},
 }
 BLUE_ENVELOPE = {
     "type": "object",
     "additionalProperties": False,
-    "properties": {"notes": {"type": "string"}, "record_read": RECORD_READ},
+    "properties": {"notes": {"type": "string"}},
 }
 BENCH_ENVELOPE = {
     "type": "object",
@@ -87,8 +91,12 @@ BENCH_ENVELOPE = {
     "properties": {
         "halt_opinion": {"type": "string"},
         "notes": {"type": "string"},
-        "record_read": RECORD_READ,
     },
+}
+LENS_FINISH_ENVELOPE = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {},
 }
 
 LANE_METHODS = [
@@ -100,8 +108,37 @@ LANE_METHODS = [
 ]
 
 NO_PROGRESS_EPOCHS = 3
+ENVELOPE_REFUSAL_RETRIES = 5
 slug = os.path.basename(os.path.normpath(run_dir)) or "run"
-feov_record_bin = os.path.join(bin_dir, "feov-record")
+feov_record_bin = os.path.join(bin_dir, "feov-record.exe" if os.name == "nt" else "feov-record")
+feov_sitting_write_bin = os.path.join(bin_dir, "feov-sitting-write.exe" if os.name == "nt" else "feov-sitting-write")
+agy_sittings_dir = os.path.join(run_dir, ".agy-sittings")
+journal_dir = os.path.join(run_dir, ".agy-workflow")
+journal_path = os.path.join(journal_dir, "journal.jsonl")
+lead_session = globals().get("CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or ""
+if not lead_session:
+    raise RuntimeError(
+        "debate: refusing dispatch — lead session id unset (CONVERSATION_ID / ANTIGRAVITY_CONVERSATION_ID). "
+        "Without it, no seat conversation can bind to the run's live marker."
+    )
+
+
+def _append_journal(seat_id, agent_id, envelope):
+    if not isinstance(envelope, dict):
+        return
+    os.makedirs(journal_dir, exist_ok=True)
+    with open(journal_path, "a") as jf:
+        jf.write(json.dumps({"seat_id": seat_id, "agent_id": agent_id, "result": envelope}) + "\n")
+
+
+def _run_sitting_write(args_list, stdin_text=None):
+    return subprocess.run(
+        [feov_sitting_write_bin, *args_list],
+        input=stdin_text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
 
 def role_of_seat(seat_id):
@@ -217,17 +254,129 @@ def require_plan(plan, epoch):
 
 async def sit(seat_id, prompt, schema, role_title):
     type_name, model = dispatch_spec(seat_id)
+    agent_id = f"agy-{uuid.uuid4().hex[:16]}"
+    agent_type = f"frank-exchange-of-views:{type_name}"
+    os.makedirs(agy_sittings_dir, exist_ok=True)
+    seat_reg_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.json")
+    seat_tr_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.transcript")
+    seat_bound_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.bound")
+    seat_conv_path = os.path.join(agy_sittings_dir, f"seat-{seat_id}.conv")
+    # Clear any stale binding left behind by a killed debate.py before republishing this seat,
+    # including the previous conv-<id>.json so a dead conversation cannot stay bound.
+    stale_paths = [seat_bound_path, seat_conv_path, seat_tr_path]
     try:
-        return await agent(
-            prompt=prompt,
-            schema=schema,
-            role=role_title,
-            type_name=type_name,
-            model=model,
+        with open(seat_conv_path) as cf:
+            old_conv = cf.read().strip()
+        if old_conv:
+            stale_paths.append(os.path.join(agy_sittings_dir, f"conv-{old_conv}.json"))
+    except OSError:
+        pass
+    for stale in stale_paths:
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+    tmp_reg = f"{seat_reg_path}.tmp.{os.getpid()}"
+    with open(tmp_reg, "w") as f:
+        json.dump(
+            {
+                "agent_id": agent_id,
+                "agent_type": agent_type,
+                "seat_id": seat_id,
+                "run_dir": run_dir,
+                "lead_session": lead_session,
+            },
+            f,
         )
+    os.replace(tmp_reg, seat_reg_path)
+
+    open_res = await asyncio.to_thread(
+        _run_sitting_write,
+        ["-run", run_dir, "-phase", "open", "-agent-id", agent_id, "-agent-type", agent_type],
+    )
+    if open_res.returncode != 0:
+        log(f"{seat_id} sitting open failed: {open_res.stderr.strip()}")
+        try:
+            os.remove(seat_reg_path)
+        except OSError:
+            pass
+        return None
+    work_list = (open_res.stdout or "").strip()
+    full_prompt = f"{prompt}\n\n{work_list}" if work_list else prompt
+
+    seat_agent = agent(role=role_title, type_name=type_name, model=model)
+    try:
+        env = await seat_agent(full_prompt, schema)
+        for attempt in range(ENVELOPE_REFUSAL_RETRIES + 1):
+            env_res = await asyncio.to_thread(
+                _run_sitting_write,
+                ["-run", run_dir, "-phase", "envelope", "-agent-id", agent_id],
+                json.dumps(env if isinstance(env, dict) else {}),
+            )
+            if not env_res.stdout or not env_res.stdout.strip():
+                log(f"{seat_id} envelope check returned empty (agent bound to no seat or record error): {env_res.stderr.strip()}")
+                return None
+            try:
+                answer = json.loads(env_res.stdout)
+            except Exception as exc:
+                log(f"{seat_id} envelope answer parse failed: {exc}")
+                return None
+            if env_res.returncode != 0 and not answer.get("refusal"):
+                log(f"{seat_id} envelope check failed: {env_res.stderr.strip()}")
+                return None
+            refusal = answer.get("refusal") or ""
+            if not refusal:
+                admit_res = await asyncio.to_thread(
+                    _run_sitting_write,
+                    ["-run", run_dir, "-phase", "admission", "-agent-id", agent_id],
+                )
+                if admit_res.returncode != 0:
+                    log(f"{seat_id} admission failed: {admit_res.stderr.strip()}")
+                    return None
+                out = dict(answer["envelope"]) if isinstance(answer.get("envelope"), dict) else (dict(env) if isinstance(env, dict) else {})
+                if isinstance(answer.get("record_read"), dict):
+                    out["record_read"] = answer["record_read"]
+                _append_journal(seat_id, agent_id, out)
+                return out
+            if attempt >= ENVELOPE_REFUSAL_RETRIES:
+                log(f"{seat_id} envelope refused {attempt + 1} times: {refusal}")
+                return None
+            log(f"{seat_id} envelope refused (retry {attempt + 1}): {refusal[:160]}")
+            env = await seat_agent(
+                f"Your envelope was refused: {refusal}\n\nResolve this on the record and return your envelope again.",
+                schema,
+            )
+        return None
     except Exception as exc:
         log(f"{seat_id} sitting failed: {exc}")
         return None
+    finally:
+        transcript = ""
+        if os.path.exists(seat_tr_path):
+            try:
+                transcript = open(seat_tr_path).read().strip()
+            except OSError:
+                transcript = ""
+        close_args = ["-run", run_dir, "-phase", "close", "-agent-id", agent_id, "-agent-type", agent_type]
+        if transcript:
+            close_args.extend(["-transcript", transcript])
+        close_res = await asyncio.to_thread(_run_sitting_write, close_args)
+        if close_res.returncode != 0:
+            log(f"{seat_id} sitting close failed: {close_res.stderr.strip()}")
+        cleanup = [seat_reg_path, seat_tr_path, seat_bound_path, seat_conv_path]
+        if os.path.exists(seat_conv_path):
+            try:
+                cid = open(seat_conv_path).read().strip()
+                if cid:
+                    cleanup.append(os.path.join(agy_sittings_dir, f"conv-{cid}.json"))
+            except OSError:
+                pass
+        for p in cleanup:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        del seat_agent
 
 
 async def hear_owed(reads):
@@ -236,8 +385,9 @@ async def hear_owed(reads):
     for occ in owed:
         if halted or read_stop:
             break
+        head = "Petition sitting" if occ == "petition" else "Position sitting" if occ == "position" else f"Adjudication, topic: \"{topic}\""
         prompt = (
-            f"Bench hearing ({occ}) for topic: \"{topic}\". Read the open {occ} filings on your "
+            f"{head} ({occ}) for topic: \"{topic}\". Read the open {occ} filings on your "
             f"work list and rule on each on the record.{record_clause('judge')} Return the bench envelope."
         )
         env = await sit("judge", prompt, BENCH_ENVELOPE, f"judge · {occ}")
@@ -246,10 +396,12 @@ async def hear_owed(reads):
 
 async def run_debate():
     global halted, read_stop
+    os.makedirs(journal_dir, exist_ok=True)
+    log(f"Transcript dir: {journal_dir}")
     phase("Frontier")
     frontier_prompt = (
-        f"Frontier reconnaissance for topic: \"{topic}\". Produce falsifiable hypotheses, "
-        f"contested claims, and key sources to test.{record_clause('frontier')} Return the envelope."
+        f"Frontier reconnaissance — produce frontier hypotheses for topic: \"{topic}\". "
+        f"Produce falsifiable hypotheses, contested claims, and key sources to test.{record_clause('frontier')} Return the envelope."
     )
     f_env = await sit("frontier", frontier_prompt, EMPTY_ENVELOPE, f"frontier · {slug}")
     if f_env is not None:
@@ -296,8 +448,8 @@ async def run_debate():
     while not halted and not read_stop:
         epoch += 1
         chair_prompt = (
-            f"Red chair sitting (epoch {epoch}) for topic: \"{topic}\". Open the next epoch per your "
-            f"constitution, record the PASS if permitted or withhold it with your position, and return the relayed plan in your envelope.{record_clause('red-chair')}"
+            f"Red chair, topic: \"{topic}\" (epoch {epoch}). Open the next epoch per your "
+            f"constitution, record the PASS if permitted or withhold it with your position, and return your envelope.{record_clause('red-chair')}"
         )
         plan = await sit("red-chair", chair_prompt, CHAIR_ENVELOPE, f"red-chair · ep{epoch}")
         if plan is None:
@@ -330,11 +482,11 @@ async def run_debate():
                 sid = party["seat_id"]
                 gaps = party.get("gap_ids") or []
                 prompt = (
-                    f"Red lens sitting ({SEATS[sid]['area']}, epoch {epoch}) for topic: \"{topic}\". "
+                    f"Red lens sitting, area {SEATS[sid]['area']} (epoch {epoch}) for topic: \"{topic}\". "
                     f"Engaged gaps: {', '.join(gaps) if gaps else 'none'}.{record_clause(sid)} "
                     "Return the lens envelope."
                 )
-                return sid, await sit(sid, prompt, LENS_ENVELOPE, f"{sid} · ep{epoch}")
+                return sid, await sit(sid, prompt, LENS_FINISH_ENVELOPE, f"{sid} · ep{epoch}")
 
             lens_envs = await parallel(red_parties, run_lens)
             reads = [read_of(sid, env) for sid, env in lens_envs if env is not None]
@@ -346,7 +498,7 @@ async def run_debate():
             sid = bp["seat_id"]
             gaps = bp.get("gap_ids") or []
             prompt = (
-                f"Blue response sitting (epoch {epoch}) for topic: \"{topic}\". "
+                f"Blue response, topic: \"{topic}\" (epoch {epoch}). "
                 f"Address gaps: {', '.join(gaps) if gaps else 'per work list'}.{record_clause(sid)} "
                 "Return the blue envelope."
             )
@@ -360,7 +512,7 @@ async def run_debate():
             sid = jp["seat_id"]
             gaps = jp.get("gap_ids") or []
             prompt = (
-                f"Bench impasse/ruling sitting (epoch {epoch}) for topic: \"{topic}\". "
+                f"Adjudication, topic: \"{topic}\" (epoch {epoch}). "
                 f"Docketed gaps: {', '.join(gaps)}.{record_clause(sid)} Return the bench envelope."
             )
             env = await sit(sid, prompt, BENCH_ENVELOPE, f"{sid} · ep{epoch}")
@@ -371,7 +523,7 @@ async def run_debate():
 
     phase("Assemble")
     assemble_prompt = (
-        f"Assemble final report for topic: \"{topic}\". Stamp the outcome and assemble all documents "
+        f"Final assembly for topic: \"{topic}\". Stamp the outcome and assemble all documents "
         f"on the record by union-copy.{record_clause('judge')} Return the envelope."
     )
     await sit("judge", assemble_prompt, EMPTY_ENVELOPE, f"assemble · {slug}")
@@ -390,4 +542,6 @@ async def run_debate():
 
 
 result = await run_debate()
+log(f"Transcript dir: {journal_dir}")
+print(f"Transcript dir: {journal_dir}")
 print(json.dumps(result))

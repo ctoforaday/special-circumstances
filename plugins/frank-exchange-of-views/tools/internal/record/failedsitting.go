@@ -46,6 +46,9 @@ type FailedSitting struct {
 	Sitting int    `json:"sitting"`
 	Epoch   int    `json:"epoch"`
 	AgentID string `json:"agent_id"`
+	// SittingID is the id of the event that opened the sitting (events.sitting_id), which every act in
+	// it carries.
+	SittingID int64 `json:"sitting_id"`
 }
 
 // FailedSittings is every failed sitting on the run's record, in the order they opened.
@@ -54,24 +57,45 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FailedSittingsOf(m.Events, m.At), nil
+	return FailedSittingsOf(m.At), nil
 }
 
 // FailedSittingsOf IS THE ONE ANSWER TO "DID THIS SITTING FAIL", read off the record's own facts
-// (AgentSittingsOf): a sitting of a seat whose work arrives as items that closed and was never
+// (the agent_sitting view AgentSittingsOf reads): a sitting of a seat whose work arrives as items that closed and was never
 // admitted.
 //
 // A SITTING NOT YET CLOSED HAS NOT FAILED: it may be in flight. An opening with no agent — a headless
 // seat, a register no hook reached — can never be joined to a close, so it is not read here at all,
 // and neither is a seat whose work never arrives as items (WorkArrivesAsItems): the frontier, a lane
 // and the synthesizer return no envelope the gate asks about.
-func FailedSittingsOf(evs []*Event, win WindowIndex) []FailedSitting {
+func FailedSittingsOf(win WindowIndex) []FailedSitting {
 	var out []FailedSitting
-	for _, s := range AgentSittingsOf(evs, win) {
+	win.mustViews()
+	for _, s := range win.sittings {
 		if !s.Closed || s.Admitted || !WorkArrivesAsItems(seatclass.RoleOfSeat(s.SeatID), s.SeatID) {
 			continue
 		}
-		out = append(out, FailedSitting{SeatID: s.SeatID, Sitting: s.Sitting, Epoch: s.Epoch, AgentID: s.AgentID})
+		out = append(out, FailedSitting{SeatID: s.SeatID, Sitting: s.Sitting, Epoch: s.Epoch, AgentID: s.AgentID, SittingID: s.SittingID})
+	}
+	return out
+}
+
+// ToolDefectsIn is the text of every (TOOL, DEFECT) log row stored in the sitting sittingID, in record
+// order: a tool that failed internally while the seat sat. Joined on the row's source, type and stored
+// sitting (events.sitting_id), never on its text.
+//
+// NONE OF THEM IS A SITTING'S FAILURE REASON. cite, compute and reproduce log defects that fail no
+// sitting, so a defect in a failed sitting sits beside its failure, and is not said to cause it.
+func ToolDefectsIn(evs []*Event, win WindowIndex, sittingID int64) []string {
+	var out []string
+	for _, e := range evs {
+		l := e.GetLog()
+		if l == nil || l.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL || l.GetType() != recordpb.LogType_LOG_TYPE_DEFECT {
+			continue
+		}
+		if win.Of(e).SittingID == sittingID {
+			out = append(out, l.GetText())
+		}
 	}
 	return out
 }
@@ -92,7 +116,7 @@ type seatSitting struct {
 // failures in a row — never the gap's limits.
 func noTurnSittingsOf(evs []*Event, win WindowIndex) map[seatSitting]bool {
 	out := map[seatSitting]bool{}
-	for _, f := range FailedSittingsOf(evs, win) {
+	for _, f := range FailedSittingsOf(win) {
 		out[seatSitting{f.SeatID, f.Sitting}] = true
 	}
 	return out
@@ -122,50 +146,27 @@ func AgentSittings(run Run) ([]AgentSitting, error) {
 	if err != nil {
 		return nil, err
 	}
-	return AgentSittingsOf(m.Events, m.At), nil
+	return AgentSittingsOf(m.At), nil
 }
 
-// AgentSittingsOf IS THE ONE JOIN OF A SITTING TO ITS ENDS, read off the record's own facts:
+// AgentSittingsOf is each sitting opened under an agent, with its ends, read off the agent_sitting
+// view — the one statement of the join of a sitting to its ends:
 //
-//   - the event that OPENED the sitting names the agent that sat it (recordpb.AgentOpening) — the
-//     hook's bracket, or a register no bracket preceded;
+//   - the event that OPENED the sitting names the agent that sat it (the hook's bracket, or a
+//     register no bracket preceded);
 //   - a sitting_close of that agent says the agent returned;
 //   - an envelope_admitted of that agent says the call that ends the sitting succeeded;
 //   - a later opening of the same seat, with or without an agent, says the sitting is over.
 //
-// A close and an admission belong to the agent's latest opening before them, whichever comes first:
-// a seat the harness nudged is closed at its first stop and admitted after it, and that is one
-// sitting that finished. An opening with no agent can never be joined to a close, so it is not a
-// row here; it still ends the seat's sitting before it.
-func AgentSittingsOf(evs []*Event, win WindowIndex) []AgentSitting {
-	var order []*AgentSitting
-	current := map[string]*AgentSitting{} // agent -> its latest opening so far
-	latest := map[string]*AgentSitting{}  // seat -> its latest opening so far, nil for one with no agent
-	for _, e := range evs {
-		if seat, opens := win.Opens(e); opens {
-			if prev := latest[seat]; prev != nil {
-				prev.Over = true
-			}
-			latest[seat] = nil
-			if agent := recordpb.AgentOpening(e); agent != "" {
-				w := win.Of(e)
-				s := &AgentSitting{SeatID: seat, Sitting: w.Sitting, Epoch: w.Epoch, AgentID: agent}
-				order = append(order, s)
-				current[agent] = s
-				latest[seat] = s
-			}
-			continue
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && current[b.GetAgentId()] != nil {
-			current[b.GetAgentId()].Closed = true
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.EnvelopeAdmitted](e); ok && current[b.GetAgentId()] != nil {
-			current[b.GetAgentId()].Admitted = true
-		}
-	}
-	out := make([]AgentSitting, len(order))
-	for i, s := range order {
-		out[i] = *s
+// A close and an admission belong to the agent's latest opening before them. An opening with no
+// agent can never be joined to a close, so it is not a row here; it still ends the seat's sitting
+// before it.
+func AgentSittingsOf(win WindowIndex) []AgentSitting {
+	win.mustViews()
+	out := make([]AgentSitting, len(win.sittings))
+	for i, r := range win.sittings {
+		out[i] = AgentSitting{SeatID: r.SeatID, Sitting: r.Sitting, Epoch: r.Epoch, AgentID: r.AgentID,
+			Closed: r.Closed, Admitted: r.Admitted, Over: r.Over}
 	}
 	return out
 }

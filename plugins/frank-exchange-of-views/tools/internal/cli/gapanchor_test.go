@@ -394,7 +394,8 @@ func TestEditedSinceSeesTheSentence(t *testing.T) {
 		t.Errorf("the fragment edit inside the gap's sentence is not listed: %s %+v", g.LocationState, g.EditedSince)
 	}
 	edit("CUT", "Costs climbed in the first quarter"+tok+".", tok)
-	if g := edited(); len(g.EditedSince) != 1 || g.LocationState != record.LocationGone {
-		t.Errorf("after the cut the gap reads %s with %d edit(s), want gone with the fragment edit alone", g.LocationState, len(g.EditedSince))
+	// The cut left the anchor bare, which changed its sentence: it is listed beside the fragment edit.
+	if g := edited(); len(g.EditedSince) != 2 || g.LocationState != record.LocationGone {
+		t.Errorf("after the cut the gap reads %s with %d edit(s), want gone with the fragment edit and the cut", g.LocationState, len(g.EditedSince))
 	}
 }

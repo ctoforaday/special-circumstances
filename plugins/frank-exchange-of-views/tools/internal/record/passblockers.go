@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 	"slices"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -43,6 +45,7 @@ const (
 	BlockerUpheldPosition   BlockerKind = "upheld_position"
 	BlockerOpenInquiry      BlockerKind = "open_inquiry"
 	BlockerUncheckedInquiry BlockerKind = "unchecked_inquiry"
+	BlockerWholeReportOwed  BlockerKind = "whole_report_owed"
 	BlockerQuestionUnsplit  BlockerKind = "question_unsplit"
 	BlockerOpenPart         BlockerKind = "open_part"
 	BlockerUncheckedPart    BlockerKind = "unchecked_part"
@@ -475,23 +478,23 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				why = append(why, b.foldWhy)
 			}
-			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head the tool last served it the whole report at, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a read in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
+			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head of the latest report text the tool delivered to it, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint, close, reading, computation check or inquiry check retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a delivery in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
 				len(bs), strings.Join(why, "; "))
 		},
 	},
 	{
 		kind:    BlockerStaleArea,
 		subject: SubjectArea,
-		gloss:   "a stale area no spot-check this sitting names",
+		gloss:   "a stale area: a retired lens's area holding changes no spot-check has borne",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("area %s is behind its pin %s — PASS is refused until a spot-check this sitting names it", b.Subject, b.Detail)
+			return fmt.Sprintf("area %s holds changes behind its pin %s that no spot-check has borne — PASS is refused until a spot-check names it", b.Subject, b.Detail)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
 			for _, b := range bs {
 				named = append(named, fmt.Sprintf("%s (pin %s)", b.Subject, b.Detail))
 			}
-			return fmt.Sprintf("the report changed behind %d retired lens(es): %s. Read the changes since each pin against that area's duties, and name the areas in a spot-check this sitting (--areas) before a PASS; a defect you find there goes in that spot-check",
+			return fmt.Sprintf("the report changed behind %d retired lens(es): %s. Read the changes no spot-check has borne against that area's duties, and name the areas in a spot-check (--areas) before a PASS; a defect you find there goes in that spot-check. An area nothing has changed in since a spot-check of it is not stale and owes none",
 				len(bs), strings.Join(named, ", "))
 		},
 	},
@@ -589,14 +592,14 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	// AN UPHELD POSITION NAMING A LENS HOLDS THE PASS UNTIL THAT LENS HAS AUDITED ITS AREA (gblock,
-	// 2026-10-30; positionheard.go): the lens is served the report in a sitting opened after the
-	// ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
+	// 2026-10-30; positionheard.go): the whole report is delivered to the lens in a sitting opened
+	// after the ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
 	{
 		kind:    BlockerUpheldPosition,
 		subject: SubjectMotion,
 		gloss:   "an audit the bench named in upholding the chair's position, not yet had",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has been served the report in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
+			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has had the whole report delivered in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -610,6 +613,32 @@ var blockerKinds = []blockerKind{
 		},
 		why: func(b Blocker) string {
 			return fmt.Sprintf("%s: the bench upheld the chair's position, naming %s to audit its area on %q — %s", b.Subject, ownerOr(b, "a lens"), b.Detail, planHold(b, "PASS is not permitted until it has"))
+		},
+	},
+	// A LENS THAT HAS SAT OWES THE WHOLE REPORT TWICE: its first whole delivery, and its full re-read
+	// at its next sitting after it (gblock 2026-11-13, F11). The record of every item of a delivery
+	// handed into the lens's context is the read (report_delivery); the PASS waits on both, and the
+	// debt readies the lens itself, at any head. Under a harness that cannot yet deliver report text
+	// into a seat's context — Antigravity today — no delivery is recorded and the debt never clears.
+	{
+		kind:    BlockerWholeReportOwed,
+		subject: SubjectSeat,
+		gloss:   "a lens that has sat and has not had the whole report delivered to it twice — its first whole delivery and its full re-read",
+		item: func(b Blocker) string {
+			return fmt.Sprintf("lens %s owes %s: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered", b.Subject, wholeOwedWhat(b))
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s (%s)", b.Subject, wholeOwedWhat(b)))
+			}
+			return fmt.Sprintf("%d lens(es) that have sat have not had the whole report delivered to them as owed: %s. "+
+				"A lens is delivered the whole report at its first sitting and once more at its next, its full re-read; the tool records each delivery when its last item reaches the lens, and the lens is readied until it has both. "+
+				"A lens on a harness whose hooks cannot yet deliver report text into its context — Antigravity today — records no delivery and holds the PASS for good",
+				len(bs), strings.Join(named, ", "))
+		},
+		why: func(b Blocker) string {
+			return fmt.Sprintf("%s owes %s — ready at any head, %s", b.Subject, wholeOwedWhat(b), planHold(b, "PASS is not permitted until it has been delivered"))
 		},
 	},
 	// AN OPEN INQUIRY HOLDS THE PASS UNTIL BLUE RECORDS A FATE THAT SETTLES IT (ruled by gblock
@@ -829,7 +858,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 		for _, f := range lg.ready() {
 			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})
 		}
-		for _, a := range lg.uncovered() {
+		for _, a := range lg.stale {
 			out = append(out, Blocker{Kind: BlockerStaleArea, Subject: a.SeatID, Owner: chairSeat, Detail: fmt.Sprint(a.Pin)})
 		}
 	}
@@ -873,6 +902,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex, open map[string
 	out = append(out, docketedBlockers(evs, ids)...)
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
 	out = append(out, upheldPositionBlockers(evs, ids, win)...)
+	out = append(out, wholeReportOwedBlockers(evs, ids, win)...)
 	return out
 }
 
@@ -887,6 +917,43 @@ func docketedBlockers(evs []*Event, ids []int64) []Blocker {
 		}
 	}
 	return out
+}
+
+// wholeReportOwedBlockers is the gate list's whole_report_owed arm: each cast lens that has opened a
+// sitting and has fewer than two complete deliveries in sittings it sat through (report_delivery),
+// each read off the rows up to the last event of evs. Detail is "first" or "re-read".
+func wholeReportOwedBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker {
+	cast := castOfEvents(evs)
+	if cast == nil || len(ids) == 0 {
+		return nil
+	}
+	upTo := slices.Max(ids)
+	count := map[string]int{}
+	for _, r := range win.deliveriesUpTo(upTo) {
+		if r.SatThrough {
+			count[r.SeatID]++
+		}
+	}
+	var out []Blocker
+	for _, seat := range cast {
+		if seatclass.RoleOfSeat(seat) != "lens" || win.LatestSittingOf(seat) == 0 || count[seat] >= 2 {
+			continue
+		}
+		detail := "first"
+		if count[seat] == 1 {
+			detail = "re-read"
+		}
+		out = append(out, Blocker{Kind: BlockerWholeReportOwed, Subject: seat, Owner: seat, Detail: detail})
+	}
+	return out
+}
+
+// wholeOwedWhat is which whole delivery a whole_report_owed blocker is owed.
+func wholeOwedWhat(b Blocker) string {
+	if b.Detail == "re-read" {
+		return "its full re-read, the whole report once more"
+	}
+	return "its first whole delivery of the report"
 }
 
 // unruledMotionBlockers is the gate list's unruled-motion arm: every motion with no ruling, owned by

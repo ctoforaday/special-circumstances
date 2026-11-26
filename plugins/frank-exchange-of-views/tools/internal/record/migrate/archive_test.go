@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -94,12 +95,17 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// the 40 findings and the 40 Anchors that placed their tokens, which a lens's defect no longer
 	// writes, and the 1 reading whose quote was only a finding's token and a dropped label's (source
 	// event 758), and the 4 grade motions and their 4 rulings, written as none (epoch 80).
-	if outTotal != 649 || res.Out["tombstone"] != 2 || res.In["verdict"] != 5 || res.Out["verdict"] != 0 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
-		res.In["verify"] != 111 || res.Out["verify"] != 110 || !slices.Equal(res.QuotelessReadings, []int64{758}) || res.In["manifest_row"] != 26 || res.Out["manifest_row"] != 0 || res.In["close"] != 10 || res.Out["close"] != 3 || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
+	// LESS every lost act: an archived close, spot-check or bench ruling stands only on a delivery
+	// in its seat's sitting, which no sitting of this run holds, so each is written as no event and
+	// listed in lost_acts.
+	lost := migrate.LostByWord(res)
+	lostTotal := len(res.LostActs)
+	if outTotal != 649-lostTotal || res.Out["tombstone"] != 2 || res.In["verdict"] != 5 || res.Out["verdict"] != 0 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
+		res.In["verify"] != 111 || res.Out["verify"] != 110 || !slices.Equal(res.QuotelessReadings, []int64{758}) || res.In["manifest_row"] != 26 || res.Out["manifest_row"] != 0 || res.In["close"] != 10 || res.Out["close"] != 3-lost["close"] || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || len(res.GapAnchors.Shapes) != 1 {
-		t.Fatalf("813 in + the cast - 17 opinions - 3 spot-checks of their gaps - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading - 4 grade motions - 4 grade rulings - 5 FAILs + 2 estoppel tombstone rows the write path wrote beside their verbatim edits = 649 out; got %d (in %v, out %v), anchors added %v, quoteless %v", outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
+		t.Fatalf("813 in + the cast - 17 opinions - 3 spot-checks of their gaps - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading - 4 grade motions - 4 grade rulings - 5 FAILs + 2 estoppel tombstone rows the write path wrote beside their verbatim edits = 649 out, less %d lost acts %v; got %d (in %v, out %v), anchors added %v, quoteless %v", lostTotal, lost, outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
 	}
-	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]-4 || res.Out["motion_rule"] != res.In["motion_rule"]-5-4 || res.Out["spot_check"] != res.In["spot_check"]-3 {
+	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]-4 || res.Out["motion_rule"] != res.In["motion_rule"]-5-4-lost["motion_rule"] || res.Out["spot_check"] != res.In["spot_check"]-3-lost["spot_check"] {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)
 	}
 
@@ -191,18 +197,40 @@ func firstLine(s string) string {
 	return s
 }
 
-// archivePath walks up from the package to the repository's run-archive, skipping loudly
-// when it is not there.
+// archivePath walks up from the package to the repository's run-archive. A checkout with no
+// run-archive above it — a consumer's — skips loudly; a checkout that has one and lacks the named
+// tarball fails, because every test that names an archive would otherwise pass by skipping.
 func archivePath(t *testing.T, name string) string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
+	p, err := findArchive(dir, name)
+	switch {
+	case errors.Is(err, errNoRunArchive):
+		t.Skipf("no run-archive above this checkout — the archive drive needs the repository's run-archive (%s)", name)
+	case err != nil:
+		t.Fatal(err)
+	}
+	return p
+}
+
+// errNoRunArchive is findArchive's answer for a tree with no run-archive directory above it.
+var errNoRunArchive = errors.New("no run-archive directory above this checkout")
+
+// findArchive is the named tarball in the nearest run-archive directory at or above dir: the path,
+// errNoRunArchive where no such directory exists, and an error naming the tarball where the
+// directory exists and does not hold it.
+func findArchive(dir, name string) (string, error) {
 	for i := 0; i < 10; i++ {
-		p := filepath.Join(dir, "run-archive", name)
-		if _, err := os.Stat(p); err == nil {
-			return p
+		archive := filepath.Join(dir, "run-archive")
+		if fi, err := os.Stat(archive); err == nil && fi.IsDir() {
+			p := filepath.Join(archive, name)
+			if _, err := os.Stat(p); err != nil {
+				return "", fmt.Errorf("run-archive/%s is missing from %s: the test reads that archive, and a missing one fails rather than skips", name, archive)
+			}
+			return p, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -210,8 +238,7 @@ func archivePath(t *testing.T, name string) string {
 		}
 		dir = parent
 	}
-	t.Skipf("run-archive/%s not found above this checkout — the archive drive needs the repository's run-archive", name)
-	return ""
+	return "", errNoRunArchive
 }
 
 func untar(t *testing.T, tarball, into string) {

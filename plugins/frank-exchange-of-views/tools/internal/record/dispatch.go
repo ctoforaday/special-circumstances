@@ -18,7 +18,7 @@ import (
 // failed check of its own, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry, or to split the question or record a question part's coverage; empty for the logic lens readied to check a settled inquiry or a question part's coverage; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head of the latest report text delivered to it in a sitting it sat through, or it owes the whole report — its first whole delivery or its full re-read, which readies it at an unmoved head — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry, or to split the question or record a question part's coverage; empty for the logic lens readied to check a settled inquiry or a question part's coverage; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -96,10 +96,11 @@ type Plan struct {
 	// list (PassBlockers) is the chair's own to clear this sitting — its
 	// spot-check of the stale areas. Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
-	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
-	// the changes since each pin against that area's duties and names the areas in its spot-check;
-	// a PASS is refused until it has.
-	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
+	// StaleAreas is every retired lens whose pin the head has moved past with changes no spot-check
+	// has borne. The chair reads those changes against that area's duties and names the areas in its
+	// spot-check; a PASS is refused until it has. An area a spot-check bore owes no repeat until it
+	// changes again.
+	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past with changes no spot-check has borne: the chair reads those changes and names the areas in its spot-check before a PASS"`
 	// Ceiling is the run at its limit: the run's epoch limit is reached with parties still ready
 	// (EpochLimitReached). A gap's own limit ends in a ruling that closes it — a second remand at
 	// impasse is refused (requireRemandWithinLimit) — so no open gap holds the run at a ceiling.
@@ -292,7 +293,7 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.cast, err = castAt(q); err != nil || r.cast == nil {
 		return r, err
 	}
-	if r.head, err = reportHeadAt(q); err != nil {
+	if r.head, err = ReportHeadAt(q); err != nil {
 		return r, err
 	}
 	if r.evs, r.win, err = eventsAt(q); err != nil {
@@ -330,16 +331,16 @@ func foldPlan(params Params, r planReads) Plan {
 	evs, win, fresh := r.evs, r.win, r.fresh
 	plan.Passed = chairPassedOf(evs, win)
 
-	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
-	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
-	// fold the PASS gate refuses from. A lens whose sitting ended without the report served to it at
-	// the head has no new pin, so it stays ready.
+	// Source 1: each cast lens that has never sat, or whose pin — the head of its latest complete
+	// delivery of report text, in a sitting it sat through — is behind the head, until it retires
+	// owing nothing (retirement.go): the same fold the PASS gate refuses from. A lens whose sitting
+	// ended without a complete delivery at the head has no new pin, so it stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
 	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found, r.parts)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
-	plan.StaleAreas = staleAreasOf(folds, plan.Head)
+	plan.StaleAreas = staleAreasOf(folds, plan.Head, borneThroughOf(evs))
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax: the epoch this sitting opens, and
 	// whether it is the run's last (isFinalEpoch) or the last that dispatches a lens (blueHeldOut).
 	plan.MaxEpochs = params.MaxEpochs
@@ -732,9 +733,13 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			stated[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, benchOn))
+		// A WHOLE DELIVERY OWED READIES ITS LENS ITSELF, at an unmoved head, until the lens has it.
+		case b.Kind == BlockerWholeReportOwed:
+			engage(b.Owner)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s owes %s — ready at an unmoved head until it has been delivered", b.Owner, wholeOwedWhat(b)))
 		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
-		// stands until the lens is served the report in a sitting opened after the ruling
-		// (upheldPositionBlockers), so the readiness ends with it.
+		// stands until the whole report has been delivered to the lens in a sitting opened after the
+		// ruling that it sat through (upheldPositionBlockers), so the readiness ends with it.
 		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
 			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))
@@ -1069,32 +1074,23 @@ type satThrough struct {
 	short   map[int64]string   // opening -> why the seat did not sit through that sitting
 }
 
-// satThroughOf reads the stream once for every fact that ends a sitting. seq and openings are
-// dispatchLedger's, so the places compare with the dispatches and the openings it read.
-func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64) satThrough {
-	agentOf := map[int64]string{} // an opening's place -> the agent it carries
-	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
-	for i, e := range evs {
-		if _, opens := win.Opens(e); opens {
-			agentOf[seq[i]] = recordpb.AgentOpening(e)
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
-			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
-		}
+// satThroughOf is each seat's sittings it sat through and why it did not sit through the others, by
+// opening, read off the agent_sitting view (its sat_through, the one statement of the rule). An opening
+// the view holds no row for carries no agent, and is sat through. openings is dispatchLedger's.
+func satThroughOf(win WindowIndex, openings map[string][]int64) satThrough {
+	win.mustViews()
+	rows := make(map[int64]recordsql.AgentSittingRow, len(win.sittings))
+	for _, r := range win.sittings {
+		rows[r.SittingID] = r
 	}
 	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
 	for seat, os := range openings {
-		for k, o := range os {
-			next, later := int64(0), k+1 < len(os)
-			if later {
-				next = os[k+1]
-			}
-			agent := agentOf[o]
-			stop, stopped := firstAfter(stops[agent], o)
+		for _, o := range os {
+			r, agent := rows[o]
 			switch {
-			case agent == "" || (stopped && (!later || stop < next)):
+			case !agent || r.SatThrough:
 				out.through[seat] = append(out.through[seat], o)
-			case later:
+			case r.Over:
 				out.short[o] = shortNeverClosed
 			default:
 				out.short[o] = shortNotClosed

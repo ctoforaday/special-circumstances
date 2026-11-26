@@ -14,6 +14,7 @@
 package recordtest
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
@@ -26,8 +27,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // Event is the common fixture: a seat, an epoch, and what it recorded.
@@ -126,6 +129,14 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 		if m := ev.GetMint(); m != nil && m.ClassMaterial == nil {
 			m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
 		}
+		// A SEEDED EDIT IS STAMPED WITH THE PARAGRAPHS IT TOUCHED, as the edit's write stamps them
+		// (cli/blue/edit.go): the reword chain and the retried-reading check read them, and an edit
+		// without them is a record they refuse. Cut from the report the seeded edit lands on; an edit
+		// the report does not replay through is a fixture of a failed render, which every read
+		// refuses first, and is left as written. A fixture that sets either field keeps its own.
+		if e := ev.GetBlueEdit(); e != nil && e.OldParagraphs == nil && e.NewParagraphs == nil {
+			stampEdit(t, db, e)
+		}
 		if ev.Ts == nil {
 			// A STAMP EVERY EVENT, because `ts` is NOT NULL and several audits read it. The
 			// spacing is one second per event so a fixture that does not care about time still
@@ -138,6 +149,25 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 				i, recordpb.Word(ev.GetType()), ev.GetSeatId(), err)
 		}
 	}
+}
+
+// stampEdit gives e the paragraphs it touches on the report db holds now (bluedoc.TouchedParagraphs).
+func stampEdit(t *testing.T, db *sql.DB, e *recordpb.BlueEdit) {
+	t.Helper()
+	src, err := recordsql.ReportSourceAt(db)
+	if err != nil {
+		return
+	}
+	report, err := src.Fold(reportproj.Replay)
+	if err != nil {
+		return
+	}
+	start, end, ok := bluedoc.SpliceSpan(report, e.GetOld(), e.GetExactSpan())
+	if !ok {
+		return
+	}
+	oldParas, newParas := bluedoc.TouchedParagraphs(report, reportproj.ApplySplice(report, start, end, e.GetNew()), start, end)
+	e.OldParagraphs, e.NewParagraphs = proto.String(oldParas), proto.String(newParas)
 }
 
 // CreatedRecord gives runDir the empty record `setup` leaves behind — the database as this binary

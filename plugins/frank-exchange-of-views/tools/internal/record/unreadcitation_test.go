@@ -61,11 +61,11 @@ func aboutAnchor(gap, anchor string) *recordpb.Mint {
 	return m
 }
 
-// unreadBoard is C-1 verified unreachable by the evidence lens in its sitting: a failed check, owned
-// by that lens.
+// unreadBoard is C-1 verified unreachable by the evidence lens in its second sitting, the report
+// served whole in both: a failed check, owned by that lens.
 func unreadBoard(t *testing.T) *stage {
 	return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().register("red-chair").
-		dispatch(2, evLens).register(evLens).cite("C-1").sit(2, evLens).
+		dispatch(2, evLens).register(evLens).served(evLens, 2).cite("C-1").sit(2, evLens).
 		verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
 }
 

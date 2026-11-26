@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // command builds an invocation of the built binary.
@@ -111,6 +113,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	stage("register", "--run", runDir, "--seat-id", "blue-lane-2")
 	stage("register", "--run", runDir, "--seat-id", "blue-synthesize")
 	stage("register", "--run", runDir, "--seat-id", "blue-respond")
+	// THE LENS READS ITS DELIVERY, once the lane's part is the report: its close rows below stand on report
+	// text delivered to it, so each reaches the guard its row is named for — the docketed gap, the
+	// repeated close and the chair's carry after it — rather than the delivered-text refusal. The
+	// chair's spot-check rows have no stale area to be handed, and pin that refusal.
+	(&replayDrive{t: t, bin: bin, writer: testbuild.Binary(t, "feov-sitting-write"), runDir: runDir}).read("red-lens-evidence")
 	// One valid gap, so close/regrade refusals are about the refusal under test rather than about
 	// an empty board. The LENS mints it (roundless §III.B.3), so the lens's later close and regrade
 	// rows are the originator's and refuse on the field under test. AFTER the ingest: it quotes the

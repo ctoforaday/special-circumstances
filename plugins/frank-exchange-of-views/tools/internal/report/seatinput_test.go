@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -110,6 +111,9 @@ func assembleHostile(t *testing.T, h string) Shipped {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true
+		}
+		if deliverytest.StandsOnDeliveredText(body) {
+			deliverytest.DeliverIfOwed(t, id.Run, id.SeatID)
 		}
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)
@@ -294,6 +298,9 @@ func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 			Text: proto.String("trial division <!--gap:G-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
 		},
 	} {
+		if deliverytest.StandsOnDeliveredText(body) {
+			deliverytest.DeliverIfOwed(t, id.Run, id.SeatID)
+		}
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %T: %v", body, err)
 		}

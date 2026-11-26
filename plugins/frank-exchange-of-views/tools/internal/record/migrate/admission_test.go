@@ -11,12 +11,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A RECORD WRITTEN BEFORE THE GATE RECORDED ITS ADMISSIONS IS ADMITTED AT EVERY CLOSE, so no past
 // sitting reads as failed. universe-m35 (epoch 45) is the run whose engine died on a seat: blue's
-// fifth response had its envelope refused twice and ended with text. Each admission migrate writes
-// answers exactly one sitting that would otherwise read failed, and after it none does.
+// fifth response had its envelope refused twice and ended with text. The source records no admission,
+// so every closed sitting of a seat whose work arrives as items would read failed without one: each
+// admission migrate writes answers exactly one such sitting, and after it none reads failed.
 //
 // THE RESIDUE, ACCEPTED: the source cannot tell that sitting from one that finished, so blue's
 // fifth sitting reads as finished — it is admitted like every other.
@@ -27,25 +29,28 @@ func TestAMigratedRecordAdmitsEveryClosedSitting(t *testing.T) {
 		t.Fatal(err)
 	}
 	admitted := map[string]bool{}
-	var without []*record.Event
 	for _, e := range m.Events {
 		if a, ok := recordpb.BodyAs[*recordpb.EnvelopeAdmitted](e); ok {
 			if e.GetSeatId() != record.HarnessSeat {
 				t.Errorf("a migrated admission is attributed to %q, want the harness", e.GetSeatId())
 			}
 			admitted[a.GetAgentId()] = true
-			continue
 		}
-		without = append(without, e)
 	}
 	if len(admitted) == 0 {
 		t.Fatal("the migrated record holds no admission, so nothing here exercised the translation")
 	}
-	if f := record.FailedSittingsOf(m.Events, m.At); len(f) != 0 {
+	if f := record.FailedSittingsOf(m.At); len(f) != 0 {
 		t.Errorf("%d migrated sitting(s) read failed, the first %+v — every closed sitting of the source is admitted", len(f), f[0])
 	}
-	if owed := record.FailedSittingsOf(without, m.At); len(owed) != len(admitted) {
-		t.Errorf("migrate wrote %d admission(s) for %d sitting(s) that read failed without them — one per sitting, and none for any other", len(admitted), len(owed))
+	owed := 0
+	for _, s := range record.AgentSittingsOf(m.At) {
+		if s.Closed && record.WorkArrivesAsItems(seatclass.RoleOfSeat(s.SeatID), s.SeatID) {
+			owed++
+		}
+	}
+	if owed != len(admitted) {
+		t.Errorf("migrate wrote %d admission(s) for %d sitting(s) that read failed without them — one per sitting, and none for any other", len(admitted), owed)
 	}
 	// Blue's fifth response — the sitting the engine died on — is the residue.
 	var last string

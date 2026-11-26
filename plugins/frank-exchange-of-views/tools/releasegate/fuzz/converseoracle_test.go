@@ -38,7 +38,8 @@ const (
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
-// lens reads the report and mints the gap; the chair then sits for the last epoch and stores its
+// lens reads the report and mints the gap, and on the paths where it closes the gap, sits once more
+// for its full re-read; the chair then sits for the last epoch and stores its
 // plan. It returns the runner and the plan that sitting printed.
 func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	t.Helper()
@@ -104,7 +105,10 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 				"--relief", "fuzz relief", "--reason", "fuzz petition basis")
 		}
 		r.dispatchReturns(converseLens, false)
-	case benchCloses:
+		// THE LENS SITS AGAIN FOR ITS FULL RE-READ: a lens is delivered the whole report at its first
+		// sitting and at its next, and the PASS is held (whole_report_owed) until it has had both, so a
+		// run whose chair is permitted the PASS is one whose lens sat for the second.
+		r.dispatchSits("lens", converseLens)
 		r.dispatchReturns(converseLens, false)
 		// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue sits on it once before it proposes.
 		r.exchangeOn(t)

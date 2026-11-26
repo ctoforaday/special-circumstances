@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -72,6 +73,9 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true
+		}
+		if deliverytest.StandsOnDeliveredText(body) {
+			deliverytest.DeliverIfOwed(t, id.Run, id.SeatID)
 		}
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)

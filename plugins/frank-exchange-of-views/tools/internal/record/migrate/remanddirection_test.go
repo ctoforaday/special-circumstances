@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -17,70 +18,88 @@ import (
 // fate owns, and is counted there. A ruling Translations 3 and 4 write as no event (an opinion, a party
 // docket's, one of an ended or superseded docketing) is the manifest's stated residue, and is not
 // counted; one migrate leaves out with its docket, an act on a gap a successor's mint had closed
-// (epoch 62), is the residue supersededRulings states.
+// (epoch 62), is the residue supersededRulings states; a ruling the
+// manifest lists as lost (no delivery in the bench's sitting) is the accepted loss.
 func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 	remands := 0
 	for _, name := range archivedRuns(t) {
 		t.Run(name, func(t *testing.T) {
-			evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
-			if err != nil {
-				t.Fatal(err)
-			}
-			man, dir := MigratedArchive(t, name)
-			dropped := docketResidueIDs(man.Dockets)
-			wantRemand, wantReopens := 0, -supersededRulings[name]
-			for _, old := range evs {
-				if old.Word != "motion_rule" || dropped[old.ID] {
-					continue
-				}
-				f := old.Arms["docket"]
-				d, _ := f["disposition"].(string)
-				r, _ := f["reopens_on"].(string)
-				// A source written after the remand gained its own direction states it there.
-				dir, _ := f["direction"].(string)
-				switch {
-				case (d == "remanded" || d == "carried") && (r != "" || dir != ""):
-					wantRemand++
-				case r == "":
-				default:
-					wantReopens++
-				}
-			}
-			m, err := record.MergedEvents(runtest.Open(t, dir))
-			if err != nil {
-				t.Fatal(err)
-			}
-			gotRemand, gotReopens := 0, 0
-			for _, e := range m.Events {
-				r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-				if !ok || r.GetDocket() == nil {
-					continue
-				}
-				d := r.GetDocket()
-				remand := d.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED
-				switch {
-				case remand && d.GetDirection() == "":
-					t.Errorf("remand %s migrated with no direction", e.GetKey())
-				case remand && d.ReopensOn != nil:
-					t.Errorf("remand %s migrated with a reopen condition %q", e.GetKey(), d.GetReopensOn())
-				case remand:
-					gotRemand++
-				case d.Direction != nil:
-					t.Errorf("closing ruling %s migrated with a direction %q", e.GetKey(), d.GetDirection())
-				case d.ReopensOn != nil:
-					gotReopens++
-				}
-			}
-			if gotRemand != wantRemand || gotReopens != wantReopens {
-				t.Errorf("migrated %d remands with a direction and %d closing rulings with a reopen condition; the source states %d and %d",
-					gotRemand, gotReopens, wantRemand, wantReopens)
-			}
-			remands += gotRemand
+			res, dir := MigratedArchive(t, name)
+			skip := LostIDs(res)
+			maps.Copy(skip, docketResidueIDs(res.Dockets))
+			remands += remandsCarried(t, archivedSource(t, recordtest.ExtractArchive(t, name)), dir, skip, supersededRulings[name])
 		})
 	}
+	// Every archived bench ruling on a motion about gaps is a lost act (no archived bench sitting
+	// holds a delivery), so the translation is exercised on a source whose bench was delivered the
+	// report before it ruled.
+	t.Run("delivered bench", func(t *testing.T) {
+		_, src, to := MigratedDeliveredBench(t)
+		remands += remandsCarried(t, src, to, nil, 0)
+	})
 	if remands == 0 {
-		t.Fatal("no archived run holds a remand, so no direction was carried")
+		t.Fatal("no source holds a remand, so no direction was carried")
 	}
+}
+
+// remandsCarried holds the migrated record at dir to its source's rulings: the count of remands
+// with a direction and of closing rulings with a reopen condition is the source's, less each ruling
+// the manifest lists as lost or Translations 3 and 4 write as no event (lost), and the superseded
+// rulings left out with their docket. It returns the remands carried.
+func remandsCarried(t *testing.T, src Source, dir string, lost map[int64]bool, superseded int) int {
+	t.Helper()
+	evs, err := src.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRemand, wantReopens := 0, -superseded
+	for _, old := range evs {
+		if old.Word != "motion_rule" || lost[old.ID] {
+			continue
+		}
+		f := old.Arms["docket"]
+		d, _ := f["disposition"].(string)
+		r, _ := f["reopens_on"].(string)
+		// A source written after the remand gained its own direction states it there.
+		dir, _ := f["direction"].(string)
+		switch {
+		case (d == "remanded" || d == "carried") && (r != "" || dir != ""):
+			wantRemand++
+		case r == "":
+		default:
+			wantReopens++
+		}
+	}
+	m, err := record.MergedEvents(runtest.Open(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotRemand, gotReopens := 0, 0
+	for _, e := range m.Events {
+		r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		if !ok || r.GetDocket() == nil {
+			continue
+		}
+		d := r.GetDocket()
+		remand := d.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED
+		switch {
+		case remand && d.GetDirection() == "":
+			t.Errorf("remand %s migrated with no direction", e.GetKey())
+		case remand && d.ReopensOn != nil:
+			t.Errorf("remand %s migrated with a reopen condition %q", e.GetKey(), d.GetReopensOn())
+		case remand:
+			gotRemand++
+		case d.Direction != nil:
+			t.Errorf("closing ruling %s migrated with a direction %q", e.GetKey(), d.GetDirection())
+		case d.ReopensOn != nil:
+			gotReopens++
+		}
+	}
+	if gotRemand != wantRemand || gotReopens != wantReopens {
+		t.Errorf("migrated %d remands with a direction and %d closing rulings with a reopen condition; the source states %d and %d, less its lost rulings",
+			gotRemand, gotReopens, wantRemand, wantReopens)
+	}
+	return gotRemand
 }
 
 // supersededRulings is, per archived run, the closing rulings with a reopen condition migrate leaves

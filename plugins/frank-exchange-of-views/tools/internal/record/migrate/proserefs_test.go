@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -22,7 +23,7 @@ import (
 // fields, a declaration's gaps were read out of its holding and a closure's anchors out of its
 // --verified-with words at every read; migrate reads them from that text once. Every migrated
 // declaration's gap_ids, and every closure's anchors, are exactly the ids its text names that the
-// migrated record holds — and the archive holds at least one of each, or nothing was checked.
+// migrated record holds — and the sources hold at least one of each, or nothing was checked.
 // proseRefsFieldsEpoch is the epoch Declare.gap_ids and Close.anchors became fields.
 const proseRefsFieldsEpoch = 33
 
@@ -36,9 +37,30 @@ func TestArchivedProseIDsBecomeFields(t *testing.T) {
 	gapRe := regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
 	anyRe := regexp.MustCompile(`\b` + anchor.IDPattern() + `\b`)
 	var declared, anchored, unheld int
+	type migrated struct {
+		name string
+		res  *migration.Manifest
+		run  record.Run
+	}
+	var sources []migrated
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, run := migrateArchive(t, name)
+		sources = append(sources, migrated{name, res, run})
+	}
+	// Every archived closure from before the field is a lost act (no lens sitting of that era holds
+	// a delivery), so a closure's anchors are read from its words on a source of that shape whose
+	// lens was delivered the report before it closed.
+	{
+		to := recordtest.TmpRun(t)
+		res, err := migrate.Migrate(migrate.DeliveredBenchProseSource(t), to, migrate.Entries(), migrate.Options{})
+		if err != nil || len(res.LostActs) != 0 {
+			t.Fatalf("migrating the delivered prose-era source: %v (lost %+v)", err, res.LostActs)
+		}
+		sources = append(sources, migrated{"delivered prose-era source", res, runtest.Open(t, to)})
+	}
+	for _, src := range sources {
+		name, res, run := src.name, src.res, src.run
 		// A source written at the fields' epoch or after states them, and migrate carries them as
 		// written: there is no prose to read them from.
 		if res.SourceEpoch != nil && *res.SourceEpoch >= proseRefsFieldsEpoch {

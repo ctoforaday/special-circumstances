@@ -41,12 +41,12 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [assignee](#assignee) | lens, chair, blue, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
-| [current item](#current-item) | lens, operator |
+| [current item](#current-item) | lens, chair, blue, bench, operator |
 | [reading](#reading) | lens, chair, blue, lane, bench, operator |
 | [retire](#retire) | lens, chair, blue, lane, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
-| [report read](#report-read) | lens, chair, operator |
+| [report read](#report-read) | lens, chair, bench, operator |
 | [disposition](#disposition) | lens, chair, blue, lane, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [docketing](#docketing) | lens, chair, blue, bench, operator |
@@ -65,7 +65,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 
 ## the report
 
-The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
+The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report text the tool delivers to a seat on its work list, the report as `show report` prints it, which is how a seat reads it for context, and the copy assembled for the human reader once the run is over.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -437,9 +437,9 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 ## current item
 
-A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.
+A seat's current item is the one entry of its queue it is handed in full — report text owed to it, an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the seat's work list after an act, and the next item is handed then.
 
-**Delivered to:** lens, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## reading
 
@@ -451,7 +451,7 @@ A reading is a lens's recorded account of what one source did for one sentence o
 
 - **reading (OCR)** — the OCR reading is the machine's reading of a scanned document's page images (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a recorded check of a source against a sentence, and a page's OCR reading may be what a lens's reading finds wrong
 - **verdict** — the verdict is the chair's PASS; a reading has an outcome, and a reading that reads nothing is never called a verdict
-- **report read** — a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence
+- **report read** — a report read is the tool's record of report text it delivered into a seat's context; a reading is a lens's check of one source against one sentence
 
 ## retire
 
@@ -472,21 +472,21 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting that never closed is not one it sat through and counts neither way.
+Lens retirement is the record's state for a lens that has stopped finding and checking: three sittings in a row it sat through in which it mints no fresh material gap, closes no gap, records no reading and checks no computation or inquiry retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting that never closed is not one it sat through and counts neither way.
 
 **Delivered to:** lens, chair, operator
 
 ## stale area
 
-A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.
+A stale area is the area of a retired lens whose pin is behind the report head; its changes the chair has not borne are delivered to the chair on its work list, and the chair names the area in a spot-check before a PASS.
 
 **Delivered to:** chair, operator
 
 ## report read
 
-A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
+A report read is the record's evidence that the tool delivered report text into a seat's context: the tool writes one when it hands a delivery's last item, every item of it cut from the report at its head, and a read through `show report` writes none; it says the text was delivered, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
 
-**Delivered to:** lens, chair, operator
+**Delivered to:** lens, chair, bench, operator
 
 **Collisions:**
 
@@ -620,7 +620,7 @@ A citation or computation is unchecked when no check of the sentence the report 
 
 ## failed check
 
-A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about and the later check of that anchor by the seat whose check the gap carries that holds.
+A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which holds while the gap's subject stands in the report and which, while it stands, a live answer of that kind placed as its answer meets, as does the later check of the anchor the gap is about by the seat whose check the gap carries that holds.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

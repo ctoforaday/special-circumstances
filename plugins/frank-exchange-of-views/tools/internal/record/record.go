@@ -375,7 +375,7 @@ func registeredSitting(tx *sql.Tx, agentID, seatID string) (h heldRegister, foun
 // one, and says so.
 //
 // THE FIRST RECORD IS NAMED BECAUSE THE SEAT CANNOT SEE IT. Measured on the #1565 smoke: four lenses
-// whose whole read of the report registered them ran `register` next, were refused naming only the
+// whose first recorded act registered them ran `register` next, were refused naming only the
 // dispatch, and each blamed the dispatch bracket.
 func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.Occasion) error {
 	held := fmt.Sprintf("dispatch %d, register at event %d", dispatch, h.event)
@@ -957,6 +957,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
+		// A RULING ON A DOCKETING OR ON A MOTION ABOUT GAPS STANDS ON THEIR PASSAGES DELIVERED TO
+		// THE BENCH. A position names no passage, and its ruling needs none. A docketing or motion
+		// already ruled is told so first: no delivery would let a second ruling stand
+		// (requireUnanswered asks it again under the write lock).
+		if err := requireUnanswered(q, seatID, b); err != nil {
+			return err
+		}
+		if err := DeliveredTextRefusal(q, seatID, b); err != nil {
+			return err
+		}
 	}
 	if err := recordpb.CheckRequired(body); err != nil {
 		return err
@@ -1065,6 +1075,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
 			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+			// A CLOSE STANDS ON THE TEXT DELIVERED TO THE LENS: its sitting's delivery, and no change
+			// to the gap's sentence since — a gap whose anchor an edit left bare or a retire removed
+			// included, its passage being the change that did it.
+			if err := DeliveredTextRefusal(q, seatID, b); err != nil {
 				return err
 			}
 		}
@@ -1479,10 +1495,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.ReportRead:
-		if err := requireReportReadAt(q, seatID, b); err != nil {
+		if err := requireReportRead(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.SpotCheck:
+		if err := DeliveredTextRefusal(q, seatID, b); err != nil {
+			return err
+		}
 		if err := requireGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}

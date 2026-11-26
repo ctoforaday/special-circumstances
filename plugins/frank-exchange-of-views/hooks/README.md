@@ -74,8 +74,9 @@ catches a seat that typed a plausible event under a dead hook. Claude Code
 
 ## PostToolUse
 
-MATCHER `StructuredOutput|Bash`, ONE ENTRY: the binary is spawned for the call that returns a seat's
-envelope, and for every Bash call (below). PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
+NO MATCHER, ONE ENTRY: the binary is spawned for every successful tool call — the call that returns a
+seat's envelope, and every other call, whatever its tool (below). A call from no seat of a live run
+returns at once, so outside a run the hook costs one process start per call. PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
 nothing and the harness accepted the envelope against its schema. The hook hands the call to
 feov-sitting-write (`-phase admission`), which records the envelope as ADMITTED — an
 `envelope_admitted` event under `harness`, keyed to the agent, one per sitting. That admission is what
@@ -87,26 +88,44 @@ not take goes on the hook record (stage `envelope-admission`), and the sitting r
 from no seat — the main session, an operator — writes nothing. The bootstrap guard mirrors every other
 hook here.
 
-ON A Bash CALL, A LENS IS HANDED ITS NEXT ITEM. A lens's work arrives one item at a
-time — SubagentStart hands it the current item in full and an index of the rest — and the next item
-has to arrive after the act that discharged the current one, which is a Bash call to the record. So the
-binary returns at once for every Bash call that is not a lens's (the payload's `agent_type`, read
-without the roster: `runlive.IsLensAgentType`) or whose command does not name `feov-record`; for the
-rest it hands the call to feov-sitting-write (`-phase next`), which reads the lens's work list, orders
-it into its queue (`record.QueueOf`), and compares it with what the lens was last handed — the current
-item's key and digest and the keys queued beside it, one file per lens sitting under the run's
-`.work-delivery/`. The current item stays current until it leaves the queue; a moved one is handed
-again marked `changed_since_delivered`; another item leaving is one line; nothing changed is nothing.
-Two calls returning together hand the next item once: the comparison runs under a file lock (gofrs/flock). What
-the writer prints is the lens's, passed on as `additionalContext` — which reaches a Workflow seat's
-context and an Agent subagent's alike, up to the harness's 10,000-character cap, past which it is
-spilled to a file in the PARENT session with a two-kilobyte preview (measured on 2.1.318); a delivery
-is held to 9,000 bytes (`sittingwrite.DeliveryBudget`) by construction: past it, parts give way in a fixed
-order (`sittingwrite.fitted`) down to the current gap's own prose, and each cut is said in an `_omitted`
-or `_clipped` field. A writer that fails goes on the hook record
-(stage `next-item`) and is said to the lens as a statement that nothing was determined, never as
-silence. Under Antigravity a PostToolUse response carries nothing back to the agent, so a lens there
-reads its next item off its work list.
+ON EVERY OTHER CALL, A SEAT IS HANDED ITS NEXT ITEM. Every seat's work arrives one item at a time,
+after any tool call — a Read, a Grep, a WebSearch, an Edit, a Bash call, the record's or not — so report
+text arrives on the calls a seat makes to do its work, and no seat makes a call only to be handed its
+next item. The call returning the envelope hands nothing: it ends the seat's work. A call that FAILED
+reaches PostToolUseFailure and hands nothing either; the next successful call does. The binary returns
+at once for a call that is not a seat's; for the rest it hands the call to feov-sitting-write
+(`-phase next`), which reads the seat's work list, orders it into its queue (`record.QueueOf`), and
+compares it with what the seat was last handed — the current item's key and digest and the keys
+queued beside it, one file per seat sitting under the run's `.work-delivery/`. The current item stays
+current until it leaves the queue; a moved one is handed again marked `changed_since_delivered`;
+another item leaving is one line; nothing changed is nothing. Two calls returning together hand the
+next item once: the comparison runs under a file lock (gofrs/flock), and the call that does not take
+it hands nothing. What the writer prints is the seat's, passed on as `additionalContext` — which reaches a
+Workflow seat's context and an Agent subagent's alike, up to the harness's 10,000-character cap, past
+which it is spilled to a file in the PARENT session with a two-kilobyte preview (measured on 2.1.318);
+a delivery is held to 9,000 bytes (`sittingwrite.DeliveryBudget`) by construction: past it, parts of an
+ordinary item give way in a fixed order (`sittingwrite.fitted`) down to the current gap's own prose,
+and each cut is said in an `_omitted` or `_clipped` field.
+
+REPORT TEXT IS HANDED HERE AND NOWHERE ELSE. A lens's, the chair's and the bench's queues open with
+the report text owed to them this sitting — a lens's whole report at its first sitting and its full
+re-read at its next, and otherwise each edit since its pin as the whole paragraphs it touched, before
+and after, with its own gaps' passages; the chair's unborne changes behind each stale area's pin; the
+bench's passages of the gaps its motions are about. The delivery is cut once, at its first item, from
+the report as it then stands, and kept with its head in the sitting's `.work-delivery/` file; each
+call hands one item of it, whole — a report-text item is never clipped and is packed to fit the
+budget. When the last item is handed the writer records the delivery (`report_read`, its head the
+head it was cut at): the tool's record of what it delivered, which moves a lens's pin, lets the
+envelope through, and lets a close, a spot-check or a ruling on a motion about gaps stand. A read
+through `show report` records nothing. A DELIVERY THAT CANNOT ADVANCE ENDS THE SEAT'S TURN: where the
+record cannot be read or written, the delivery file cannot be written, or the record refuses the
+delivery, the writer logs the reason as the tool's own defect and the hook answers with `"continue":
+false` and the reason, which ends that seat's turn and no other; its sitting closes failed. A writer
+that fails where no report text is in flight goes on the hook record (stage `next-item`) and is said
+to the seat as a statement that nothing was determined, never as silence. Under Antigravity a
+PostToolUse response reaches the agent through hookcore's queue at its next PreInvocation; every item
+but report text is handed there, report text is not yet, nothing is stopped, and a run with a lens
+there cannot PASS.
 
 ## SubagentStart
 
@@ -122,9 +141,13 @@ the DISPATCHED SEAT's context and nothing else — one firing, verified three ti
 (plans/hook-surface-spike.md §5 and §10, and again 2026-09-25, where the marker landed as a
 `hook_additional_context` attachment on the seat's transcript and the seat returned it verbatim). The
 nine-firing loop described under SubagentStop is that event's and does not apply here. What this
-event injects is the seat's own WORK LIST, read from the record at the moment of dispatch and
-rendered by the writer, so a seat that owes nothing can end its turn having run no commands at all.
-It is the projection's bytes, not a second author of the seat's duties.
+event injects is the head of the seat's own queue — its standing, the current item in full and an
+index of the rest — read from the record at the moment of dispatch and rendered by the writer, so a
+seat that owes nothing can end its turn having run no commands at all. IT NEVER HANDS REPORT TEXT:
+where the queue opens with it, the seat is handed one line saying it arrives one item after each of
+its tool calls, the first after its first call. A configuration that seats several seats
+(blue's researcher, the lanes) is handed nothing here. It is the projection's bytes, not a second
+author of the seat's duties.
 
 FAILURE IS A DIFFERENT CHANNEL FROM INJECTION. This event displays nothing to a HUMAN, so a failure
 to record the span goes on the hook record and is read out by the seat's next Bash, Read or

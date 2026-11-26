@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -48,6 +49,7 @@ var update = os.Getenv("UPDATE_GOLDENS") == "1"
 
 func TestGolden(t *testing.T) {
 	bin := buildBinary(t)
+	writer := testbuild.Binary(t, "feov-sitting-write")
 	for _, sc := range scenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
@@ -56,7 +58,18 @@ func TestGolden(t *testing.T) {
 
 			var transcript strings.Builder
 
+			// A DRIVE STEP IS A SEAT READING WHAT IT IS OWED (readStep): the writer hands its report text
+			// one item per call, as the PostToolUse hook does, so an act that stands on delivered text
+			// reaches the rule the scenario is named for rather than the delivered-text refusal. Only a
+			// drive step hands anything; the scenario's own commands are typed as they were.
+			drive := &replayDrive{t: t, bin: bin, writer: writer, runDir: runDir}
 			for _, c := range sc.cmds {
+				if c.do != nil {
+					c.do(drive)
+					m.observe(filepath.Join(runDir, "records"))
+					fmt.Fprintf(&transcript, "drive: %s\n\n", c.drive)
+					continue
+				}
 				inv := runGo(bin, runDir, m, c)
 				m.observe(filepath.Join(runDir, "records"))
 				applyMtimes(t, runDir, m, c)

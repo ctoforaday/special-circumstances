@@ -325,7 +325,7 @@ func TestBlueIsRefusedItsEnvelopeUntilItActsOnTheRemandedGap(t *testing.T) {
 	}
 	holds := func(t *testing.T, run Run, seat string) bool {
 		t.Helper()
-		r, err := EnvelopeRefusal(run, seat)
+		r, err := EnvelopeRefusal(run, seat, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -354,9 +354,11 @@ func TestBlueIsRefusedItsEnvelopeUntilItActsOnTheRemandedGap(t *testing.T) {
 // list says so before it rules; a ruling that closes the gap is admitted; a second remand in the
 // sitting that already remanded the gap is the same hearing, and is admitted.
 func TestARemandPastTheLimitIsRefused(t *testing.T) {
+	// The bench sits again with its delivery at the head: the ruling is answered by the limit.
 	again := func(st *stage) Run {
-		return st.register("red-chair").docketMotion("red-chair", "D2", "G1").
-			dispatch(2, "judge", "G1").register("judge").seed()
+		st.register("red-chair").docketMotion("red-chair", "D2", "G1").
+			dispatch(2, "judge", "G1").register("judge")
+		return st.served("judge", st.head()).seed()
 	}
 	for _, c := range []struct {
 		name string
@@ -393,7 +395,7 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 		st.exchangeOn("G1").exchangeOn("G1")
 		run := st.register("red-chair").docketMotion("red-chair", "M1", "G1").
 			register("blue-respond").docketMotion("blue-respond", "M2", "G1").
-			register("red-chair").dispatch(2, "judge", "G1").register("judge").
+			register("red-chair").dispatch(2, "judge", "G1").register("judge").served("judge", 2).
 			add("judge", remandRuling("M1", remandDirection)).seed()
 		if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M2", remandDirection)); err != nil {
 			t.Errorf("a second motion remanded in the sitting that remanded G1 is the same hearing, and was refused: %v", err)
@@ -675,7 +677,7 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 			t.Errorf("%s: remand_stage = %q, want owed", seat.id, got)
 		}
 	}
-	if r, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(r, remandDirection) {
+	if r, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(r, remandDirection) {
 		t.Errorf("the remand does not hold the lens's envelope: %q (%v)", r, err)
 	}
 	if !remandItemBlocks(t, run, "blue", "blue-respond") {

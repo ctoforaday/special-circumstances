@@ -27,7 +27,8 @@ const benchOrdersPct = 20
 // benchOrdersArm is whether this run takes a bench-orders arm now: always on the forced seed, never on
 // a run forced to a verdict, and by the draw otherwise.
 func (r *runner) benchOrdersArm() bool {
-	if r.forcedVerdict() {
+	// OWEDCOMPUTATIONSEED'S RUN RECORDS NO COMPUTATION BUT computeOwed's, and new grounds are one.
+	if r.forcedVerdict() || r.forceOwedComputation {
 		return false
 	}
 	return r.forceBenchOrders || r.coin(benchOrdersPct)

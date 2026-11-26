@@ -391,7 +391,9 @@ func requireRoadApplied(q recordsql.Querier, p Positions, texts []benchAct) erro
 	if err := roadEstoppel(fam, evs[:n], p.GapID, p.Road.GetLocation()); err != nil {
 		return err
 	}
-	before, err := renderSource(reportSourceAt(q, a.at-1))
+	// THE TEXT BEFORE THE EDIT IS ITS OWN STAMPED PARAGRAPHS (stampedParagraphs): the edit's write
+	// records the paragraphs it changed, so nothing is rebuilt as the report stood before it.
+	before, _, err := stampedParagraphs(editAt{id: a.at, ed: ed})
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,13 +14,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // m19Archive is universe-m19, the run this rule was written from: 459 events migrated, outcome VERIFIED,
 // with two citations and a computation whose sentences blue rewrote after their last check.
 const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 
-// m19Reopened is what m19 owes at its chair's verdict (event 451), as events.id.
+// m19Reopened is what m19 owes at its chair's verdict (event 437), as events.id.
 //
 // THE IDS ARE LITERALS, DERIVED BY SQL OUTSIDE THE FOLD — the last `blue_edit_reopened` row naming
 // each anchor, and the last verify or reproduce of it before that — so a wrong fold cannot agree
@@ -27,9 +29,18 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 // events in order; a migration that renumbers them re-derives the three pairs from the migrated
 // record and updates this table in the same commit. The anchors do not move.
 var m19Reopened = []unchecked{
-	{anchor: "C-706fda63", edit: 358, lastCheck: 141},
-	{anchor: "C-4dae2507", edit: 330, lastCheck: 289},
-	{anchor: "K-cd9f4c5a", computation: true, sha: "078d75b87b5cf2c5319d398a8d1c736ff5ecfbc1780abed8a448b0057ede9a70", edit: 330, lastCheck: 288},
+	{anchor: "C-706fda63", edit: 349, lastCheck: 140},
+	{anchor: "C-4dae2507", edit: 324, lastCheck: 284},
+	{anchor: "K-cd9f4c5a", computation: true, sha: "078d75b87b5cf2c5319d398a8d1c736ff5ecfbc1780abed8a448b0057ede9a70", edit: 324, lastCheck: 283},
+}
+
+// owesClause is whether a lens's reason holds the fold's clause on an unretired lens that owes
+// (lensFold.retiresWhy): past its barren limit it does not retire while it owes, and below it, it
+// retires at the limit only owing nothing. A sitting that checks is productive (plan constitution-gaps
+// §III.3, "Productive sitting (retirement)"), so m19's owners, whose sittings hold their checks, are
+// below the limit and carry the second.
+func owesClause(why string) bool {
+	return strings.Contains(why, "it does not retire while it owes ") || strings.Contains(why, fmt.Sprintf("it retires at %d owing nothing, and it owes ", retiresAfter))
 }
 
 // m19Owner is who owes each reopened anchor's check: the evidence lens a citation's, the computation
@@ -49,20 +60,37 @@ func m19At(t *testing.T, whole []*Event, n int) Run {
 	return archiveAt(t, m19Archive, whole, n)
 }
 
-// archiveMigrate brings an archived run forward into a fresh run directory; archivemigrate_test.go
-// installs migrate here.
-var archiveMigrate func(src, dst string) error
+// archiveMigrate brings an archived run forward into a fresh run directory, and returns the acts its
+// manifest lists in lost_acts; archivemigrate_test.go installs migrate here.
+var archiveMigrate func(src, dst string) ([]LostAct, error)
+
+// LostAct is one archived act the migration wrote as no event (the manifest's lost_acts): the
+// write refuses it, for want of a delivery or for a gap such a loss took with it. Gap and Motion
+// are the migrated ids it names, empty where it names none.
+type LostAct struct {
+	OldID          int64
+	Word, TS, Seat string
+	Gap, Motion    string
+}
 
 // archivedEvents is the named archive's whole stream, migrated to this epoch and read off the
 // migrated record's event tables on a plain read-only handle. Each test replays a prefix of them
 // into a record of this binary's making (archiveAt), so no view of the archive's is ever asked.
 func archivedEvents(t *testing.T, archive string) []*Event {
 	t.Helper()
+	evs, _ := archivedRun(t, archive)
+	return evs
+}
+
+// archivedRun is archivedEvents with the acts the migration lost.
+func archivedRun(t *testing.T, archive string) ([]*Event, []LostAct) {
+	t.Helper()
 	if archiveMigrate == nil {
 		t.Fatal("no migration installed: archivemigrate_test.go installs migrate before any test runs")
 	}
 	migrated := filepath.Join(t.TempDir(), "run")
-	if err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated); err != nil {
+	lost, err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated)
+	if err != nil {
 		t.Fatalf("migrating %s: %v", archive, err)
 	}
 	if err := recordsql.CloseUnder(migrated); err != nil {
@@ -78,7 +106,7 @@ func archivedEvents(t *testing.T, archive string) []*Event {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return evs
+	return evs, lost
 }
 
 // migratedRunConfigs is, by archive, the inputs/run-config.json its migration writes (nil where the
@@ -96,7 +124,7 @@ func archivedChannels(t *testing.T, archive string) string {
 			t.Fatal("no migration installed: archivemigrate_test.go installs migrate before any test runs")
 		}
 		migrated := filepath.Join(t.TempDir(), "run")
-		if err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated); err != nil {
+		if _, err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated); err != nil {
 			t.Fatalf("migrating %s: %v", archive, err)
 		}
 		if err := recordsql.CloseUnder(migrated); err != nil {
@@ -131,21 +159,58 @@ func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 }
 
 // M19 PASSED OVER THREE CHECKS OF SENTENCES IT NO LONGER CARRIED. Its evidence lens found against
-// C-706fda63 (event 103); blue rewrote the sentence to answer it (edit 358); no seat read the new
-// sentence against the source, and the chair's PASS at 451 was admitted. Under this rule the plans
+// C-706fda63 (event 102); blue rewrote the sentence to answer it (edit 349); no seat read the new
+// sentence against the source, and the chair's PASS at 437 was admitted. Under this rule the plans
 // that followed the edits ready each anchor's owner — the evidence lens for the citations, the
 // computation lens for the computation — and the PASS is refused naming all three.
 func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
-	whole := archivedEvents(t, m19Archive)
-	if len(whole) != 459 || whole[450].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
-		t.Fatalf("the archive holds %d events and its event 451 is a %s, want 459 and the chair's verdict", len(whole), whole[450].GetType())
+	whole, lost := archivedRun(t, m19Archive)
+	if len(whole) != 445 || whole[436].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
+		t.Fatalf("the archive holds %d events and its event 437 is a %s, want 445 and the chair's verdict", len(whole), whole[436].GetType())
 	}
 	fact := func(r unchecked) string {
 		return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", r.anchor, r.edit, r.lastCheck)
 	}
 
 	// The record before the chair's verdict.
-	run := m19At(t, whole, 450)
+	run := m19At(t, whole, 436)
+	// WHAT THE MIGRATION AND THE DELIVERY MODEL ADD, derived rather than listed. Each close the
+	// migration lost (its manifest's lost_acts) leaves its gap open, so its material_gap holds the
+	// PASS, and a settled inquiry such a gap is about is held through that row, not its own
+	// (inquiryBlockersOf). And every lens that sat owes the whole report (plan constitution-gaps
+	// §III.3): the archive's lenses hold fewer than two report reads each, so each owes it.
+	lostClose := map[string]bool{}
+	for _, a := range lost {
+		if a.Word == "close" && a.TS < whole[436].GetTs() {
+			lostClose[a.Gap] = true
+		}
+	}
+	heldByLostClose := map[string]bool{}
+	sat, reads := map[string]bool{}, map[string]int{}
+	for _, e := range whole[:436] {
+		if m := e.GetMint(); m != nil && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY && lostClose[m.GetGapId()] {
+			heldByLostClose[m.GetAboutRef()] = true
+		}
+		if seatclass.RoleOfSeat(e.GetSeatId()) != "lens" {
+			continue
+		}
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
+			sat[e.GetSeatId()] = true
+		case recordpb.EventType_EVENT_TYPE_REPORT_READ:
+			reads[e.GetSeatId()]++
+		}
+	}
+	owesWhole := map[string]bool{}
+	for l := range sat {
+		if reads[l] < 2 {
+			owesWhole[l] = true
+		}
+	}
+	if len(lostClose) == 0 || len(owesWhole) == 0 {
+		t.Fatalf("m19 lost no close (%v) or no lens owes the whole report (%v): the arms below run on nothing", lostClose, owesWhole)
+	}
+	gotOpen, gotOwes := map[string]bool{}, map[string]bool{}
 	blockers, err := PassBlockers(run)
 	if err != nil {
 		t.Fatal(err)
@@ -161,9 +226,9 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
 			switch {
-			case !strings.Contains(b.foldWhy, "no sitting it sat through was served the whole report"):
+			case !strings.Contains(b.foldWhy, "no sitting it sat through holds a complete delivery of report text"):
 				t.Errorf("%s is ready for %q, want it behind the head: the archive records no report read", b.Subject, b.foldWhy)
-			case owners[b.Subject] && (!strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "unchecked ")):
+			case owners[b.Subject] && (!owesClause(b.foldWhy) || !strings.Contains(b.foldWhy, "unchecked ")):
 				t.Errorf("%s is ready for %q, want it unretired because it owes a reopened check", b.Subject, b.foldWhy)
 			}
 			ready = append(ready, b.Subject)
@@ -173,6 +238,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		// each is owed the logic lens's.
 		if b.Kind == BlockerUncheckedInquiry && b.Owner == inquiryOwner {
 			inquiries++
+			continue
+		}
+		if b.Kind == BlockerMaterialGap && lostClose[b.Subject] {
+			gotOpen[b.Subject] = true
+			continue
+		}
+		if b.Kind == BlockerWholeReportOwed && owesWhole[b.Subject] && b.Owner == b.Subject {
+			gotOwes[b.Subject] = true
 			continue
 		}
 		// AND THE QUESTION, WHICH THE ARCHIVE NEVER SPLIT: m19 was recorded before the question had
@@ -190,8 +263,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		}
 		got = append(got, r)
 	}
-	if inquiries != 10 {
-		t.Errorf("%d settled inquiries hold the PASS unchecked, want m19's 10", inquiries)
+	if !maps.Equal(gotOpen, lostClose) {
+		t.Errorf("material gaps holding the PASS = %v, want each gap whose close the migration lost: %v", gotOpen, lostClose)
+	}
+	if !maps.Equal(gotOwes, owesWhole) {
+		t.Errorf("lenses owing the whole report = %v, want every lens that sat with fewer than two report reads: %v", gotOwes, owesWhole)
+	}
+	if want := 10 - len(heldByLostClose); inquiries != want {
+		t.Errorf("%d settled inquiries hold the PASS unchecked, want m19's 10 less the %d a lost close's open gap holds instead (%v)", inquiries, len(heldByLostClose), heldByLostClose)
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)
@@ -201,7 +280,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
-		t.Fatal("the gate admits the PASS m19's chair recorded at event 451")
+		t.Fatal("the gate admits the PASS m19's chair recorded at event 437")
 	}
 	plan, err := PlanDispatch(run)
 	if err != nil {
@@ -234,23 +313,23 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	for _, r := range standingOf(t, run) {
 		rows = append(rows, unchecked{anchor: r.Anchor, edit: r.Edit, lastCheck: r.LastCheck})
 	}
-	if want := []unchecked{{anchor: "C-706fda63", edit: 358, lastCheck: 141}, {anchor: "C-4dae2507", edit: 330, lastCheck: 289}, {anchor: "K-cd9f4c5a", edit: 330, lastCheck: 288}}; !slices.Equal(rows, want) {
+	if want := []unchecked{{anchor: "C-706fda63", edit: 349, lastCheck: 140}, {anchor: "C-4dae2507", edit: 324, lastCheck: 284}, {anchor: "K-cd9f4c5a", edit: 324, lastCheck: 283}}; !slices.Equal(rows, want) {
 		t.Errorf("show evidence reopened = %+v\nwant %+v", rows, want)
 	}
-	// A computation reopened and retired in one blue sitting (edits 392 and 395, retire 396) owes nothing.
+	// A computation reopened and retired in one blue sitting (edits 381 and 384, retire 385) owes nothing.
 	if at, err := EvidenceAt(run, "K-c1c0989f"); err != nil || at.Computation == nil || at.Unchecked != nil {
 		t.Errorf("show evidence --anchor K-c1c0989f: reopened = %+v (%v), want the computation with no reopened row", at.Unchecked, err)
 	}
 
-	// The two plans that followed the edits: the chair's dispatches at events 337 and 365 readied
+	// The two plans that followed the edits: the chair's dispatches at events 331 and 356 readied
 	// architecture, voice and blue, then architecture alone. Each now readies the evidence lens for
 	// the citations and the computation lens for the computation.
 	for _, c := range []struct {
 		before int
 		owed   []string
 	}{
-		{337, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
-		{365, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
+		{331, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
+		{356, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
 	} {
 		plan, err := PlanDispatch(m19At(t, whole, c.before-1))
 		if err != nil {
@@ -265,7 +344,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		// Each owner is readied because it owes the anchors' checks: its reason names every one it owns.
 		for _, r := range m19Reopened {
 			if !slices.ContainsFunc(plan.Why, func(w string) bool {
-				return strings.HasPrefix(w, m19Owner(r)+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "unchecked "+r.anchor)
+				return strings.HasPrefix(w, m19Owner(r)+": ") && strings.Contains(w, ", behind head ") && owesClause(w) && strings.Contains(w, "unchecked "+r.anchor)
 			}) {
 				t.Errorf("the plan at event %d does not ready %s for %s: %q", c.before, m19Owner(r), r.anchor, plan.Why)
 			}

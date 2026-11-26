@@ -389,13 +389,21 @@ func (r *runner) answerRemands(seatID string) {
 			r.noteActErr(fmt.Sprintf("%s's remand item on gap %s blocks its list — the exchange begins with blue's act, so the assignee owes the gap nothing before it", seatID, g.ID))
 			continue
 		}
-		dir, argv, err := r.writeBundle("fuzz-remand-"+g.ID+".js", "console.log('the remand direction for "+g.ID+"');")
-		if err != nil {
-			continue
-		}
-		if _, ok := r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", g.ID,
-			"--reason", "fuzz: what the remand's direction found for " + g.ID, "--"}, argv...)...); !ok {
-			continue
+		// OWEDCOMPUTATIONSEED'S RUN RECORDS NO COMPUTATION BUT computeOwed's: its blue answers the remand
+		// with a citation, an act on the gap all the same.
+		if r.forceOwedComputation {
+			if !r.placeAnswer(seatID, g.ID, "citation", "", "fuzz: what the remand's direction found for "+g.ID) {
+				continue
+			}
+		} else {
+			dir, argv, err := r.writeBundle("fuzz-remand-"+g.ID+".js", "console.log('the remand direction for "+g.ID+"');")
+			if err != nil {
+				continue
+			}
+			if _, ok := r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", g.ID,
+				"--reason", "fuzz: what the remand's direction found for " + g.ID, "--"}, argv...)...); !ok {
+				continue
+			}
 		}
 		if w2, err := record.WorkOfSeat(r.run(), role, seatID); err == nil && blocksOn(w2.Sitting, g.ID, g.DocketDirection) {
 			r.noteActErr(fmt.Sprintf("%s recorded an act on remanded gap %s and the remand's item still blocks its list", seatID, g.ID))

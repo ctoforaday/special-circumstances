@@ -26,6 +26,9 @@ import (
 func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	runDir := seatRun(t)
 	real := mintGap(t, runDir, "the-real-gap", "spec_underspecification")
+	// The spot-check row stands on a stale area's delivered changes, so the run has one; without it the
+	// refusal measured would be the delivered-text one, not the reference's.
+	chairOwesAStaleArea(t, runDir, "red-lens-logic")
 
 	for _, c := range []struct {
 		name, wants string
@@ -116,6 +119,9 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
 	}
+	// The spot-check row stands on a stale area's delivered changes, so the run has one; without it the
+	// refusal measured would be the delivered-text one, not the state's.
+	chairOwesAStaleArea(t, runDir, "red-lens-logic")
 
 	for _, c := range []struct {
 		name, wants string
@@ -203,6 +209,10 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
+	// The lens sits once more for its full re-read and the chair after it: a PASS waits on both whole
+	// deliveries.
+	lensRereads(t, runDir)
+	chairSitsAgain(t, runDir)
 	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}

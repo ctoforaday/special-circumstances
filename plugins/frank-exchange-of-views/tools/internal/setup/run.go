@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -641,8 +640,6 @@ func resolveSeats(cfg Config) (map[string]modeltier.SeatSpec, error) {
 	return out, nil
 }
 
-var ansiCSI = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
-
 func validateSeatModels(seats map[string]modeltier.SeatSpec, execFn ExecFunc) error {
 	var needAgy bool
 	for seatID, spec := range seats {
@@ -652,48 +649,18 @@ func validateSeatModels(seats map[string]modeltier.SeatSpec, execFn ExecFunc) er
 				return fmt.Errorf("seat %s: unrecognized Claude model %q (pass haiku, sonnet, opus, fable, or claude-*)", seatID, spec.Model)
 			}
 		case "antigravity":
+			if !modeltier.RecognizedAntigravity(spec.Model) {
+				return fmt.Errorf("seat %s: unrecognized Antigravity model tier %q (run_workflow accepts: %s)", seatID, spec.Model, strings.Join(modeltier.AntigravityTiers, ", "))
+			}
 			needAgy = true
 		}
 	}
 	if !needAgy {
 		return nil
 	}
-	res := execFn("agy", []string{"models"})
-	if res.Err != nil || res.Status != 0 {
-		return fmt.Errorf("could not query live Antigravity models (`agy models` status=%d err=%v): %s", res.Status, res.Err, strings.TrimSpace(res.Stdout))
-	}
-	live := parseAgyModels(res.Stdout)
-	for seatID, spec := range seats {
-		if spec.Harness != "antigravity" {
-			continue
-		}
-		if !live[spec.Model] {
-			return fmt.Errorf("seat %s: Antigravity model %q not found in live `agy models` output:\n%s", seatID, spec.Model, strings.TrimSpace(res.Stdout))
-		}
-	}
 	ares := execFn("agy", []string{"agents"})
 	if ares.Err != nil || ares.Status != 0 {
 		return fmt.Errorf("could not query live Antigravity agents (`agy agents` status=%d err=%v): %s", ares.Status, ares.Err, strings.TrimSpace(ares.Stdout))
 	}
 	return nil
-}
-
-func parseAgyModels(out string) map[string]bool {
-	clean := ansiCSI.ReplaceAllString(out, "")
-	clean = strings.ReplaceAll(clean, "\r", "\n")
-	models := map[string]bool{}
-	for _, line := range strings.Split(clean, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		tok := fields[0]
-		if tok == "ID" || tok == "NAME" || tok == "Available" || tok == "Fetching" ||
-			strings.HasPrefix(tok, "-") || strings.HasPrefix(tok, "=") ||
-			([]rune(tok)[0] >= 0x2800 && []rune(tok)[0] <= 0x28FF) {
-			continue
-		}
-		models[tok] = true
-	}
-	return models
 }

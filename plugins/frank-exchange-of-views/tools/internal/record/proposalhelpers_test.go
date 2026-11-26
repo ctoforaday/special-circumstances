@@ -92,7 +92,7 @@ func docketGaps(p Plan) []string {
 func convene(t *testing.T, run Run, gaps ...string) Identity {
 	t.Helper()
 	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: gaps})
-	return sit(t, run, benchSeat)
+	return sitRead(t, run, benchSeat)
 }
 
 // exchangeOn gives gap its one counted exchange, the cheapest the record counts: the chair engages

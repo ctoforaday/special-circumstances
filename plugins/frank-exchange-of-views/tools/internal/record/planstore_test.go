@@ -122,8 +122,7 @@ func TestThePlanStoredCarriesTheBlockersFoldedBeforeItsRows(t *testing.T) {
 func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).
-		register(evLens).served(evLens, 2).register("red-chair").seed()
+		register("red-chair").readFully(2, evLens).register("red-chair").seed()
 	plan, _, err := DispatchNext(chair(run))
 	if err != nil || len(plan.Parties) != 0 {
 		t.Fatalf("fixture: %d parties, %v; want nobody ready", len(plan.Parties), err)
@@ -167,10 +166,10 @@ func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
 		want []PlanBlocker
 	}{
 		{"nothing holds", func(b *stage) *stage {
-			return b.ingest().register("red-chair").dispatch(2, evLens).register(evLens).served(evLens, 2).sit(2, inquiryOwner)
+			return b.ingest().register("red-chair").readFully(2, evLens).readFully(2, inquiryOwner)
 		}, []PlanBlocker{}},
 		{"an inquiry its owner has not checked", func(b *stage) *stage {
-			return uncheckedInquiryBoard(b.ingest().register("red-chair").dispatch(2, evLens).register(evLens).served(evLens, 2))
+			return uncheckedInquiryBoard(b.ingest().register("red-chair").readFully(2, evLens))
 		}, []PlanBlocker{{Kind: BlockerUncheckedInquiry, Subject: "I-00000001", Owner: inquiryOwner}}},
 	}
 	acts := []struct {
@@ -415,24 +414,24 @@ func TestAgentEnvelopeRoutesOnTheSeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filled, refusal, seat, err := AgentEnvelope(run, "agent-chair", []byte(`{}`))
+	filled, refusal, seat, err := AgentEnvelope(run, "agent-chair", []byte(`{}`), true)
 	if err != nil || refusal != "" || seat != "red-chair" {
 		t.Fatalf("the chair's envelope (%v): %q", err, refusal)
 	}
 	if _, printed, err := ReadPlan(filled); err != nil || printed != plan.Printed() {
 		t.Errorf("the chair's call does not carry the stored plan (%v): %s", err, filled)
 	}
-	filled, refusal, seat, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`))
+	filled, refusal, seat, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`), true)
 	if err != nil || refusal != "" || filled != nil || seat != "" {
 		t.Errorf("an agent bound to no seat was answered (%v): filled %s, refusal %q", err, filled, refusal)
 	}
 }
 
-// uncheckedInquiryBoard adds inquiry I-00000001, settled, and a sitting of its owner opened since its
-// fate and served the report at the head: the inquiry holds the PASS until a check stands on it, and
-// readies nobody.
+// uncheckedInquiryBoard adds inquiry I-00000001, settled, and two sittings of its owner opened since
+// its fate, each served the whole report at the head (its first and its full re-read): the inquiry
+// holds the PASS until a check stands on it, and readies nobody.
 func uncheckedInquiryBoard(b *stage) *stage {
 	return b.add("blue-respond", fate("I-00000001", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)).
 		add("blue-respond", fate("I-00000001", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, false)).
-		sit(b.head(), inquiryOwner)
+		readFully(b.head(), inquiryOwner)
 }

@@ -65,7 +65,7 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 	runDir := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	exec := func(a ...string) (string, error) { return run(t, a...) }
-	if err := seatprobe.Build(runtest.Open(t, runDir), seatprobe.Boards()["docket"], exec); err != nil {
+	if err := seatprobe.Build(runtest.Open(t, runDir), seatprobe.Boards()["docket"], exec, seatprobe.InProcessHand(runDir)); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
 	// THE SEAT SITS BEFORE IT ACTS. The staged docket board already seated red-chair and recorded

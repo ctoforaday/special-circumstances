@@ -19,7 +19,7 @@ func TestAComposedEntryOverBudgetCutsItemsAndCountsThem(t *testing.T) {
 			What: fmt.Sprintf("inquiry Q-%08d prints under Research areas with its fate confirmed, and the reason and the method its record gave beside it are report text — %s", i, strings.Repeat("x", 120))})
 	}
 	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: items}}
-	text := RenderLensDelivery(w)
+	text := RenderDispatchDelivery(w)
 	if len(text) > DeliveryBudget {
 		t.Fatalf("delivery is %d bytes, over the budget of %d", len(text), DeliveryBudget)
 	}

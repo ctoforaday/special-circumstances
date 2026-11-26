@@ -49,18 +49,18 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 		at("judge", &recordpb.Register{AgentId: proto.String("agent-bench"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 	)
 	var out bytes.Buffer
-	if err := WriteEnvelopeAnswer(runDir, "agent-bench", []byte(`{}`), &out); err != nil {
+	if err := WriteEnvelopeAnswer(runDir, "agent-bench", "claude", []byte(`{}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "docketing D1 ") || !strings.Contains(out.String(), "docketing D2 ") {
 		t.Fatalf("the writer did not print the refusal naming both docketings: %q", out.String())
 	}
 	var stray bytes.Buffer
-	if err := WriteEnvelopeAnswer(runDir, "agent-of-no-seat", []byte(`{}`), &stray); err != nil || stray.Len() != 0 {
+	if err := WriteEnvelopeAnswer(runDir, "agent-of-no-seat", "claude", []byte(`{}`), &stray); err != nil || stray.Len() != 0 {
 		t.Errorf("an agent bound to no seat had its envelope refused (%v): %q", err, stray.String())
 	}
 	var none bytes.Buffer
-	if err := WriteEnvelopeAnswer(newRun(t), "agent-bench", []byte(`{}`), &none); err == nil || none.Len() != 0 {
+	if err := WriteEnvelopeAnswer(newRun(t), "agent-bench", "claude", []byte(`{}`), &none); err == nil || none.Len() != 0 {
 		t.Errorf("a run with no record was checked as one with nothing to refuse (%v): %q", err, none.String())
 	}
 	evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
@@ -96,7 +96,7 @@ func TestTheWriterAnswersTheChairsEnvelopeWithTheStoredPlan(t *testing.T) {
 	}
 	before := logged()
 	var out bytes.Buffer
-	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{"notes":"n"}`), &out); err != nil {
+	if err := WriteEnvelopeAnswer(run, "AG", "claude", []byte(`{"notes":"n"}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	var answer hookgate.EnvelopeAnswer
@@ -119,7 +119,7 @@ func TestTheWriterAnswersTheChairsEnvelopeWithTheStoredPlan(t *testing.T) {
 		t.Errorf("an envelope the record supplied logged %d entries", n-before)
 	}
 	out.Reset()
-	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{"blockers":[]}`), &out); err != nil {
+	if err := WriteEnvelopeAnswer(run, "AG", "claude", []byte(`{"blockers":[]}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	answer = hookgate.EnvelopeAnswer{}

@@ -54,6 +54,11 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
+		// A lens that sat once was delivered the whole report once: its full re-read is owed, and it
+		// is ready for it.
+		{"whole report owed", BlockerWholeReportOwed, false, true, func(b *stage) {
+			b.sit(2, evLens)
+		}, false},
 		{"stale area uncovered", BlockerStaleArea, true, true, func(b *stage) {
 			// two barren sittings at head 2; the head moves; its third sitting is barren (retired
 			// at that pin); the head moves again, past it.
@@ -132,7 +137,8 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	}
 	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
 	// and the docketing stands until the bench rules it.
-	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerDocketed}
+	// So is a whole delivery owed: the lens owing it is ready for it.
+	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerDocketed, BlockerWholeReportOwed: BlockerLensReady}
 	covered := map[BlockerKind]bool{}
 	for _, r := range rows {
 		covered[r.kind] = true
@@ -154,6 +160,11 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			}
 			c.build(b)
 			openChairSitting(b)
+			if c.kind == BlockerStaleArea {
+				// The chair's sitting holds its delivery of the stale area's changes, which the
+				// writer hands it before its acts.
+				b.served("red-chair", b.head())
+			}
 			run := b.seed()
 
 			blockers, err := PassBlockers(run)

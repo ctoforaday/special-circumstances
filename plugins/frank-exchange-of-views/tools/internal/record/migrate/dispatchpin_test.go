@@ -20,6 +20,7 @@ import (
 //
 // Asserted per archive that holds dispatch rows, and in order: the n-th migrated dispatch pins an
 // event of the type and key the n-th source dispatch's pin named, and that event is a report head.
+// A dispatch the manifest lists as lost is no source dispatch of this pairing.
 // The archive is where the renumbering is real; a seeded run writes no cast first and shifts nothing.
 func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 	checked, renumbered := 0, 0
@@ -29,12 +30,16 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// A dispatch on a gap a lost act took with it is that same loss, written as no event and
+			// listed in the manifest; the rest pair with the migrated dispatches in order.
+			res, dir := MigratedArchive(t, name)
+			lost := LostIDs(res)
 			byID := map[int64]OldEvent{}
-			var want []OldEvent      // the event each source dispatch pins, in dispatch order
+			var want []OldEvent      // the event each surviving source dispatch pins, in dispatch order
 			var wantDispatch []int64 // each source dispatch's own id, in the same order
 			for _, old := range evs {
 				byID[old.ID] = old
-				if old.Word != "dispatch" {
+				if old.Word != "dispatch" || lost[old.ID] {
 					continue
 				}
 				pin, _ := old.Fields["pin"].(int64)
@@ -47,12 +52,11 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			if len(want) == 0 {
 				return
 			}
-			man, dir := MigratedArchive(t, name)
 			// A SETTLED EDIT IS WRITTEN AS NO EVENT (EventSchema 80), and an edit's key is its seat's
 			// count of edits: every later edit of that seat is keyed one lower than its source.
 			settledBefore := func(src OldEvent) int {
 				n := 0
-				for _, id := range man.SettledEdits {
+				for _, id := range res.SettledEdits {
 					if s := byID[id]; id < src.ID && s.SeatID == src.SeatID {
 						n++
 					}
@@ -79,7 +83,7 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				if n >= len(want) {
 					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
 				}
-				for n < len(want) && slices.Contains(man.UnowedEngagements, wantDispatch[n]) {
+				for n < len(want) && slices.Contains(res.UnowedEngagements, wantDispatch[n]) {
 					n++
 					dropped++
 				}
@@ -89,8 +93,8 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				src := want[n]
 				// A pin naming a settled edit names the report head it left standing: the latest
 				// source head before it that is not itself settled.
-				if slices.Contains(man.SettledEdits, src.ID) {
-					src = headBeforeOf(evs, src.ID, man.SettledEdits)
+				if slices.Contains(res.SettledEdits, src.ID) {
+					src = headBeforeOf(evs, src.ID, res.SettledEdits)
 				}
 				// AN ARCHIVED REPORT HEAD MAY BE ITS INGESTED TEXT, which the record now holds as the
 				// report's one part, under that word in its key.
@@ -119,15 +123,15 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				n++
 				checked++
 			}
-			for n < len(want) && slices.Contains(man.UnowedEngagements, wantDispatch[n]) {
+			for n < len(want) && slices.Contains(res.UnowedEngagements, wantDispatch[n]) {
 				n++
 				dropped++
 			}
 			if n != len(want) {
 				t.Errorf("the migrated record holds %d dispatches, the source %d", n-dropped, len(want))
 			}
-			if dropped != len(man.UnowedEngagements) {
-				t.Errorf("%d source dispatches were passed over as unowed engagements, the manifest states %d", dropped, len(man.UnowedEngagements))
+			if dropped != len(res.UnowedEngagements) {
+				t.Errorf("%d source dispatches were passed over as unowed engagements, the manifest states %d", dropped, len(res.UnowedEngagements))
 			}
 		})
 	}

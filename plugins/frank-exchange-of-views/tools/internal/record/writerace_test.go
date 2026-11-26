@@ -51,14 +51,17 @@ func overtaken(t *testing.T, run Run, acts []*Event, write func() error) error {
 
 // raceStage is a run every guard below can be asked on: the cast, the report, and a chair, a lens,
 // blue and the bench each in a sitting, with G1 and G2 minted by the lens (both medium) and G1
-// docketed as D1.
+// docketed as D1. The lens's sitting holds its delivery, so its close is answered by the guard under
+// test.
 func raceStage(t *testing.T) Run {
 	b := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
 		mint(evLens, "G1", "medium").mint(evLens, "G2", "medium").
 		docketMotion("red-chair", "D1", "G1").
 		register("blue-respond").register("judge").register("red-lens-logic")
-	return b.seed()
+	run := b.seed()
+	deliver(t, run, evLens)
+	return run
 }
 
 func highMint(gap string) *recordpb.Mint {

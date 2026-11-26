@@ -76,7 +76,7 @@ func TestAnOwedRemedyTheFreezeHoldsDoesNotHoldBluesSitting(t *testing.T) {
 	if err != nil && strings.Contains(err.Error()+out, "your replacement") {
 		t.Errorf("the freeze's refusal speaks to a seat typing a pair: %v", err)
 	}
-	refusal, err := record.EnvelopeRefusal(runtest.Open(t, runDir), blueSeat)
+	refusal, err := record.EnvelopeRefusal(runtest.Open(t, runDir), blueSeat, true)
 	if err != nil || refusal != "" {
 		t.Errorf("blue's envelope with only a frozen remedy owed: refused %q (%v), want admitted", refusal, err)
 	}
@@ -210,7 +210,7 @@ func TestAnOwedReadingTheFreezeHoldsDoesNotHoldTheLensesSitting(t *testing.T) {
 	if out, err := redStates(t, b.runDir, g, "--no-text"); err != nil {
 		t.Fatalf("the lens's closing on %s: %v %s", g, err, out)
 	}
-	refusal, err := record.EnvelopeRefusal(runtest.Open(t, b.runDir), lensL)
+	refusal, err := record.EnvelopeRefusal(runtest.Open(t, b.runDir), lensL, true)
 	if err != nil || refusal != "" {
 		t.Errorf("the lens's envelope with only a frozen reading debt owed: refused %q (%v), want admitted", refusal, err)
 	}

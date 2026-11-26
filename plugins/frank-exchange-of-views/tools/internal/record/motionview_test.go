@@ -89,19 +89,21 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
 	mustAppend(t, Identity{Run: mustRun(t, runDir), SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
-	for _, sid := range []string{"blue-respond", "red-chair"} {
+	withReport(t, mustRun(t, runDir))
+	for _, sid := range []string{"blue-respond", "red-chair", evLens} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: evLens}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	// Blue's proposal is admitted once G1 has had its one exchange.
 	exchangeOn(t, mustRun(t, runDir), "G1")
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
-	// — the one under test — is never reached.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
+	// — the one under test — is never reached. The minting lens closes from its delivered sitting.
+	deliver(t, mustRun(t, runDir), evLens)
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: evLens}, &recordpb.Close{
 		GapId:        proto.String("G1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),

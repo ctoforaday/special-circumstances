@@ -319,9 +319,12 @@ func RefuseAuthoring(old, new string) error {
 // per anchor costs the report's length times its anchors, under the write lock: on a 3,106-event
 // record with 1,274 anchors, 0.82 s of an edit's 0.85 s hold.
 func ReopenedAnchors(before, after string) []string {
-	bare := map[string]bool{}
+	bareAfter, bareBefore := map[string]bool{}, map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(after) {
-		bare[id] = true
+		bareAfter[id] = true
+	}
+	for _, id := range claimcount.BareAnchorIDs(before) {
+		bareBefore[id] = true
 	}
 	inBefore, inAfter := splitSentences(before), splitSentences(after)
 	var out []string
@@ -333,11 +336,13 @@ func ReopenedAnchors(before, after string) []string {
 		if !okB || !okA {
 			continue
 		}
-		// An anchor LEFT BARE is not reopened either: its sentence is gone, not moved, so there is
-		// nothing for red to re-verify. It is a claim on its way out through `retire`, which
-		// takes the anchor with it — and if the retire never comes, the anchor stands bare in the
-		// report, where the lens that reads it finds it.
-		if bare[id] {
+		// AN ANCHOR THE EDIT LEFT BARE IS REOPENED: its sentence is gone, which changes its referent
+		// as surely as a rewrite, and the gap it holds is on its way out through `retire` or back
+		// onto new text. One bare before the edit as well was not bared by it.
+		if bareAfter[id] {
+			if !bareBefore[id] {
+				out = append(out, id)
+			}
 			continue
 		}
 		if b != a {
@@ -345,6 +350,47 @@ func ReopenedAnchors(before, after string) []string {
 		}
 	}
 	return out
+}
+
+// SpliceSpan is the span of report an edit's old replaces, by replay's rule: byte for byte where
+// the edit took the literal span (exact), else the ordinary unique locate.
+func SpliceSpan(report, old string, exact bool) (start, end int, ok bool) {
+	if exact {
+		start, end, _, ok = LocateLiteral(report, old)
+		return start, end, ok
+	}
+	start, end, err := LocateUniqueReplacing(report, old)
+	return start, end, err == nil
+}
+
+// TouchedParagraphs is the run of whole blocks (anchor.Blocks) of before that the replaced span
+// [start, end) touches, and the run of after's blocks that hold its replacement — each from its
+// first block's start to its last block's end, anchors on them and the breaks between them kept.
+// after is before with the span replaced; the text past the span is after's tail of the same
+// length, so the replacement in after runs from start to there.
+//
+// A span that touches no block — it lies in the blank lines between two — gives the block it abuts
+// on either side, so the run is never empty while the document holds text.
+func TouchedParagraphs(before, after string, start, end int) (old, new string) {
+	newEnd := max(len(after)-(len(before)-end), start)
+	return blockRun(before, start, end), blockRun(after, start, min(newEnd, len(after)))
+}
+
+// blockRun is doc from the start of the first block touching [s, e] to the end of the last.
+func blockRun(doc string, s, e int) string {
+	first, last := -1, -1
+	for _, b := range anchor.Blocks(doc) {
+		if b.Start <= e && b.End >= s {
+			if first < 0 {
+				first = b.Start
+			}
+			last = b.End
+		}
+	}
+	if first < 0 {
+		return ""
+	}
+	return doc[first:last]
 }
 
 // SentenceAround returns the sentence holding tok, as anchor.Sentences splits the document, with

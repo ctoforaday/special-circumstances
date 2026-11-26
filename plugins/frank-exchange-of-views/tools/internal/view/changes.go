@@ -15,9 +15,10 @@ import (
 // written by one seat and read by nobody.
 //
 // It matters now because estoppel cannot be adjudicated on evidence nobody can see. Red
-// answers "did blue fix R1-1?" by re-reading the whole report and INFERRING. That full
-// re-read stays mandatory — a decontextualized diff misleads on research prose, which is
-// why the protocol forbids auditing from one. This view does not replace the read; it
+// answers "did blue fix R1-1?" from the report text the tool delivers it and INFERS. A
+// decontextualized diff misleads on research prose, which is why a lens's delivery hands it the
+// whole report at its first sitting and its full re-read, and every edit since its pin as the
+// whole paragraphs it touched, before and after. This view does not replace that delivery; it
 // turns the follow-up question into a COMPARISON: here is the fix red required, and here
 // is the change blue actually made, side by side, for the first time.
 //
@@ -48,8 +49,9 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		"Every recorded change to the report — each edit, and each evidence anchor retired from a",
 		"sentence the report keeps — in record order, grouped by the sitting that made it (`seat #N` is that",
 		"seat's Nth sitting). This is a navigation hint, not",
-		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
-		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",
+		"a substitute for reading the report: a diff decontextualizes research prose, which is why a lens",
+		"audits the report text its work list delivers — the whole report, or each edit since its pin as",
+		"the whole paragraphs it touched, before and after. To put red's required_fix and blue's actual change side by",
 		"side, scope it — `show changes --id <gap>`.",
 		"",
 	}

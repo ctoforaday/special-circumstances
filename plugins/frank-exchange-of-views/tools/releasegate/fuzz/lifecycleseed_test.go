@@ -34,7 +34,9 @@ const otherLens = "red-lens-logic"
 
 // lifecycleClaims are the sentences the forced drive adds after sourceDemandOpen, one per arm: no
 // other drive quotes them, so no gap the drive mints meets another gap of its class on its sentence.
-// The last two stand together, for the claim retire that cuts the first onto the second.
+// The eleventh and twelfth stand together, for the claim retire that cuts the first onto the second,
+// and so do the thirteenth and fourteenth, and the fifteenth and sixteenth, for the claim retires that
+// take a gap's marker out with its claim.
 var lifecycleClaims = [...]string{
 	"The first lifecycle claim holds",
 	"The second lifecycle claim holds",
@@ -48,6 +50,11 @@ var lifecycleClaims = [...]string{
 	"The tenth lifecycle claim holds",
 	"The eleventh lifecycle claim holds",
 	"The twelfth lifecycle claim holds",
+	"The thirteenth lifecycle claim holds",
+	"The fourteenth lifecycle claim holds",
+	"The fifteenth lifecycle claim holds",
+	"The sixteenth lifecycle claim holds",
+	"The seventeenth lifecycle claim holds",
 }
 
 // lifecycleCounts are the anchor lifecycle's counts (III.1′.7), each a tally gate over the sweep.
@@ -83,25 +90,30 @@ type lifecycleCounts struct {
 	// screenedUnsound: an assembly screen FAIL naming a live computation a standing judgement calls
 	// unsound, at the end of a run that ends with one.
 	screenedUnsound int
+	// quoteGapMootAfterMarkerRetired: the lens's `moot` close admitted of a `--quote` computation or
+	// source gap, refused before, once blue's claim retire took out its own marker or, after the heir's
+	// mint, the marker of the ancestor whose demand it carries.
+	quoteGapMootAfterMarkerRetired int
 }
 
 // lifecycleTally is lifecycleCounts as a run's tally file carries it.
 type lifecycleTally struct {
-	ComputationRetires       int `json:"computation_retires"`
-	SourceAnswers            int `json:"source_answers"`
-	ClosedAnswersRetired     int `json:"closed_answers_retired"`
-	RetiredItemsCleared      int `json:"retired_items_cleared"`
-	RetiredAboutCloses       int `json:"retired_about_closes"`
-	CitedRetiresRefused      int `json:"cited_retires_refused"`
-	ReadingDemandMetByRetire int `json:"reading_demand_met_by_retire"`
-	ReadingDemandMetByReread int `json:"reading_demand_met_by_reread"`
-	UnreadDemandReread       int `json:"unread_demand_reread"`
-	UnreadDemandRefused      int `json:"unread_demand_refused"`
-	UnsoundDemandRejudged    int `json:"unsound_demand_rejudged"`
-	UnsoundDemandRefused     int `json:"unsound_demand_refused"`
-	RetiredAboutMintsRefused int `json:"retired_about_mints_refused"`
-	ReachingRetireTurns      int `json:"reaching_retire_turns"`
-	ScreenedUnsound          int `json:"screened_unsound"`
+	ComputationRetires             int `json:"computation_retires"`
+	SourceAnswers                  int `json:"source_answers"`
+	ClosedAnswersRetired           int `json:"closed_answers_retired"`
+	RetiredItemsCleared            int `json:"retired_items_cleared"`
+	RetiredAboutCloses             int `json:"retired_about_closes"`
+	CitedRetiresRefused            int `json:"cited_retires_refused"`
+	ReadingDemandMetByRetire       int `json:"reading_demand_met_by_retire"`
+	ReadingDemandMetByReread       int `json:"reading_demand_met_by_reread"`
+	UnreadDemandReread             int `json:"unread_demand_reread"`
+	UnreadDemandRefused            int `json:"unread_demand_refused"`
+	UnsoundDemandRejudged          int `json:"unsound_demand_rejudged"`
+	UnsoundDemandRefused           int `json:"unsound_demand_refused"`
+	RetiredAboutMintsRefused       int `json:"retired_about_mints_refused"`
+	ReachingRetireTurns            int `json:"reaching_retire_turns"`
+	ScreenedUnsound                int `json:"screened_unsound"`
+	QuoteGapMootAfterMarkerRetired int `json:"quote_gap_moot_after_marker_retired"`
 }
 
 func (c lifecycleCounts) tally() lifecycleTally {
@@ -113,7 +125,7 @@ func (c lifecycleCounts) tally() lifecycleTally {
 		UnreadDemandReread: c.unreadDemandReread, UnreadDemandRefused: c.unreadDemandRefused,
 		UnsoundDemandRejudged: c.unsoundDemandRejudged, UnsoundDemandRefused: c.unsoundDemandRefused,
 		RetiredAboutMintsRefused: c.retiredAboutMintsRefused, ReachingRetireTurns: c.reachingRetireTurns,
-		ScreenedUnsound: c.screenedUnsound,
+		ScreenedUnsound: c.screenedUnsound, QuoteGapMootAfterMarkerRetired: c.quoteGapMootAfterMarkerRetired,
 	}
 }
 
@@ -134,6 +146,7 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 	t.RetiredAboutMintsRefused += o.RetiredAboutMintsRefused
 	t.ReachingRetireTurns += o.ReachingRetireTurns
 	t.ScreenedUnsound += o.ScreenedUnsound
+	t.QuoteGapMootAfterMarkerRetired += o.QuoteGapMootAfterMarkerRetired
 }
 
 // lifecycleGates is the sweep's gate on each count, with what a zero means (III.1′.7's tally column,
@@ -161,6 +174,7 @@ func (t lifecycleTally) gates() []struct {
 		{t.RetiredAboutMintsRefused, "mints about a retired evidence anchor refused naming the retire"},
 		{t.ReachingRetireTurns, "plans engaging a gap's assignee whose turn a reaching retire gave it"},
 		{t.ScreenedUnsound, "assembly screens FAILING on a live unsound computation at a run's end"},
+		{t.QuoteGapMootAfterMarkerRetired, "moot closes admitted of a --quote computation or source gap once a claim retire took out its marker, or its ancestor's"},
 	}
 }
 
@@ -199,10 +213,15 @@ func (r *runner) lifecycleForcedErr() string {
 }
 
 // openSitting opens seat a sitting of its own, which no dispatch carries: the record keeps one check of
-// an anchor per seat per sitting, and the drive's re-checks are the seat's own.
+// an anchor per seat per sitting, and the drive's re-checks are the seat's own. The seat reads what
+// the sitting is owed before it acts, as a dispatched sitting does: how many items that is depends on
+// how many head moves lie behind its pin, which no drive counts.
 func (r *runner) openSitting(seat string) bool {
-	_, ok := r.admit(registerArgs(seat, "")...)
-	return ok
+	if _, ok := r.admit(registerArgs(seat, "")...); !ok {
+		return false
+	}
+	r.readDelivery(seat, "")
+	return true
 }
 
 // lifecycleMint is seat's mint of a gap under check kind on claim, or about anchor where about is set,
@@ -231,7 +250,12 @@ func (r *runner) lifecycleMint(seat, kind, claim, about, grade string, extra ...
 
 // lifecycleClose is seat's close of gap id as repaired; err is the refusal, nil where admitted.
 func (r *runner) lifecycleClose(seat, id string) (feov.RefusalEnvelope, bool) {
-	out, err := r.exec("close", "--json", "--seat-id", seat, "--id", id, "--as", "repaired", "--reason", "fuzz: the lifecycle arm's close",
+	return r.lifecycleCloseAs(seat, id, "repaired")
+}
+
+// lifecycleCloseAs is seat's close of gap id under disposition as.
+func (r *runner) lifecycleCloseAs(seat, id, as string) (feov.RefusalEnvelope, bool) {
+	out, err := r.exec("close", "--json", "--seat-id", seat, "--id", id, "--as", as, "--reason", "fuzz: the lifecycle arm's close",
 		"--verified-by", seat, "--verified-with", "fuzz", "--verified-against", "rec")
 	if err == nil {
 		return feov.RefusalEnvelope{}, true
@@ -393,6 +417,8 @@ func (r *runner) driveLifecycle(blue string) string {
 		func() string { return r.lifecycleRetiredAbout(blue, lens, comp, c[7], c[8]) },
 		func() string { return r.lifecycleReachingRetire(blue, lens, c[9]) },
 		func() string { return r.lifecycleCitedRetire(blue, c[10], c[11]) },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13], "") },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15], c[16]) },
 	} {
 		if s := arm(); s != "" {
 			return s
@@ -740,6 +766,53 @@ func (r *runner) lifecycleCitedRetire(blue, claim, next string) string {
 	if _, ok := r.do("retire", blue).set("--quote", claim+".").set("--anchor", cite+","+k).set("--reason", "fuzz: the claim leaves with its evidence").admit(); !ok {
 		return "a claim retire taking " + cite + " with " + k + " was refused"
 	}
+	return ""
+}
+
+// lifecycleQuoteGapMoot (P12a, the demand holds while its subject stands): the lens mints a --quote
+// gap of check kind on claim, nothing answering it; where heirClaim is set it mints the heir superseding
+// it on heirClaim, which carries its demand. The heir's (else the gap's) `moot` is refused by the
+// demand; blue's edit cuts claim onto next carrying the marker, and its claim retire takes the marker
+// out with the claim; at the lens's next sitting, delivered the cut, the same `moot` is admitted.
+func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next, heirClaim string) string {
+	g, why := r.lifecycleMint(lens, kind, claim, "", "low")
+	if g == "" {
+		return "the --quote " + kind + " gap's mint was refused: " + why
+	}
+	closing := g
+	if heirClaim != "" {
+		h, why := r.lifecycleMint(lens, kind, heirClaim, "", "low", "--supersedes", g)
+		if h == "" {
+			return "the heir superseding --quote gap " + g + " was refused: " + why
+		}
+		closing = h
+	}
+	if env, ok := r.lifecycleCloseAs(lens, closing, "moot"); ok || !demandRefusal(env, closing, kind) {
+		return "the moot close of " + closing + " with its subject standing was not refused by its demand: " + env.Error
+	}
+	md, err := record.RenderRun(r.run())
+	if err != nil {
+		return "the report could not be rendered: " + err.Error()
+	}
+	run := abuttingRun(md, claim)
+	if !strings.Contains(run, g) {
+		return "gap " + g + "'s marker does not stand at its claim's end: " + run
+	}
+	if _, ok := r.do("edit", blue).set("--quote", claim+run+". "+next).set("--new", next+run).
+		set("--reason", "fuzz: the claim cannot stand").admit(); !ok {
+		return "blue's cut of the claim carrying " + g + "'s marker was refused"
+	}
+	if _, ok := r.do("retire", blue).set("--quote", claim+".").set("--anchor", g).set("--reason", "fuzz: the claim leaves with its marker").admit(); !ok {
+		return "the claim retire taking " + g + "'s marker was refused"
+	}
+	// The lens closes only on delivered text: its next sitting is delivered the cut.
+	if !r.openSitting(lens) {
+		return "the register of " + lens + " after the claim retire was refused"
+	}
+	if env, ok := r.lifecycleCloseAs(lens, closing, "moot"); !ok {
+		return "the moot close of " + closing + " after " + g + "'s marker left with its claim was refused: " + env.Error
+	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.quoteGapMootAfterMarkerRetired++ })
 	return ""
 }
 

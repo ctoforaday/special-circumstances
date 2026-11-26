@@ -63,6 +63,15 @@ func TestTheSmokesMetGapsCloseThroughTheCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// The run's channels as migrate brings them forward: the archived run-config holds keys the
+	// run's configuration no longer declares, and the migrated one does not.
+	if b, err := os.ReadFile(filepath.Join(migrated, "inputs", "run-config.json")); err == nil {
+		if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	} else if !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
 	recordtest.Seed(t, dir, whole.Events[:through]...)
 	if _, err := run(t, "register", "--run", dir, "--seat-id", lens); err != nil {
 		t.Fatal(err)

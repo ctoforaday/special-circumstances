@@ -12,8 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// closureStage is one gap, G1, minted by the evidence lens in epoch 1 of a cast run, and the closing acts a row
-// writes on it — every one through the write path, as a seat (or migrate's replay) writes it.
+// closureStage is one gap, G1, minted by the evidence lens in epoch 1 on an ingested report, and the
+// closing acts a row writes on it — every one through the write path, as a seat (or migrate's
+// replay) writes it, each closing act by a seat whose sitting holds its delivery.
 type closureStage struct {
 	t                  *testing.T
 	run                Run
@@ -24,7 +25,7 @@ type closureStage struct {
 
 func newClosureStage(t *testing.T) *closureStage {
 	t.Helper()
-	s := &closureStage{t: t, run: corrRun(t)}
+	s := &closureStage{t: t, run: withReport(t, corrRun(t))}
 	// The cast seats the bench, so the dispatch may convene it (convene).
 	mustAppend(t, Identity{Run: s.run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	s.chair = sit(t, s.run, "red-chair")
@@ -43,6 +44,7 @@ func (s *closureStage) epoch() *closureStage {
 // close is the lens's own close of G1, ending it as word; prose tells two closes apart.
 func (s *closureStage) close(word recordpb.Disposition, prose string) *Event {
 	s.t.Helper()
+	delivered(s.t, s.lens)
 	return mustAppend(s.t, s.lens, closureOf(word, prose))
 }
 
@@ -161,6 +163,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		// nothing left to rule on G1, and the lens's close is the gap's closure.
 		{"f: an archived lens closed a gap a docketing stands on, which ends the docketing unruled", func(s *closureStage) {
 			d := s.docketed()
+			delivered(s.t, s.lens)
 			if _, err := replayed(s.t, s.lens, closureOf(repaired, "red's close")); err != nil {
 				s.t.Fatal(err)
 			}
@@ -290,9 +293,10 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 // must close nothing, regrade overlays, and the verify/cite count split.
 func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	runDir := newRun(t)
-	run := mustRun(t, runDir)
+	run := withReport(t, mustRun(t, runDir))
 	red := Identity{Run: run, SeatID: "red-chair"}
 	blue := Identity{Run: run, SeatID: "blue-respond"}
+	lens := Identity{Run: run, SeatID: "red-lens-evidence"}
 	judge2 := Identity{Run: run, SeatID: "judge"}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
@@ -309,10 +313,13 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		if extra != nil {
 			extra(m)
 		}
-		app(red, m)
+		app(lens, m)
 	}
-	// The chair sits: its mints, regrade and close below are epoch 1.
+	// The chair sits, then the lens: its mints, regrade and close below are epoch 1.
 	if _, _, err := RegisterSeat(red, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	mint("G1", func(m *recordpb.Mint) {
@@ -330,11 +337,12 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	mint("G3", nil)
 
 	// A regrade the projection must both OVERLAY (grades) and EMBED (the regrades list).
-	app(red, &recordpb.Regrade{GapId: proto.String("G3"),
+	app(lens, &recordpb.Regrade{GapId: proto.String("G3"),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("moved")})
 	// G3: closed by red in round 1, then ruled by the bench in round 2 — BOTH arms.
 	// Attribution must follow the bench (last), the embedded body must stay red's.
-	app(red, &recordpb.Close{GapId: proto.String("G3"),
+	delivered(t, lens)
+	app(lens, &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")})

@@ -3,7 +3,7 @@ exit 2
 stderr:
 feov-record: mint: requires --check, --check-kind, --class, --impact, --likelihood, --problem, --severity
 
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
+      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. It proves the fix at the gap's one sentence: a defect at several sentences is a gap at each site, each with its own check
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class class-value                        REQUIRED — the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover
       --impact grade                             REQUIRED — how bad the consequence is if it lands
@@ -60,7 +60,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
