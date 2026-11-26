@@ -16,9 +16,11 @@ import (
 // Every verb prunes the Antigravity server records under $XDG_RUNTIME_DIR, and a test that execs
 // the built binary with the inherited environment prunes the host's records with an unreleased
 // build. This reads every test file in the module that is not a live test (those carry
-// HOOKCORE_LIVE and build their own environment through testhome) and fails any exec of the built
-// telepathy whose command's Env has no XDG_RUNTIME_DIR entry. A sweep that finds no exec at all
-// fails too: a pattern that stopped matching would otherwise read as a clean module.
+// HOOKCORE_LIVE and build their own environment through testhome) and fails any exec that may run
+// the built telepathy whose command's Env has no XDG_RUNTIME_DIR entry. An exec may run it when its
+// program names telepathy in any form, or when the file does not show the program to be another
+// one (a helper's parameter, a field, a call's result). A sweep that finds no exec at all fails
+// too: a pattern that stopped matching would otherwise read as a clean module.
 func TestBuiltBinaryNeverSeesHostRuntimeDir(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -46,17 +48,10 @@ func TestBuiltBinaryNeverSeesHostRuntimeDir(t *testing.T) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		names := binaryNames(f)
-		for _, decl := range f.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Body == nil {
-				continue
-			}
-			n, bad := execsWithoutRuntimeDir(fn.Body, names)
-			sites += n
-			for _, b := range bad {
-				t.Errorf("%s: %s execs the built telepathy %s", filepath.ToSlash(rel), fn.Name.Name, b)
-			}
+		n, bad := sweepFile(f)
+		sites += n
+		for _, b := range bad {
+			t.Errorf("%s: %s", filepath.ToSlash(rel), b)
 		}
 		return nil
 	})
@@ -66,6 +61,86 @@ func TestBuiltBinaryNeverSeesHostRuntimeDir(t *testing.T) {
 	if sites == 0 {
 		t.Fatal("found no exec of the built telepathy in the module's tests: the sweep no longer recognises one, so it measured nothing")
 	}
+}
+
+// sweepFile counts the execs in f that may run the built telepathy and describes each one whose
+// command has no XDG_RUNTIME_DIR entry in its Env.
+func sweepFile(f *ast.File) (int, []string) {
+	names := binaryNames(f)
+	others := otherPrograms(f, names)
+	sites := 0
+	var bad []string
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		n, b := execsWithoutRuntimeDir(fn.Body, names, others)
+		sites += n
+		for _, d := range b {
+			bad = append(bad, fn.Name.Name+" execs what may be the built telepathy "+d)
+		}
+	}
+	return sites, bad
+}
+
+// otherPrograms is every identifier in f assigned an expression that holds a string literal and
+// names no telepathy, such as exec.LookPath("rg"): a program shown to be another one.
+func otherPrograms(f *ast.File, names map[string]bool) map[string]bool {
+	others := map[string]bool{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		as, ok := n.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, lhs := range as.Lhs {
+			id, ok := lhs.(*ast.Ident)
+			if !ok || names[id.Name] {
+				continue
+			}
+			rhs := as.Rhs[0]
+			if i < len(as.Rhs) {
+				rhs = as.Rhs[i]
+			}
+			if holdsStringLiteral(rhs) && !namesTelepathy(rhs, names) {
+				others[id.Name] = true
+			}
+		}
+		return true
+	})
+	return others
+}
+
+func holdsStringLiteral(e ast.Expr) bool {
+	found := false
+	ast.Inspect(e, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// mayRunTelepathy reports whether prog, an exec's program argument, can be the built telepathy.
+func mayRunTelepathy(prog ast.Expr, names, others map[string]bool) bool {
+	if namesTelepathy(prog, names) {
+		return true
+	}
+	switch v := prog.(type) {
+	case *ast.BasicLit:
+		return false // a literal naming another program
+	case *ast.Ident:
+		return !others[v.Name]
+	case *ast.IndexExpr:
+		// os.Args[0]: the test binary itself, re-run as a helper.
+		if sel, ok := v.X.(*ast.SelectorExpr); ok {
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "os" && sel.Sel.Name == "Args" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // fileMentions reports whether f holds the string literal s.
@@ -143,9 +218,10 @@ func isExecCommand(call *ast.CallExpr) bool {
 	return ok && pkg.Name == "exec" && (sel.Sel.Name == "Command" || sel.Sel.Name == "CommandContext")
 }
 
-// execsWithoutRuntimeDir counts the execs of the built telepathy in body and describes each one
-// whose command is not assigned an Env holding an XDG_RUNTIME_DIR entry in the same function.
-func execsWithoutRuntimeDir(body *ast.BlockStmt, names map[string]bool) (int, []string) {
+// execsWithoutRuntimeDir counts the execs in body that may run the built telepathy and describes
+// each one whose command is not assigned an Env holding an XDG_RUNTIME_DIR entry in the same
+// function.
+func execsWithoutRuntimeDir(body *ast.BlockStmt, names, others map[string]bool) (int, []string) {
 	envSet := map[string]bool{}
 	ast.Inspect(body, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
@@ -188,8 +264,7 @@ func execsWithoutRuntimeDir(body *ast.BlockStmt, names map[string]bool) (int, []
 		if len(call.Args) <= prog {
 			return true
 		}
-		id, ok := call.Args[prog].(*ast.Ident)
-		if !ok || !names[id.Name] {
+		if !mayRunTelepathy(call.Args[prog], names, others) {
 			return true
 		}
 		count++
@@ -216,4 +291,34 @@ func holdsRuntimeDirEntry(e ast.Expr) bool {
 		return !found
 	})
 	return found
+}
+
+// THE SWEEP SEES EVERY SHAPE OF EXEC, and passes only the ones that cannot run telepathy or that
+// give it a runtime directory of its own.
+func TestTheSweepRecognisesEveryShape(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		src   string
+		sites int
+		bad   int
+	}{
+		{"a named binary with an env", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_RUNTIME_DIR=" + rt}`, 1, 0},
+		{"a named binary without one", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); _ = c`, 1, 1},
+		{"an inline path", `c := exec.Command(filepath.Join(dir, "telepathy"), "agents"); _ = c`, 1, 1},
+		{"a parameter", `c := exec.CommandContext(ctx, prog, "agents"); _ = c`, 1, 1},
+		{"a parameter with an env", `c := exec.Command(prog); c.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+rt)`, 1, 0},
+		{"a never-assigned command", `_ = exec.Command(prog).Run()`, 1, 1},
+		{"another program by literal", `c := exec.Command("go", "build"); _ = c`, 0, 0},
+		{"another program found on PATH", `rg, _ := exec.LookPath("rg"); c := exec.Command(rg); _ = c`, 0, 0},
+		{"the test binary", `c := exec.Command(os.Args[0], "-test.run=X"); _ = c`, 0, 0},
+	} {
+		f, err := parser.ParseFile(token.NewFileSet(), "x_test.go", "package x\nfunc run(prog string) {\n"+tc.src+"\n}\n", 0)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		sites, bad := sweepFile(f)
+		if sites != tc.sites || len(bad) != tc.bad {
+			t.Errorf("%s: %d sites, %d flagged %v; want %d and %d", tc.name, sites, len(bad), bad, tc.sites, tc.bad)
+		}
+	}
 }
