@@ -20,7 +20,9 @@ not hooks, not MCP servers — so this is the one place they can be recorded.
 
 The record lives in $XDG_RUNTIME_DIR/gray-area/antigravity-servers (directory 0700,
 record 0600, gone at logout), keyed by server (PID and start time, or address),
-storing port and token. On Linux, because a restarted remote-control daemon loads any
+storing port and token. Each link also leaves an empty marker for the conversation in
+$XDG_RUNTIME_DIR/gray-area/antigravity-linked, which nothing deletes, so Gray Area's
+hook can tell a stale link from none. On Linux, because a restarted remote-control daemon loads any
 idle CLI conversation from disk when sent a message for it, linking any one
 daemon-hosted conversation makes every idle conversation under the CLI daemon root
 wakeable by telepathy send (a standalone interactive agy does not restore the daemon

@@ -18,9 +18,6 @@ import (
 
 const linkConv = "11111111-2222-4333-8444-555555555555"
 
-// staleLinkWording is the request's opening, said whether or not the conversation linked before.
-const staleLinkWording = "Any earlier `telepathy link` in this conversation points at a language server that is no longer running, so other agents cannot wake it."
-
 func liveAs(l catalogue.Liveness) func(peer.Server) catalogue.Liveness {
 	return func(peer.Server) catalogue.Liveness { return l }
 }
@@ -50,7 +47,7 @@ func TestLinkRequestSkipsWhenHostServerAlreadyLinkedByAnotherConversation(t *tes
 	}
 	// The host server's record counts only while its server runs: a record of a server that is gone
 	// is no reason to stay quiet.
-	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return host }, liveAs(catalogue.Ended)); !strings.HasPrefix(got, staleLinkWording) {
+	if got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return host }, liveAs(catalogue.Ended)); !strings.HasPrefix(got, firstLinkWhy) {
 		t.Errorf("the host server's record reads ended, yet linkRequest = %q", got)
 	}
 	// Early returns must not invoke hostFn (/proc walk).
@@ -98,14 +95,20 @@ func TestLinkRequestAsksOnlyWhenItWouldHelp(t *testing.T) {
 		if c.asks && !strings.Contains(got, "'/bin/telepathy' link") {
 			t.Errorf("%s: the request does not name the command: %q", c.name, got)
 		}
-		if c.asks && !strings.HasPrefix(got, staleLinkWording) {
-			t.Errorf("%s: the request does not name a possible stale link: %q", c.name, got)
+		// A conversation that linked before is told its link is stale; one that never linked is
+		// asked plainly.
+		want := staleLinkWhy
+		if c.runtimeDir == none {
+			want = firstLinkWhy
+		}
+		if c.asks && !strings.HasPrefix(got, want) {
+			t.Errorf("%s: linkRequest = %q, want it to open %q", c.name, got, want)
 		}
 	}
 }
 
 // THE REQUEST NEEDS NO RECORD TO NAME A STALE LINK. Prune deletes the record of a server that is
-// gone, so the hook cannot read that the conversation once linked; it asks with the same words.
+// gone; the conversation's linked marker, which prune leaves, still says it linked before.
 func TestLinkRequestAsksAfterTheStaleRecordIsPruned(t *testing.T) {
 	rt := t.TempDir()
 	env := map[string]string{peer.EnvConversation: linkConv, peer.EnvAddress: "localhost:3", peer.EnvToken: "tok"}
@@ -118,8 +121,23 @@ func TestLinkRequestAsksAfterTheStaleRecordIsPruned(t *testing.T) {
 	}
 	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
 	got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return peer.ServerIdentity{} }, liveAs(catalogue.Live))
-	if !strings.HasPrefix(got, staleLinkWording) || !strings.Contains(got, "'/bin/telepathy' link") {
-		t.Errorf("with the stale record pruned, linkRequest = %q; want the request naming a possible stale link", got)
+	if !strings.HasPrefix(got, staleLinkWhy) || !strings.Contains(got, "'/bin/telepathy' link") {
+		t.Errorf("with the stale record pruned, linkRequest = %q; want the request naming the stale link", got)
+	}
+}
+
+// A CONVERSATION THAT NEVER LINKED IS ASKED PLAINLY, even beside the record of another conversation
+// on a server that is gone: the stale wording is for a link this conversation made.
+func TestLinkRequestIsPlainForAConversationThatNeverLinked(t *testing.T) {
+	rt := t.TempDir()
+	env := map[string]string{peer.EnvConversation: "another-conversation", peer.EnvAddress: "localhost:3", peer.EnvToken: "tok"}
+	if _, _, err := peer.RegisterWith(rt, func(k string) string { return env[k] }, func() peer.ServerIdentity { return peer.ServerIdentity{PID: 4321, StartTime: 98765} }, time.Unix(0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
+	got := linkRequestWithHost(req, rt, "/bin/telepathy", func() peer.ServerIdentity { return peer.ServerIdentity{} }, liveAs(catalogue.Ended))
+	if !strings.HasPrefix(got, firstLinkWhy) || !strings.Contains(got, "'/bin/telepathy' link") {
+		t.Errorf("a never-linked conversation: linkRequest = %q; want the plain request", got)
 	}
 }
 

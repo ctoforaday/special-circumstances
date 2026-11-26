@@ -110,6 +110,27 @@ func RegistryDir(runtimeDir string) string {
 	return filepath.Join(runtimeDir, "gray-area", "antigravity-servers")
 }
 
+// LinkedDir is where RegisterWith leaves an empty marker per conversation that has ever linked
+// (<runtimeDir>/gray-area/antigravity-linked/<conversation>). Prune never touches it: it is the
+// evidence, surviving its server's record, that a conversation linked before. It lives on the same
+// tmpfs as the records, so a reboot clears it.
+func LinkedDir(runtimeDir string) string {
+	if runtimeDir == "" {
+		return ""
+	}
+	return filepath.Join(runtimeDir, "gray-area", "antigravity-linked")
+}
+
+// HasLinked reports whether conversation has linked since the runtime directory was created.
+func HasLinked(runtimeDir, conversation string) bool {
+	dir := LinkedDir(runtimeDir)
+	if dir == "" || !safeName(conversation) {
+		return false
+	}
+	_, err := os.Lstat(filepath.Join(dir, conversation))
+	return err == nil
+}
+
 // Linked is what RegisterWith found.
 type Linked int
 
@@ -127,7 +148,8 @@ const (
 
 // RegisterWith records the server of the Antigravity shell this process runs in, keyed by server,
 // using host to identify the server process launch. It sets the conversation's linked_at to now
-// whether or not the record already listed it.
+// whether or not the record already listed it, and marks the conversation as having linked
+// (LinkedDir) in the same critical section, before the record is written.
 func RegisterWith(runtimeDir string, getenv func(string) string, host func() ServerIdentity, now time.Time) (Server, Linked, error) {
 	conv := getenv(EnvConversation)
 	addr := getenv(EnvAddress)
@@ -178,6 +200,9 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 		Daemon:        id.Daemon,
 		RegisteredAt:  now.Unix(),
 		Conversations: []LinkedConversation{linked},
+	}
+	if err := markLinked(runtimeDir, conv); err != nil {
+		return Server{}, NotAnAntigravityShell, err
 	}
 	got := Recorded
 	if prev, err := LookupServerByKey(runtimeDir, key); err == nil && prev != nil &&
@@ -642,6 +667,24 @@ func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
 		return a.Conversation < b.Conversation
 	})
 	return out, errs
+}
+
+// markLinked leaves conversation's marker in LinkedDir (directory 0700, marker 0600 and empty).
+func markLinked(runtimeDir, conversation string) error {
+	dir := LinkedDir(runtimeDir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(dir, 0o700); err != nil {
+			return err
+		}
+	}
+	f, err := os.OpenFile(filepath.Join(dir, conversation), os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // lockRegistry serialises RegisterWith's read-modify-write updates and Prune's deletions in dir,

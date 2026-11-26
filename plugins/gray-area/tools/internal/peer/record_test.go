@@ -128,6 +128,28 @@ func TestLinkedAtRefreshesOnRelink(t *testing.T) {
 	}
 }
 
+// EVERY LINK LEAVES THE CONVERSATION'S MARKER, the evidence that outlives its server's record.
+func TestRegisterLeavesTheLinkedMarker(t *testing.T) {
+	rt := t.TempDir()
+	if HasLinked(rt, "conv-1") {
+		t.Fatal("a conversation reads as linked before it linked")
+	}
+	if _, _, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok"), hostID(100, 5000, false), at); err != nil {
+		t.Fatal(err)
+	}
+	if !HasLinked(rt, "conv-1") || HasLinked(rt, "conv-2") {
+		t.Errorf("HasLinked(conv-1) = %v, HasLinked(conv-2) = %v; want true, false", HasLinked(rt, "conv-1"), HasLinked(rt, "conv-2"))
+	}
+	if runtime.GOOS != "windows" {
+		if st, err := os.Stat(LinkedDir(rt)); err != nil || st.Mode().Perm() != 0o700 {
+			t.Errorf("linked marker directory = %v, %v; want 0700", st, err)
+		}
+	}
+	if HasLinked(rt, "../escape") || HasLinked("", "conv-1") {
+		t.Error("HasLinked accepted a path or a missing runtime directory")
+	}
+}
+
 func TestReaderRejectsOldShape(t *testing.T) {
 	rt := t.TempDir()
 	writeRecord(t, rt, "pid-1-2.json", `{"key":"pid-1-2","pid":1,"start_time":2,"address":"localhost:1","token":"t","conversations":["conv"],"registered_at":1}`)
@@ -221,6 +243,9 @@ func TestPruneDeletesOnlyEndedAndOldShape(t *testing.T) {
 	writeRecord(t, rt, "array.json", `[1,2]`)
 	writeRecord(t, rt, "notes.txt", `{"key":"x"}`)
 	writeRecord(t, rt, ".register.lock", "")
+	if err := markLinked(rt, "conv-marked"); err != nil {
+		t.Fatal(err)
+	}
 	removed, err := Prune(rt, livenessByKey(map[string]catalogue.Liveness{
 		"live": catalogue.Live, "ended": catalogue.Ended, "unknown": catalogue.Unknown, "legacy": catalogue.Ended,
 	}))
@@ -234,6 +259,9 @@ func TestPruneDeletesOnlyEndedAndOldShape(t *testing.T) {
 	want := []string{".register.lock", "array.json", "garbage.json", "live.json", "notes.txt", "unknown.json"}
 	if got := registryNames(t, rt); !slices.Equal(got, want) {
 		t.Errorf("registry holds %v, want %v", got, want)
+	}
+	if !HasLinked(rt, "conv-marked") {
+		t.Error("Prune removed a linked marker")
 	}
 }
 

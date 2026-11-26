@@ -27,6 +27,10 @@ import (
 // server has a new PID/start time, and telepathy deletes the records of servers that are gone. It
 // never asks where linking would fail: no runtime directory, or no telepathy binary beside this
 // one.
+//
+// Stated residue: it does not ask while the conversation's own record reads Live, even when the
+// server now hosting it is a different, unrecorded one (a standalone agy while the daemon hosts
+// the conversation); sends then queue with the unlinked daemon named.
 func linkRequest(req hookcore.Request, runtimeDir, telepathy string, liveness func(peer.Server) catalogue.Liveness) string {
 	return linkRequestWithHost(req, runtimeDir, telepathy, peer.HostServer, liveness)
 }
@@ -53,13 +57,25 @@ func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hos
 	if s, err := peer.LookupConversationServer(runtimeDir, req.SessionID, liveness); err == nil && s != nil {
 		return ""
 	}
-	// A STALE LINK IS SAID TO BE STALE. Measured: a conversation whose history shows `linked` from an
-	// earlier turn ignored the plain request on the next one, after its server had restarted. The
-	// record that would say whether there was an earlier link is deleted once its server is gone, so
-	// the request names the stale link conditionally, which is true with or without one.
-	return "Any earlier `telepathy link` in this conversation points at a language server that is no longer running, so other agents cannot wake it." +
-		" Before your task, run this shell command once: " + shellQuote(telepathy) + " link — it prints `linked` and needs nothing further."
+	// A STALE LINK IS SAID TO BE STALE, AND ONLY A STALE ONE. Measured: a conversation whose history
+	// shows `linked` from an earlier turn ignored the plain request on the next one, after its server
+	// had restarted; and a fresh conversation ignored the stale wording on each of three turns while
+	// it acted on the plain one. Prune deletes a gone server's record, so the evidence of an earlier
+	// link is the conversation's marker in peer.LinkedDir, which prune leaves. The marker lives on
+	// tmpfs: after a reboot a conversation that had linked is asked in the plain wording.
+	why := firstLinkWhy
+	if peer.HasLinked(runtimeDir, req.SessionID) {
+		why = staleLinkWhy
+	}
+	return why + " Before your task, run this shell command once: " + shellQuote(telepathy) + " link — it prints `linked` and needs nothing further."
 }
+
+// The two openings of the link request: for a conversation that has never linked, and for one
+// whose earlier link points at a server that is gone.
+const (
+	firstLinkWhy = "Other agents cannot yet wake this conversation with `telepathy send`."
+	staleLinkWhy = "This conversation's earlier `telepathy link` points at a language server that is no longer running, so other agents cannot wake it."
+)
 
 // findTelepathy locates the binary linkRequest names; a variable so a test can stand one in.
 var findTelepathy = telepathyBeside

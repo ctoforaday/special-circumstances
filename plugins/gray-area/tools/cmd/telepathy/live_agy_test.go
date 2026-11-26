@@ -129,10 +129,12 @@ func TestLiveAntigravityLinkAndSend(t *testing.T) {
 	// The hook guarantees to ASK on every turn that starts unlinked; whether the model complies on a
 	// given turn is the model's (about five turns in six on flash, measured). So each phase gets up to
 	// three turns, every unlinked turn must carry the request, and the turns taken are logged.
+	// A request is any step carrying the hook's ask, whichever opening it has (never linked, or a
+	// stale link) and whichever step type this agy records a hook's injection as.
 	requests := func(conv string) int {
 		n := 0
 		for _, s := range transcript(conv) {
-			if s["type"] == "EPHEMERAL_MESSAGE" && strings.Contains(fmt.Sprint(s["content"]), "' link") {
+			if c := fmt.Sprint(s["content"]); strings.Contains(c, "run this shell command once: ") && strings.Contains(c, "' link") {
 				n++
 			}
 		}
