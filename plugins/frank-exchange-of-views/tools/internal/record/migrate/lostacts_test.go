@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 )
 
@@ -32,32 +33,42 @@ func TestTheGapAuditRunLosesTheActsItsDeliveriesDoNotHold(t *testing.T) {
 	assertLossesAccounted(t, m)
 }
 
-// AN ACT REFUSED ONLY BECAUSE IT DEPENDS ON A LOST ACT IS THAT SAME LOSS. m32's lost close of
-// G-11c8fa75 leaves it open, so the logic lens's mint superseding it (source 448) is refused, and
-// every act on the gap that mint created (dispatches 457, 458, 488, 489 and regrade 470) names a gap
-// the record never holds. Each is listed with the act it depended on.
-func TestM32sActsOnALostCloseAreLostWithIt(t *testing.T) {
-	m, _ := migrateArchive(t, "2026-10-24_is-91-prime-m32.tar.gz")
+// A LINK ACROSS SEATS DROPS, SO A SUCCESSOR OF A GAP A LOST CLOSE LEFT OPEN STANDS AS ITS OWN GAP.
+// m32's lost close of the computation lens's G-11c8fa75 (source 344) leaves it open; the logic
+// lens's mint naming it as ancestor (source 448) is another seat's, so the link drops and the mint
+// stands as G-cc9fe904, its own gap. Nothing on it depends on the lost close: the mint, its
+// dispatches (457, 458, 488, 489) and its regrade (470) are written, and the run loses only the
+// closes and the spot-check the delivered-text rule refuses.
+func TestM32sCrossSeatSuccessorOfALostCloseStandsAsItsOwnGap(t *testing.T) {
+	m, run := migrateArchive(t, "2026-10-24_is-91-prime-m32.tar.gz")
 	if len(m.Refusals) != 0 {
 		t.Fatalf("%d refusal(s); the first: %+v", len(m.Refusals), m.Refusals[0])
 	}
-	byID := map[int64]migration.Refusal{}
+	lost := map[int64]bool{}
 	for _, a := range m.LostActs {
-		byID[a.OldID] = a
-	}
-	for _, c := range []struct {
-		id   int64
-		word string
-		on   string
-	}{{448, "mint", "G-11c8fa75"}, {457, "dispatch", "G-cc9fe904"}, {458, "dispatch", "G-cc9fe904"},
-		{470, "regrade", "G-cc9fe904"}, {488, "dispatch", "G-cc9fe904"}, {489, "dispatch", "G-cc9fe904"}} {
-		a, ok := byID[c.id]
-		switch {
-		case !ok:
-			t.Errorf("source %d (%s) is not listed as lost", c.id, c.word)
-		case a.Word != c.word || !strings.Contains(a.Err, "depends on gap "+c.on) || !strings.Contains(a.Err, "source event"):
-			t.Errorf("source %d is listed as %s: %q; want a %s depending on %s, naming the lost act", c.id, a.Word, a.Err, c.word, c.on)
+		lost[a.OldID] = true
+		if a.Word != "close" && a.Word != "spot_check" {
+			t.Errorf("lost act %d is a %s (%q); only closes and spot-checks are lost", a.OldID, a.Word, a.Err)
 		}
+	}
+	if !lost[344] {
+		t.Errorf("source 344 (the close of G-11c8fa75) is not listed as lost")
+	}
+	for _, id := range []int64{448, 457, 458, 470, 488, 489} {
+		if lost[id] {
+			t.Errorf("source %d is listed as lost; the successor's link drops across seats and its acts stand", id)
+		}
+	}
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := fam.Gap("G-cc9fe904")
+	switch {
+	case g == nil:
+		t.Fatal("G-cc9fe904 is not on the migrated record")
+	case g.Mint.GetSupersedes() != "":
+		t.Errorf("G-cc9fe904 keeps its link to %s; a link across seats drops", g.Mint.GetSupersedes())
 	}
 	assertLossesAccounted(t, m)
 }
