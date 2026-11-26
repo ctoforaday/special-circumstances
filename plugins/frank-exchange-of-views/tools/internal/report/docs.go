@@ -265,7 +265,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	for _, s := range ev.Sources {
 		labels = append(labels, s.Anchor)
 	}
-	backs, _ := record.SentencesIn(blue, labels)
+	backs := record.SentencesIn(blue, labels)
 	for i := range docs {
 		if docs[i].File == FileEvidence {
 			computationSec, citeSec := evidenceDoc(run, computations, backs, checks), citationsSection(ev, backs)

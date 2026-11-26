@@ -215,14 +215,11 @@ func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg
 		if err != nil {
 			return got, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
 		}
-		live, bare := record.SentencesIn(report, []string{id})
+		live := record.SentencesIn(report, []string{id})
 		if now, ok := live[id]; !ok || now != claim {
 			if msg == "" {
 				held := fmt.Sprintf("%q", now)
-				switch {
-				case bare[id]:
-					held = "the anchor bare"
-				case !ok:
+				if !ok {
 					held = "no sentence for it"
 				}
 				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded claim %q, and the report as of that event held %s", verb, at, id, claim, held)

@@ -1465,24 +1465,17 @@ func unverifiableIn(r workReads) unverifiableFunc {
 		asked     bool
 		report    string
 		renderErr error
-		bare      []string
 	)
 	return func(id string) string {
 		if !asked {
 			asked = true
 			report, renderErr = r.report.get()
-			if renderErr == nil {
-				bare = claimcount.BareAnchorIDs(report)
-			}
 		}
 		if renderErr != nil {
 			return "the report does not render (" + renderErr.Error() + ")"
 		}
-		switch _, gone := liveSentenceIn(report, bare, id); gone {
-		case sentenceAbsent:
+		if _, gone := liveSentenceIn(report, id); gone == sentenceAbsent {
 			return "its anchor is not in the report"
-		case sentenceBare:
-			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
 		}
 		return ""
 	}

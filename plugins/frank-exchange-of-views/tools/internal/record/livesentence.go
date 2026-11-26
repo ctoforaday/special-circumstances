@@ -1,12 +1,10 @@
 package record
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -24,21 +22,12 @@ const (
 	sentenceLive sentenceGone = iota
 	// sentenceAbsent: the anchor's token is not in the report.
 	sentenceAbsent
-	// sentenceBare: the token stands with no prose before it in its sentence.
-	sentenceBare
 )
 
 // liveSentenceIn is the sentence holding id's token in report, read the way an edit reads it to
-// reopen the anchor (bluedoc.SentenceAround), or why there is none. bare is the report's bare
-// anchors (claimcount.BareAnchorIDs), which a caller asking of many anchors computes once.
-//
-// ONE BARE RULE: an anchor BareAnchorIDs lists stands bare, asked before the sentence is read, so
-// bareness is the bare list's alone, whatever block — a fence, a heading — holds the token's first
-// occurrence.
-func liveSentenceIn(report string, bare []string, id string) (string, sentenceGone) {
-	if slices.Contains(bare, id) {
-		return "", sentenceBare
-	}
+// reopen the anchor (bluedoc.SentenceAround), or why there is none. No writer leaves an anchor bare —
+// a cut takes the anchors of the sentences it cuts — so a token in the report stands on a sentence.
+func liveSentenceIn(report string, id string) (string, sentenceGone) {
 	sentence, ok := bluedoc.SentenceAround(report, anchor.Token(id))
 	if !ok {
 		return "", sentenceAbsent
@@ -47,21 +36,15 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 }
 
 // SentencesIn is the live sentence of each of ids in report (liveSentenceIn), keyed by id, read once
-// for all of them, with why an id has none: bare holds each of ids whose token stands bare in report
-// (liveSentenceIn's sentenceBare), so an id in neither map is absent from it. One bare rule for every
-// reader that tells the two apart.
-func SentencesIn(report string, ids []string) (live map[string]string, bare map[string]bool) {
-	live, bare = map[string]string{}, map[string]bool{}
-	bareIDs := claimcount.BareAnchorIDs(report)
+// for all of them; an id not in the map is absent from the report.
+func SentencesIn(report string, ids []string) (live map[string]string) {
+	live = map[string]string{}
 	for _, id := range ids {
-		switch sentence, gone := liveSentenceIn(report, bareIDs, id); gone {
-		case sentenceLive:
+		if sentence, gone := liveSentenceIn(report, id); gone == sentenceLive {
 			live[id] = sentence
-		case sentenceBare:
-			bare[id] = true
 		}
 	}
-	return live, bare
+	return live
 }
 
 // LiveSentence is the sentence evidence anchor id backs in the report as it renders now — the claim
@@ -118,7 +101,7 @@ func liveSentence(id string, render func() (string, error), removedAt func() (An
 	if read.landing {
 		while = "while this check was made, "
 	}
-	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
+	sentence, gone := liveSentenceIn(report, id)
 	switch gone {
 	case sentenceAbsent:
 		r, found, err := removedAt()
@@ -134,9 +117,6 @@ func liveSentence(id string, render func() (string, error), removedAt func() (An
 		}
 		return "", feov.Errorf(feov.Conflict, "%s %s's anchor is not in the report — the anchor never placed — so the report holds no sentence for it and there is nothing to check. "+
 			"Check the %ss whose anchors the report carries", row.Noun, id, row.Noun)
-	case sentenceBare:
-		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to check. "+
-			"The anchor leaves with blue's retire of its claim", while, row.Noun, id)
 	}
 	if read.landing && !bluedoc.SameSentence(sentence, read.judged) {
 		return "", feov.Errorf(feov.Conflict, "while this check was made, the sentence holding %s %s's anchor changed: the report now holds %s, not %s, the sentence this check read. "+

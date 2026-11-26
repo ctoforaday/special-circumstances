@@ -302,9 +302,9 @@ func RefuseAuthoring(old, new string) error {
 // ReopenedAnchors returns the anchors whose SENTENCE this edit changed — the referents that
 // moved under their references.
 //
-// THE TWO CONCERNS ARE SEPARATE AND ONLY ONE WAS ENFORCED. An anchor is never lost:
-// AnchorsTransitUnchanged refuses a replacement that drops one, and droppedMarker backstops the
-// whole edit. That promise holds. But an anchor SURVIVING onto rewritten prose is a citation
+// THE TWO CONCERNS ARE SEPARATE AND ONLY ONE WAS ENFORCED. An anchor is never lost unrecorded: a
+// rewrite that drops one is refused, droppedMarker backstops the whole edit, and a cut records each
+// anchor it takes in removed_anchors. That promise holds. But an anchor SURVIVING onto rewritten prose is a citation
 // backing a sentence nobody read, and nothing said so — measured: a cite on "The sky is blue and
 // the grass is green" followed the text to "The sky is green and the grass is on fire".
 //
@@ -322,30 +322,14 @@ func RefuseAuthoring(old, new string) error {
 // per anchor costs the report's length times its anchors, under the write lock: on a 3,106-event
 // record with 1,274 anchors, 0.82 s of an edit's 0.85 s hold.
 func ReopenedAnchors(before, after string) []string {
-	bareAfter, bareBefore := map[string]bool{}, map[string]bool{}
-	for _, id := range claimcount.BareAnchorIDs(after) {
-		bareAfter[id] = true
-	}
-	for _, id := range claimcount.BareAnchorIDs(before) {
-		bareBefore[id] = true
-	}
 	inBefore, inAfter := splitSentences(before), splitSentences(after)
 	var out []string
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
 		b, okB := inBefore.around(anchor.Token(id))
 		a, okA := inAfter.around(anchor.Token(id))
-		// An anchor that is GONE from `after` is not reopened — it is dropped, which is a refusal
-		// the caller has already made. Saying both would report one fault as two.
+		// An anchor that is GONE from `after` is not reopened: a cut took it and lists it in
+		// removed_anchors, or a rewrite dropped it, which is a refusal the caller has already made.
 		if !okB || !okA {
-			continue
-		}
-		// AN ANCHOR THE EDIT LEFT BARE IS REOPENED: its sentence is gone, which changes its referent
-		// as surely as a rewrite, and the gap it holds is on its way out through `retire` or back
-		// onto new text. One bare before the edit as well was not bared by it.
-		if bareAfter[id] {
-			if !bareBefore[id] {
-				out = append(out, id)
-			}
 			continue
 		}
 		if b != a {

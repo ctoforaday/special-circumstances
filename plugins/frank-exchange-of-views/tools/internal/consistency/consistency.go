@@ -608,17 +608,15 @@ func staleness(run record.Run, m record.Merged, add func(Violation)) (unmeasured
 //
 // EACH CHECK IS READ BY ITS ANCHOR'S KIND'S ROW (recordsql.EvidenceTableOf). A check of a kind that
 // backs nothing has no row to say what it is a check of: it is counted unmeasured, never skipped,
-// which would read as agreement. A check of an anchor standing BARE has no sentence to be held to — the
-// sentence it backed was cut, and the edit that cut it names no anchor reopened, so the check still
-// stands: it is counted unmeasured. An anchor absent from the report while a check of it stands is a
-// disagreement: a check is recorded only of a live sentence, an edit never drops an anchor, and a
-// retire takes the check out of standing.
+// which would read as agreement. An anchor absent from the report while a check of it stands is a
+// disagreement: a check is recorded only of a live sentence, and a retire or a cut takes the anchor,
+// and its checks, out of standing.
 func stalenessIn(standing []record.StandingCheck, report string, add func(Violation)) (unmeasured []string) {
 	ids := make([]string, 0, len(standing))
 	for _, c := range standing {
 		ids = append(ids, c.Anchor)
 	}
-	live, bare := record.SentencesIn(report, ids)
+	live := record.SentencesIn(report, ids)
 	for _, c := range standing {
 		row, ok := recordsql.EvidenceTableOf(anchor.Kind(c.Anchor))
 		if !ok {
@@ -642,9 +640,6 @@ func stalenessIn(standing []record.StandingCheck, report string, add func(Violat
 		}
 		now, ok := live[c.Anchor]
 		switch {
-		case !ok && bare[c.Anchor]:
-			unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) is of %q, and the anchor stands bare in the report — the sentence it backed was cut — so there is no sentence to hold it to",
-				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence))
 		case !ok:
 			add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report holds no sentence for the anchor",
 				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence)})
