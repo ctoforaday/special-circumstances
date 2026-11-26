@@ -161,7 +161,9 @@ func TestAnchorRemovalIsOneView(t *testing.T) {
 			t.Errorf("the cut of %s, which %s is about, gave its lens no turn on it", c, g)
 		}
 	})
-	t.Run("fold/answeredByActThisSitting", func(t *testing.T) {
+	// The cut meets the gap's demand (met arm 2), so blue's list owes no evidence for it: no sitting arm
+	// is needed to excuse it.
+	t.Run("fold/awaiting evidence met by the cut", func(t *testing.T) {
 		runDir, _, _ := raiserBoard(t)
 		c := citeSentence(t, runDir, "The sky is blue.", "https://water/1")
 		g := materialGapAbout(t, runDir, c)
