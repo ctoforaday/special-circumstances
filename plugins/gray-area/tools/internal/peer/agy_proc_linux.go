@@ -203,12 +203,16 @@ func flockHolders(path string) ([]int, error) {
 		}
 	}
 	if len(pids) == 0 {
-		if why := locksBlindSpot(path); why != "" {
+		if why := blindSpotOf(path); why != "" {
 			return nil, errors.New(why)
 		}
 	}
 	return pids, nil
 }
+
+// blindSpotOf is locksBlindSpot; a variable so a test can stand in a namespace or a filesystem
+// this box does not have.
+var blindSpotOf = locksBlindSpot
 
 // locksBlindSpot says why /proc/locks may leave out a lock on path, or "" when it lists every one.
 func locksBlindSpot(path string) string {
@@ -216,18 +220,23 @@ func locksBlindSpot(path string) string {
 	if err != nil {
 		return "cannot read /proc/self/status to learn whether /proc/locks lists every holder: " + err.Error()
 	}
-	nested, known := nestedPidNamespace(string(status))
+	var sfs syscall.Statfs_t
+	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
+		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
+	}
+	return blindSpot(string(status), uint32(sfs.Type))
+}
+
+// blindSpot judges a process's /proc/self/status and the lock file's filesystem magic.
+func blindSpot(status string, fsMagic uint32) string {
+	nested, known := nestedPidNamespace(status)
 	switch {
 	case !known:
 		return "/proc/self/status has no NSpid line, so whether /proc/locks lists every holder is unknown"
 	case nested:
 		return "this process runs in a nested pid namespace, whose /proc/locks leaves out a holder outside it"
 	}
-	var sfs syscall.Statfs_t
-	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
-		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
-	}
-	if name := networkFS(uint32(sfs.Type)); name != "" {
+	if name := networkFS(fsMagic); name != "" {
 		return "the lock is on " + name + ", where a lock taken on another host is not in this host's /proc/locks"
 	}
 	return ""

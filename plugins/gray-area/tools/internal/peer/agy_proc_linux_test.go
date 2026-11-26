@@ -134,6 +134,42 @@ func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
 	}
 }
 
+func TestBlindSpot(t *testing.T) {
+	const flat, nested, ext4 = "NSpid:\t4242\n", "NSpid:\t4242\t17\n", 0xEF53
+	for _, tc := range []struct {
+		status string
+		magic  uint32
+		want   string
+	}{
+		{flat, ext4, ""},
+		{nested, ext4, "this process runs in a nested pid namespace"},
+		{"Pid:\t4242\n", ext4, "/proc/self/status has no NSpid line"},
+		{flat, 0x6969, "the lock is on NFS"},
+	} {
+		if got := blindSpot(tc.status, tc.magic); (tc.want == "") != (got == "") || !strings.HasPrefix(got, tc.want) {
+			t.Errorf("blindSpot(%q, %#x) = %q, want %q", tc.status, tc.magic, got, tc.want)
+		}
+	}
+}
+
+// AN UNHELD LOCK IN A BLIND SPOT IS UNINSPECTABLE, not free: here the blind spot is stood in.
+func TestConversationBusyUnheldLockInABlindSpot(t *testing.T) {
+	agyRoot := t.TempDir()
+	const conv = "conv-blind"
+	if err := os.MkdirAll(filepath.Join(agyRoot, "presence"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agyRoot, "presence", conv+".lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	was := blindSpotOf
+	defer func() { blindSpotOf = was }()
+	blindSpotOf = func(string) string { return "the lock is on NFS" }
+	if h := ConversationBusy(agyRoot, conv, 0); h.Kind != HolderUninspectable || !strings.Contains(h.Detail, "the lock is on NFS") {
+		t.Errorf("ConversationBusy = %+v, want uninspectable naming the blind spot", h)
+	}
+}
+
 func TestNestedPidNamespace(t *testing.T) {
 	for _, tc := range []struct {
 		status        string

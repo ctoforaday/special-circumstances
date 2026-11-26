@@ -304,6 +304,7 @@ func TestTheSweepRecognisesEveryShape(t *testing.T) {
 	}{
 		{"a named binary with an env", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_RUNTIME_DIR=" + rt}`, 1, 0},
 		{"a named binary without one", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); _ = c`, 1, 1},
+		{"a bare literal", `c := exec.Command("telepathy", "agents"); _ = c`, 1, 1},
 		{"an inline path", `c := exec.Command(filepath.Join(dir, "telepathy"), "agents"); _ = c`, 1, 1},
 		{"a parameter", `c := exec.CommandContext(ctx, prog, "agents"); _ = c`, 1, 1},
 		{"a parameter with an env", `c := exec.Command(prog); c.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+rt)`, 1, 0},
