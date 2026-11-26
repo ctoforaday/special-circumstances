@@ -642,8 +642,7 @@ it:
   (`lensSitsAfter`), stated.
 - **What the bench is handed** (R1, the plan's rule for the opening end; gblock 2026-11-26, a ruling stands on the
   parties' statements): the bench's work list holds no report text, so its opening end hands the head of its queue
-  as every single-seat configuration's does — the docket sitting it was dispatched for while unopened, then the
-  docketings in the docket order above. `TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText` and
+  as every single-seat configuration's does — at dispatch, the docket sitting it was dispatched for. `TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText` and
   `TestAfterTheOpeningEndNothingMovedIsNothingSaid` hold it on the bench (`main`'s chair arm stood on a grade motion,
   which §III.B2 deletes).
 - **Each ruling sees the previous one's result.** A statement is checked when stated (§III.B2) and again by its
@@ -851,7 +850,8 @@ B2a/B5 replays: 25 docketings, zero refusals. Part A's residue over 38 runs: 107
 `partb_test`, `findingsfold_test`, `inquirycheckarchive_test` and `storedplanids_test` on the merged head).
 `main`'s delivered-text rule (2026-11-13) loses an archived lens's `Close` whose sitting holds no complete delivery;
 the bench takes no delivery (§V R1), so no bench ruling is lost on it. A lost `Close` ends no docketing, so:
-- the rulings a `Close` ended are 12, not 17: m28 589 and 659 (closes lost), m32 483 and m35 582 now stand as
+- the rulings a `Close` ended are 12, not 17: m28 589 and 659, m32 483 and m35 582 (their closes 558, 632, 412 and
+  386 are lost acts in each manifest) now stand as
   `--for-blue` `not_a_defect` rulings, each placing a ruling tombstone (m28 G-1e4a7bb0, G-3a2c77c1; m32 G-fbdd91f9;
   m35 G-1f1ae21f), so ruling placements are 6, not 2, and the rows 48, not 44;
 - m29 576 is a lost act, not an ended ruling: its raiser's close (ev 561) is lost, so the grade-movement docketing
@@ -859,8 +859,9 @@ the bench takes no delivery (§V R1), so no bench ruling is lost on it. A lost `
   stated:** m29's docketing on G-6f6f47fb stands unruled at the run's end;
 - the spot-checks written as no event are 7, not 5: is-91-prime-a 163 (G1, G2; closes 143 and 154 lost) and wave-b
   626 (G-ede17021; close 376 lost) check a gap a dropped bench act reopened and the lost close left open;
-- the archived dockets and rulings written as no event are 52, not 56 (the 4 rulings above), and the prose ids 373, not 409 (the
-  ids in lost acts leave with them; the rulings above bring theirs back).
+- the archived dockets and rulings written as no event are 52, not 56 (the 4 rulings above), and the prose ids 373, not 409
+  (measured on the merged head; not broken down by cause).
+- the counts above predate Translation 7 and are re-measured when it lands.
 
 Built and deleted: Translations 1 (a mint's first ancestor) and 2 (cross-seat links dropped; `migrate/lineage.go`'s
 `dropCrossSeatLink`), and Translation 3's drop of the 2 docketings on a superseded gap (`migrate/docketing.go`, whose

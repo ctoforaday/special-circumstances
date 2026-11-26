@@ -68,8 +68,8 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 			if res.In["inquiry_review"] != c.reviews || res.Out["inquiry_review"] != 0 {
 				t.Errorf("reviews: %d in, %d out; want %d in and none out", res.In["inquiry_review"], res.Out["inquiry_review"], c.reviews)
 			}
-			// A bench ruling on a motion about gaps with no delivery in its sitting is a lost act,
-			// listed in the manifest; every other ruling not on an inquiry arrives.
+			// A bench ruling on a gap a lost act took with it is itself lost, listed in the manifest;
+			// every other ruling not on an inquiry arrives.
 			lost := migrate.LostByWord(res)["motion_rule"]
 			if n := countOf(t, ddb, `SELECT count(*) FROM "motion_rule"`); n != c.motionRules-c.rulings-c.docketRulings-lost {
 				t.Errorf("the migrated record holds %d ruling(s), want the archive's %d less its %d on an inquiry, its %d docket rulings written as no event and its %d lost", n, c.motionRules, c.rulings, c.docketRulings, lost)

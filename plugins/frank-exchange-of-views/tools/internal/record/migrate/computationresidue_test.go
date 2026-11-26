@@ -549,7 +549,7 @@ func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 				}
 			})
 		}
-		// A lost act (a close, spot-check or bench ruling with no delivery in its sitting) is written
+		// A lost act (a close or spot-check with no delivery in its sitting, or an act on a gap such a loss took with it) is written
 		// as no event, so the paths its translation would carry are not on the migrated record.
 		lost := lostProofStorePaths(t, name)
 		if kept != want[name]-lost {

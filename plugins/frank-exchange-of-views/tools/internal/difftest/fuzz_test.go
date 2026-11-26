@@ -544,9 +544,9 @@ var tourArms = []fuzzArm{
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
 
-	// THE BENCH RULES WHAT A DISPATCH CONVENES IT TO RULE, on the passages delivered to that sitting: both
-	// parties filed their closings on GAP002 above and sit again, the chair's next sitting dispatches the
-	// bench, and the bench registers for the docket and reads the passage of the gap MOTION001 is about.
+	// THE BENCH RULES WHAT A DISPATCH CONVENES IT TO RULE, on the parties' statements: both parties filed
+	// their closings on GAP002 above and sit again, the chair's next sitting dispatches the bench, and
+	// the bench registers for the docket.
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "DOCKETING001", "--remand", "--principle", "p", "--tension", "t", "--review-flag", "r",
@@ -603,10 +603,9 @@ var tourArms = []fuzzArm{
 }
 
 // tourCast is the act tour's cast: the tour runs on a cast run, as a real one stands, because the
-// chair's spot-check and the bench's docket ruling stand only on report text delivered to their
-// sittings, and both deliveries are owed only through the plan — the chair's for a stale area, which
-// is a cast lens's retired behind a head move, and the bench's for the motions a dispatch convenes
-// it to rule. The computation lens is cast because the tour's computation makes it a party the plan
+// chair's spot-check stands only on report text delivered to its sitting, owed only through the plan
+// for a stale area, which is a cast lens's retired behind a head move, and the bench's docket ruling
+// only in the sitting a dispatch convenes it for. The computation lens is cast because the tour's computation makes it a party the plan
 // dispatches. The voice lens is the one the tour retires; the random sequences keep the cast-less board
 // they were measured on.
 var tourCast = castOf("evidence", "logic", "computation", "voice")

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -167,9 +166,6 @@ func requireReportRead(q recordsql.Querier, seatID string, b *recordpb.ReportRea
 	}
 	return nil
 }
-
-// gapsNamed is ids joined for a message.
-func gapsNamed(ids []string) string { return strings.Join(ids, ", ") }
 
 // reportTextItems is the report text the seat is owed into its context this sitting, as blocking
 // items: none once its sitting holds its delivery, and none for a seat that is handed no report text.

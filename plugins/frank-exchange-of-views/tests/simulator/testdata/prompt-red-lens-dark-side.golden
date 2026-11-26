@@ -1,4 +1,4 @@
-prompt sha256: bc304197d4f2aad708ebca40e456249ea703d18e3d8ba1b474c3e66fca1626e6
+prompt sha256: af02e9c99fa2437ae0a9f1004dab3844c24ba14160122d074308f71fa9f58dcf
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -9,14 +9,14 @@ Assembly prints every inquiry in the report, with its fate and its reason, in se
 Where the two tell the reader different things — one approach under two fates; a fate the report's own text or a computation contradicts, as an approach printed as declined that a section carries; a section built on an approach that is no inquiry — that is a candidate gap, anchored to the inquiry and weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer.
 A gap about an inquiry reaches blue, and a material one holds the PASS; the logic lens judges every settled inquiry against its latest fate, reading the open gaps about it.
 An inquiry still open already holds the PASS until blue settles it.
-YOUR ITEMS ARRIVE ONE AT A TIME; the index lists the rest.
-YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
-`first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
-`behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
-`unchanged`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
-`served`: served to you whole this sitting (pin P) — audit it.
-`undispatched`: the record holds no dispatch for you — log that and end the sitting.
-Only a whole read of the report moves your pin.
+YOUR ITEMS ARRIVE ONE AT A TIME, each after a tool call of yours; the index lists the rest.
+YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides your audit.
+`first`: the whole report — audit it whole, in context, never a diff.
+`behind` (head H; pin P): the whole report at your full re-read, else each edit since your pin as the paragraphs it touched, before and after, and your own gaps' passages.
+`unchanged`: NOTHING TO AUDIT at head H unless the whole report is owed; your earlier read stands, and if nothing engages you the sitting owes no entry.
+`served`: this sitting's delivery is complete (pin P) — audit it.
+`undispatched`: no dispatch for you — log that and end.
+Only a complete delivery moves your pin.
 A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.
 ANCHOR EVERY GAP ABOUT THE REPORT'S TEXT TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a gap whose quote is not found in the report as the record renders it is REJECTED.
 The ids of the gaps you mint are the tool's to assign.

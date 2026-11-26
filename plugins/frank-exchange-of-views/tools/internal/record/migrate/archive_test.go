@@ -95,9 +95,9 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// the 40 findings and the 40 Anchors that placed their tokens, which a lens's defect no longer
 	// writes, and the 1 reading whose quote was only a finding's token and a dropped label's (source
 	// event 758), and the 4 grade motions and their 4 rulings, written as none (epoch 80).
-	// LESS every lost act: an archived close, spot-check or bench ruling stands only on a delivery
-	// in its seat's sitting, which no sitting of this run holds, so each is written as no event and
-	// listed in lost_acts.
+	// LESS every lost act: an archived close or spot-check stands only on a delivery in its seat's
+	// sitting, which no sitting of this run holds, so each — and any act on a gap it took with it — is
+	// written as no event and listed in lost_acts.
 	lost := migrate.LostByWord(res)
 	lostTotal := len(res.LostActs)
 	if outTotal != 649-lostTotal || res.Out["tombstone"] != 2 || res.In["verdict"] != 5 || res.Out["verdict"] != 0 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||

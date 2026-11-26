@@ -67,7 +67,10 @@ type docketResidue struct {
 }
 
 // wantDocketResidue is the measured residue of Translations 3 and 4 per run (probe of 2026-11-22,
-// plans/findings-fold.md §III.B14): the source ids each list names. A run absent states none.
+// recounted after R1's merge of main, plans/findings-fold.md §III.B8): the source ids each list
+// names. A run absent states none. A close the delivered-text rule loses ends no docketing, so the
+// ruling after it stands (m28 589, 659; m32 483; m35 582) or is lost with it (m29 576); a
+// spot-check of a gap such a close left open is written as no event (is-91-prime-a 163, wave-b 626).
 var wantDocketResidue = map[string]docketResidue{
 	"2026-08-22_is-7-prime-run2.tar.gz":            {opinions: []int64{149, 150, 151, 152, 153, 154, 155}},
 	"2026-08-22_is-7-prime.tar.gz":                 {opinions: []int64{147, 148}},

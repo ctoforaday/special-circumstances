@@ -44,8 +44,7 @@ func itemsOn(t *testing.T, run Run, role, seat, sub string) (blocking, open []It
 }
 
 // twinDocket stages two gaps, each with its docketing standing — D1 on G1 and D2 on G2, one per gap —
-// and the bench sitting the docket the chair convened it for on both, its delivery of the
-// gap's passage complete, then build's acts.
+// and the bench sitting the docket the chair convened it for on both, then build's acts.
 func twinDocket(t *testing.T, build func(b *stage)) Run {
 	t.Helper()
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().

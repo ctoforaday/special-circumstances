@@ -30,9 +30,8 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 			remands += remandsCarried(t, archivedSource(t, recordtest.ExtractArchive(t, name)), dir, skip, supersededRulings[name])
 		})
 	}
-	// Every archived bench ruling on a motion about gaps is a lost act (no archived bench sitting
-	// holds a delivery), so the translation is exercised on a source whose bench was delivered the
-	// report before it ruled.
+	// The translation is exercised on the delivered-bench fixture's source, whose lens and chair act
+	// on their deliveries, so no act the ruling stands on is lost.
 	t.Run("delivered bench", func(t *testing.T) {
 		_, src, to := MigratedDeliveredBench(t)
 		remands += remandsCarried(t, src, to, nil, 0)
