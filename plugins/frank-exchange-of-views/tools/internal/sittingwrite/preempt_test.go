@@ -15,12 +15,11 @@ import (
 )
 
 // REPORT TEXT PRE-EMPTS THE CURRENT ITEM, AND THE ITEM RESUMES AFTER IT: the current item stays current
-// until it leaves the queue. The chair is handed motion M1; the head moves in its sitting, so a retired
-// lens's area goes stale and the chair is owed the change behind its pin, report text, which is handed
-// first; after it the chair's current item is M1 again, though the stale area's own item now heads the
-// queue.
+// until it leaves the queue. The chair's stored plan permits the PASS, so it is handed the verdict it
+// owes; the head moves in its sitting, so a retired lens's area goes stale and the chair is owed the
+// change behind its pin, report text, which is handed first; after it the chair's current item is the
+// verdict again, though the stale area's own item now heads the queue.
 func TestAnItemReportTextPreemptedResumesAfterIt(t *testing.T) {
-	t.Skip("#1695 R1 merge: the chair's non-text item here was its ruling on blue's grade motion, which this branch deletes; the chair holds no other item a head move can pre-empt, so the fixture needs a seat that holds an item before any report text (R2)")
 	dir := newRun(t)
 	const lens = "red-lens-logic"
 	evs := []*recordpb.Event{
@@ -43,9 +42,12 @@ func TestAnItemReportTextPreemptedResumesAfterIt(t *testing.T) {
 		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}),
 		recordtest.At(t, "red-chair", "chair:register", &recordpb.Register{}))
 	recordtest.Seed(t, dir, append(evs, recordtest.SettledQuestion(t)...)...)
+	plan := record.Plan{Head: 2, PassPermitted: true, Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{},
+		Exchanges: []record.ExchangeCount{}, Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}}
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "chair:plan", &recordpb.Plan{Printed: proto.String(plan.WithKey().Printed())}))
 
 	const chair, agent = "frank-exchange-of-views:red-chair", "agent_02"
-	const worked = "unruled_motion:motion:M1"
+	const worked = "verdict_owed"
 	call := func() string {
 		t.Helper()
 		var out bytes.Buffer

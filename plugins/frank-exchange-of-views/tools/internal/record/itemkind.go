@@ -59,9 +59,9 @@ const (
 	ItemNothingOwed ItemKind = "nothing_owed"
 	// ItemReportText is report text owed into the seat's context this sitting, handed one item after
 	// each of its tool calls: a lens's whole report or the changes since its pin and its own
-	// gap passages (subject the report), the chair's stale area's unborne changes (an area), the
-	// bench's passage of a gap a motion is about (a gap). It blocks until the sitting holds the
-	// delivery (report_read).
+	// gap passages (subject the report), the chair's stale area's unborne changes (an area). The
+	// bench is owed none: a ruling stands on the parties' statements. It blocks until the sitting
+	// holds the delivery (report_read).
 	ItemReportText ItemKind = "report_text"
 )
 

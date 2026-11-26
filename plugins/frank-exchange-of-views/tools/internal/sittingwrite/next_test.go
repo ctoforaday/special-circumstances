@@ -92,9 +92,9 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 
 // THE OPENING END STORES WHAT IT HANDED, AND THE FIRST CALL AFTER IT COMPARES AGAINST THAT: nothing
 // moved, so nothing is said. A lost file hands the head of the queue again. The chain is every
-// seat's: blue is the seat here, since a lens's first sitting opens with report text, which the
-// opening end never hands — its first call does. Blue's item is the gap the chair's dispatch engaged
-// it on.
+// seat's: the bench is the seat here, since a lens's first sitting opens with report text, which the
+// opening end never hands — its first call does — and the bench is handed no report text. The
+// bench's item is the head of its queue: the docket sitting it was dispatched for.
 func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
@@ -108,23 +108,24 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
 			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}),
-		recordtest.At(t, "red-chair", "chair:dispatch:blue", &recordpb.Dispatch{
-			SeatId: proto.String("blue-respond"), Pin: proto.Int64(1), GapIds: []string{"G1"}}),
-		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}))
-	const chair = "frank-exchange-of-views:blue-researcher"
+		recordtest.At(t, "red-chair", "chair:docketing", &recordpb.Docketing{DocketingId: proto.String("D1"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("before the bench")}),
+		recordtest.At(t, "red-chair", "chair:dispatch:bench", &recordpb.Dispatch{
+			SeatId: proto.String("judge"), Pin: proto.Int64(1), GapIds: []string{"G1"}}))
+	const bench = "frank-exchange-of-views:lead-judge"
 	var opened bytes.Buffer
-	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_02", AgentType: chair}, &opened); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_02", AgentType: bench}, &opened); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(opened.String(), `"key": "`) {
-		t.Fatalf("blue's opening end handed no item:\n%s", opened.String())
+		t.Fatalf("the bench's opening end handed no item:\n%s", opened.String())
 	}
 	var out bytes.Buffer
-	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", bench, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Errorf("nothing moved and blue was handed:\n%s", out.String())
+		t.Errorf("nothing moved and the bench was handed:\n%s", out.String())
 	}
 	files, _ := filepath.Glob(filepath.Join(dir, deliveryDir, "agent_02-*.json"))
 	if len(files) != 1 {
@@ -133,7 +134,7 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	if err := os.Remove(files[0]); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", bench, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"key": "`) {

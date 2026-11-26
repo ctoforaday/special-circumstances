@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -21,8 +24,10 @@ import (
 // feov-sitting-write's opening end; it hands a seat its configuration names the head of its queue, as
 // the record queues it — not the whole list, which `show work` still prints — and where that head is
 // report text, the one line saying it arrives one item per tool call. A configuration that
-// seats several seats is handed nothing. The writer is driven as the process the hook spawns, so what
-// is asserted is what the shipped binary hands.
+// seats several seats is handed nothing. The bench is handed no report text at all: its queue's head
+// at a docket sitting is the sitting it was dispatched for, then the docketings in row order. The
+// writer is driven as the process the hook spawns, so what is asserted is what the shipped binary
+// hands.
 func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a binary")
@@ -32,11 +37,6 @@ func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 	writeReport(t, runDir, "# Costs\n\nQ1 was hard. "+sentence+"\n")
 	gap, err := mintQuote(t, runDir, "k1", "Costs rose sharply")
 	if err != nil {
-		t.Fatal(err)
-	}
-	// The chair's item is its ruling on blue's grade motion: a chair's queue holds no report text here.
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", gap,
-		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded"); err != nil {
 		t.Fatal(err)
 	}
 	open := func(agent, agentType string) string {
@@ -64,34 +64,6 @@ func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 		return q[0]
 	}
 
-	// THE CHAIR'S HEAD IS NO REPORT TEXT: it is handed that item, under its standing, and not the list.
-	if h := head("red-chair"); h.Kind == record.ItemReportText {
-		t.Fatalf("the fixture's chair is owed report text, so its arm measures nothing: %+v", h)
-	}
-	chair := open("agent_chair_01", seatclass.Seats["red-chair"].AgentType)
-	at := strings.Index(chair, "{")
-	if at < 0 {
-		t.Fatalf("the writer handed the chair no item:\n%s", chair)
-	}
-	var handed struct {
-		Sitting map[string]json.RawMessage `json:"sitting"`
-		Current *struct {
-			Key string `json:"key"`
-		} `json:"current"`
-	}
-	if err := json.Unmarshal([]byte(chair[at:]), &handed); err != nil {
-		t.Fatalf("not a handed item (%v):\n%s", err, chair)
-	}
-	if want := head("red-chair").Key; handed.Current == nil || handed.Current.Key != want {
-		t.Errorf("the chair was handed %+v; want the head of its queue, %s", handed.Current, want)
-	}
-	if _, whole := handed.Sitting["open"]; whole {
-		t.Errorf("the chair was handed its whole list at dispatch; `show work` prints it, the opening end hands the head:\n%s", chair)
-	}
-	if strings.Contains(chair, sentence) {
-		t.Errorf("the chair's dispatch carries report text:\n%s", chair)
-	}
-
 	// THE LENS'S HEAD IS REPORT TEXT: it is handed the one line, and none of the text.
 	lensType := seatclass.Seats[lensSeat].AgentType
 	lens := open("agent_lens_01", lensType)
@@ -100,6 +72,40 @@ func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
 	}
 	if strings.TrimSpace(lens) == "" || strings.Contains(lens, "{") || strings.Contains(lens, sentence) || strings.Count(strings.TrimSpace(lens), "\n") != 0 {
 		t.Errorf("the lens was handed more than the one line saying its report text arrives one item per call:\n%s", lens)
+	}
+
+	// THE BENCH'S HEAD IS NO REPORT TEXT: it is handed that item, under its standing, and not the list. The gap is
+	// docketed and the bench dispatched on it, after the lens's arm, whose head the docketing would move.
+	docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair"},
+		&recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("judge"), GapIds: []string{gap}}); err != nil {
+		t.Fatalf("dispatching the bench on %s: %v", gap, err)
+	}
+	if h := head("judge"); h.Kind == record.ItemReportText {
+		t.Fatalf("the fixture's bench is owed report text: %+v", h)
+	}
+	bench := open("agent_bench_01", seatclass.Seats["judge"].AgentType)
+	at := strings.Index(bench, "{")
+	if at < 0 {
+		t.Fatalf("the writer handed the bench no item:\n%s", bench)
+	}
+	var handed struct {
+		Sitting map[string]json.RawMessage `json:"sitting"`
+		Current *struct {
+			Key string `json:"key"`
+		} `json:"current"`
+	}
+	if err := json.Unmarshal([]byte(bench[at:]), &handed); err != nil {
+		t.Fatalf("not a handed item (%v):\n%s", err, bench)
+	}
+	if want := head("judge").Key; handed.Current == nil || handed.Current.Key != want {
+		t.Errorf("the bench was handed %+v; want the head of its queue, %s", handed.Current, want)
+	}
+	if _, whole := handed.Sitting["open"]; whole {
+		t.Errorf("the bench was handed its whole list at dispatch; `show work` prints it, the opening end hands the head:\n%s", bench)
+	}
+	if strings.Contains(bench, sentence) {
+		t.Errorf("the bench's dispatch carries report text:\n%s", bench)
 	}
 
 	// A CONFIGURATION THAT SEATS SEVERAL SEATS IS HANDED NOTHING.
