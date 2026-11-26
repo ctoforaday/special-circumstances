@@ -1670,9 +1670,12 @@ and `~/.claude/scratch/p12/r2/`):
     reading `gone`, until its minting lens acts. The edit's transaction holds the edit alone.
   - **The cut readies the raiser: the lens turn reads the list.** `lensTurnActsOf` (`gapacts.go:247-267`) gains a
     `BlueEdit` arm: each gap whose own marker the edit's `removed_anchors` names gets a turn act at the edit, under the
-    editing seat, as a `reopened` entry does (`:252-256`). Its callers then ready and engage the lens:
-    `impasse.go:356` sets `lensTurn` and `lensGoesFirst` (`:188-198, 416`), and `lensturn.go:51`
-    (`EarlyLensDispatches`) dispatches it. `reopened` keeps its meaning (an anchor whose sentence changed and still
+    editing seat, as a `reopened` entry does (`:252-256`). Its callers then engage the lens on the gap's route:
+    `impasse.go:356` folds the turns, `:416` sets `lensTurn` for a seat whose role is lens, and `:175, 188-198` set
+    `lensAudit` and `lensGoesFirst` from it; `lensturn.go:51` (`EarlyLensDispatches`) reads the same turns. A gap the
+    lens is engaged on readies it whatever the head (`retirement.go:20-21`), so a retired minter is readied by the
+    cut's turn as by any other. **A gap that is not material readies nobody** (`blueanswered.go:53`): its lens reads
+    the `gone` item when it next sits for anything else, as it reads any answer on such a gap today. `reopened` keeps its meaning (an anchor whose sentence changed and still
     stands); the removal is its own recorded list, read beside it. Without the arm, a cut by an edit answering another
     gap, or none, gives G's lens no turn (§III.10c census).
   - **What the lens is served.** The cut stales the lens's delivery of G: `changedSinceSQL` (`deliveredtext.go:84`)
@@ -1699,12 +1702,13 @@ and `~/.claude/scratch/p12/r2/`):
     with a regrade; a defect at another sentence is a new gap at that sentence (P12a, one gap per site). A gap whose
     turns run out goes to the bench by the exchange limits as today (`exchangeFold`); how a docketed gap whose marker
     is gone is ruled is #1889's.
-  - **A retired minter.** P4 D(1) reads `reopened` ∪ the edit arm (below), so the cut re-readies a retired minter.
+  - **A retired minter** is readied by the turn on its engaged gap (above). P4 D(1), when it lands, reads `reopened` ∪
+    the edit arm (below) for the gaps of a retired lens that the route does not engage.
   - **A remanded gap** stays open; its remand exchange continues on the lens's turn.
   - **The test.** `TestACutReadiesItsRaiser` (`internal/cli`, through the command tree):
-    1. blue cuts G's sentence with an edit answering another gap H, and separately with no `--answers`: G stays open
-       and reads `gone`, the edit's transaction holds the edit alone, and G's minting lens holds a turn on G
-       (`lensTurnOn`) and is readied;
+    1. G is material; blue cuts G's sentence with an edit answering another gap H, and separately with no
+       `--answers`: G stays open and reads `gone`, the edit's transaction holds the edit alone, and G's minting lens
+       holds a turn on G (`lensTurnOn`) and is readied, a retired minter included;
     2. the lens's work list names G with the `gone` item;
     3. a close in a sitting whose delivery predates the cut is refused by the delivered-text rule; after its next
        complete delivery, whose G passage is the cutting edit's old paragraph, the lens's `moot` close with the triple
@@ -1743,7 +1747,7 @@ and `~/.claude/scratch/p12/r2/`):
     |---|---|---|
     | `countsat.go:53-56` | `Retire.anchors` into the retired set | reads the list: a `BlueEdit` arm adds `removed_anchors` |
     | `answersretired.go:83` `retiredAnswersAt` | the answer anchors the act at `at` took out (the act is `gap_state.answers_retired_event`, from `anchor_removal`) | reads the list: a `BlueEdit` arm at `at`; its news line says "taken out" for a retire or a cut |
-    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case | re-keyed: `retired` reads whether blue's edit this sitting removed the gap's anchor (a `BlueEdit` arm on `removed_anchors`), since a retire never takes a sentence under P12b; its one reader (`sitting.go:328` on main) reads "your cut this sitting took its sentence out" |
+    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case, under `AwaitingEvidence` (a gap whose demand is unmet: after a cut, a gap about an anchor that still stands, since a cut of a `--quote` gap's own marker meets its demand by arm 4) | re-keyed: `retired` reads whether blue's edit this sitting removed the gap's anchor (a `BlueEdit` arm on `removed_anchors`), since a retire never takes a sentence under P12b; its one reader (`sitting.go:328` on main) reads "your cut this sitting took its sentence out" |
     | `evidenceview.go:407` `Retires` | one row per retire act: claim, reason, anchors | stays retire-only (losing the three fields): the rows describe retire acts, and a cut is an edit; listing it there would read a cut as a retire. The cut's anchors reach the view through `:484` |
     | `evidenceview.go:484` `retiredBy` | the first act that took each anchor out, with its reason | reads the list: a `BlueEdit` arm records the edit's id and `--reason` |
     | `impasse.go:333` `exchangeFold` | the retire's answered gap and `win.Reaches(e)` | DB read: a `BlueEdit` arm adds `win.Reaches(e)`, so a cut reaching a gap moves it as a retire does (today an edit moves only its `--answers` gap, `:313-316`) |
@@ -3117,7 +3121,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              `run-archive/*.tar.gz`, so m37 and m38 are outside those two censuses.
        - **Each assertion and the test that makes it**, over the 39 committed archives (36 in `run-archive/`, 2 in
          `run-archive/bundle-store/`, and P0's 2026-11-10 run):
-         - Migrate reports zero refusals in each: `TestEveryArchivedRunMigrates`.
+         - Migrate reports zero refusals in each, once every `F-` token is classified under a ruling (§III.10c migrate,
+           "The `F-` population"; until then m19 and m26 are refused): `TestEveryArchivedRunMigrates`.
          - No migrated record holds a token on no words in its final report, and each translation-4 gap reads open and
            `gone`, its marker in its baring edit's `removed_anchors`, with no `Close` migrate wrote:
            `TestNoMigratedArchiveHoldsABareAnchor`. No record holds a claim-shaped `retire`, because
