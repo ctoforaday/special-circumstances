@@ -239,6 +239,11 @@ func lensReadAt(turns []gapAct, lens string, minted, floor, upto int64) int64 {
 //     the `reopened` that `edited_since` lists. It is the lens's turn and NOT blue's answer. On
 //     universe-m37 blue's fix to G-584d152f landed under another gap's name, the lens never read it,
 //     and the bench found a gap that was not at impasse.
+//   - AN EDIT THAT CUT THE GAP'S MARKER, whatever gap it answers (ruled by gblock 2026-11-26, F21): the
+//     `removed_anchors` a pure cut records. The cut is the raiser's turn, never a close: the gap stays
+//     open, reading gone, until its minting lens closes it moot, keeps it with a regrade, or the
+//     exchange limits docket it. `reopened` lists an anchor whose sentence changed and still stands;
+//     the removal is its own recorded list, read beside it.
 //   - THE OPENING OF A CLOSED SITTING OF THE LENS ENGAGED ON THE GAP, whether or not it acted: silence
 //     is a turn taken, so a null turn does not leave the turn standing for the next epoch. Its opening
 //     and not its end, so an act of blue's inside the window still counts as unread. A sitting the
@@ -251,7 +256,7 @@ func lensTurnActsOf(evs []*Event, ids []int64, acts map[string][]gapAct, sitting
 	}
 	for i, e := range evs {
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && b.GetOld() != b.GetNew() {
-			for _, g := range b.GetReopened() {
+			for _, g := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
 				out[g] = append(out[g], gapAct{seat: e.GetSeatId(), at: ids[i]})
 			}
 		}

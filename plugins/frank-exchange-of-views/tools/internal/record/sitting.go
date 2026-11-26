@@ -305,13 +305,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
 		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt; a motion
-		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
+		// blue files on the gap, which puts the demand before its ruler; or a cut that takes the
 		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
 		if e := engagedOf(evs, win, gaps, seatID); e != nil {
 			engaged = e.GapIDs
 		}
-		moved, retired := answeredByActThisSitting(evs, win, seatID)
+		moved, cut := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
 			if !g.AwaitingEvidence {
 				continue
@@ -325,8 +325,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — this sitting is not engaged on it")
 			case moved[id]:
 				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until the demand is met")
-			case retired && g.LocationState == LocationGone:
-				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your retire this sitting took its sentence out, and the lens's close stays refused until the demand is met")
+			case cut[id] && g.LocationState == LocationGone:
+				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your cut this sitting took its sentence out, and the lens's close stays refused until the demand is met")
 			default:
 				add(ItemAwaitingEvidence, gap, "gap "+id+what)
 			}
@@ -738,9 +738,11 @@ func benchRegisteredSince(evs []*Event, win WindowIndex, d dispatchRow) bool {
 }
 
 // answeredByActThisSitting is the gaps the seat filed a motion on in its current sitting (a docket
-// or grade motion names its gap), and whether it recorded a retire there.
-func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved map[string]bool, retired bool) {
-	moved = map[string]bool{}
+// or grade motion names its gap), and the anchors its edits there removed: a pure cut takes a
+// sentence and its anchors together (removed_anchors). A retire keeps its sentence, so it takes no
+// gap's sentence out.
+func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved, cut map[string]bool) {
+	moved, cut = map[string]bool{}, map[string]bool{}
 	for _, e := range thisSitting(evs, win, seatID) {
 		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
@@ -749,11 +751,13 @@ func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (mov
 				}
 			}
 		}
-		if _, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			retired = true
+		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+			for _, a := range b.GetRemovedAnchors() {
+				cut[a] = true
+			}
 		}
 	}
-	return moved, retired
+	return moved, cut
 }
 
 // logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the

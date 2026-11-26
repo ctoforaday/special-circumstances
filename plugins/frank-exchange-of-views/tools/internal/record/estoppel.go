@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -63,8 +64,9 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 // estoppingPrescriptions is the gaps whose prescription still estops red: those whose LATEST edit
 // touching the gap is a verbatim one (F12). Walking the edits in event order, an edit with
 // applied_verbatim answering gap G sets G's prescription; an edit AFTER it whose `reopened` lists G —
-// blue reworded the sentence the fix placed G's token in — deletes it (the verbatim edit's OWN
-// `reopened` lists G, since it changed the sentence, and does not count); a later verbatim edit
+// blue reworded the sentence the fix placed G's token in (the verbatim edit's OWN
+// `reopened` lists G, since it changed the sentence, and does not count) — or whose `removed_anchors`
+// does, a pure cut that took the sentence and G's marker with it — deletes it; a later verbatim edit
 // answering G sets it again. Residue, stated: a fix spanning several sentences carries the token in
 // one, so a reword of another of its sentences lists nothing and the whole prescription still estops;
 // a gap with no token is never reopened and estops as before.
@@ -94,7 +96,7 @@ func verbatimPrescriptions(evs []*Event, gaps map[string]*Gap, reworded bool) ma
 		if !reworded {
 			continue
 		}
-		for _, r := range ed.GetReopened() {
+		for _, r := range slices.Concat(ed.GetReopened(), ed.GetRemovedAnchors()) {
 			delete(out, r)
 		}
 	}

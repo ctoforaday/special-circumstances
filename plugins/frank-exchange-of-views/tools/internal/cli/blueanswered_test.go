@@ -96,16 +96,16 @@ func TestTheLensWorkListSaysWhetherBlueAnswered(t *testing.T) {
 	})
 }
 
-// A GAP WHOSE SENTENCE BLUE CUT IS NOT UNANSWERED. Blue engaged on the gap and edited its sentence
-// down to the bare anchor without naming the gap: the gap reads `gone`, and its lens is put to judge
-// the report as it stands — never told that no edit answers it.
+// A GAP WHOSE SENTENCE BLUE CUT IS NOT UNANSWERED. Blue engaged on the gap and cut its sentence whole
+// without naming the gap: the cut took the marker with it, the gap reads `gone`, and its lens is put
+// to judge the report as it stands — never told that no edit answers it.
 func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	runDir, id := answeredBoard(t)
 	dispatchBlueOnto(t, runDir, id)
 	registerBlue(t, runDir)
 	tok := "<!--gap:" + id + "-->"
 	if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "CUT",
-		"--quote", "The cost is high"+tok+" and rising.", "--new", tok,
+		"--quote", "The cost is high"+tok+" and rising.", "--new", "",
 		"--reason", "the sentence cannot stand"); err != nil {
 		t.Fatalf("blue cutting the sentence: %v\n%s", err, out)
 	}
@@ -118,7 +118,7 @@ func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &w); err != nil {
 		t.Fatal(err)
 	}
-	// The cut left the gap's anchor bare, which reopened it: the cut is the one edit listed.
+	// The cut took the gap's marker (removed_anchors): the cut is the one edit listed.
 	if len(w.Open) != 1 || w.Open[0].LocationState != record.LocationGone || len(w.Open[0].EditedSince) != 1 {
 		t.Fatalf("the cut gap should read gone with the cut listed: %+v", w.Open)
 	}

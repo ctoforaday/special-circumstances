@@ -2197,11 +2197,16 @@ type GapEdit struct {
 }
 
 // reopeningEditsAt is every standing edit, as the change view orders them, keyed by each anchor id
-// its recorded `reopened` names.
+// its recorded `reopened` names, and by each its `removed_anchors` names: a pure cut took that
+// anchor's sentence.
 func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	out := map[string][]GapEdit{}
 	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
-	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."event_id"`)
+	  FROM "change" c JOIN (
+	    SELECT "event_id", "value" FROM "blue_edit_reopened"
+	    UNION ALL
+	    SELECT "event_id", "value" FROM "blue_edit_removed_anchors"
+	  ) r ON r."event_id" = c."event_id" ORDER BY c."event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking which edits changed a gap's sentence: %w", err)
 	}
