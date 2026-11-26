@@ -37,8 +37,13 @@ func TestAPureCutTakesItsAnchors(t *testing.T) {
 			if !strings.Contains(readReport(t, runDir), "The grass is green"+anchor.Token(id)) {
 				t.Fatalf("no %s anchor on the sentence:\n%s", kind, readReport(t, runDir))
 			}
-			if _, err := cut(t, runDir, sentence); err != nil {
+			out, err := cut(t, runDir, sentence)
+			if err != nil {
 				t.Fatalf("the pure cut of the %s's sentence was refused: %v", kind, err)
+			}
+			// The seat is told what its cut took, by id: the act names what it removed.
+			if !strings.Contains(out, id) || !strings.Contains(out, "cut") {
+				t.Errorf("the cut's result does not name the %s anchor %s it took:\n%s", kind, id, out)
 			}
 			ev := lastBody(t, runDir, &recordpb.BlueEdit{})
 			if !slices.Equal(ev.GetRemovedAnchors(), []string{id}) || slices.Contains(ev.GetReopened(), id) {

@@ -246,7 +246,7 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		return editResult{VoiceTells: tells}, nil
+		return editResult{VoiceTells: tells, Removed: body.GetRemovedAnchors()}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another --quote, --new, --answers, --accept or --reason is refused: a handle names one edit")
@@ -701,6 +701,10 @@ func droppedMarker(before, after string, removed []string) string {
 
 type editResult struct {
 	Idempotent bool `json:"idempotent,omitempty"`
+	// Removed is what a pure cut took out of the report, as the edit records it (removed_anchors):
+	// the act names what it removed, so the seat reads it here rather than by diffing the report.
+	// Empty on a rewrite, which carries every anchor of its span.
+	Removed []string `json:"removed_anchors,omitempty"`
 	// VoiceTells is ADVICE, and the edit is already recorded by the time it is rendered. The
 	// report is written for a reader of its SUBJECT, and this names where the new text sounds
 	// like the run talking about itself. It does not refuse: a pattern cannot tell a report
@@ -711,7 +715,10 @@ type editResult struct {
 }
 
 func (r editResult) Human() string {
-	head := "blue edit recorded — the edit is appended to the record with every anchor its span held, the report re-derived on read"
+	head := "blue edit recorded — a rewrite, appended to the record carrying every anchor its span held; the report is re-derived on read"
+	if len(r.Removed) > 0 {
+		head = "blue edit recorded — a cut, appended to the record: it took " + strings.Join(r.Removed, ", ") + " out of the report with the sentences it cut, under your reason; the report is re-derived on read"
+	}
 	if r.Idempotent {
 		head = seat.Repeated("blue edit")
 	}
