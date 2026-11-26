@@ -169,30 +169,28 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) Holder {
 	return Holder{Kind: HolderNone}
 }
 
-// flockHolder returns the pid of a process other than excludePID that /proc/locks shows holding a
-// FLOCK on path's inode, or 0 when every holder listed is excludePID. It is an error when no holder
-// is listed at all (the lock was released between the probe and this read, or its holder is outside
-// this pid namespace and listed as 0), or /proc/locks cannot be read: a holder that cannot be named
-// is never reported as none.
-func flockHolder(path string, excludePID int) (int, error) {
+// flockHolders lists the pids /proc/locks shows holding a FLOCK on path's inode, without opening
+// path. Its error wraps fs.ErrNotExist when path does not exist. A holder outside this pid namespace
+// is listed as 0.
+func flockHolders(path string) ([]int, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return 0, fmt.Errorf("no inode for %s", path)
+		return nil, fmt.Errorf("no inode for %s", path)
 	}
 	raw, err := os.ReadFile("/proc/locks")
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return lockHolder(string(raw), strconv.FormatUint(st.Ino, 10), excludePID)
+	return lockHolders(string(raw), strconv.FormatUint(st.Ino, 10))
 }
 
-// lockHolder reads /proc/locks text for the FLOCK holders of inode ino.
-func lockHolder(locks, ino string, excludePID int) (int, error) {
-	sawExclude := false
+// lockHolders reads /proc/locks text for the FLOCK holders of inode ino.
+func lockHolders(locks, ino string) ([]int, error) {
+	var pids []int
 	for _, line := range strings.Split(locks, "\n") {
 		fields := strings.Fields(line)
 		// Format: N: FLOCK ADVISORY WRITE <pid> <maj>:<min>:<ino> 0 EOF. A waiter's line reads
@@ -205,18 +203,12 @@ func lockHolder(locks, ino string, excludePID int) (int, error) {
 			continue
 		}
 		pid, err := strconv.Atoi(fields[4])
-		if err != nil || pid <= 0 {
-			return 0, fmt.Errorf("/proc/locks names no usable pid for the lock: %q", line)
+		if err != nil {
+			return nil, fmt.Errorf("/proc/locks names no pid for the lock: %q", line)
 		}
-		if pid != excludePID {
-			return pid, nil
-		}
-		sawExclude = true
+		pids = append(pids, pid)
 	}
-	if !sawExclude {
-		return 0, errors.New("/proc/locks lists no holder for the lock")
-	}
-	return 0, nil
+	return pids, nil
 }
 
 func systemdDaemonPID() (int, bool) {

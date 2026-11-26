@@ -221,6 +221,11 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 	return s, got, nil
 }
 
+// THE READERS TAKE NO LOCK. Every write to the registry — RegisterWith's and Prune's — runs under
+// lockRegistry and replaces a record only by renaming a complete temporary file over it in the same
+// directory, or removes it whole, so a reader sees a whole record or none. A record that vanishes
+// between listing the directory and reading the file was pruned meanwhile, and reads as absent.
+
 // LookupServerByKey reads one server record by its registry key. A missing record is (nil, nil).
 func LookupServerByKey(runtimeDir, key string) (*Server, error) {
 	dir := RegistryDir(runtimeDir)
@@ -350,8 +355,9 @@ func recordLiveness(s Server, localDomain string, start func(int) (int64, error)
 	return catalogue.Live
 }
 
-// Prune deletes, under the registry lock, every file in the registry that is not a record of a
-// server that may still be running: a JSON object whose shape is not RecordShape, and a record
+// Prune deletes, in one critical section under the registry lock — listing, reading, judging and
+// deleting all while holding it — every file in the registry that is not a record of a server that
+// may still be running: a JSON object whose shape is not RecordShape, and a record
 // liveness reads Ended. It keeps everything else — a file it cannot read or parse, a record that
 // reads Unknown, and every file not named *.json, the lock among them. With no registry directory
 // it does nothing and creates nothing. It returns the names it deleted.
@@ -546,7 +552,10 @@ type Waiting struct {
 
 // ScanMailboxes lists, across brainDirs, every conversation with at least one marker under
 // .system_generated/messages/undelivered — the client's own record of what it has not read — and
-// counts its messages; caller is the scanning session's sender id ("" or ShellSender for none).
+// counts its messages; caller is the scanning session's sender id ("" or ShellSender for none). It
+// takes no lock the client honours. A marker that disappears while it scans is a message the
+// client just read, and is skipped; a marker whose message file is missing, or does not parse,
+// is unreadable and counted.
 // A brain directory that does not exist holds no conversation. A directory that cannot be listed
 // is an error, returned beside whatever the other directories gave, never folded into "none".
 func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
@@ -581,7 +590,17 @@ func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
 				}
 				var msg agyMailboxMessage
 				b, err := os.ReadFile(filepath.Join(box, m.Name()+".json"))
-				if err != nil || json.Unmarshal(b, &msg) != nil {
+				if err != nil {
+					// The client reads a message while this scans: a marker gone by now is a
+					// message just read, not an unreadable one.
+					if _, merr := os.Lstat(filepath.Join(box, "undelivered", m.Name())); errors.Is(merr, fs.ErrNotExist) {
+						continue
+					}
+					w.Messages++
+					w.Unreadable++
+					continue
+				}
+				if json.Unmarshal(b, &msg) != nil {
 					w.Messages++
 					w.Unreadable++
 					continue
@@ -625,7 +644,10 @@ func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
 	return out, errs
 }
 
-// lockRegistry serialises RegisterWith's read-modify-write updates and Prune's deletions in dir.
+// lockRegistry serialises RegisterWith's read-modify-write updates and Prune's deletions in dir,
+// across every telepathy process on the box, whichever install it came from. The lock is a flock
+// on .register.lock, which nothing ever unlinks, renames or recreates: a flock belongs to an open
+// file description, so a lock file replaced while held would let two processes both hold "it".
 func lockRegistry(dir string) (func(), error) {
 	fl := flock.New(filepath.Join(dir, ".register.lock"), flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
 	if err := fl.Lock(); err != nil {

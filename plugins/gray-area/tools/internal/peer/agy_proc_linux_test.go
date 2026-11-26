@@ -84,27 +84,34 @@ func TestConversationBusyAllowsLockHeldOnlyByExcludedPID(t *testing.T) {
 }
 
 // A PRESENCE-LOCK HOLDER IS NAMED BY ITS PID FROM /proc/locks, and a waiter is not a holder.
-func TestLockHolderReadsProcLocks(t *testing.T) {
-	const locks = `1: POSIX  ADVISORY  WRITE 900 00:2a:77 0 EOF
+func TestLockHoldersReadsProcLocks(t *testing.T) {
+	const locks = `1: POSIX  ADVISORY  WRITE 900 00:2a:1234 0 EOF
 2: FLOCK  ADVISORY  WRITE 4242 08:01:1234 0 EOF
 2: -> FLOCK  ADVISORY  WRITE 5151 08:01:1234 0 EOF
 3: FLOCK  ADVISORY  WRITE 777 08:01:9999 0 EOF
+4: FLOCK  ADVISORY  READ 0 08:01:1234 0 EOF
 `
-	for _, tc := range []struct {
-		name    string
-		locks   string
-		exclude int
-		want    int
-		wantErr bool
-	}{
-		{"holder named", locks, 0, 4242, false},
-		{"holder excluded", locks, 4242, 0, false},
-		{"holder outside this pid namespace", "2: FLOCK  ADVISORY  WRITE 0 08:01:1234 0 EOF\n", 0, 0, true},
-		{"no holder listed", "3: FLOCK  ADVISORY  WRITE 777 08:01:9999 0 EOF\n", 0, 0, true},
-	} {
-		got, err := lockHolder(tc.locks, "1234", tc.exclude)
-		if got != tc.want || (err != nil) != tc.wantErr {
-			t.Errorf("%s: lockHolder = %d, %v; want %d, error %v", tc.name, got, err, tc.want, tc.wantErr)
-		}
+	got, err := lockHolders(locks, "1234")
+	if err != nil || fmt.Sprint(got) != "[4242 0]" {
+		t.Errorf("lockHolders = %v, %v; want [4242 0]: the holder and the one outside this pid namespace, not the waiter", got, err)
+	}
+	if got, err := lockHolders(locks, "5555"); err != nil || len(got) != 0 {
+		t.Errorf("lockHolders of an unlocked inode = %v, %v; want none", got, err)
+	}
+}
+
+// A HOLDER THIS NAMESPACE CANNOT NAME IS UNINSPECTABLE, never "pid 0".
+func TestConversationBusyHolderOutsideNamespace(t *testing.T) {
+	agyRoot := t.TempDir()
+	const conv = "conv-ns"
+	if err := os.MkdirAll(filepath.Join(agyRoot, "presence"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agyRoot, "presence", conv+".lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := holderFromLocks(conv, []int{0}, 0)
+	if h.Kind != HolderUninspectable || h.PID != 0 || strings.Contains(h.Detail, "pid 0") {
+		t.Errorf("holder outside the namespace = %+v, want uninspectable, naming no pid", h)
 	}
 }
