@@ -84,7 +84,8 @@ type queueReads struct {
 // landed between them is not an item that left: the same record read twice gave two lists, the work
 // list's defect, and the run fails on it; a worked item still queued with nothing landed around the
 // writer is no flap either. Every failure names the three event ids, the events between
-// the oracle's reads, and what the writer stored as handed.
+// the oracle's reads, and what the writer stored as handed. A worked item off the queue read before
+// the writer is no longer worked: once it left, a demand that queues it again is a new arrival.
 func (r *runner) headMovesOnlyOnDischarge(seatID, sitting, text string, reads queueReads) {
 	current, handed := "", false
 	if i := strings.Index(text, "{"); i >= 0 {
@@ -138,8 +139,15 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting, text string, reads qu
 	if r.lensHead == nil {
 		r.lensHead = map[string]string{}
 	}
-	if handed {
+	switch {
+	case handed:
 		r.lensHead[sitting] = current
+	case prevHead != "" && !reads.before[prevHead]:
+		// THE WORKED ITEM LEFT THE QUEUE, and the writer handed no item in its place: the queue it read
+		// held none, or nothing moved. Demanded again, it arrives afresh behind whatever is queued, as
+		// the writer hands it (WriteNextItem), so the oracle holds nothing as worked until the next
+		// handing names an item.
+		delete(r.lensHead, sitting)
 	}
 }
 
