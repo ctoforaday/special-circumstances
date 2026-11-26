@@ -1823,10 +1823,12 @@ and `~/.claude/scratch/p12/r2/`):
       The code comments that say "reaching retire" (`blueanswered.go:78, 121, 148, 156, 268`, `retirement.go:217, 233,
       237`, `windowindex.go:124-148`) say "a reaching removal, by a retire or a cut"; `verbs.go:1011-1013` ("AN ANCHOR
       THAT LEFT WITH ITS CLAIM IS NOT STALE") says "an anchor that left the report is not stale".
+      `capture/computationrerun.go:150`, the audit detail the lead reads through `capture`, says "every computation
+      this run recorded has left the report, by a retire or a cut, so none is in a document to re-run", because
+      `RetiredAnchors` gains the `BlueEdit` arm and a cut computation now reaches it.
     - **Ruled out.** `cli/seat/menu.go:239` and `migratecli/migratecli.go:123` call `flags.Repeat.Said`, which shares
-      the name and not the concept. `capture/computationrerun.go:150` ("every computation this run recorded is
-      retired") is a capture audit's detail, read by the operator, not a seat. `impasse.go:345` and `gapacts.go:70`
-      fold `Reaches` into acts and render no string.
+      the name and not the concept. `impasse.go:345` and `gapacts.go:70` fold `Reaches` into acts and render no
+      string.
     - **The census** (on main af3e6ccbe, re-run at open, §V 13.1): `grep -rn
       'AnchorRetiredAt\|anchorRetiredAt\|r\.Said()\|\.Kept\b\|a\.met\.\|retiredAnswersAt\|retiredBy\[' tools/internal
       --include=*.go | grep -v _test` hits `livesentence.go:75, 87, 151`, `retirement.go:240`, `anchorchecks.go:258`
@@ -4073,8 +4075,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            So the gate is not a sweep. The implementer reads IN FULL, by meaning, against the property, every authored
            file whose text reaches an agent on the shipped path: every sentence, string literal and comment, not the
            lines a pattern selects. The scope is defined by REACH, not by a word a file holds or a judgement of which
-           code a seat reads (that judgement was wrong for `reportproj/`, `anchortext/`, `sittingwrite/`, `hookgate/`
-           and `reportvoice/`, plan-audit r11). Run from the repository root, once at P12b's base and once at its head,
+           code a seat reads (such a judgement misses `reportproj/`, `anchortext/`, `sittingwrite/`, `hookgate/` and
+           `reportvoice/`, plan-audit r11). Run from the repository root, once at P12b's base and once at its head,
            each into its own `$S`:
            ```
            F=plugins/frank-exchange-of-views
@@ -4082,6 +4084,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              GOOS=$os go -C $F/tools list -deps -f '{{if not .Standard}}{{$d := .Dir}}{{range .GoFiles}}{{$d}}/{{.}}{{"\n"}}{{end}}{{range .EmbedFiles}}{{$d}}/{{.}}{{"\n"}}{{end}}{{end}}' ./cmd/...
            done | sed "s|^$PWD/||" | grep -e "^$F/tools/" -e '^shared/' > $S/reach-go.raw
            git ls-files $F scripts/agentgen/src README.md | grep -v -e '\.go$' -e '/testdata/' > $S/reach-text.raw
+           printf '%s\n' scripts/agentgen/main.go scripts/vocabdoc/main.go >> $S/reach-text.raw   # generators' own prose
            sort -u $S/reach-go.raw $S/reach-text.raw | grep -v '_test\.go$' | while read -r f; do
              case $f in *.go) grep -qE '^// Code generated .* DO NOT EDIT\.$' "$f" && continue;; esac; echo "$f"
            done > $S/reach.txt
@@ -4096,23 +4099,26 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            X=$(echo "$X" | sed 's/^ *//')
            grep -vE "$X" $S/reach.txt > $S/scope.txt; grep -E "$X" $S/reach.txt > $S/excluded.txt
            echo "$X" | while read -r p; do grep -qE "$p" $S/reach.txt || echo "matches nothing: $p"; done   # empty
-           wc -l < $S/reach.txt; wc -l < $S/scope.txt; wc -l < $S/excluded.txt                          # 562, 511, 51
+           wc -l < $S/reach.txt; wc -l < $S/scope.txt; wc -l < $S/excluded.txt                          # 564, 513, 51
            grep -h '^\$ feov-record .*--help' $F/agents/*.md | sort -u > $S/help-pages.txt; wc -l < $S/help-pages.txt   # 54
            ```
+           - **The help pages.** Each of the 54 pages in `help-pages.txt` is run once (`feov-record <verb> --help`, its
+             output kept in `$S/help/<verb>.txt`) and read in full as a seat reads it, its flag help included; the 34
+             authored pages behind them are in `scope.txt` as files too.
            - **Reach, classified on main 7cfd3a396.** The shipped binaries are every `cmd/*` (8: `feov-record`, the
              five hook binaries, `feov-sitting-write`, which the hooks spawn, and `feov-migrate`). Their dependencies,
              unioned over the three shipped GOOS (nine files build for some GOOS only), are 61 FEOV packages (8
              `cmd`, 53 `internal`) and 5 `shared/` packages, 66 in all. Every one is READ IN FULL; none is excluded. Each package's authored files are taken whole
              (its generated files are below), never chosen by a word or a constructor:
-             - the 8 `cmd/*` mains and the 53 `internal` packages: 398 Go files, 104,268 lines. With them, the
-               packages r11 found reached but listed nowhere or excluded wrongly: `reportproj/` (`PlanSplice`'s
+             - the 8 `cmd/*` mains and the 53 `internal` packages: 398 Go files, 104,268 lines. Among them, the
+               packages plan-audit r11 traced to a seat: `reportproj/` (`PlanSplice`'s
                refusals reach blue at `cli/blue/edit.go:485`), `anchortext/` (`Refusal`, `ErrAnchorGone`,
                `ErrAnchorBare`), `sittingwrite/` (the delivery text), `hookgate/` (the PreToolUse deny reasons),
                `reportvoice/` (the cite, compute and mint advisories), `fetchcache/`, `compute/`, `feov/`,
                `seatturn/`, `hookcmd/`, `sittinghook/`, `runlive/`, `setup/` and `seatenv/`;
              - the operator-run packages are reached too, and read: `capture/`, `dashboard/`, `setup/`, `cost/`,
                `scorecard/`, `archive/` and `record/migration/` (the lead runs `setup`, `take-over`,
-               `engine-stopped`, `capture` and `dashboard`, `skills/research/SKILL.md:22, 41, 47, 58`);
+               `engine-stopped`, `capture` and `dashboard`, `skills/research/SKILL.md:22, 36, 41, 47, 58`);
                `diagnostics/` (its manual strings render into the manual agentgen inlines in every agent
                definition, `cli/manual.go:28, 161-199`); `graph/` (linked into `feov-record` by `cli/graph.go`,
                with no gate on who runs it); and `cmd/feov-migrate`, `migratecli/` and `record/migrate/` (the
@@ -4121,8 +4127,10 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              - the 5 `shared/` packages (`hookcore`, `hookfailures`, `gcpolicy`, `pluginroot`, `buildid`), linked
                into every hook binary: 7 Go files, 2,136 lines.
            - **Authored text, classified on main 7cfd3a396.** `git ls-files` over the plugin, `scripts/agentgen/src`
-             and the root `README.md`, with the embedded files `go list` reports: 106 files, 13,354 lines, read in
-             full. They are the 34 authored help pages (`cli/seat/help/*.md`, embedded), `terms.json` (embedded),
+             and the root `README.md`, with the embedded files `go list` reports, and the two generators that write
+             prose of their own into an agent's text (`scripts/agentgen/main.go:301`, the head of every definition's
+             surface block; `scripts/vocabdoc/main.go:130`, the lead of `docs/vocabulary.md`): 108 files, 14,156
+             lines, read in full. They are the 34 authored help pages (`cli/seat/help/*.md`, embedded), `terms.json` (embedded),
              `record.proto`, `scripts/agentgen/src/**` (33), `debate.js` and `debate.py` whole (each holds a
              generated region; the authored rest holds the engine's prompts, `debate.py`'s dispatch prompts at
              `:385-520` among them), `skills/research/SKILL.md` (the lead's skill; agentgen writes only
@@ -4132,7 +4140,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              `nativehelper` relays to `fetch` and `ocr`, `build.sh`, the pins and asset lists).
            - **Excluded, each for a reason its call graph or generator bears out** (51 by `X`, 9 by their header; 60
              in all):
-             - generated, each with a `-check` gate, from a source in the scope: `agents/` (12) and `agents-claude/`
+             - generated, each with a `-check` gate, from a source in the scope, its generator's own prose read above: `agents/` (12) and `agents-claude/`
                (12) and `skills/{adversarial-audit,research-protocol}/SKILL.md` (2), by agentgen
                (`scripts/agentgen/main.go:70`) from `scripts/agentgen/src`; `docs/vocabulary.md`, by vocabdoc from
                `terms.json`; and the 9 Go files with the generated header: `help_gen.go` and `required_gen.go`
@@ -4149,7 +4157,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              - `tests/simulator/*.mjs` (4): tests;
              - `tools/research/**` (10): a committed run directory that no shipped code opens;
              - `tools/go.{mod,sum}`, `record.proto.sha256`, `bin/.gitkeep`: build metadata, no prose.
-           - **The scope command's own back-test** (r10's "file scope holds every authored shipped file", restored):
+           - **The scope command's own back-test** (the scope holds every authored shipped file):
              ```
              for d in $(sed -E 's|/[^/]+$||' $S/reach-go.raw | sort -u); do git ls-files "$d" | grep -E "^$d/[^/]+\.go$"; done |
                cat - <(git ls-files $F scripts/agentgen/src README.md) | grep -v -e '_test\.go$' -e '/testdata/' |
@@ -4175,7 +4183,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              `diff <(cut -f1 $S/scope-read.txt | sort) <(sort -u $S/scope.txt $H/scope.txt)` and
              `diff <(cut -f1 $S/help-read.txt | sort) <(sort -u $S/help-pages.txt $H/help-pages.txt)` are empty, and
              the head's back-test prints what the base's printed. A file the base command prints that is not in the
-             511 above is read the same way, and the counts are restated.
+             513 above is read the same way, and the counts are restated.
            - **The known set is checked first, site by site:** §III.10c's three classified lists ("The sweep's
              classified list", "The converse face's classified list", "The reopen face's classified list") and the
              wordings they point to. Each list keeps the candidate command that found it, as provenance; a clean run of
@@ -4186,8 +4194,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            - **After the change** every in-scope file P12b changed is read again in full, and the read is recorded:
              `$S/scope-reread.txt` holds one line per file, its path, a tab, and the sites it fixed or `none`, and
              `diff <(cut -f1 $S/scope-reread.txt | sort) <(git diff --name-only <base>...HEAD | sort | comm -12 -
-             <(sort $H/scope.txt))` is empty. Each help page whose render at the head differs from its render at the
-             base gets a line in `$S/help-reread.txt` the same way. Every changed golden line is read.
+             <(sort $H/scope.txt))` is empty. The 54 pages are rendered again at the head into `$H/help/`; each file
+             `diff -rq $S/help $H/help` names gets a line in `$S/help-reread.txt` the same way. Every changed golden line is read.
        - Re-armed by: any file in `$S/scope.txt` or `$H/scope.txt`, any change to the `cmd/*` set or to a reached
          package's imports, any file a known-set site lives in, and any file in §III.11's P12b list.
     2. **Named tests, listed first.**
@@ -4712,7 +4720,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   - **The scope read** (RULINGS.md 2026-11-26, the last entry; plan-audit r11's fork): P12b's text gate is an in-full
     read, by meaning, of every authored file whose text reaches an agent on the shipped path, its scope defined by
     reach (`go list -deps` over every shipped `cmd/*`, with the plugin's authored non-Go files), not by phrase sweeps
-    (§V 13.1). On main 7cfd3a396 that is 511 files and 119,758 lines, with the 54 rendered help pages, read again on
+    (§V 13.1). On main 7cfd3a396 that is 513 files and 120,560 lines, with the 54 rendered help pages, read again on
     every file P12b changes | accept the three candidate sweeps' residue, stated.
 - **F21 — how a pure cut of a gap's marker ends the gap (P12b). RULED by gblock 2026-11-26 (picked; option wording
   the agent's): "Raiser's turn, land now".** RULINGS.md 2026-11-26 entry.
