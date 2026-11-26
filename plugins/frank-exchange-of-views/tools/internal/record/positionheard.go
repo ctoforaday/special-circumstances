@@ -245,6 +245,12 @@ func upheldAuditItem(b Blocker) string {
 	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. The whole report arrives on your work list this sitting, one item at a time; a defect you find there is a finding and a gap. The PASS is refused until all of it has been delivered to you", b.Subject, b.Detail)
 }
 
+// upheldAuditDeliveredItem is that item once the sitting has had the whole report delivered: the audit
+// is the lens's to do, and nothing it owes the list stands on it.
+func upheldAuditDeliveredItem(b Blocker) string {
+	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. This sitting has delivered you the whole report; a defect you find there is a finding and a gap. The PASS is refused until you sit through this sitting", b.Subject, b.Detail)
+}
+
 // upheldPositionGaps is the open gaps an upheld position ruling names — each one remanded, as a
 // docket's remand is — and nil for any other motion or ruling.
 func upheldPositionGaps(m *Motion) []string {

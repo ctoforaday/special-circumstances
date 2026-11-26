@@ -470,10 +470,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 			// AN UPHELD POSITION NAMING THIS LENS IS ITS AUDIT TO HAVE, in a sitting opened after the
 			// ruling — one already open when the bench ruled cannot clear it, as an edited sentence's
-			// cannot (positionheard.go).
+			// cannot (positionheard.go). The PASS gate waits for that sitting to be sat through; the
+			// lens's own list is discharged once the whole report has been delivered in it. A sitting
+			// opened under an agent is sat through only at its close, which follows the envelope this
+			// list gates, so an item blocking until then would hold every live sitting open for good.
 			if b.Kind == BlockerUpheldPosition && b.Owner == seatID {
-				if win.LatestSittingOf(seatID) > b.since {
-					s.Open = append(s.Open, b.asItem(upheldAuditItem(b), true))
+				if latest := win.LatestSittingOf(seatID); latest > b.since {
+					if deliveredIn(win, seatID, latest) {
+						s.Open = append(s.Open, b.asItem(upheldAuditDeliveredItem(b), false))
+					} else {
+						s.Open = append(s.Open, b.asItem(upheldAuditItem(b), true))
+					}
 				}
 				continue
 			}
