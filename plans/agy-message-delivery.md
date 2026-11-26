@@ -1,6 +1,6 @@
 # Messages reach an Antigravity conversation: route selection and queue visibility
 
-> STATUS: proposed 2026-11-26, not started. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-startup-wake.md`) makes a queued message wake its conversation at daemon startup. This plan gates the next gray-area release.
+> STATUS: proposed 2026-11-26; implementation in review on branch `feat/agy-route-selection`. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-startup-wake.md`) makes a queued message wake its conversation at daemon startup. This plan gates the next gray-area release.
 
 ## I. Summary & Goals
 
@@ -101,7 +101,7 @@ plugins/gray-area/tools/
 ├── internal/peer/
 │   ├── agy.go               [MODIFY] record shape (A3), RecordLiveness (A1), Prune (A4), mailbox scan (C2)
 │   ├── peer.go              [MODIFY] package doc states A2's routing model
-│   ├── agy_lock_unix.go     [MODIFY] ConversationBusy → Holder (A2)
+│   ├── agy_lock_unix.go     [MODIFY] ConversationBusy → Holder from /proc/locks, fail-closed rules (A2)
 │   ├── agy_lock_other.go    [MODIFY] same signature
 │   ├── agy_lock_windows.go  [MODIFY] same signature
 │   ├── agy_db_unix_other.go [MODIFY] otherDBHolder/flockHeldOnlyBy return the holder pid (unix, !linux)
@@ -119,7 +119,7 @@ plugins/gray-area/tools/
 │   └── testdata/golden/     [MODIFY] help-link, help-send, help-agents, help-root, agents.golden;
 │                            [NEW] send-queued-*.golden (one per cause), agents-waiting.golden
 ├── cmd/gray-area-capture/
-│   ├── link.go              [MODIFY] liveness via RecordLiveness; one wording that names a possible stale link (A5)
+│   ├── link.go              [MODIFY] liveness via RecordLiveness; two openings chosen by the linked marker; no ask without a pid domain (A5)
 │   └── link_test.go         [MODIFY] pid-keyed fixtures; the A5 pruned-record case
 ├── cmd/telepathy/main_test.go      [MODIFY] TestTheBuiltBinary env; TestBuiltBinaryNeverSeesHostRuntimeDir (A6)
 └── cmd/telepathy/live_agy_test.go [MODIFY] wording at :178, :211, :464; ConversationBusy calls at :401, :406, :420;
@@ -155,22 +155,24 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
     - `Env.ConversationBusy` takes the new signature, and every stub follows.
     - For `PresenceLock`, `PID` is the lock holder's pid, read from `/proc/locks`; `flockHeldOnlyBy` already parses that file and drops the pid.
     - Only `Uninspectable` has `PID == 0`, and no output ever prints "pid 0".
+    - Holders are read from `/proc/locks` and the database's open files; the probe never takes agy's presence lock.
+    - The probe fails closed: it returns `Uninspectable` when `/proc/locks` names a locker that has exited, and when it names no holder while the caller is outside the initial pid namespace (`NSpid` has more than one field, or `/proc/self/ns/pid` is not the kernel's initial namespace) or the lock is on a network filesystem. `/proc/locks` omits or misnames holders in those cases. Stated residue: in a container or on a network filesystem, a presence-lock file that exists but is unheld reads `Uninspectable`, and the message queues with that cause.
   - **Discovery.** Send probes once, excluding nothing: `H := ConversationBusy(root, id, 0)`.
   - **When `H.Kind == None`** (no process holds the conversation), the targets are tried in order:
     1. the `Live` record listing the conversation with the greatest `linked_at` (A3);
     2. the current daemon's record (route 2), which adopts the conversation.
 
     **Every SendAgentMessage is immediately preceded by `ConversationBusy(root, id, target.PID)` returning `None`.**
-    - An HTTP failure on target 1 re-probes before target 2.
-    - If target 1 now holds the conversation (it loaded it before failing), send queues, and the daemon is never called.
+    - Send moves to target 2 only after a dial failure on target 1: the request never arrived. It re-probes first.
+    - If target 1 now holds the conversation, send queues, and the daemon is never called.
+    - Any other failure from a target (a timeout, a reset, any non-200 status) ends the send. No other server is tried and nothing is queued, because the message may have arrived; a second server would adopt the conversation target 1 is about to run. Send prints "delivery UNKNOWN: <cause> — the message may have arrived, so no other server was tried and nothing was queued; check the conversation before sending it again" and exits non-zero (the human's ruling of 2026-11-26, "Report unknown").
     - The cause printed is the one that stopped the last target tried.
   - **When `H.PID` belongs to a record X whose `RecordLiveness` is `Live`** (any record, daemon or not):
     - The sole-holder gate runs `ConversationBusy(root, id, H.PID)`.
-    - If it returns `None`, send delivers through X.
+    - If it returns `None`, send delivers through X. X holding its own presence lock is excluded by the gate, so it reads `None`.
     - If the gate returns `Uninspectable`, the message queues with the uninspectable cause.
     - If the gate returns a holder with pid N ≠ 0 and N ≠ `H.PID`, two distinct holders were observed, and the message queues: "held by the language server recorded at <X.address> and also by pid N".
-    - If the gate returns a `PresenceLock` held by `H.PID` itself, X delivers: the server holds its own lock.
-    - After an HTTP failure from X, send queues with "the server recorded at <X.address> answered <status>". It does not fall back to another target, because X holds the conversation.
+    - When X cannot be reached (a dial failure), send queues with "the language server recorded at <X.address> cannot be reached". Any other failure from X is UNKNOWN, as above. Neither falls back to another target, because X holds the conversation.
   - **When `H.PID == CurrentDaemon().PID` and the daemon has no record**, the message queues: "the daemon (started <T>) has not been linked since it started".
   - **When `H.Kind == Uninspectable`**, the message queues: "cannot inspect whether another process holds the conversation: <detail>".
   - **Any other `H`** queues: "held by another process, pid N; sending live would create a second writer".
@@ -189,17 +191,20 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
 - **A4. Prune: `peer.Prune(runtimeDir, liveness func(Server) catalogue.Liveness)`.**
   - It runs under `lockRegistry`, from `telepathy link` and from `PersistentPreRun` after registration. That covers every caller with a runtime directory whose registry directory exists, inside an agy shell or not.
   - When the registry directory does not exist, it does nothing: it neither creates the directory nor prints.
-  - When `.register.lock` cannot be opened or locked, it skips the prune and prints one line, "telepathy: server records not pruned: <error>", the way registration failures print today.
+  - Every take of `.register.lock` (prune and `RegisterWith`) waits at most 2 s, so a wedged holder never blocks a verb. When the lock cannot be opened or taken in that time, it skips the prune and prints one line, "telepathy: server records not pruned: <error>", the way registration failures print today.
   - It reads only `*.json` files and deletes only:
     - a file that parses as a JSON object whose `shape` is not 2 (the 13 legacy files have none);
     - a shape-2 record whose liveness is `Ended`.
   - It keeps unparseable files, files it cannot stat, `Unknown` records, and every non-`.json` file. `.register.lock` is therefore never touched.
 - **A5. The link request no longer depends on a kept record.**
-  - Prune deletes the record the hook's stale wording used to read. So the hook uses one wording for every case where it asks:
+  - Prune deletes the record the hook's stale wording used to read. `RegisterWith` therefore also writes an empty marker, `$XDG_RUNTIME_DIR/gray-area/antigravity-linked/<conversation-id>` (directory 0700), inside the same `lockRegistry` critical section and before the record; if the marker cannot be written, nothing is recorded. Prune never reads that directory.
+  - The hook keeps main's two openings, chosen by the marker:
+    - no marker: "Other agents cannot yet wake this conversation with `telepathy send`.";
+    - marker present: "This conversation's earlier `telepathy link` points at a language server that is no longer running, so other agents cannot wake it."
 
-    > "Any earlier `telepathy link` in this conversation points at a language server that is no longer running, so other agents cannot wake it. Before your task, run this shell command once: … link — it prints `linked` and needs nothing further."
-
-    It is true with or without an earlier link, and it carries the measured fix (naming the stale link) without needing the record.
+    Both continue "Before your task, run this shell command once: … link — it prints `linked` and needs nothing further."
+  - Stated residue: the marker is on tmpfs, so after a reboot a conversation that had linked is asked with the plain opening.
+  - The hook never asks on a host with no pid domain (every record would read `Unknown`, so a link would not help). `link` says when the record it wrote cannot be used by send, and why (no pid, no pid domain, or the server's liveness).
   - `shared/hookcore` tests match only "run telepathy link" and are unaffected.
   - Stated residue, until plan 2:
     - the hook does not ask when the conversation's own record is `Live`, even if the host server is a different, unrecorded one;
@@ -255,21 +260,24 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
   - `TestSendForeignDomainPidNeverExcluded`:
     - a foreign-`pid_domain` record's pid number equals the local DB holder's pid;
     - expect QUEUED, naming that pid as the holder.
-  - `TestSendHTTPFailureCauseIsLastTarget`:
-    - target 1 answers 500;
+  - `TestSendUnreachedCauseIsLastTarget`:
+    - target 1 cannot be dialled;
     - the daemon has no record;
     - the printed cause is the daemon cause, not target 1's.
   - `TestSendUnrelatedHolderQueues`: the holder pid belongs to no record and is not the daemon; expect QUEUED, naming that pid.
   - `TestSendPresenceLockHolderNamed`: a presence-lock holder is named by its pid from `/proc/locks` (fixture).
   - `TestSendUninspectableQueues`: never prints "pid 0".
   - `TestSendReprobesBeforeDaemonFallback`:
-    - the target-1 stub fails, then reports itself holding the database;
+    - the target-1 stub cannot be dialled, then reports itself holding the database;
     - expect QUEUED, with the daemon stub receiving zero requests.
   - `TestSendGateUninspectableNoAlso`: the gate returns `Uninspectable`; expect the uninspectable cause, and never "also by pid 0".
-  - `TestSendHolderHTTPFailureQueues`:
-    - X holds the conversation and answers 500;
-    - a daemon record exists;
-    - expect QUEUED, with the daemon not called.
+  - `TestSendHolderUnreachedQueues`: X holds the conversation and cannot be dialled; a daemon record exists; expect QUEUED, with the daemon not called.
+  - `TestSendHolderErrorStatusIsUnknown`: X holds the conversation and answers 500; expect UNKNOWN, non-zero exit, no mailbox file, the daemon not called.
+  - `TestSendTimeoutAfterSendIsUnknown`: target 1 accepts the request and never answers; expect exactly one request at target 1, none at the daemon, the daemon never probed, no mailbox file, UNKNOWN.
+  - `TestSendErrorStatusIsUnknown`: target 1 answers 500; expect UNKNOWN (golden `send-unknown`).
+  - `TestSendDialFailureFallsBack`: target 1 cannot be dialled; expect delivery through the daemon.
+  - `TestSendAgyServerSaysWhetherTheMessageCanHaveArrived`: only a dial-stage error is classed as unreached.
+  - `TestConversationBusyFindsTheDBOpen` and `TestConversationBusyChecksTheDBPastTheExcludedLockHolder`: the database-open check, without stubs.
   - `TestLookupSkipsEndedNewerRecord`.
   - `TestLinkedAtRefreshesOnRelink`.
   - `TestRecordLiveness`, covering live; reused pid → `Ended`; missing pid → `Ended`; unreadable `/proc` (injected) → `Unknown`; foreign `pid_domain` → `Unknown`; `addr-` → `Unknown`.
@@ -286,9 +294,9 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
   - Causes not yet in §II's list, each with its own golden:
     - "no daemon is running" (`send.go:275`);
     - "live delivery is Linux-only" (`send.go:281`);
-    - "the recorded server answered with an error after the daemon was tried" (`send.go:293`).
+    - "the daemon's language server cannot be reached" (golden `send-queued-daemon-unreached`).
   - Two time lines are added:
-    - "daemon started <T>", or "no daemon is running", or "daemon start not measured" when `Boot` or `/proc` cannot be read: `ProcessStartTime(CurrentDaemon().PID)` in clock ticks, converted with the existing `Env.Boot` / `catalogue.BootTime` (`internal/catalogue/boot_linux.go:17`) and USER_HZ = 100.
+    - "daemon started <T>", or "no daemon is running", or "daemon start not measured" when `Boot` or `/proc` cannot be read or the host is not Linux: `ProcessStartTime(CurrentDaemon().PID)` in clock ticks, converted with the existing `Env.Boot` / `catalogue.BootTime` (`internal/catalogue/boot_linux.go:17`) and USER_HZ = 100.
       - USER_HZ is the fixed Linux userspace clock-tick rate.
       - It is stated as a constant because no cgo-free `sysconf` exists.
       - Goldens inject both values.
@@ -330,11 +338,12 @@ Added by hand: `internal/telecli/agents.go` (C2) and `internal/catalogue/livenes
 
 | Risk | Likelihood | Impact | Cost to mitigate | Mitigation |
 |---|---|---|---|---|
-| A2 sends into a real second writer | low | high (corrupts a conversation) | low | The sole-holder gate: every delivery path probes excluding only the target's pid and delivers only on `Kind == None`. Two holders can never pass. `TestSendTwoHoldersQueues` and `TestSendUnrelatedHolderQueues` pin it. |
+| A2 sends into a real second writer | low | high (corrupts a conversation) | low | The sole-holder gate: every delivery path probes excluding only the target's pid and delivers only on `Kind == None`. Two holders can never pass. Only a dial failure moves to another server; any later failure is UNKNOWN. `TestSendTwoHoldersQueues`, `TestSendUnrelatedHolderQueues` and `TestSendTimeoutAfterSendIsUnknown` pin it. |
 | A4 deletes something it should not | low | medium (one queued message until the next link) | low | Only shape≠2 JSON objects and `Ended` records are deleted, and `Ended` needs positive evidence (A1). Waiter and no-directory tests pin it. |
 | A1 misreads a pid from a sandbox's pid namespace as gone | low | medium | low | A foreign or empty `pid_domain` reads `Unknown`, which is never pruned (the catalogue's existing guard). |
-| A5's wording mentions a stale link to a conversation that never linked | certain | none (the sentence is conditional) | — | Accepted, because it is true in both cases. |
-| A local test, `check` or universe run prunes the host registry with a checkout build | high without A6 | high (every route on the box drops, repeatedly) | low | A6: each package's `TestMain` redirects `XDG_RUNTIME_DIR` and fails the suite if the host registry lost a file; `universe.sh` exports its own runtime directory. |
+| A5's marker is lost at reboot | certain after a reboot | low (the plain opening is still true and was measured to work) | — | Stated residue. |
+| An UNKNOWN delivery is resent and arrives twice | low | low (one duplicate message) | — | The UNKNOWN line tells the sender to check the conversation first. |
+| A local test, `check` or universe run prunes the host registry with a checkout build | high without A6 | high (every route on the box drops, repeatedly) | low | A6: `TestTheBuiltBinary`'s env; `TestBuiltBinaryNeverSeesHostRuntimeDir` (every exec shape); `internal/telecli`'s `TestMain`; `universe.sh`'s runtime directory. |
 | Install skew flips routes after the release | medium | low (queued, cause said) | high (compatibility code is forbidden) | Stated residue; ends when both installs update. |
 | C2's scan is slow | low | low | low | It lists one directory per conversation and reads only files that have markers. Timed in V6. |
 
@@ -349,7 +358,11 @@ Before any test: `unset $(env | grep -o '^FEOV_[A-Z_]*')`.
      - A1 liveness gate in route 1;
      - A1 `Ended` versus `Unknown` split;
      - A2 holder-record delivery;
-     - A2 daemon fallback after a target-1 HTTP failure;
+     - A2 daemon fallback only after a dial failure;
+     - A2 an UNKNOWN failure ends the send;
+     - the database-open holder check;
+     - the probe's fail-closed rules;
+     - the 2 s lock bound;
      - A2 Live-only exclusion;
      - A2 re-probe before each send;
      - A2 gate-result rendering;
@@ -366,7 +379,7 @@ Before any test: `unset $(env | grep -o '^FEOV_[A-Z_]*')`.
      - A6 `TestTheBuiltBinary` env (`TestBuiltBinaryNeverSeesHostRuntimeDir` goes red);
      - the call sites: Prune's call in `PersistentPreRun`, Prune's call in `link`, and the hook's call to `RecordLiveness` (delete each call and run the suite);
      - A2 sole-holder gate;
-     - A5 wording;
+     - A5 marker and the two wordings;
      - C1 per-cause text;
      - C1 time lines;
      - C2 population;
