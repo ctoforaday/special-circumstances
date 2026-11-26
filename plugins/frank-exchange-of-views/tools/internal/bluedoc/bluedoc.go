@@ -180,13 +180,15 @@ func carriedReach(edge, quoted string) (first, last int, ok bool) {
 	return first, last, first >= 0
 }
 
-// AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
+// AnchorsTransitUnchanged enforces the one anchor invariant a rewrite's replacement must satisfy: it
 // may not change WHICH anchors exist. The multiset of anchor ids in the replaced span must
-// equal the multiset in its replacement — so an anchor may be carried across an edit (and
-// the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
+// equal the multiset in its replacement — so an anchor may be carried across a rewrite (and
+// the prose around it rewritten), but never introduced, dropped or duplicated. A pure cut never
+// reaches it: the edit decides the cut first and lists the tokens it takes. It returns newText
 // with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
-// Anchors are placed by the tool, never typed into a replacement, and leave only by retire.
+// Anchors are placed by the tool, never typed into a replacement, and leave by a retire, or with
+// their sentence when an edit cuts it.
 // Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
 func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 	newText = AutoPlace(oldSpan, newText)
@@ -204,7 +206,7 @@ func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 			sent, _ := SentenceAround(oldSpan, anchor.Token(id))
 			return "", &ErrAnchorDropped{ID: id, Sentence: sent, Near: nearestSentence(newText, sent)}
 		case got != want:
-			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", anchor.Label(id), want, got)
+			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by a rewrite; carry each one across exactly once, or cut its sentence whole", anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
@@ -235,7 +237,8 @@ func (e *ErrAnchorDropped) Error() string {
 		near = fmt.Sprintf(" — its nearest sentence there reads %q", e.Near)
 	}
 	return fmt.Sprintf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
-		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
+		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; "+
+		"to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.

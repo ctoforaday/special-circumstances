@@ -268,9 +268,10 @@ func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 
 // requireLiveCitation is requireCitation of a citation that is still in the report. A computation
 // names the method it applies by its citation, and evidence.md prints that citation beside it: a
-// retired one is in no document, so the computation would point at a citation the report no longer
-// holds. Asked of the writing transaction, as the retire's L6 refusal (requireCitationUncited) is,
-// so a `compute --cites C` and a `retire --anchor C` racing each other cannot both land.
+// citation out of the report is in no document, so the computation would point at a citation the
+// report no longer holds. Asked of the writing transaction, as L6's refusal of a retire or a cut
+// (requireCitationUncited) is, so a `compute --cites C` and the act taking C racing each other cannot
+// both land.
 func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error {
 	if err := requireCitation(q, label, flag, advice); err != nil || label == "" {
 		return err
@@ -303,23 +304,22 @@ func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, a
 	return fmt.Errorf("--about names %s %s, which is out of the report — %s — so it is in no document and no %s about it can be answered. %s", EvidenceNoun(ref), ref, r.Said(), act, advice)
 }
 
-// requireCitationUncited refuses a retire that takes a citation a live computation names as its
-// method (Computation.cites) — ruling L6: evidence.md would print the computation applying a method
-// the report no longer cites. A computation the same retire takes is not live (ruling Same-act L6),
-// so one claim retire may take a citation and the computations citing it together. It is asked of
-// every id the retire takes — `retire --anchor` and a claim retire alike — inside the writing
-// transaction, so the retire and a `compute --cites` racing it cannot both land. The tool refuses
-// and never cascades.
-func requireCitationUncited(q recordsql.Querier, taken []string) error {
+// requireCitationUncited refuses a retire or a cut that takes a citation a live computation names as
+// its method (Computation.cites) — ruling L6: evidence.md would print the computation applying a method
+// the report no longer cites. A computation the same act takes is not live (ruling Same-act L6), so one
+// cut may take a citation and the computations citing it together. It is asked of every id a retire or
+// a cut takes — act names which, "retire" or "cut" — inside the writing transaction, so the act and a
+// `compute --cites` racing it cannot both land. The tool refuses and never cascades.
+func requireCitationUncited(q recordsql.Querier, taken []string, act string) error {
 	for _, id := range taken {
 		if anchor.Kind(id) != "citation" {
 			continue
 		}
-		// Live is what the evidence_anchor view says: no retire names it. Asked by index on both
-		// sides (computation_cites, retire_anchors_value), never by materialising every anchor.
+		// Live is what the evidence_anchor view says: no act took it out (anchor_removal, a retire or a
+		// cut). Asked by index on both sides, never by materialising every anchor.
 		rows, err := q.Query(`SELECT DISTINCT c."computation_id" FROM "computation" c
 		  WHERE c."cites" = ? AND c."computation_id" IS NOT NULL
-		    AND NOT EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = c."computation_id")
+		    AND NOT EXISTS (SELECT 1 FROM "anchor_removal" ar WHERE ar."anchor_id" = c."computation_id")
 		  ORDER BY c."computation_id"`, id)
 		if err != nil {
 			return fmt.Errorf("asking the record which computations cite %s: %w", id, err)
@@ -340,9 +340,14 @@ func requireCitationUncited(q recordsql.Querier, taken []string) error {
 			return err
 		}
 		if len(live) > 0 {
-			return fmt.Errorf("citation %s is the method a computation still in the report applies: %s. Retired, the citation would be in no document while that computation names it, so nothing is recorded. "+
-				"Retire each such computation first, by its own anchor, or `compute` it again citing another source; or take each with the citation in one claim retire",
-				id, strings.Join(live, ", "))
+			ks := strings.Join(live, ", ")
+			again := "cut again"
+			if act == "retire" {
+				again = "retire " + id + " again"
+			}
+			return fmt.Errorf("citation %s is the method computation %s, still in the report, applies. Taken out, the citation would be in no document while that computation names it, so nothing is recorded. "+
+				"Retire %s by its own anchor first, computing it again citing another source if the report still needs it, or take %s in the same cut; then %s",
+				id, ks, ks, ks, again)
 		}
 	}
 	return nil

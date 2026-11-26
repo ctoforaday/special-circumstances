@@ -28,7 +28,7 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _, _ = AnchorRemovedAt(run, "A1")
 	_, _ = EvidenceDemandOf(run, "G1")
 	if db, err := openRunForRead(run); err == nil && db != nil {
-		_ = requireCitationUncited(db, []string{"C-1"})
+		_ = requireCitationUncited(db, []string{"C-1"}, "retire")
 	}
 	_, _ = ReportAtPart(run, "harness")
 	_, _ = ReportHasParts(run)

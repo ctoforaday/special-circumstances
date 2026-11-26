@@ -17,7 +17,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint or finding about a retired anchor, a computation citing a retired citation, a retire of an open gap's own marker, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
+// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint or finding about a retired anchor, a computation citing a retired citation, a retire or a cut taking a citation a computation still in the report applies, a retire of an open gap's own marker, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a cite that
 // does not say when its copy was fetched, a bridge
@@ -113,6 +113,10 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
 		// gavel is the bench's, standing unruled, is a settlement the run would record without it.
 		return requireBenchMotionsRuled(q)
+	case *recordpb.BlueEdit:
+		// L6 HOLDS THE CUT (ruling 9): the same rule as a retire's, of every anchor the cut takes. The
+		// edit's guard stamps removed_anchors before this is asked, so it reads the list the write applies.
+		return requireCitationUncited(q, b.GetRemovedAnchors(), "cut")
 	case *recordpb.Retire:
 		// F14: AN OPEN GAP'S OWN MARKER IS NOT RETIRED. Its sentence stays, and the gap would stand on
 		// nothing; a cut of the sentence is the gap's raiser's turn instead. A closed gap's marker may go.
@@ -122,7 +126,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// L6, OF THE ANCHOR THE RETIRE TAKES, asked in the write's transaction. It is a rule of the act,
 		// not of the record's shape: universe-m37 retired a citation its computation K-93f0a1a7 still
 		// applied (event 859), and its replay writes that retire as it was made.
-		return requireCitationUncited(q, b.GetAnchors())
+		return requireCitationUncited(q, b.GetAnchors(), "retire")
 	case *recordpb.Cite:
 		// WHEN THE COPY WAS FETCHED IS STAMPED FROM THE FETCH INDEX: it is the source's accessed date,
 		// and a citation that lost it prints none. An archived cite predates the field.

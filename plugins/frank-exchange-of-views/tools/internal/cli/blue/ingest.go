@@ -31,6 +31,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -80,6 +81,15 @@ func newIngest() *cobra.Command {
 			return nil, fmt.Errorf("reading the part to ingest at %s: %w", path, err)
 		}
 		part := string(content)
+		// A PART HOLDS NO ANCHOR TOKEN. A part precedes every anchor op, so a token in it marks nothing
+		// the record placed, and a token on no words could stand bare: anchors are placed by their acts.
+		if ids := anchor.IDs(part); len(ids) > 0 {
+			toks := make([]string, len(ids))
+			for i, id := range ids {
+				toks[i] = anchor.Token(id)
+			}
+			return nil, feov.Errorf(feov.Validation, "the part holds %s — a part holds no anchor token: anchors are placed by the tool, by the act that makes each (cite, compute, finding, mint), once the part is recorded. Take the token out of the part and ingest it again", strings.Join(toks, ", "))
+		}
 		if err := partSurfaceRefusal(part); err != nil {
 			return nil, err
 		}
