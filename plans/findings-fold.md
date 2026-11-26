@@ -640,6 +640,12 @@ it:
   `benchsitting.go:76-80`'s exit contract hold as built. A first the bench left unruled, or whose closings are not
   in, holds the rest to a later sitting (`benchSatFor`: to the terminal sitting), where no raiser statement applies
   (`lensSitsAfter`), stated.
+- **What the bench is handed** (R1, the plan's rule for the opening end; gblock 2026-11-26, a ruling stands on the
+  parties' statements): the bench's work list holds no report text, so its opening end hands the head of its queue
+  as every single-seat configuration's does — the docket sitting it was dispatched for while unopened, then the
+  docketings in the docket order above. `TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText` and
+  `TestAfterTheOpeningEndNothingMovedIsNothingSaid` hold it on the bench (`main`'s chair arm stood on a grade motion,
+  which §III.B2 deletes).
 - **Each ruling sees the previous one's result.** A statement is checked when stated (§III.B2) and again by its
   application at its ruling; one an earlier ruling's application made unappliable cannot win: for-raiser is refused
   naming that ruling. **Residue, stated** (picked 2026-11-26, "Residue: remand"): its side does not restate, since
@@ -833,13 +839,28 @@ channel universe-m12 lacked (047a476f7: "a lens that disputed another's gap had 
 
 Built and kept (B2a, B5): grade motions and their rulings become no events (15 motions, 12 rulings); Translation 3 (an
 archived dispatch docket becomes a `Docketing`, its ruling that docketing's; party and hand-filed dockets, their
-rulings and the 22 closings on them become no events); Translation 4 (the 17 rulings a `Close` ended drop; archived
-bench words become `--for-author` `not_a_defect`; 41 opinions, 3 bench regrades and 5 spot-checks drop); a source
-`tombstone` row is no event and the replay writes the rows once (44 rows over the 40 archives with bundle-store
-m37/m38: 37 estoppel placements, 5 ends, 2 ruling placements; recounted after R1's merge of `main`, whose recomputed
+rulings and the 22 closings on them become no events); Translation 4 (the 12 rulings a `Close` ended drop; archived
+bench words become `--for-author` `not_a_defect`; 41 opinions, 3 bench regrades and 7 spot-checks drop); a source
+`tombstone` row is no event and the replay writes the rows once (48 rows over the 40 archives with bundle-store
+m37/m38: 37 estoppel placements, 5 ends, 6 ruling placements; recounted after R1's merge of `main`, whose recomputed
 `reopened` (64e9fbe8c) adds ends: T-B19, `migratetombstone_test`, gate `tombstones_kept_by_cut`). Measured on the
 B2a/B5 replays: 25 docketings, zero refusals. Part A's residue over 38 runs: 1074 findings, 737 finding anchors, 483
-`found_by` links, 646 tokens, 33 bare `repaired` closes, 409 prose ids (§III.A5's are approval's 36-run figures).
+`found_by` links, 646 tokens, 33 bare `repaired` closes, 373 prose ids (§III.A5's are approval's 36-run figures).
+
+**The counts after R1's merge of `main`** (lead call 2026-11-26, accepted; recounted by `docketingarchive_test`,
+`partb_test`, `findingsfold_test`, `inquirycheckarchive_test` and `storedplanids_test` on the merged head).
+`main`'s delivered-text rule (2026-11-13) loses an archived lens's `Close` whose sitting holds no complete delivery;
+the bench takes no delivery (§V R1), so no bench ruling is lost on it. A lost `Close` ends no docketing, so:
+- the rulings a `Close` ended are 12, not 17: m28 589 and 659 (closes lost), m32 483 and m35 582 now stand as
+  `--for-blue` `not_a_defect` rulings, each placing a ruling tombstone (m28 G-1e4a7bb0, G-3a2c77c1; m32 G-fbdd91f9;
+  m35 G-1f1ae21f), so ruling placements are 6, not 2, and the rows 48, not 44;
+- m29 576 is a lost act, not an ended ruling: its raiser's close (ev 561) is lost, so the grade-movement docketing
+  D on G-6f6f47fb stands, and the archived ruling keeps or restores no grade, which the write refuses. **Residue,
+  stated:** m29's docketing on G-6f6f47fb stands unruled at the run's end;
+- the spot-checks written as no event are 7, not 5: is-91-prime-a 163 (G1, G2; closes 143 and 154 lost) and wave-b
+  626 (G-ede17021; close 376 lost) check a gap a dropped bench act reopened and the lost close left open;
+- the archived dockets and rulings written as no event are 52, not 56 (the 4 rulings above), and the prose ids 373, not 409 (the
+  ids in lost acts leave with them; the rulings above bring theirs back).
 
 Built and deleted: Translations 1 (a mint's first ancestor) and 2 (cross-seat links dropped; `migrate/lineage.go`'s
 `dropCrossSeatLink`), and Translation 3's drop of the 2 docketings on a superseded gap (`migrate/docketing.go`, whose
