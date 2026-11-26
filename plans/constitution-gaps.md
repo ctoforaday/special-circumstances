@@ -15,16 +15,17 @@
 > chain or retried-reading check rebuilds the report at a past event, and `report_checkpoint` holds only the current
 > text (§III.3.2). P3 is reconciled with #1827 phase 1 (#1864): non-report items reach an Antigravity seat on the same
 > PostToolUse path, and the stop applies to Workflow and subagent seats only (§III.3.2, §VII.5). **What this plan adds
-> is counted in §I.** Forks F1–F3, F5–F7 and F9–F18 are ruled (F5 superseded by F15); the body is built to
+> is counted in §I.** Forks F1–F3, F5–F7 and F9–F21 are ruled (F5 superseded by F15); the body is built to
 > them.
 >
 > **Shipping:** **P11 SHIPPED** (#1862); **P1a MERGED** (#1861) and **P1b MERGED** (#1863); **P5 and P10 have their own
 > PRs in flight** (gblock 2026-11-14), so their sections here are their design, not this gate's; P0 and P2 have no PR
 > yet. **P12** is drafted 2026-11-20 from that day's rulings and is NOT covered by the 11-14 approval. After plan-audit
 > r1 FAILED it is SPLIT (ruled by gblock 2026-11-20): **P12a** (§III.10b: one gap per site, P9 withdrawn, the demand
-> reads its subject) ships first on main; **P12b** (§III.10c: the pure cut, the record's moot Close, retire
-> anchor-only, the tombstone's cut end, migrate) ships after #1889 and P12a. **P9 is WITHDRAWN** (F15, ruled
-> 2026-11-20). F17 and F18 (P12b) are ruled 2026-11-20; no fork is open.
+> reads its subject) ships first on main; **P12b** (§III.10c: the pure cut, the raiser's turn, retire
+> anchor-only, migrate) builds on main as it stands and lands before #1889, which rebases onto it (F21, ruled by
+> gblock 2026-11-26). **P9 is WITHDRAWN** (F15, ruled 2026-11-20). F17 and F18 (P12b) are ruled 2026-11-20; the
+> archived `F-` population (§III.10c migrate) is an open thread brought to gblock at P12b's open.
 >
 > **Base: `origin/main` at 5ab86a02b (2026-11-14), EventSchema 74** (`recordpb/schema_gen.go:18`): #1824 took 72, #1853
 > 73, and #1854 74, which deleted the per-sitting call limit — a sitting is bounded by the client's `maxTurns: 430`.
@@ -61,7 +62,7 @@ builds gblock's rulings so that each one becomes a record fact the tool composes
 | AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8) and the sonnet price row is corrected against the bill (9): two standalone PRs, merged (#1861, #1863). Certify's counts are composed where they render (11): shipped (#1862). A closure line states what the closer's sitting was delivered, composed from its report-read rows, with no Close field (7; ruled by gblock 2026-11-13). A voice closure judging its section (10, gblock's P ruling; F5) is WITHDRAWN: one gap per site supersedes it (F15). | P1a, P1b, P11, P8 |
 | Fixture | The archive this plan's migrate tests read is committed, and a missing archive fails the test. | P0 |
 | **2026-11-20** (per site, demand) | One gap per site is a lens duty in every carrier, with no tool refusal (F13); P9 withdrawn (F15); the live-answer demand holds while its subject stands, and a `--quote` gap whose marker has left closes `moot`. Value: 105 of 252 archived marker gaps reach beyond their sentence, 87 of 142 negative checks match outside it, 16 archived `--quote` mints are computation/source gaps, the kind whose demand nothing meets once their marker leaves. **Drafted 2026-11-20, not covered by the 11-14 approval** | P12a |
-| **2026-11-20** (anchors, moot) | A pure cut removes the cut sentence's anchors (recorded on the edit as a tool-stamped list, F17 (a); no bare anchor in any writer); the record writes a real `moot` `Close` in the cutting edit's transaction, exempt from the seat-only guards; `retire` is anchor-only for every kind (an open gap's marker refused, F14), and the claim retire and its three fields go; a cut ends the gap's tombstone (F16); migrate folds claim retires into their cuts (F18). Value, over the 39 committed archives: no bare-token state, 108 claim retires gone (each a second act), and 7 archived gap fates changed by migrate (F18's 4, translation 4's 3); m26's 4 tokens a rewrite left past their full stop are re-seated, no fate changing (F20). **Drafted 2026-11-20, not covered by the 11-14 approval** | P12b |
+| **2026-11-20** (anchors, moot) | A pure cut removes the cut sentence's anchors (recorded on the edit as a tool-stamped list, F17 (a); no bare anchor in any writer); a cut of a gap's marker is its raiser's turn: it readies the minting lens, which closes the gap `moot`, keeps it, or the exchange limits docket it, and the record writes no `Close` (F21, ruled 2026-11-26); `retire` is anchor-only for every kind (an open gap's marker refused, F14), and the claim retire and its three fields go; migrate folds claim retires into their cuts (F18). Value, over the 39 committed archives: no bare-token state, and 108 claim retires gone (each a second act); no archived gap fate changes by migrate; m26's 4 tokens a rewrite left past their full stop are re-seated (F20). **Drafted 2026-11-20, rebuilt 2026-11-26, not covered by the 11-14 approval** | P12b |
 
 **What this plan adds** (counted from §III; P0, P1a, P1b, P2 and P11 add none of these; P6 is deferred; P5 and P10
 are implemented as their own PRs, gblock 2026-11-14, and are counted here because their design is this plan's). r8
@@ -86,12 +87,11 @@ moves no count from r7: the paragraph fields replace the sentence fields one for
 **P12a (drafted 2026-11-20, outside the counts above):** no event, field or view; `gap_state`'s `met` gains one arm
 and the `retire_anchors` marker one union arm, the subject's lineage heirs (a view and a trigger change, so one epoch
 bump: `TestEveryDDLChangeBumpsTheEpoch` hashes every table, index, trigger and view); duty text and `DemandClause`
-reworded. **P12b (drafted 2026-11-20, outside the counts above):** one epoch bump; no new event type
-(the record writes an ordinary `Close`, disposition `moot`, under `harness`); three `Retire` fields deleted
+reworded. **P12b (drafted 2026-11-20, outside the counts above):** one epoch bump (82); no new event type; three `Retire` fields deleted
 (`claim_kept`, `removal_basis`, `superseded_by`) and one `BlueEdit` field added, `removed_anchors` (F17 (a), with its
 child table); one view (`anchor_removal`) and three changed (`change`, `evidence_anchor`, `report_op`, which gains an
-intra-event order column); one gap-view column (`closed_by_record`); one gap marker; no blocker, no item kind (the
-moot reaches the lens as the existing `news` item); `retire` loses `--quote` and `--new`; P12a's arm 4 kept, re-read
+intra-event order column); one gap marker; no blocker, no item kind (the cut reaches the minting lens as a turn on
+the gap, read from `removed_anchors` beside `reopened`, and the existing `gone` item); `retire` loses `--quote` and `--new`; P12a's arm 4 kept, re-read
 from `anchor_removal`'s edit arm; L6 asked of the cut's `removed_anchors` by the one rule that asks it of a retire
 (ruled by gblock 2026-11-21); `gone` kept as the one location state of a token not in the report.
 
@@ -229,7 +229,7 @@ P3 (F + the universal chain; needs P0) ──┬─ P4 (D + L)
 P5 (E + J, off this gate) ── P7 (K)
 P6 (I): deferred to #1695's redesign; nothing designed here
 P12a (one gap per site; P9 withdrawn; the demand reads its subject; on main; its epoch sequenced with P3 and #1889)
-P3 + #1889 (#1695 fold, Parts A and B) + P12a ── P12b (anchors follow their text; the record's moot Close)
+P3 + P12a ── P12b (anchors follow their text; the raiser's turn; on main, before #1889, which rebases onto it)
 ```
 
 | Part | Concept, complete | Schema | Depends on | Rough cost |
@@ -248,7 +248,7 @@ P3 + #1889 (#1695 fold, Parts A and B) + P12a ── P12b (anchors follow their 
 | **P10** | M: archive capture time on `cite`, beside `Cite.fetched_at`. **Its own PR** (gblock 2026-11-14) | `Cite` field (bump) | — | small |
 | **P11** | Defect 11: certify's counts composed where they render; render-only (F9). **SHIPPED: #1862** | none | — | small |
 | **P12a** | One gap per site in every lens duty carrier (no tool refusal, F13); P9 withdrawn (F15); the live-answer demand holds while its subject stands. **Its own PR, first** | `met` arm + a lineage arm on the `retire_anchors` marker (view and trigger change, one bump, sequenced with P3 and #1889, §III.10b) | — | small |
-| **P12b** | Anchors follow their text: a pure cut takes its anchors; the record writes a real `moot` `Close` in the cutting edit's transaction; `retire` anchor-only (F14); a cut ends the tombstone (F16); no bare anchor in any writer; migrate folds claim retires (F18). **Its own PR after #1889 and P12a** | `Retire` loses 3 fields, `BlueEdit.removed_anchors` (F17 (a)), view `anchor_removal`, `closed_by_record`, one marker (bump); L6 asked of the cut (F19) | P3, #1889, P12a | large |
+| **P12b** | Anchors follow their text: a pure cut takes its anchors; the cut is its gap's raiser's turn, and the lens closes it (F21); `retire` anchor-only (F14); no bare anchor in any writer; migrate folds claim retires (F18). **Its own PR on main, before #1889** | `Retire` loses 3 fields, `BlueEdit.removed_anchors` (F17 (a)), view `anchor_removal`, one marker (bump, 82); L6 asked of the cut (F19) | P3, P12a | large |
 
 ### III.0a P0 — the archive is a fixture (its own PR, off this gate; no PR yet)
 
@@ -1166,7 +1166,7 @@ the last two entries. gblock's own words are quoted only where that log has them
 P12 SPLITS (ruled by gblock 2026-11-20, after plan-audit r1 FAILED, `~/.claude/scratch/p12-audit/VERDICT-r1.md`):
 - **P12a** is its own PR, opened on `origin/main` as it stands that day. Its code depends on neither P3 nor #1889; its
   epoch is sequenced with both (below, "Epoch").
-- **P12b** (§III.10c) follows both #1889 and P12a.
+- **P12b** (§III.10c) follows P12a on main, before #1889 (F21).
 
 The census below ran on `origin/main` 494082b95 (EventSchema 79) and is re-run when P12a opens (§V 12.1). Main has
 since moved to c7666d2f3 (EventSchema 79) with no change under `tools/internal` outside tests, so every P12a line
@@ -1292,7 +1292,7 @@ them. Every P12b figure counts all 39.
       the lens no longer holds is the bench's closing ruling, a `motion_rule` disposition that is not a `Close`
       (`plans/compute-and-show.md`, "Closure demand"). #1889 makes a ruling's outcome a written act (for blue, blue's
       stated word or `not_a_defect`, "G closes either way", `findings-fold.md:704` at c6ae0335b) and does not state
-      whether that close is held to `requireDemandMet`. P12b's census at open reads it: if the ruling's close passes
+      whether that close is held to `requireDemandMet`. #1889's rebase reads it (the docketing is #1889's, F21): if the ruling's close passes
       the demand, the docket motion is the exit; if not, the heir stays open with its demand unmet to the run's end.
       It sits beside the bare-window residue above; neither has an archived instance (F14's retire is new in P12b);
       §VII.12 carries it.
@@ -1345,25 +1345,25 @@ them. Every P12b figure counts all 39.
       content, not by epoch (`migrate/sqlitesource.go:462-472`).
     - **Sequencing, by the standing convention that whoever lands second renumbers.** Main is at 79. P3's chain
       (#1885/#1886) holds 80 and 81 on its branch, and #1889 takes main + 1 to + 3. P12a takes main + 1 at its merge;
-      whichever of P3, #1889 and P12a merges later renumbers its own bump over the earlier one's. P12b takes the next
-      free epoch after all three (§III.10c "Epoch").
-- **Left out of P12a:** the pure cut, the record's moot, the retire's shape and migrate. All of these are P12b.
+      whichever of P3, #1889 and P12a merges later renumbers its own bump over the earlier one's. P12b takes 82, main's
+      81 plus one (§III.10c "Epoch").
+- **Left out of P12a:** the pure cut, the raiser's turn on it, the retire's shape and migrate. All of these are P12b.
 
-### III.10c P12b — anchors follow their text: the pure cut, the record's moot Close, retire anchor-only, the tombstone's cut end, migrate (its own PR, after #1889 and P12a; drafted 2026-11-20, revised after plan-audits r1 and r2)
+### III.10c P12b — anchors follow their text: the pure cut, the raiser's turn, retire anchor-only, migrate (its own PR, on main as it stands; drafted 2026-11-20, revised after plan-audits r1 and r2, rebuilt on the 2026-11-26 ruling)
 
-**Status and order.** This part ships as its own PR after #1889 (Parts A and B) and P12a merge. P3 merges before #1889,
-so P3 lands first as well.
-- **The census.** It ran on the P3 tip `ec8757c87` (#1886's pushed head) plus main 494082b95. The P3 chain is now at
-  `ae2b9a9fb` (EventSchema 81), whose non-test code under `tools/internal` differs from `ec8757c87` only in
-  `recordpb/schema_gen.go`'s epoch, so every P12b line reference below holds on `ae2b9a9fb`. #1889's references are to
-  `feov/findings-fold` at c6ae0335b. The census is re-run on main at open (§V 13.1).
-- **What #1889 removes first.** After #1889's Part A there is no `F-` anchor and no `fx` token. P12b's anchor kinds are
-  therefore `C-` (citation), `K-` (computation) and `G-` (gap).
-- **What #1889 ships until P12b lands.** #1889 ships "a cut does not end a tombstone". P12b carries the end path
-  (F16).
-- **The peers' concurrence.** #1889's owner agreed the write hook, its order and P12b's three conditions on
-  2026-11-21 (`~/.claude/scratch/1695/RULINGS.md:93-94`; §VI F16). The FEOV-slim session concurred the same day
-  (relayed by the lead) that its flag-group helper and its `keptByDebt` work land after P12b (§II).
+**Status and order.** P12b builds on `origin/main` as it stands: af3e6ccbe (2026-11-26), EventSchema 81
+(`requirements.json:3`, `recordpb/schema_gen.go:18`), with P3 (epoch 80), P12a (#1939, epoch 81), #1944 and #1945
+merged. It lands before #1889, and #1889 rebases onto it (ruled by gblock 2026-11-26, F21).
+- **The census.** It ran on the P3 tip `ec8757c87` (#1886's pushed head) plus main 494082b95. The P3 chain's tip
+  `ae2b9a9fb` differs from `ec8757c87` outside tests only in `recordpb/schema_gen.go`'s epoch. Line references are on
+  `ae2b9a9fb` unless marked "on main" (af3e6ccbe). The census is re-run on main at open and diffed (§V 13.1).
+- **The anchor kinds on main are `C-`, `K-`, `G-` and `F-`** (`anchor/anchor.go:64` on main: the finding anchor, tag
+  `fx`). #1889's Part A, which deletes `F-`, is not P12b's base. Every rule below holds for every kind, `F-` included;
+  the archived `F-` population is an open thread (§III.10c migrate, "The `F-` population").
+- **Out of scope: everything #1889 builds.** Main holds no tombstone (no `Tombstone` body, no `writeTombstones`), no
+  bench `BlueEdit` and no text freeze. A cut under a docketing, and a `Close` ending a docketing, are #1889's
+  interactions, decided on its rebase. F16 is kept as the rule #1889's rebase builds on P12b's record (§III.10c "F16
+  on #1889's rebase").
 
 **What P12b buys, with the archive numbers.** Every figure below counts the 39 archives P12b's migrate reads at its
 base: the 36 in `run-archive/`, the 2 in `run-archive/bundle-store/` (m37, m38), and P0's 2026-11-10 run, which
@@ -1380,26 +1380,21 @@ reaches main with P0 (#1875) before P3. The method is in §III.10c's migrate ent
     G-19b1727b, b6 G-68c6ecf7 and b9 G-8bd21b5d (translation 4, ruled 2026-11-21). m26's G-59e61f8c and G-0f2d72fd
     and two citations were left after a full stop by rewrites that kept the sentence; migrate re-seats them, and both
     gaps keep their history (translation 6, F20 ruled 2026-11-21).
-- **The `--quote` demand closes.** Any of the 16 archived kind (`--quote`, computation or source) whose claim leaves closes by the
-  record, with nothing asked of any seat.
+- **The `--quote` demand is met by the cut.** Any of the 16 archived kind (`--quote`, computation or source) whose
+  claim a cut takes has its demand met (arm 4, read from the edit arm), so its lens's `moot` lands on its turn.
 - **The model.** One rule reaches every seat: text changes are the changes set, and anchor changes are the work list
   (ruling 1).
-- **F16's tombstone end stays in P12b** (lead call, disclosed: RULINGS.md 11-20 "LEAD CALLS", not gblock's; the
-  approver reads it as unruled, §VI F16). A pure cut that left G's tombstone standing would contradict F16 ("the tombstone
-  ENDS WITH THE TOKEN"), and the cut and its end row are written by the same hook in the same transaction, so a
-  follow-up PR would ship a P12b that breaks a ruled fork until it lands.
 - **The cost, against the naive version.** The naive version is P12a alone: the bare state stays, blue's claim retire
   stays the second act that takes a cut marker out, and the lens closes the gap `moot` itself once P12a's arm 4 admits
   it.
 
   | | naive (P12a alone) | P12b |
   |---|---|---|
-  | acts per cut marker | the edit, blue's claim retire, the lens's dispatch and `moot` close: 108 archived claim retires, each a second act, and one lens close per cut gap | the edit; the record writes the close in its transaction |
-  | floating states | an open gap in `gone` that its lens can neither repair nor close until the retire; 7 archived gaps worked against a sentence that left (F18's 4, translation 4's 3) | none: no writer leaves a token bare |
-  | tombstone after a cut | stands for the run (#1889 L21), contrary to F16 | ends with the token |
-  | record shape | unchanged | one epoch; `Retire` loses 3 fields; `BlueEdit` gains `removed_anchors` and its child table; one new view, three changed; one gap-view column; one marker |
-  | code | unchanged | claim mode deleted (`retire.go:55-155`, `:218-447`); the open-gap `gone` readers deleted (§III.10c "What goes with the bare state"); one derived `Close` in #1889's hook; 3 validate exemptions; one `judgeAct` arm (L6 on the cut); every closure reader in the table below checked by a pure-cut subtest; of 9 Go fold sites over `Retire`, 7 read the edit's list or the index, 1 is deleted and 1 stays retire-only; 6 migrate translations; 28 claim-shape test files rewritten |
-  | residue | none | 7 archived fates and their listed acts (F18's 4; translation 4's 3); m26's 4 tokens re-seated (F20) |
+  | acts per cut marker | the edit, blue's claim retire, the lens's turn and its close: 108 archived claim retires, each a second act | the edit, the lens's turn and its close: the claim retire goes |
+  | floating states | an open gap whose marker stands bare in `gone`, which its lens reads as its sentence until the retire; 7 archived gaps worked against a sentence that left (F18's 4, translation 4's 3) | none: no writer leaves a token bare. An open gap whose marker a cut took reads `gone` and is its lens's turn |
+  | record shape | unchanged | one epoch; `Retire` loses 3 fields; `BlueEdit` gains `removed_anchors` and its child table; one new view, three changed; one marker |
+  | code | unchanged | claim mode deleted (`retire.go:55-155`, `:218-447`); the lens turn, delivered-text and gap-passage readers read the edit arm (§III.10c "The raiser's turn"); one `judgeAct` arm (L6 on the cut); of 9 Go fold sites over `Retire`, 7 read the edit's list or the index, 1 is re-keyed and 1 stays retire-only; 4 migrate translations that write; 28 claim-shape test files rewritten |
+  | residue | none | no archived fate changes by migrate; m26's 4 tokens re-seated (F20); the `F-` population unclassified until open |
 
   Token and wall-clock cost per run is NOT measured for either version; the comparison counts acts and mechanisms.
   The acts are where a seat spends turns, so the naive version's cost recurs every run, while P12b's is paid once.
@@ -1410,9 +1405,8 @@ reaches main with P0 (#1875) before P3. The method is in §III.10c's migrate ent
 2. **A pure cut removes the cut sentence's anchors.** A pure cut is an edit whose replacement for an anchor's sentence
    is NOTHING. The rule holds for every anchor kind.
    - gblock's words: "deleting the text should always delete the anchor and retire is optional - deleting the text is
-     *always* a moot of the anchor attached to it", and an anchor "can't just be floating on nothing". The one gap the
-     record does not moot is a for-red ruling's own, which the ruling in the same transaction closes `repaired`
-     (ruling 4; a lead call against the literal "always", §VI "P12's lead calls").
+     *always* a moot of the anchor attached to it", and an anchor "can't just be floating on nothing". The moot is the
+     gap's raiser's to state, on the turn the cut gives it (ruling 4).
    - **The reason.** The edit's existing required `--reason` is the cut's reason. gblock's words: "We almost
      universally take --reason".
    - **A rewrite.** An edit that replaces the span with prose must carry every anchor. The dropped-token refusal stays
@@ -1423,42 +1417,32 @@ reaches main with P0 (#1875) before P3. The method is in §III.10c's migrate ent
      it; migrate fills it from the folded claim retire.
 3. **`retire` only removes an anchor and keeps its sentence.** It applies to every anchor kind and takes `--answers`.
    The claim retire (`--quote`) goes, and so do the fields `claim_kept`, `removal_basis` and `superseded_by`.
-4. **A gap whose marker leaves with its text is closed moot by the record.** The record writes a **real `Close`
-   event**, disposition `moot`, in the cutting edit's own transaction (ruled by gblock 2026-11-20, after audit r1).
-   - **What a seat sees.** The close shows in the lens's work list.
-   - **The guards.** The record's close is a row #1889's `writeIn` hook derives. A derived row is validated by its
-     own body's validate arm and judged by nothing: #1889 validates each `Tombstone` row by validate's `Tombstone` arm
-     and judges it by nothing (`findings-fold.md:1237` at 4b3e0341f). The record's moot is validated the same way, by
-     validate's `Close` arm, whose `isRecordMoot` arm refuses a malformed one (below); that arm relies on derived rows
-     being validated. Validate's seat-only guards exempt exactly that close; the judge-level guards are never asked of
-     it.
-   - **A docketed or remanded gap mooted this way stays mooted.** Its docketing ends by the Close, with no ruling.
-   - **The one gap the record does not moot: a for-red ruling's own** (lead call, disclosed, agreed with #1889's
-     owner 2026-11-21, `~/.claude/scratch/1695/RULINGS.md:93-94`). #1889's for-red ruling writes the bench's
-     `BlueEdit` applying red's text, then `DocketRuling{sided_with: RED, disposition: repaired}`, in one transaction
-     (`findings-fold.md:1729` table, `:1892`, `:2007` at 4b3e0341f). Where that edit cuts G's own sentence, the
-     derivation skips G, and G closes `repaired` by the ruling. Every other gap on the cut sentence is mooted by the
-     record.
+4. **A cut of a gap's marker is its raiser's TURN** (ruled by gblock 2026-11-26, F21, picked; option wording the
+   agent's: "Raiser's turn, land now"). The record writes no `Close`. The cut readies the gap's minting lens, which
+   re-audits the report as it stands and closes the gap (`moot` where its subject is gone), keeps it with a regrade, or
+   the exchange limits docket it. It supersedes the 2026-11-20 pick "the record closes moot in the cutting edit's
+   transaction" and that pick's lead calls.
 5. **F14: a retire of an OPEN gap's own `G-` marker is refused.** It is allowed once the gap is closed (ruled by gblock
    2026-11-20).
-6. **F16: on a pure cut, the gap's tombstone ENDS WITH THE TOKEN** (ruled by gblock 2026-11-20). This reverses #1695's
-   11-14 "a cut does not end a tombstone" for the pure-cut case.
-   - P12b writes the tombstone's end row in the cutting edit's transaction.
-   - The carriers are #1889's `Tombstone` body, the `tombstone_standing` view, and migrate's re-derivation. #1889's
-     own log records the end path shipping with P12 (`~/.claude/scratch/1695/RULINGS.md:85`, "the end path ships with
-     P12", a lead call on that side).
+6. **F16: on a pure cut, the gap's tombstone ENDS WITH THE TOKEN** (ruled by gblock 2026-11-20; kept by F21). This
+   reverses #1695's 11-14 "a cut does not end a tombstone" for the pure-cut case. Main holds no tombstone: P12b records
+   the removal (`removed_anchors`, `anchor_removal`) that #1889's end rule reads on its rebase, and #1889 writes no
+   placement on a token the same edit removed (§III.10c "F16 on #1889's rebase").
 7. **Migrate folds each archived claim retire into the edit that cut the claim, and states the residue.** **F18
    RULED (A)** (ruled by gblock 2026-11-20): the archived edit-then-claim-retire pairs migrate as the pure cuts they
-   were; four fates become `moot`, and the dropped acts are listed.
+   were, and the dropped acts are listed. The pick's "four fates become `moot`" rested on the record's moot, which F21
+   deletes: migrate writes no `Close`, and each gap keeps the fate its replayed acts give it (§III.10c translation 3).
 8. **Composed sections cannot carry markers.** They are out of scope (§VII.10).
 9. **L6 holds the cut** (ruled by gblock 2026-11-21, after plan-audit r3, F19). A pure cut whose removed anchors include
    a citation that a computation remaining in the report applies is REFUSED: "the tool refuses and never cascades"
    (`plans/compute-and-show.md:632, :764`; `actjudge.go:123` → `requireCitationUncited`). Blue re-points or removes the
    computation first.
 10. **A baring edit with no retire migrates as a pure cut** (ruled by gblock 2026-11-21, picked, after plan-audit r4:
-   "the same as F18"). The record writes the moot at the baring edit; later closes and supersessions of those gaps
-   drop as lost acts, listed. It covers b3, b6 and b9 only: the question that drew it described m26 as cuts, and
-   gblock's F20 ruling corrects that (RULINGS.md 11-21 "P12 audit r4" and "F20 ruled" entries).
+   "the same as F18"). Migrate fills the baring edit's `removed_anchors`. The ruling's "the record writes the moot at the
+   baring edit" rested on the record's moot, which F21 deletes: no `Close` is written, and later acts on those gaps
+   land or drop by the rules replay applies, each dropped one listed. It covers b3, b6 and b9 only: the question that
+   drew it described m26 as cuts, and gblock's F20 ruling corrects that (RULINGS.md 11-21 "P12 audit r4" and "F20
+   ruled" entries).
 11. **m26's rewrites are re-seated** (F20, ruled by gblock 2026-11-21, picked (B)). The four tokens m26's rewrites left
    after their sentence's full stop move inside the sentence they trail; both gaps keep their history (§III.10c
    translation 6).
@@ -1486,34 +1470,20 @@ and `~/.claude/scratch/p12/r2/`):
   `removeMut` fails loudly on an absent token (`render.go:166-170`, "the retired anchor %s is not in the report").
   `ReportOpsBetween` orders a row by `event_id, "a"` (`reportcheckpoint.go:102`), which holds no order inside one
   event.
-- **A record-written Close meets these guards** (census `~/.claude/scratch/p12/r2/census.md` §2; each guard keys on
-  the writing seat or the call):
-  - `requireOriginator` (`record.go:1111, 1811-1826`);
-  - the delivered-text rule (`record.go:1117` → `deliveredtext.go:93-99`). The cutting edit itself stales the lens's
-    delivery;
-  - the verification triple (`record.go:1131-1134`);
-  - `requireNoStandingDocket` (`actjudge.go:82`);
-  - `requireDemandMet` (`actjudge.go:89`, `demand.go:108`; `:144` refuses `moot` outright);
-  - `requireFailedCheckAnswered` (`actjudge.go:95`, `failedcheck.go:223`);
-  - `requireOpenGap` (`record.go:1190`);
-  - the `close` CHECK "prose or carried_from" (`record.proto:1041`).
-
-  Replay (`replaywriter.go:100`) runs validate with no guards (`judge=false`), so an exemption must be readable from
-  the stored event.
-- **The code's own prose rejects a tool-written Close for supersession.** `supersession.go:13-16` and the closure CTE
-  comment (`recordsql/gapstate.go:196-203`) both say "a close the tool wrote beside the mint would be a second copy of
-  the link and an act the seat never stated".
-  - The moot by the record differs. It is the only statement of the gap's end, and no seat act states it. That makes
-    it a fact the record establishes, as a `Stale` or a `ReportRead` is.
-  - Both comments are carriers. They are reworded to say why supersession is derived and the record's moot is written.
-- **Writer attribution.**
-  - An event carries `seat_id` (`record.proto:682-740`). The insert adds its sitting (`recordsql/store.go:903`).
-  - `record.HarnessSeat` is "the writer that is no party" (`record/cast.go:17-19`). It is exempt from the outcome lock
-    (`outcomeclosed.go:73`), and migrate already files rows under it (`migrate/entries.go:515-526`).
-  - Several bodies in one transaction have precedent in `appendBodies` (`record.go:658-725`, an act plus `Anchor`
-    bodies). #1889's `writeTombstones` in `writeIn` derives a body in the act's own transaction
-    (`findings-fold.md:207, 1183-1193` at c6ae0335b), under the act's identity.
-  - The cut is decided inside a `Check` guard, and landing "exposes nothing that writes" (`landing.go:45-47`).
+- **A cut readies no lens on main** (read on af3e6ccbe). The minting lens's turn on a gap is `lensTurnOn`
+  (`record/gapacts.go:216-221`) over `lensTurnActsOf` (`:247-267`), which counts the acts on the gap (for an edit, only
+  its `answers`, `:66-67`) and every gap an edit's `reopened` names (`:252-256`). `ReopenedAnchors` lists no anchor
+  gone from the after side (`bluedoc.go:334-337`). The delivered-text rule's `changedSinceSQL`
+  (`deliveredtext.go:84`) and the gap passage's `latestReopeningSQL` (`deliverycut.go:345-347`) read only
+  `blue_edit_reopened`, so a removal neither stales a delivery nor becomes a passage: `gapPassages` (`:349-392`) falls
+  to the recorded mint location (`:389`), or to an EARLIER reopening edit's paragraph. `blueAnswers`
+  (`blueanswered.go:61`) lists an open gap reading `gone` to its minter, but readies nothing, and its `gone` item
+  (`:98-99`) needs blue engaged on the gap.
+- **A lens may close `moot` a gap whose token is gone, on main.** close's refusals (`record.go:1089-1203`,
+  `actjudge.go:74-89`) hold no location check; `moot` (`record.proto:533`, "the claim or artifact it attached to is no
+  longer in the report") is refused only by the live-answer demand while its subject stands (`demand.go`), and by the
+  guards every close meets (originator, delivered text, the verification triple, a standing docket, a standing failed
+  check). P12b's changes to those readers are in §III.10c "The raiser's turn".
 - **The gap_refresh markers.**
   - Today there are 12 (`gapstate.go:124-149`; the count is pinned at `gapstate_test.go:301`). None is on
     `blue_edit`, and `gap_refresh` reads no edit table.
@@ -1576,41 +1546,38 @@ and `~/.claude/scratch/p12/r2/`):
   - **What goes with the bare state:**
     - `edit.go:275`'s "may stand bare until the retire";
     - `baredLeftOut`'s "then retire the claim";
-    - `ReopenedAnchors`' bare-listing branch (`bluedoc.go:341-347`);
-    - the open-gap paths that read `gone`: `sitting.go:331`'s "your retire this sitting took its sentence out" (with
-      `answeredByActThisSitting`, `:746`, its only reader) and `blueanswered.go:61-64`'s `gone` arm, which readies a
-      lens on an open gap reading `gone`;
-    - the engaged-lens prompt's `gone` clause (`debate.js:910`, the authored `lensPrompt`, outside both enginegen
-      regions), which teaches a lens what to do with an open gap that reads `gone`.
+    - `ReopenedAnchors`' bare-listing branch (`bluedoc.go:339-345` on main).
+  - **What stays, now the cut's path.** An open gap reads `gone` from its marker's cut until its lens acts (§III.10c
+    "The raiser's turn"). The open-gap `gone` readers stay: `blueanswered.go:61`'s `gone` arm and its `:98-99` item,
+    and the engaged-lens `gone` clause (`debate.js:909` on main, the authored `lensPrompt`, outside both enginegen
+    regions). `sitting.go:328`'s (on main) "your retire this sitting took its sentence out" is re-keyed to a cut (the
+    fold table's `answeredByActThisSitting` row).
   - **One location state for a token not in the report** (`viewjson.go:2264-2316`). `gone` stays, the existing word
     and constant (`LocationGone`); no new term is coined (`terms.json` has no location-state entry, and `gone` is
     already rendered on the three help pages).
     - **Who reads it under P12b.** `locateAnchor`'s not-found arm (`viewjson.go:2313-2314`) is reached by every located
-      row whose token is not in the report: the board's closed gaps (`viewjson.go:481`) and the work list's
-      (`:1268`), each a gap the record mooted or whose marker F14 retired after its close; and the evidence view's
-      source and computation rows (`evidenceview.go:539, 589`), each a `C-`/`K-` a retire or a cut took out, listed
-      under `Retired`. A migrated mint whose quote never placed (`migrate/gapplace.go:63-64, 238-241`) reads it too;
-      no archive holds one (`migrate/testdata/archived_gaps.golden` has no `never-placed=` line at `ae2b9a9fb`).
-    - **What it says.** `GoneTeaching` (`:2271-2273`) is reworded from an instruction to an engaged lens ("blue cut its
-      sentence; that is not silence — judge the report as it stands") to the state, cause-neutral so it is true of
-      every row that reads it, a never-placed one included: "the anchor is not in the report, and `location` is the
-      text as recorded". `LocationStates` (`:2275-2279`) renders it on the work, board and evidence help pages as today,
-      and its opening "Each quote gap carries" names the evidence rows too (`verbs.go:300` already says they are
-      located as a quote gap is). The comments at `viewjson.go:865` (`EditedSince`) and `:2300-2306` (`locateAnchor`:
-      "bare … retired or never placed") name the causes: a cut, a retire, or a migrated mint that never placed.
-    - **What goes.** Only the open-gap paths listed above. No live writer leaves an OPEN gap's token out of the
-      report: a cut of its marker closes it in the same transaction, and F14 refuses a retire of it.
-    - **The test.** `TestWorkTeachesEveryLocationState` (`difftest/locationstate_test.go:17-38`) keeps its three help
-      pages and `GoneTeaching` check, and its engaged-prompt half is deleted with the clause it checked: no test lists a
-      word a prompt must not carry; the prompt golden's diff and §V 13.1's one-time grep prove the clause gone. The
-      open-gap `gone` assertions are rewritten as the pure cut they become, reading the gap closed and `gone` on the
-      board: `cli/blueanswered_test.go:122`, `cli/gapanchor_test.go:414`; `retireanchor_test.go:457` is in the
-      claim-shape list (§III.11). `record/envelope_test.go:205-236` ("a retire this sitting that took its sentence out
-      admits it") drives `sitting.go:331`'s retired-this-sitting arm with two anchorless `Retire{Claim}` fixtures
-      (`:227`, `:232`); it is deleted with that arm (its `:232` assertion turns red when the arm goes), and its case
-      moves to a subtest `TestACutGapIsMootByTheRecord` gains: blue, dispatched after a cut, owes its envelope nothing
-      on the cut gap. The evidence rows' `gone` assertions (`cli/evidencelocation_test.go:102`,
-      `record/evidenceview_test.go:55`) stand.
+      row whose token is not in the report: an open gap whose marker a cut took, on its lens's turn; the board's closed
+      gaps (`viewjson.go:481`) and the work list's (`:1268`) whose marker a cut took or F14 retired after the close;
+      and the evidence view's source and computation rows (`evidenceview.go:539, 589`), each a `C-`/`K-` a retire or a
+      cut took out, listed under `Retired`. A migrated mint whose quote never placed (`migrate/gapplace.go:63-64,
+      238-241`) reads it too; no archive holds one (`migrate/testdata/archived_gaps.golden` has no `never-placed=`
+      line at `ae2b9a9fb`).
+    - **What it says.** `GoneTeaching` (`:2271-2273`) keeps the engaged lens's instruction, true of every open gap
+      reading `gone` ("blue cut its sentence; that is not silence — judge the report as it stands"), and gains the
+      state for the closed and evidence rows, cause-neutral: "the anchor is not in the report, and `location` is the
+      text as recorded". `LocationStates` (`:2275-2279`) renders it on the work, board and evidence help pages as
+      today, and its opening "Each quote gap carries" names the evidence rows too (`verbs.go:300` already says they
+      are located as a quote gap is). The comments at `viewjson.go:865` (`EditedSince`) and `:2300-2306`
+      (`locateAnchor`: "bare … retired or never placed") name the causes: a cut, a retire, or a migrated mint that
+      never placed.
+    - **The test.** `TestWorkTeachesEveryLocationState` (`difftest/locationstate_test.go:17-38`) keeps both halves:
+      the three help pages with `GoneTeaching`'s words, and the engaged prompt's `gone` clause. The open-gap `gone`
+      assertions are rewritten as the pure cut they become, reading the gap open, `gone`, and on its lens's turn:
+      `cli/blueanswered_test.go:122`, `cli/gapanchor_test.go:414`; `retireanchor_test.go:457` is in the claim-shape
+      list (§III.11). `record/envelope_test.go:205-236` ("a retire this sitting that took its sentence out admits it")
+      drives the retired-this-sitting arm with two anchorless `Retire{Claim}` fixtures (`:227`, `:232`); it is
+      rewritten with a pure cut in their place, the arm re-keyed. The evidence rows' `gone` assertions
+      (`cli/evidencelocation_test.go:102`, `record/evidenceview_test.go:55`) stand.
   - **The other report-text writers:**
     - `ingest` refuses a part holding any anchor token. A part precedes every anchor op (`record/queries.go:378-383`),
       and no archive holds one.
@@ -1626,37 +1593,17 @@ and `~/.claude/scratch/p12/r2/`):
     |---|---|---|
     | `actjudge.go:123-128` (`judgeAct`) | L6: `requireCitationUncited(q, b.GetAnchors())` | **gains it**: `case *recordpb.BlueEdit: return requireCitationUncited(q, b.GetRemovedAnchors())`, the same function |
     | `record.go:1462-1476` (`validate`) | `--answers` refused on a claim retire (`!claim_kept`); `requireGap(answers)` | no: the claim-kept refusal is deleted with the field, and the edit already asks `requireGap(answers)` at `record.go:1081` |
-    | F14 (P12b's new `Retire` arm) | a retire of an OPEN gap's own `G-` is refused | no: a cut of an open gap's marker is the record's moot, or a for-red ruling's close of its own gap (ruling 4) |
+    | F14 (P12b's new `Retire` arm) | a retire of an OPEN gap's own `G-` is refused | no: a cut of an open gap's marker is its raiser's turn (ruling 4) |
 
     `judgeAct` has no other `Retire` arm, and validate's annotation sweep (required fields) is per body, not per act.
     The verb's own guards in `retireAnchor` (`cli/blue/retire.go:186-217`) hold no rule of L6's class: one anchor per
     retire, the anchor on a sentence of the report, and the evidence-kind and bare refusals P12b deletes; each is a
     shape check of the retire's flags, and the edit has its own located-span guard.
-  - **Every writer of a `BlueEdit` is held.** On `ae2b9a9fb` one site writes it: blue's `edit` (`cli/blue/edit.go:119`).
-    `edit.go:360` builds a `BlueEdit` only as `repeatsEdit`'s comparison body for a keyed retry, and
-    `record/reading.go:187` decodes a stored row; neither writes. #1889 adds one writer: the bench's `BlueEdit`
-    applying red's text in a for-red ruling's transaction (§III.B14 at c6ae0335b, `findings-fold.md:1776-1778`),
-    written through `appendBodies` under the bench seat and compared "exactly" with `PlanAccept`'s re-plan of red's
-    pair by validate's `DocketRuling` arm (`findings-fold.md:704`). An assignee's accept writes no `BlueEdit`: #1889's
-    B2 proposals are regrade, close and supersede only (`proposal.go:72-84` at c6ae0335b). At open (§V 13.1)
-    `census-edit-writers.txt` confirms, on #1889's merged write path, that the bench's edit stamps `removed_anchors`
-    through the edit's guard, that validate's exact comparison covers the stamped list, and that the record's moot
-    fires for a bench cut on every gap of the cut sentence OTHER than the gap the ruling answers (§III.10c ruling 4,
-    "The one gap the record does not moot"); a writer that does not gains each in P12b, and `TestACutIsHeldToL6` and
-    `TestACutGapIsMootByTheRecord` each gain a bench-cut case. The red road that cuts G's own sentence is narrow: an
-    empty `fix_new` is no fix (`mint.go:90`) and #1889 refuses a for-red answer with no red text, so the road is a
-    `fix_new` of terminators only. `TestACutGapIsMootByTheRecord`'s bench-cut case drives it: a for-red ruling whose
-    applied text cuts G's sentence, where another gap H also marks that sentence. G ends `repaired` by the ruling, with
-    no `harness` Close; G's docketing ends by the ruling; H is closed `moot` by the record.
-  - **#1889's text freeze.** #1889's freeze is two rules: L45 re-plans every standing road on each blue edit and
-    refuses the edit after which a road no longer places, and L48, while a supersede proposal stands, re-runs the
-    successor's mint checks after every act that moves an input (blue's edit and retire, and the assignee's own
-    `verify`, `reproduce` and `mint`) and refuses the act where they fail (`findings-fold.md:1754, 1767, 1986-1995,
-    2741` at 4b3e0341f). On #1889's B3 (`a971fd358`, per its owner 2026-11-22) L45 is `requireRoadsHold`, a guard at
-    the blue verb (`cli/blue/freeze.go`), and L48 is `judgeLanded`, a check after the act lands; neither is a
-    `judgeAct` case. P12b's L6 is its own `judgeAct` `case *recordpb.BlueEdit`, a check before the act lands, beside
-    the retire's call, the same function on `removed_anchors` (agreed with #1889's owner). P12b's census at open
-    confirms the three sites on #1889's merged code.
+  - **Every writer of a `BlueEdit` is held.** On main one site writes it: blue's `edit` (`cli/blue/edit.go:119` at
+    `ae2b9a9fb`). `edit.go:360` builds a `BlueEdit` only as `repeatsEdit`'s comparison body for a keyed retry, and
+    `record/reading.go:187` decodes a stored row; neither writes. At open (§V 13.1) `census-edit-writers.txt` confirms
+    the list. #1889's bench edit is not on main; on its rebase it stamps `removed_anchors` through the edit's guard and
+    is asked L6 by the same `judgeAct` arm.
   - **The list is on the body when `judgeAct` asks.** The edit's guard decides the cut and stamps
     `removed_anchors` on the body inside the write's transaction (a `Check` guard is asked before the write path's
     validation and "may fill fields of the body", `landing.go:5-11, 24-25`), so `validateAct` → `judgeAct` reads the
@@ -1717,181 +1664,59 @@ and `~/.claude/scratch/p12/r2/`):
     (`TestAClaimRetireTakesACitationWithTheComputationsApplyingIt`, in the claim-shape list), rewritten as the same-act
     cut of case 4.
 
-- **The record's moot: a real `Close`** [MODIFY `record/record.go`, `record/actjudge.go`, `record/deliveredtext.go`,
-  `record/demand.go`, `record/failedcheck.go`, `cli/blue/edit.go`; carriers below].
-  - **Written in the edit's transaction.** For each gap whose own `G-` token the edit's `removed_anchors` names, and
-    which is open at the write, the write path appends `Close{gap_id: G, disposition: moot, prose: <the record's
-    sentence>}` after the `BlueEdit`, in the same transaction, except for the gap a for-red ruling's bench edit
-    answers (below).
-    - **The for-red ruling's own gap is skipped.** The predicate reads fields the edit already carries: an edit
-      written under the bench seat skips the gap its `answers` names. Validate admits a bench `BlueEdit` only in a
-      for-red ruling's transaction (`findings-fold.md:2007` at 4b3e0341f, `record.go:990` on #1889's tree), so the
-      skip meets only the gap whose `DocketRuling{sided_with: RED, disposition: repaired}` follows the edit in that
-      transaction and closes it. No field is added. The ruling, not a Close, ends G's docketing (L42).
-    - **Mechanism: #1889's `writeIn` hook** (agreed with #1889's owner 2026-11-21, recorded on their side at
-      `~/.claude/scratch/1695/RULINGS.md:93-94`). The derivation
-      runs in `writeIn` beside `writeTombstones`, reading the edit's `removed_anchors` inside the transaction. When P12b
-      lands it rewords #1889's "the write path derives exactly one event body, `Tombstone`" (`findings-fold.md:1392` at
-      4b3e0341f, and the shipped comment beside `writeTombstones`) to "the write path derives
-      exactly the derived bodies, each from its own rule: `Tombstone` from the tombstone rule and the record's moot
-      `Close` from the cut rule". Any test pinning one derived body is in the sweep.
-    - **Why that hook.** The guard that decides the cut cannot write (`landing.go:45-47`). Computing the bodies before
-      BEGIN, as `appendBodies` does, would put a second copy of the cut decision outside the lock.
-    - **Order, the owner's condition.** The hook derives the moot `Close` BEFORE the tombstone end rows: the event
-      order inside the transaction is `BlueEdit` < each `Close` < each `Tombstone` end row. #1889's docketing ends at a
-      non-carry `Close` of G written after D's row (L42; `findings-fold.md:1856-1866` at c6ae0335b), read by
-      `gap_state.standing_docketing` and
-      `docketingsAt`, and `tombstonesOwed` reads the transaction after the Close, so the docketing's end and the
-      tombstone's end both read the post-edit state with G closed. Within the tombstone rows #1889's own order holds
-      (end rows first, then placements, `:1193-1194`). **The test:** `TestTheCutsCloseIsDerivedBeforeItsTombstoneEnd`
-      cuts a gap with a standing docketing on which no road stands and a standing estoppel row, and asserts the event
-      order, that
-      `standing_docketing` is empty and `tombstone_standing` holds no G row after the transaction, and that a
-      `tombstonesOwed` read inside the hook sees G closed. Swapping the two derivations turns it red (§V 13.3).
-    - **The derived Close derives nothing.** The `Close` is written through `writeIn`, so the hook runs for it too: a
-      `Close` removes no anchor and owes no tombstone row (#1889's end table, `:1210-1220`, has no `Close` arm), so it
-      derives nothing and the recursion ends at one level. The tombstone end rows are owed by the EDIT, whose
-      `removed_anchors` names G, not by the Close. `TestACutGapIsMootByTheRecord` has a subtest asserting the
-      transaction holds exactly the edit, one `Close` per cut open gap other than a for-red ruling's own, and the
-      edit's end rows.
-    - **Two identities in one hook, each from its own rule.** `writeTombstones` writes "under the act's identity"
-      (`findings-fold.md:1190`), so the cut's tombstone end rows carry the editing blue seat, as every edit-owed end
-      row does today: the end is a consequence of blue's edit, and no tombstone reader keys on the seat. The moot
-      `Close` is written under `record.HarnessSeat` (below), because Close readers do key on the seat
-      (`stale.go:111`, `retirement.go:322`, `available.go:249`, `gapacts.go:58`) and the close is no seat's act. The
-      hook stamps each derived body with the identity its own rule names; `TestACutGapIsMootByTheRecord` asserts the
-      Close's `seat_id` is `harness` and the end rows' is the editing seat.
-    - **Replay does not write it twice.** #1889's replay runs each archived act through `Replay.Write` → `appendAct` →
-      `writeIn` (`findings-fold.md:1318-1319`), so the hook re-derives the record's Close from the replayed edit's
-      `removed_anchors`. A stored record moot in the source stream is therefore not replayed: migrate's registry maps a
-      `Close` whose seat is `harness` and whose disposition is `moot` to no event, as #1889 maps `tombstone`
-      (`toNoEvent`, `:1331-1337`; #1889's R18, `:2134`, is the twice-written defect this prevents), and maps every
-      other `Close` by identity. Nothing names a Close by its event id (the
-      closure line reads the edit from `anchor_removal`), so the re-derived Close's new id breaks no reference.
-      No archive holds a record moot, so `TestARecordMootIsWrittenOnceOnReplay` writes a record at P12b's epoch
-      through the command tree, with a pure cut of an open gap's marker, migrates it, and asserts one Close per cut
-      gap and one tombstone end row per standing tombstone. It lives in `internal/cli`, beside `migrateorder_test.go`,
-      migrating through `runMigrate` (`migrateorder_test.go:21`, `feov-migrate`'s command in-process), where #1889's
-      T-B21 lives (`findings-fold.md:1092` at c6ae0335b): the command tree that builds the source is `internal/cli`'s.
-      **A same-epoch source migrates** (read at `ae2b9a9fb`): neither `OpenSQLite` (`migrate/sqlitesource.go:46-75`),
-      `migrate.Run` (`migrate.go:105-180`, which reads `SourceEpoch` only into the manifest, `:140-145, 179`) nor
-      `migratecli` refuses on the source's epoch; `SourceEpoch`'s comment states it is "reported rather than acted
-      on — migrate translates by CONTENT" (`sqlitesource.go:462-468`). The one epoch read that changes behaviour,
-      `replay.go:146` (`e >= computationEpoch`, 49 at `computations.go:339`), takes for a source at P12b's epoch the
-      branch every source at or after 49 takes.
-    - **Gaps already closed** get no close. `requireOpenGap` is never asked, because the derivation skips them.
-  - **Attribution (lead call, disclosed, reversible).** The close is written under `record.HarnessSeat`
-    (`cast.go:17-19`), never under the editing blue seat or the minting lens.
-    - **Why not the lens.** Lens attribution credits the lens with an act it never took. `retirement.go:322` would
-      count a productive sitting, `available.go:249` and `gapacts.go:58` would record an act on the gap, and
-      `stale.go:111` would never tell the lens.
-    - **Why not blue.** Blue attribution makes blue a closer of red's gap.
-    - **The record's sentence.** The close's prose is a fixed tool sentence ("its marked sentence left the report"),
-      which satisfies the `close` CHECK and validate's prose requirement without an exemption. The cutting edit is not
-      written into the prose: the closure line finds it from `anchor_removal` (the edit that removed G's token).
-  - **The exemption, readable from the stored event.**
-    - **The predicate.** `isRecordMoot(ev)` = `ev.seat_id == HarnessSeat` ∧ `close.disposition == moot`.
-    - **Validate refuses a HarnessSeat `Close`** that is not `moot`, whose prose is empty, or whose gap's own `G-` has
-      no edit-arm `anchor_removal` row at the close's position. This makes the record's own write refusable.
-    - **No seat can write as `harness`.** `register` and every verb refuse the seat id. A test pins this (below).
-    - **Validate's guards exempt exactly `isRecordMoot`:** `requireOriginator` (`record.go:1111, 1811-1826`), the
-      delivered-text rule (`record.go:1117` → `deliveredtext.go:93-99`) and the verification triple
-      (`record.go:1131-1134`). The prose requirement is met by the record's sentence, not exempted.
-    - **The judge-level guards get no exemption** (lead call, disclosed: RULINGS.md 11-20 "LEAD CALLS", not gblock's;
-      the approver reads it as unruled, §VI). gblock's 11-20 pick (RULINGS.md 11-20 audit r1 entry) named
-      "requireOriginator, delivered-text, demand" as exempt; the omission meets it for the demand guard by
-      non-judgement rather than by exemption, since `requireDemandMet` lives in `judgeAct` and never applies to a
-      derived row. `requireNoStandingDocket`, `requireDemandMet` and
-      `requireFailedCheckAnswered` live in `judgeAct` (`actjudge.go:74-96`), and `writeIn`'s derived rows are judged
-      by nothing, so an exemption there would be dead code. **Stated:** the record's moot is judged by nothing. A
-      standing docketing it ends by #1889's rule that any non-carry `Close` ends it (L42); an unmet demand and a
-      standing failed check do not hold it, because its gap's subject has left. `TestACutGapIsMootByTheRecord` has a
-      subtest cutting a gap with a road-less docketing (below), an unmet demand and a standing failed check, and the
-      Close lands.
-    - **A seat's close is still held by every one of these guards.** A `moot` close by the minting lens, by another
-      lens, and by blue is each refused as today (§V 13.2, `TestASeatsMootCloseIsStillHeld`, one subtest per guard:
-      the three validate guards and the three judge guards).
-  - **Every closure reader, against a Close written by the record** (census §3; each is checked by a test that drives a
-    pure cut through the command tree):
-    | reader | what it reads | record-written moot | change |
-    |---|---|---|---|
-    | `gap_state` closure CTE, `views.go:429-482` | any close is red's arm (`red_first`/`red_last`, `closed_by_bench` false) | wrong: reads as red's | the CTE reads a HarnessSeat close as the record's (`closed_by_record`), the gap view gains that column (`viewjson.go:443, 1209`, `views.go:403-445`, hand-authored; `gapstates.go`) |
-    | `consistency/consistency.go:199` | its own independent fold: every `Close` is `lastCloser = "red"` | wrong | gains the record's close INDEPENDENTLY (not by reading the view), with ruling 4's skip of a bench edit's `answers` gap; its `stalenessIn` bare arm and the "an edit never drops an anchor" comment (`:611-646`) are deleted as dead and false |
-    | `scorecard` `anchored_closures_pct` (`scorecard.go:150-170`) | a non-carried close without the triple in the denominator | wrong: caps the score below 100 | excludes `isRecordMoot` |
-    | `stale.go:111` | closes by other seats in a lens's stale list | right: the lens is told | none |
-    | `retirement.go:322`, `available.go:249`, `gapacts.go:58` | close by the seat | right under `harness` | none |
-    | `bluesittings.go:70-110` `engagementOf`/Fate; `sitting.go:689` `ClosedBySeat` | the class word; the header seat | word right; `ClosedBySeat` reads `harness` | "found closed" lines name the record, not a seat |
-    | `closingowed.go:115-133`, `gapacts.go:127` `fateActsOf`, `impasse.go:345`, `inquirycheck.go:138`, `successor.go:38`, `supersession.go:33`, `viewjson.go:623` `closeStateOf` | the first close; close as movement; `successor` (none) | right | none |
-    | `capture/capture.go:891` attestation | closes per sitting; triple-less closes skipped | right (sitting 0) | none |
-    | `report/assemble.go:1087-1120` `closureDetail`; docket `:974-1003`; CHANGELOG | prose; "verified by" only with a seat | renders the tool sentence | composes "moot: its sentence left the report with edit N", with N the edit's locator in seat-facing text (never an event id), the edit read from `anchor_removal` |
-    | `replay.go:243-285` `ClosureReason` | the close's class word | `moot` | none |
-    | `deliverytest/deliverytest.go:67` | a close stands on delivered text | misclassifies | follows `isRecordMoot` |
-    | `migrate/lostacts.go:35`, `proserefs.go:52`, `replay.go:816` | gap id; old prose anchors; acts on superseded gaps | right | none |
-    | `remand.go:162-195` `requireRemandOfOpenGap` (`remandedClosedGapSQL` joins `close_event`) | the last closing act and its seat, printed to the bench as "%s closed it at event %d" | wrong: prints `harness` and an event id in seat-facing text | the refusal names the record's moot as "the record closed it moot when edit <locator> cut its marked sentence", the edit read from `anchor_removal`; the seat arm's event id is reworded to the closing act's locator in the same `Sprintf` |
-    | `replay.go:395` `priorClosureEpochs` (`FROM "close"`), asked by validate's `--carried-from` check (`record.go:1127`) | every Close of the gap, by epoch | right: the record's moot is a closure, so a chair's carry may restate it | none |
-  - **The work list.**
-    - The minting lens's work list carries the close as a `news` item (`itemkind.go:32-34`, `answersretired.go`). The
-      lens's assignee hears it under #1889's assignee-equals-chain-origin rule.
-    - The cut itself reaches every lens whose area it is in as a text change in P3's changes set, so harm done
-      elsewhere is minted fresh (ruling 1).
-  - **A remanded gap** closes. Its remand exchange stops because the gap is no longer open (`gapstate.go:305-310`).
-  - **A docketed gap: the dependency, stated as a property.** #1889 owns the docketing's end. It ends a docketing at
-    any non-carry `Close` of G written after the docketing's row (L42), with no moot-specific path
-    (`plans/findings-fold.md:140, 1643, 1856-1866` at c6ae0335b; L42 at 4b3e0341f, `:2133-2135`).
-    - The property P12b needs: **any non-carry `Close` of G ends G's standing docketing with no ruling, the PASS is
-      not held by it, and judgments.md prints it as ended by the close, not ruled.**
-    - P12b adds no moot-specific docket path. It tests the property with the record's close (§III.12).
-    - **A docketed cut needs a road-less docketing.** L45 refuses blue's edit of a docketed G while red's road stands
-      (the edit after which the road no longer places), so blue cannot cut G's sentence then. Every docketed-cut test
-      (`TestACutGapIsMootByTheRecord`, `TestTheCutsCloseIsDerivedBeforeItsTombstoneEnd`, `TestACutEndsItsDocketing`,
-      and §III.12's docketed-cut drives) builds a docketing on which no road stands: a `GRADE_MOVEMENT` docketing, or
-      one whose red closing is filed `--no-text` (L49). A cut while a road stands is L45's refusal, not this
-      property.
-    - #1889 text worded for its own world (a bare or gone token) stays as #1889 ships it and is swept HERE when P12b
-      lands (line numbers at c6ae0335b): D12 (`:502`); L21 (`:2310`, "a gone or bare token … or by a later cut"); the
-      end table's quote row and its "a section; a quote whose token was bare or gone … or whose sentence a later edit
-      cuts" row (`:1210-1220`); the estoppel end paragraph and "A cut ends none (picked 2026-11-14) … no field records
-      a cut, and none is added" (`:1225-1237`), which `removed_anchors` makes false; `tombstone_standing` (`:1167`); the
-      fuzz gauge `tombstones_kept_by_cut` (`:1054`, which flips); and "the write path derives exactly one event body,
-      `Tombstone`" (`:1392` at 4b3e0341f), reworded as above.
-    - **The write hook is agreed** and recorded on #1889's side (`~/.claude/scratch/1695/RULINGS.md:93-94`,
-      2026-11-21): P12b uses #1889's existing `writeIn` hook, worded "exactly the derived bodies, each from its own
-      rule", on the condition that the moot `Close` is derived before the tombstone end row, which the order above
-      meets and `TestTheCutsCloseIsDerivedBeforeItsTombstoneEnd` pins. #1889's owner accepted P12b's three conditions
-      in the same entry: the for-red ruling's own gap is skipped (ruling 4), a placement on a token the same edit
-      removed is not written (F16, below), and docketed-cut tests use a road-less docketing (above).
-- **The tombstone's cut end (F16)** [MODIFY #1889's `record/tombstone.go`, `writeTombstones`, the `tombstone_standing`
-  view, migrate's tombstone re-derivation].
-  - A pure cut that removes G's token writes, in its own transaction and through the same `writeIn` hook, the end row
-    of every tombstone standing on G: G's ruling tombstone and any estoppel row on G. `tombstonesOwed`'s end arm reads
-    the edit's `removed_anchors` as it reads a retire's `anchors`: G's own token for a quote gap, and an anchor X for
-    the gaps about X (`mint_about`), which today end only by X's retire or a reword of X's sentence
-    (`findings-fold.md:1210-1220`). The rows are written after the record's `Close` and under the editing seat's
-    identity (above).
-  - **A placement on a token the same edit removed is not written** (lead call, disclosed, agreed with #1889's owner
-    2026-11-21, `~/.claude/scratch/1695/RULINGS.md:93-94`; #1889's B3 words its placement rows "a placement is
-    written only on a token standing after the edit"). A tombstone placement, a ruling tombstone or an estoppel row
-    whose token the edit in the same transaction removed is not written; it is never written and then ended. Two acts
-    meet it:
-    - blue's verbatim edit answering G whose prescription is a pure cut of G's sentence: the record moots G, and no
-      estoppel row on G is placed;
-    - a for-red ruling whose bench edit cuts G's sentence (ruling 4's skip): G closes `repaired` by the ruling, and
-      the ruling's tombstone on G is not placed. (The bench's edit places no estoppel row: on #1889 estoppel rows come
-      only from blue's verbatim accept, and a bench ruling for either side places the ruling tombstone — gblock
-      2026-11-22, relayed by #1889's owner: "Estoppel applies to the judges ruling for either side.")
-
-    `TestACutEndsItsTombstone` has a subtest for each: after the transaction `tombstone_standing` holds no G row and
-    the `tombstone` table holds no placing row for G written in it.
-  - The view's "a placing row with no later row on the same pair" (`findings-fold.md:1167`) then reads it ended.
-  - T-B20's recompute (`TestArchivedRunsCarryTheirTombstones`) and the fuzz oracle's test-side fold gain the arm.
-  - After the cut G's tombstone no longer bars a supersede proposal (F8); other proposals are refused because G is
-    closed. The estoppel lapses with the text (#1889's owner 2026-11-21; their R28 reads "barred while G's tombstone
-    stands; a reword, or a pure cut (P12b), ends it"). A same-class mint at another sentence lands.
-  - A grade ruling's lock ends with its tombstone (#1889, gblock 2026-11-21, `f9a0f29da`). #1889's B3 (`ba64f7b64`)
-    folds the lock from the RULING end rows (`benchSetAxesOf`): one ruling end row on G ends every lock any ruling on G
-    set, a successor's inherited lock included. So the cut's end path writes G's ruling end row in the cutting edit's
-    transaction, and the lock ends with it; nothing else changes. `TestACutEndsItsTombstone` gains a subtest: a cut of
-    a gap under a grade lock (its own and an inherited one) leaves no lock standing.
+- **The raiser's turn** (ruling 4, F21) [MODIFY `record/gapacts.go`, `record/deliveredtext.go`, `record/deliverycut.go`,
+  `record/blueanswered.go`, `record/sitting.go`, `record/viewjson.go`; line numbers on main].
+  - **The record writes no `Close`.** A pure cut removes G's marker and records it in `removed_anchors`; G stays open,
+    reading `gone`, until its minting lens acts. The edit's transaction holds the edit alone.
+  - **The cut readies the raiser: the lens turn reads the list.** `lensTurnActsOf` (`gapacts.go:247-267`) gains a
+    `BlueEdit` arm: each gap whose own marker the edit's `removed_anchors` names gets a turn act at the edit, under the
+    editing seat, as a `reopened` entry does (`:252-256`). Its callers then ready and engage the lens:
+    `impasse.go:356` sets `lensTurn` and `lensGoesFirst` (`:188-198, 416`), and `lensturn.go:51`
+    (`EarlyLensDispatches`) dispatches it. `reopened` keeps its meaning (an anchor whose sentence changed and still
+    stands); the removal is its own recorded list, read beside it. Without the arm, a cut by an edit answering another
+    gap, or none, gives G's lens no turn (§III.10c census).
+  - **What the lens is served.** The cut stales the lens's delivery of G: `changedSinceSQL` (`deliveredtext.go:84`)
+    unions `blue_edit_removed_anchors`, so a close in a sitting whose delivery predates the cut is refused by the
+    delivered-text rule. G's passage is the cut: `latestReopeningSQL` (`deliverycut.go:345-347`) unions the edit arm,
+    so `gapPassages` (`:349-392`) serves the cutting edit's `old_paragraphs` under "AS IT STOOD BEFORE THE CHANGE THAT
+    REMOVED ITS TEXT" (`:379-387`). The comment at `record.go:1094-1096` ("a gap whose anchor an edit left bare or a
+    retire removed") names the cut.
+  - **What the work list says.** `blueAnswers`' `gone` item (`blueanswered.go:98-99`: "its anchor is no longer in the
+    report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade")
+    fires on the lens's turn (`turn[g]`) as well as when blue was engaged, ahead of the `turn[g]` item's "an edit
+    changed its sentence", which is false of a cut. The engaged-lens `gone` clause (`debate.js:909`) stays.
+  - **The lens's close stands under every guard as written.** For a cut marker:
+    - `requireOriginator`: the minting lens closes its own gap;
+    - the delivered-text rule: met once the lens's delivery after the cut is complete (above);
+    - the verification triple: the lens supplies it, verified against the report as it stands; no exemption;
+    - `requireDemandMet`: a `--quote` computation or source gap's demand is met when its own marker leaves (arm 4,
+      read from the edit arm, below); an about-anchor gap's when its anchor leaves (arm 2, from `anchor_removal`); a
+      gap of any other check kind carries no demand;
+    - `requireFailedCheckAnswered` (`failedcheck.go:222`): a failed check on an anchor the cut removed clears, because
+      `anchorChecksOf`'s `BlueEdit` arm marks each removed anchor retired (the fold table, below);
+    - `requireNoStandingDocket`: a cut under a docketing is #1889's interaction, out of scope.
+  - **Or the lens keeps it, or the exchange limits docket it.** A lens that finds the defect still standing keeps G
+    with a regrade; a defect at another sentence is a new gap at that sentence (P12a, one gap per site). A gap whose
+    turns run out goes to the bench by the exchange limits as today (`exchangeFold`); how a docketed gap whose marker
+    is gone is ruled is #1889's.
+  - **A retired minter.** P4 D(1) reads `reopened` ∪ the edit arm (below), so the cut re-readies a retired minter.
+  - **A remanded gap** stays open; its remand exchange continues on the lens's turn.
+  - **The test.** `TestACutReadiesItsRaiser` (`internal/cli`, through the command tree):
+    1. blue cuts G's sentence with an edit answering another gap H, and separately with no `--answers`: G stays open
+       and reads `gone`, the edit's transaction holds the edit alone, and G's minting lens holds a turn on G
+       (`lensTurnOn`) and is readied;
+    2. the lens's work list names G with the `gone` item;
+    3. a close in a sitting whose delivery predates the cut is refused by the delivered-text rule; after its next
+       complete delivery, whose G passage is the cutting edit's old paragraph, the lens's `moot` close with the triple
+       lands;
+    4. a `--quote` computation gap's `moot` lands once its marker is cut (arm 4);
+    5. a gap carrying a failed check on a citation the cut took closes;
+    6. the lens keeps G with a regrade instead, and G stays open.
+- **F16 on #1889's rebase** (F16, ruled by gblock 2026-11-20; kept by F21). Main holds no tombstone, and `writeIn`
+  (`record.go:793` on main) is the ordinary single-event write. P12b records what a tombstone's end reads:
+  `removed_anchors` and `anchor_removal` name every token a cut took, at the edit. #1889, rebased onto P12b, builds two
+  rules on that record: a pure cut that removes a token ends every tombstone standing on it (G's ruling tombstone and
+  any estoppel row on G), and a placement on a token the same edit removed is not written. Neither is P12b code.
 - **One view of an anchor leaving the report** [NEW `anchor_removal` in `recordsql/views.go`: one row per anchor that
   left, `(anchor_id, event_id, by)`, with `by` ∈ {`retire`, `edit`}].
   - The retire arm is `retire_anchors`. The edit arm is `blue_edit_removed_anchors` (F17 (a)). Both child tables are
@@ -1918,7 +1743,7 @@ and `~/.claude/scratch/p12/r2/`):
     |---|---|---|
     | `countsat.go:53-56` | `Retire.anchors` into the retired set | reads the list: a `BlueEdit` arm adds `removed_anchors` |
     | `answersretired.go:83` `retiredAnswersAt` | the answer anchors the act at `at` took out (the act is `gap_state.answers_retired_event`, from `anchor_removal`) | reads the list: a `BlueEdit` arm at `at`; its news line says "taken out" for a retire or a cut |
-    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case | deleted with that case: no live write leaves an open gap `gone` under P12b (its marker leaves only by a cut that closes it, F14 refuses its retire, and its about-anchor leaving meets its demand; a migrated never-placed mint has no archived instance, §III.10c "One location state"), so the bool has no reader |
+    | `sitting.go:746` `answeredByActThisSitting` (`retired`) | whether blue retired this sitting, read only by `sitting.go:331`'s `LocationGone` case | re-keyed: `retired` reads whether blue's edit this sitting removed the gap's anchor (a `BlueEdit` arm on `removed_anchors`), since a retire never takes a sentence under P12b; its one reader (`sitting.go:328` on main) reads "your cut this sitting took its sentence out" |
     | `evidenceview.go:407` `Retires` | one row per retire act: claim, reason, anchors | stays retire-only (losing the three fields): the rows describe retire acts, and a cut is an edit; listing it there would read a cut as a retire. The cut's anchors reach the view through `:484` |
     | `evidenceview.go:484` `retiredBy` | the first act that took each anchor out, with its reason | reads the list: a `BlueEdit` arm records the edit's id and `--reason` |
     | `impasse.go:333` `exchangeFold` | the retire's answered gap and `win.Reaches(e)` | DB read: a `BlueEdit` arm adds `win.Reaches(e)`, so a cut reaching a gap moves it as a retire does (today an edit moves only its `--answers` gap, `:313-316`) |
@@ -1939,18 +1764,20 @@ and `~/.claude/scratch/p12/r2/`):
     inside one event; it orders by `event_id, ord`.) The splice
     takes no token (above), so every remove finds its token, and a later retire of a removed anchor is refused at the
     write, because the anchor is not in the report: `removeMut`'s loud failure stays correct.
-  - **The `reopened` readers union the edit arm**, so a cut anchor's passage and the delivery it stales are served:
+  - **The `reopened` readers union the edit arm**, so a cut anchor's lens turn, passage and stale delivery are served
+    (line numbers on main):
+    - `gapacts.go:247-267` `lensTurnActsOf` (the raiser's turn, above);
     - `deliveredtext.go:84` `changedSinceSQL`;
-    - `record/deliverycut.go:345-385` `latestReopeningSQL`;
-    - `anchorchecks.go:262`;
-    - `gapacts.go:221`;
-    - `estoppel.go:97` (or #1889's tombstone end rule, which F16 extends);
-    - `viewjson.go:858, 1055, 2231-2235`;
+    - `deliverycut.go:345-347` `latestReopeningSQL`;
+    - `anchorchecks.go:78, 262`;
+    - `estoppel.go:65-70, 97`;
+    - `viewjson.go:2208-2211` `reopeningEditsAt`, so `edited_since` lists the cut (`:862-866`);
+    - `consistency/consistency.go:580, 612`;
     - `runtest/reopened.go`.
 
     So do this plan's own readers of `reopened`:
     - **P4 D(1)** (§III.4: "an edit whose `reopened` lists an anchor of a gap it minted" re-readies a retired lens). The
-      cut of G's own marker re-readies its retired minter, and the news item is then read in a sitting.
+      cut of G's own marker re-readies its retired minter, and the `gone` item is then read in a sitting.
     - **P8** (§III.8: "no `blue_edit` … listing G′ in `reopened`", #1824's reword rule). A cut of G′'s marker counts as
       the reword it is.
     - **§V 9.3's third query**, which reads `blue_edit_reopened ∪` the edit arm.
@@ -1960,18 +1787,17 @@ and `~/.claude/scratch/p12/r2/`):
     `answered.live` and `answers_retired_event`); the gaps whose demand reaches it (`reachingSQL`); and P12a's lineage
     arm, `SELECT "gap_id" FROM "demand_lineage" WHERE "from_gap" = NEW."value"`, which names the gap whose own marker
     left and every heir carrying its demand.
-  - **Arm 4 stays, read from `anchor_removal`'s edit arm only (`by = 'edit'`).** A superseded ancestor is closed, so a
-    pure cut of its marker writes no record close, and its heir's demand is met only by arm 4: without it, the heir
-    would be met when the ancestor's marker leaves with its claim by retire (P12a) and never when it leaves by cut, and
-    arm 2 cannot stand in, because it reads `anchor_removal` only through `demand_reach`, whose rows are the gap's
-    about-anchors (`about_kind = 'anchor'`). The retire arm is excluded: under P12b a retire is anchor-only and keeps
-    its sentence, and F14 admits one on a CLOSED gap's marker, so `retire --anchor <ancestor's G->` would otherwise
-    meet the heir's demand while the claim still stands. **The property:** P12b's `met` holds for every lineage member
-    whose marker left the report WITH ITS CLAIM, exactly where P12a's arm 4 held for a claim retire, and never for a
-    marker retired off a standing sentence. For an open gap's own marker the arm is redundant with the record's close
-    in the same transaction, and harmless; it is kept because one arm states the demand's end for every lineage
-    member, and `DemandClause` stays as P12a wrote it. One order it does not meet: an F14 retire of a closed
-    ancestor's marker followed by a cut of its claim, stated as residue in §III.10b ("the F14-then-cut order").
+  - **Arm 4 stays, read from `anchor_removal`'s edit arm only (`by = 'edit'`).** It is what admits the minting lens's
+    `moot` once a cut takes a `--quote` gap's own marker, and what meets a superseded ancestor's heir's demand when the
+    ancestor's marker leaves with its claim (the ancestor is closed, so its lens has no turn on it). Without it the
+    heir would be met when the marker leaves by retire (P12a) and never when it leaves by cut, and arm 2 cannot stand
+    in, because it reads `anchor_removal` only through `demand_reach`, whose rows are the gap's about-anchors
+    (`about_kind = 'anchor'`). The retire arm is excluded: under P12b a retire is anchor-only and keeps its sentence,
+    and F14 admits one on a CLOSED gap's marker, so `retire --anchor <ancestor's G->` would otherwise meet the heir's
+    demand while the claim still stands. **The property:** P12b's `met` holds for every lineage member whose marker
+    left the report WITH ITS CLAIM, exactly where P12a's arm 4 held for a claim retire, and never for a marker retired
+    off a standing sentence. `DemandClause` stays as P12a wrote it. One order it does not meet: an F14 retire of a
+    closed ancestor's marker followed by a cut of its claim, stated as residue in §III.10b ("the F14-then-cut order").
   - **The `retire_anchors` marker loses P12a's lineage arm.** No retire changes arm 4 under P12b, so the arm would name
     gaps no retire can move; its other two arms stay.
   - **The test.** `gapStateSteps` (`gapstate_test.go:145`, run by `TestTheStoredGapStateIsTheRules`) gains five steps:
@@ -2024,7 +1850,7 @@ and `~/.claude/scratch/p12/r2/`):
       sentence. A REACHING RETIRE moves each gap it reaches…". This becomes "an anchor's removal, by a retire or a
       cut, moves each gap it reaches". `exchangeFold`'s retire arm (`:330-342`) reads `anchor_removal`, so a cut that
       reaches a gap moves it as a retire does. Today a `BlueEdit` moves only its `--answers` gap (`:313-316`).
-    - `supersession.go:13-16` and `gapstate.go:196-203` (above).
+    - `record.go:1094-1096` (the delivered-text comment, above).
   - **Agentgen sources.**
     - `blue-synthesizer.md:13-14`.
     - `fragments/blue-additive-only.md:1`: its "what replaces it" is `superseded_by`'s concept.
@@ -2035,22 +1861,21 @@ and `~/.claude/scratch/p12/r2/`):
     - The 12 agent definitions are regenerated.
   - **`terms.json`.**
     - `:591` "anchor", `:802-803` "retire", and `:1159-1160` (the `superseded_by (retire)` disambiguation).
-    - [NEW] "pure cut" and "moot by the record", if their name check is clean.
+    - [NEW] "pure cut", if its name check is clean.
     - Then `vocabdoc`.
   - **The simulator.**
     - The prompt goldens: `prompt-blue-synthesize.golden:6, 13`, `prompt-blue-respond.golden:51, 57`, and
       `debate.test.mjs:806`.
     - The bait text in `seatprobe/boards.go:283-291`.
-  - **debate.js.** Neither enginegen region carries a retire kind, so neither regenerates. The authored `lensPrompt`
-    (`debate.js:910`) loses its `` `gone` `` clause (§III.10c "One location state"), and the engaged lens prompt
-    goldens change with it.
-- **Migrate** (one epoch, the next free after P3's, #1889's and P12a's, §III.10b "Epoch"; F18 RULED (A); translation
-  4 RULED 2026-11-21 for b3, b6 and b9; translation 6 RULED 2026-11-21 as F20 (B)). Six translations, each run on
-  every committed archive (the 39 of "What P12b buys").
+  - **debate.js.** Neither enginegen region carries a retire kind, so neither regenerates. The authored `lensPrompt`'s
+    `gone` clause (`debate.js:909` on main) stays: under P12b it is true of every open gap reading `gone`.
+- **Migrate** (one epoch, 82, §III.10c "Epoch"; F18 RULED (A); translation 4 RULED 2026-11-21 for b3, b6 and b9;
+  translation 6 RULED 2026-11-21 as F20 (B); no `Close` written, F21). Translations 1, 2, 4 and 6 write; 3 and 5 state
+  what migrate does not write. Each runs on every committed archive (the 39 of "What P12b buys").
 
   **The full-set measurement** (`~/.claude/scratch/p12/r5/`, `SUMMARY.txt`). A scratch test in the migrate package
   migrated all 39 archives with `migrate.MigratedArchive` in two trees, #1889's c6ae0335b (Part A: no `F-`) and
-  P3's tip ae2b9a9fb (`F-` present), since neither is P12b's base. It folded the report op-event by op-event
+  P3's tip ae2b9a9fb (`F-` present, as on main, P12b's base; the census at open re-runs it there, §V 13.1). It folded the report op-event by op-event
   (`reportproj.Replay` over `recordsql.ReportOpsBetween`), read `claimcount.BareAnchorIDs` after each op event, and
   classified every `Retire` body. Results:
   - Both trees: 0 refusals in all 39. The 7 runs of 2026-08-22 to 09-02 record no part, so they have no report and
@@ -2089,50 +1914,49 @@ and `~/.claude/scratch/p12/r2/`):
 
        Measured on the migrated archives (F18), unchanged over the 39: 3 fold into a cut, 10 become anchor-only
        retires (m19 3, mersenne 4, eiffel 11-04 2, m37 1), m36's 442 is dropped under F14, and 2 hold only `F-`
-       anchors (m32 382, m35 259) and go with #1889. On #1889's tree those 2 read anchorless, so a count taken there
-       reads 94 and 14. `TestAClaimRetireFoldsIntoItsCut` pins the split over every committed archive (§V 13.4).
-  3. **The record's moot.** Migrate writes no `Close`. The replay runs each folded edit, and each translation-4 edit,
-     through `writeIn`, whose hook derives the record's `Close` (`harness`, `moot`) for each open gap whose marker the
-     filled `removed_anchors` names, and then the tombstone end rows (translation 5), exactly as a live cut does. A
-     source stream already holding a record moot drops it (`toNoEvent`, above), so the Close is written once. Acts on
-     the gap after it that replay refuses are listed in the manifest's `lost_acts`, as P3's dropped acts are. An act
-     validate still admits on a closed gap lands as written: a mint whose `supersedes` names a closed ancestor is
-     lineage only (`requireSupersedable`, `supersession.go:71-75`). F18 and translation 4 give the per-gap residue.
+       anchors (m32 382, m35 259). `F-` stands on main, so those 2 are classified at open by the same rule ("The `F-`
+       population", below), and the split is 92 anchorless and 16 anchored. `TestAClaimRetireFoldsIntoItsCut` pins it
+       over every committed archive (§V 13.4).
+  3. **No moot is written** (F21). Migrate writes no `Close`, and replay derives none. A folded edit and a
+     translation-4 edit carry the filled `removed_anchors`, and each gap keeps the fate its replayed acts give it. A
+     later act on the gap lands or drops by the rules replay applies; each dropped act is in the manifest's
+     `lost_acts`, as P3's dropped acts are.
   4. **A cut with no retire** (RULED by gblock 2026-11-21, picked: "the same as F18"; it covers b3, b6 and b9 only,
      RULINGS.md 11-21 "P12 audit r4" and "F20 ruled" entries). An archived pure cut that left a gap marker on no words,
      with no retire after it, migrates as the pure cut it was: migrate fills the edit's `removed_anchors` with the
-     tokens it bared, and the replay's hook writes the record's `moot` at that edit. Later closes and supersessions of
-     those gaps drop as lost acts, and each is listed. Of the 7 tokens left on no words at a run's end, these three `G-`
-     are cuts; m26's four are rewrites (translation 6).
+     tokens it bared. No `Close` is written (translation 3), so the gap stays as replay leaves it: open, reading
+     `gone`, the run ended on its lens's turn. Of the 7 tokens other than `F-` left on no words at a run's end, these
+     three `G-` are cuts; m26's four are rewrites (translation 6).
 
      | run | gap (minted) | the cut | at P3's tip | under translation 4 | later acts naming it in a field |
      |---|---|---|---|---|---|
-     | b3 | G-19b1727b (76 {71}) | 92 {87}: `new` is the token alone | open; docket motion 132 unruled (the bench's ruling {142} already lost to P3's delivery rule) | `moot` at 92 | `answers` on edits 94-96, 134-136; dispatch `gap_ids` 117, 118, 141; motion 132 |
-     | b6 | G-68c6ecf7 (126 {116}) | 144 {134}: `new` is "." and the token, a cut of the parenthetical sentence | open (lens close {160} already lost) | `moot` at 144 | `answers` on edits 145-149; dispatch 157, 158 |
-     | b9 | G-8bd21b5d (88 {87}) | 109 {105}: `new` is the token alone | open (lens close {120} already lost) | `moot` at 109 | dispatch 116, 117 |
-
-     - **What drops: expected nothing.** Validate refuses an act on a closed gap only for a fresh `Close`
-       (`record.go:1192`), a `Regrade` (`:1307`), a grade motion (`:1333`) and a remand (`positionheard.go:130`), on
-       ae2b9a9fb. None of those follows any of the three cuts at P3's tip, because P3's delivery rule already lost
-       each later close. Every act in the last column is one validate admits on a closed gap, so each lands as
-       written: `answers` and dispatch `gap_ids` pass `requireGap` (`refs.go:160-172`), which checks only that the gap
-       exists, and a docket motion carries no open-gap check (`record.go:1366-1368`). So the ruling's "later closes
-       drop" is already met: P3 lost the closes. The first migration's `lost_acts` is compared with this expectation,
-       and a difference widens the residue before code.
-     - **F18's table, read against the same rules.** Its `answers` (m28 514, 586) and dispatch `gap_ids` (wave-a 321,
-       324; m28 522, 530, 608; m37 999, 1000) land as written: validate checks only that the gap exists, for `answers`
-       (`record.go:1056, 1081`) and for dispatch `gap_ids` (`:1514`), and replay never runs `judgeAct`
-       (`actjudge.go:24-26`). m28's docket motion 601 lands too (no open-gap check, `record.go:1366-1368`). F18's table
-       lists them as landing. The acts it expects dropped are each refused by a named rule (m37's close 1019, a fresh
-       `Close` on a closed gap, `:1192`; m28's regrade 566, `:1307`) or are left to the first migration (m28's closing
-       660 and the `declare_gap_ids` entry at 666, which no rule named here decides); a difference there widens the
-       residue before code.
-     - **The check.** After translations 2, 4 and 6, migrate REFUSES, loudly, a record whose final report still
-       holds a token on no words. `TestNoMigratedArchiveHoldsABareAnchor` reads every committed archive's migrated
-       final render: `BareAnchorIDs` is ∅, and each gap in the table above ends `moot` at its cut, with its Close
-       written once.
-  5. **The tombstones.** The replay's `writeTombstones` ends a tombstone on G at the folded cut (F16), after the
-     derived Close; T-B20 (`TestArchivedRunsCarryTheirTombstones`) recomputes it.
+     | b3 | G-19b1727b (76 {71}) | 92 {87}: `new` is the token alone | open; docket motion 132 unruled (the bench's ruling {142} already lost to P3's delivery rule) | open, `gone` from 92 | `answers` on edits 94-96, 134-136; dispatch `gap_ids` 117, 118, 141; motion 132 |
+     | b6 | G-68c6ecf7 (126 {116}) | 144 {134}: `new` is "." and the token, a cut of the parenthetical sentence | open (lens close {160} already lost) | open, `gone` from 144 | `answers` on edits 145-149; dispatch 157, 158 |
+     | b9 | G-8bd21b5d (88 {87}) | 109 {105}: `new` is the token alone | open (lens close {120} already lost) | open, `gone` from 109 | dispatch 116, 117 |
+     - **What drops: expected nothing.** Migrate closes no gap, so no act on these gaps meets validate's closed-gap
+       refusals (a fresh `Close`, `record.go:1192`; a `Regrade`, `:1307`; a grade motion, `:1333`; a remand,
+       `positionheard.go:130`, on ae2b9a9fb). Every act in the last column lands as written: `answers` and dispatch
+       `gap_ids` pass `requireGap` (`refs.go:160-172`), which checks only that the gap exists, and a docket motion
+       carries no open-gap check (`record.go:1366-1368`). The first migration's `lost_acts` is compared with this
+       expectation, and a difference widens the residue before code.
+     - **F18's table, read against the same rules.** With no moot written, F18's four gaps keep the fates they have at
+       P3's tip (F18's table, "migrated today"): m37's G-477feea1 stays `repaired` at 1019, and the other three stay
+       open, each reading `gone` from its folded cut. The acts F18's table once dropped on a closed gap (m37's close
+       1019, m28's regrade 566) land as written; m28's closing 660 and the `declare_gap_ids` entry at 666 are left to
+       the first migration, and a difference widens the residue before code.
+     - **The check.** After translations 2, 4 and 6, migrate REFUSES, loudly, a record whose final report still holds
+       a token on no words. `TestNoMigratedArchiveHoldsABareAnchor` reads every committed archive's migrated final
+       render: `BareAnchorIDs` is ∅, and each gap in the table above has its marker in its cut's `removed_anchors`,
+       reads `gone`, and has no `Close` migrate wrote.
+     - **The `F-` population** (open thread, unruled). On main `F-` is an anchor kind, so the `F-` tokens the
+       measurement set aside are P12b's: the baring edits m28 265 (re-attached by edit 276, retired at 510) and m32
+       381, the `F-`-only claim retires m32 382 and m35 259, and the `F-` tokens left on no words at a run's end (m19
+       4, m26 7, read by r2). No ruling covers them: translation 4 is ruled for b3, b6 and b9, translation 6 for m26's
+       four. The census at open (§V 13.1) runs the full-set measurement with `F-` counted, classifies each token by
+       translations 2, 4 and 6's predicates, and brings every `F-` token no predicate selects to gblock as a fork
+       before code; until then `TestNoMigratedArchiveHoldsABareAnchor` refuses m19 and m26.
+  5. **No tombstone is written.** Main holds none; #1889's re-derivation reads the filled `removed_anchors` on its
+     rebase (F16).
   6. **A rewrite that left a token past its sentence's full stop is re-seated** (F20, RULED by gblock 2026-11-21,
      picked (B): they were rewrites, and both gaps keep their history).
      - **The predicate, decided from what each archived edit WROTE.** An archived edit whose stored `new` holds prose
@@ -2144,7 +1968,7 @@ and `~/.claude/scratch/p12/r2/`):
        exactly m26's four: b3's and b9's `new` hold the token alone, b6's holds "." and the token (`HasProse(".")` is
        false), F18's pairs hold no prose, and mersenne's three and eiffel's one put the token at the head of `new`
        (c6ae0335b ids 358, 364, 618 and 343; P3-tip 407, 413, 698 and 375).
-     - Nothing is removed, no `removed_anchors` is filled, and no Close is derived. The population is m26's four (ids
+     - Nothing is removed, and no `removed_anchors` is filled. The population is m26's four (ids
        P3-tip, c6ae0335b in braces):
 
      | token | the rewrite | the sentence it lands inside | fate (unchanged) |
@@ -2156,7 +1980,8 @@ and `~/.claude/scratch/p12/r2/`):
 
      - **Later edits that quote a moved token.** On P3's tip edit 260 quotes G-0f2d72fd's token in its `old` and
        `new`; the translation rewrites every later stored `old` and `new` that holds the moved run the same way. On
-       #1889's tree that edit is gone with its `F-` tokens; P12b's base is read at open.
+       main, P12b's base, that edit stands with its `F-` tokens, and its stored `old` and `new` are rewritten, read at
+       open.
      - **Render bytes.** m26's final report moves by the four tokens' positions, and every archived golden that reads
        m26's claims or gap locations moves with it. Once re-seated, the two `C-` count as claims again
        (`segmentLabels` needs prose before the token), so m26's per-kind claim counts move. On ae2b9a9fb three migrate
@@ -2189,41 +2014,42 @@ and `~/.claude/scratch/p12/r2/`):
 
   **Residue, stated:**
   - The claim text, reason and `superseded_by` of 108 claim retires are lost; each edit keeps its own `--reason`.
-  - Seven archived gap fates change, and their later acts drop or land as written: F18's 4 and translation 4's 3.
+  - No archived gap fate changes by migrate. The 7 gaps whose marker a fold or translation 4 takes (F18's 4,
+    translation 4's 3) keep their fates as at P3's tip; 6 of them end open, reading `gone`, with the run ended on
+    their lens's turn.
   - m26's four tokens move inside their sentences, and its final report bytes change by their positions
     (translation 6).
   - Acts between a cut and its archived retire saw the token bare, and so did the acts between each of the four
     archived rewrites (mersenne 3, eiffel 11-04 1) and the retire of its token.
   - b3's, b6's and b9's final reports each lose one bare `G-` token that the archive still holds.
   - Each stored archived outcome is carried as history (F10's rule).
-- **Epoch.** One bump, the next free after P3, #1889 and P12a have all merged (whoever lands second renumbers, as
-  §III.10b states). It covers all of these:
+  - The `F-` population is unclassified until open (above).
+- **Epoch.** One bump: 82, main's 81 plus one (`requirements.json:3` on af3e6ccbe; whoever lands second renumbers).
+  It covers all of these:
   - `Retire` loses three fields;
   - `BlueEdit.removed_anchors` and its child table `blue_edit_removed_anchors` (F17 (a));
   - the `change`, `evidence_anchor` and `report_op` views change (`report_op` gains its intra-event `ord`), and
     `anchor_removal` is new;
-  - `gap_state`'s closure CTE gains `closed_by_record`;
-  - the gap view gains its column;
   - one marker is added.
 
 **Supersedes in this plan.** These statements stand as P3, P4 and P8 ship them, and each is superseded when P12b lands:
 - §I's Fields row: "`reopened` … lists an anchor the edit leaves bare".
-- §I criterion 2: "a gap whose anchor is gone included".
-- §III.12's P3 drives "A bared anchor" and "A gone anchor".
+- §III.12's P3 drive "A bared anchor".
 - §III.12's `bluedoc` unit test: "an edit that leaves a gap anchor bare lists it in `ReopenedAnchors`".
-- §III.3.2: "a gap whose anchor is gone, or left bare by" (the P3 delivery text).
+- §III.3.2: "or left bare by" (the P3 delivery text).
 - §III.4 D(1)'s `reopened` arm: it reads `reopened` ∪ the edit arm.
 - §III.8's reword rule: it reads `reopened` ∪ the edit arm.
-- §V 9.2: "closes of gone-anchor gaps included".
 - §V 9.3's third query: it reads `reopened` ∪ the edit arm.
-- §VII.6: "A gone anchor's passage … lists an anchor an edit leaves bare".
+- §VII.6: "lists an anchor an edit leaves bare".
 
-Under P12b an anchor is in the report or it is not, and a gap whose marker is cut is closed moot by the record, except
-a for-red ruling's own gap, which its ruling closes `repaired` in the same transaction (ruling 4).
+Under P12b an anchor is in the report or it is not. A gap whose marker is cut stays open, reads `gone`, and is its
+minting lens's turn until the lens closes it, keeps it, or the exchange limits docket it.
 
 **Left out of P12b:**
 - composed sections (§VII.10);
-- the agy delivery path (F12, #1827).
+- the agy delivery path (F12, #1827);
+- everything #1889 builds: tombstones and F16's end rule (built on P12b's record at #1889's rebase), the docketing (a
+  cut under a docketing, and a `Close` ending one), the bench's `BlueEdit` and its text freeze.
 
 ### III.11 Carrier and consumer census
 
@@ -2476,9 +2302,9 @@ from the repository root (`P=plugins/frank-exchange-of-views`). They are re-run 
 
 **P12b (anchors follow their text).** These greps ran on the P3 tip `ec8757c87` from `plugins/frank-exchange-of-views`;
 `ae2b9a9fb` (EventSchema 81) differs from it outside tests only in `schema_gen.go`, so the hits hold there. They are
-re-run on main after #1889 and P12a merge (§V 13.1, which diffs each one). Worksheets:
+re-run on main (af3e6ccbe or later) at P12b's open (§V 13.1, which diffs each one). Worksheets:
 - `~/.claude/scratch/p12/census-{a,b,c}.md` and `allretire.txt` (96 non-test files naming retire, each classified);
-- `~/.claude/scratch/p12/r2/census.md`, for the Close readers, the guards and the markers.
+- `~/.claude/scratch/p12/r2/census.md`, for the close guards and the markers.
 
 The census:
 - **The retire's claim shape.** Command:
@@ -2569,25 +2395,10 @@ The census:
   fold table (with `windowindex.go:233`, which tests the event type rather than the body), and four sites that are not
   folds of the removal: `actjudge.go:123` (the retire's own judge, listed above), `blueanswered.go:277`,
   `record.go:1462` and `report/assemble.go:829` (the claim shape's readers, listed under "The retire's claim shape").
-- **Close readers, against a Close the record writes.** Command:
-  `grep -rn 'supersessionsOf(\|case \*recordpb.Close\|BodyAs\[\*recordpb.Close\]\|GetClose()' tools/internal --include=*.go | grep -v _test`
-  It returns 16 files (`audit/g5.txt`), plus `scorecard/scorecard.go:150-170`, `stale.go:111`, `available.go:249`
-  and `capture/capture.go:891`. The SQL readers of the close table are a second grep:
-  `grep -rn 'FROM "close"\|JOIN "close"\|close_event' tools/internal --include=*.go | grep -v _test`, which on
-  `ae2b9a9fb` hits `recordsql/gapstate.go` (the closure CTE), `recordsql/views.go:40, 429, 480-481`,
-  `viewjson.go:562-644, 1093` (`closeStateOf`), `recordsql/decode_gen.go:920` (generated decode), and two files the
-  first grep missed: `remand.go:162-195` and `replay.go:395`. Each is in §III.10c's reader table.
-
-  The guards are:
-  - `record.go:1111, 1117, 1131-1134, 1190, 1811-1826`;
-  - `actjudge.go:82, 89, 95`;
-  - `deliveredtext.go:93-99`;
-  - `demand.go:108, 144`;
-  - `failedcheck.go:223`;
-  - the `close` CHECK at `record.proto:1041`.
-
-  The prose that argues for a derived close is at `supersession.go:13-16` and `gapstate.go:196-203`.
-  `HarnessSeat` is at `cast.go:17-19`, `outcomeclosed.go:73` and `migrate/entries.go:515-526`.
+- **The raiser's turn and the close guards** (on main af3e6ccbe). The lens turn's `reopened` reader is in the
+  `reopened` grep above (`gapacts.go:247-267`); its callers are `impasse.go:356` and `lensturn.go:51`. The `gone`
+  readers that stay are `blueanswered.go:61, 98-99`, `sitting.go:328` and `debate.js:909`. The guards a lens's close
+  meets are `record.go:1089-1203` and `actjudge.go:74-89` (§III.10c "The raiser's turn").
 - **gap_refresh.**
   - `gapstate.go:117-149` (`gapMarkers`) and `gapstate_test.go:48, 145, 272, 299-301`.
   - The release fuzz: `grep -rn 'gap_state\|gapStateRefresh' releasegate/` returns 0 hits.
@@ -2601,26 +2412,13 @@ The census:
   The splice and replay: `bluedoc.go:67-106, 135-170`, `reportproj/render.go:37-40, 87-104, 154-183`,
   `reportproj/plan.go:67-110`, `reportcheckpoint.go:102`, and `cli/blue/edit.go:171-196, 359-370` (`repeatsEdit`
   compares the stored `old`).
-- **#1889's carriers that P12b sweeps** (on `feov/findings-fold` c6ae0335b; c2d08edd0's numbers in brackets):
-  - D12 (`:502`), L21 (`:2310`), the end table (`:1210-1220`) and the estoppel end with "A cut ends none"
-    (`:1225-1237`) [`:1181-1201`];
-  - `tombstone_standing` (`:1167`) and `writeTombstones` "under the act's identity" (`:1183-1194`);
-  - the `tombstones_kept_by_cut` gauge (`:1054`) [`:1019`];
-  - `:1346-1347` [`:1312`] (`:1392` at 4b3e0341f), "the write path derives exactly one event body, `Tombstone`";
-  - the migrate registry's `tombstone` → `toNoEvent` (`:1331-1337`), beside which the record moot's entry goes;
-  - `tombstone.go`, `writeTombstones`, `tombstone_standing`, and T-B20.
-
-  `grep -rln 'writeTombstones\|tombstonesOwed\|tombstone_standing\|toNoEvent' tools/internal --include=*.go | grep -v _test`
-  hits only `migrate/entries.go` and `migrate/eraentries.go` (the existing `toNoEvent`) on `ae2b9a9fb`, and adds
-  `recordpb/record.proto`, `record.pb.go`, `recordsql/schema.go` and `recordsql/views.go` on c6ae0335b, whose
-  `writeTombstones` is still plan text. #1889's code lands before P12b opens, so §V 13.1's `listed-files.txt` takes
-  this grep's hits from main at that time, each read as a carrier of the end rule or not.
-
-  L34's bare-token derivation is deleted on #1889 itself.
+- **#1889's carriers: none.** P12b builds on main, which holds none of #1889's code; #1889 sweeps its own text worded
+  for the bare or gone token, and builds F16's end rule on `removed_anchors`, on its rebase (§III.10c "F16 on #1889's
+  rebase").
 - **Prose and generated carriers.** These are listed in full in §III.10c's "Carriers of the old shape":
   - help pages;
   - code prose, including `bluedoc.go:204, 236-239`, `retire.go:51, 170-180`, `record.go:1115, 1468`,
-    `impasse.go:331-333`, `supersession.go:13-16` and `gapstate.go:196-203`;
+    `impasse.go:331-333` and `record.go:1094-1096`;
   - agentgen sources, including `fragments/lens-duties.md:5` and `fragments/blue-search-and-cite.md:9-44`;
   - `terms.json`;
   - `report_template.md:173`;
@@ -2678,15 +2476,16 @@ The census:
 
   §V 13.1 re-runs the command at open and diffs it against this list.
 - **New names.**
-  - `anchor_removal`, `closed_by_record`, `isRecordMoot`, "pure cut" and "moot by the record": grepped on
-    `ec8757c87` across `tools`, `skills`, `agents` and `scripts/agentgen/src`, with 0 hits.
+  - `anchor_removal` and "pure cut": grepped on `ec8757c87` across `tools`, `skills`, `agents` and
+    `scripts/agentgen/src`, with 0 hits. `TestACutReadiesItsRaiser` and `CutReadiedRaiser`: `git grep -n -i 'raiser'`
+    on af3e6ccbe across `plugins` and `scripts` hits only `vecembed/vocab.txt`'s "fundraiser", a vocabulary word.
   - F17's field `removed_anchors` / `RemovedAnchors` / `blue_edit_removed_anchors`: `git grep -n -i
     'removed_anchors\|RemovedAnchors'` on `ae2b9a9fb`, `origin/main` c7666d2f3 and c6ae0335b, across `plugins` and
     `scripts`: 0 hits. It extends the concept `anchor_removal` and `RemoveAnchorAt` already name. `cut_anchors` was
     rejected: "cut" already names the delivery cut (`record/deliverycut.go:17-25`, `terms.json:853`), a different
     sense. "pure cut" is registered in `terms.json` with a note distinguishing it from the delivery cut.
-  - Reused, not coined: `moot` (`DISPOSITION_MOOT`), `news` (`ItemNews`), `live` (`requireAboutAnchorLive`),
-    `HarnessSeat`, and `gone` (`LocationGone`) as the one location state of a token not in the report.
+  - Reused, not coined: `moot` (`DISPOSITION_MOOT`), `news` (`ItemNews`), `live` (`requireAboutAnchorLive`), the lens
+    turn (`lensTurnOn`, `lensTurnActsOf`), and `gone` (`LocationGone`) as the one location state of a token not in the report.
   - L6 on the cut: `cutCitingFirst`, `citedCutsRefused`/`CitedCutsRefused`, `lifecycleCitedCut`,
     `TestACutIsHeldToL6` and `TestConsistencyNamesTheArchivedL6Residue`: `git grep -n -i` on `ae2b9a9fb`,
     `origin/main` c7666d2f3 and c6ae0335b across `plugins` and `scripts`, 0 hits. Each extends the name of the
@@ -2835,12 +2634,11 @@ noted.
         from the replayed text and the `computation` table, not from `requireCitationUncited`'s query, so the rule
         cannot vouch for itself. `consistency.Check` carries the same invariant as its own fold (§III.10c).
     - **New drives, the edit cases:**
-      - **A pure cut of a gap's marked sentence.** Gate:
-        - The edit's transaction holds a `Close` with seat `harness` and `moot`.
-        - `gap_state` reads the gap closed, with `closed_by_record`.
-        - The minting lens's next work list holds the `news` item.
-        - A later seat `close` of the gap is refused as closed.
-        - The closure line names the edit by its locator.
+      - **A pure cut of a gap's marked sentence, by an edit answering another gap or none.** Gate:
+        - The edit's transaction holds the edit alone; the gap stays open and reads `gone`.
+        - The minting lens holds a turn on the gap (`lensTurnOn`) and is readied; its work list holds the `gone` item.
+        - A close in a sitting whose delivery predates the cut is refused by the delivered-text rule; after its next
+          complete delivery, whose passage is the cutting edit's old paragraph, its `moot` close lands.
       - **A pure cut of a sentence carrying `C-`/`K-`**, no computation outside the cut applying the cut citation.
         Gate:
         - `anchor_removal` holds the anchor with `by = edit`.
@@ -2854,46 +2652,23 @@ noted.
         `CitedCutsRefused`, which fails at zero beside `CitedRetiresRefused`.
       - **A rewrite that drops a token, including S1+S2 → S1′ that drops S2's token.** Gate: refused, as today.
       - **A cut that moves a token onto the neighbouring sentence.** Gate: a rewrite. The token is carried and nothing
-        is mooted.
-      - **A `--quote` computation gap whose sentence is cut.** Gate: closed `moot` by the record, and no seat close is
-        asked.
-      - **A pure cut of a superseded `--quote` ancestor's marker.** Gate: no record close (the ancestor is closed),
-        and the heir's `evidence_answered` is true, so its lens's `moot` close lands.
-      - **A pure cut of a gap with a road-less docketing (`GRADE_MOVEMENT`, or red's closing filed `--no-text`, L49;
-        §III.10c "A docketed cut needs a road-less docketing"), an unmet demand and a standing failed check.** Gate: the
-        record's Close lands (it is judged by nothing), the docketing ends, and the transaction's events are the edit,
-        the Close, then the tombstone end rows, the Close under `harness` and the end rows under the editing seat.
+        leaves.
+      - **A `--quote` computation gap whose sentence is cut.** Gate: its demand is met (arm 4, the edit arm), and its
+        lens's `moot` close lands on its turn.
+      - **A pure cut of a superseded `--quote` ancestor's marker.** Gate: the heir's `evidence_answered` is true, so
+        its lens's `moot` close lands.
+      - **A pure cut of a sentence carrying a citation with a standing failed check, its gap open.** Gate: the check
+        clears (`anchorChecksOf`'s edit arm), and the gap's lens's close lands.
       - **A pure cut whose quote includes an abutting token, and one whose span abuts a token it does not quote.**
         Gate: the replayed report equals the written one, and each token has one `remove`.
-    - **New drives, the seat cases:**
-      - For each guard (`requireOriginator`, the delivered-text rule, the verification triple,
-        `requireNoStandingDocket`, `requireDemandMet` and `requireFailedCheckAnswered`): a SEAT's `moot` close that
-        the guard holds. Gate: refused, as before P12b.
-      - A seat registering as `harness`. Gate: refused.
-    - **New drives, the retire, docket and tombstone cases:**
+    - **New drives, the retire cases:**
       - **`retire --anchor` of each kind, the sentence kept.** Gate: the `change` view lists it and the head does not
         move.
       - **`retire --anchor G-` of an open gap.** Gate: refused, naming the gap. Of a closed gap: it lands (F14).
-      - **A docketed gap cut.** The drawn docketing is road-less (`GRADE_MOVEMENT`, or red's closing filed
-        `--no-text`, L49); a cut while red's road stands is L45's refusal. Gate `docketing_ended_by_close` (#1889 leaves
-        it to P12b, `findings-fold.md:2066` at c6ae0335b: "P12b's to add with its moot close"; T-B34 holds the arm
-        there), a sweep-tally cell that fails at zero:
-        - The docketing ends with no ruling, by the Close (#1889's rule that any non-carry `Close` ends it, L42).
-        - The PASS is not held by it.
-        - judgments.md does not print it as ruled.
-      - **A ruled gap cut (F16).** Gate:
-        - The edit's transaction writes the tombstone's end row.
-        - `tombstone_standing` no longer holds G.
-        - A same-class mint at another sentence lands.
-        - #1889's gauge `tombstones_kept_by_cut` is replaced by `tombstones_ended_by_cut`.
-      - **A for-red ruling whose applied text cuts G's own sentence** (ruling 4's skip). Gate: G ends `repaired` by the
-        ruling with no `harness` Close; its docketing ends by the ruling; every other gap on the sentence is closed
-        `moot` by the record; and no tombstone or estoppel row on G is placed in the transaction (F16's placement
-        rule).
     - **Gates:**
       - Each new drive has a sweep-tally cell that fails at zero, beside `MootSpent`.
-      - `BareEvidenceRefused` is replaced by `PureCutsRemoved`, `ProseDropRefused` and `RecordMootWritten`.
-      - `CitedCutsRefused` and `docketing_ended_by_close` are new cells, each failing at zero.
+      - `BareEvidenceRefused` is replaced by `PureCutsRemoved`, `ProseDropRefused` and `CutReadiedRaiser`.
+      - `CitedCutsRefused` is a new cell, failing at zero.
 - **Unit tests.** `sittingwrite`: a section whose raw length fits "budget less the header" but whose JSON-escaped render
   does not → split, every render fits; an item `fitted()` would clip → never handed; a sentence longer than the budget
   → split across items, concatenation equal to it; items handed after a later edit equal the cut made at the first
@@ -2939,13 +2714,13 @@ noted.
 | R13 | The universal chain breaks a hook path no gate exercises (gates never dispatch a seat), and every seat — not only lenses — pays one tool call per item, and the writer runs once per successful call (about 100 ms: the delivery lock and one read of the record; the PR2 smoke's seats made 643 non-envelope calls against 615 to the record, so spawns rise about 5%) | M × H × M | P3's own PR runs a universe smoke (§V 11) and proves the installed copy carries the change; the chair queues only what it clears and each change once; per-seat items and turns are reported on the acceptance run (§V 9.2) |
 | R14 | The stop (`continue: false` on a PostToolUse) is measured to end the seat's turn (Claude Code 2.1.323, `continue-probe/`), but whether the stopped seat's SubagentStop still writes `sitting_close` is not, and without it the sitting reads as never closed, not failed | M × M × L | P3's smoke checks it before merge (§V 11). The stop applies to Workflow and subagent seats only, and every seat is one: seats run as native workflow subagents on every harness (§VII.5). A client that changes `continue: false`'s behaviour goes the same way: the seat can then neither return its envelope nor be handed its item, and its sitting fails at `maxTurns`; that would be reported to gblock, not designed around. No PreToolUse arm is added |
 | R15 | A row records text handed to the harness, not text seen: a client that changes its 10,000-character cap or spill, or a hook killed between the row's write and its emit, leaves a row for text the seat did not get | L × M × M | Ruled: arrival is checked once, on the acceptance run (§V 9.2), against the transcripts; no recurring check. Stated as residue (§III.3.2) |
-| R16 | P12b: a pure cut moots a gap whose defect stands at other sentences. Example: m28's G-3a2c77c1 had its marked sentence cut at native 502; the lens kept it open on six other lines and closed it `repaired` at 632 | M × M × M | P12a ships first, so lenses are told to mint per site before any cut moots; the other sentences are then their own gaps (ruling 1). The cut reaches the lens as a text change and the moot as a `news` item. P4 D(1) re-readies a retired minter on the cut (§III.10c). P12b's universe run reports moots followed by a same-class mint at another sentence (§V 13.7) |
-| R17 | P12b: blue cuts a sentence to moot an inconvenient gap | M × M × M | The cut needs `--reason`, and its old and new paragraphs reach every lens in its area in the changes set. A cut that loses a needed claim is a new gap (ruling 1 of §III.10c). Measured, not refused: moots per run and re-mints on the cut paragraph (§V 13.7) |
+| R16 | P12b: a lens closes `moot` a gap whose defect stands at other sentences. Example: m28's G-3a2c77c1 had its marked sentence cut at native 502; the lens kept it open on six other lines and closed it `repaired` at 632 | M × M × M | The cut is the raiser's turn, not a close: the lens re-audits the report as it stands and may keep the gap. P12a ships first, so lenses mint per site, and the other sentences are their own gaps (ruling 1). P4 D(1) re-readies a retired minter on the cut (§III.10c). P12b's universe run reports `moot` closes after a cut followed by a same-class mint at another sentence (§V 13.7) |
+| R17 | P12b: blue cuts a sentence to be rid of an inconvenient gap | M × M × M | The cut closes nothing: the gap's lens re-audits it on its turn and may keep it. The cut needs `--reason`, and its old and new paragraphs reach every lens in its area in the changes set. A cut that loses a needed claim is a new gap (ruling 1 of §III.10c). Measured, not refused: moots per run and re-mints on the cut paragraph (§V 13.7) |
 | R18 | P12b: the recorded removal and the text disagree: a token outside the located span, or a span between blocks yielding the neighbouring block | L × H × M | The removal is recorded at the write, and replay applies it rather than re-locating (F17). The release-fuzz `anchor_removal` oracle compares it with the replayed text after every drawn act (§III.12). The no-bare oracle and the deletion checks also guard it (§V 13.3) |
-| R19 | P12b's migrate changes archived gap fates and drops acts. Two open gaps become `moot` (wave-a G-f6f63173, m37 G-20128984). One open gap with an unruled docket becomes `moot` (m28 G-3a2c77c1). One `repaired` gap becomes `moot` (m37 G-477feea1). Translation 4 (ruled 2026-11-21): three gaps open at P3's tip become `moot` (b3 G-19b1727b with its unruled docket, b6 G-68c6ecf7, b9 G-8bd21b5d). m26's two gaps keep their fates; translation 6 re-seats their tokens (F20). The claim text of 108 claim retires is lost | H × L × L | The ruled residue (rulings 4, 7, 10 and 11 of §III.10c, and "migration cost is not a reason"). Every dropped act is in the manifest's `lost_acts`, counted per archive (F18's table and translation 4's). The stored outcomes are carried as history (F10) |
+| R19 | P12b's migrate drops acts and leaves gaps open with their marker gone. No archived fate changes: F18's four gaps and translation 4's three keep their fates at P3's tip, and six end open, reading `gone`, on their lens's turn. m26's two gaps keep their fates; translation 6 re-seats their tokens (F20). The claim text of 108 claim retires is lost. The `F-` population is unclassified until open | H × L × L | The ruled residue (rulings 7, 10 and 11 of §III.10c, F21, and "migration cost is not a reason"). Every dropped act is in the manifest's `lost_acts`, counted per archive. The stored outcomes are carried as history (F10). An `F-` token no ruled predicate selects is a fork brought to gblock before code (§III.10c migrate) |
 | R20 | P12a: one gap per site multiplies mints (voice: 43 of 64 archived gaps were class-wide), and with them turns | M × M × L | The class field groups them, and #1828 deletes the mint cap. P12a's universe run reports mints per lens and class against the archive's (§V 12.5) |
-| R21 | P12b lands across #1889 (tombstones, the docketing, `F-` deleted) and P3. All three move the same files (`gapstate.go`, `record.go`, `edit.go`, `views.go`) | H × L × M | P12b opens only after #1889 and P12a merge. It re-runs and diffs its census on main (§V 13.1) and takes the next free epoch. #1889 ships "a cut does not end a tombstone" until then (F16) |
-| R22 | P12b: a reader misattributes the record's close to a seat (`ClosedBySeat`, the scorecard's anchored share, consistency's `lastCloser`), or a seat writes as `harness` to escape a guard | M × M × L | Each reader in §III.10c's table has its change and a pure-cut test. Validate refuses a `harness` close that is not a moot of a cut marker, and refuses a seat registering as `harness`. Each guard has a test showing a seat's close is still held (§V 13.2) |
+| R21 | P12b lands on main before #1889 (tombstones, the docketing, `F-` deleted), and #1889 rebases onto it. Both move the same files (`gapstate.go`, `record.go`, `edit.go`, `views.go`) | H × L × M | Ruled (F21): P12b builds on main as it stands and takes 82; #1889's rebase builds F16's end rule and its docketing interactions on `removed_anchors` and `anchor_removal`. P12b re-runs and diffs its census on main (§V 13.1) |
+| R22 | P12b: a cut by an edit answering another gap, or none, leaves its gap's lens without a turn, so the gap reads `gone` and nobody re-audits it | M × M × L | `lensTurnActsOf` reads `removed_anchors` beside `reopened` (§III.10c "The raiser's turn"); `TestACutReadiesItsRaiser` drives both edits, and the fuzz's `CutReadiedRaiser` cell fails at zero (§III.12) |
 | R23 | P12a: on main a `--quote` gap whose marker a claim retire took now admits `moot`. A lens may moot a gap whose claim is merely restated elsewhere | L × M × L | A restatement is a different gap at a different sentence (ruling 1), which the lens mints. The marker leaves only by blue's retire, which is on the record and in the lens's work list |
 | R24 | P12b: L6 on the cut (F19) refuses a pure cut blue needs, so a cited sentence that must go waits on its computation | M × L × L | The refusal names each computation and teaches the order (retire it by its anchor, re-computing first if the report still needs it, or take it in the same cut); `cutCitingFirst` drives the order in the fuzz, and `TestACutIsHeldToL6` pins both orders and the same-act cut |
 
@@ -3167,8 +2942,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        - **What it gates:** nothing beyond the run reaching a verdict. Its numbers go in the PR body, and §V 9 repeats
          them at development scale.
        - Re-armed by: any change to the lens sources or the demand.
-13. **P12b's own PR** (after #1889 and P12a merge). First re-check the base:
-    `git grep -n 'EventSchema *=' origin/main -- '*schema_gen.go'`. P12b takes that number plus 1.
+13. **P12b's own PR** (on main as it stands, before #1889; F21). First re-check the base:
+    `git grep -n 'EventSchema *=' origin/main -- '*schema_gen.go'`. P12b takes that number plus 1 (82 on af3e6ccbe).
     1. **Census, every §III.11 P12b grep, run on main BEFORE the change and diffed against §III.11's list.** Before
        any FEOV command: `unset $(env | grep -o '^FEOV_[A-Z_]*')`.
        ```
@@ -3179,11 +2954,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
                 'blue_edit_reopened\|GetReopened()' \
                 'retire_anchors\|retired_event\|reachingRetiresOf\|AnchorRetiredAt\|anchorRetiredAt\|RetiredAnchors' \
                 'BodyAs\[\*recordpb.Retire\]\|case \*recordpb.Retire' \
-                'supersessionsOf(\|case \*recordpb.Close\|BodyAs\[\*recordpb.Close\]\|GetClose()' \
-                'FROM "close"\|JOIN "close"\|close_event' \
+                'lensTurnActsOf\|lensTurnOn\|changedSinceSQL\|latestReopeningSQL\|answeredByActThisSitting' \
                 'requireDemandMet\|DemandRefusal\|evidenceDemandAt\|demand_reach\|requireSuccessorCarriesDemand\|DemandClause' \
-                'lensOwesOf\|change_in_area\|own_prescription\|estoppingPrescriptions' \
-                'writeTombstones\|tombstonesOwed\|tombstone_standing\|toNoEvent' ; do
+                'lensOwesOf\|change_in_area\|own_prescription\|estoppingPrescriptions' ; do
          echo "== $p"; grep -rn "$p" tools/internal --include=*.go | grep -v _test; done > $S/census-main.txt
        grep -rnE 'ClaimKept|claim_kept|RemovalBasis|removal_basis|RemovalVerified|RemovalAsserted|GetSupersededBy|retire.*--quote|gap_state|gapStateRefresh|recordpb\.Retire\{' tools/releasegate | cut -d: -f1 | sed 's#^tools/releasegate/fuzz/##' | sort | uniq -c > $S/census-releasegate.txt
        { grep -rliE 'ClaimKept|claim_kept|RemovalBasis|removal_basis|GetSupersededBy|retire.*--quote|requires --quote' tools --include=*_test.go
@@ -3205,10 +2978,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          literals `basisretired_test.go` 1 (`:40`) and `lensturnacts_test.go` 3 (`:38, :39, :44`), and no `gap_state`
          reader. Each is a §III.12 delete-or-rewrite site. `census-edit-writers.txt` holds `edit.go:119` (the one
          writer on `ae2b9a9fb`), `edit.go:360` (`repeatsEdit`'s comparison body, not a write), the read at
-         `record/reading.go:187` (a row decoded, not written), and the bench's edit #1889 adds; for that edit the census
-         confirms the edit's guard stamps `removed_anchors`, validate's exact comparison covers the stamped list, and the
-         record's moot fires for a bench cut on every gap of the cut sentence other than the gap the ruling answers
-         (§III.10c "Every writer of a `BlueEdit` is held"), or P12b gives it each.
+         `record/reading.go:187` (a row decoded, not written), and no other (§III.10c "Every writer of a `BlueEdit` is
+         held").
          `census-retire-literals.txt`, filtered to files outside the 28, equals §III.11's 17-literal list. And
          each `reopened` line in `census-plan.txt` is one §III.10c's "Supersedes" list names. A hit the lists omit is
          added before code.
@@ -3235,92 +3006,78 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          ```
          **The set is every archive committed at P12b's base, not only the 39.** It includes the archives added since
          the 39 were counted: the smoke runs of #1838 and #1883, archived by the FEOV-slim session's PR, once
-         committed. On the 39, its counts equal §III.10c's: 0 refusals, 108 claim retires (94 anchorless and 14
-         anchored once Part A has dropped the `F-` anchors), the 7 tokens left on no words at a run's end, the one L6
-         residue, and 0 lane parts holding a token. Each added archive is read fresh against the same rules: a claim
+         committed. On the 39, its counts equal §III.10c's: 0 refusals, 108 claim retires (92 anchorless and 16
+         anchored, `F-` standing on main), the 7 tokens other than `F-` left on no words at a run's end, the one L6
+         residue, and 0 lane parts holding a token. The `F-` tokens are classified on this run (§III.10c migrate, "The
+         `F-` population"): each one translations 2, 4 and 6's predicates do not select is brought to gblock before
+         code. Each added archive is read fresh against the same rules: a claim
          retire, a bare token, a rewrite translation 6's predicate selects, or an L6 hit in it widens §III.10c's figures
          and F18's, translation 4's or translation 6's table before code. Any difference on the 39 does the same.
        - **After the PR:**
          - `ClaimKept\|claim_kept\|RemovalBasis\|removal_basis\|RemovalVerified\|RemovalAsserted` returns 0 hits
            outside `migrate/` and `prose-rewrites.golden`;
-         - `LocationGone\|GoneTeaching` returns only `viewjson.go`'s constants, `locateAnchor`'s not-found return and
-           `LocationStates` (§III.10c "One location state"): none in `sitting.go` or `blueanswered.go`, and
-           `debate.js` holds no `` `gone` `` clause;
+         - `LocationGone\|GoneTeaching` returns `viewjson.go`'s constants, `locateAnchor`'s not-found return,
+           `LocationStates`, `blueanswered.go`'s `gone` arm and `sitting.go`'s re-keyed cut arm (§III.10c "What stays,
+           now the cut's path"), and `debate.js` keeps its `` `gone` `` clause;
+         - `lensTurnActsOf` reads `removed_anchors` beside `reopened`;
          - `requireCitationUncited` is called from `judgeAct`'s `Retire` and `BlueEdit` arms, and its query reads
            `anchor_removal`;
          - `BaredAnchors(` returns only `edit.go`'s refusal and `mint.go`'s caller;
          - every `reopened` reader also reads the edit arm;
-         - every hit of the Close and close-table greps is in §III.10c's reader table, and every `Retire` fold hit is in
-           its fold table.
-       - Re-armed by: any file in §III.11's P12b list, or a #1889 merge.
+         - every `Retire` fold hit is in §III.10c's fold table.
+       - Re-armed by: any file in §III.11's P12b list.
     2. **Named tests, listed first.**
        ```
        cd plugins/frank-exchange-of-views/tools
-       T='^(TestAPureCutTakesItsAnchors|TestAProseRewriteCarriesEveryAnchor|TestAMixedEditIsARewrite|TestNoWriterLeavesABareAnchor|TestRetireIsAnchorOnlyForEveryKind|TestAnOpenGapsMarkerIsNotRetired|TestACutGapIsMootByTheRecord|TestASeatsMootCloseIsStillHeld|TestNoSeatWritesAsTheHarness|TestEveryCloseReaderReadsTheRecordsMoot|TestAnchorRemovalIsOneView|TestReplayRemovesWhatTheWriteRemoved|TestACutEndsItsTombstone|TestACutEndsItsDocketing|TestTheCutsCloseIsDerivedBeforeItsTombstoneEnd|TestEveryGapMarkerIsNeeded|TestTheStoredGapStateIsTheRules|TestACutIsHeldToL6|TestWorkTeachesEveryLocationState)$'
+       T='^(TestAPureCutTakesItsAnchors|TestAProseRewriteCarriesEveryAnchor|TestAMixedEditIsARewrite|TestNoWriterLeavesABareAnchor|TestRetireIsAnchorOnlyForEveryKind|TestAnOpenGapsMarkerIsNotRetired|TestACutReadiesItsRaiser|TestAnchorRemovalIsOneView|TestReplayRemovesWhatTheWriteRemoved|TestEveryGapMarkerIsNeeded|TestTheStoredGapStateIsTheRules|TestACutIsHeldToL6|TestWorkTeachesEveryLocationState)$'
        go test -list "$T" ./internal/bluedoc/ ./internal/reportproj/ ./internal/cli/... ./internal/record/... ./internal/difftest/ | grep '^Test' | sort | uniq -c
        go test -count=1 -run "$T" ./internal/bluedoc/ ./internal/reportproj/ ./internal/cli/... ./internal/record/... ./internal/difftest/
        ```
-       - The list prints 19 names, each with count 1, and the tests are green.
+       - The list prints 13 names, each with count 1, and the tests are green.
        - `TestACutIsHeldToL6` has §III.10c's five cases (refused; re-point then cut; retire then cut; same act; the
          computation cut first).
-       - `TestWorkTeachesEveryLocationState` checks the three help pages for `GoneTeaching`'s new words.
+       - `TestWorkTeachesEveryLocationState` checks the three help pages for `GoneTeaching`'s words and the engaged
+         prompt for its `gone` clause.
        - Each new test is run on main first and its red recorded.
-       - `TestASeatsMootCloseIsStillHeld` has one subtest per guard: originator, delivered text, verification triple,
-         standing docket, demand, failed check.
-       - `TestACutGapIsMootByTheRecord` has subtests for: the Close's seat (`harness`) and the end rows' seat (the
-         editing seat); the transaction holding exactly the edit, one Close per cut open gap, and the edit's end rows;
-         a cut gap with a road-less docketing (`GRADE_MOVEMENT`, or red's closing `--no-text`), an unmet demand and a
-         standing failed check, whose Close lands; and the bench cut: a for-red ruling whose applied text cuts G's
-         sentence, G ending `repaired` by the ruling with no `harness` Close and its docketing ended by the ruling,
-         another gap on that sentence closed `moot`.
-       - `TestACutEndsItsTombstone` has the two not-written subtests of §III.10c F16 (blue's verbatim pure cut answering
-         G; the for-red ruling's bench cut of G's sentence).
-       - `TestEveryCloseReaderReadsTheRecordsMoot` has one subtest per row of §III.10c's reader table.
+       - `TestACutReadiesItsRaiser` has §III.10c's six cases (the turn, by an edit answering another gap and by one
+         answering none; the `gone` item; the stale close refused, then the `moot` close on the cut's passage; the
+         `--quote` gap's demand met; the failed check cleared; the gap kept by a regrade).
        - `TestAnchorRemovalIsOneView` has one subtest per SQL reader and per row of §III.10c's fold table.
        - `TestReplayRemovesWhatTheWriteRemoved` has one subtest per token position (§III.10c "The splice and the list").
        - `TestTheStoredGapStateIsTheRules` carries §III.10c's five new `gapStateSteps` steps.
        - Re-armed by: `edit.go`, `ingest.go`, `retire.go`, `mint.go`, `bluedoc/`, `reportproj/`, `views.go`,
          `gapstate.go`, `demand.go`, `record.go`, `actjudge.go`, `refs.go`, `consistency.go`, `viewjson.go`,
-         `debate.js`, `tombstone.go`, and every file in the fold table.
+         `debate.js`, `gapacts.go`, `deliveredtext.go`, `deliverycut.go`, `blueanswered.go`, `sitting.go`, and every
+         file in the fold table.
     3. **Deletion checks, one at a time, with 13.2's suite each time.** Each must turn at least one named test red:
-       1. delete the record's moot Close from the write hook;
+       1. drop `lensTurnActsOf`'s `removed_anchors` arm (`TestACutReadiesItsRaiser` case 1: the lens holds no turn);
        2. delete the edit arm of `anchor_removal`;
-       3. delete its union from `changedSinceSQL`;
-       4. delete the edit-removal gap marker;
-       5. delete the edit-removal marker's lineage arm (the ancestor step of `TestTheStoredGapStateIsTheRules`);
-       6. delete `met`'s arm 4, and separately widen it to `anchor_removal`'s retire arm (the anchor-only retire step);
-       7. delete `ingest`'s token refusal;
-       8. restore `edit.go:275`'s carried-may-stand-bare arm;
-       9. drop each validate guard's `isRecordMoot` exemption (originator, delivered text, triple), one per run;
-       10. drop the tombstone end row;
-       11. derive the tombstone end rows before the moot Close;
-       12. let the splice take a located token `new` does not carry;
-       13. drop each `BlueEdit` arm the fold table adds (`countsat`, `answersretired`, `evidenceview:484`, `impasse`,
-           `gapacts`, `anchorchecks`) and `Reaches`' widened type filter, one per run;
-       14. drop `closed_by_record` from the closure CTE;
-       15. drop the migrate registry's record-moot `toNoEvent` entry (`TestARecordMootIsWrittenOnceOnReplay` sees two
-           Closes);
-       16. drop `judgeAct`'s `BlueEdit` call of `requireCitationUncited` (`TestACutIsHeldToL6` case 1 lands);
-       17. leave `requireCitationUncited`'s liveness query on `retire_anchors` (`TestACutIsHeldToL6` case 5: K left
+       3. delete its union from `changedSinceSQL` (`TestACutReadiesItsRaiser` case 3: the stale close lands);
+       4. delete its union from `latestReopeningSQL` (case 3: the passage is not the cut's old paragraph);
+       5. make `blueAnswers`' `gone` item need blue engaged again (case 2: no `gone` item);
+       6. delete the edit-removal gap marker;
+       7. delete the edit-removal marker's lineage arm (the ancestor step of `TestTheStoredGapStateIsTheRules`);
+       8. delete `met`'s arm 4, and separately widen it to `anchor_removal`'s retire arm (the anchor-only retire step);
+       9. delete `ingest`'s token refusal;
+       10. restore `edit.go:275`'s carried-may-stand-bare arm;
+       11. let the splice take a located token `new` does not carry;
+       12. drop each `BlueEdit` arm the fold table adds (`countsat`, `answersretired`, `evidenceview:484`, `impasse`,
+           `gapacts`, `anchorchecks`, `answeredByActThisSitting`) and `Reaches`' widened type filter, one per run;
+       13. drop `judgeAct`'s `BlueEdit` call of `requireCitationUncited` (`TestACutIsHeldToL6` case 1 lands);
+       14. leave `requireCitationUncited`'s liveness query on `retire_anchors` (`TestACutIsHeldToL6` case 5: K left
            by a cut, and C's cut is still refused);
-       18. drop the `report_op` remove arm's `+ 1` (`TestReplayRemovesWhatTheWriteRemoved`'s `ord` assertion);
-       19. drop `consistency.Check`'s L6 fold (`TestConsistencyNamesTheArchivedL6Residue` finds no violation);
-       20. drop the derivation's skip of a bench edit's `answers` gap (`TestACutGapIsMootByTheRecord`'s bench cut sees
-           a `harness` Close on G);
-       21. write a placement on a token the same edit removed, then end it (`TestACutEndsItsTombstone`'s not-written
-           subtests see a placing row for G).
+       15. drop the `report_op` remove arm's `+ 1` (`TestReplayRemovesWhatTheWriteRemoved`'s `ord` assertion);
+       16. drop `consistency.Check`'s L6 fold (`TestConsistencyNamesTheArchivedL6Residue` finds no violation).
 
        Re-armed by the same files.
     4. **Migrate.**
        ```
        cd plugins/frank-exchange-of-views/tools
-       M='^(TestEveryArchivedRunMigrates|TestEveryArchivedRunRenders|TestAClaimRetireFoldsIntoItsCut|TestNoMigratedArchiveHoldsABareAnchor|TestArchivedRunsCarryTheirTombstones|TestARecordMootIsWrittenOnceOnReplay|TestConsistencyNamesTheArchivedL6Residue|TestARewriteKeepsItsTokenInItsSentence)$'
-       go test -list "$M" ./internal/record/migrate/ ./internal/cli/ | grep '^Test' | sort | uniq -c
-       go test -count=1 -run "$M" ./internal/record/migrate/ ./internal/cli/
+       M='^(TestEveryArchivedRunMigrates|TestEveryArchivedRunRenders|TestAClaimRetireFoldsIntoItsCut|TestNoMigratedArchiveHoldsABareAnchor|TestConsistencyNamesTheArchivedL6Residue|TestARewriteKeepsItsTokenInItsSentence)$'
+       go test -list "$M" ./internal/record/migrate/ | grep '^Test' | sort | uniq -c
+       go test -count=1 -run "$M" ./internal/record/migrate/
        ```
-       - The list prints 8 names, each with count 1, so none passes vacuously
-         (`TestARecordMootIsWrittenOnceOnReplay` is `internal/cli`'s, beside `migrateorder_test.go`); then the tests
-         are green.
+       - The list prints 6 names, each with count 1, so none passes vacuously; then the tests are green.
        - **Every archive test reads every committed archive** (the change P12b makes to the test helpers):
          - `archivedRuns` (`migrate/remaplists_test.go:97`) walks `run-archive/` with `filepath.WalkDir` and returns
            each `*.tar.gz` as its path under `run-archive/`, so `bundle-store/` is read. It fails when the walk finds
@@ -3361,19 +3118,22 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        - **Each assertion and the test that makes it**, over the 39 committed archives (36 in `run-archive/`, 2 in
          `run-archive/bundle-store/`, and P0's 2026-11-10 run):
          - Migrate reports zero refusals in each: `TestEveryArchivedRunMigrates`.
-         - No migrated record holds a token on no words in its final report, and each translation-4 gap ends `moot`
-           at its baring edit: `TestNoMigratedArchiveHoldsABareAnchor`. No record holds a claim-shaped `retire`, because
+         - No migrated record holds a token on no words in its final report, and each translation-4 gap reads open and
+           `gone`, its marker in its baring edit's `removed_anchors`, with no `Close` migrate wrote:
+           `TestNoMigratedArchiveHoldsABareAnchor`. No record holds a claim-shaped `retire`, because
            the fields are gone (compile).
-         - All 108 claim retires are classified, and on P12b's base #1889 has taken the `F-` anchors: 94 carry none
-           and are dropped (by archive), and of the 14 anchored, 3 fold into a cut, 10 become anchor-only retires and
-           m36's 442 is dropped under F14: `TestAClaimRetireFoldsIntoItsCut`.
-         - F18's four gaps and translation 4's three end `moot` at the edits the two tables name, each Close written
-           once by the replay's hook: `TestAClaimRetireFoldsIntoItsCut` (F18), `TestNoMigratedArchiveHoldsABareAnchor`
-           (translation 4) and `TestARecordMootIsWrittenOnceOnReplay` (once).
+         - All 108 claim retires are classified, `F-` standing on main: 92 carry none and are dropped (by archive), and
+           of the 16 anchored, 3 fold into a cut, 10 become anchor-only retires, m36's 442 is dropped under F14, and the
+           2 `F-`-only retires (m32 382, m35 259) take the class the census at open gives them:
+           `TestAClaimRetireFoldsIntoItsCut`.
+         - F18's four gaps and translation 4's three keep their fates at P3's tip, each marker in its cut's
+           `removed_anchors`, and no `Close` is written by migrate: `TestAClaimRetireFoldsIntoItsCut` (F18) and
+           `TestNoMigratedArchiveHoldsABareAnchor` (translation 4).
          - m26's four tokens land inside the sentences translation 6's table names, both gaps keep their fates, and no
-           other archive counts a `reseated` rewrite (a later edit quoting a moved run is rewritten uncounted, and on
-           #1889's tree none exists): `TestARewriteKeepsItsTokenInItsSentence`.
-         - Each archive's `lost_acts` matches F18's dropped column and translation 4's (expected none), and the acts in
+           other archive counts a `reseated` rewrite (a later edit quoting a moved run, m26's edit 260 on main, is
+           rewritten uncounted): `TestARewriteKeepsItsTokenInItsSentence`.
+         - Each archive's `lost_acts` matches the expectation of §III.10c translation 4 and F18's table (none on a
+           closed gap, since migrate closes none), and the acts in
            F18's "land as written" column stand in the migrated record, compared per archive by the same two
            tests.
          - The final report bytes: `TestEveryArchivedRunRenders`' golden keeps every line's raw digest except b3's,
@@ -3384,7 +3144,6 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            regeneration.
          - No migrated lane part holds `<!--` (34 parts): `TestEveryArchivedRunMigrates`, per migrated `ReportPart`.
          - The L6 residue is exactly m37's K-93f0a1a7 naming C-849a1f53: `TestConsistencyNamesTheArchivedL6Residue`.
-         - The tombstones end at the folded cuts: `TestArchivedRunsCarryTheirTombstones`.
        - Re-armed by: any `record.proto` change or epoch bump, and any tarball added under `run-archive/`.
     5. **Generated carriers and gates.**
        - `go -C scripts run ./agentgen -check`;
@@ -3404,11 +3163,11 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        - **Prove the build carries P12b:** `grep -l 'pure cut' "$WORKDIR.marketplace/plugins/frank-exchange-of-views/agents/blue-researcher.md"`,
          and `universe.sh doctor` shows P12b's epoch.
        - **Report:**
-         - moots by the record per run;
-         - moots followed by a same-class mint at another sentence (R16);
+         - cuts of a gap marker per run, and for each: the lens's next turn on the gap, and whether it closed it
+           `moot`, kept it, or the exchange limits docketed it;
+         - `moot` closes after a cut followed by a same-class mint at another sentence (R16);
          - re-mints on a cut paragraph (R17);
-         - every `harness` close and its edit;
-         - every refused seat close that a guard held;
+         - open gaps reading `gone` at the run's end, each with its lens's turn (R22);
          - the four oracles, recomputed on the copy.
        - **Gate:** `anchor_removal` equals the placed anchors absent from the final report, stored `gap_state`
          equals a fresh refresh, and no computation in the final report names a citation absent from it.
@@ -3478,34 +3237,17 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   retire of an open gap's marker as a lost act (F18).
 - **F15 — P9 against one gap per site. RULED by gblock 2026-11-20: P9 withdrawn.** F5 is superseded, and §III.9 is not
   built (§III.10b).
-- **F16 — #1889's tombstone after a pure cut. RULED by gblock 2026-11-20: the tombstone ENDS WITH THE TOKEN.**
+- **F16 — #1889's tombstone after a pure cut. RULED by gblock 2026-11-20: the tombstone ENDS WITH THE TOKEN.** Kept
+  by F21.
   - This reverses #1695's 11-14 "a cut does not end a tombstone" for the pure-cut case.
-  - P12b writes the tombstone's end row in the cutting edit's transaction. #1889's own log records the end path
-    shipping with P12 (`~/.claude/scratch/1695/RULINGS.md:85`), and #1889 ships "a cut does not end it" until P12b
-    lands. The owner's agreement that P12b uses #1889's `writeIn` hook ("exactly the derived bodies, each from its own
-    rule"), on the condition that the moot `Close` is derived before the tombstone end row (§III.10c, "Order"), is
-    recorded on #1889's side (`~/.claude/scratch/1695/RULINGS.md:93-94`, 2026-11-21).
-  - **#1889's three conditions on P12b** (lead calls, disclosed, agreed between the two sessions 2026-11-21 and
-    recorded at `~/.claude/scratch/1695/RULINGS.md:93-94`; not gblock's, so the approver reads them as unruled):
-    1. **A for-red ruling's own gap is skipped by the record's moot** (§III.10c ruling 4). #1889's order (the bench's
-       edit, then the ruling, one transaction) stands, and G closes `repaired` by the ruling. The other side: moot G at
-       the edit, which makes the ruling that follows answer a closed gap and turns red's win into a `moot`.
-    2. **A placement on a token the same edit removed is not written** (§III.10c F16). The other side: write it and end
-       it in the same transaction, a row pair no reader needs.
-    3. **Docketed-cut tests use a road-less docketing** (§III.10c "A docketed cut needs a road-less docketing"). This
-       is not a choice between designs: L45 refuses blue's cut while red's road stands, so a test that cuts under a
-       standing road tests L45, not the moot.
-  - The end row stays IN P12b, not a follow-up (lead call, disclosed: RULINGS.md 11-20 "LEAD CALLS", not gblock's):
-    a cut that left a tombstone standing would contradict this fork. The other side of the fork, a split that ships the
-    cut and the moot first with the end row in a follow-up, stated, is the approver's to pick.
-  - **The carriers:**
-    - #1889's `Tombstone` body and `writeTombstones`;
-    - the `tombstone_standing` view;
-    - migrate's re-derivation (T-B20);
-    - the fuzz gauge `tombstones_kept_by_cut`;
-    - #1889's D12, L21 and estoppel-end prose.
-
-    All of these are swept in P12b (§III.10c).
+  - Main holds no tombstone, so P12b writes no end row. It records what the end rule reads: `removed_anchors` and
+    `anchor_removal` name every token a cut took, at the edit. #1889, rebased onto P12b (F21), builds the end rule on
+    that record: a pure cut that removes a token ends every tombstone standing on it.
+  - **A placement on a token the same edit removed is not written** (#1889's B3 words its placement rows "a placement
+    is written only on a token standing after the edit"; kept by F21). It is #1889's rule, built on its rebase.
+  - **The carriers are #1889's:** its `Tombstone` body and `writeTombstones`, the `tombstone_standing` view, migrate's
+    re-derivation (T-B20), the fuzz gauge `tombstones_kept_by_cut`, and its D12, L21 and estoppel-end prose. #1889
+    sweeps them on its rebase.
 - **F17 — where an edit's removal of anchors is recorded, so that replay reproduces it and `anchor_removal` reads it
   (P12b; audit gap 3 and the `anchor_removal` fork, one decision). RULED by gblock 2026-11-20 (picked): (a) a
   pure cut records the anchors it took on the edit, tool-stamped like `Retire.anchors`; replay re-applies it; migrate
@@ -3585,9 +3327,10 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     readers a row to join: `ReopenedAnchors` lists nothing for a cut, so without a recorded row no estoppel, gap-act or
     moot reader can see the cut. And it is what the migrate fold needs.
 - **F18 — how migrate reads an archived edit that bared a token, followed by the claim retire that took it (P12b;
-  migrate translations 2–4). RULED by gblock 2026-11-20 (picked): (A) as the pure cut it was; the 4 fates become
-  `moot` and the dropped acts are listed.** The record's Close is derived by the replay's hook from the filled
-  `removed_anchors` (§III.10c translation 3), not written by migrate.
+  migrate translations 2–4). RULED by gblock 2026-11-20 (picked): (A) as the pure cut it was, the dropped acts
+  listed.** Under F21 no `Close` is written, by migrate or by replay (§III.10c translation 3): the pick's "the 4 fates
+  become `moot`" rested on the record's moot, and each of the four gaps keeps its fate at P3's tip, its marker in the
+  folded cut's `removed_anchors`.
   - **The evidence.**
     - **The method.** All 21 archives with gaps were migrated with `feov-migrate` at `ec8757c87`, and each was
       replayed (`~/.claude/scratch/p12/r2/mig/`, `rp/`). Event ids below are migrated ids, with native ids in
@@ -3616,46 +3359,41 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       reading claim text against `old` substrings. G-8dbfce13 (eiffel) was closed before its sentence was rewritten.
   - **(A) Read each such edit as a pure cut (recommended).**
     - The retire's anchor rows fill the edit's `removed_anchors` (F17 (a)), and the retire is dropped.
-    - For each gap whose marker the edit removed, the replay's write hook derives the record's `moot` `Close` after
-      the edit.
-    - Later acts on the gap that validate refuses on a closed gap (a fresh `Close`, a `Regrade`, a grade motion, a
-      remand) are refused on replay and listed in `lost_acts`. Acts validate admits on a closed gap land as written:
-      `answers` and dispatch `gap_ids` pass `requireGap`, which checks only that the gap exists (`record.go:1056, 1081,
-      1514`), a docket motion carries no open-gap check (`:1366-1368`), and replay never runs `judgeAct`
-      (`actjudge.go:24-26`).
-    - **The four fates that change:**
+    - No `Close` is written (F21). Each gap keeps its fate at P3's tip; an open one reads `gone` from the folded cut,
+      on its lens's turn when the run ended. Later acts on the gap land as written or drop by the rules replay
+      applies: `answers` and dispatch `gap_ids` pass `requireGap`, which checks only that the gap exists
+      (`record.go:1056, 1081, 1514`), a docket motion carries no open-gap check (`:1366-1368`), and replay never runs
+      `judgeAct` (`actjudge.go:24-26`).
+    - **The four gaps:**
 
-      | run | gap | migrated today (P3 tip) | under (A) | folded into the cut, or dropped and listed in `lost_acts` | land as written |
+      | run | gap | migrated today (P3 tip) | under (A), F21 | folded into the cut, or left to the first migration | land as written |
       |---|---|---|---|---|---|
-      | wave-a | G-f6f63173 | open (native `repaired` close 328 already lost to the delivery rule) | `moot` at 283 | retire 284 (4 rows), folded | dispatches 321, 324 |
-      | m28 | G-3a2c77c1 | open, docket unruled (native close 632 and ruling 659 already lost) | `moot` at 509 | retire 510, folded; regrade 566 (`record.go:1307`); closing 660 and the `declare_gap_ids` entry at 666, left to the first migration (no rule named here decides them) | `answers` on edits 514, 586; docket motion 601; dispatches 522, 530, 608 |
-      | m37 | G-20128984 | open at run end | `moot` at 981 | retire 982's row, folded | — |
-      | m37 | G-477feea1 | `repaired` at 1019[1085] | `moot` at 981 | close 1019 (a fresh `Close` on a closed gap, `record.go:1192`) | dispatches 999, 1000 |
+      | wave-a | G-f6f63173 | open (native `repaired` close 328 already lost to the delivery rule) | open, `gone` from 283 | retire 284 (4 rows), folded | dispatches 321, 324 |
+      | m28 | G-3a2c77c1 | open, docket unruled (native close 632 and ruling 659 already lost) | open, `gone` from 509 | retire 510, folded; closing 660 and the `declare_gap_ids` entry at 666, left to the first migration | `answers` on edits 514, 586; regrade 566; docket motion 601; dispatches 522, 530, 608 |
+      | m37 | G-20128984 | open at run end | open, `gone` from 981 | retire 982's row, folded | — |
+      | m37 | G-477feea1 | `repaired` at 1019[1085] | `repaired` at 1019 | retire 982's row, folded | close 1019; dispatches 999, 1000 |
 
-      `TestAClaimRetireFoldsIntoItsCut` compares each archive's `lost_acts` with the dropped column. Where the first
-      migration differs on 660 or 666, this table and the residue are corrected before code.
+      `TestAClaimRetireFoldsIntoItsCut` compares each archive's `lost_acts` with this table. Where the first
+      migration differs, this table and the residue are corrected before code.
     - **Also:**
       - Under F14, m36's retire 442 (G-34314cff and G-e24f46e2 open at it) is dropped, and both markers stay on their
         kept sentence; the gaps' recorded fates (one `moot` by its lens, one `repaired`) stand.
       - The 92 anchorless claim retires are dropped (88 in the 21 archives above, 4 older), m19's event 260 among
         them; it holds no anchor.
-  - **(B) Fold the token's removal into the edit, but write no moot.**
-    - The text is the same as under (A), and no fate changes.
-    - G-f6f63173, G-3a2c77c1 and G-20128984 end open with no marker in the report. That is the floating gap ruling 2
-      of §III.10c abolishes, and P12b's live write can never produce it.
-    - **Residue:** 0 dropped acts, 3 open gaps with no site, and a migrated record that P12b's own invariant oracle
-      fails.
+  - **(B) Fold the token's removal into the edit, but write no moot.** Under F21 this is (A)'s text and fate: the 11-20
+    pick between them was a pick of the record's moot, which F21 deletes.
   - **(C) Keep the archived pair as written.**
     - The edit leaves the token bare and the retire takes it.
     - Migrate's no-bare check fails between the two events.
     - It would need a tolerance path for archived records only, which CLAUDE.md forbids.
   - **Recommended, and ruled: (A).** It is the only option whose migrated records satisfy the invariant P12b's live
     write holds.
-    Its residue is four fates and the listed acts, accepted in kind by gblock's 2026-11-03 ruling that migration cost is
+    Its residue is the listed acts, accepted in kind by gblock's 2026-11-03 ruling that migration cost is
     not a reason to keep a design (agent memory, not his typed words).
   - **The bare residue (translation 4).** RULED by gblock 2026-11-21 (picked): an archived edit that bared a gap marker
-    with no retire migrates as a pure cut, as F18's pairs do. The record writes the moot at the baring edit, and later
-    closes and supersessions of those gaps drop as lost acts, listed. It covers b3 G-19b1727b, b6 G-68c6ecf7 and b9
+    with no retire migrates as a pure cut, as F18's pairs do: migrate fills the baring edit's `removed_anchors`. Under
+    F21 no `Close` is written, so later acts on those gaps land or drop by the rules replay applies, each dropped one
+    listed. It covers b3 G-19b1727b, b6 G-68c6ecf7 and b9
     G-8bd21b5d only: the question that drew it described m26's two gaps as cuts, and the F20 ruling corrects that
     (RULINGS.md 11-21 "P12 audit r4" and "F20 ruled" entries). The rest of the bare population is F20.
 - **F20 — tokens a rewrite left on no words, with the sentence staying (P12b migrate; plan-audit r4 gap 1's sweep).
@@ -3677,9 +3415,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     `C-`. No later act names either `C-`, and no computation cites either.
   - **(A) Pure cuts, all four (the ruling as picked, extended to the `C-`).** Migrate fills each edit's
     `removed_anchors` with its token.
-    - G-59e61f8c is `moot` at 233 while its sentence stands without a marker. Mint 309 lands as lineage only, since a
+    - G-59e61f8c loses its marker at 233 while its sentence stands. Mint 309 lands as lineage only, since a
       closed ancestor's supersession is lineage (`supersession.go:71-75`), so G-4a4093c0 stands.
-    - G-0f2d72fd is `moot` at 240. Edit 260 quotes its token in `old` on P3's tip, so on P12b's base it may need its
+    - G-0f2d72fd loses its marker at 240. Edit 260 quotes its token in `old` on P3's tip, so on P12b's base it may need its
       quote rewritten, or drop.
     - Two cited sentences lose their citation.
     - The migrated record holds 4 edits that carry a removal list and keep prose, a shape no live write makes.
@@ -3707,29 +3445,34 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   - **The side not taken:** the cut lands and the computation names a citation in no document, stated as residue.
 - **P12's lead calls — disclosed, not gblock's, each reversible at approval** (RULINGS.md 11-20 "LEAD CALLS" and the
   plan's own "lead call" marks). The approver reads each as unruled:
-  - **F16's end row in P12b** (§III.10c): keep it in P12b, since a split ships a P12b that contradicts F16 | split it
-    into a follow-up and ship the cut and the moot first, stated.
-  - **No judge-level `isRecordMoot` exemption** (§III.10c "The exemption"): omit them and state that the derived
-    `Close` is judged by nothing | build them as defence in case a derived row is ever judged. gblock's 11-20 pick
-    named "requireOriginator, delivered-text, demand" as exempt; for the demand guard the omission meets it by
-    non-judgement, because `requireDemandMet` is a `judgeAct` guard and `writeIn`'s derived rows never reach
-    `judgeAct`.
   - **Arm 4 in P12a** (§III.10b): build it, so a `--quote` gap closes once its marker leaves | ship the demand wording
-    only, and accept that such a gap stays refused until P12b's record moot.
+    only, and accept that such a gap stays refused until P12b's cut.
   - **Arm 4 on the edit arm only in P12b** (§III.10c): read `anchor_removal`'s edit arm, so an F14 retire off a
     standing sentence meets no heir | read both arms, and let an F14 retire meet the heir while the claim stands.
-  - **The record's moot under `harness`** (§III.10c "Attribution"), and **"the claim leaves only with its marker"** in
-    `DemandClause` (§III.10b).
+  - **"The claim leaves only with its marker"** in `DemandClause` (§III.10b).
   - **`archivedRuns` walks every committed archive for every caller** (§V 13.4): one census of the committed set, and
     nine tests gain m37's and m38's entries | scope the walk to §V 13.4's tests and `archivedRun`, and state that the
     other censuses leave out `bundle-store/`. Two one-level globs that are not `archivedRuns` callers stay unwalked,
     stated (§V 13.4) | walk them too.
-  - **A for-red ruling's own gap is skipped by the record's moot** (§III.10c ruling 4; agreed with #1889's owner,
-    `~/.claude/scratch/1695/RULINGS.md:93-94`): G closes `repaired` by the ruling | moot G at the bench's edit. This
-    reads gblock's 11-20 "deleting the text is *always* a moot" as yielding to his 11-21 "winner's statement
-    applies" (RULINGS.md:88) where the two meet in one transaction; the approver may read it the other way.
-  - **A placement on a token the same edit removed is not written** (§III.10c F16) | written, then ended in the same
-    transaction.
+  - **The cut's turn reads `removed_anchors` beside `reopened`** (§III.10c "The raiser's turn"): `reopened` keeps its
+    meaning (an anchor whose sentence changed and still stands), and the lens turn, `changedSinceSQL` and
+    `latestReopeningSQL` union the removal list | widen `ReopenedAnchors` to list a removed anchor, so every `reopened`
+    reader sees the cut with no union, at the cost of `reopened` naming anchors no longer in the report.
+- **F21 — how a pure cut of a gap's marker ends the gap (P12b). RULED by gblock 2026-11-26 (picked; option wording
+  the agent's): "Raiser's turn, land now".** RULINGS.md 2026-11-26 entry.
+  - **The conflict.** The 2026-11-20 pick had the record write a `moot` `Close` in the cutting edit's transaction.
+    #1889's plan (6b752083, unapproved) makes a pure cut the raiser's TURN, on gblock's 2026-11-24 F-FATE ruling
+    "Raiser's turn": the lens re-audits and closes `moot`.
+  - **Ruled.** P12b builds no record-written `Close`. It keeps: the cut takes its anchors (`removed_anchors`, F17),
+    the tombstone ends with the token (F16, #1889's on its rebase), and L6 (F19). A cut readies the raiser; the lens
+    closes `moot`, keeps the gap, or the exchange limits docket it. P12b lands first on main; #1889 rebases onto it.
+  - **Superseded:** the 11-20 "record closes moot" pick and its lead calls (the moot attributed to `harness`, no
+    judge-level exemptions, the for-red bench-edit skip), and #1889's three conditions on the record's moot.
+  - **Built in §III.10c** ("The raiser's turn"): `lensTurnActsOf`, `changedSinceSQL` and `latestReopeningSQL` read
+    `removed_anchors` beside `reopened`, and `blueAnswers`' `gone` item fires on the lens's turn.
+  - **Consequences, stated:** migrate writes no `Close`, so F18's four gaps and translation 4's three keep their fates
+    at P3's tip (§III.10c translation 3); main holds `F-`, so the archived `F-` population is P12b's and unclassified
+    until open (§III.10c migrate); docketing interactions with a cut are #1889's.
 
 ## VII. In the rulings: contradictions, limits and what is left out
 
@@ -3841,20 +3584,18 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
 11. **P12 against the code, where a ruling's premise or evidence differs** (each read at file:line, §III.10b/§III.10c):
     - The demand ruling's evidence (the archived about-anchor deadlock) is **already met on main**: `met`'s retire arm
       (`gapstate.go:256-270`) counts the retire of the about-anchor. What remains is the `--quote` gap whose marker has
-      left (16 archived computation/source mints), which P12a's arm 4 admits and P12b's record moot closes; arm 4
-      stays in P12b for a superseded ancestor's marker, whose cut writes no close.
-    - The record's moot is a **real `Close`** (ruled 2026-11-20 after audit r1) although the code's own prose argues
-      the opposite for supersession (`supersession.go:13-16`, `gapstate.go:196-203`): the moot is the only statement of
-      the gap's end, which no seat states, so the record writes it; both comments are P12b carriers. It meets six
-      seat-only guards and a CHECK, not three. The three in validate exempt exactly `isRecordMoot`; the three in
-      `judgeAct` are never asked, because #1889's derived rows are judged by nothing; the CHECK is met by the record's
-      sentence. Each of the six is tested holding a seat's close.
+      left (16 archived computation/source mints), which P12a's arm 4 admits; P12b reads arm 4 from the edit arm, so
+      the lens's `moot` lands once a cut takes the marker, and a superseded ancestor's heir is met the same way.
+    - **A cut readies no lens on main** (F21's mechanism): `ReopenedAnchors` lists no anchor gone from the after side,
+      and the lens turn, the delivered-text rule and the gap passage read only `reopened` (§III.10c census). The
+      raiser's turn is built by reading `removed_anchors` beside it.
     - "Which anchors an edit removed is derived in a SQL view, never stored" (r1) was the plan's wording; RULINGS.md has
       "BaredAnchors computes which". Replay cannot derive the removal from today's recorded fields (F17).
     - One gap per site's "no record change" holds, but **every lens duty carrier on main instructs the opposite**
       (class-wide enumerating checks), and **P9 (F5) would refuse the second per-site voice gap** (F15, withdrawn).
     - The `retire` ruling's "every anchor kind" left a `G-` retired with its sentence kept unspecified (F14, ruled);
-      after #1889 there is no `F-` kind.
+      `F-` is still a kind on main, and P12b's rules hold for it; its archived population is unclassified until open
+      (§III.10c migrate).
     - r1's archive figures: census-b's F2 read 21 records (n1 has no gap); of its claim retires most carry no anchor,
       so the fold changes 16, not 103; m19's event 260 carries no anchor; and its six "cut markers" were four (F18:
       m36's two were a rewrite, eiffel's closed before the cut; wave-a's G-f6f63173 was missed on the native record).
@@ -3865,8 +3606,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       (§III.10c translations 4 and 6, F20). The archive tests read only `run-archive/*.tar.gz`, one level, so before
       P12b none checked m37's or m38's refusals or render (§V 13.4).
 12. **The F14-then-cut order** (§III.10b, residue on P12b's tree). The heir of a superseded `--quote` ancestor whose
-    marker F14 retired before its claim was cut keeps an unmet demand. Whether a bench ruling on #1889's tree closes
-    it past the demand is read at P12b's open; no ruling covers the order, and it is stated, not built.
+    marker F14 retired before its claim was cut keeps an unmet demand. Whether a bench ruling closes it past the demand
+    is #1889's, read on its rebase; no ruling covers the order, and it is stated, not built.
 
 **Left out, with the reason:**
 - O (reopen) and N (#1827): out of scope by instruction.
