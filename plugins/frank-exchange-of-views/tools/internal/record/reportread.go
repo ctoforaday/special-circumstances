@@ -1,5 +1,7 @@
 package record
 
+import "slices"
+
 // A SEAT'S PIN IS THE HEAD OF ITS LATEST COMPLETE DELIVERY in a sitting it sat through
 // (report_delivery). The delivery writer appends one report_read when it hands a delivery's last item
 // into the seat's context, its head the report head the delivery was cut at: the tool's record of
@@ -29,6 +31,12 @@ func servedOf(win WindowIndex) map[string][]served {
 		out[r.SeatID] = append(out[r.SeatID], served{opening: r.SittingID, head: r.Head, sat: r.SatThrough})
 	}
 	return out
+}
+
+// deliveredIn is whether a delivery of report text to seatID completed in the sitting opened at
+// opening, sat through or not.
+func deliveredIn(win WindowIndex, seatID string, opening int64) bool {
+	return slices.ContainsFunc(servedOf(win)[seatID], func(r served) bool { return r.opening == opening })
 }
 
 // pinOf is the lens's pin: the head of its latest delivery in a sitting it sat through whose opening
