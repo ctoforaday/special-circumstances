@@ -136,9 +136,13 @@ func gapMarkers() []gapMarker {
       WHERE mo."motion_id" = NEW."motion_id"`},
 		// An upheld position remands every gap it lists.
 		{"motion_rule_position_gap_ids", `SELECT NEW."value"`},
-		// A retire takes the anchor out: the gaps it answers, the gaps whose demand reaches it, and, for
-		// a gap's own marker, the gap and every heir carrying its demand (met's arm 4).
+		// A retire takes the anchor out: the gaps it answers and the gaps whose demand reaches it. It moves
+		// no gap's marker arm (met's arm 4 reads only a cut), so it names no lineage.
 		{"retire_anchors", `SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
+      UNION ` + reachingSQL(`NEW."value"`)},
+		// A cut takes the anchor out with its sentence: the gaps it answers, the gaps whose demand reaches
+		// it, and, for a gap's own marker, the gap and every heir carrying its demand (met's arm 4).
+		{"blue_edit_removed_anchors", `SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
       UNION ` + reachingSQL(`NEW."value"`) + `
       UNION SELECT "gap_id" FROM "demand_lineage" WHERE "from_gap" = NEW."value"`},
 	}
@@ -258,13 +262,14 @@ WITH "d" AS MATERIALIZED (
 "met" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. an anchor the demand reaches is retired: the one the gap is about, or one an ancestor it
-  --      carries the demand from reaches, retired since the heir's mint;
+  --   2. an anchor the demand reaches is out of the report, by a retire or a cut: the one the gap is
+  --      about, or one an ancestor it carries the demand from reaches, out since the heir's mint;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
   --      read it is at or after the gap's mint and holds. Another seat's check meets nothing;
-  --   4. a gap marker of the demand's lineage has left the report: the gap's own, or an ancestor's
-  --      retired since the heir's mint. The claim a marker marks leaves the report only with it, and
-  --      a retire is the one act that takes a marker out, so retire_anchors is the subject's state.
+  --   4. a gap marker of the demand's lineage has left the report WITH ITS CLAIM: the gap's own, or
+  --      an ancestor's cut since the heir's mint. A cut takes a sentence and its marker together, so
+  --      anchor_removal's edit arm is the subject's state; a retire keeps the sentence (and F14
+  --      admits one on a closed gap's marker), so it meets nothing here.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0
   UNION
   SELECT r."gap_id"
@@ -276,8 +281,8 @@ WITH "d" AS MATERIALIZED (
   UNION
   SELECT l."gap_id"
   FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
-  WHERE EXISTS (SELECT 1 FROM "retire_anchors" ra
-                WHERE ra."value" = l."from_gap" AND (l."from_gap" = l."gap_id" OR ra."event_id" > "d"."minted"))
+  WHERE EXISTS (SELECT 1 FROM "blue_edit_removed_anchors" er
+                WHERE er."value" = l."from_gap" AND (l."from_gap" = l."gap_id" OR er."event_id" > "d"."minted"))
 ),
 "latest_remand" AS MATERIALIZED (
   -- THE LATEST REMAND ON EACH NAMED GAP (the remand view): its direction is the live one.

@@ -1873,6 +1873,15 @@ func (t *blueEditTable) load(q Querier, after int64) error {
 	}); err != nil {
 		return err
 	}
+	if err := scanList(q, "blue_edit_removed_anchors", `SELECT l."event_id", l."value" FROM "blue_edit_removed_anchors" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
+		m := t.rows[id]
+		if m == nil {
+			return // the owner's row is missing, and its event is refused for that
+		}
+		m.RemovedAnchors = append(m.RemovedAnchors, v)
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1901,10 +1910,7 @@ func (t *retireTable) load(q Querier, after int64) error {
 		var c0 sql.NullString
 		var c1 sql.NullString
 		var c2 sql.NullString
-		var c3 sql.NullString
-		var c4 sql.NullInt64
-		var c5 sql.NullString
-		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."answers" FROM "retire" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.Retire{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1913,16 +1919,7 @@ func (t *retireTable) load(q Querier, after int64) error {
 				m.Reason = ref(c1.String)
 			}
 			if c2.Valid {
-				m.SupersededBy = ref(c2.String)
-			}
-			if c3.Valid {
-				m.RemovalBasis = ref(c3.String)
-			}
-			if c4.Valid {
-				m.ClaimKept = ref(c4.Int64 != 0)
-			}
-			if c5.Valid {
-				m.Answers = ref(c5.String)
+				m.Answers = ref(c2.String)
 			}
 			t.rows[id] = m
 		}); err != nil {

@@ -239,6 +239,8 @@ CREATE INDEX "cite_answers" ON "cite" ("answers");
 -- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads,
 -- and the retirement that retired an anchor (AnchorRetiredAt).
 CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
+-- The cuts naming an anchor: anchor_removal's edit arm, read per anchor as its retire arm is.
+CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("value", "event_id");
 -- The computations applying a citation as their method (Computation.cites): what a retire of that
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
@@ -282,8 +284,9 @@ CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
 -- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
 CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
--- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
--- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
+-- The edits whose reopened names an anchor, in order: the latest is the last edit that changed its
+-- sentence, whose stamped old paragraphs still hold it, and the first after a head is the change that
+-- touched it since; an edit that took its sentence lists it in removed_anchors instead.
 CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
 `
 

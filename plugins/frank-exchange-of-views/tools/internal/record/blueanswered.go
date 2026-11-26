@@ -291,11 +291,11 @@ func placedAnswer(e *Event) (id, gap string, ok bool) {
 	return "", "", false
 }
 
-// retireAnswers is the gap an evidence-anchor retire answers — the key BlueEdit.answers is on the other act
-// that changes the report's text, and every reader of blue's answers reads both. "" for any other
-// event, and for a retire answering no gap; a claim retire carries none (validate refuses one).
+// retireAnswers is the gap a retire answers — the key BlueEdit.answers is too: a retire changes the
+// report's anchors and an edit its text, and every reader of blue's answers reads both. "" for any
+// other event, and for a retire answering no gap.
 func retireAnswers(e *Event) string {
-	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && r.GetClaimKept() {
+	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
 		return r.GetAnswers()
 	}
 	return ""

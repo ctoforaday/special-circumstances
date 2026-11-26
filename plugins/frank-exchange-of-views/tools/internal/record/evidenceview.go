@@ -328,9 +328,8 @@ type EvidenceJSON struct {
 	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
 	// check removes the row. It holds a PASS (passBlockersOf).
 	Unchecked []EvidenceUncheckedJSON `json:"unchecked"`
-	// Retires is every retire on the record, in record order: a claim that left the report, and a
-	// citation or computation taken off a sentence that stays (`claim_kept`). It is the changelog's
-	// "Claims retired", read as the record holds it. NOT omitempty: `[]` is "blue retired nothing".
+	// Retires is every retire on the record, in record order: an anchor taken off a sentence that
+	// stays. NOT omitempty: `[]` is "blue retired nothing".
 	Retires []EvidenceRetireJSON `json:"retires"`
 	Counts  struct {
 		Sources      int `json:"sources"`
@@ -346,20 +345,15 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
-// EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the claim as it stood and why
-// it went, what superseded it, whether the sentence stays with only its evidence taken off it, the
-// anchors it took out, and how far the record shows the claim leaving (`removal_basis`: verified,
-// asserted, or "" on a retire whose sentence stays).
+// EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the sentence the anchor stood on,
+// which stays, why it went, and the anchors it took out.
 type EvidenceRetireJSON struct {
 	Event        int64    `json:"event"`
 	SeatID       string   `json:"seat_id"`
 	Epoch        int      `json:"epoch"`
 	Claim        string   `json:"claim"`
 	Reason       string   `json:"reason"`
-	SupersededBy string   `json:"superseded_by"`
-	ClaimKept    bool     `json:"claim_kept"`
 	Anchors      []string `json:"anchors"`
-	RemovalBasis string   `json:"removal_basis"`
 }
 
 // EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
@@ -410,8 +404,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
 			w := win.Of(e)
 			out.Retires = append(out.Retires, EvidenceRetireJSON{Event: w.ID, SeatID: e.GetSeatId(), Epoch: w.Epoch,
-				Claim: r.GetClaim(), Reason: r.GetReason(), SupersededBy: r.GetSupersededBy(), ClaimKept: r.GetClaimKept(),
-				Anchors: append([]string{}, r.GetAnchors()...), RemovalBasis: r.GetRemovalBasis()})
+				Claim: r.GetClaim(), Reason: r.GetReason(), Anchors: append([]string{}, r.GetAnchors()...)})
 		}
 	}
 	for _, u := range uncheckedAnchors(evs, win) {

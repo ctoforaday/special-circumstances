@@ -1440,17 +1440,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				w, recordpb.Word(b.Subject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.Subject())]), " | "))
 		}
 	case *recordpb.Retire:
-		// THE CLAIM AND THE REASON ARE THE ANNOTATIONS' TO REFUSE: both carry `required: true` with
-		// their `why`, and the annotation sweep refuses before this arm runs, so a copy of either
-		// refusal here could never execute and would drift unread.
+		// THE REASON IS THE ANNOTATIONS' TO REFUSE: it carries `required: true` with its `why`, and the
+		// annotation sweep refuses before this arm runs, so a copy of that refusal here could never
+		// execute and would drift unread. The claim is the verb's stamp of the anchor's sentence.
 		//
-		// --answers is blue_edit's key on the other act that changes the report's text, and is
-		// checked against the board the same way. A claim retire takes none: the edit that cut the
-		// claim answers the gap, and a second answer from the retire would join one repair to the gap
-		// twice.
-		if b.GetAnswers() != "" && !b.GetClaimKept() {
-			return fmt.Errorf("--answers names the gap an evidence-anchor retire answers — a retire naming one citation or computation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
-		}
+		// --answers is the key blue_edit carries too, checked against the board the same way: a retire
+		// changes the report's anchors where an edit changes its text, and either may answer a gap.
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
