@@ -21,7 +21,8 @@ import (
 //
 // Fails CLOSED: any unexpected error inspecting the lock file, reading /proc, or inspecting a
 // same-UID process's file descriptors is HolderUninspectable, so telepathy send queues to the
-// mailbox rather than risking a second writer.
+// mailbox rather than risking a second writer. So is a lock /proc/locks may not show whole — a
+// locker that has exited, a nested pid namespace, a network filesystem (flockHolders says when).
 //
 // Check-then-send race: a second process can still open the conversation in the window between
 // this check and the HTTP SendAgentMessage call. This guard prevents sending into an already-open
@@ -38,23 +39,12 @@ func ConversationBusy(agyRoot, conversation string, excludePID int) Holder {
 	case err != nil:
 		return Holder{Kind: HolderUninspectable, Detail: fmt.Sprintf("cannot inspect presence/%s.lock: %v", conversation, err)}
 	}
-	if h := holderFromLocks(conversation, holders, excludePID); h.Kind != HolderNone {
-		return h
-	}
-	return otherDBHolder(agyRoot, conversation, excludePID)
-}
-
-// holderFromLocks is the presence lock's holder other than excludePID, from its holders' pids.
-func holderFromLocks(conversation string, holders []int, excludePID int) Holder {
 	for _, pid := range holders {
-		if pid <= 0 {
-			return Holder{Kind: HolderUninspectable, Detail: fmt.Sprintf("presence/%s.lock is held by a process outside this pid namespace", conversation)}
-		}
 		if pid != excludePID {
 			return Holder{PID: pid, Kind: HolderPresenceLock, Detail: fmt.Sprintf("pid %d holds presence/%s.lock", pid, conversation)}
 		}
 	}
-	return Holder{Kind: HolderNone}
+	return otherDBHolder(agyRoot, conversation, excludePID)
 }
 
 func renameRecord(src, dst string) error { return os.Rename(src, dst) }

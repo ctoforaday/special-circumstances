@@ -170,8 +170,16 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) Holder {
 }
 
 // flockHolders lists the pids /proc/locks shows holding a FLOCK on path's inode, without opening
-// path. Its error wraps fs.ErrNotExist when path does not exist. A holder outside this pid namespace
-// is listed as 0.
+// path. Its error wraps fs.ErrNotExist when path does not exist.
+//
+// It refuses, with an error, where /proc/locks may not show the process holding the lock:
+//   - a pid it names has exited. /proc/locks names the process that TOOK a flock, and the lock
+//     lives as long as any descriptor sharing that open file, so a locker that passed its
+//     descriptor on and exited is named while the process now holding the lock is not;
+//   - it names no holder while this process runs in a nested pid namespace, where a lock whose
+//     owner is outside the namespace is left out of /proc/locks rather than listed;
+//   - it names no holder while the file is on a network filesystem, where a lock taken on
+//     another host is not in this host's /proc/locks.
 func flockHolders(path string) ([]int, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -185,7 +193,82 @@ func flockHolders(path string) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return lockHolders(string(raw), strconv.FormatUint(st.Ino, 10))
+	pids, err := lockHolders(string(raw), strconv.FormatUint(st.Ino, 10))
+	if err != nil {
+		return nil, err
+	}
+	for _, pid := range pids {
+		if _, err := os.Stat(fmt.Sprintf("/proc/%d", pid)); errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("/proc/locks names pid %d, which has exited, so the process now holding the lock is not named", pid)
+		}
+	}
+	if len(pids) == 0 {
+		if why := locksBlindSpot(path); why != "" {
+			return nil, errors.New(why)
+		}
+	}
+	return pids, nil
+}
+
+// locksBlindSpot says why /proc/locks may leave out a lock on path, or "" when it lists every one.
+func locksBlindSpot(path string) string {
+	status, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		return "cannot read /proc/self/status to learn whether /proc/locks lists every holder: " + err.Error()
+	}
+	nested, known := nestedPidNamespace(string(status))
+	switch {
+	case !known:
+		return "/proc/self/status has no NSpid line, so whether /proc/locks lists every holder is unknown"
+	case nested:
+		return "this process runs in a nested pid namespace, whose /proc/locks leaves out a holder outside it"
+	}
+	var sfs syscall.Statfs_t
+	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
+		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
+	}
+	if name := networkFS(uint32(sfs.Type)); name != "" {
+		return "the lock is on " + name + ", where a lock taken on another host is not in this host's /proc/locks"
+	}
+	return ""
+}
+
+// nestedPidNamespace reads /proc/self/status: its NSpid line lists this process's pid in each pid
+// namespace from the outermost in, so more than one means a nested namespace. known is false when
+// there is no such line.
+func nestedPidNamespace(status string) (nested, known bool) {
+	for _, line := range strings.Split(status, "\n") {
+		if rest, ok := strings.CutPrefix(line, "NSpid:"); ok {
+			return len(strings.Fields(rest)) > 1, true
+		}
+	}
+	return false, false
+}
+
+// networkFS names the network filesystem with superblock magic m, or "". The magics are
+// include/uapi/linux/magic.h's and the filesystems' own headers'.
+func networkFS(m uint32) string {
+	switch m {
+	case 0x6969:
+		return "NFS"
+	case 0x517B, 0xFF534D42, 0xFE534D42:
+		return "SMB"
+	case 0x00C36400:
+		return "Ceph"
+	case 0x5346414F, 0x6B414653:
+		return "AFS"
+	case 0x01021997:
+		return "9P"
+	case 0x01161970:
+		return "GFS2"
+	case 0x7461636F:
+		return "OCFS2"
+	case 0x0BD00BD0:
+		return "Lustre"
+	case 0x73757245:
+		return "Coda"
+	}
+	return ""
 }
 
 // lockHolders reads /proc/locks text for the FLOCK holders of inode ino.

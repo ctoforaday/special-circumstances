@@ -3,8 +3,10 @@
 package peer
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,17 +103,72 @@ func TestLockHoldersReadsProcLocks(t *testing.T) {
 }
 
 // A HOLDER THIS NAMESPACE CANNOT NAME IS UNINSPECTABLE, never "pid 0".
-func TestConversationBusyHolderOutsideNamespace(t *testing.T) {
+// WHERE /proc/locks CANNOT SHOW THE HOLDER, THE PROBE FAILS CLOSED. Here the process that took
+// the lock (flock(1)) has exited, and the shell it shared the descriptor with holds it.
+func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
+	flockBin, err := exec.LookPath("flock")
+	if err != nil {
+		t.Skip("no flock(1) on this box")
+	}
 	agyRoot := t.TempDir()
-	const conv = "conv-ns"
-	if err := os.MkdirAll(filepath.Join(agyRoot, "presence"), 0o755); err != nil {
+	const conv = "conv-passed-on"
+	lockPath := filepath.Join(agyRoot, "presence", conv+".lock")
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(agyRoot, "presence", conv+".lock"), nil, 0o600); err != nil {
+	sh := exec.Command("sh", "-c", `exec 9>>"$1"; "$2" -x 9; echo locked; exec sleep 60`, "sh", lockPath, flockBin)
+	out, err := sh.StdoutPipe()
+	if err != nil {
 		t.Fatal(err)
 	}
-	h := holderFromLocks(conv, []int{0}, 0)
-	if h.Kind != HolderUninspectable || h.PID != 0 || strings.Contains(h.Detail, "pid 0") {
-		t.Errorf("holder outside the namespace = %+v, want uninspectable, naming no pid", h)
+	if err := sh.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sh.Process.Kill(); _ = sh.Wait() })
+	if line, err := bufio.NewReader(out).ReadString('\n'); err != nil || line != "locked\n" {
+		t.Fatalf("shell said %q, %v; want locked", line, err)
+	}
+	h := ConversationBusy(agyRoot, conv, 0)
+	if h.Kind != HolderUninspectable || !strings.Contains(h.Detail, "which has exited") {
+		t.Errorf("ConversationBusy = %+v, want uninspectable naming the exited locker", h)
+	}
+}
+
+func TestNestedPidNamespace(t *testing.T) {
+	for _, tc := range []struct {
+		status        string
+		nested, known bool
+	}{
+		{"Name:\tx\nNSpid:\t4242\n", false, true},
+		{"Name:\tx\nNSpid:\t4242\t17\n", true, true},
+		{"Name:\tx\nPid:\t4242\n", false, false},
+	} {
+		if nested, known := nestedPidNamespace(tc.status); nested != tc.nested || known != tc.known {
+			t.Errorf("nestedPidNamespace(%q) = (%v, %v), want (%v, %v)", tc.status, nested, known, tc.nested, tc.known)
+		}
+	}
+}
+
+func TestNetworkFS(t *testing.T) {
+	for m, want := range map[uint32]string{0x6969: "NFS", 0xFF534D42: "SMB", 0xFE534D42: "SMB", 0x517B: "SMB", 0x00C36400: "Ceph",
+		0x5346414F: "AFS", 0x6B414653: "AFS", 0x01021997: "9P", 0x01161970: "GFS2", 0x7461636F: "OCFS2", 0x0BD00BD0: "Lustre",
+		0x73757245: "Coda", 0xEF53: "", 0x01021994: "", 0x58465342: ""} {
+		if got := networkFS(m); got != want {
+			t.Errorf("networkFS(%#x) = %q, want %q", m, got, want)
+		}
+	}
+}
+
+// ON A LOCAL FILESYSTEM, IN THIS NAMESPACE, AN UNHELD LOCK FILE IS NOT A BLIND SPOT.
+func TestLocksBlindSpotHere(t *testing.T) {
+	status, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		t.Skip(err)
+	}
+	if nested, _ := nestedPidNamespace(string(status)); nested {
+		t.Skip("this test runs in a nested pid namespace")
+	}
+	if why := locksBlindSpot(filepath.Join(t.TempDir(), "f.lock")); why != "" {
+		t.Errorf("locksBlindSpot on a temporary directory = %q, want none", why)
 	}
 }
