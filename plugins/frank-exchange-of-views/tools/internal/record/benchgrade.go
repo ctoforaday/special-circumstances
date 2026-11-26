@@ -21,15 +21,12 @@ import (
 // the ruling after it as one step. While an axis is locked:
 //
 //   - a lens's regrade that MOVES it is refused; one that keeps it is the lens saying its gap stands,
-//     and is admitted;
-//   - a mint superseding the gap whose grade differs on it is refused: the lock follows the lineage,
-//     so a successor carries the ruled grade and the lens cannot escape it by re-minting.
+//     and is admitted.
 //
 // No move lifts a lock. A later ruling on the axis re-locks it at its own grade. The lock ends with the
 // ruling's tombstone (gblock 2026-11-21, "Ends with the tombstone"): the Tombstone row that ends the
 // ruled gap's RULING tombstone — blue's reword of its sentence, or whatever act the rule says ends it
-// (tombstone.go) — ends the lock of every axis a ruling on that gap decided, the successor's inherited
-// lock included. The fold reads the rows the write path wrote; it keeps no end list of its own.
+// (tombstone.go) — ends the lock of every axis a ruling on that gap decided. The fold reads the rows the write path wrote; it keeps no end list of its own.
 
 // gradeAxes is the four axes in the order the folds below index them.
 var gradeAxes = [4]recordpb.GradeDimension{
@@ -55,12 +52,11 @@ func mintAxes(m *recordpb.Mint) [4]recordpb.Grade {
 	return [4]recordpb.Grade{m.GetSeverity(), m.GetLikelihood(), m.GetImpact(), m.GetComplexityCost()}
 }
 
-// axisGrade is where one axis of one gap stands: its grade, and — where a ruling locked it, or the gap
-// inherits the lock from an ancestor — the place of the ruling that locked it.
+// axisGrade is where one axis of one gap stands: its grade, and — where a ruling locked it — the place
+// of the ruling that locked it.
 type axisGrade struct {
 	grade recordpb.Grade
-	// benchAt is the place of the ruling that locked the axis (an ancestor's, for a successor that
-	// inherits it), 0 while it is unlocked.
+	// benchAt is the place of the ruling that locked the axis, 0 while it is unlocked.
 	benchAt int64
 }
 
@@ -88,15 +84,6 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 			var cur [4]axisGrade
 			for k, g := range mintAxes(b) {
 				cur[k].grade = g
-			}
-			// THE LOCK FOLLOWS THE LINEAGE: an axis a ruling holds locked on an ancestor is locked on its
-			// successor, which the write admits only at the ancestor's grade.
-			if a := b.GetSupersedes(); a != "" {
-				for k, ax := range out[a] {
-					if ax.benchAt != 0 && cur[k].benchAt == 0 {
-						cur[k].benchAt = ax.benchAt
-					}
-				}
 			}
 			out[b.GetGapId()] = cur
 		case *recordpb.Motion:
@@ -159,25 +146,19 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 			moved[k.gap] = m
 			out[k.gap] = cur
 		case *recordpb.Tombstone:
-			// THE RULING'S TOMBSTONE ENDS, AND EVERY LOCK A RULING ON ITS GAP SET ENDS WITH IT, wherever
-			// the lineage carried it.
+			// THE RULING'S TOMBSTONE ENDS, AND EVERY LOCK A RULING ON ITS GAP SET ENDS WITH IT.
 			if !b.GetEnds() || b.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_RULING || len(rulingsOn[b.GetGapId()]) == 0 {
 				continue
 			}
 			ended := rulingsOn[b.GetGapId()]
 			delete(rulingsOn, b.GetGapId())
-			for g, axes := range out {
-				changed := false
-				for k := range axes {
-					if ended[axes[k].benchAt] {
-						axes[k].benchAt = 0
-						changed = true
-					}
-				}
-				if changed {
-					out[g] = axes
+			axes := out[b.GetGapId()]
+			for k := range axes {
+				if ended[axes[k].benchAt] {
+					axes[k].benchAt = 0
 				}
 			}
+			out[b.GetGapId()] = axes
 		}
 	}
 	return out
@@ -234,29 +215,6 @@ func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regra
 		return feov.Errorf(feov.Conflict,
 			"%s, and a ruled grade is not moved back. A regrade that keeps it — naming it at %s, or naming no grade — is yours to file. Nothing was recorded",
 			benchLockWords(r.GetGapId(), k, cur[k]), recordpb.Word(cur[k].grade))
-	}
-	return nil
-}
-
-// requireSuccessorKeepsBenchGrades refuses a mint superseding a gap whose grade differs from the
-// ancestor's on an axis a ruling holds locked: the successor carries the ruled grade.
-func requireSuccessorKeepsBenchGrades(w writeView, m *recordpb.Mint) error {
-	a := m.GetSupersedes()
-	if a == "" {
-		return nil
-	}
-	axes, err := benchSetAxesAt(w)
-	if err != nil {
-		return err
-	}
-	mine := mintAxes(m)
-	for k, ax := range axes[a] {
-		if ax.benchAt == 0 || mine[k] == ax.grade {
-			continue
-		}
-		return feov.Errorf(feov.Conflict,
-			"--supersedes names %s: %s, and a successor carries the ruled grade, so mint it at --%s %s. Nothing was recorded",
-			a, benchLockWords(a, k, ax), recordpb.Word(gradeAxes[k]), recordpb.Word(ax.grade))
 	}
 	return nil
 }

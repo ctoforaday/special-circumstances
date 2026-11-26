@@ -27,8 +27,7 @@ import (
 // answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
 // is about), blue placed a citation or computation as its answer (ruled
 // by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
-// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
-// G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
+// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
 // grade or an edit that changed nothing are acts but not movement.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
@@ -291,9 +290,6 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				minted[g] = assignees[g]
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
-			}
-			if s := b.GetSupersedes(); s != "" {
-				movement[s] = append(movement[s], id)
 			}
 		case *recordpb.Regrade:
 			g := b.GetGapId()

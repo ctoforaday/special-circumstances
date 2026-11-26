@@ -177,7 +177,6 @@ type runTally struct {
 	MovedDisputes              int                       `json:"moved_disputes"`
 	UnclassifiedMinted         int                       `json:"unclassified_minted"`
 	UnclassifiedRefused        int                       `json:"unclassified_refused"`
-	SupersedeDemandCarried     int                       `json:"supersede_demand_carried"`
 	Reproduces                 int                       `json:"reproduces"`
 	ReproducesWithClaim        int                       `json:"reproduces_with_claim"`
 	AnchorVerifies             int                       `json:"anchor_verifies"`
@@ -187,7 +186,6 @@ type runTally struct {
 	SpotChecksWithChanges      int                       `json:"spot_checks_with_changes"`
 	StalenessForged            int                       `json:"staleness_forged"`
 	StalenessReported          int                       `json:"staleness_reported"`
-	SupersedeDemandRefused     int                       `json:"supersede_demand_refused"`
 	RulerFilingsRefused        int                       `json:"ruler_filings_refused"`
 	ClosedRemandsRefused       int                       `json:"closed_remands_refused"`
 	TrifleRemandsRouted        int                       `json:"trifle_remands_routed"`
@@ -255,7 +253,6 @@ func tallyOf(o outcome) runTally {
 		OneGapRefused: o.oneGapRefused, OneGapRedirects: o.oneGapRedirects, OneGapNamingFinding: o.oneGapNamingFinding,
 		AboutGapRefused: o.aboutGapRefused, MovedDisputes: o.movedDisputes,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
-		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
 		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
 		SpotChecksNamed: o.spotChecksNamed, SpotChecksStamped: o.spotChecksStamped, SpotChecksWithChanges: o.spotChecksWithChanges,
@@ -616,7 +613,6 @@ type sweepFold struct {
 	forcedOwnerWhys                                 []string
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
-	supersedeDemandCarried, supersedeDemandRefused  int
 	reproduces, reproducesWithClaim                 int
 	anchorVerifies, anchorVerifiesWithClaim         int
 	spotChecksNamed, spotChecksStamped              int
@@ -811,7 +807,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.movedDisputes += r.MovedDisputes
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
-		f.supersedeDemandCarried += r.SupersedeDemandCarried
 		f.reproduces += r.Reproduces
 		f.reproducesWithClaim += r.ReproducesWithClaim
 		f.anchorVerifies += r.AnchorVerifies
@@ -821,7 +816,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.spotChecksWithChanges += r.SpotChecksWithChanges
 		f.stalenessForged += r.StalenessForged
 		f.stalenessReported += r.StalenessReported
-		f.supersedeDemandRefused += r.SupersedeDemandRefused
 		f.rulerFilingsRefused += r.RulerFilingsRefused
 		f.closedRemandsRefused += r.ClosedRemandsRefused
 		f.trifleRemandsRouted += r.TrifleRemandsRouted
@@ -926,7 +920,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it (%d of them answering that gap and listed in its change log), %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadRetiresJoined, f.unreadClosesRefused)
 	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
-	t.Logf("supersede demand: %d successor(s) carried an unanswered ancestor's check kind, %d at another check kind refused", f.supersedeDemandCarried, f.supersedeDemandRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green: a seat stub
 	// that emits nothing leaves its verbs unexercised end to end.
@@ -1255,14 +1248,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		if f.unclassifiedRefused == 0 {
 			t.Errorf("fuzz drove ZERO unclassified mints refused for want of a reason across %d runs — the record's reason check is unexercised (false green)", f.completed)
-		}
-		// THE DEMAND MOVES TO THE SUCCESSOR: both arms of the rule, the successor that carries an
-		// unanswered ancestor's check kind and the one at another kind the record refuses.
-		if f.supersedeDemandCarried == 0 {
-			t.Errorf("fuzz minted ZERO successors carrying an unanswered ancestor's check kind across %d runs — the demand's move is unexercised (false green)", f.completed)
-		}
-		if f.supersedeDemandRefused == 0 {
-			t.Errorf("fuzz drove ZERO successors at another check kind refused over an unanswered ancestor across %d runs — the refusal is unexercised (false green)", f.completed)
 		}
 		// THE RULER-FILES-NOTHING GATE. The bench's docket motion is refused at the surface; a drive that stopped reaching for them would leave the refusal
 		// unreached behind a green sweep.

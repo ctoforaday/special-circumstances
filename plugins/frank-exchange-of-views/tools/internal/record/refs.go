@@ -368,8 +368,7 @@ func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 	return !open, nil
 }
 
-// requireOpenGap refuses an act that only makes sense on a live gap. A gap a supersession closed is
-// refused naming its successor, which holds its purpose now.
+// requireOpenGap refuses an act that only makes sense on a live gap.
 func requireOpenGap(q recordsql.Querier, id, flag, why string) error {
 	if id == "" {
 		return nil
@@ -379,9 +378,6 @@ func requireOpenGap(q recordsql.Querier, id, flag, why string) error {
 		return err
 	}
 	if closed {
-		if err := requireNotSuperseded(q, id, flag); err != nil {
-			return err
-		}
 		return fmt.Errorf("%s names gap %s, which is already CLOSED — %s", flag, id, why)
 	}
 	return nil

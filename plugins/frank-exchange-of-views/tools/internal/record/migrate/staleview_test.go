@@ -1,7 +1,6 @@
 package migrate_test
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"strings"
 	"testing"
 
@@ -48,7 +47,7 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 
 // assertMigratedGapView migrates the archive and holds its gap view to the family: the record states
 // this binary's epoch and reads; every closed gap carries its reason and epoch; and the view names a
-// closing act on every closed gap but those a successor's mint alone closed. It returns how many
+// closing act on every closed gap. It returns how many
 // gaps the view names a closing act on.
 func assertMigratedGapView(t *testing.T, archive string) int {
 	t.Helper()
@@ -63,21 +62,12 @@ func assertMigratedGapView(t *testing.T, archive string) int {
 	if err != nil {
 		t.Fatalf("%s: the migrated record is refused: %v", archive, err)
 	}
-	lostClose := migrate.LostCloseGaps(t, archive, res)
-	closed, superseded := 0, 0
+	closed := 0
 	for _, g := range fam.Gaps {
 		if g.Open {
 			continue
 		}
 		closed++
-		if g.Closure == nil && g.BenchClosure == nil && g.SupersededBy != "" {
-			// Closed by a successor's mint alone: its archived close is a lost act, which left it
-			// open when the successor superseded it.
-			if !lostClose[g.ID] {
-				t.Errorf("%s: gap %s is closed by %s's mint alone, and no close of it is lost", archive, g.ID, g.SupersededBy)
-			}
-			superseded++
-		}
 		if !g.HasClosed || g.ClosureReason() == "" || g.ClosedEpoch == 0 {
 			t.Errorf("%s: gap %s reads closed with has_closed %v, reason %q, closed_epoch %d", archive, g.ID, g.HasClosed, g.ClosureReason(), g.ClosedEpoch)
 		}
@@ -90,8 +80,8 @@ func assertMigratedGapView(t *testing.T, archive string) int {
 	if err := db.QueryRow(`SELECT count(*) FROM "gap" WHERE ("close_event" IS NOT NULL OR "bench_close_event" IS NOT NULL) AND "bench_closed_last" IS NOT NULL`).Scan(&named); err != nil {
 		t.Fatalf("%s: the migrated record's gap view does not name its closing acts: %v", archive, err)
 	}
-	if named != closed-superseded {
-		t.Errorf("%s: the gap view names a closing act on %d gaps and the family reads %d closed, %d of them by a successor's mint alone", archive, named, closed, superseded)
+	if named != closed {
+		t.Errorf("%s: the gap view names a closing act on %d gaps and the family reads %d closed", archive, named, closed)
 	}
 	return named
 }

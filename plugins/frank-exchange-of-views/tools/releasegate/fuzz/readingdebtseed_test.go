@@ -161,9 +161,9 @@ func (r *runner) forcedDebtChain(seatID string) {
 		}
 		r.reachedDebtChainStage(debtChainMinted)
 	case debtChainRetired:
-		// THE RECORD SAYS WHETHER THE GAP IS STILL THE OWNER'S TO CLOSE, asked at the act: a gap the
-		// chain holds is never drawn to be superseded (heldByForcedChain), so one closed here was closed
-		// by an act the drive does not expect, and the chain names it rather than issue a refused close.
+		// THE RECORD SAYS WHETHER THE GAP IS STILL THE OWNER'S TO CLOSE, asked at the act: one closed here
+		// was closed by an act the drive does not expect, and the chain names it rather than issue a
+		// refused close.
 		if !slices.Contains(r.openGaps(), gap) {
 			r.reachedDebtChainStage("the owner's gap " + gap + " was closed before the owner's close: " + r.closedHow(gap))
 			return

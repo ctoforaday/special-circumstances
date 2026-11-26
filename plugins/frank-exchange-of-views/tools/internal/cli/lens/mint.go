@@ -32,7 +32,6 @@ import (
 // subject can use those words too.
 func newMint() *cobra.Command {
 	var st Statement
-	supersedes := flags.AncestorID()
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -52,10 +51,6 @@ func newMint() *cobra.Command {
 			return nil, err
 		}
 
-		if a := supersedes.String(); a != "" {
-			p.Supersedes = proto.String(a)
-		}
-
 		// Crash-retry idempotency: --key (the stable local label) makes
 		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
 		// asked once the gap is built, so the retry is held to the same inputs the first call was.
@@ -71,17 +66,6 @@ func newMint() *cobra.Command {
 				return nil, err
 			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
-		}
-		// ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, AND A SUCCESSOR OF ONE THAT NOTHING ANSWERS YET CARRIES ITS
-		// CHECK KIND, and the demand with it (record.SupersessionAdmitted) — the minter rule first, so a
-		// seat that may not supersede the gap is told that rather than what its successor would owe.
-		// Asked here so it refuses before the placement and shape checks, and again in the write's
-		// transaction, where the answer holds.
-		if err := record.SupersessionAdmitted(run, s.SeatID, p); err != nil {
-			if c := feov.CodeOf(err); c == string(feov.Conflict) || c == string(feov.Validation) {
-				return nil, err
-			}
-			return nil, unreadableRefusal("the gaps --supersedes names", err)
 		}
 		gapID = record.NewID("gap")
 		p.GapId = proto.String(gapID)
@@ -102,9 +86,8 @@ func newMint() *cobra.Command {
 		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason or --supersedes — is refused: a handle names one gap")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject or --reason — is refused: a handle names one gap")
 	st.Register(c)
-	c.Flags().Var(supersedes, flags.Supersedes, "the one gap this gap replaces — "+flags.OneAncestorRule+". What naming it does — an open one closes in this act — is A MINT NAMING AN OPEN GAP AS ITS ANCESTOR, above")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -398,7 +381,6 @@ var mintAsserted = []seat.Asserted{
 	{Flag: flags.Complexity, Field: "complexity_cost"},
 	{Flag: flags.AboutKind, Field: "about_kind"},
 	{Flag: flags.About, Field: "about_ref"},
-	{Flag: flags.Supersedes, Field: "supersedes"},
 }
 
 // familyReader is the one read the estoppel guard makes of the record a mint lands on.
@@ -407,18 +389,16 @@ type familyReader interface {
 }
 
 // requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
-// verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
+// verbatim — and refuses any mint whose record could not be
 // read to ask: a gap opened because the estoppel question could not be asked is one the tool
 // admitted on nothing. Every `--quote` mint meets it, a found source's claim_contradicts_source
 // included (gblock, 2026-11-06, F4 (a)).
-func requireNotEstopped(l familyReader, quote, supersedes string) error {
+func requireNotEstopped(l familyReader, quote string) error {
 	fam, err := l.Family()
 	if err != nil {
 		return unreadableRefusal("whether this location is text red prescribed", err)
 	}
-	// An --supersedes that already names the estopping gap lets the mint through: declaring the
-	// lineage IS the amendment the guard asks for.
-	if est, ok := record.EstoppelConflict(fam, quote); ok && supersedes != est.Gap {
+	if est, ok := record.EstoppelConflict(fam, quote); ok {
 		return estopped{est}
 	}
 	return nil
@@ -440,8 +420,7 @@ func placementRefusal(noun string, err error) error {
 
 // aboutGapRefusal refuses `--about-kind gap`, naming the two acts a point about a gap is: a gap is
 // not the subject of another gap. A dispute of a gap is the act the seat proposes on it, which its
-// assignee may accept and the bench otherwise rules; a restatement of its defect is a mint
-// superseding it — the seat's own open gap, or any closed gap.
+// assignee may accept and the bench otherwise rules.
 func aboutGapRefusal(v string) error {
 	if v != "gap" {
 		return nil
@@ -449,13 +428,11 @@ func aboutGapRefusal(v string) error {
 	return feov.Errorf(feov.Validation,
 		`takes no "gap": a gap is not the subject of another gap. `+
 			"If you dispute a gap — its problem, fix, check or weight — propose the act you want on it "+
-			"(`motion docket file supersede --id <gap>`, or regrade or close in place of supersede), argued in --reason; its assignee may accept it, else the bench rules. "+
-			"If you restate a gap's defect, mint superseding it (`--supersedes <gap>`) — your own open gap, or any closed gap. Nothing was written")
+			"(`motion docket file regrade --id <gap>`, or close in place of regrade), argued in --reason; its assignee may accept it, else the bench rules. Nothing was written")
 }
 
-// WriteMint is the mint's write, whoever takes it: `mint` itself, the gap's assignee accepting a
-// proposed supersede, or the bench accepting one. before is what the same transaction writes ahead of
-// the mint — an accept's ruling. Its effects ride with the mint: --new verified against the report the
+// WriteMint is the mint's write. before is what the same transaction writes ahead of the mint. Its
+// effects ride with the mint: --new verified against the report the
 // mint lands on (verifiedFix), the estoppel guard and its TOOL log, and the Places guard with the
 // Anchor that places the gap's marker. quote is the sentence as the seat typed it; fixNew its --new.
 func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ...record.Act) error {
@@ -480,8 +457,7 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 	// instruction, and blue had no channel to say so.
 	//
 	// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
-	// prescription sits on the record beside the complaint, or mints with --supersedes so
-	// the lineage is explicit. What it may not do is open a clean slate against its own
+	// prescription sits on the record beside the complaint. What it may not do is open a clean slate against its own
 	// words.
 	//
 	// THE REJECTION IS LOGGED, AS AN ESTOPPEL, not merely refused. A guard that silently
@@ -496,10 +472,10 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 	// that records it is written after, as its own act.
 	//
 	// A FOUND-SOURCE 32 IS A QUOTE MINT AND MEETS THE GUARD LIKE ANY GAP (gblock, 2026-11-06, F4
-	// (a)): red mints --supersedes the prescribing gap, as the refusal says. A reword of the applied
+	// (a)): red argues it on the prescribing gap, as the refusal says. A reword of the applied
 	// text by blue writes the row that ends the estoppel (record.writeTombstones).
 	guards = append(guards, record.Check(func(l *record.Landing) error {
-		return requireNotEstopped(l, quote, p.GetSupersedes())
+		return requireNotEstopped(l, quote)
 	}))
 
 	var est estopped
@@ -513,8 +489,8 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 		if est.PrescribedBy == s.SeatID {
 			author = "your"
 		}
-		msg := fmt.Sprintf("estoppel — this gap's location is text red prescribed and blue applied verbatim: %s fix for %s. A prescription blue applied binds every red seat, whichever lens wrote it, so it is not a fresh gap: raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit). Prescribed text: %q",
-			author, prior, prior, prior, est.Text)
+		msg := fmt.Sprintf("estoppel — this gap's location is text red prescribed and blue applied verbatim: %s fix for %s. A prescription blue applied binds every red seat, whichever lens wrote it, so it is not a fresh gap: raise it as an amendment to %s and argue it there. Prescribed text: %q",
+			author, prior, prior, est.Text)
 		// The KIND is a field, not something a reader infers from the wording. The
 		// prose above is aimed at a seat and must stay editable; the count an
 		// operator reads must not move when it is edited (#283).
@@ -547,8 +523,7 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 
 // Statement is a gap's statement as a verb takes it: its judgment (class, problem, fix, proposal,
 // acceptance check, grades) and its subject — the one sentence it lives at (--quote), or what
-// --about-kind/--about name. `mint` takes it, and so does `motion docket file supersede`, whose
-// successor the gap's assignee or the bench writes on accepting it.
+// --about-kind/--about name. `mint` takes it.
 type Statement struct{ g gapFlags }
 
 // Register registers the statement's flags on c.

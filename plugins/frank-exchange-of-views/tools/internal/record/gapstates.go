@@ -114,15 +114,14 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 		}
 		if c != nil {
 			g.HasClosed, g.ClosedEpoch, g.ClosedByBench, g.BenchClosedLast = true, c.closedEpoch, c.closedByBench, c.benchClosedLast
-			g.Closure, g.BenchClosure, g.SupersededBy = c.lastClose, c.lastBenchClosure, c.supersededBy
+			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
 		}
 		out = append(out, g)
 	}
 	return out, nil
 }
 
-// GapsByID indexes the family for the readers that follow lineage (an ancestor lookup is a map
-// hit, never a second query).
+// GapsByID indexes the family by gap id (a lookup is a map hit, never a second query).
 func GapsByID(gaps []*Gap) map[string]*Gap {
 	out := make(map[string]*Gap, len(gaps))
 	for _, g := range gaps {

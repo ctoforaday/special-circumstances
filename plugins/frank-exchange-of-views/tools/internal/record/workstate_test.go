@@ -26,7 +26,6 @@ func workStatesOfFamilyT(f Family) []WorkGapState {
 				w.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
 			}
 			w.AwaitingEvidence = g.Open && g.AnswerKind() != "" && !evidenceNamesT(f.Events, g.ID)
-			w.Supersedes = g.Mint.GetSupersedes()
 		}
 		if !g.Open {
 			w.Fate = g.ClosureReason()

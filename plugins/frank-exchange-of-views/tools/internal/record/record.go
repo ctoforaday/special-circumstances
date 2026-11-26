@@ -673,10 +673,6 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 			_ = tx.Rollback()
 		}
 	}()
-	// THE SUCCESSORS ALREADY UNWRITABLE BEFORE THE WRITE, read at its BEGIN: the freeze's successor arm
-	// refuses an act after which a standing supersede's successor NO LONGER passes (judgeLanded), so one
-	// that failed before any act of this write landed is no act's of it to answer for.
-	var unwritable map[string]bool
 	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
@@ -686,10 +682,7 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 			return nil, err
 		}
 		WriteBegins()
-		if tx, err = recordsql.BeginWrite(db); err != nil {
-			return tx, err
-		}
-		unwritable, err = unwritableSuccessors(writeView{q: tx, files: filesOf(id.Run)}, id.SeatID, acts)
+		tx, err = recordsql.BeginWrite(db)
 		return tx, err
 	}
 	var out []*Event
@@ -701,13 +694,10 @@ func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 		}
 	}
 	// WHAT THE ACTS LEAVE, asked of the record with every act of the transaction on it — a mint with
-	// the anchor that places it, an edit with the report it leaves: the freeze's arms (freeze.go) and
-	// each verb's landed guards (CheckLanded). A refusal rolls the whole transaction back.
+	// the anchor that places it, an edit with the report it leaves: each verb's landed guards
+	// (CheckLanded), the freeze's road arm among them. A refusal rolls the whole transaction back.
 	w := writeView{q: tx, files: filesOf(id.Run)}
 	for i, a := range acts {
-		if err := judgeLanded(w, id.SeatID, a.Body, unwritable); err != nil {
-			return out, err
-		}
 		if err := landedAt(w, a.Guards); err != nil {
 			return out[:i+1], err
 		}
@@ -991,22 +981,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
 		}
-		ids, err := allGapIDs(q)
-		if err != nil {
-			return err
-		}
-		if anc := b.GetSupersedes(); anc != "" && !ids[anc] {
-			return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
-		}
-		if err := requireSupersedable(q, seatID, b); err != nil {
-			return err
-		}
-		if err := requireBenchSuccessor(q, seatID, b); err != nil {
-			return err
-		}
-		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
-			return err
-		}
 	case *recordpb.Computation:
 		// A COMPUTATION NAMES ITS BUNDLE AND ITS COMMAND. The sha is the bundle's address in the store
 		// and the key every re-run and verdict joins on, and argv is what a re-run executes; a
@@ -1115,13 +1089,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The run used it zero times out of nine closures, so this costs nothing today.
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
-		// A carry restates a closure, and a gap its successor's mint closed has none to restate: the
-		// refusal names the successor, which holds its purpose now.
-		if b.CarriedFrom != nil {
-			if err := requireNotSuperseded(q, b.GetGapId(), "--id"); err != nil {
-				return err
-			}
-		}
 		if !anchored && b.CarriedFrom != nil {
 			prior, err := priorClosureEpochs(q, b.GetGapId())
 			if err != nil {
@@ -1300,11 +1267,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
-				return err
-			}
-			// A SUPERSEDED GAP IS NOT DOCKETED: the successor holds its purpose, and a ruling on the
-			// ancestor would rule on nothing the debate still owes.
-			if err := requireNotSuperseded(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
@@ -1808,7 +1770,7 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		return nil // the missing-id refusal is the verb's own
 	}
 	var assignee string
-	found, err := queryRowAt(q, []any{&assignee}, `SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&assignee}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found || assignee == "" || assignee == seatID {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
@@ -1912,7 +1874,7 @@ func ClosingRefusal(q recordsql.Querier, seatID string, c *recordpb.Closing) err
 func closingPartyRefusal(q recordsql.Querier, gapID, seatID string) error {
 	var assignee string
 	var docketed int64
-	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("assignee", ''), COALESCE("standing_docketing_at", "unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("standing_docketing_at", "unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}

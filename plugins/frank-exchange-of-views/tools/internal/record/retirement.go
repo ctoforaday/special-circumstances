@@ -50,8 +50,9 @@ import (
 //     limit, or one that never closed, is neither sat nor barren: a delivery in it moves no pin, and
 //     it adds nothing to the count.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
-//   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW,
-//     or recorded a close, a verify, a reproduce or an inquiry check. A productive sitting returns
+//   - A sitting is PRODUCTIVE when it minted a gap that is material NOW — a re-raise of a defect
+//     whose gap closed is a mint like any other; an amend mints nothing and counts nothing — or
+//     recorded a close, a verify, a reproduce or an inquiry check. A productive sitting returns
 //     the count to zero, a retired lens's included.
 //
 // Nothing is ready before a report is ingested.
@@ -403,9 +404,10 @@ func borneThroughOf(evs []*Event) map[string]int64 {
 	return out
 }
 
-// freshMaterialOf is the gap view's answer to "which gaps were minted fresh and are material now".
+// freshMaterialOf is the gap view's answer to "which gaps are material now": each one's mint is a
+// fresh material mint.
 func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
-	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes" IS NULL`)
+	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its fresh material gaps: %w", err)
 	}
@@ -426,7 +428,7 @@ func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
 func freshMaterialOfStates(gaps []WorkGapState) map[string]bool {
 	out := map[string]bool{}
 	for _, g := range gaps {
-		if g.Material && g.Supersedes == "" {
+		if g.Material {
 			out[g.ID] = true
 		}
 	}

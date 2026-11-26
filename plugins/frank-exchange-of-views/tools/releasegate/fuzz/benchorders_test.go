@@ -156,30 +156,6 @@ func (r *runner) benchGrades(gapID string) map[string]string {
 	return out
 }
 
-// keepingBenchGrades is args with every axis a ruling locked on any gap it supersedes stated at the
-// locked grade, so a successor mint the drive expects to land does not meet the lock.
-func (r *runner) keepingBenchGrades(args []string) []string {
-	for i, a := range args {
-		if a != "--supersedes" || i+1 >= len(args) {
-			continue
-		}
-		for dim, g := range r.benchGrades(args[i+1]) {
-			at := slices.Index(args, "--"+dim)
-			switch {
-			case g == "" && at >= 0:
-				// A LOCKED AXIS THE GAP HOLDS NO GRADE ON is kept by not stating it.
-				args = slices.Delete(args, at, at+2)
-			case g == "":
-			case at >= 0:
-				args[at+1] = g
-			default:
-				args = append(args, "--"+dim, g)
-			}
-		}
-	}
-	return args
-}
-
 // lensMovesBenchAxis is the assignee reaching to move an axis the bench set on an open gap of its
 // own, which the record refuses as a conflict naming the bench's grade and its place.
 func (r *runner) lensMovesBenchAxis(seatID string) {

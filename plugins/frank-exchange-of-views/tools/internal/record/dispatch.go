@@ -1643,7 +1643,7 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 // events (docketingsAt, motionsAt), and
 // TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled holds the two level.
 func openGaps(db recordsql.Querier) ([]openGap, error) {
-	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."assignee", ''), COALESCE(g."current_severity", ''),
+	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
 	    COALESCE(g."standing_docketing", ''), COALESCE(g."standing_docketing_at", 0),
 	    COALESCE(g."unruled_docket_filed", 0),

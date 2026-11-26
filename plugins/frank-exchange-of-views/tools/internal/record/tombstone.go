@@ -204,7 +204,7 @@ func rulingPlacement(q recordsql.Querier, seatID string, body proto.Message) ([]
 		return nil, err
 	}
 	var assignee sql.NullString
-	if _, err := queryRowAt(q, []any{&assignee}, `SELECT "assignee" FROM "gap" WHERE "gap_id" = ?`, k.GapID); err != nil {
+	if _, err := queryRowAt(q, []any{&assignee}, `SELECT "minted_by" FROM "gap" WHERE "gap_id" = ?`, k.GapID); err != nil {
 		return nil, err
 	}
 	if assignee.String == seatID {
@@ -292,34 +292,27 @@ func requireTombstoneShape(q recordsql.Querier, t *recordpb.Tombstone) error {
 }
 
 // RulingTombstone is a ruling tombstone standing as a reader sees it: the gap it stands on, the
-// docketing whose ruling placed it, that ruling's event and word, and — for a successor a supersede
-// accept left standing — the ruled gap whose row protects it (On, "" on the ruled gap itself).
+// docketing whose ruling placed it, and that ruling's event and word.
 type RulingTombstone struct {
 	Gap       string `json:"-"`
 	Docketing string `json:"docketing"`
 	Event     int64  `json:"event"`
 	Word      string `json:"word"`
-	On        string `json:"on,omitempty"`
-	// successor is the gap a supersede proposal the ruling sided with stored, "" for none.
-	successor string
 	// settled, reopensOn and final are the ruling's own answers, for the estopped row.
 	settled, reopensOn string
 	final              bool
 }
 
-// rulingTombstoneSQL selects every standing ruling row with its ruling's event and word columns and
-// the successor its supersede proposal stored; the caller adds a WHERE over t and s.
+// rulingTombstoneSQL selects every standing ruling row with its ruling's event and word columns; the
+// caller adds a WHERE over t.
 const rulingTombstoneSQL = `SELECT t."gap_id", t."docketing_id", md."event_id",
-       md."disposition", md."sided_with", md."moved_grades", COALESCE(s."gap_id", ''),
+       md."disposition", md."sided_with", md."moved_grades",
        COALESCE(md."settled", ''), COALESCE(md."reopens_on", ''), COALESCE(md."final", 0)
   FROM "tombstone_standing" t
   JOIN "motion_rule_docket" md ON md."docketing_id" = t."docketing_id"
-  JOIN "motion_rule" r ON r."event_id" = md."event_id"
-  LEFT JOIN "motion" m ON m."motion_id" = r."motion_id"
-  LEFT JOIN "motion_supersede" s ON s."event_id" = m."event_id"
  WHERE t."kind" = 'ruling'`
 
-// rulingTombstonesAt is the standing ruling rows the WHERE clause cond (over t and s) selects.
+// rulingTombstonesAt is the standing ruling rows the WHERE clause cond (over t) selects.
 func rulingTombstonesAt(q recordsql.Querier, cond string, args ...any) ([]RulingTombstone, error) {
 	if noRecord(q) {
 		return nil, nil
@@ -333,7 +326,7 @@ func rulingTombstonesAt(q recordsql.Querier, cond string, args ...any) ([]Ruling
 	for rows.Next() {
 		var t RulingTombstone
 		var disp, side, moved sql.NullString
-		if err := rows.Scan(&t.Gap, &t.Docketing, &t.Event, &disp, &side, &moved, &t.successor, &t.settled, &t.reopensOn, &t.final); err != nil {
+		if err := rows.Scan(&t.Gap, &t.Docketing, &t.Event, &disp, &side, &moved, &t.settled, &t.reopensOn, &t.final); err != nil {
 			return nil, err
 		}
 		switch {
@@ -349,28 +342,16 @@ func rulingTombstonesAt(q recordsql.Querier, cond string, args ...any) ([]Ruling
 	return out, rows.Err()
 }
 
-// rulingProtecting is the standing ruling tombstone that protects gap: its own, else — gap being the
-// successor a supersede accept wrote — the row on the ruled gap whose ruling sided with the proposal
-// that stored it (F-J), read through the stable ids, never the gap's ancestor alone.
+// rulingProtecting is the standing ruling tombstone on gap.
 func rulingProtecting(q recordsql.Querier, gap string) (RulingTombstone, bool, error) {
 	own, err := rulingTombstonesAt(q, ` AND t."gap_id" = ?`, gap)
-	if err != nil || len(own) > 0 {
-		if len(own) > 0 {
-			return own[0], true, nil
-		}
+	if err != nil || len(own) == 0 {
 		return RulingTombstone{}, false, err
 	}
-	succ, err := rulingTombstonesAt(q, ` AND s."gap_id" = ?`, gap)
-	if err != nil || len(succ) == 0 {
-		return RulingTombstone{}, false, err
-	}
-	t := succ[0]
-	t.On, t.Gap = t.Gap, gap
-	return t, true, nil
+	return own[0], true, nil
 }
 
-// rulingsProtectingAll is every gap a standing ruling row protects, keyed by gap: each ruled gap, and
-// each successor a supersede accept wrote that is on the record.
+// rulingsProtectingAll is every gap a standing ruling row stands on, keyed by gap.
 func rulingsProtectingAll(q recordsql.Querier) (map[string]RulingTombstone, error) {
 	rows, err := rulingTombstonesAt(q, ``)
 	if err != nil {
@@ -379,19 +360,6 @@ func rulingsProtectingAll(q recordsql.Querier) (map[string]RulingTombstone, erro
 	out := map[string]RulingTombstone{}
 	for _, t := range rows {
 		out[t.Gap] = t
-		if t.successor == "" {
-			continue
-		}
-		var one int
-		found, err := queryRowAt(q, []any{&one}, `SELECT 1 FROM "mint" WHERE "gap_id" = ?`, t.successor)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			s := t
-			s.Gap, s.On = t.successor, t.Gap
-			out[s.Gap] = s
-		}
 	}
 	return out, nil
 }
@@ -452,14 +420,6 @@ func tombstoneEnds(aboutKind, ref string) string {
 		return "inquiry " + ref + "'s next fate"
 	}
 	return "nothing — it stands for the run —"
-}
-
-// ruled is the gap the ruling decided: On for a successor's protection, else the gap itself.
-func (t RulingTombstone) ruled() string {
-	if t.On != "" {
-		return t.On
-	}
-	return t.Gap
 }
 
 // capitalized is s with its first letter upper-cased, for a clause that opens a sentence.

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -130,11 +129,7 @@ func TestEverySingleValueFlagOfEveryVerbRefusesASecondStatement(t *testing.T) {
 				flagsSeen++
 				argv := append(append([]string{}, path...), "--"+f.Name+"=one", "--"+f.Name+"=two")
 				leaf, err := refuseRepeatedFlagNoted(root, argv)
-				// --supersedes names ONE ancestor, so a second statement is answered with that rule.
 				want := "--" + f.Name + " was given twice"
-				if _, one := f.Value.(*flags.AncestorValue); one {
-					want = flags.OneAncestorRefusal
-				}
 				if err == nil || leaf != c || !strings.Contains(err.Error(), want) {
 					t.Errorf("%v --%s stated twice answered %v from %s", path, f.Name, err, leaf.CommandPath())
 				}

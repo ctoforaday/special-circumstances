@@ -24,8 +24,7 @@ import (
 // is the bound — at most one sitting per successor per epoch.
 
 // successorsOf is each gap's successors as the record names them, in record order: the gap its
-// close names in `superseded_by`, and every gap whose mint names it in `supersedes`. Both are the
-// one lineage relation read from its two ends; a gap named by both is listed once.
+// close names in `superseded_by`.
 func successorsOf(evs []*Event) map[string][]string {
 	out := map[string][]string{}
 	add := func(of, succ string) {
@@ -34,13 +33,8 @@ func successorsOf(evs []*Event) map[string][]string {
 		}
 	}
 	for _, e := range evs {
-		switch b := mustBody(e).(type) {
-		case *recordpb.Close:
+		if b, ok := mustBody(e).(*recordpb.Close); ok {
 			add(b.GetGapId(), b.GetSuccessor())
-		case *recordpb.Mint:
-			if anc := b.GetSupersedes(); anc != "" {
-				add(anc, b.GetGapId())
-			}
 		}
 	}
 	return out
@@ -212,7 +206,7 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 		case engaged[g]:
 			problems = append(problems, fmt.Sprintf("%s is already engaged this epoch — blue sits once on it, and this epoch's dispatch rows already name it", g))
 		case !isSuccessorOfAny(succ, g):
-			problems = append(problems, fmt.Sprintf("%s is no successor the record names: no gap your sitting found closed names it in its close's superseded_by, and its mint names none of them in supersedes", g))
+			problems = append(problems, fmt.Sprintf("%s is no successor the record names: no gap your sitting found closed names it in its close's superseded_by", g))
 		default:
 			problems = append(problems, fmt.Sprintf("%s is not owed: it is closed, or it succeeds no gap this sitting found closed", g))
 		}
@@ -227,8 +221,7 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 
 // requireEngageNamesEveryOwed refuses an engagement that leaves out a successor its sitting owes:
 // one `engage` names the whole set (requireEngage holds each name to it). An act judgement (judgeAct):
-// an archived blue engaged the successors its sitting owed under the rule of its day, when a mint
-// superseding a gap left that gap open and blue found it closed only at its lens's close.
+// an archived blue engaged the successors its sitting owed under the rule of its day.
 func requireEngageNamesEveryOwed(q recordsql.Querier, b *recordpb.Dispatch) error {
 	owed, _, _, _, err := successorsOwedAt(q)
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -16,16 +15,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A DOCKET MOTION IS A PROPOSED ACT. The filer files the regrade, close or supersede it wants on the
+// A DOCKET MOTION IS A PROPOSED ACT. The filer files the regrade or close it wants on the
 // gap, with that act's own flags; the gap's assignee may accept it (`motion docket accept`), else the
 // dispatch dockets it and the bench sides with a party or remands it. So `file` under docket is a group, one verb per act, and the
 // act's flags are the ones its own verb takes.
 
 // proposeSays is what each proposal's page says, and the docket filing group's refusal of a bare call.
-const proposeSays = "A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades, close it, or supersede it with a corrected statement — each with that act's own flags, the gap named by --id and your argument in --reason. " +
+const proposeSays = "A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades or close it — each with that act's own flags, the gap named by --id and your argument in --reason. " +
 	"Its assignee may accept it, and the act is then applied exactly as you filed it; otherwise the bench accepts it, rejects it — the gap stands as it is — or remands it. " +
-	"A proposal is admitted once the gap has had one exchange, one at a time on a gap, never on your own gap (take the act yourself), and on a closed gap only as a supersede. " +
-	"It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting — and on a gap a successor superseded, naming the successor: propose on the successor."
+	"A proposal is admitted once the gap has had one exchange, one at a time on a gap, never on your own gap (take the act yourself), and never on a closed gap. " +
+	"It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting."
 
 // newDocketFile is the docket subject's `file`: one verb per proposed act.
 func newDocketFile() *cobra.Command {
@@ -81,33 +80,6 @@ func newDocketFile() *cobra.Command {
 			m.Act = &recordpb.Motion_Close{Close: cl}
 			return nil
 		}))
-	var st lens.Statement
-	c.AddCommand(propose("supersede", "the corrected statement of the gap — the successor its assignee or the bench writes on accepting it",
-		func(c *cobra.Command) {
-			st.Register(c)
-			// THE SUCCESSOR'S STATEMENT IS WHOLE AT THE FILING: the accept writes it as filed, so what a
-			// mint cannot be written without is refused here, at the parse, with each flag's own usage.
-			seat.Require(c, flags.Class, flags.Problem, flags.Fix, flags.Check, flags.CheckKind,
-				flags.Severity, flags.Likelihood, flags.Impact)
-			seat.Records(c, "mint")
-			seat.Supplies(c, "gap_id", "the tool assigns the successor's id at filing, and names the motion's gap as its ancestor")
-			seat.Supplies(c, "class_material", "stamped from the class's material default at the write path")
-		},
-		func(run record.Run, cmd *cobra.Command, gapID, reason string, m *recordpb.Motion) error {
-			p, err := st.Fill(run, cmd, reason, "")
-			if err != nil {
-				return err
-			}
-			// THE SUCCESSOR'S ID IS ASSIGNED NOW, and the motion's gap is its ancestor: the accept
-			// writes the stored mint as it is, so the successor is the gap's assignee's (its chain's).
-			p.GapId = proto.String(record.NewID("gap"))
-			p.Supersedes = proto.String(gapID)
-			if n := seat.Str(cmd, flags.New); n != "" {
-				p.FixNew = proto.String(n)
-			}
-			m.Act = &recordpb.Motion_Supersede{Supersede: p}
-			return nil
-		}))
 	return c
 }
 
@@ -142,20 +114,6 @@ func propose(act, says string, register func(*cobra.Command), fill func(run reco
 			// (gblock ruling B): the refusal shows what changed, and the same filing lands once read.
 			if err := seat.AppendFresh(s, gapID, func(guards ...record.Guard) error {
 				guards = append([]record.Guard{record.HeardInTime(subj)}, guards...)
-				// A SUCCESSOR'S QUOTE AND FIX ARE PLANNED AS THE BENCH'S MINT PLANS THEM (L48), on the
-				// report the filing lands on; the record asks the rest of the mint's checks.
-				if sup := m.GetSupersede(); sup != nil && sup.GetLocation() != "" {
-					guards = append(guards, record.Check(func(l *record.Landing) error {
-						report, err := l.Report()
-						if err != nil {
-							return err
-						}
-						if err := blue.SuccessorPlans(report, sup.GetGapId(), sup.GetLocation(), sup.GetFixNew()); err != nil {
-							return feov.Wrap(feov.Validation, err, "the successor you propose on %s is one its assignee's mint could not write, and the bench writes it as the assignee's on siding with you: %v. Nothing was recorded", gapID, err)
-						}
-						return nil
-					}))
-				}
 				_, err := record.Append(s.Identity(), m, guards...)
 				return err
 			}); err != nil {
@@ -224,7 +182,7 @@ func newAccept() *cobra.Command {
 }
 
 // applyAccepted writes ruling and then the act motion id proposes, through the act's own write, under
-// s's identity: the assignee's accept, or the bench's accept of a regrade or a supersede. A motion that
+// s's identity: the assignee's accept, or the bench's accept of a regrade. A motion that
 // proposes no act writes the ruling alone, for the record to refuse in its own words.
 func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act) error {
 	p, ok, err := record.DocketProposalOf(run, id)
@@ -244,20 +202,6 @@ func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act)
 		return seat.WriteRegrade(s, a, ruling)
 	case *recordpb.Close:
 		return lens.WriteClose(s, run, a, ruling)
-	case *recordpb.Mint:
-		fixNew := a.GetFixNew()
-		a.FixNew, a.FixBasis = nil, proto.String("proposed")
-		err := lens.WriteMint(s, a, a.GetLocation(), fixNew, ruling)
-		// THE BENCH IS TOLD WHICH ACT FAILED: its answer writes the successor as the assignee's mint, and
-		// that mint's refusal is worded for a minting lens. Another seat's act can leave a standing
-		// successor unwritable (record.unwritableSuccessors), so the bench answers the other side or
-		// remands.
-		if err != nil && s.Role == "bench" {
-			return feov.Wrap(feov.Conflict, err,
-				"the successor %s that proposal %s states could not be written on the record as it stands: its assignee's mint of it is refused now, an act since the filing having moved what that mint is checked against. Nothing was recorded; answer for the other side, or remand",
-				a.GetGapId(), id)
-		}
-		return err
 	default:
 		_, err := record.AppendActs(s.Identity(), ruling)
 		return err

@@ -223,7 +223,7 @@ CREATE TABLE "report_checkpoint" (
 // column scans the whole table, which is what planguard refuses on a growing table. An index
 // lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
 // because which questions get asked is a decision, not a derivation.
-const QueryIndexDDL = `
+var QueryIndexDDL = `
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
@@ -280,16 +280,13 @@ CREATE INDEX "question_part_check_id" ON "question_part_check" ("part_id", "even
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
--- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
--- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
-CREATE INDEX "mint_ancestor" ON "mint" ("supersedes", "event_id");
 -- A gap's tombstones of one kind, in order (tombstone_standing; the readers by gap, every standing
 -- ruling row, every standing estoppel row): each read knows its kind.
 CREATE INDEX "tombstone_kind_gap" ON "tombstone" ("kind", "gap_id", "event_id");
 -- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
 -- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
 CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
-`
+` + evidenceCheckIndexesSQL()
 
 func Schema() (string, error) {
 	var b strings.Builder
@@ -317,7 +314,6 @@ func Schema() (string, error) {
 		b.WriteString(ddl)
 	}
 	b.WriteString(QueryIndexDDL)
-	b.WriteString(DemandLineageDDL)
 	b.WriteString(GapStateDDL)
 	return b.String(), nil
 }
@@ -1016,4 +1012,16 @@ func messageCheckExprs(md protoreflect.MessageDescriptor) ([]string, error) {
 func MessageChecks(md protoreflect.MessageDescriptor) []*recordpb.SqlCheck {
 	out, _ := proto.GetExtension(md.Options(), recordpb.E_Check).([]*recordpb.SqlCheck)
 	return out
+}
+
+// evidenceCheckIndexesSQL is one index per recordsql.EvidenceTables row, on its check table's anchor
+// column and event: a seat's latest check of an anchor (gap_refresh's checks), and the checks
+// of the anchor one gap's demand reaches, asked per anchor.
+func evidenceCheckIndexesSQL() string {
+	var b strings.Builder
+	for _, t := range EvidenceTables {
+		b.WriteString(`CREATE INDEX "` + t.CheckTable + `_` + t.CheckIDColumn + `" ON "` + t.CheckTable +
+			`" ("` + t.CheckIDColumn + `", "event_id");` + "\n")
+	}
+	return b.String()
 }

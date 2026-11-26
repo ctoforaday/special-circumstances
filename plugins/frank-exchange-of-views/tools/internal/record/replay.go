@@ -153,12 +153,8 @@ type Gap struct {
 	//
 	// WATCH THE NIL TEST. `g.Closure != nil` used to mean "closed by anything" and now means
 	// "closed by a `close` event". HasClosed is the unchanged answer to "closed at all".
-	Closure      *recordpb.Close
-	BenchClosure *recordpb.DocketRuling
-	// SupersededBy is the successor whose mint closed the gap by naming it in `supersedes` (the gap
-	// view's `superseded_by`), "" where no supersession closed it. Such a gap has no closing body of
-	// its own: the successor's mint is its closing act.
-	SupersededBy   string
+	Closure        *recordpb.Close
+	BenchClosure   *recordpb.DocketRuling
 	Regrades       []*recordpb.Regrade
 	Severity       recordpb.Grade
 	Likelihood     recordpb.Grade
@@ -249,36 +245,23 @@ func (g *Gap) ClosureReason() string {
 	// says whose closing act was last; the word follows it, with the other writer's word as the
 	// fallback for a class-less close.
 	if g.BenchClosedLast {
-		if w := benchClosureWord(g.BenchClosure); w != "" {
+		if w := recordpb.Word(g.BenchClosure.GetDisposition()); w != "" {
 			return w
 		}
 		return recordpb.Word(g.Closure.GetClosureClass())
-	}
-	// A SUPERSESSION IS THE LENS'S CLOSING ACT, and no close of the lens's can follow it: the gap is
-	// closed from the successor's mint on.
-	if g.SupersededBy != "" {
-		return ClosedSuperseded
 	}
 	if g.Closure != nil {
 		if w := recordpb.Word(g.Closure.GetClosureClass()); w != "" {
 			return w
 		}
 	}
-	return benchClosureWord(g.BenchClosure)
+	return recordpb.Word(g.BenchClosure.GetDisposition())
 }
 
-// ClosedSuperseded is the word that says a gap closed because a successor's mint superseded it. It
-// is no Disposition — no seat types it — and every reader of ClosureReason meets it beside them.
-const ClosedSuperseded = "superseded"
-
-// Successor is the gap carrying this one forward: the successor whose mint closed it, else the gap
-// its close names as carrying its regression. "" where neither names one.
+// Successor is the gap its close names as carrying its regression, "" where it names none.
 func (g *Gap) Successor() string {
 	if g == nil {
 		return ""
-	}
-	if g.SupersededBy != "" {
-		return g.SupersededBy
 	}
 	return g.Closure.GetSuccessor()
 }

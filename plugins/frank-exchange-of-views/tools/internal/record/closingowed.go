@@ -136,13 +136,6 @@ func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
 			r.closings = append(r.closings, closingFiled{seat: e.GetSeatId(), gap: b.GetGapId(), at: ids[i]})
 		}
 	}
-	// A SUPERSESSION IS THE LENS'S CLOSING ACT TOO: the successor's mint closed the gap where no
-	// close came first.
-	for g, i := range supersessionsOf(evs) {
-		if at, seen := r.closedAt[g]; !seen || ids[i] < at {
-			r.closedAt[g] = ids[i]
-		}
-	}
 	_, openings := dispatchLedger(evs, ids, win)
 	r.through = satThroughOf(win, openings).through
 	return r

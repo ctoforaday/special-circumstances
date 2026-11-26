@@ -19,9 +19,6 @@ type Repeat struct {
 // and it keeps neither. THE VALUES ARE ON THEIR OWN LINES: the refusal log keeps a diagnosis's first
 // line, and names a flag a seat passed without the words it passed.
 func (r *Repeat) Said() string {
-	if _, one := r.Flag.Value.(*AncestorValue); one {
-		return OneAncestorRefusal + ". It was given:\n  " + strconvQuote(r.First) + "\n  " + strconvQuote(r.Then)
-	}
 	do := "pass it once, with the value you mean"
 	if _, list := r.Flag.Value.(*CSV); list {
 		do = "pass one comma-separated list"

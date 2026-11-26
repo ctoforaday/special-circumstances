@@ -163,12 +163,9 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	return out
 }
 
-// assigneeOf maps each gap to its assignee — the fact requireOriginator reads off the gap table —
-// read here off the events this derivation already holds (mintChain).
-func assigneeOf(evs []*Event) map[string]string {
-	assignee, _ := mintChain(evs)
-	return assignee
-}
+// assigneeOf maps each gap to its assignee, the seat that minted it — the fact requireOriginator
+// reads off the gap table — read here off the events this derivation already holds (mintersOf).
+func assigneeOf(evs []*Event) map[string]string { return mintersOf(evs) }
 
 // computationSeat is the computation lens's seat — the owner of every computation's check
 // (anchorOwnerOf).

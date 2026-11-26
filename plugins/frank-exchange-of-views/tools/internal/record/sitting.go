@@ -121,8 +121,6 @@ type sittingReads struct {
 	unverifiable unverifiableFunc
 	// frozen: why the freeze holds every remedy of blue's for an evidence anchor (frozenIn).
 	frozen unverifiableFunc
-	// frozenDebt: why the freeze holds every remedy of a lens's reading debt (frozenDebtIn).
-	frozenDebt func(Blocker) string
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
 	// closingsOnly: the seat sits for its closings alone — a party in the final epoch, or blue in the
@@ -484,14 +482,6 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// envelope gate refuses the sitting's envelope over it until the lens mints the gap or reads
 			// again.
 			if (b.Kind == BlockerFailedCheck || b.Kind == BlockerReadingDebt) && b.Owner == seatID {
-				// OWED BUT FROZEN DOES NOT BLOCK (gblock 2026-11-23), as blue's failed check: a debt whose every
-				// remedy the freeze refuses does not hold the sitting; it still holds the PASS.
-				if reads.frozenDebt != nil && b.owed() {
-					if why := reads.frozenDebt(b); why != "" {
-						s.Open = append(s.Open, b.asItem(b.WorkItem()+" — "+why+": it does not hold your sitting until that ruling; it still holds the PASS", false))
-						continue
-					}
-				}
 				s.Open = append(s.Open, b.asItem(b.WorkItem(), b.owed()))
 				continue
 			}

@@ -47,7 +47,7 @@ func standingTombstones(t *testing.T, runDir string) []string {
 	var out []string
 	for _, g := range append(bj.Open, bj.Closed...) {
 		if r := g.RulingTombstone; r != nil {
-			out = append(out, fmt.Sprintf("%s ruling %s %s on=%q", g.ID, r.Docketing, r.Word, r.On))
+			out = append(out, fmt.Sprintf("%s ruling %s %s", g.ID, r.Docketing, r.Word))
 		}
 		if g.EstoppelTombstone != nil {
 			out = append(out, g.ID+" estoppel")

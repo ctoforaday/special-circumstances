@@ -129,7 +129,7 @@ func (g questionGap) note() string { return g.id + " (" + g.seat + ")" }
 
 // questionGapsSQL reads every gap minted about the question, in record order, with its assignee: the
 // seat whose gap it is, which a bench-written successor's writer is not.
-const questionGapsSQL = `SELECT m."gap_id", st."assignee", COALESCE(m."about_ref", ''), m."event_id"
+const questionGapsSQL = `SELECT m."gap_id", st."minted_by", COALESCE(m."about_ref", ''), m."event_id"
   FROM "mint" m JOIN "gap_state" st ON st."gap_id" = m."gap_id"
  WHERE m."about_kind" = 'question' ORDER BY m."event_id"`
 

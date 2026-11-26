@@ -61,8 +61,7 @@ type gtGap struct {
 	lastCloseEpoch int
 	sev, lik, imp  recordpb.Grade
 	cx             recordpb.Grade
-	supersedes     string // the one gap this gap supersedes, "" for none
-	carriedCount   int    // opinions whose disposition defers rather than closes
+	carriedCount   int // opinions whose disposition defers rather than closes
 }
 
 type groundTruth struct {
@@ -107,7 +106,6 @@ func walk(events []*record.Event) *groundTruth {
 	// A BENCH RULING'S GAP RIDES ITS DOCKETING (record.DocketRulingGap's rule): the docketing's gap,
 	// else, for the assignee's accept, its motion's filing's.
 	docketGap := map[string]string{}
-	docketSupersede := map[string]bool{} // the docket motions proposing a supersede
 	docketingGap := map[string]string{}
 	docketingMotion := map[string]string{}
 	for _, e := range events {
@@ -115,7 +113,6 @@ func walk(events []*record.Event) *groundTruth {
 			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
 				if id := f.GetMotionId(); id != "" {
 					docketGap[id] = d.Docket.GetGapId()
-					docketSupersede[id] = f.GetSupersede() != nil
 				}
 			}
 		}
@@ -168,19 +165,9 @@ func walk(events []*record.Event) *groundTruth {
 			gt.gaps[id] = &gtGap{
 				open: true,
 				sev:  m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
-				supersedes: m.GetSupersedes(),
 			}
 			if m.GetLocation() != "" {
 				gt.placedIDs[id] = true
-			}
-			// A MINT SUPERSEDING AN OPEN GAP CLOSES IT, as its lens's closing act: the first such
-			// mint, where no closing act of either arm came before it.
-			if a := gt.gaps[m.GetSupersedes()]; a != nil && !a.everClosed {
-				a.firstCloser = "red"
-				a.open, a.everClosed = false, true
-				a.lastCloser = "red"
-				a.lastClass = record.ClosedSuperseded
-				a.lastCloseEpoch = epoch
 			}
 		case *recordpb.Regrade:
 			g := gt.gaps[m.GetGapId()]
@@ -251,16 +238,10 @@ func walk(events []*record.Event) *groundTruth {
 				continue
 			}
 			w := recordpb.Word(d.Docket.GetDisposition())
-			// A RULING WITH NO CLOSING WORD closes nothing here, but one: the bench siding with a proposed
-			// supersede its docketing holds, which closes the gap as the bench with the fate a
-			// supersession gives. The assignee's accept names no docketing, and closes through its act.
+			// A RULING WITH NO CLOSING WORD closes nothing here. The assignee's accept names no docketing,
+			// and closes through its act. An amend closes nothing.
 			if d.Docket.Disposition == nil {
-				side := d.Docket.GetSidedWith()
-				held := docketingMotion[d.Docket.GetDocketingId()]
-				if (side != recordpb.SidedWith_SIDED_WITH_BLUE && side != recordpb.SidedWith_SIDED_WITH_FILER) || held == "" || !docketSupersede[held] {
-					continue
-				}
-				w = record.ClosedSuperseded
+				continue
 			} else if !closes[w] {
 				g.carriedCount++
 				continue
@@ -524,16 +505,10 @@ func Check(run record.Run) (Result, error) {
 
 	// ---- the lineage graph ----
 	mmd := graph.Mermaid(fam)
-	for id, g := range gt.gaps {
+	for id := range gt.gaps {
 		if !strings.Contains(mmd, `["`+id) && !strings.Contains(mmd, id) {
 			add("graph", "gap %s has no node in the mermaid graph", id)
 		}
-		if anc := g.supersedes; anc != "" && gt.gaps[anc] == nil {
-			add("lineage", "gap %s supersedes %s, which no mint created", id, anc)
-		}
-	}
-	if cyc := findCycle(gt); cyc != "" {
-		add("lineage", "supersedes cycle: %s", cyc)
 	}
 
 	// ---- the anchor layer ----
@@ -678,41 +653,4 @@ func sameSet(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-// findCycle walks the supersedes edges; the write path makes a cycle unconstructible (an ancestor
-// must already exist), so a hit here means the record was built by something other than the tool.
-func findCycle(gt *groundTruth) string {
-	const white, grey, black = 0, 1, 2
-	color := map[string]int{}
-	var path []string
-	var visit func(string) string
-	visit = func(id string) string {
-		color[id] = grey
-		path = append(path, id)
-		g := gt.gaps[id]
-		if g != nil {
-			if anc := g.supersedes; anc != "" {
-				switch color[anc] {
-				case grey:
-					return strings.Join(append(path, anc), " -> ")
-				case white:
-					if c := visit(anc); c != "" {
-						return c
-					}
-				}
-			}
-		}
-		color[id] = black
-		path = path[:len(path)-1]
-		return ""
-	}
-	for id := range gt.gaps {
-		if color[id] == white {
-			if c := visit(id); c != "" {
-				return c
-			}
-		}
-	}
-	return ""
 }

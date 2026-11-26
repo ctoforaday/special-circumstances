@@ -124,7 +124,7 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 // reaching is one gap a retire reaches: the gap, the retired anchor it reaches it through, and the
 // gap whose about it is (from): gap itself, or an ancestor it carries the demand from.
 type reaching struct {
-	gap, anchor, from string
+	gap, anchor string
 }
 
 // A REACHING RETIRE IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
@@ -135,14 +135,12 @@ type reaching struct {
 // — a closure is history.
 //
 // The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
-// gap is about, and that of every ancestor it carries the demand from, which a retire reaches from
-// the successor's mint. The three reads are joined here rather than in one statement, so a record
+// gap is about. The three reads are joined here rather than in one statement, so a record
 // with no retire reads the first, empty, and stops.
 const (
 	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
-	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
-  ORDER BY "from_gap" <> "gap_id"`
-	firstClosureSQL = `SELECT "gap_id", "closed_event" FROM "gap_state"`
+	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached" FROM "demand_reach" WHERE "anchor" IS NOT NULL`
+	firstClosureSQL   = `SELECT "gap_id", "closed_event" FROM "gap_state"`
 )
 
 // reachingRetiresOf is every reaching retire on the record, by the retire's events.id, each gap
@@ -163,14 +161,14 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 		return map[int64][]reaching{}, err
 	}
 	type target struct {
-		gap, from string
-		since     int64
+		gap   string
+		since int64
 	}
 	targets := map[string][]target{} // anchor -> the gaps about it
 	if err := scanRows(q, reachedGapsSQL, func(rows *sql.Rows) error {
 		var t target
 		var a string
-		err := rows.Scan(&t.gap, &a, &t.since, &t.from)
+		err := rows.Scan(&t.gap, &a, &t.since)
 		targets[a] = append(targets[a], t)
 		return err
 	}); err != nil {
@@ -187,7 +185,7 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 			if t.since >= r.at || (isClosed && c < r.at) || slices.ContainsFunc(out[r.at], func(o reaching) bool { return o.gap == t.gap }) {
 				continue
 			}
-			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, from: t.from})
+			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor})
 		}
 	}
 	for at := range out {

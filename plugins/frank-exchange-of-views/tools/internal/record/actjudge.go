@@ -21,7 +21,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a proposal on a gap
+// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a proposal on a gap
 // a standing ruling tombstone protects, an outcome over a docketing or motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a cite that
 // does not say when its copy was fetched, a bridge
@@ -101,13 +101,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	q := w.q
 	switch b := body.(type) {
 	case *recordpb.Mint:
-		// THE ACTING SEAT'S CHECKS: the bench writes a Mint only as an accepted proposal's successor,
-		// and its reading and one-gap checks are asked of the assignee whose chain it continues (L5).
-		acting, err := mintActingSeat(q, seatID, b)
-		if err != nil {
-			return err
-		}
-		return judgeMint(w, acting, b, "")
+		return judgeMint(w, seatID, b)
 	case *recordpb.Computation:
 		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it
 		// racing the compute cannot both land; universe records that cite a citation retired later
@@ -186,10 +180,8 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	return nil
 }
 
-// judgeMint is judgeAct's Mint arm, asked as acting: the mint's own seat, or G's assignee for a
-// successor the bench writes (mintActingSeat) or a proposal states (requireSuccessorMintable). except
-// is the proposal stating it, whose own standing on the superseded gap the mint does not meet.
-func judgeMint(w writeView, acting string, b *recordpb.Mint, except string) error {
+// judgeMint is judgeAct's Mint arm, asked of the minting seat.
+func judgeMint(w writeView, acting string, b *recordpb.Mint) error {
 	q := w.q
 	// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
 	// retired since replays as it was made, so this is the act's rule, not the record's shape.
@@ -203,15 +195,6 @@ func judgeMint(w writeView, acting string, b *recordpb.Mint, except string) erro
 		return err
 	}
 	if err := requireOneGapPerClassAndSubject(w, acting, b); err != nil {
-		return err
-	}
-	if err := requireSupersededOffDocket(q, b, except); err != nil {
-		return err
-	}
-	// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
-	// ancestor's only answer can commit between the verb's read and this write. An archived
-	// supersede replays as it was recorded.
-	if err := requireSuccessorCarriesDemand(q, b); err != nil {
 		return err
 	}
 	return refuseMintReportVoice(b)

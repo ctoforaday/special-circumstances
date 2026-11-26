@@ -1,7 +1,6 @@
 package migrate
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -289,10 +288,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	res.derived = map[string][]compute.Execution{}
 	computationOf := map[string]migratedComputation{} // computation_id -> the computation written with it
 
-	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
-	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
-	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
-	lost := lostGaps{}                     // each gap a lost act took with it (lostacts.go)
+	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
+	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
+	lost := lostGaps{}                    // each gap a lost act took with it (lostacts.go)
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -466,14 +464,6 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					}
 					continue
 				}
-			}
-			if drop, err := actOnSupersededGap(batch.Querier(), body, supersededMotions); err != nil {
-				return nil, err
-			} else if drop {
-				if err := pinBefore(old.ID); err != nil {
-					return nil, err
-				}
-				continue
 			}
 			// THE BENCH SIDES WITH A STATED POSITION, AND NOTHING ELSE (EventSchema 80, docketing.go): a
 			// ruling of a docketing a Close ended first, a regrade of the bench's own, and a spot-check of
@@ -963,61 +953,6 @@ func archivedSha(src OldEvent) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// actOnSupersededGap reports whether body is an act on a gap a successor's mint closed by superseding
-// it, which the write refuses (EventSchema 62): a close, a regrade, a docket motion on it, and
-// the ruling of a motion so left out. An archive's lens superseded an open gap and went on acting on
-// it — closing it repaired, regrading it, docketing it — under the rule of its day, when superseding
-// closed nothing. Since the ruling of gblock 2026-11-04 the successor's mint closes the ancestor and
-// holds its purpose, so the migrated record holds the ancestor closed there and each such act is left
-// out — the residue, stated with the change, that run-archive/ holds byte for byte. A closing on a
-// motion left out is refusedArgument's, since no docket stands for it. motions collects the ids of
-// the motions left out, for their rulings.
-func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[string]bool) (bool, error) {
-	var gap string
-	switch b := body.(type) {
-	case *recordpb.Close:
-		gap = b.GetGapId()
-	case *recordpb.Regrade:
-		gap = b.GetGapId()
-	case *recordpb.Motion:
-		gap = b.GetDocket().GetGapId()
-	case *recordpb.Docketing:
-		gap = b.GetGapId()
-	case *recordpb.MotionRule:
-		d := b.GetDocket().GetDocketingId()
-		if motions[b.GetMotionId()] || motions[d] {
-			return true, nil
-		}
-		if d == "" {
-			return false, nil
-		}
-		// A RULING OF A DOCKETING WHOSE GAP A SUCCESSOR SUPERSEDED AFTER IT WAS WRITTEN rules a gap that
-		// holds no state of its own, and is left out with the act on it (EventSchema 80).
-		// A docketing the write refused names no gap; its refusal is stated where it was refused.
-		if err := q.QueryRow(`SELECT "gap_id" FROM "docketing" WHERE "docketing_id" = ?`, d).Scan(&gap); errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		} else if err != nil {
-			return false, fmt.Errorf("reading the gap of docketing %s: %w", d, err)
-		}
-	default:
-		return false, nil
-	}
-	if gap == "" {
-		return false, nil
-	}
-	superseded, err := record.SupersededGap(q, gap)
-	if err != nil || !superseded {
-		return false, err
-	}
-	switch m := body.(type) {
-	case *recordpb.Motion:
-		motions[m.GetMotionId()] = true
-	case *recordpb.Docketing:
-		motions[m.GetDocketingId()] = true
-	}
-	return true, nil
 }
 
 // refusedArgument reports whether body is a closing or a position the write path refuses from

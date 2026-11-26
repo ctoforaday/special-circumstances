@@ -18,7 +18,6 @@ import (
 //   - the lens has sat through a sitting opened after the retire (satThrough, as lensOwesOf's `owe`
 //     reads it): it is listed for the whole of that sitting, so the sitting that clears it is one that
 //     read it, and a sitting that never closed does not clear it;
-//   - the lens has minted a gap naming it in `supersedes` after the retire;
 //   - a closing act other than a carry follows the retire: the column is then NULL.
 
 // answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers are all
@@ -41,28 +40,14 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if _, sat := firstAfter(ends.through[seatID], n); sat {
 			continue
 		}
-		if supersededBySeatAfter(evs, ids, seatID, g.ID, n) {
-			continue
-		}
 		what := fmt.Sprintf("the answers to gap %s, which you closed, have all been retired, the last at event %d (%s) — the closure stands", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
 		if g.benchClosedLast {
 			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all been retired, the last at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
 		}
-		what += "; if the defect it closed is still in the report, that is a new gap: mint it, naming " + g.ID + " as the gap it supersedes"
+		what += "; if the defect it closed is still in the report, that is a new gap: mint it"
 		out = append(out, gapItem(ItemNews, g.ID, what))
 	}
 	return out
-}
-
-// supersededBySeatAfter is whether seatID minted a gap naming gap in `supersedes` after the place at.
-func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int64) bool {
-	acting := mintActors(evs)
-	for i, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && acting[m.GetGapId()] == seatID && m.GetSupersedes() == gap {
-			return true
-		}
-	}
-	return false
 }
 
 // retiredAnswersAt is the anchors placed as gap's answer that the retire at the place at took out.

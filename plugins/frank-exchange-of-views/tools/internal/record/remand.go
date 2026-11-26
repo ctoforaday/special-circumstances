@@ -163,7 +163,7 @@ func remandsOwedOf(evs []*Event, ids []int64, win WindowIndex, remands map[strin
 // is open.
 const remandedClosedGapSQL = `SELECT e."id", e."seat_id"
   FROM "gap" g
-  JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0), COALESCE(g."supersede_event", 0))
+  JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0))
   WHERE g."gap_id" = ? AND NOT g."open"`
 
 // remandSubject is what a remand answers, as its refusals name it: the docketing, or the motion.

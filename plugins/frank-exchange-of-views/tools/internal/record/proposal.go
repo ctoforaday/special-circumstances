@@ -13,7 +13,7 @@ import (
 )
 
 // A DOCKET MOTION IS A PROPOSED ACT (#1695 Part B). A seat that disputes a gap files the act it wants
-// on it — a regrade, a close, or a supersede — in that act's own body on the motion (Motion.act). The
+// on it — a regrade or a close — in that act's own body on the motion (Motion.act). The
 // gap's assignee may accept it at its next sitting: its accept is a DocketRuling siding with the
 // filer, and the stored act through the act verb's own write, in one transaction. Otherwise the tool
 // dockets the gap for it (Docketing, docketing.go) and the bench answers it there.
@@ -60,27 +60,25 @@ func docketProposalAt(q recordsql.Querier, motionID string) (DocketProposal, boo
 		return p, false, fmt.Errorf("event %d is no motion", p.EventID)
 	}
 	p.Motion = m
-	if _, err := queryRowAt(q, []any{&p.Assignee}, `SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?`, p.GapID); err != nil {
+	if _, err := queryRowAt(q, []any{&p.Assignee}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, p.GapID); err != nil {
 		return p, false, err
 	}
 	return p, true, nil
 }
 
-// ActWord is the word for the act a docket motion proposes: regrade, close, supersede, or "" for none.
+// ActWord is the word for the act a docket motion proposes: regrade, close, or "" for none.
 func ActWord(m *recordpb.Motion) string {
 	switch m.GetAct().(type) {
 	case *recordpb.Motion_Regrade:
 		return "regrade"
 	case *recordpb.Motion_Close:
 		return "close"
-	case *recordpb.Motion_Supersede:
-		return "supersede"
 	}
 	return ""
 }
 
 // ProposedActs is the acts a docket motion proposes, in the order the filing verb mounts them.
-var ProposedActs = []string{"regrade", "close", "supersede"}
+var ProposedActs = []string{"regrade", "close"}
 
 // ProposedCloseRefusal refuses a closure class a docket motion may not propose: repaired_with_regression
 // names the successor carrying the regression, a lineage fact the assignee states and no ruling
@@ -151,12 +149,6 @@ func requireProposedAct(q recordsql.Querier, m *recordpb.Motion) error {
 			return fmt.Errorf("requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a), and the assignee or the bench accepts the close as it is stated")
 		}
 		return requireClosureAnchors(q, g, c.GetAnchors(), "--anchor")
-	case *recordpb.Motion_Supersede:
-		s := a.Supersede
-		if s.GetSupersedes() != g {
-			return fmt.Errorf("the proposed successor supersedes %q and the motion is on %s: the tool names the motion's gap as the successor's ancestor", s.GetSupersedes(), g)
-		}
-		return mintShape(q, s)
 	}
 	return fmt.Errorf("motion carries an act this binary has no shape for — the schema and the write path have diverged")
 }
@@ -193,8 +185,8 @@ func orUngraded(w string) string {
 }
 
 // requireDocketFiling is the act judgements of a docket filing (judgeAct): the filer is not the gap's
-// assignee (F1), no motion stands unanswered on the gap (F5), a closed gap takes a proposed supersede
-// alone (F8) — asked of every writer, and by construction never refusing the dispatch's — and, of
+// assignee (F1), no motion stands unanswered on the gap (F5), a closed gap takes none (F8) — asked of
+// every writer, and by construction never refusing the dispatch's — and, of
 // every writer but the dispatch, one counted exchange on the gap first.
 func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 	q := w.q
@@ -202,14 +194,14 @@ func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 	var assignee, standing string
 	var open bool
 	found, err := queryRowAt(q, []any{&assignee, &open, &standing},
-		`SELECT COALESCE("assignee", ''), "open", COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, g)
+		`SELECT COALESCE("minted_by", ''), "open", COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, g)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal
 	}
 	if assignee == seatID {
 		return feov.Errorf(feov.Validation,
-			"gap %s is yours — you are its assignee — and a proposal on it asks you to accept your own act. Take the act yourself: regrade it, close it, or mint its successor with --supersedes %s. Nothing was recorded",
-			g, g)
+			"gap %s is yours — you are its assignee — and a proposal on it asks you to accept your own act. Take the act yourself: regrade it or close it. Nothing was recorded",
+			g)
 	}
 	if err := requireNotEstoppedOn(q, g); err != nil {
 		return err
@@ -223,22 +215,11 @@ func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 			standing, g, g, standing)
 	}
 	if !open {
-		if _, ok := m.GetAct().(*recordpb.Motion_Supersede); !ok {
-			return feov.Errorf(feov.Conflict,
-				"gap %s is closed, and no act but a successor moves a closed gap: propose the successor you want (`motion docket file supersede --id %s`). Nothing was recorded",
-				g, g)
-		}
+		return feov.Errorf(feov.Conflict,
+			"gap %s is closed, and no proposed act moves a closed gap: a defect still in the report is a new gap, minted by the lens whose class it is. Nothing was recorded", g)
 	}
 	if err := requireExchangedOn(q, g); err != nil {
 		return err
-	}
-	// THE SUCCESSOR IS CHECKED MINTABLE NOW, against G's assignee (L48): the bench writes it as the
-	// assignee's on siding with the filer, so a successor it could not write is refused at the filing,
-	// and the freeze holds the checks' inputs to the ruling (freeze.go).
-	if s := m.GetSupersede(); s != nil {
-		if err := requireSuccessorMintable(w, s, ""); err != nil {
-			return successorRefusal(g, s, err)
-		}
 	}
 	return nil
 }
@@ -298,115 +279,33 @@ func requireBenchHeld(q recordsql.Querier, seatID string, r *recordpb.MotionRule
 		d)
 }
 
-// requireBenchSuccessor is the bench's one Mint: the successor a supersede proposal assigned, on a
-// motion the record already holds the bench's accept of. The bench's surface mounts no mint verb, so
-// that accept is its only writer, and on replay the ruling precedes the Mint in the stream.
-func requireBenchSuccessor(q recordsql.Querier, seatID string, m *recordpb.Mint) error {
-	if seatclass.RoleOfSeat(seatID) != "bench" {
-		return nil
-	}
-	var n int64
-	found, err := queryRowAt(q, []any{&n},
-		`SELECT ms."event_id" FROM "motion_supersede" ms
-		   JOIN "motion" mo ON mo."event_id" = ms."event_id"
-		   JOIN "docketing" dk ON dk."gap_id" = ms."supersedes" AND dk."motion_id" = mo."motion_id"
-		   JOIN "motion_rule_docket" rd ON rd."docketing_id" = dk."docketing_id"
-		  WHERE ms."gap_id" = ? AND rd."sided_with" IN ('blue', 'filer')`, m.GetGapId())
-	if err != nil || found {
-		return err
-	}
-	return feov.Errorf(feov.RoleViolation,
-		"the bench mints no gap of its own: its one Mint is the successor a proposed supersede assigned, written by its ruling for that proposal's side (`motion docket rule --for-blue` or `--for-filer`). %s is no such successor. Nothing was recorded",
-		m.GetGapId())
-}
-
-// actingSeat is which seat acted in a Mint: the seat whose write's checks ran — the event's seat,
-// except where the bench wrote it, which it does only as an accepted proposal's successor, with every
-// assignee-keyed check run against the gap's assignee (L5). Credited with what the mint did: the debt
-// it discharges, the reading behind it, authorship of its text and of a prescription.
-func actingSeat(seatID, assignee string) string {
-	if seatclass.RoleOfSeat(seatID) == "bench" && assignee != "" {
-		return assignee
-	}
-	return seatID
-}
-
-// mintActors is each gap's acting seat on the stream (actingSeat): the Mint event's seat, or, where
-// the bench wrote it, the assignee its chain carries — the ancestor's assignee, or the minter of a gap
-// naming none. It states on the stream the rule gap_state.assignee stores at the mint
-// (recordsql.assigneeSQL), for the readers that fold the stream with no gap rows in reach;
-// TestAssigneeAndActingSeatReadersOfASuccessor holds the two to one answer.
-func mintActors(evs []*Event) map[string]string {
-	_, acting := mintChain(evs)
-	return acting
-}
-
-// mintChain is each gap's assignee and its mint's acting seat on the stream: a mint naming its one
-// ancestor takes the ancestor's assignee, whoever writes it; a mint naming none, its writer's.
-func mintChain(evs []*Event) (assignee, acting map[string]string) {
-	assignee, acting = map[string]string{}, map[string]string{}
+// mintersOf is each gap's minter on the stream: the seat that wrote its Mint. It states on the stream
+// what gap_state.minted_by stores, for the readers that fold the stream with no gap rows in reach.
+func mintersOf(evs []*Event) map[string]string {
+	out := map[string]string{}
 	for _, e := range evs {
-		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
-		if !ok || m.GetGapId() == "" {
-			continue
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetGapId() != "" {
+			if _, seen := out[m.GetGapId()]; !seen {
+				out[m.GetGapId()] = e.GetSeatId()
+			}
 		}
-		if _, seen := assignee[m.GetGapId()]; seen {
-			continue
-		}
-		a := e.GetSeatId()
-		if x, ok := assignee[m.GetSupersedes()]; ok {
-			a = x
-		}
-		assignee[m.GetGapId()] = a
-		acting[m.GetGapId()] = actingSeat(e.GetSeatId(), a)
 	}
-	return assignee, acting
-}
-
-// actingSeatOf is gap's acting seat on the stream (mintActors), for a reader that names one gap.
-func actingSeatOf(evs []*Event, gap string) string { return mintActors(evs)[gap] }
-
-// mintActingSeat is actingSeat for a Mint about to be written: the bench's successor is checked
-// against the assignee of the gap it supersedes, whose chain it continues.
-func mintActingSeat(q recordsql.Querier, seatID string, m *recordpb.Mint) (string, error) {
-	if seatclass.RoleOfSeat(seatID) != "bench" || m.GetSupersedes() == "" {
-		return seatID, nil
-	}
-	var assignee string
-	if _, err := queryRowAt(q, []any{&assignee}, `SELECT COALESCE("assignee", '') FROM "gap" WHERE "gap_id" = ?`, m.GetSupersedes()); err != nil {
-		return "", err
-	}
-	return actingSeat(seatID, assignee), nil
-}
-
-// benchClosureWord is the word a bench closure states: the ruling's disposition, or `superseded` for
-// a ruling siding with a proposed supersede with no word of its own, which closes the gap as a
-// supersession does.
-func benchClosureWord(d *recordpb.DocketRuling) string {
-	if d != nil && d.Disposition == nil && (d.GetSidedWith() == recordpb.SidedWith_SIDED_WITH_BLUE || d.GetSidedWith() == recordpb.SidedWith_SIDED_WITH_FILER) {
-		return ClosedSuperseded
-	}
-	return recordpb.Word(d.GetDisposition())
+	return out
 }
 
 // StoredAct is the act a docket motion proposes, cloned so the writer that takes it may fill its
-// derived fields: a supersede's stamped class material is cleared, since the write stamps it again.
+// derived fields.
 func StoredAct(m *recordpb.Motion) proto.Message {
 	switch a := m.GetAct().(type) {
 	case *recordpb.Motion_Regrade:
 		return proto.Clone(a.Regrade)
 	case *recordpb.Motion_Close:
 		return proto.Clone(a.Close)
-	case *recordpb.Motion_Supersede:
-		s := proto.Clone(a.Supersede).(*recordpb.Mint)
-		s.ClassMaterial = nil
-		return s
 	}
 	return nil
 }
 
-// requireNotEstoppedOn refuses a proposal on a gap a standing ruling tombstone protects: the ruled gap
-// itself, or the successor a supersede accept left standing (F-J). A bench ruling but a remand is final
+// requireNotEstoppedOn refuses a proposal on a gap a standing ruling tombstone protects. A bench ruling but a remand is final
 // for the ruled gap's text while its tombstone stands, whoever files; the dispatch files no proposal,
 // so its docketings are not barred.
 func requireNotEstoppedOn(q recordsql.Querier, g string) error {
@@ -416,15 +315,11 @@ func requireNotEstoppedOn(q recordsql.Querier, g string) error {
 	}
 	var aboutKind, aboutRef string
 	if _, err := queryRowAt(q, []any{&aboutKind, &aboutRef},
-		`SELECT COALESCE("about_kind", ''), COALESCE("about_ref", '') FROM "mint" WHERE "gap_id" = ?`, t.ruled()); err != nil {
+		`SELECT COALESCE("about_kind", ''), COALESCE("about_ref", '') FROM "mint" WHERE "gap_id" = ?`, t.Gap); err != nil {
 		return err
 	}
-	on := ""
-	if t.On != "" {
-		on = fmt.Sprintf(", and %s is the successor that ruling left standing", g)
-	}
 	return feov.Errorf(feov.Conflict,
-		"the bench ruled gap %s %s on docketing %s (event %d)%s; its tombstone stands, and a ruling is final for the ruled gap's text while it does: a proposal on %s relitigates it. "+
+		"the bench ruled gap %s %s on docketing %s (event %d); its tombstone stands, and a ruling is final for the ruled gap's text while it does: a proposal on %s relitigates it. "+
 			"%s ends it; blue's evidence belongs in the exchange before the bench rules. Nothing was recorded",
-		t.ruled(), t.Word, t.Docketing, t.Event, on, g, capitalized(tombstoneEnds(aboutKind, aboutRef)))
+		t.Gap, t.Word, t.Docketing, t.Event, g, capitalized(tombstoneEnds(aboutKind, aboutRef)))
 }

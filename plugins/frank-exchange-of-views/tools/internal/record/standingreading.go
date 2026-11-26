@@ -789,7 +789,7 @@ func readingBehind(evs []*Event, win WindowIndex, report string, found []located
 		if !ok || m.GetGapId() != gapID {
 			continue
 		}
-		seat := mintActors(evs)[gapID] // the acting seat: the reading the mint was checked on is its
+		seat := e.GetSeatId() // the minter: the reading the mint was checked on is its
 		row, ok := readingMintedClassOf(m.GetClass())
 		if !ok {
 			return standingReading{}, false
@@ -898,7 +898,7 @@ type mintRow struct {
 func mintRowsOf(evs []*Event, win WindowIndex) ([]mintRow, map[string]mintRow) {
 	var out []mintRow
 	byGap := map[string]mintRow{}
-	acting := mintActors(evs)
+	acting := mintersOf(evs)
 	for _, e := range evs {
 		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
 		if !ok {

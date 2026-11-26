@@ -115,10 +115,9 @@ func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
 	return Estoppel{}, false
 }
 
-// minterOf is the seat that authored gapID's prescription: its mint's acting seat (actingSeat) — the
-// event's seat, or the assignee where the bench wrote the mint as an accepted proposal's successor.
+// minterOf is the seat that authored gapID's prescription: its mint's seat.
 func minterOf(evs []*Event, gapID string) string {
-	return mintActors(evs)[gapID]
+	return mintersOf(evs)[gapID]
 }
 
 // DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),

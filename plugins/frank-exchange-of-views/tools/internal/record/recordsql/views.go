@@ -350,18 +350,10 @@ WHERE t."ends" IS NULL
 -- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
 -- by blue's cite placed as its answer alone.
 --
--- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
--- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
--- the successor's from its mint: a retire before it had met the ancestor, which then passed no
--- demand on, and a check counts for the gap only at or after its mint.
---
---   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
---             from.
 --   minted    gap_id's mint event: a check of the anchor counts for gap_id at or after it.
---   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
---             is about, its mint for an inherited row.
+--   reached   the event from which the anchor is in gap_id's reach: its mint.
 CREATE VIEW "demand_reach" AS
-` + demandReachSQL(`"demand_lineage" l`) + `;
+` + demandReachSQL(`"mint" h`) + `;
 
 -- THE GAP: its mint, its mint's event, and its stored state (gap_state, maintained per append by the
 -- triggers recordsql.GapStateDDL holds, through the rules gap_refresh states). One row per gap.
@@ -395,10 +387,8 @@ CREATE VIEW "demand_reach" AS
 --                       read by its later act the run holds four lens closures counted as the bench's.
 --   bench_closed_last   whose word stands: a bench ruling after red's close overrules red's word, and
 --                       the closure's epoch is that act's.
---   supersede_event, superseded_by  the mint that closed the gap by superseding it, and its gap.
---   supersedes          the one gap the mint names in its supersedes, NULL for none.
---   assignee            whose gap it is: its chain's origin (recordsql.assigneeSQL) — who owes its
---                       closing, hears proposals on it first and may regrade or close it.
+--   minted_by           the seat that wrote the gap's mint — who owes its closing, hears proposals on
+--                       it first and may regrade or close it.
 --   current_*, material the grades that stand now — the latest regrade's stamped result, else the
 --                       mint's — and the materiality rule over them (recordsql.materialSQL). The plain
 --                       severity columns are MINT-TIME grades.
@@ -442,14 +432,12 @@ SELECT
   m."complexity_cost"          AS "complexity_cost",
   e."id"                       AS "minted_seq",
   e."epoch"                    AS "minted_epoch",
-  s."assignee"                 AS "assignee",
+  s."minted_by"                AS "minted_by",
   s."close_event"              AS "close_event",
   s."bench_close_event"        AS "bench_close_event",
   s."closed_by_bench"          AS "closed_by_bench",
   s."bench_closed_last"        AS "bench_closed_last",
-  s."supersede_event"          AS "supersede_event",
   s."open"                     AS "open",
-  s."supersedes"               AS "supersedes",
   s."current_severity"         AS "current_severity",
   s."current_likelihood"       AS "current_likelihood",
   s."current_impact"           AS "current_impact",
@@ -460,7 +448,6 @@ SELECT
   s."unruled_docket_filed"     AS "unruled_docket_filed",
   s."docket_direction"         AS "docket_direction",
   s."docket_settled"           AS "docket_settled",
-  s."superseded_by"            AS "superseded_by",
   s."minted_event"             AS "minted_event",
   s."material"                 AS "material",
   s."remanded"                 AS "remanded",
@@ -758,18 +745,16 @@ func evidenceAnchorArmsSQL() string {
 	return strings.Join(arms, "\n  UNION ALL\n")
 }
 
-// demandReachSQL is the demand_reach view's body over lineage, an SQL FROM term aliasing the
-// demand lineage l: the view reads all of demand_lineage, and gap_refresh the lineage of the gaps it
-// refreshes, driven from them (a CROSS JOIN fixes the order: from the anchor's side the planner
-// walks every mint about an anchor).
-func demandReachSQL(lineage string) string {
-	return `SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       a."about_ref" AS "anchor", ` + assigneeSQL(`a`, `e`) + ` AS "seat", h."event_id" AS "reached"
-FROM ` + lineage + `
-JOIN "mint" h ON h."gap_id" = l."gap_id"
-JOIN "mint" a ON a."gap_id" = l."from_gap"
-JOIN "events" e ON e."id" = a."event_id"
-WHERE a."about_kind" = 'anchor'`
+// demandReachSQL is the demand_reach view's body over mints, an SQL FROM term aliasing the mint h:
+// the view reads every mint, and gap_refresh the mints of the gaps it refreshes, driven from them (a
+// CROSS JOIN fixes the order: from the anchor's side the planner walks every mint about an anchor).
+// The seat whose check meets the demand is the mint's writer.
+func demandReachSQL(mints string) string {
+	return `SELECT h."gap_id" AS "gap_id", h."check_kind" AS "check_kind", h."event_id" AS "minted",
+       h."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+FROM ` + mints + `
+JOIN "events" e ON e."id" = h."event_id"
+WHERE h."about_kind" = 'anchor'`
 }
 
 // evidenceChecksSQL is every EvidenceTables row's check kind, as quoted words, comma-separated: the

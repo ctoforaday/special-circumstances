@@ -20,8 +20,7 @@ type EarlyLensDispatch struct {
 // (ruled by gblock 2026-10-30) — what capture's lens-turn audit names. The plan engages a lens only
 // once its turn has come, so a row here is a plan defect, or a run dispatched by a binary that did
 // not hold the rule: universe-m36 holds seven, each a lens that sat first and audited an answer that
-// did not exist yet. A gap a successor names is not counted after that successor's mint: the mint
-// closed it, and a row naming it there engages no turn.
+// did not exist yet.
 func EarlyLensDispatches(run Run) ([]EarlyLensDispatch, error) {
 	var evs []*Event
 	var win WindowIndex
@@ -49,16 +48,6 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
 	minted := assigneeOf(evs)
 	turns := lensTurnActsOf(evs, ids, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
-	superseded := map[string]int64{} // gap → the place of the first mint that names it superseded, which closed it
-	for i, e := range evs {
-		if m := e.GetMint(); m != nil {
-			if s := m.GetSupersedes(); s != "" {
-				if _, seen := superseded[s]; !seen {
-					superseded[s] = ids[i]
-				}
-			}
-		}
-	}
 	var out []EarlyLensDispatch
 	for i, e := range evs {
 		d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
@@ -67,9 +56,6 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 		}
 		at := ids[i]
 		for _, g := range d.GetGapIds() {
-			if s, named := superseded[g]; named && s < at {
-				continue
-			}
 			if !lensTurnOn(turns[g], d.GetSeatId(), mintedAt[g], latestBefore(remandPlaces(remands[g]), at), at) {
 				out = append(out, EarlyLensDispatch{At: at, SeatID: d.GetSeatId(), GapID: g})
 			}

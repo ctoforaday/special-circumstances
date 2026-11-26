@@ -44,16 +44,16 @@ const (
 // gapRow is the gap view's state columns for one gap, as one comparable value.
 type gapRow struct {
 	open, byBench, benchLast bool
-	benchClose, supersede    sql.NullInt64
-	assignee, severity       string
+	benchClose               sql.NullInt64
+	mintedBy, severity       string
 }
 
 func gapRowOf(t *testing.T, run Run, g string) gapRow {
 	t.Helper()
 	var r gapRow
-	found, err := queryRowAt(recordOf(t, run), []any{&r.open, &r.byBench, &r.benchLast, &r.benchClose, &r.supersede, &r.assignee, &r.severity},
-		`SELECT "open", COALESCE("closed_by_bench", 0), COALESCE("bench_closed_last", 0), "bench_close_event", "supersede_event",
-		        COALESCE("assignee", ''), COALESCE("current_severity", '') FROM "gap" WHERE "gap_id" = ?`, g)
+	found, err := queryRowAt(recordOf(t, run), []any{&r.open, &r.byBench, &r.benchLast, &r.benchClose, &r.mintedBy, &r.severity},
+		`SELECT "open", COALESCE("closed_by_bench", 0), COALESCE("bench_closed_last", 0), "bench_close_event",
+		        COALESCE("minted_by", ''), COALESCE("current_severity", '') FROM "gap" WHERE "gap_id" = ?`, g)
 	if err != nil || !found {
 		t.Fatalf("gap %s: found %v, %v", g, found, err)
 	}
@@ -250,17 +250,9 @@ func closeProposalOn(class recordpb.Disposition) func(string) *recordpb.Motion {
 	}
 }
 
-func supersedeProposalOn(successor string) func(string) *recordpb.Motion {
-	return func(g string) *recordpb.Motion {
-		return &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
-			Act:    &recordpb.Motion_Supersede{Supersede: successorMint(successor, g)}}
-	}
-}
-
 // T-B8: THE BENCH'S ANSWER PER ACT. Siding with the filer applies the proposal as filed: a close with
-// its stored word, a regrade at its grades (the bench's regrade, before the ruling), a supersede as the
-// bench's close of G with the successor its assignee's; siding with the assignee leaves G as it stood.
+// its stored word, a regrade at its grades (the bench's regrade, before the ruling); siding with the
+// assignee leaves G as it stood.
 func TestTheBenchAnswersEachActItsOwnWay(t *testing.T) {
 	t.Run("close: the closing word the proposal stores", func(t *testing.T) {
 		run := proposalRun(t, closeProposalOn(recordpb.Disposition_DISPOSITION_MOOT))
@@ -295,35 +287,6 @@ func TestTheBenchAnswersEachActItsOwnWay(t *testing.T) {
 		}
 		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for filer", by: "judge"}) {
 			t.Errorf("M1 reads %+v, want for filer by judge", got)
-		}
-	})
-	t.Run("supersede: the bench's close of G, and the successor its assignee's", func(t *testing.T) {
-		run := proposalRun(t, supersedeProposalOn("G9"))
-		d := docketProposal(t, run, "G1", "M1")
-		bench := convene(t, run, "G1")
-		mustAppend(t, bench, benchFor(d, "M1", forFiler))
-		g := gapRowOf(t, run, "G1")
-		if id := rulingEventOf(t, run, "M1"); g.open || !g.byBench || !g.benchLast || g.benchClose.Int64 != id || g.supersede.Valid {
-			t.Errorf("after the bench's ruling for the supersede's filer: %+v, want G1 closed by the bench at the ruling %d, no supersede event", g, id)
-		}
-		if w := closureReasonOf(t, run, "G1"); w != ClosedSuperseded {
-			t.Errorf("G1's closure word = %q, want %q", w, ClosedSuperseded)
-		}
-		// The bench mints nothing but the successor its ruling applies.
-		_, err := Append(bench, successorMint("G8", "G1"))
-		mustRefuse(t, err, "the bench mints no gap of its own")
-		mustAppend(t, bench, successorMint("G9", "G1"))
-		if s := gapRowOf(t, run, "G9"); !s.open || s.assignee != evLens {
-			t.Errorf("the bench's successor: %+v, want open and %s's", s, evLens)
-		}
-	})
-	t.Run("supersede: the assignee's accept is no bench closure", func(t *testing.T) {
-		run := proposalRun(t, supersedeProposalOn("G9"))
-		lens := sit(t, run, evLens)
-		mustAppend(t, lens, actRule("M1", true, evLens))
-		mustAppend(t, lens, successorMint("G9", "G1"))
-		if g := gapRowOf(t, run, "G1"); g.open || g.byBench {
-			t.Errorf("after the assignee's accept and successor: %+v, want G1 closed, not by the bench", g)
 		}
 	})
 	t.Run("for the assignee on a regrade: the gap as it stood", func(t *testing.T) {
@@ -439,41 +402,28 @@ func rulingOf(t *testing.T, run Run, motion string) *recordpb.MotionRule {
 	return nil
 }
 
-// THE STREAM'S ASSIGNEE IS THE STORED ONE (mintChain against gap_state.assignee): a lineage successor
-// another lens mints on a closed gap is its origin's, and the bench's successor is its ancestor's
-// assignee's; the acting seat of the bench's Mint is that assignee too.
-func TestAssigneeAndActingSeatReadersOfASuccessor(t *testing.T) {
-	run := proposalRun(t, supersedeProposalOn("G9"))
-	d := docketProposal(t, run, "G1", "M1")
-	bench := convene(t, run, "G1")
-	mustAppend(t, bench, benchFor(d, "M1", forFiler))
-	mustAppend(t, bench, successorMint("G9", "G1"))
-	// A lineage successor of the closed G9's sibling: G2, the outside lens's gap, closed by it, then
-	// superseded by the evidence lens.
+// THE STREAM'S MINTER IS THE STORED ONE (mintersOf against the gap view's minted_by): each gap reads
+// the seat whose mint created it, on both readers.
+func TestTheStreamsMinterIsTheStoredOne(t *testing.T) {
+	run := proposalRun(t, closeProposalOn(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
 	other := sit(t, run, outsideLens)
 	mustAppend(t, other, corrMint("G2"))
-	mustAppend(t, other, &recordpb.Close{GapId: proto.String("G2"), ClosureClass: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
-		Prose: proto.String("p"), AnchorSeat: proto.String(outsideLens), AnchorTool: proto.String("read"), AnchorTarget: proto.String("the report")})
-	mustAppend(t, sit(t, run, evLens), successorMint("G3", "G2"))
 
 	all, err := MergedEvents(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assignee, acting := mintChain(all.Events)
-	for _, g := range []string{"G1", "G9", "G2", "G3"} {
-		if stored := gapRowOf(t, run, g).assignee; assignee[g] != stored {
-			t.Errorf("%s: the stream's assignee %q, the stored %q", g, assignee[g], stored)
+	minters := mintersOf(all.Events)
+	for _, g := range []string{"G1", "G2"} {
+		if stored := gapRowOf(t, run, g).mintedBy; minters[g] != stored {
+			t.Errorf("%s: the stream's minter %q, the stored %q", g, minters[g], stored)
 		}
 	}
-	want := map[string]string{"G9": evLens, "G3": outsideLens}
+	want := map[string]string{"G1": evLens, "G2": outsideLens}
 	for g, w := range want {
-		if assignee[g] != w {
-			t.Errorf("%s's assignee = %q, want %q", g, assignee[g], w)
+		if minters[g] != w {
+			t.Errorf("%s's minter = %q, want %q", g, minters[g], w)
 		}
-	}
-	if acting["G9"] != evLens || acting["G3"] != evLens {
-		t.Errorf("acting seats G9 %q, G3 %q; want %s (the bench's successor acts as its assignee) and %s (the writer)", acting["G9"], acting["G3"], evLens, evLens)
 	}
 }
 

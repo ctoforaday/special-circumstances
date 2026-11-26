@@ -3,7 +3,6 @@ package blue
 import (
 	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -44,9 +43,6 @@ func requireRoadsHold(l *record.Landing, remedy string) error {
 	for _, r := range roads {
 		if err := roadPlans(l, report, r); err != nil {
 			what := "red's text in the closing argued on it"
-			if r.Successor != "" {
-				what = "the quote of the successor " + r.Successor + " it proposes"
-			}
 			// THE PLANNER'S OWN REFUSAL IS WORDED FOR A SEAT TYPING A PAIR, which the refused seat is not:
 			// the refusal names the span the statement quotes and what this act did to it.
 			return feov.Wrap(feov.Conflict, err,
@@ -58,8 +54,7 @@ func requireRoadsHold(l *record.Landing, remedy string) error {
 	return nil
 }
 
-// roadPlans is nil where road r still plans on report: a pair as the accept applies it — a successor's
-// with its own marker placed at its quote, as `lens mint` verifies a fix — or a retire. AN ACT THAT DOES
+// roadPlans is nil where road r still plans on report: a pair as the accept applies it, or a retire. AN ACT THAT DOES
 // WHAT RED'S TEXT DOES LEAVES THE ROAD STANDING: a retire road always stands, and a pair road stands
 // where an edit replaced exactly its quoted words with exactly its own and the report still holds them
 // at the gap's place (record.RedTextApplied); the answer for red
@@ -68,8 +63,6 @@ func roadPlans(l *record.Landing, report string, r record.Road) error {
 	switch {
 	case r.Retire != "":
 		return nil
-	case r.Successor != "":
-		return SuccessorPlans(report, r.Successor, r.Location, r.FixNew)
 	}
 	_, err := PlanAccept(report, r.GapID, r.Location, r.FixNew)
 	if err != nil {
@@ -77,20 +70,5 @@ func roadPlans(l *record.Landing, report string, r record.Road) error {
 			return derr
 		}
 	}
-	return err
-}
-
-// SuccessorPlans is nil where a proposed successor's quote places its marker on report and its fix, if
-// it states one, is a pair the accept applies there — the questions `lens mint`'s Places guard and its
-// verified fix ask of the mint the bench writes (L48).
-func SuccessorPlans(report, successor, loc, fix string) error {
-	placed, err := anchortext.Attach(report, successor, loc)
-	if err != nil {
-		return anchortext.Refusal(err)
-	}
-	if fix == "" {
-		return nil
-	}
-	_, err = PlanAccept(placed, successor, loc, fix)
 	return err
 }

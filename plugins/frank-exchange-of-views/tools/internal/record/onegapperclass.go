@@ -43,9 +43,6 @@ import (
 // one class on one subject. The check runs in the mint's own transaction, which takes the write lock
 // at BEGIN (`_txlock=immediate`), so the second of two concurrent mints reads the first.
 //
-// WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED: a gap the mint names in --supersedes does
-// not block it, since a successor states its ancestor's subject by design.
-//
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
 //
 // ONE QUERY FEEDS EVERY ARM (openGapsOfClassAt): the open gaps of the class with their subject
@@ -76,15 +73,6 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 	if held, err = withRuledGapsOfClassAt(w.q, held, m.GetClass()); err != nil {
 		return fmt.Errorf("the record's ruling tombstones could not be read, so whether a ruling on a gap of class %s stands on this subject cannot be told: %w", recordpb.Word(m.GetClass()), err)
 	}
-	// THE EXEMPTIONS. An open gap the mint supersedes is its ancestor; a ruled gap is not exempt that
-	// way — a mint --supersedes G of a ruled G relitigates the ruling — but the successor a supersede
-	// accept writes in the ruling's transaction is the ruling's own outcome.
-	held = slices.DeleteFunc(held, func(g heldGap) bool {
-		if g.ruling != nil {
-			return g.ruling.successor != "" && g.ruling.successor == m.GetGapId()
-		}
-		return g.id == m.GetSupersedes()
-	})
 	if len(held) == 0 {
 		return nil
 	}
@@ -211,7 +199,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT "gap_id", COALESCE("assignee", ''), COALESCE("problem", ''),
+	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''),
 	           COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '')
 	           FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"`, recordpb.Word(class))
 	if err != nil {
@@ -238,15 +226,6 @@ func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.
 	}
 	for i := range ruled {
 		t := &ruled[i]
-		// THE SUCCESSOR A SUPERSEDE ACCEPT LEFT STANDING is protected by the ruled gap's row (F-J):
-		// held while open, under that ruling.
-		if t.successor != "" {
-			if k := slices.IndexFunc(held, func(g heldGap) bool { return g.id == t.successor }); k >= 0 {
-				s := *t
-				s.Gap, s.On = t.successor, t.Gap
-				held[k].ruling = &s
-			}
-		}
 		if k := slices.IndexFunc(held, func(g heldGap) bool { return g.id == t.Gap }); k >= 0 {
 			held[k].ruling = t
 			continue
@@ -266,22 +245,21 @@ func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.
 }
 
 // oneGapRefusal names the open gap g that holds the subject, and the refused seat's road from there.
-// The road turns on whose gap g is: the seat's own gap is restated by superseding it and reweighed by
-// regrading it; another seat's gap already carries a point that agrees with it, and a dispute of it
+// The road turns on whose gap g is: the seat's own gap is reweighed by regrading it; another seat's gap already carries a point that agrees with it, and a dispute of it
 // is the act the seat proposes on it, which g's assignee may accept and the bench otherwise rules.
 // While g has had no exchange, the refusal says so, since a proposal is admitted only once it has.
 func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subject string) error {
 	if t := g.ruling; t != nil {
 		return feov.Errorf(feov.Conflict,
-			"the bench ruled gap %s %s on docketing %s (event %d); its tombstone stands on %s%s, so a gap of class %s there relitigates it. "+
+			"the bench ruled gap %s %s on docketing %s (event %d); its tombstone stands on %s, so a gap of class %s there relitigates it. "+
 				"%s ends it; blue's evidence belongs in the exchange before the bench rules. Nothing was written",
-			t.ruled(), t.Word, t.Docketing, t.Event, subject, successorClause(g.id, t), recordpb.Word(m.GetClass()), capitalized(tombstoneEnds(g.aboutKind, g.aboutRef)))
+			t.Gap, t.Word, t.Docketing, t.Event, subject, recordpb.Word(m.GetClass()), capitalized(tombstoneEnds(g.aboutKind, g.aboutRef)))
 	}
 	if g.assignee == seatID {
 		return feov.Errorf(feov.Conflict,
 			"gap %s is yours and is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
-				"To restate its defect, supersede it (`--supersedes %s`); to reweigh it, regrade it (`regrade --id %s`). Nothing was written",
-			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id)
+				"To reweigh it, regrade it (`regrade --id %s`). Nothing was written",
+			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id)
 	}
 	exchanged, err := exchangesSentence(w.q, g.id)
 	if err != nil {
@@ -290,7 +268,7 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 	return feov.Errorf(feov.Conflict,
 		"gap %s, assigned to %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
-			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede --id %s`, or regrade or close in place of supersede), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
+			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file regrade --id %s`, or close in place of regrade), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
 		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, exchanged)
 }
 
@@ -315,12 +293,4 @@ func exchangesSentence(q recordsql.Querier, id string) (string, error) {
 		return "", nil
 	}
 	return " Gap " + id + " stands at " + x.Counted() + ": a proposal on it is admitted once it has had one exchange.", nil
-}
-
-// successorClause names gap id as the successor a ruling left standing, "" where id is the ruled gap.
-func successorClause(id string, t *RulingTombstone) string {
-	if t.On == "" {
-		return ""
-	}
-	return ", where " + id + " is the successor that ruling left standing"
 }

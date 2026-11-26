@@ -250,10 +250,8 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 // T-B32. EVERY DOCKET RULING READER RESOLVES ITS GAP THROUGH THE DOCKETING. For each side's answer at
 // impasse, each grade answer at grade movement (no motion_id), a remand, and each side's answer to a
 // held proposal, the readers in this package return the ruling's gap and its word: DocketRulingGap,
-// the docketings fold, the supersession fold's closed set (a successor minted after a closing ruling
-// closes nothing), the gap state's bench arms (closed_by_bench: the closing arm, and the supersede arm
-// on sided_with), motion_answers for the held proposal, and the trigger admitting each ruling (it is
-// written). The readers outside this package (capture's precedents, the report's and view's LEAD
+// the docketings fold, the gap state's bench arm (closed_by_bench: the closing arm), motion_answers
+// for the held proposal, and the trigger admitting each ruling (it is written). The readers outside this package (capture's precedents, the report's and view's LEAD
 // lines, dashboard, scorecard, verify, graph) read DocketRulingGap and DocketingsOf.
 func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) {
 	impasse, movement, proposal := recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL
@@ -272,28 +270,26 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 		d.Disposition, d.Direction = recordpb.Disposition_DISPOSITION_REMANDED.Enum(), proto.String("one more exchange")
 	}
 	for _, c := range []struct {
-		name      string
-		cause     recordpb.DocketingCause
-		supersede bool // the docketing holds blue's proposed supersede of the gap
-		answer    func(*recordpb.DocketRuling)
-		word      string
-		closes    bool
+		name   string
+		cause  recordpb.DocketingCause
+		answer func(*recordpb.DocketRuling)
+		word   string
+		closes bool
 	}{
-		{"for blue at impasse", impasse, false, side(recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), "not_a_defect", true},
-		{"for red at impasse", impasse, false, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
-		{"a remand at impasse", impasse, false, remand, "remanded", false},
-		{"grades kept", movement, false, grades(recordpb.MovedGrades_MOVED_GRADES_KEPT), "grades kept", false},
-		{"grades restored", movement, false, grades(recordpb.MovedGrades_MOVED_GRADES_RESTORED), "grades restored", false},
-		{"for blue on its supersede", proposal, true, side(recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_UNSPECIFIED), "for blue", true},
-		{"for red on blue's supersede", proposal, true, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
+		{"for blue at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), "not_a_defect", true},
+		{"for red at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
+		{"a remand at impasse", impasse, remand, "remanded", false},
+		{"grades kept", movement, grades(recordpb.MovedGrades_MOVED_GRADES_KEPT), "grades kept", false},
+		{"grades restored", movement, grades(recordpb.MovedGrades_MOVED_GRADES_RESTORED), "grades restored", false},
+		{"for red on blue's proposal", proposal, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			r := newRawRecord(t)
 			r.mint("G")
 			motion := ""
-			if c.supersede {
+			if c.cause == proposal {
 				motion = "M"
-				r.propose(motion, "G", "S")
+				r.propose(motion, "G", "")
 			}
 			if c.cause == proposal {
 				r.docket("K", "G", c.cause, motion)
@@ -311,10 +307,6 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 			if open == c.closes || byBench != c.closes {
 				t.Errorf("G open=%v closed_by_bench=%v, want open=%v closed_by_bench=%v", open, byBench, !c.closes, c.closes)
 			}
-			// The successor the tool writes after a ruling siding with the supersede, or a mint
-			// naming the gap after any closing ruling: lineage, closing nothing. After a ruling that
-			// closes nothing, it closes the gap.
-			r.mint("S", "G")
 			evs, win, err := eventsAt(r.db)
 			if err != nil {
 				t.Fatal(err)
@@ -325,9 +317,6 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 			ds := docketingsAt(evs, win.IDs(evs))
 			if len(ds) != 1 || !ds[0].Ruled() || ds[0].GapID != "G" || ds[0].Word() != c.word {
 				t.Errorf("the docketings fold = %+v, want K on G ruled %q", ds, c.word)
-			}
-			if _, superseded := supersessionsOf(evs)["G"]; superseded == c.closes {
-				t.Errorf("the supersession fold has S closing G = %v, want %v (a closing ruling precedes it)", superseded, !c.closes)
 			}
 			if motion != "" {
 				var word string

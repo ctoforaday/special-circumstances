@@ -329,9 +329,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		m.FixNew = proto.String("the fix")
 		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	})
-	// G1 awaits its live answer, so its successor carries its check kind (requireSuccessorCarriesDemand).
 	mint("G2", func(m *recordpb.Mint) {
-		m.Supersedes = proto.String("G1")
 		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	})
 	mint("G3", nil)
@@ -416,13 +414,8 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	if g2 := byID["G2"]; !g2.Open {
 		t.Error("a carried ruling closed G2 — the vocabulary's own facet says it must not")
 	}
-	// G1 closed when G2 was minted superseding it: no closing body, and the successor named.
-	if g1 := byID["G1"]; g1.Open || g1.SupersededBy != "G2" || g1.Closure != nil || g1.ClosedEpoch != 1 {
-		t.Errorf("G1 = open=%v superseded_by=%q closure=%v epoch=%d, want closed in epoch 1 by G2's mint, with no closing body",
-			g1.Open, g1.SupersededBy, g1.Closure, g1.ClosedEpoch)
-	}
-	// G2 (carried) stays open; G1 closed by its successor's mint, G3 by both arms.
-	if bj.Counts.Open != 1 || bj.Counts.Closed != 2 || bj.Counts.ClosedByBench != 0 {
+	// G1 and G2 (carried) stay open; G3 is closed by both arms.
+	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 0 {
 		t.Errorf("counts = %+v, anomalies %v", bj.Counts, bj.Anomalies)
 	}
 	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
