@@ -2020,7 +2020,8 @@ and `~/.claude/scratch/p12/r2/`):
         carries it; a cut of whole sentences takes their anchors, those at the end included";
       - `cite.md:7`: "It survives every later edit: `edit` refuses a replacement that drops one" becomes "It survives
         every later rewrite: `edit` refuses a rewrite that drops one. It leaves with its sentence when an edit cuts
-        that sentence whole, or alone by a `retire` naming it, its sentence kept";
+        that sentence whole — a cut takes the anchors at the sentence's end whether or not its quote carries them — or
+        alone by a `retire` naming it, its sentence kept";
       - `cite.md:11` and `compute.md:15`: "or with its claim" becomes "or with its sentence, when an edit cuts it";
       - `verbs.go:368` (blue's paragraph of the `show report` page): "YOUR `edit` REFUSES AN EDIT THAT DROPS AN
         ANCHOR, so a token inside the span you are replacing is yours to carry into --new" becomes "YOUR `edit`
@@ -2153,8 +2154,8 @@ and `~/.claude/scratch/p12/r2/`):
         "remove → a=an anchor id a retire took out, or one a cut's `removed_anchors` lists";
       - `cli/blue/edit.go:271-275` on main (`refuseBaredAnchors`): ":272-274" ("A claim retire takes the anchors the
         edit that cut the claim holds in its replacement (heldAt), so one the quote left out stands where the cut left
-        it with no retire able to name it") becomes "NO ANCHOR STANDS BARE (gblock 2026-11-20: an anchor \"can't just be
-        floating on nothing\"). A rewrite that would leave a token of any kind on a sentence with no words is refused,
+        it with no retire able to name it") becomes "NO ANCHOR STANDS BARE (gblock 2026-11-20: an anchor "can't just be
+        floating on nothing"). A rewrite that would leave a token of any kind on a sentence with no words is refused,
         carried or not: an anchor marks a sentence, and one on nothing marks none. A cut whose replacement holds
         nothing of the sentence takes its tokens itself (`removed_anchors`), so the refusal names the two routes: keep
         words on the sentence, or cut it whole". `:274-275` ("applied is what the edit records: carried means there …
@@ -2246,8 +2247,10 @@ and `~/.claude/scratch/p12/r2/`):
       - `droppedMarker` (`edit.go:674-688`) [MODIFY]: "returns an anchor id present in before but absent from after …
         so no edit drops an anchor of any kind" becomes "returns an anchor id present in before, absent from after,
         and not in the edit's `removed_anchors`, so no edit drops an anchor it does not record". The function takes
-        the list: read on the cut's planned report without it, every pure cut is its internal error (`:438-440`,
-        `:488-490`, whose "this edit would drop %s" then names an unrecorded drop and stays);
+        the list because it reads the planned report AFTER the list's removes — the same `after` `refuseBaredAnchors`
+        reads, which must hold the removes or every cut's tokens would read bare there. Without the list every pure
+        cut is its internal error (`:438-440`, `:488-490`, whose "this edit would drop %s" then names an unrecorded drop
+        and stays);
       - `report/seatread.go:22-24`: "REFUSES any edit that drops, duplicates or invents one: an anchor is born only
         from `lens finding` or `blue cite` and removed only by the tool" becomes "REFUSES a rewrite that drops,
         duplicates or invents one, and a cut of a whole sentence takes its anchors and records them: an anchor is born
@@ -2316,7 +2319,7 @@ and `~/.claude/scratch/p12/r2/`):
         withdrawn" — the word is "retire"` (`TestVocabularyProse`, `integration/surface/vocabulary_prose_test.go:60-61`).
         Under P12b that steers a writer toward a claim retire P12b deletes, so the GATED `claims withdrawn` and the
         REGISTRY-ONLY `withdraw (retire)` (as `withdraw (pure cut)`) go under the new term, and a hit then reads
-        "— the word is \"pure cut\"". `TestVocabularyProseMutations` runs the variant at its path either way.
+        `— the word is "pure cut"`.
     - `:821`, the "retired (a lens)" collision resolution: "a lens retires from dispatch, which is a state of the seat;
       a claim is retired from the report, on the record" becomes "a lens retires from dispatch, which is a state of the
       seat; an anchor is retired from the report, on the record, and its sentence stays".
@@ -2409,6 +2412,8 @@ and `~/.claude/scratch/p12/r2/`):
         way names the retire or the edit, not a stale id";
       - `:74-75`: "an anchor missing without a retire is a hard violation" becomes "an anchor missing without the act
         that took it is a hard violation";
+      - `:91`: "Blue **fixes** the content (edits the marked sentence; it cannot touch the marker)" becomes "Blue
+        **fixes** the content (rewrites the marked sentence, carrying the marker)";
       - `:94-95`: "Blue **withdraws** the content by editing it out and retiring the claim, which takes them out"
         becomes "Blue **withdraws** the content by cutting its sentence, which takes them out";
       - `:99`: "it removes an anchor of any kind only by `retire`" becomes "it removes an anchor of any kind only by a
@@ -2519,15 +2524,15 @@ and `~/.claude/scratch/p12/r2/`):
       `cli/seat/verbs.go:368`; `consistency/consistency.go:606, 614`; `record/recordpb/record.proto:1743, 1744, 1745`;
       `record/recordsql/evidencetables.go:14`; `report/seatread.go:23`; `reportproj/render.go:154, 156`;
       `scripts/agentgen/src/blue-synthesizer.md:14`; `scripts/agentgen/src/fragments/blue-search-and-cite.md:6, 18`.
-    - **Carrier already worded above, the wording now covering this face too (21):**
-      `docs/citations-and-bibliography.md:145, 146, 182`; `docs/propagation-and-anchoring.md:74`;
-      `docs/seat-command-triggers.md:89`; `cli/blue/edit.go:341, 342, 345`; `cli/blue/retire.go:40, 43`;
+    - **Carrier already worded above, the wording now covering this face too (23):**
+      `docs/citations-and-bibliography.md:145, 146, 149, 182`; `docs/propagation-and-anchoring.md:74`;
+      `docs/seat-command-triggers.md:89`; `cli/blue/edit.go:341, 342, 345`; `cli/blue/retire.go:40, 43, 165`;
       `cli/lens/mint.go:489`; `cli/seat/help/edit.md:32`; `cli/seat/help/retire.md:7, 9, 13`; `cli/seat/verbs.go:306,
       307`; `record/evidenceview.go:332, 350`; `record/recordpb/record.proto:1821`; `report/docs.go:239`.
-    - **In code P12b deletes (10):** `cli/blue/retire.go:165, 231, 323, 353, 358, 459`;
-      `record/recordpb/record.proto:1838`; `report/assemble.go:841, 872`; `report/layout.go:222` (claim mode,
-      `claim_kept`, `withdrawnClaims` and the "Claims retired" section).
-    - **About a rewrite, the splice or replay, true under P12b (54):** `docs/citations-and-bibliography.md:149, 156`;
+    - **In code P12b deletes (9):** `cli/blue/retire.go:231, 323, 353, 358, 459`; `record/recordpb/record.proto:1838`;
+      `report/assemble.go:841, 872`; `report/layout.go:222` (claim mode, `claim_kept`, `withdrawnClaims` and the
+      "Claims retired" section).
+    - **About a rewrite, the splice or replay, true under P12b (53):** `docs/citations-and-bibliography.md:156`;
       `docs/finding-markers.md:117`; `docs/propagation-and-anchoring.md:57`; `anchortext/anchortext.go:375, 569, 600`;
       `bluedoc/bluedoc.go:125, 130, 131, 133, 168, 201, 218, 224, 286, 289, 499`; `claimcount/claimcount.go:32, 35`;
       `cli/blue/edit.go:356, 403, 440, 460, 480, 490, 521, 535, 553, 563, 635`; `cli/blue/ingest.go:234`;
@@ -2579,8 +2584,8 @@ and `~/.claude/scratch/p12/r2/`):
     - **Read beside the converse sweep, carriers with their wording above:** `cli/seat/help/edit.md:30` ("retire the
       anchor first … then edit the sentence out", whose words match no pattern); `cli/blue/retire.go:24` and `:33`
       ("the ONLY way substance leaves the report", "a claim can only LEAVE through this verb"), outside the old sweep
-      too; `anchor/anchor.go:82-83`; `cli/blue/cite.go:27`; `terms/terms.json:586, 798`; `docs/finding-markers.md:115`
-      (its match is absorbed into `:113`'s); and the text naming a retire as an evidence anchor's alone
+      too; `anchor/anchor.go:82-83`; `cli/blue/cite.go:27`; `terms/terms.json:586, 798`; `docs/finding-markers.md:91`,
+      and `:115` (its match is absorbed into `:113`'s); and the text naming a retire as an evidence anchor's alone
       (`cli/seat/verbs.go:297, 682`, `view/changes.go:49-50`, `record/blueanswered.go:85, 118`,
       `record/impasse.go:27`, `cli/blue/retire.go:164, 463`, `record.proto` `Retire.answers`).
 - **Migrate** (one epoch, 82, §III.10c "Epoch"; F18 RULED (A); translation 4 RULED 2026-11-21 for b3, b6 and b9;
@@ -3253,7 +3258,9 @@ The census:
     `verbs.go:368`, the `--quote` flag at `edit.go:247`);
   - the simulator's goldens.
 
-  Nothing changes in debate.js's two enginegen regions, in any debate.py (none exists), or in the hooks READMEs.
+  Nothing changes in debate.js's two enginegen regions, in `skills/research-protocol/scripts/debate.py` (the
+  Antigravity orchestrator: its only `anchor` is the generated `PLAN` schema's, `:65`, and it holds no `retir`), or in
+  the hooks READMEs.
 - **Goldens.**
   - `difftest/testdata/manual_runs_every_help_page_live.golden`;
   - `record/testdata/plans.golden:1640-1664, 2995, 3038`;
@@ -3910,6 +3917,13 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
                "$F/skills/research-protocol/scripts/debate.js" |
                grep -i -E 'edit|cut|leav|remov|drop|carr|retir|replac|span|bare|stay|surviv|transit|lost|gone|out'
              ```
+           - The converse sweep's file scope holds every authored shipped file that names an anchor or marker: `grep
+             -rliE 'anchor|marker' plugins/frank-exchange-of-views scripts README.md` outside it returns only generated
+             copies (`agents/`, `agents-claude/`, `skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`),
+             tests, testdata and goldens, `record/migrate/`, dev tooling (`scripts/*`, `tools/devcmd/*`,
+             `tests/simulator/*.mjs`), and three authored files read on main 7cfd3a396 with no site of this face:
+             `skills/research/SKILL.md:46` (the `.run-live` marker's removal), `hooks/README.md:32` (the removed
+             lockdown's history) and `skills/research-protocol/scripts/debate.py` (its generated `PLAN` schema, `:65`).
            `record/migrate/` is left out because it translates the archived claim retires; tests and testdata are
            left out because the claim-shape tests are §III.11's to rewrite, and the named tests pin the new wording.
        - Re-armed by: any file in §III.11's P12b list, and any help page, agentgen source, `debate.js`, reference,
