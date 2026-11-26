@@ -341,13 +341,14 @@ func requireCitationUncited(q recordsql.Querier, taken []string, act string) err
 		}
 		if len(live) > 0 {
 			ks := strings.Join(live, ", ")
-			again := "cut again"
+			// A retire takes one anchor, so the same-act route is the cut's alone.
+			route := fmt.Sprintf(", or take %s in the same cut; then cut again", ks)
 			if act == "retire" {
-				again = "retire " + id + " again"
+				route = fmt.Sprintf(", or cut its sentence; then retire %s again", id)
 			}
 			return fmt.Errorf("citation %s is the method computation %s, still in the report, applies. Taken out, the citation would be in no document while that computation names it, so nothing is recorded. "+
-				"Retire %s by its own anchor first, computing it again citing another source if the report still needs it, or take %s in the same cut; then %s",
-				id, ks, ks, ks, again)
+				"Retire %s by its own anchor first, computing it again citing another source if the report still needs it%s",
+				id, ks, ks, route)
 		}
 	}
 	return nil

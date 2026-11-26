@@ -87,8 +87,7 @@ func AccessedOn(fetchedAt string) string {
 }
 
 // CitedSources returns the distinct cited sources — one per blue `cite` label, in
-// first-seen (label) order. It is the composer input for the assembled ## Bibliography and,
-// via its labels, the EXPECTED set the unbacked_citations detector checks.
+// first-seen (label) order. It is the composer input for the assembled ## Bibliography.
 func CitedSources(run Run) ([]Source, error) {
 	m, err := MergedEvents(run)
 	if err != nil {
@@ -108,9 +107,8 @@ func CitedSources(run Run) ([]Source, error) {
 		if !ok {
 			continue
 		}
-		// The empty-label filter is load-bearing: an event with no label names no anchor, and
-		// CitationLabels — the EXPECTED set the lockdown compares against the report — must not
-		// gain a phantom.
+		// The empty-label filter is load-bearing: an event with no label names no anchor, and the
+		// set of labels the record placed must not gain a phantom.
 		if src.Label == "" || seen[src.Label] {
 			continue
 		}
@@ -135,21 +133,11 @@ func CiteByLabel(run Run, label string) (*recordpb.Cite, error) {
 	return out, nil
 }
 
-// CitationLabels returns the distinct citation labels EXPECTED in blue/report.md — the
-// label of every blue `cite` event on the record, in first-seen order. It is the citation
-// twin of AnchorIDs: the blue-report lockdown's PostToolUse backstop compares this to the
-// anchors actually present to catch a dropped citation, and it is the EXPECTED set behind
-// the unbacked_citations detector. Only blue cites carry a `label`; red's `lens cite` does
-// not, so this is exactly the set of tool-inserted citation anchors that must be present.
-func CitationLabels(run Run) ([]string, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
-	return citationLabelsAt(db)
-}
-
-// citationLabelsAt is CitationLabels asked of q — the write path's transaction, or the run's handle.
+// citationLabelsAt returns the distinct citation labels the record placed, asked of q — the write
+// path's transaction — the label of every blue `cite` event, in first-seen order. Only blue cites carry
+// a `label`; red's `lens cite` does not, so this is exactly the set of tool-inserted citation anchors.
+// It is not the set the report holds: a label anchor_removal names left the report, by a retire or a
+// cut.
 func citationLabelsAt(q recordsql.Querier) ([]string, error) {
 	evs, _, err := eventsAt(q)
 	if err != nil {
@@ -201,7 +189,7 @@ func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 // `lens cite` records RED VERIFYING a source (a citation-ledger row: claim / reference /
 // confidence). `blue cite` records BLUE AUTHORING one (label / url / sha256 /
 // title / location, plus an anchor in the report). Only blue's carries `label`, which
-// is what distinguishes them — the same discriminator CitedSources and CitationLabels use.
+// is what distinguishes them — the same discriminator CitedSources and citationLabelsAt use.
 //
 // Counting both as "citations" makes an AUDIT-VOLUME number grow when BLUE writes, which is the
 // one thing the engine most needs to keep apart. Measured on the 2026-08-04 smoke: the board

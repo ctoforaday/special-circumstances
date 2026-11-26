@@ -74,9 +74,13 @@ func TestCiteAnchorBijection(t *testing.T) {
 
 func assertBijection(t *testing.T, runDir string) {
 	t.Helper()
-	events, err := record.CitationLabels(runtest.Open(t, runDir))
+	srcs, err := record.CitedSources(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
+	}
+	var events []string
+	for _, s := range srcs {
+		events = append(events, s.Label)
 	}
 	var anchors []string
 	for _, id := range claimcount.ProtectedAnchorIDs(readReport(t, runDir)) {
