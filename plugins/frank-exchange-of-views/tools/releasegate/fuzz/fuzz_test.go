@@ -3142,7 +3142,7 @@ func (r *runner) someCitation() string {
 		if r.forcedChainCitation(src.Anchor) {
 			continue
 		}
-		if _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
+		if _, retired, err := record.AnchorRemovedAt(r.run(), src.Anchor); err == nil && !retired {
 			live = append(live, src.Anchor)
 		}
 	}
@@ -3539,7 +3539,7 @@ func computationsCiting(run record.Run, citation string) []string {
 		if !ok || c.GetCites() != citation || slices.Contains(out, c.GetComputationId()) {
 			continue
 		}
-		if _, retired, err := record.AnchorRetiredAt(run, c.GetComputationId()); err == nil && !retired {
+		if _, retired, err := record.AnchorRemovedAt(run, c.GetComputationId()); err == nil && !retired {
 			out = append(out, c.GetComputationId())
 		}
 	}
@@ -8090,30 +8090,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 
-	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
-	// `asserted` retire means either the fake regressed to phantom retirements or the
-	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
-	// scorecard's additive-integrity detector, so it must not pass unnoticed here either. A
-	// citation retired from a sentence that stays (claim_kept) removes no claim, so it carries no
-	// removal basis, and one that names a basis says a claim left that did not.
-	{
-		for _, e := range board.Events {
-			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
-			if ok && r.GetClaimKept() {
-				if r.GetRemovalBasis() != "" {
-					res.err = "a citation retired from a sentence that stays recorded removal_basis=" + r.GetRemovalBasis() + " — its claim did not leave the report"
-					return res
-				}
-				continue
-			}
-			if ok && r.GetRemovalBasis() != record.RemovalVerified {
-				res.err = "a retire recorded removal_basis=" + r.GetRemovalBasis() +
-					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
-				return res
-			}
-		}
-	}
-
 	// AN ASSERTED VERDICT IS EITHER UNVERIFIED OR A BROKEN DERIVATION, and this is the tripwire
 	// that keeps the second from hiding behind the first.
 	//
@@ -9336,7 +9312,7 @@ func someReportAnchor(run record.Run) string {
 	}
 	for _, e := range b.Events {
 		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
-			if _, retired, err := record.AnchorRetiredAt(run, a.GetId()); err != nil || retired {
+			if _, retired, err := record.AnchorRemovedAt(run, a.GetId()); err != nil || retired {
 				continue
 			}
 			return a.GetId()

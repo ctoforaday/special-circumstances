@@ -416,7 +416,6 @@ var payloadFlag = map[string]string{
 	"claim":            Quote,
 	"old":              Quote,
 	"fix_new":          New,
-	"superseded_by":    New,
 	"successor":        SupersededBy,
 	"acceptance_check": Check,
 	"complexity_cost":  Complexity,

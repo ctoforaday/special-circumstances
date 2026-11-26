@@ -323,7 +323,7 @@ func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
 		computation("K-x", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, "K-x").stop("lens-mints").register("red-chair").
 		dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-retires").
 		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim K-x backs"), Reason: proto.String("it does not hold"), Anchors: []string{"K-x"},
-			ClaimKept: proto.Bool(true), Answers: proto.String("G1")}).
+			Answers: proto.String("G1")}).
 		stop("blue-retires").register("red-chair")
 	fam, err := MergedEvents(st.seed())
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -62,9 +61,6 @@ func TestARetireAfterARewriteSaysTheCarriedMarkerStayed(t *testing.T) {
 	if len(ev.GetAnchors()) != 0 {
 		t.Errorf("a marker carried onto standing prose left unnamed: %v", ev.GetAnchors())
 	}
-	if ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("removal_basis = %q for a claim a recorded edit's old span held", ev.GetRemovalBasis())
-	}
 	for _, want := range []string{"anchors out with it: none", "anchor stayed: " + f1} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the retire's result does not say %q:\n%s", want, out)
@@ -110,9 +106,6 @@ func TestARetireAfterARewriteTakesTheMarkerALaterEditLeftBare(t *testing.T) {
 	ev := lastBody(t, runDir, &recordpb.Retire{})
 	if !slices.Equal(ev.GetAnchors(), []string{f1}) {
 		t.Errorf("retire took %v, want [%s] — the marker that stood on the claim and stands bare now", ev.GetAnchors(), f1)
-	}
-	if ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("removal_basis = %q", ev.GetRemovalBasis())
 	}
 	if rep := readReport(t, runDir); strings.Contains(rep, anchor.Token(f1)) || !strings.Contains(rep, anchor.Token(f2)) {
 		t.Errorf("want %s out and %s standing:\n%s", f1, f2, rep)

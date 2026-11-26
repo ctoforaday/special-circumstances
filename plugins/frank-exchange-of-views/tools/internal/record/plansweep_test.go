@@ -25,7 +25,7 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ChangesOf(run, "G1")
 	_, _ = ExistingCiteByKey(run, evLens, "k")
 	_, _ = ExistingComputationByKey(run, evLens, "k")
-	_, _, _ = AnchorRetiredAt(run, "A1")
+	_, _, _ = AnchorRemovedAt(run, "A1")
 	_, _ = EvidenceDemandOf(run, "G1")
 	if db, err := openRunForRead(run); err == nil && db != nil {
 		_ = requireCitationUncited(db, []string{"C-1"})
@@ -54,7 +54,6 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	admitted := &recordpb.EnvelopeAdmitted{AgentId: proto.String("agent-1")}
 	_, _ = Append(Identity{Run: run, SeatID: "harness"}, admitted, OneAdmissionASitting(admitted))
 	_, _ = Append(Identity{Run: run, SeatID: "harness"}, &recordpb.Log{Text: proto.String("t")}, Check(func(l *Landing) error {
-		_, _ = l.EditSpans()
 		return ErrWritesNothing
 	}))
 }

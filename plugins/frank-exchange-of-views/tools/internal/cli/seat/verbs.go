@@ -1008,21 +1008,21 @@ func renderView(cmd *cobra.Command, want string) error {
 			if query != "" {
 				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --search ranks paragraphs of the whole report — pass one or the other")
 			}
-			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
-			// of the report on the record; saying "stale reference or another run" of it would send
-			// the reader hunting for an error that is really a recorded exit.
+			// AN ANCHOR THAT LEFT THE REPORT IS NOT STALE. A retire or a cut takes an anchor out on
+			// the record; saying "stale reference or another run" of it would send the reader hunting
+			// for an error that is really a recorded exit.
 			if !strings.Contains(string(b), anchor.Token(a)) {
-				r, found, err := record.AnchorRetiredAt(run, a)
+				r, found, err := record.AnchorRemovedAt(run, a)
 				if err != nil {
 					return err
 				}
-				if found && r.Kept {
-					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it is a retired %s — %s. It is not a stale reference; read that sentence with --quote",
-						a, record.EvidenceNoun(a), r.Said())
+				if found && r.By == record.RemovedByEdit {
+					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because blue's edit cut its sentence — %s. It is not a stale reference; there is no live text around it to read",
+						a, r.Said())
 				}
 				if found {
-					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it is a retired %s — %s. It is not a stale reference; there is no live text around it to read",
-						a, record.EvidenceNoun(a), r.Said())
+					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because blue retired it — %s. It is not a stale reference; read that sentence with --quote",
+						a, r.Said())
 				}
 			}
 			n, _ := cmd.Flags().GetInt(flags.Window)

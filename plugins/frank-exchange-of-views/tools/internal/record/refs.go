@@ -275,11 +275,11 @@ func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error 
 	if err := requireCitation(q, label, flag, advice); err != nil || label == "" {
 		return err
 	}
-	r, retired, err := anchorRetiredAt(q, label)
-	if err != nil || !retired {
+	r, removed, err := anchorRemovedAt(q, label)
+	if err != nil || !removed {
 		return err
 	}
-	return fmt.Errorf("%s=%s names a retired citation — %s — so it is in no document, and a computation citing it would apply a method the report no longer cites. "+
+	return fmt.Errorf("%s=%s names a citation that is out of the report — %s — so it is in no document, and a computation citing it would apply a method the report no longer cites. "+
 		"Cite the method again with `cite` and name that citation", flag, label, r.Said())
 }
 
@@ -292,12 +292,15 @@ func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, a
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	r, retired, err := anchorRetiredAt(q, ref)
-	if err != nil || !retired {
+	r, removed, err := anchorRemovedAt(q, ref)
+	if err != nil || !removed {
 		return err
 	}
-	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no %s about it can be answered. "+
-		"A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said(), act, act)
+	advice := fmt.Sprintf("A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", act)
+	if r.By == RemovedByEdit {
+		advice = fmt.Sprintf("Its sentence left with it: a defect the cut left elsewhere in the report is a %s about the sentence that holds it — file it with --quote on that sentence", act)
+	}
+	return fmt.Errorf("--about names %s %s, which is out of the report — %s — so it is in no document and no %s about it can be answered. %s", EvidenceNoun(ref), ref, r.Said(), act, advice)
 }
 
 // requireCitationUncited refuses a retire that takes a citation a live computation names as its
@@ -391,6 +394,28 @@ func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 		return false, err
 	}
 	return !open, nil
+}
+
+// requireMarkerOfNoOpenGap refuses a retire of an OPEN gap's own marker (F14, ruled by gblock
+// 2026-11-20), naming the gap: the retire keeps the sentence, so the gap would stand on no marker while
+// it is owed. A cut of the sentence takes the marker and is the gap's raiser's turn; once the gap is
+// closed, its marker may be retired off the sentence.
+func requireMarkerOfNoOpenGap(q recordsql.Querier, taken []string) error {
+	for _, id := range taken {
+		if anchor.Kind(id) != "gap" {
+			continue
+		}
+		var open bool
+		found, err := queryRowAt(q, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
+		if err != nil {
+			return err
+		}
+		if found && open {
+			return fmt.Errorf("%s is the marker of gap %s, which is open, so it is not retired: an open gap stands on its marker. "+
+				"Carry it, or cut its sentence with `edit`, which hands the gap to its lens", anchor.Token(id), id)
+		}
+	}
+	return nil
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap. A gap a supersession closed is

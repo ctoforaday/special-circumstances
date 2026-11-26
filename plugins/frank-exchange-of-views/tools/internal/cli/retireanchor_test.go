@@ -129,9 +129,9 @@ func TestACitationRetiresOffItsSentenceAndAnEditThenCutsIt(t *testing.T) {
 		t.Fatalf("retire --anchor %s alone: %v", label, err)
 	}
 	ev := lastBody(t, runDir, &recordpb.Retire{})
-	if !slices.Equal(ev.GetAnchors(), []string{label}) || !ev.GetClaimKept() || ev.GetClaim() != "The sky is blue." {
-		t.Errorf("the retire recorded anchors %v, claim_kept %v, claim %q — want [%s], kept, the sentence it stood on",
-			ev.GetAnchors(), ev.GetClaimKept(), ev.GetClaim(), label)
+	if !slices.Equal(ev.GetAnchors(), []string{label}) || ev.GetClaim() != "The sky is blue." {
+		t.Errorf("the retire recorded anchors %v, claim %q — want [%s], the sentence it stood on",
+			ev.GetAnchors(), ev.GetClaim(), label)
 	}
 	if !strings.Contains(out, label) {
 		t.Errorf("the retire's answer does not name %s:\n%s", label, out)
@@ -497,9 +497,6 @@ func TestRetireWithoutABareAnchorNamesNone(t *testing.T) {
 			t.Errorf("retiring %q named anchors %v — none was left bare", claim, ev.GetAnchors())
 		}
 	}
-	if ev := lastBody(t, runDir, &recordpb.Retire{}); ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("retiring an edited-out claim: removal_basis = %q, want verified, as before", ev.GetRemovalBasis())
-	}
 	if after := readReport(t, runDir); after != before {
 		t.Errorf("a retire that named no anchor changed the report:\n got %q\nwant %q", after, before)
 	}
@@ -782,8 +779,8 @@ func TestRetireTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 	}
 
 	ev := retireClaim(t, runDir, "Water is wet.")
-	if len(ev.GetAnchors()) != 2 || ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("the retire took %v on basis %q, want both finding anchors, verified", ev.GetAnchors(), ev.GetRemovalBasis())
+	if len(ev.GetAnchors()) != 2 {
+		t.Errorf("the retire took %v, want both finding anchors", ev.GetAnchors())
 	}
 	want := "# Findings\n\nThe sky is blue. The grass is green.\n\n- Fire is hot.\n\nClosing paragraph stays.\n"
 	if rep := readReport(t, runDir); rep != want {

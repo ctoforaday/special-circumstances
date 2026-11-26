@@ -76,7 +76,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("elsewhere"), New: str("elsewhere, revised"),
 			Text: str("why"), Reopened: []string{"C-0a0a0a0a", "K-00000001"}}),
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
-			SupersededBy: str("claim A"), Anchors: []string{"K-00000001"}}),
+			Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
 		// The chair's plan permitted the PASS and its position withholds it, so the bench hears it:
 		// a position motion (motions), read off the plan and the verdicts of the sitting.
@@ -138,8 +138,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ev.Retires) != 1 || ev.Retires[0].Claim != "the claim the computation backed" || ev.Retires[0].SupersededBy != "claim A" ||
-		ev.Retires[0].ClaimKept || !slices.Equal(ev.Retires[0].Anchors, []string{"K-00000001"}) || ev.Retires[0].Reason != "superseded" {
+	if len(ev.Retires) != 1 || ev.Retires[0].Claim != "the claim the computation backed" ||
+		!slices.Equal(ev.Retires[0].Anchors, []string{"K-00000001"}) || ev.Retires[0].Reason != "superseded" {
 		t.Errorf("the evidence does not serve the retire: %+v", ev.Retires)
 	}
 

@@ -189,7 +189,7 @@ func (r *runner) retiredUnderTheDraw(anchorID, out string) bool {
 	if !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, anchorID+" is retired") {
 		return false
 	}
-	_, retired, err := record.AnchorRetiredAt(r.run(), anchorID)
+	_, retired, err := record.AnchorRemovedAt(r.run(), anchorID)
 	return err == nil && retired
 }
 

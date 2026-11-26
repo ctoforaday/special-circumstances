@@ -40,7 +40,7 @@ func TestTheLandingComparesAnEmptyJudgedSentence(t *testing.T) {
 	id := "C-0badcafe"
 	report := "# Findings\n\nThe grass is green" + anchor.Token(id) + ".\n"
 	render := func() (string, error) { return report, nil }
-	notRetired := func() (AnchorRetire, bool, error) { return AnchorRetire{}, false, nil }
+	notRetired := func() (AnchorRemoval, bool, error) { return AnchorRemoval{}, false, nil }
 	if _, err := liveSentence(id, render, notRetired, inLanding("")); err == nil || !strings.Contains(err.Error(), "changed") {
 		t.Errorf("a landing whose check judged an empty sentence landed on %q: %v", "The grass is green.", err)
 	}

@@ -386,7 +386,7 @@ func TestARetireOfTheOnlyAnswerRacingTheCloseRefusesIt(t *testing.T) {
 		t.Fatalf("the citation placed as %s's answer does not answer it", g)
 	}
 	retired := recordtest.At(t, "blue-lane-1", "race:retire", &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("unreadable"),
-		Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(record.RemovalAsserted)})
+		Anchors: []string{c}})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{retired}, func() error {
 		return lensClose(t, runDir, lensSeat, g, "repaired")
 	})

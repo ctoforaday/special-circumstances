@@ -72,7 +72,7 @@ func SentencesIn(report string, ids []string) (live map[string]string, bare map[
 // THE CLAIM IS THE SENTENCE THE SEAT JUDGED, read before the write; the check lands only on that
 // sentence (CheckOfSentence).
 func LiveSentence(run Run, id string) (string, error) {
-	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) }, beforeCheck())
+	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRemoval, bool, error) { return AnchorRemovedAt(run, id) }, beforeCheck())
 }
 
 // CheckOfSentence is the guard a check of evidence anchor id, which judged claim (LiveSentence), lands
@@ -84,7 +84,7 @@ func LiveSentence(run Run, id string) (string, error) {
 // it cannot both land.
 func CheckOfSentence(id, claim string) Guard {
 	return Check(func(l *Landing) error {
-		_, err := liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) }, inLanding(claim))
+		_, err := liveSentence(id, l.Report, func() (AnchorRemoval, bool, error) { return anchorRemovedAt(l.w.q, id) }, inLanding(claim))
 		return err
 	})
 }
@@ -99,10 +99,10 @@ type sentenceRead struct {
 func beforeCheck() sentenceRead            { return sentenceRead{} }
 func inLanding(judged string) sentenceRead { return sentenceRead{landing: true, judged: judged} }
 
-// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's. In
+// liveSentence is LiveSentence over a report and a removal lookup: the run's now, or a landing's. In
 // the landing the sentence must be the one the check judged, and the refusals say the report changed
 // while the check was made.
-func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error), read sentenceRead) (string, error) {
+func liveSentence(id string, render func() (string, error), removedAt func() (AnchorRemoval, bool, error), read sentenceRead) (string, error) {
 	row, ok := recordsql.EvidenceTableOf(anchor.Kind(id))
 	if !ok {
 		return "", feov.Errorf(feov.Validation, "%s is not an evidence anchor — a check reads the sentence a citation or a computation backs", id)
@@ -121,12 +121,12 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
 	switch gone {
 	case sentenceAbsent:
-		r, found, err := retiredAt()
+		r, found, err := removedAt()
 		if err != nil {
 			return "", err
 		}
 		if found {
-			return "", retiredRefusal(while, row.Noun, id, r)
+			return "", removedRefusal(while, row.Noun, id, r)
 		}
 		if read.landing {
 			return "", feov.Errorf(feov.Conflict, "while this check was made, %s %s's anchor left the report, so the report holds no sentence for it and nothing is recorded. "+
@@ -145,9 +145,9 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	return sentence, nil
 }
 
-// retiredRefusal refuses a check of evidence anchor id, retired by r; while opens it.
-func retiredRefusal(while, noun, id string, r AnchorRetire) error {
-	return feov.Errorf(feov.Conflict, "%s%s %s is retired — %s — so it is in no document and the report holds no sentence for it to check. "+
+// removedRefusal refuses a check of evidence anchor id, taken out of the report by r; while opens it.
+func removedRefusal(while, noun, id string, r AnchorRemoval) error {
+	return feov.Errorf(feov.Conflict, "%s%s %s is out of the report — %s — so it is in no document and the report holds no sentence for it to check. "+
 		"Check the %ss whose anchors the report carries", while, noun, id, r.Said(), noun)
 }
 

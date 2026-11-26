@@ -798,27 +798,6 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 	}
 }
 
-// A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
-// only the basis distinguishes one from an honest epoch-0 rewrite.
-func TestRemovalBasisReachesTheReader(t *testing.T) {
-	v := withdrawnClaimsT(t, []*record.Event{
-		recordtest.Event(t, "blue-r2", &recordpb.Register{}),
-		recordtest.Event(t, "blue-r2", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)}),
-	})
-	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
-		t.Errorf("a verified removal must say the record can show it:\n%s", v)
-	}
-	// The seat is named beside the row, so its SITTING rides with it — the rank of the seat's
-	// stored sitting the row is in, not a number the seat stamped.
-	if !strings.Contains(v, "(blue-r2 #1)") {
-		t.Errorf("the retiring seat's sitting must render beside its name:\n%s", v)
-	}
-	a := withdrawnClaimsT(t, []*record.Event{recordtest.Event(t, "blue-r0", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
-	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
-		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
-	}
-}
-
 // AN UNANSWERED PETITION MUST BE LOUD. A petition is a seat's channel for an ethical, safety,
 // integrity or constitutional objection, and the engine routes it to a bench sitting BEFORE the
 // debate continues. A filing with no ruling means that sitting did not happen — and reporting
@@ -845,48 +824,6 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	}))
 	if d := debateT(t, answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
-	}
-}
-
-// A WITHDRAWN CLAIM IS PART OF WHAT THE DEBATE DECIDED. Substance leaves the report only through
-// `retire`, which names the claim as it stood and why it went — and the reader saw none of it,
-// making a report where a claim was argued and withdrawn identical to one where it was never made.
-func TestWithdrawnClaimsReachTheReader(t *testing.T) {
-	// The body carries the facts the assertions read. It was left EMPTY by the earlier conversion,
-	// so the render had nothing to show and the test was asserting against a blank string.
-	evs := []*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Retire{
-		Claim:        proto.String("the parser is O(n) in the input size"),
-		Reason:       proto.String("refuted at the leaf"),
-		SupersededBy: proto.String("the parser is O(n) except on backtracking inputs"),
-	})}
-	w := withdrawnClaimsT(t, evs)
-	for _, want := range []string{"the parser is O(n) in the input size", "refuted at the leaf", "superseded by: the parser is O(n) except on backtracking inputs"} {
-		if !strings.Contains(w, want) {
-			t.Errorf("withdrawn claims missing %q:\n%s", want, w)
-		}
-	}
-	if withdrawnClaims(record.NewFamily(nil, record.Merged{})) != "" {
-		t.Error("a run that retired nothing omits the section rather than showing it empty")
-	}
-}
-
-// A WITHDRAWN CLAIM RENDERS WHOLE. The row is the reader's one account of the claim as it stood, so a
-// claim of two sentences, or one past the risk matrix's scan width, is never cut to its lead: seed 19's
-// retire of an edit's old span, two sentences, shipped its first alone and lost the second.
-func TestAWithdrawnClaimRendersWhole(t *testing.T) {
-	long := "The parser is linear in the input size on every grammar the suite exercises, including the left-recursive ones it rewrites first"
-	for _, claim := range []string{
-		"The eleventh lifecycle claim holds. The twelfth lifecycle claim holds",
-		long,
-	} {
-		for _, kept := range []bool{false, true} {
-			w := withdrawnClaimsT(t, []*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Retire{
-				Claim: proto.String(claim), Reason: proto.String("r"), ClaimKept: proto.Bool(kept),
-			})})
-			if !strings.Contains(w, "**"+claim+"**") {
-				t.Errorf("claim kept %t: the withdrawn row must carry %q whole:\n%s", kept, claim, w)
-			}
-		}
 	}
 }
 

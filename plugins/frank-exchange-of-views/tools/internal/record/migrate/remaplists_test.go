@@ -200,7 +200,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		kept := []proto.Message{
 			&recordpb.Computation{Argv: []string{"python3", "quartile Q1"}},
 			&recordpb.Cite{Title: proto.String("G2 summit")},
-			&recordpb.Retire{SupersededBy: proto.String("Q2 earnings")},
+			&recordpb.Retire{},
 			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), MintKey: proto.String("G2")},
 		}
 		for _, b := range kept {

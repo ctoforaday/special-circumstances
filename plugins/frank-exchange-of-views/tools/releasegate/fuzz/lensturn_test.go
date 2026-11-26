@@ -126,11 +126,9 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			add(seat, i, b.GetAnswers())
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			if b.GetClaimKept() {
-				add(seat, i, b.GetAnswers())
-			}
+			add(seat, i, b.GetAnswers())
 			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not.
-			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
+			reached := map[string]bool{b.GetAnswers(): true}
 			for _, a := range b.GetAnchors() {
 				for _, g := range slices.Concat(about[a], carried[a], heirs[a]) {
 					if !reached[g] {

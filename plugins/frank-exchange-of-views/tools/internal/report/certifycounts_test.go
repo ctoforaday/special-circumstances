@@ -41,7 +41,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 			ComputationId: proto.String("K-00000001"), BundleSha: proto.String("abc"), Text: proto.String("the sum holds")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("A sentence C-00000001 backs."), Reason: proto.String("r"),
-			RemovalBasis: proto.String(record.RemovalAsserted), Anchors: []string{"C-00000001"}}),
+			Anchors: []string{"C-00000001"}}),
 		closeT(t, "red-lens-logic", "G2"),
 		recordtest.Event(t, "judge", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	)

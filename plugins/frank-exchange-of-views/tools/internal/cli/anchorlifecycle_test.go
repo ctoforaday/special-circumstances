@@ -99,8 +99,8 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				t.Fatalf("retire --anchor %s alone: %v", id, err)
 			}
 			ev := lastBody(t, runDir, &recordpb.Retire{})
-			if !ev.GetClaimKept() || !slices.Equal(ev.GetAnchors(), []string{id}) || ev.GetClaim() != sentence || ev.GetAnswers() != gap {
-				t.Errorf("the retire recorded claim %q kept=%v anchors %v answers %q, want %q kept, [%s], %s", ev.GetClaim(), ev.GetClaimKept(), ev.GetAnchors(), ev.GetAnswers(), sentence, id, gap)
+			if !slices.Equal(ev.GetAnchors(), []string{id}) || ev.GetClaim() != sentence || ev.GetAnswers() != gap {
+				t.Errorf("the retire recorded claim %q anchors %v answers %q, want %q, [%s], %s", ev.GetClaim(), ev.GetAnchors(), ev.GetAnswers(), sentence, id, gap)
 			}
 			if !strings.Contains(out, "retired "+kind+" "+id) {
 				t.Errorf("the retire's result does not name the %s by its kind:\n%s", kind, out)
@@ -360,7 +360,7 @@ func TestARetireRacingAnActOnItsAnchorRefusesTheAct(t *testing.T) {
 			registerLensOnce(t, runDir)
 			c := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 			retired := recordtest.At(t, "blue-lane-1", "race:retire", &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("unreadable"),
-				Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(record.RemovalAsserted)})
+				Anchors: []string{c}})
 			s := script(t, runDir, "wet.js", "console.log('wet');")
 			err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{retired}, func() error {
 				var err error

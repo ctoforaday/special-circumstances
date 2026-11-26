@@ -72,7 +72,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{Claim: proto.String("the old figure"),
-			Reason: proto.String("superseded"), RemovalBasis: proto.String(record.RemovalAsserted)}),
+			Reason: proto.String("superseded")}),
 		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
 	}
 	dir := recordtest.TmpRun(t)
@@ -165,10 +165,6 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		got := string(must(t)(view.Markdown(run, "changes", "")))
 		contains("show changes", got, "`blue-respond` #1")
 		absent("show changes", got, "`blue-respond` #2")
-	})
-
-	t.Run("the changelog", func(t *testing.T) {
-		contains("withdrawn claims", withdrawnClaims(fam), "(blue-respond #1)")
 	})
 
 	// THE CHANGELOG lists what left the report.

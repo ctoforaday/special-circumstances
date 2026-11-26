@@ -26,7 +26,7 @@ func TestAnActOnARetiredAnchorIsRefusedLiveAndReplayed(t *testing.T) {
 		t.Fatalf("the cite: %v", err)
 	}
 	if _, err := replayed(t, blue, &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("it does not hold"),
-		Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(RemovalAsserted)}); err != nil {
+		Anchors: []string{c}}); err != nil {
 		t.Fatalf("the retire: %v", err)
 	}
 	for _, act := range []struct {

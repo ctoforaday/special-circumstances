@@ -263,7 +263,7 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.mint("G1", "Water is wet.")
 			s.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-				Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
+				Anchors: []string{"f-0000aaa1"}})
 		}, "- <!--gap:G1-->", "bare"},
 		{"(g) the fallback passes over a heading to the first prose sentence", func(s *shapeSource) {
 			s.mint("G1", "Costs rose sharply in Q1.")
@@ -300,7 +300,7 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 				without.finding("f-0000aaa1", "Water is wet.")
 				without.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
 				without.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-					Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
+					Anchors: []string{"f-0000aaa1"}})
 				_, plain, _, _ := without.migrated()
 				if skeleton(md) != skeleton(plain) {
 					t.Errorf("the skeleton moved:\n with the gap %q\n without      %q", md, plain)
