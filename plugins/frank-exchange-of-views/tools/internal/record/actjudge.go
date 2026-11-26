@@ -39,8 +39,9 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	q := w.q
 	switch b := body.(type) {
 	case *recordpb.Mint:
-		// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
-		// retired since replays as it was made, so this is the act's rule, not the record's shape.
+		// AN ANCHOR OUT OF THE REPORT IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an
+		// anchor retired or cut since replays as it was made, so this is the act's rule, not the record's
+		// shape.
 		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "gap"); err != nil {
 			return err
 		}
@@ -56,19 +57,19 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if err := requireSupersededOffDocket(q, b); err != nil {
 			return err
 		}
-		// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
-		// ancestor's only answer can commit between the verb's read and this write. An archived
+		// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire, or a
+		// cut, of the ancestor's only answer can commit between the verb's read and this write. An archived
 		// supersede replays as it was recorded.
 		if err := requireSuccessorCarriesDemand(q, b); err != nil {
 			return err
 		}
 		return refuseMintReportVoice(b)
 	case *recordpb.Finding:
-		// The same rule as a mint's: a finding about a retired anchor is about nothing in the report.
+		// The same rule as a mint's: a finding about an anchor out of the report is about nothing in it.
 		return requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "finding")
 	case *recordpb.Computation:
-		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it
-		// racing the compute cannot both land; universe records that cite a citation retired later
+		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it,
+		// or a cut of its sentence, racing the compute cannot both land; universe records that cite a citation retired later
 		// replay unrefused.
 		return requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice)
 	case *recordpb.Close:
@@ -77,7 +78,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 				return err
 			}
 			// THE LIVE-ANSWER DEMAND, ASKED OF THE RECORD THE CLOSE LANDS ON. evidence_answered can
-			// go false — a retire of the gap's only answer — so the verb's read before the write is
+			// go false — a retire, or a cut, of the gap's only answer — so the verb's read before the write is
 			// not the answer that holds. A carry restates a closure and closes no open gap, and the
 			// replay never asks: every archived close replays as it was admitted.
 			if err := requireDemandMet(q, b.GetGapId()); err != nil {

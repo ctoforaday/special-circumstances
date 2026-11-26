@@ -112,7 +112,8 @@ type gapMarker struct {
 }
 
 // reachingSQL is the gaps whose evidence demand reaches anchor (an SQL expression over NEW): an act on
-// the anchor — placing it, retiring it, checking it — can meet or unmeet each one's demand.
+// the anchor — placing it, taking it out (a retire, or a cut of its sentence), checking it — can meet
+// or unmeet each one's demand.
 func reachingSQL(anchor string) string {
 	return `SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = ` + anchor
 }
@@ -244,8 +245,9 @@ WITH "d" AS MATERIALIZED (
   ` + demandReachSQL(`"d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"`) + `
 ),
 "answered" AS MATERIALIZED (
-  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many retired and the last
-  -- retire, and how many stand live of the gap's own check kind. The IN reaches each placing table's
+  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many are out of the report
+  -- (anchor_removal: retired, or cut with their sentence) and the last removal, and how many stand
+  -- live of the gap's own check kind. The IN reaches each placing table's
   -- answers index; the join alone materializes every anchor on the record.
   SELECT "d"."gap_id" AS "gap_id", count(*) AS "placed", count(ea."retired_event") AS "retired",
          max(ea."retired_event") AS "last_retired",
@@ -310,8 +312,9 @@ SELECT
   g."complexity_cost"                                                         AS "current_complexity_cost",
   (em."gap_id" IS NOT NULL)                                                   AS "evidence_answered",
   (k."open" AND k."check_kind" IN (` + evidenceChecksSQL() + `) AND em."gap_id" IS NULL) AS "awaiting_evidence",
-  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: at least one anchor placed as its answer, every one
-  -- retired, the last of them after the last closing act that is not a carry.
+  -- THE ANSWERS TO A CLOSED GAP, ALL OUT OF THE REPORT: at least one anchor placed as its answer,
+  -- every one retired or cut with its sentence, the last removal after the last closing act that is
+  -- not a carry.
   CASE WHEN NOT k."open" AND an."placed" = an."retired" AND k."judged" < an."last_retired"
        THEN an."last_retired" END                                            AS "answers_retired_event",
   k."filed"                                                                   AS "unruled_docket_filed",

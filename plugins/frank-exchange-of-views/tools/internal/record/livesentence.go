@@ -11,9 +11,8 @@ import (
 
 // A CHECK NEEDS A LIVE SENTENCE. A check of an evidence anchor — `verify` of a citation, `reproduce`
 // of a computation — is a judgement of the sentence the anchor backs, so an anchor with no such
-// sentence has nothing to judge: its token is not in the report (blue retired it, or it never
-// placed), or it stands bare (the sentence it backed was cut). One predicate answers it for every
-// kind, and the work list asks the same one for why no check can reach an anchor (unverifiableIn).
+// sentence has nothing to judge: its token is not in the report — blue retired it, a cut took it with
+// its sentence, or it never placed. One predicate answers it for every kind, and the work list asks the same one for why no check can reach an anchor (unverifiableIn).
 
 // sentenceGone is why an evidence anchor has no live sentence in a rendered report, or sentenceLive.
 type sentenceGone int
@@ -49,8 +48,9 @@ func SentencesIn(report string, ids []string) (live map[string]string) {
 
 // LiveSentence is the sentence evidence anchor id backs in the report as it renders now — the claim
 // a check of it records — or the refusal of a check of an anchor with none, naming the anchor by its
-// kind's noun (recordsql.EvidenceTables). A retired anchor's refusal names its retire: the event,
-// its reason, and whether the sentence was kept.
+// kind's noun (recordsql.EvidenceTables). The refusal of an anchor out of the report names the act
+// that took it (AnchorRemoval.Said): a retire, its sentence kept, or the cut that took its sentence,
+// with the event and its reason.
 //
 // THE CLAIM IS THE SENTENCE THE SEAT JUDGED, read before the write; the check lands only on that
 // sentence (CheckOfSentence).

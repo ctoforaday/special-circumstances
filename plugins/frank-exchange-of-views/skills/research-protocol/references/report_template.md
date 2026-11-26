@@ -149,8 +149,8 @@
 ## Computations                          <!-- [RECORD] every live computation a document of the set carries, with its
                                               program, output, bundle sha and red's independent re-run. Each document numbers
                                               its own references, so one computation can carry a different number in another
-                                              document; every footnote links to its entry by the computation's K-… id. A retired
-                                              computation is in no document. -->
+                                              document; every footnote links to its entry by the computation's K-… id. A computation
+                                              out of the report, retired or cut with its sentence, is in no document. -->
 
 ## Citations                             <!-- [RECORD] every source blue cites, with
                                               the sentence it backs and every reading of it: the seat and epoch, the
@@ -177,11 +177,6 @@
 ## Cost                                  <!-- [RECORD] folded in by capture, which is the only stage with transcript access -->
 
 # CHANGELOG.md — this report's own provenance
-
-## Claims retired                      <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
-                                              replaced it. A claim argued and then withdrawn is part of what the debate
-                                              decided; omitting it makes this report identical to one where the claim was
-                                              never made. Omitted entirely when nothing was retired. -->
 
 ## Superseded bench statements           <!-- [RECORD] the certifications the terminal one replaced. A bench that certifies
                                               twice has CHANGED its statement, not made two asks. -->

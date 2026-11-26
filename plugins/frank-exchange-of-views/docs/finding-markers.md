@@ -55,24 +55,21 @@ reader-facing content that resolves to a source.
 ## One lifecycle, every kind
 
 Anchors of every kind in the kinds table live the same way. The tool places an anchor at the end of
-its quote — the quote's one occurrence within one paragraph, or the act is refused. Every edit carries
-it; the tool puts back one whose sentence an edit keeps word for word; an edit that drops or types one
-is refused. **Retire is the one exit.** An evidence anchor — a citation or computation — never
-stands bare: an edit that would leave one with no prose before it is refused, whether the edit
-carries it or not, and `blue retire --anchor` alone takes either off a sentence that stays; a citation
-a live computation names is refused, naming the computation. An edit that would leave a finding or
-gap anchor bare without carrying it is refused too: a retire reads what the edit carried, so no
-retire could take it. A claim whose sentence is edited away leaves
-the other anchors it carries BARE (no prose before them in their segment) or on the prose that replaced it; `blue retire` names
-the anchors that stood on the claim in that edit and exit with it — the bare ones computed by the verb,
-one on surviving prose when the seat names it, each validated at the write — and replay removes them
-at that event. The question "did this leave legitimately?" is never asked of the anchor: it leaves only
-on a retire event that carries the claim and its reason. No kind is held back: a gap whose anchor left
+its quote — the quote's one occurrence within one paragraph, or the act is refused. Every rewrite
+carries it; the tool puts back one whose sentence a rewrite keeps word for word; a rewrite that drops or
+types one is refused. **An anchor leaves only by an act that names it.** No anchor stands bare: a
+rewrite that would leave one with no prose before it is refused, whether the rewrite carries it or not.
+An edit whose replacement for an anchor's sentence is nothing — a pure cut — takes that sentence's
+anchors and records them with its reason (`removed_anchors`); `blue retire --anchor` takes one anchor
+off a sentence that stays. A cut or a retire that would take a citation a live computation names is
+refused, naming the computation, and a retire of an open gap's own marker is refused. Replay removes
+each at its event. The question "did this leave legitimately?" is never asked of the anchor: it leaves
+only on an event that names it and carries the reason. No kind is held back: a gap whose anchor left
 reads `gone` on the board, with its minted text, and its lens judges the report as it stands.
-`show report --anchor` on an anchor that left this way names the retire event, not a stale id.
+`show report --anchor` on an anchor that left this way names the retire or the edit, not a stale id.
 
 So the integrity check has **no "legitimately withdrawn" exception** to reason about: an anchor missing
-without a retire is a hard violation, and what is gated is every *content* transition under it.
+without the act that took it is a hard violation, and what is gated is every *content* transition under it.
 
 ## The handshake — layered onto the existing finding → gap → closure lifecycle
 
@@ -88,18 +85,18 @@ Red-gated at every step, as the lifecycle already is:
 
 1. **open** — red files the finding → the tool inserts `<!--fx:<id>-->` at the offending content and
    the record snapshots {content, reason}.
-2. Blue **fixes** the content (edits the marked sentence; it cannot touch the marker).
+2. Blue **fixes** the content (rewrites the marked sentence, carrying the marker).
 3. Red **approves** — reads the doc, compares against the snapshot, confirms the fix is real: not moved
    to a dead corner, no offending content left behind, not a fake fix. (This is red's gap closure.)
-4. Blue **withdraws** the content by editing it out and retiring the claim, which
+4. Blue **withdraws** the content by cutting its sentence, which
    takes them out; red **verifies**. Red's assent is the gap's closure, and the gap reads its own
    anchor: where that anchor left with a cut, the gap reads `gone` and red judges the report as it
    stands.
 
-Blue never resolves unilaterally: it removes an anchor of any kind only by `retire`, and every content
+Blue never resolves unilaterally: it removes an anchor of any kind only by a retire or a cut of its sentence, and every content
 change under one is red-confirmed.
 
-## The report is the record — blue cannot drop a marker in the first place
+## The report is the record — no marker leaves unrecorded
 
 Keeping the marker was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
 run showed that is not enough. It was first enforced by a write-time **lockdown** (0.27.0) — `report.md`
@@ -110,16 +107,18 @@ order with every change folded over them — and every seat changes it ONLY thro
 <exact current span> --new <replacement> --reason <why> [--answers <gap-id>]`** — an exact-on-stripped span
 replace (reusing `lens.LocateSpan`, the finding-marker matcher) that appends a `blue_edit` event to an
 append-only diff-stack. A raw file write cannot reach the report because the report is not a file; a marker
-cannot be dropped because dropping one is not an expressible operation.
+cannot leave unrecorded, because the only acts that take one out — a cut of its sentence and a retire —
+each name it on their event.
 
-**Anchors TRANSIT an edit; they are never created, destroyed or duplicated by one.** The rule was once
+**Anchors TRANSIT a rewrite; a rewrite never creates, destroys or duplicates one.** The rule was once
 "reject any span containing a marker — edit around it", and that produced a DEADLOCK (demonstrated,
 0.28.x): where a word appears twice and the only disambiguating context carries red's anchor, the minimal
 quote is refused as ambiguous and the contextual quote is refused as anchor-spanning, so the anchored
 occurrence — the one red actually flagged — became the only uneditable one. 71% of anchored quotes in the
 2026-08-04 smoke had their anchor mid-span, so that was the common shape, not a corner. What the tool
-checks now is the multiset of anchor ids in `--quote` against `--new`: blue may carry an anchor across
-verbatim, and may not change WHICH anchors exist. That is strictly stronger than the old rule, which said
+checks in a rewrite is the multiset of anchor ids in `--quote` against `--new`: blue may carry an anchor across
+verbatim, and may not change WHICH anchors exist. A cut of whole sentences is the one edit that takes
+anchors, and it lists each. That is strictly stronger than the old rule, which said
 nothing about `--new` at all — 5 smoke edits smuggled an anchor INTO `--new` and duplicated it.
 
 `--answers <gap-id>` records which gap the edit responds to (0.29.0, #267), validated against the board
@@ -137,7 +136,8 @@ nothing left for a write-guard to protect.
 ## Integrity in depth
 
 - **Structural prevention (primary):** the report-as-record model above — a response seat has NO path that
-  drops a marker; the report is not a file, `blue edit` refuses a span that would drop one, and a raw write
+  drops a marker unrecorded; the report is not a file, `blue edit` refuses a rewrite that would drop one
+  and records each one a cut takes, and a raw write
   cannot reach the report at all.
 - **Mechanical screen — now moot:** the marker rule once meant the present set MUST contain the expected
   set, and a missing marker = tampering; the scorecard's `dropped_finding_markers` detector and the

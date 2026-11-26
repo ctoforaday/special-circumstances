@@ -15,7 +15,8 @@ import (
 // (the EvidenceTables row whose check is the gap's check kind; "" for a gap no row answers, which
 // owes no demand), whether the gap view's evidence_answered holds, and the evidence anchors the
 // demand reaches (the demand_reach view) — the anchor the gap, or an ancestor it carries the demand
-// from, is about — whose retire, or whose check again by the minter, would meet it.
+// from, is about — whose retire, or the cut of whose sentence, or whose check again by the minter,
+// would meet it.
 type EvidenceDemand struct {
 	CheckKind, AnswerKind string
 	// AnswerNoun and AnswerVerb are the owed kind's row's noun and placing verb.
@@ -52,7 +53,7 @@ func EvidenceDemandOf(run Run, gapID string) (EvidenceDemand, error) {
 }
 
 // evidenceDemandAt is EvidenceDemandOf asked of q — on the write path the writing transaction, so a
-// retire of the gap's only answer and the close racing it cannot both land. The gap view is read
+// retire, or a cut, of the gap's only answer and the close racing it cannot both land. The gap view is read
 // once: the demand, whether it is met, and whether the gap awaits it.
 func evidenceDemandAt(q recordsql.Querier, gapID string) (EvidenceDemand, error) {
 	var d EvidenceDemand
@@ -103,8 +104,8 @@ func evidenceDemandAt(q recordsql.Querier, gapID string) (EvidenceDemand, error)
 
 // requireDemandMet refuses the close of gap gapID while its live-answer demand is unmet, asked in the
 // write's transaction (judgeAct). The verb asks the same question before its write for the order of
-// its refusals; this is the answer that holds, because a retire of the gap's only answer can commit
-// between the verb's read and this write, and evidence_answered then reads false.
+// its refusals; this is the answer that holds, because a retire, or a cut, of the gap's only
+// answer can commit between the verb's read and this write, and evidence_answered then reads false.
 func requireDemandMet(q recordsql.Querier, gapID string) error {
 	d, err := evidenceDemandAt(q, gapID)
 	if err != nil || !d.Unmet() {
@@ -115,7 +116,7 @@ func requireDemandMet(q recordsql.Querier, gapID string) error {
 
 // DemandRefusal is the close's refusal of gap gapID, whose demand d nothing meets: the demand in its
 // one text, then what meets it on this gap — blue's anchor placed as its answer, a retire of each
-// evidence anchor the demand reaches, and the check again by the seat whose check it is — and the
+// evidence anchor the demand reaches, or a cut of its sentence, and the check again by the seat whose check it is — and the
 // bench, for a demand the lens no longer holds.
 func DemandRefusal(gapID string, d EvidenceDemand) error {
 	ways := []string{fmt.Sprintf("blue's `%s --answers %s`, a %s placed on the sentence as its answer (after a reword, on the reworded sentence)", d.AnswerVerb, gapID, d.AnswerNoun)}

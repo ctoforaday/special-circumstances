@@ -23,8 +23,9 @@ import (
 //                   Every placing verb — cite, compute, finding, mint, and a reading that
 //                   mints its gap — appends one after its own event, which is metadata and
 //                   inserts nothing.
-//   - a retire    → the anchor it names, taken out with the husk it leaves (removeMut); a cut's
-//                   removed_anchors are taken out the same way, after the edit's splice.
+//   - a retire    → the one anchor it names, taken off a sentence that stays word for word
+//                   (removeMut); a cut's removed_anchors are taken out the same way, with the husk
+//                   the cut leaves, after the edit's splice.
 //
 // Because replay reproduces the identical running text each verb saw, the locators resolve the
 // identical offsets. Once a part is ingested and its file deleted, this is the ONLY way the report

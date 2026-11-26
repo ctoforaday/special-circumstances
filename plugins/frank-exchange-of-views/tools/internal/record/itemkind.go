@@ -29,8 +29,8 @@ const (
 	ItemRegradeOwed ItemKind = "regrade_owed"
 	// ItemFindingOnGap is another seat's finding anchored to a lens's own open gap.
 	ItemFindingOnGap ItemKind = "finding_on_gap"
-	// ItemNews is a closed gap of a lens's own whose answers have all left the report: the closure
-	// stands, and the item says what a mint in answer would be.
+	// ItemNews is a closed gap of a lens's own whose answers have all left the report, by a retire or a
+	// cut: the closure stands, and the item says what a mint in answer would be.
 	ItemNews ItemKind = "news"
 	// ItemLog is the open log channel.
 	ItemLog ItemKind = "log"

@@ -856,14 +856,15 @@ type WorkGapJSON struct {
 	Backing []GapBackingJSON `json:"backing"`
 	// EditedSince is every edit that changed this gap's sentence SINCE THE READER'S LAST EPOCH: the
 	// edits whose recorded `reopened` names the gap — the sentence holding its anchor, read whole, so
-	// a fragment edit inside it is listed. A gap whose text blue rewrote is the commonest thing red
-	// re-audits.
+	// a fragment edit inside it is listed — and the pure cuts whose `removed_anchors` names it. A gap
+	// whose text blue rewrote is the commonest thing red re-audits.
 	//
 	// IT IS NEVER OMITTED. An empty list on a `marked` gap is the answer "blue has not changed this
-	// sentence", the commonest state a lens dispatched to verify a repair finds. An edit that cuts
-	// the sentence down to the bare anchor is not listed, because there is no sentence left to
-	// re-read; the gap reads `gone`: the gap's anchor is not in the report — blue cut its sentence;
-	// that is not silence — judge the report as it stands. `changes` names the edit that cut it.
+	// sentence", the commonest state a lens dispatched to verify a repair finds. A pure cut takes the
+	// gap's anchor with its sentence and is listed; the gap reads `gone`: the gap's anchor is not in
+	// the report — blue cut its sentence; that is not silence — judge the report as it stands. A gap
+	// reads `gone` too where a retire took its marker after its close, or a migrated mint never
+	// placed.
 	EditedSince []GapEdit `json:"edited_since"`
 	// ProblemSynopsis is the first synopsisLimit runes, kept because a chair scanning many open
 	// gaps reads it as a list. Problem is the WHOLE statement, because the originator re-auditing
@@ -1052,7 +1053,8 @@ type WorkGapState struct {
 	// holding its anchor as the report holds it, whose Backs anchors are its backing.
 	LocationState, sentence string
 	AboutKind, AboutRef     string
-	// Edits are the edits whose recorded `reopened` names the gap, in record order.
+	// Edits are the edits whose recorded `reopened` or `removed_anchors` names the gap, in record
+	// order.
 	Edits                                 []GapEdit
 	Open, AwaitingEvidence, ClosedByBench bool
 	// AnswersRetiredEvent is the view's `answers_retired_event` (GapJSON.AnswersRetiredEvent), 0
@@ -1456,10 +1458,9 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 }
 
 // unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
-// anchor's sentence — the report does not render, its anchor is not in it, or it stands bare — the
-// predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
-// list's one render (reportRender), and finds the bare anchors on the first question, and only then:
-// most work lists ask none.
+// anchor's sentence — the report does not render, or its anchor is not in it — the predicate
+// `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the list's one
+// render (reportRender) on the first question, and only then: most work lists ask none.
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
 		asked     bool
@@ -2274,8 +2275,8 @@ func locateGap(l *locatedReport, g *WorkGapState) {
 // locateAnchor is where anchor id stands in l's report, as the board reads a quote gap's location:
 // `marked` at prose — location is the sentence holding the token, tokens stripped, raw that
 // sentence as the report holds it and passage its section; `gone` where the token is not in the
-// report or stands bare (as the edit guard reads bare), retired or never placed — location is
-// stored, the text as recorded; `unrendered` where the report did not render (l.err), likewise.
+// report — a cut took it with its sentence, a retire took it, or a migrated mint never placed — or
+// stands bare (as the edit guard reads bare) — location is stored, the text as recorded; `unrendered` where the report did not render (l.err), likewise.
 // THE ONE LOCATING FUNCTION (D13, #1727): the board's quote gaps and the evidence view's source and
 // computation rows read it, so a gap and the citation on its sentence cannot locate differently.
 func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, passage string) {

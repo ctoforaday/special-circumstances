@@ -28,8 +28,8 @@ import (
 // the edit that found the source unreadable — owes a gap about the anchor (`about_kind` anchor,
 // `about_ref` it), which carries the defect to blue with a grade and a fix;
 // dispatch readies it until the gap exists, then blue. The gap answers the seat's debt, NOT the
-// blocker: the blocker holds the PASS until the anchor is checked and holds, is changed by an edit
-// (which leaves it unchecked, owed a fresh check), or is retired — and the gap's close is refused
+// blocker: the blocker holds the PASS until the anchor is checked and holds, is changed by a rewrite
+// (which leaves it unchecked, owed a fresh check), or leaves the report by a retire or a cut — and the gap's close is refused
 // while it stands (requireFailedCheckAnswered), so a gap closed "repaired" cannot stand over the
 // anchor it carries. No bench ruling clears it either: the record's state of the anchor is not a
 // dispute.
@@ -153,8 +153,8 @@ func answersOwnFailedCheck(fs []failedCheck, seatID string, kind recordpb.AboutK
 // and the refusal names the gap.
 //
 // UNCHANGED IS THE LEDGER'S STANDING: the check stands exactly while the report carries the sentence
-// it checked. An edit naming the anchor leaves it unchecked, and a check after that is a fresh one,
-// admitted; a retire takes the anchor out. The open gap already carries the failure to blue; a second
+// it checked. A rewrite naming the anchor leaves it unchecked, and a check after that is a fresh one,
+// admitted; a retire, or a cut of its sentence, takes the anchor out. The open gap already carries the failure to blue; a second
 // one of the same sentence would owe a second gap for the defect the open one holds — the release-gate
 // fuzz minted ~490 such gaps per 40 runs. A check that holds is never refused here: it clears the
 // blocker. Another lens's check is its own.
@@ -182,7 +182,7 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 				return feov.Errorf(feov.Conflict,
 					"you judged the sentence computation %s backs unsound at event %d, the sentence has not changed since that judgement, and gap %s, which you minted about the computation, is still open — "+
 						"that gap stands for the judgement, so `--as unsound` is not recorded again and no second gap is owed. Nothing is recorded. "+
-						"The judgement and its gap stand until blue edits the sentence, which leaves the computation unchecked for a fresh judgement, or retires the computation; "+
+						"The judgement and its gap stand until blue rewrites the sentence, which leaves the computation unchecked for a fresh judgement, or the computation leaves the report, by blue's retire or a cut of its sentence; "+
 						"`--as sound`, where your reading of the sentence has changed, is recorded and clears the judgement",
 					f.anchor, f.since, g)
 			}

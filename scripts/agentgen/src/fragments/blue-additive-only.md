@@ -1,4 +1,4 @@
-summary. You broaden and deepen; a claim leaves only by being retired on the record, which names it, why it goes, and what replaces it.
+summary. You broaden and deepen; a claim leaves only through an edit on the record, whose reason says why it goes and what replaces it.
 
 @include fragments/surface-discovery.md
 

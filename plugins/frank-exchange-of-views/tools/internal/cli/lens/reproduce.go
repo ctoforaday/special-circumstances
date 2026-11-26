@@ -70,7 +70,7 @@ func newReproduce() *cobra.Command {
 			return nil, err
 		}
 		// A JUDGEMENT NEEDS A LIVE SENTENCE: a computation the report holds no sentence for — retired,
-		// never placed, or bare — has nothing to judge its program against, as a citation has nothing to
+		// cut with its sentence, or never placed — has nothing to judge its program against, as a citation has nothing to
 		// read its source against (record.LiveSentence, the one predicate both verbs refuse on).
 		// The sentence it reads is the one this judgement is OF, recorded with it as Verify.claim is
 		// (ruling L5). The judgement lands only while the anchor still backs that sentence

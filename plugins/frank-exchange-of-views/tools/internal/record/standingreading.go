@@ -145,8 +145,9 @@ type standingReading struct {
 	id int64
 	// stands is whether the reading is of the subject as the report carries it. For a citation it is
 	// the ledger's rule (anchorStanding.sinceEdit): from a sitting opened after the latest edit naming
-	// the citation, the citation not retired. A located found-source reading stands by construction:
-	// its claim locates in the subject sentence now.
+	// the citation in its reopened, the citation still in the report (no retire or cut took it). A
+	// located found-source reading stands by construction: its claim locates in the subject sentence
+	// now.
 	stands bool
 }
 
@@ -695,7 +696,8 @@ func sentenceWords(text string, at [2]int) string {
 // requireOwnStandingReading refuses a mint of a class a reading defines (readingMintedClasses) unless
 // the minting seat holds its own standing reading of the mint's subject that admits the class: of the
 // citation the mint is about, or of a source it found for the sentence the mint quotes. Asked after
-// requireAboutAnchorLive (a mint about a retired citation is about nothing, not told to read it) and
+// requireAboutAnchorLive (a mint about a citation out of the report — retired, or cut with its
+// sentence — is about nothing, not told to read it) and
 // before the one-gap rule (a mint refused for its ground is not first told about a held subject). Any other class returns nil at the table lookup.
 func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) error {
 	row, ok := readingMintedClassOf(m.GetClass())
@@ -1034,8 +1036,8 @@ type AssemblyFailure struct {
 
 // AssemblyFailures is what the capture's assembly screen fails a run on (D11, ruled: the screen screens
 // the GAP, not the reading): an open MATERIAL gap of a class a reading defines whose subject the
-// assembled report still carries — about a citation not retired, or quoting a sentence that still
-// locates; a standing reading debt — a found-wrong reading with no gap at all, red's unfinished
+// assembled report still carries — about a citation still in the report (no retire or cut took it),
+// or quoting a sentence that still locates; a standing reading debt — a found-wrong reading with no gap at all, red's unfinished
 // promise; a computation whose ledger state is unsound. A refuted citation whose gap was graded low,
 // or closed, is in no row. Read on one snapshot, the fold's inputs included.
 func AssemblyFailures(run Run) ([]AssemblyFailure, error) {

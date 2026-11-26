@@ -97,8 +97,8 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 }
 
 // LiveCitationExists is CitationExists for a reference that needs the citation in the report:
-// `compute --cites` names the method a computation applies, and a retired citation is in no
-// document (requireLiveCitation).
+// `compute --cites` names the method a computation applies, and a citation out of the report — a
+// retire took it, or a cut took its sentence — is in no document (requireLiveCitation).
 func LiveCitationExists(advice string) func(runDir, flag, label string) error {
 	return func(runDir, flag, label string) error {
 		db, err := recordOfDir(runDir)
@@ -284,11 +284,11 @@ func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error 
 		"Cite the method again with `cite` and name that citation", flag, label, r.Said())
 }
 
-// requireAboutAnchorLive refuses a mint or a finding about an anchor that is retired (ruling Retired
-// mint): a retired anchor is in no document, so nothing an act about it asks for can be done to it,
-// and a defect still in its sentence is a defect of that sentence. act names the act refused: "gap"
-// or "finding". Asked of the writing transaction (judgeAct), so the act and the retire racing it
-// cannot both land.
+// requireAboutAnchorLive refuses a mint or a finding about an anchor out of the report (ruling Retired
+// mint) — a retire took it, or a cut took its sentence: it is in no document, so nothing an act about
+// it asks for can be done to it. A defect still in a retired anchor's sentence is a defect of that
+// sentence; a cut took the sentence too. act names the act refused: "gap" or "finding". Asked of the
+// writing transaction (judgeAct), so the act and the removal racing it cannot both land.
 func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, act string) error {
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil

@@ -334,16 +334,16 @@ FROM "placed" p;
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
 -- is about, checked by its minter — a cited source's claim_contradicts_source or
 -- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
--- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
--- it again, meets the demand (gap_refresh's met arms 2 and 3); this is the one statement of the
--- reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
--- (record.reachingRemovalsOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- reader's own backing re-read of it meets the demand here. Its removal — a retire, or a cut of its
+-- sentence — or that seat's check of it again, meets the demand (gap_refresh's met arms 2 and 3);
+-- this is the one statement of the reach, which the close's refusal (record.EvidenceDemandOf) and a
+-- removal's reach (record.reachingRemovalsOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
 -- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
 -- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
--- the successor's from its mint: a retire before it had met the ancestor, which then passed no
--- demand on, and a check counts for the gap only at or after its mint.
+-- the successor's from its mint: a removal before it (a retire, or a cut) had met the ancestor,
+-- which then passed no demand on, and a check counts for the gap only at or after its mint.
 --
 --   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
 --             from.
@@ -394,8 +394,9 @@ CREATE VIEW "demand_reach" AS
 --                       severity columns are MINT-TIME grades.
 --   evidence_answered, awaiting_evidence  the live-answer demand, met, and an open gap whose check
 --                       kind demands one with none met: the debt list blue is handed.
---   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
---                       closing act other than a carry follows it. The closure stands; the column is
+--   answers_retired_event  the last removal — a retire, or a cut of its sentence — that left none of
+--                       a closed gap's answers live, while no closing act other than a carry
+--                       follows it. The closure stands; the column is
 --                       the gap's lens's news.
 --   unruled_docket_filed, unruled_docket_motion  the newest docket filing on the gap no ruling names,
 --                       and its motion id. The PASS gate asks the same per-motion question of the

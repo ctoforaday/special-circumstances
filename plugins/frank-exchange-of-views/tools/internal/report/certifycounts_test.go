@@ -51,7 +51,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 	}
 	const (
 		first = "The record at this certification, counted by the tool — gaps: 2 minted · 1 closed · 1 open; citations: 1; readings: 1; computations: 0."
-		last  = "The record at this certification, counted by the tool — gaps: 2 minted · 2 closed · 0 open; citations: 2 (1 retired); readings: 3; computations: 1."
+		last  = "The record at this certification, counted by the tool — gaps: 2 minted · 2 closed · 0 open; citations: 2 (1 out of the report); readings: 3; computations: 1."
 	)
 	d := debate(fam, nil)
 	for _, want := range []string{

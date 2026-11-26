@@ -1037,7 +1037,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		// That the citation is still live is the act's to answer (judgeAct): an archived computation
-		// citing a citation retired since replays as it was made.
+		// citing a citation retired or cut since replays as it was made.
 		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
@@ -1092,8 +1092,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 			// A CLOSE STANDS ON THE TEXT DELIVERED TO THE LENS: its sitting's delivery, and no change
-			// to the gap's sentence since — a gap whose anchor an edit left bare or a retire removed
-			// included, its passage being the change that did it.
+			// to the gap's sentence since — a gap whose sentence a cut took, its marker with it,
+			// included, its passage being the cut that did it.
 			if err := DeliveredTextRefusal(q, seatID, b); err != nil {
 				return err
 			}

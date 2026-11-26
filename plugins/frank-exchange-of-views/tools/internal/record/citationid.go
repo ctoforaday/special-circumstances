@@ -16,9 +16,9 @@ import (
 // A citation, like a finding, is a TOOL-INSERTED invisible anchor (a citation anchor)
 // that the seat never hand-writes and cannot invent. The id is random for the same
 // reason a finding id is: an id you cannot guess is one you have to LOOK UP, so "which
-// citation do you mean" is a read, not a memory exercise. Under the lockdown the anchor
-// leaves the document only with a retire that names it, so each cite event's anchor is in the
-// document or on a retire — the id is the identity that pins both halves together.
+// citation do you mean" is a read, not a memory exercise. The anchor leaves the document
+// only on an act that names it — a retire, or the cut of its sentence — so each cite event's anchor
+// is in the document or on a removal (anchor_removal) — the id is the identity that pins both halves together.
 
 // Source is one cited source, drawn from a blue `cite` event — the composer input for the
 // assembled bibliography and the hash a reader verifies the cached bytes against.

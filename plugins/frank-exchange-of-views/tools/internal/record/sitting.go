@@ -366,8 +366,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
 		// the synthesizer are party to no dispute and owe none.
 		//
-		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
-		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
+		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared when
+		// the anchor leaves the report — by blue's retire of it, or with its sentence by a cut — or by
+		// the fresh check blue's rewrite of the sentence leaves it owed.
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found, reads.parts) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
@@ -447,10 +448,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
-		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
-		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
-		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
-		// until the bench rules, as every other item on a docketed gap is held.
+		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS HAVE ALL LEFT THE REPORT — retired, or cut with their
+		// sentences (ruling Closures are history): news, never a blocker — the closure stands, and the
+		// item says what a mint in answer would be. It reads the undocketed gaps: a docket motion
+		// standing unruled on the gap holds it off the list until the bench rules, as every other item
+		// on a docketed gap is held.
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID)...)
 		// THE COMPOSED SOURCES THE VOICE LENS HAS NOT HAD (composedsource.go): not blocking, as the audit
 		// is not — finding nothing in them is a legitimate audit — and listed until it sits through a
@@ -510,7 +512,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 			// AN EVIDENCE ANCHOR NO CHECK CAN REACH is not its to clear either: `verify` and
 			// `reproduce` refuse an anchor the report holds no sentence for (LiveSentence), and blue's
-			// retire of its claim, or a report that renders again, is what moves it. Asked of every
+			// retire of the anchor or cut of its sentence, or a report that renders again, is what
+			// moves it. Asked of every
 			// unchecked anchor, a citation and a computation alike: the gate reads no kind.
 			if b.Kind == BlockerUnchecked && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
@@ -748,12 +751,12 @@ func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (mov
 			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
 				if g != "" {
 					moved[g] = true
-				}
-			}
-		}
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 			for _, a := range b.GetRemovedAnchors() {
 				cut[a] = true
+			}
+		}
+				}
 			}
 		}
 	}

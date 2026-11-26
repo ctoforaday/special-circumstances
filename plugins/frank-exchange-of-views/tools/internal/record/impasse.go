@@ -24,7 +24,7 @@ import (
 // its silence judges nothing.
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
-// answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
+// answering G with old != new, or a retire answering it, or a retire or a cut taking out the anchor it
 // is about), blue placed a citation or computation as its answer (ruled
 // by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
 // anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
@@ -344,9 +344,9 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// A retire answering a gap moves it as an edit does: the anchor leaves its sentence. A
-			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
-			// whatever gap it named (WindowIndex.Reaches).
+			// A retire answering a gap moves it: the anchor leaves a sentence that stays. An anchor's
+			// removal, by a retire or a cut, moves each gap it reaches as a named one does: it meets the
+			// gap's demand whatever gap it named (WindowIndex.Reaches).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
 			}

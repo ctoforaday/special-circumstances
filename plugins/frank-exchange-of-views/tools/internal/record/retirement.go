@@ -152,7 +152,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
-//     (blueAnswersOf), a retire that reached it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+//     (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
 //     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
 //     on it. A sitting that never closed does not end the debt. A gap it holds with

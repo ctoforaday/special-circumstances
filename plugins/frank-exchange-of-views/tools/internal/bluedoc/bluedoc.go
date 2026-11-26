@@ -2,7 +2,8 @@
 // blue/report.md is LEGAL — shared, because two roles now need the same answer.
 //
 // WHY IT EXISTS. `blue edit` has always validated its own old→new pair: the span must be
-// present, unique, must not split a word, and must not change which anchors exist.
+// present, unique, must not split a word, and — unless it cuts whole sentences, taking their
+// anchors — must not change which anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
 // mint time, in the lens role.
@@ -117,15 +118,16 @@ func AbuttingRun(report string, end int) (run string, punct int) {
 // settleAbuttingAnchors is where a replaced span starts and ends when anchors stand against it: THE
 // QUOTE DECIDES, anchor by anchor, and by one rule at both ends.
 //
-// An anchor the quote does not carry is OUTSIDE the span. The edit replaces the quoted text and the
-// anchor stays exactly where it stands, its bytes untouched — at the end, after the replacement and
+// An anchor the quote does not carry is OUTSIDE the span. The splice replaces the quoted text and the
+// anchor stays exactly where it stands, its bytes untouched, until a pure cut's list takes it: the
+// splice never removes a token. It stands at the end, after the replacement and
 // before the terminator, where ReopenedAnchors, which reads sentences rather than spans, records that
 // the sentence under it changed, and tidySeam takes the terminator a replacement brings against it.
 //
 // An anchor the quote carries is INSIDE it. normalizeQuote drops annotation spans from the quote as
 // well as from the report, so the located span runs from the quote's first content character to its
-// last, and a quote copied as `show report` prints it — opening with the bare anchors of a cut claim,
-// or closing on the anchors before a terminator — would otherwise name anchors outside the span it
+// last, and a quote copied as `show report` prints it — closing on the anchors before a terminator —
+// would otherwise name anchors outside the span it
 // replaces. Against each end stand the anchors and the whitespace between them (after the end, past
 // the punctuation the quote's trim left out too); the span reaches to take in the outermost anchor
 // there the quote carries, with everything between it and the text. Anchors further out stay outside.
@@ -286,7 +288,7 @@ const MaxProposalGrowth = 120
 // is entitled to propose. Whether blue could apply it is the accept's own judgement (blue.PlanAccept),
 // which `lens mint` asks as well.
 //
-// THE GROWTH IS MEASURED IN WORDS, NOT TOKENS. A replacement carries the anchors of the span it
+// THE GROWTH IS MEASURED IN WORDS, NOT TOKENS. A rewrite carries the anchors of the span it
 // replaces, as the accept requires, while old is the gap's location — a claim, which holds none — so
 // counting tokens charges a rewording of a sentence five citations back with 110 characters it never
 // wrote. The bound's sample was blue's edits, whose old and new carried the same tokens; both sides

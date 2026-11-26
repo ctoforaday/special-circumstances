@@ -62,11 +62,11 @@ const (
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and compute
 	// splice an anchor there, finding flags it, mint says the defect lives there, edit
-	// replaces it, retire says it left. A section heading prepended to it makes it match
+	// replaces it — or, replacing a whole sentence with nothing, cuts it and its anchors. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
 	Quote = "quote"
-	// New is what that span should BECOME — blue applying an edit, red proposing one,
-	// blue naming the claim that replaces a retired one. Paired with --quote everywhere.
+	// New is what that span should BECOME — blue applying an edit, red proposing one.
+	// Paired with --quote everywhere.
 	New = "new"
 
 	// The citation axis. --url is the source a `fetch` reads, a `blue cite` anchors and a

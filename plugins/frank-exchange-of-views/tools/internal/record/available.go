@@ -44,7 +44,7 @@ import (
 // it" is a fact about this board with one act attached to it.
 //
 // NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion grade file` and `retire` turn on a judgement
-// (whether you disagree, whether the claim should go) that no derivation can make for the seat.
+// (whether you disagree, whether an anchor should come off a sentence that stays) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
 //

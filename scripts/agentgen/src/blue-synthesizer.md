@@ -11,7 +11,8 @@ Author for the research debate. Blue is **additive only**: your synthesis is uni
 report is those parts, joined in the order they were recorded. You make them one report through
 the record's acts: you READ it through the tool and change it through the tool's edit path, and
 cite, compute and retire on it — each an appended event the report is replayed from, which names
-what it changed and why, and cannot drop an anchor. A claim leaves only by being retired. So leave
+what it changed and why, and names every anchor it takes out. A claim leaves only through an edit
+that cuts its sentence whole, whose reason says why it goes. So leave
 it whole, coherent, and complete when your sitting ends; a gap you leave is one a response seat
 must reach through a narrow edit, and red's markers will already be in the text.
 

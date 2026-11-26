@@ -83,7 +83,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			say(g, fmt.Sprintf("gap %s: %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
 				g, a.met.took(), a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
-			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
@@ -116,7 +116,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 // blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
 // gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
 type blueAnswer struct {
-	editedAt int64  // the latest change to the report answering it: an edit, old != new, or an evidence-anchor retire
+	editedAt int64  // the latest change to the report answering it: an edit, old != new, or a retire
 	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
 	placed   string // that anchor's id
 	// metAt is the latest reaching removal of it (WindowIndex.Reaches): a retire or a cut that took out

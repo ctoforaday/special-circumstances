@@ -236,13 +236,13 @@ CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
--- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads,
--- and the retirement that retired an anchor (AnchorRetiredAt).
+-- The retires naming an anchor: anchor_removal's retire arm, read per anchor (the evidence_anchor
+-- view's removal, record.AnchorRemovedAt).
 CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- The cuts naming an anchor: anchor_removal's edit arm, read per anchor as its retire arm is.
 CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("value", "event_id");
--- The computations applying a citation as their method (Computation.cites): what a retire of that
--- citation is refused over (record.requireCitationUncited).
+-- The computations applying a citation as their method (Computation.cites): what a retire, or a
+-- cut, of that citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
 -- (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read.

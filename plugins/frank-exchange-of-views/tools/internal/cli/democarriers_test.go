@@ -250,17 +250,17 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"A computation leaves by a `retire` naming it alone, its sentence kept",
 		}},
 		{"show changes --help", page(blueSeat, "show", "changes"), []string{
-			"each edit, and each citation or computation blue retired from a sentence the report keeps, named by its kind",
+			"each edit, and each anchor blue retired from a sentence the report keeps, named by its kind",
 		}},
 		{"show evidence --help", page(lensSeat, "show", "evidence"), []string{
-			"A retired anchor is in no document, and in none of these lists or counts",
-			"Read at its id with --anchor, a retired one is still its row, with `retired`",
+			"An anchor out of the report is in no document, and in none of these lists or counts",
+			"Read at its id with --anchor, it is still its row, with `retired`: `by` (`retire` or `edit`)",
 		}},
 		{"show board --help", page(lensSeat, "show", "board"), []string{
-			"`answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told",
+			"`answers_retired_event` is, on a closed gap, the event of the retire or cut that left none of its answers live, null on every other gap: the closure stands, and its lens is told",
 		}},
-		{"the citation anchor's lifecycle label", label("citation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
-		{"the computation anchor's lifecycle label", label("computation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
+		{"the citation anchor's lifecycle label", label("citation"), []string{"alone by `retire --anchor`, which keeps the sentence word for word"}},
+		{"the computation anchor's lifecycle label", label("computation"), []string{"alone by `retire --anchor`, which keeps the sentence word for word"}},
 		{"the generated blue-researcher definition", generated("agents", "blue-researcher.md"), []string{
 			"`source` or `computation` closes, while its subject stands in the report, only on a live answer of its kind — a citation or a computation placed as that gap's answer and still in the report — never on prose",
 			"`awaiting_evidence: true` with its `answer_kind` means that gap is waiting on evidence from YOU, a source (`citation`) or a program (`computation`)",

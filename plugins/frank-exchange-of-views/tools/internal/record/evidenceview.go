@@ -75,8 +75,8 @@ type EvidenceSourceJSON struct {
 	CopyCapturedAt string `json:"copy_captured_at,omitempty"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for — in
 	// the report as it stands where LocationState is `marked`, located by the token as the board
-	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor bare,
-	// retired or absent) or `unrendered`.
+	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor retired,
+	// cut with its sentence, or absent) or `unrendered`.
 	//
 	// It is also the ONLY copy of that sentence. A cite carried it twice — `claim` re-quoted
 	// what `location` already held to place the anchor — and Cite reserves field 8 to keep the
@@ -306,16 +306,17 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 
 // EvidenceJSON is the whole evidence layer of the report.
 //
-// A RETIRED ANCHOR IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources and
-// Computations hold the live anchors, as evidence.md does, so the table and the document a reader
-// gets agree on what backs the report. A retired anchor is read at its id (EvidenceAt), which says it
-// is retired and by which retire; every retire itself is listed in Retires.
+// AN ANCHOR OUT OF THE REPORT IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources
+// and Computations hold the live anchors, as evidence.md does, so the table and the document a reader
+// gets agree on what backs the report. An anchor out of the report is read at its id (EvidenceAt),
+// which names the act that took it out, a retire or a cut; every retire itself is listed in Retires,
+// and a cut is its edit's.
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
-	// Retired is each retired anchor's row, with the retire that took it out, in the order the record
-	// placed the anchors. It is not in the projection: EvidenceAt reads it to answer a lookup of a
-	// retired id, and the assembly screen to count what it screened.
+	// Retired is the row of each anchor out of the report, with the retire or cut that took it out, in
+	// the order the record placed the anchors. It is not in the projection: EvidenceAt reads it to
+	// answer a lookup of a removed id, and the assembly screen to count what it screened.
 	Retired []EvidenceRetiredRow `json:"-"`
 	// Independent is red's readings of a source against a sentence that carries no citation of it
 	// — one red found, or one blue cites elsewhere — which therefore have no anchor. A separate array rather than anchorless rows mixed into the
@@ -356,8 +357,8 @@ type EvidenceRetireJSON struct {
 	Anchors []string `json:"anchors"`
 }
 
-// EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
-// recorded reason.
+// EvidenceRetiredJSON is the act that took an anchor out of the report, a retire or a cut: its
+// events.id, the act (By), and its recorded reason.
 type EvidenceRetiredJSON struct {
 	Event int64 `json:"event"`
 	// By is the act that took the anchor out: "retire", which keeps its sentence, or "edit", a pure
@@ -652,8 +653,8 @@ type EvidenceAtJSON struct {
 	// PASS refusal sends a seat here for an unchecked anchor, and this is where it reads which edit
 	// and which check.
 	Unchecked *EvidenceUncheckedJSON `json:"unchecked,omitempty"`
-	// Retired is the retire that took the anchor out of the report, absent on a live anchor. A retired
-	// anchor is in no document and in none of the table's lists or counts; read at its id it is still
+	// Retired is the retire or cut that took the anchor out of the report, named by `by`, absent on a
+	// live anchor. An anchor out of the report is in no document and in none of the table's lists or counts; read at its id it is still
 	// its row, so a lens can read what left and why.
 	Retired *EvidenceRetiredJSON `json:"retired,omitempty"`
 }

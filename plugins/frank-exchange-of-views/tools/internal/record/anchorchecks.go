@@ -4,7 +4,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THIS ANCHOR'S STANDING CHECK, REOPENED BY AN EDIT — one reader for every check of a sentence.
+// THIS ANCHOR'S STANDING CHECK, REOPENED BY A REWRITE — one reader for every check of a sentence.
 //
 // A citation and a computation are each anchored to one sentence of the report, and red checks each by
 // a verb that names that anchor: `verify` reads the cited source against the sentence, `reproduce`
@@ -30,16 +30,17 @@ import (
 //     from a sitting already open when it landed may be of the sentence its seat read before the
 //     edit, and the record cannot tell which; a check in no sitting says nothing about when it was
 //     read;
-//   - the anchor is not retired — the sentence left the report with its claim;
+//   - the anchor is in the report — not retired off its sentence, and not cut with it;
 //   - it is its SEAT'S LATEST such check of the anchor. A seat's own later verdict replaces its
 //     earlier one; ANOTHER seat's never does. That is the rule the computation ruling states (a standing
 //     unsound on an anchor stays visible), and it is why a reader takes the standing set rather
 //     than the latest check.
 //
-// An edit answers every check of the anchor at once: they are of a sentence the report no longer
-// carries, so none stands, and the anchor is REOPENED — unchecked again, owed a fresh check from a
-// sitting opened after the edit. Blue cannot dissolve red's verdict by rewording: the unchecked anchor
-// is owed, and holds a PASS (passBlockersOf).
+// A rewrite of its sentence answers every check of the anchor at once: they are of a sentence the
+// report does not carry, so none stands, and the anchor is REOPENED — unchecked again, owed a fresh
+// check from a sitting opened after the rewrite. Blue cannot dissolve red's verdict by rewording: the
+// unchecked anchor is owed, and holds a PASS (passBlockersOf). A cut takes the anchor out with its
+// checks: a failed one clears, and nothing is owed of it.
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
 // `reproduce` naming a computation.

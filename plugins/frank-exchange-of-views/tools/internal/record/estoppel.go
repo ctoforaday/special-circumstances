@@ -35,8 +35,9 @@ import (
 // A REWORD ENDS IT (gblock, 2026-11-10, F12). An applied-verbatim prescription estops while the latest
 // edit touching its gap is the verbatim one; an edit after it that lists the gap in `reopened` —
 // the verbatim edit placed the gap's token in the fixed sentence, so an edit that rewords that
-// sentence names the gap — makes the span blue's, and a later verbatim edit of the same gap binds red
-// again (estoppingPrescriptions). Derived from BlueEdit.reopened, no new field.
+// sentence names the gap — makes the span blue's; a pure cut of that sentence, whose `removed_anchors`
+// lists the gap, takes the span out and ends it too; and a later verbatim edit of the same gap binds
+// red again (estoppingPrescriptions). Derived from BlueEdit.reopened and removed_anchors, no new field.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.

@@ -105,8 +105,9 @@ func tidySeam(s string, at int) (string, bool) {
 			cut := k + 1
 			// And the space the mark was holding open — but ONLY when no anchor was stepped
 			// over. An anchor is spliced flush against content, so if one now sits where the
-			// deleted sentence began, that space is the only thing keeping it off the next
-			// word: eating it yields "<!--fx:f-abc123-->Volume".
+			// deleted sentence began — a token the splice kept (keepUncarried), which a cut's
+			// removes then take — that space is the only thing keeping it off the next word:
+			// eating it yields "<!--fx:f-abc123-->Volume".
 			if k == at && cut < len(b) && b[cut] == ' ' {
 				cut++
 			}

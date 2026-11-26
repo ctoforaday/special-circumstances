@@ -58,8 +58,9 @@ through edits. The engine's version, compatible with a **read-only red**:
   sentence** it is embedded in.
 - **Death-on-deletion is correct, and it composes with the retire-detector.** If blue deletes the
   marked sentence the anchor goes with it — which is exactly what should happen: a claim leaves the
-  report only through the `retire` verb, never by silently vanishing. A marker that disappears with
-  no matching retire event is a detector hit, not a lost bookmark.
+  report only through an edit on the record, never by silently vanishing, and the edit names the
+  anchors it took. A marker that disappears with no event naming it is a detector hit, not a lost
+  bookmark.
 - **Robust anchoring is the recovery fallback, not the primary.** If a marker is lost (blue corrupts
   the raw token), re-anchor by last-known quote+context — belt and suspenders, never the main path.
 - **The marker layer is a projection, not a forked source.** Each insertion is the image of a `cite`
@@ -71,7 +72,7 @@ around them). Turn boundaries, not concurrent writes to one file. Round-0 blue i
 that is *before* red cites anything.
 
 **Built as the anchor layer** (`finding-markers.md`): an anchor of every kind is placed by the tool at
-the end of its quote, carried by every edit, and leaves only by `retire`.
+the end of its quote, carried by every rewrite, and leaves by a retire or with its sentence in a cut.
 
 ## Two complementary anchor sources
 

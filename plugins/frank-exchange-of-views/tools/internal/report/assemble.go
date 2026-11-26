@@ -1439,7 +1439,7 @@ func countsAtCertification(fam record.Family, e *record.Event, parts partsAt) st
 		if n == 0 {
 			return ""
 		}
-		return fmt.Sprintf(" (%d retired)", n)
+		return fmt.Sprintf(" (%d out of the report)", n)
 	}
 	return fmt.Sprintf("The record at this certification, counted by the tool — gaps: %d minted · %d closed · %d open; citations: %d%s; readings: %d; computations: %d%s%s.",
 		c.GapsMinted, c.GapsClosed, c.GapsOpen(), c.Citations, retired(c.CitationsRetired), c.Readings, c.Computations, retired(c.ComputationsRetired),
