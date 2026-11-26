@@ -2,6 +2,7 @@ package peer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -710,13 +711,26 @@ func markLinked(runtimeDir, conversation string) error {
 // across every telepathy process on the box, whichever install it came from. The lock is a flock
 // on .register.lock, which nothing ever unlinks, renames or recreates: a flock belongs to an open
 // file description, so a lock file replaced while held would let two processes both hold "it".
+//
+// It waits at most registryLockWait: every telepathy verb prunes, so a holder that never lets go
+// would otherwise hang every verb on the box; past the bound the caller is refused and says so.
 func lockRegistry(dir string) (func(), error) {
-	fl := flock.New(filepath.Join(dir, ".register.lock"), flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
-	if err := fl.Lock(); err != nil {
+	path := filepath.Join(dir, ".register.lock")
+	fl := flock.New(path, flock.SetFlag(os.O_CREATE|os.O_RDWR), flock.SetPermissions(0o600))
+	ctx, cancel := context.WithTimeout(context.Background(), registryLockWait)
+	defer cancel()
+	ok, err := fl.TryLockContext(ctx, 10*time.Millisecond)
+	switch {
+	case ok:
+		return func() { _ = fl.Unlock() }, nil
+	case err != nil && !errors.Is(err, context.DeadlineExceeded):
 		return nil, err
 	}
-	return func() { _ = fl.Unlock() }, nil
+	return nil, fmt.Errorf("another process has held %s for more than %s", path, registryLockWait)
 }
+
+// registryLockWait bounds the wait for the registry lock; a variable so a test can change it.
+var registryLockWait = 2 * time.Second
 
 // safeName refuses an id that could name a path outside the directory it is joined to.
 func safeName(id string) bool {
