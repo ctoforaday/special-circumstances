@@ -24,7 +24,6 @@ func TestARemandOfAClosedGapIsRefusedNamingTheClose(t *testing.T) {
 	st.register("red-chair").docketMotion("red-chair", "D1", "G1")
 	// The chair's bench row on G1 convenes the bench's docket sitting, which holds D1 (benchHeld).
 	run := st.dispatch(2, "judge", "G1").register("judge").seed()
-	deliver(t, run, "judge")
 
 	err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("D1", remandDirection))
 	if err == nil {
@@ -52,7 +51,6 @@ func TestARemandOfAnOpenGapIsAdmitted(t *testing.T) {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", grade)
 		run := st.register("red-chair").docketMotion("red-chair", "D1", "G1").dispatch(2, "judge", "G1").register("judge").seed()
-		deliver(t, run, "judge")
 		if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("D1", remandDirection)); err != nil {
 			t.Errorf("a remand of an open gap graded %s is refused: %v", grade, err)
 		}

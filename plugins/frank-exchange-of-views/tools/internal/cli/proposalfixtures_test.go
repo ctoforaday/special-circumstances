@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -34,6 +35,22 @@ func proposeRegradeOf(t *testing.T, runDir, filer, gap, severity string) error {
 // cannot register.
 func seedCastWith(t *testing.T, runDir string, lenses ...string) {
 	t.Helper()
+	// A RUN ALREADY CAST (seatRun, castNewRun: the whole roster) keeps its cast: a second cast row is
+	// no setup a run holds, and each lens named here must already be in it.
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Events {
+		if c := e.GetCast(); c != nil {
+			for _, l := range lenses {
+				if !slices.Contains(c.GetSeatIds(), l) {
+					t.Fatalf("the run's cast %v holds no %s", c.GetSeatIds(), l)
+				}
+			}
+			return
+		}
+	}
 	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: append([]string{"red-lens-evidence", "red-chair", "blue-synthesize", "blue-respond", "judge"}, lenses...)}))
 }

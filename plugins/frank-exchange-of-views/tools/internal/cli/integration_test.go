@@ -29,7 +29,7 @@ import (
 // the bench rules, and each side reads back the state the others set.
 
 // seatRun sets up a run directory with every seat registered, the way the engine does: on the cast
-// setup writes, which the chair's dispatch plans against (a bench convened on a docket, benchSitsOn).
+// setup writes, which the chair's dispatch plans against (a bench convened on a docket, conveneBench).
 func seatRun(t *testing.T) string {
 	return seatRunReport(t, "")
 }

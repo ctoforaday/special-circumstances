@@ -15,7 +15,6 @@ func TestTheBenchSetsAGradeTheLensMayNotMove(t *testing.T) {
 	g := mintGap(t, runDir, "bench-orders", "spec_underspecification")
 	exchangeOn(t, runDir, g)
 	sit(t, runDir, "blue-respond")
-	benchSitsOn(t, runDir, g)
 	motion := motionID(t, runDir, "motion", "docket", "file", "regrade", "--seat-id", "blue-respond", "--id", g,
 		"--severity", "low", "--reason", "the defect is cosmetic")
 	d := docketsUnaccepted(t, runDir, lensSeat, g)

@@ -87,17 +87,17 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 	}
 	for _, tc := range []arm{
 		{"left as written", func(t *testing.T, run Run) {
-			ruleD1(t, sitRead(t, run, "judge"))
+			ruleD1(t, sit(t, run, "judge"))
 			docketD2(t, run)
 		}, []string{"G1"}, benchReady},
 		{"another seat dispatched after the docketing", func(t *testing.T, run Run) {
-			ruleD1(t, sitRead(t, run, "judge"))
+			ruleD1(t, sit(t, run, "judge"))
 			docketD2(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}})
 			sit(t, run, "judge")
 		}, []string{"G1"}, benchReady},
 		{"ruled twice", func(t *testing.T, run Run) {
-			judge := sitRead(t, run, "judge")
+			judge := sit(t, run, "judge")
 			mustAppend(t, judge, docketRule("D1", "first"))
 			if _, err := Append(judge, docketRule("D1", "again")); err == nil {
 				t.Fatal("the write admitted a second ruling of D1")
@@ -108,7 +108,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		// after the dispatch that readied the bench, is not held by the sitting that row convened, which
 		// neither rules it nor counts as its sitting — the bench is readied again for it.
 		{"written after the row that convened the sitting", func(t *testing.T, run Run) {
-			ruleD1(t, sitRead(t, run, "judge"))
+			ruleD1(t, sit(t, run, "judge"))
 			docketD2(t, run)
 			sit(t, run, "judge")
 		}, []string{"G1"}, benchReady},
@@ -116,7 +116,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 			ruleD1(t, sit(t, run, "judge"))
 			docketD2(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}})
-			sitRead(t, run, "judge")
+			sit(t, run, "judge")
 		}, nil, fmt.Sprintf(benchSatIdle, "D2")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -166,8 +166,10 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 // and the record's event count moves by no more than the refusal's own log row.
 func actRefusedOnRecord(t *testing.T, runDir, what, seat string, want []string, args ...string) {
 	t.Helper()
-	before := len(events(t, runDir))
 	argv := append(append([]string{}, args...), "--run", runDir, "--seat-id", seat)
+	// The delivery the act would stand on is the seat's before it acts, not a row the refusal left.
+	deliverBeforeActing(t, argv, seat)
+	before := len(events(t, runDir))
 	out, err := runAt(t, argv...)
 	if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
 		out, err = runAt(t, argv...)

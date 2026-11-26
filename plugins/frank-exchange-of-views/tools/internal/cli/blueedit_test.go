@@ -699,9 +699,10 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	rowsAre("(d) retried", "place", "end", "place")
 }
 
-// T-B19 (14), the cut: an edit that takes the applied sentence out and leaves P's token bare writes
-// no row, and a mint quoting red's applied text stays refused — a cut ends nothing.
-func TestACutOfAnEstoppedSentenceEndsNothing(t *testing.T) {
+// T-B19 (14), the cut: an edit that takes the applied sentence out and leaves P's token bare lists P in
+// its reopened, so it is a change to P's sentence and writes P's estoppel end row; a mint quoting red's
+// applied text, back in blue's own sentence, then lands — the estoppel bound the text it applied.
+func TestACutOfAnEstoppedSentenceEndsItsEstoppel(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 	const other = "red-lens-logic"
@@ -720,8 +721,8 @@ func TestACutOfAnEstoppedSentenceEndsNothing(t *testing.T) {
 		"--new", tok, "--reason", "the sentence goes"); err != nil {
 		t.Fatalf("blue's cut: %v\n%s", err, readReport(t, runDir))
 	}
-	if rows, _ := tombstoneRows(t, runDir); len(rows) != 1 || rows[0].GetEnds() {
-		t.Fatalf("the cut wrote estoppel rows: %v", rows)
+	if rows, _ := tombstoneRows(t, runDir); len(rows) != 2 || rows[0].GetEnds() || !rows[1].GetEnds() || rows[1].GetGapId() != prior {
+		t.Fatalf("the cut wrote estoppel rows %v, want P's place and its end", rows)
 	}
 	if !strings.Contains(readReport(t, runDir), tok) || strings.Contains(readReport(t, runDir), quote) {
 		t.Fatalf("the cut left %q, want the sentence gone and the token bare", readReport(t, runDir))
@@ -734,8 +735,8 @@ func TestACutOfAnEstoppedSentenceEndsNothing(t *testing.T) {
 	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other, "--key", "M", "--class", "risk_coverage_omission", "--quote", quote,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-	if err == nil || !strings.Contains(err.Error(), "estoppel") || !strings.Contains(err.Error(), prior) {
-		t.Errorf("after the cut, a mint quoting red's applied text was not refused by %s's estoppel: %v", prior, err)
+	if err != nil {
+		t.Errorf("after the cut ended %s's estoppel, a mint quoting red's applied text was refused: %v", prior, err)
 	}
 }
 

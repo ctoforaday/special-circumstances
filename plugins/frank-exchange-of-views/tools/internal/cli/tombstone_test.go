@@ -218,8 +218,8 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		t.Errorf("(6) the ruled class on the reworded sentence, after the end: %v %s", err, out)
 	}
 
-	// (6) A CUT ENDS NOTHING, on a second run: the edit takes the sentence out and leaves the token
-	// bare, writes no row, and a proposal on G is still refused.
+	// (6) A CUT ENDS IT, on a second run: the edit takes the sentence out and leaves the token bare,
+	// which lists G in its reopened, a change to G's sentence: the end row is written.
 	t.Run("a cut", func(t *testing.T) {
 		runDir := newRun(t)
 		quoteImpasseBoard(t, runDir)
@@ -233,12 +233,9 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		if md := renders(t, runDir); strings.Contains(md, "nine points") || !strings.Contains(md, anchor.Token(boardGap)) {
 			t.Fatalf("the cut left %q, want the sentence gone and the token bare", md)
 		}
-		if rows, _ := tombstoneRows(t, runDir); len(rows) != 1 {
-			t.Errorf("the cut wrote tombstone rows: %v", rows)
+		if rows, _ := tombstoneRows(t, runDir); len(rows) != 2 || rows[0].GetDocketingId() != d || !rows[1].GetEnds() || rows[1].GetGapId() != boardGap {
+			t.Errorf("the cut wrote tombstone rows %v, want the ruling's place on %s and its end", rows, boardGap)
 		}
-		asSeat(t, runDir, otherLens, "register")
-		actRefusedNaming(t, runDir, "a proposal on the ruled gap after the cut", otherLens, []string{"docketing " + d, "tombstone"},
-			"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 	})
 
 	// (16) A SECTION GAP'S RULING STANDS FOR THE RUN: a proposal on it is refused, and a mint of its

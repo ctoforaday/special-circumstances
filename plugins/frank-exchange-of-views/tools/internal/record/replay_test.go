@@ -482,7 +482,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 func docketBenchSat(t *testing.T) Run {
 	t.Helper()
 	run := mustRun(t, docketRunDir(t))
-	sitRead(t, run, "judge")
+	sit(t, run, "judge")
 	return run
 }
 

@@ -152,7 +152,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 }
 
 // deliverBeforeActing completes the seat's delivery of report text before an act that stands only on
-// delivered text: a lens's close, the chair's spot-check, a ruling on a motion. Live, the delivery
+// delivered text: a lens's close (its accept of a close proposal included), the chair's spot-check. Live, the delivery
 // writer hands the seat its report text one item after each of its tool calls and writes the
 // report_read with the last item (sittingwrite.WriteNextItem); the harness runs no hooks, so it
 // completes the delivery here, from the seat's own list: only where that list holds a report-text item
@@ -173,12 +173,12 @@ func deliverBeforeActing(t *testing.T, args []string, seatID string) {
 	}
 	switch {
 	case len(words) >= 1 && (words[0] == "close" || words[0] == "spot-check"):
-	case len(words) >= 3 && words[0] == "motion" && words[2] == "rule":
+	case len(words) >= 3 && words[0] == "motion" && words[2] == "accept":
 	default:
 		return
 	}
 	role := seatclass.RoleOfSeat(seatID)
-	if role != "lens" && role != "chair" && role != "bench" {
+	if role != "lens" && role != "chair" {
 		return
 	}
 	dir := flagValue(args, "--run")
@@ -1101,7 +1101,6 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	m := proposeClose(t, runDir, "red-chair", g, "not_a_defect", "contested, and not mine to close")
 	k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 	conveneBench(t, runDir, g)
-	benchSitsOn(t, runDir, "G1")
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
 	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
@@ -1993,7 +1992,7 @@ func findingsRun(t *testing.T) string {
 }
 
 // docketRun is findingsRun on a cast run: the bench rules a docket motion only in a sitting a dispatch
-// convened on its gap (benchSitsOn), and only a cast run has a dispatch.
+// convened on its gap (conveneBench), and only a cast run has a dispatch.
 func docketRun(t *testing.T) string {
 	t.Helper()
 	dir := newRun(t)

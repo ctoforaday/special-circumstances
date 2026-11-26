@@ -126,7 +126,6 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		m := docketFile(t, d.run, "red-chair", g, "red cannot settle G1")
 		k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 		conveneBench(t, d.run, g)
-		benchSitsOn(t, d.run, "G1")
 		d.admitted("the bench's ruling", "judge", docketRule(k)...)
 	})
 	for _, filer := range []string{"blue-respond", lensSeat, "red-chair"} {
@@ -154,7 +153,6 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 			m := docketFile(t, d.run, filer, g, "the bench should decide G1")
 			k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(t, d.run, g)
-			benchSitsOn(t, d.run, "G1")
 			d.admitted("the bench's ruling", "judge", docketRule(k)...)
 		})
 	}
