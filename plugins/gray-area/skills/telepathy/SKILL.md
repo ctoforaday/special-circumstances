@@ -26,7 +26,7 @@ asks the record what **happened**.
 ## The verbs
 
 ```
-telepathy agents                 who is running, in which worktree, doing what — and after a restart, what it cut off
+telepathy agents                 who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting
 telepathy agents --lost          after a restart: each session it cut off, with the commands that bring it back
 telepathy session <id>           one session's shape: calls and errors by tool (short id is enough)
 telepathy touched <path>         who read, edited, or executed commands on a path, and when
@@ -42,18 +42,27 @@ telepathy link                   from an Antigravity shell: make this conversati
 - BEFORE messaging another Claude Code session from a Claude Code session, YOU MUST use
   `SendMessage`, which carries a reply address and the sender's identity. `send` is for when either
   side is Antigravity.
-- AFTER a `send`, YOU MUST read the route it printed. `antigravity-mailbox` means QUEUED: the
-  conversation reads it at its next turn and nothing wakes it, so do not wait on a reply.
-  `claude-socket` means it reached the session's inbox, where a session that bypasses permission
-  prompts holds it for its human. No route says the message was read.
+- AFTER a `send`, YOU MUST read the route it printed. `antigravity-daemon`,
+  `antigravity-server-own` and `antigravity-server-holder` mean a language server delivered it and
+  woke the conversation. `antigravity-mailbox` means QUEUED: the conversation reads it at its next
+  turn and nothing wakes it, so do not wait on a reply; the lines under it give the cause, when the
+  daemon started and when the conversation last recorded a step. `claude-socket` means it reached
+  the session's inbox, where a session that bypasses permission prompts holds it for its human. No
+  route says the message was read.
+- BEFORE waiting on a queued message, YOU MUST check `telepathy agents`' "waiting for Antigravity"
+  section: a message stays listed there until the conversation's client reads it, and is marked
+  "yours" when you sent it.
 - Live delivery to an Antigravity conversation runs on Linux only; on other platforms second-writer
   safety cannot be verified, so `send` always queues to the mailbox. On Linux, an Antigravity server
   becomes reachable live when a conversation on it runs `telepathy link` (or any other verb) from
   its own shell; the server's token reaches nothing else. Records are keyed by server (PID and start
   time, or address) and store port and token, so linking one daemon-hosted conversation restores
   live delivery for every idle CLI conversation under `~/.gemini/antigravity-cli` (a standalone
-  interactive `agy` does not restore the daemon route, and every live route refuses to send if
-  `presence/<id>.lock` is held or another process has `conversations/<id>.db` open). When Gray
+  interactive `agy` does not restore the daemon route). `send` first finds who holds the
+  conversation (`presence/<id>.lock`, or `conversations/<id>.db` open): a recorded, running server
+  that holds it delivers; with no holder, the running server it linked to last, then the daemon,
+  delivers; any other holder queues the message and is named. Every verb deletes the records of
+  servers that are gone. When Gray
   Area's hook asks you to run `telepathy link`, run it: that one command is what lets other agents
   wake conversations on this server. When no daemon-hosted conversation has linked since a restart,
   `send` queues to the mailbox and says so.
@@ -190,7 +199,7 @@ Do NOT jump to raw SQL. Reach for the dedicated fast verbs first:
 
 - **By live harness state**:
   ```bash
-  telepathy agents                           # live sessions, worktrees, and recent tool acts
+  telepathy agents                           # live sessions, worktrees, recent tool acts, and Antigravity mail still waiting
   ```
   - **Claude RC sessions**: `cwd` is under `.claude/worktrees/bridge-cse_*` and `bridge_session_id` is set. Each live Claude session file under `~/.claude/sessions/<pid>.json` defines its active Unix domain socket under `messagingSocketPath`.
   - **Antigravity sessions**: `project_dir` is under `~/.gemini/antigravity-cli/brain/<conv_id>`. (Note: the installed plugin cache holds released binaries, so cross-harness indexing requires the dual-engine trajectory build).

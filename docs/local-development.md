@@ -39,7 +39,9 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 
 `build` is isolated: `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_PLUGIN_CACHE_DIR` point inside
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
-on the box are unaffected.
+on the box are unaffected. Under either harness `XDG_RUNTIME_DIR` is `$WORKDIR/run`: every telepathy
+verb deletes the Antigravity server records under it whose server is gone, and a universe built from
+the checkout must not do that to the host's.
 
 Authentication is the exception, and it is lent rather than shared: `run`, `resume` and `shell` pass
 the host login's current access token in `CLAUDE_CODE_OAUTH_TOKEN`, and the universe holds no

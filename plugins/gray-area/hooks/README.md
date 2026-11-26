@@ -36,9 +36,11 @@ ride on `SessionStart`, because `SessionStart` does not fire when a conversation
 language server (observed, agy 1.5.0), and that is exactly when a link goes stale.
 
 The ask is one ephemeral message naming the telepathy binary beside the hook. It is sent only when
-there is no record for this conversation, or the recorded server no longer accepts a connection; a
-stale link is named as stale, because a conversation whose history already shows `linked` ignored
-a plain request. A hook cannot record the link itself: the server's token reaches an agent's shell
+neither this conversation nor the server hosting it has a record whose server process is running.
+It says that any earlier link points at a server that is no longer running, because a conversation
+whose history already shows `linked` ignored a plain request; telepathy deletes a gone server's
+record, so the hook cannot tell whether there was an earlier link, and the sentence is true either
+way. A hook cannot record the link itself: the server's token reaches an agent's shell
 commands and nothing else, and a hook can inject messages but never a tool call. Under a permission
 policy that prompts for shell commands, the ask costs the human one approval per conversation per
 server launch.

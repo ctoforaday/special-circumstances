@@ -30,7 +30,7 @@ func newAgentsCmd(env *Env) *cobra.Command {
 	var bootFlag int64
 	c := &cobra.Command{
 		Use:   "agents",
-		Short: "who is running, in which worktree, doing what — and after a restart, what it cut off",
+		Short: "who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting",
 		Long: `Lists every session the client currently advertises, with its liveness, how much it
 has done and what it did last — and below them, the sessions the last restart cut off.
 When an Antigravity conversation has an annotation file, its current title is shown

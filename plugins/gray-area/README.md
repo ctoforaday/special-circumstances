@@ -48,7 +48,7 @@ The manifest answers *where is this session's trajectory*. **`telepathy`** answe
 every agent on the box — Gray Area is the ship, and telepathy is what it does:
 
 ```
-telepathy agents              who is running, in which worktree, doing what — and after a restart, what it cut off
+telepathy agents              who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting
 telepathy touched <path>      is anyone else acting on this file
 telepathy session <id>        one session's calls and errors, by tool
 telepathy search <term>        search every local transcript: who, when, where, and the text
@@ -58,17 +58,23 @@ telepathy send <id> <msg>     deliver a message to a Claude Code or Antigravity 
 telepathy link                from an Antigravity shell: make this conversation wakeable by send
 ```
 
-`send` reaches a Claude Code session through its inbox socket, and on Linux reaches an Antigravity
-conversation live through its own language server or (for conversations under
-`~/.gemini/antigravity-cli`) the current remote-control daemon's server — checking on every live
-route that `presence/<id>.lock` is not held and no other process has `conversations/<id>.db` open —
-or, failing that (and always off Linux, where second-writer safety cannot be verified), its on-disk
-mailbox, read at its next turn. The server's token exists only in an Antigravity agent's shell, so
-`telepathy link` (and any other verb) run from one records that server keyed by server (PID and
-start time, or address), storing port and token in `$XDG_RUNTIME_DIR/gray-area/antigravity-servers`
-(0700, each record 0600, gone at logout). On Linux, linking any one daemon-hosted conversation
-restores live wake for every idle conversation under the CLI daemon root (a standalone interactive
-`agy` does not).
+`send` reaches a Claude Code session through its inbox socket. On Linux it reaches an Antigravity
+conversation live through one language server, chosen by who holds the conversation
+(`presence/<id>.lock`, or `conversations/<id>.db` open): the recorded, running server that holds it;
+or, when nobody does, the running server it linked to last, then (for conversations under
+`~/.gemini/antigravity-cli`) the current remote-control daemon's server. Before each attempt it
+checks that no other process holds the conversation, and it names the route it took
+(`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). Failing that (and
+always off Linux, where second-writer safety cannot be verified) it queues to the on-disk mailbox,
+read at the conversation's next turn, and prints the cause, when the daemon started and when the
+conversation last recorded a step; `telepathy agents` lists every conversation with mail its client
+has not read. The server's token exists only in an Antigravity agent's shell, so `telepathy link`
+(and any other verb) run from one records that server keyed by server (PID and start time, or
+address), storing port and token and each conversation's last link time in
+`$XDG_RUNTIME_DIR/gray-area/antigravity-servers` (0700, each record 0600, gone at logout). Every
+verb deletes the records of servers that are gone. On Linux, linking any one daemon-hosted
+conversation restores live wake for every idle conversation under the CLI daemon root (a standalone
+interactive `agy` does not).
 
 Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
 `--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own
