@@ -17,7 +17,8 @@ import (
 // a gap is exactly the value a silent miss would turn into a refusal on every old run that
 // holds one.
 var valueRenames = map[protoreflect.FullName]map[string]string{
-	"feov.record.v1.Disposition": {"carried": "remanded"},
+	// TRANSLATION 5: a repair that broke something else is a repair; the regression is its own gap.
+	"feov.record.v1.Disposition": {"carried": "remanded", "repaired_with_regression": "repaired"},
 	// ONE CONCEPT, ONE WORD: what blue proposes and the chair rules on is an inquiry, and an
 	// archive may spell the anchor kind or an open or confirmed fate with an earlier word for the
 	// same value. (A motion's subject is its arm, which inquiryArm respells.)

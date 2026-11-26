@@ -103,7 +103,7 @@ func TestTheBoardShowsHowEachGapClosed(t *testing.T) {
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the bound stands as computed"), ReopensOn: proto.String("a counterexample below the bound")}}}),
 	)
 	mustContain(t, doc, "docket.md",
-		"- G-00000001 | repaired | problem of G-00000001 | successor -\n"+
+		"- G-00000001 | repaired | problem of G-00000001\n"+
 			"  - minted because: The same run-narration pattern recurs in four sections.\n"+
 			"  - required_fix: fix for G-00000001\n"+
 			"  - acceptance_check: check for G-00000001\n"+

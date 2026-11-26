@@ -15,7 +15,7 @@ import (
 
 // ONE GAP PER CLASS AND SUBJECT (ruled by gblock 2026-10-28). A mint is refused where an open gap of
 // the same class stands on the same sentence or the same inquiry; the refusal names that gap, its
-// minter and its problem, and points the lens at the road its own gap takes: supersede it or regrade it.
+// minter and its problem, and points the lens at the road its own gap takes: regrade it.
 
 const (
 	oneGapSentence = "Costs rose sharply across the first quarter."
@@ -50,7 +50,7 @@ func refusedNaming(t *testing.T, err error, out, held, problem string) {
 	if err == nil {
 		t.Fatalf("a second gap of one class on one subject was admitted: %s", out)
 	}
-	for _, want := range []string{held, "is yours", problem, "--supersedes " + held, "regrade --id " + held, "one gap"} {
+	for _, want := range []string{held, "is yours", problem, "regrade --id " + held, "one gap"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q:\n%v", want, err)
 		}
@@ -70,10 +70,6 @@ func TestASecondGapOfOneClassOnOneSentenceIsRefusedNamingTheFirst(t *testing.T) 
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 1 {
 		t.Errorf("the record holds %d mints, want the first alone", n)
-	}
-	// The act the refusal points to is admitted.
-	if _, out, err := mintOn(t, runDir, "spec_underspecification", "the problem restated", "--quote", oneGapSentence, "--supersedes", first); err != nil {
-		t.Fatalf("the supersede the refusal points to was refused: %v\n%s", err, out)
 	}
 }
 
@@ -149,17 +145,6 @@ func TestAClosedGapDoesNotBlock(t *testing.T) {
 		if _, out, err := mintOn(t, runDir, "spec_underspecification", "the defect recurred", subject...); err != nil {
 			t.Errorf("a recurrence on %q after its gap closed was refused: %v\n%s", subject, err, out)
 		}
-	}
-}
-
-func TestASuccessorOfTheOpenGapIsAdmitted(t *testing.T) {
-	runDir := oneGapRun(t)
-	first, out, err := mintOn(t, runDir, "spec_underspecification", "the first problem", "--quote", oneGapSentence)
-	if err != nil {
-		t.Fatalf("first mint: %v\n%s", err, out)
-	}
-	if _, out, err := mintOn(t, runDir, "spec_underspecification", "the problem restated", "--quote", oneGapSentence, "--supersedes", first); err != nil {
-		t.Fatalf("a successor naming the open gap in --supersedes was refused: %v\n%s", err, out)
 	}
 }
 

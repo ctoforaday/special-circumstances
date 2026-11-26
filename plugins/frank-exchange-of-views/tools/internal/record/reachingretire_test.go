@@ -184,16 +184,6 @@ func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
 			t.Error("the item is still listed after the lens sat through a sitting opened after the retire")
 		}
 	})
-	t.Run("a mint superseding it removes it", func(t *testing.T) {
-		st := closed(t, "K-1").retire("K-1")
-		if !listsItem(sittingOfRunT(t, st.seed(), "lens", evLens), item) {
-			t.Fatal("the item is not listed before the mint")
-		}
-		run := st.more().mintSuperseding(evLens, "G2", "high", "G1").seed()
-		if listsItem(sittingOfRunT(t, run, "lens", evLens), item) {
-			t.Error("a mint naming G1 in supersedes left the item listed")
-		}
-	})
 }
 
 // A DOCKETED GAP'S ANSWERS-RETIRED ITEM IS OFF ITS LENS'S LIST UNTIL THE BENCH RULES (ruled by gblock

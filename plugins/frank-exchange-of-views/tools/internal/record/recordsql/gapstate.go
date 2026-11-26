@@ -59,7 +59,13 @@ CREATE TABLE "gap_state" (
   "unruled_docket_motion"   TEXT,
   "closed_event"            INTEGER,
   "standing_docketing"      TEXT,
-  "standing_docketing_at"   INTEGER
+  "standing_docketing_at"   INTEGER,
+  "amend_event"             INTEGER,
+  "current_problem"         TEXT,
+  "current_required_fix"    TEXT,
+  "current_acceptance_check" TEXT,
+  "current_fix_new"         TEXT,
+  "current_fix_basis"       TEXT
 ) STRICT;
 -- The open gaps, in mint order: the dispatch's open-gap fold and every "is anything open" question.
 CREATE INDEX "gap_state_open" ON "gap_state" ("minted_event") WHERE "open";
@@ -135,6 +141,8 @@ func gapMarkers() []gapMarker {
 		{"mint", `SELECT NEW."gap_id"`},
 		{"close", `SELECT NEW."gap_id"`},
 		{"regrade", `SELECT NEW."gap_id"`},
+		// An amend restates the gap's wording.
+		{"amend", `SELECT NEW."gap_id"`},
 		// A docket filing stands unruled on its gap.
 		{"motion_docket", `SELECT NEW."gap_id"`},
 		// A docketing stands on its gap.
@@ -325,7 +333,14 @@ SELECT
        WHEN k."red_first" IS NULL THEN k."first_bench"
        ELSE min(k."first_bench", k."red_first") END                          AS "closed_event",
   (SELECT sd."docketing_id" FROM "docketing" sd WHERE sd."event_id" = k."docketed") AS "standing_docketing",
-  k."docketed"                                                                AS "standing_docketing_at"
+  k."docketed"                                                                AS "standing_docketing_at",
+  -- THE CURRENT WORDING: the latest amend's stamped result, else the mint's.
+  w."amend_event"                                                             AS "amend_event",
+  w."problem"                                                                 AS "current_problem",
+  w."required_fix"                                                            AS "current_required_fix",
+  w."acceptance_check"                                                        AS "current_acceptance_check",
+  w."fix_new"                                                                 AS "current_fix_new",
+  w."fix_basis"                                                               AS "current_fix_basis"
 FROM "k"
 JOIN (SELECT m."event_id" AS "minted_event",
              CASE WHEN rg."event_id" IS NULL THEN m."severity" ELSE rg."result_severity" END               AS "severity",
@@ -335,6 +350,15 @@ JOIN (SELECT m."event_id" AS "minted_event",
       FROM "mint" m
       LEFT JOIN "regrade" rg ON rg."event_id" = (SELECT max(r2."event_id") FROM "regrade" r2 WHERE r2."gap_id" = m."gap_id")) g
   ON g."minted_event" = k."minted"
+JOIN (SELECT m."event_id" AS "minted_event", am."event_id" AS "amend_event",
+             CASE WHEN am."event_id" IS NULL THEN m."problem" ELSE am."result_problem" END                   AS "problem",
+             CASE WHEN am."event_id" IS NULL THEN m."required_fix" ELSE am."result_required_fix" END         AS "required_fix",
+             CASE WHEN am."event_id" IS NULL THEN m."acceptance_check" ELSE am."result_acceptance_check" END AS "acceptance_check",
+             CASE WHEN am."event_id" IS NULL THEN m."fix_new" ELSE am."result_fix_new" END                   AS "fix_new",
+             CASE WHEN am."event_id" IS NULL THEN m."fix_basis" ELSE am."result_fix_basis" END               AS "fix_basis"
+      FROM "mint" m
+      LEFT JOIN "amend" am ON am."event_id" = (SELECT max(a2."event_id") FROM "amend" a2 WHERE a2."gap_id" = m."gap_id")) w
+  ON w."minted_event" = k."minted"
 JOIN "events" me ON me."id" = k."minted"
 LEFT JOIN "met" em ON em."gap_id" = k."gap_id"
 LEFT JOIN "latest_remand" lr ON lr."gap_id" = k."gap_id"

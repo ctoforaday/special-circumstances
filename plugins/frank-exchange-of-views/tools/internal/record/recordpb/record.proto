@@ -169,8 +169,8 @@ extend google.protobuf.EnumValueOptions {
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
 //
-// `required` is a property of ONE field and lives on it. "repaired_with_regression requires a
-// successor" is not: it is a rule about two fields together, and no annotation on either can say
+// `required` is a property of ONE field and lives on it. "a close that is not a carry states its
+// argument" is not: it is a rule about two fields together, and no annotation on either can say
 // it. Those rules were hand-written `if` blocks in validate — the app refusing what the database
 // would happily store, which for a record that is EVIDENCE is a real gap: anything writing SQL
 // directly could create a state the tool forbids, and the row would look exactly like a legitimate
@@ -320,6 +320,7 @@ enum EventType {
   EVENT_TYPE_QUESTION_PART_CHECK = 47 [(means) = "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"];
   EVENT_TYPE_TOMBSTONE = 48 [(means) = "the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb"];
   EVENT_TYPE_DOCKETING = 49 [(means) = "the tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal its assignee did not accept; written by the dispatch, by no verb"];
+  EVENT_TYPE_AMEND = 50 [(means) = "a gap's minter restating its wording — problem, required fix, acceptance check or prescription — on its open gap, with the reason; the gap keeps its id, and each amend is a version in its history"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -510,8 +511,11 @@ enum GapClass {
 enum Disposition {
   DISPOSITION_UNSPECIFIED = 0;
   DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
-  DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
-  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", (closes) = true];
+  // 2 was repaired_with_regression and 3 amends_prior: a close names no gap carrying its remainder,
+  // so a repair that broke something else is a repair, and the regression is a gap of its own.
+  // Reserved: a stored close carries the number.
+  reserved 2, 3;
+  reserved "DISPOSITION_REPAIRED_WITH_REGRESSION", "DISPOSITION_AMENDS_PRIOR";
   DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
   DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
   DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
@@ -795,6 +799,7 @@ message Event {
     QuestionPartCheck question_part_check = 66;
     Tombstone tombstone = 67;
     Docketing docketing = 68;
+    Amend amend = 69;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
@@ -802,9 +807,10 @@ message Event {
   // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
   // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, 64 for the
-  // inquiry check, 65-66 for the question part and its check, 67 for the tombstone and 68 for the
-  // docketing, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 69 to 80;
+  // inquiry check, 65-66 for the question part and its check, 67 for the tombstone, 68 for the
+  // docketing and 69 for the amend, which is what the reserve is for — the block shrinks and nothing is
+  // renumbered.
+  reserved 70 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -840,8 +846,11 @@ message TelemetryLine {
   optional NewMint new_mint = 5;
   optional double mass = 6;
   optional int32 realized_open = 7;
-  optional RepairRegression repair_regression = 8;
-  optional EdgeDeltas edge_deltas = 9;
+  // 8 held repair_regression, the closures an epoch made against the mints that superseded a gap, and
+  // 9 edge_deltas, each successor's mass less its ancestor's: a gap names no gap it replaces, so
+  // neither has an input. Reserved: a stored telemetry line carries the bytes.
+  reserved 8, 9;
+  reserved "repair_regression", "edge_deltas";
 
   // 10 IS DELIBERATELY UNUSED. `accepted_deltas` was a telemetry key no writer produced, read as
   // []any by the cost and dashboard surfaces, which rendered "no accepted deltas" where the truth
@@ -884,19 +893,6 @@ message ClassTally {
 message SeverityTally {
   optional Grade grade = 1;
   optional int32 count = 2;
-}
-
-message RepairRegression {
-  optional int32 closures = 1;
-  optional int32 lineage_mints = 2;
-  // ratio is absent when there were no closures to divide by — not 0.0, which would read as
-  // "closures happened and none had lineage".
-  optional double ratio = 3;
-}
-
-message EdgeDeltas {
-  optional double down_mass = 1;
-  optional double up_mass = 2;
 }
 
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
@@ -996,14 +992,11 @@ message Mint {
   }];
   optional Grade complexity_cost = 19;
 
-  // THE ONE GAP THIS GAP REPLACES, or none. A chain of successors is a line: merging defects is a
-  // supersede of one and a close of the rest. It names a gap already minted: the gap's demand
-  // lineage is written at its mint, so an ancestor minted later could never join it.
-  optional string supersedes = 27 [(sql) = { references: "mint.gap_id" }];
-  // 20, 21 and 26 are reserved: a stored mint may carry their bytes. 20 held the ancestors as a
-  // list, and a list decoded into a singular field of the same number keeps its last entry silently.
-  reserved 20, 21, 26;
-  reserved "found_by";
+  // 20, 21, 26 and 27 are reserved: a stored mint may carry their bytes. 20 held the ancestors as a
+  // list and 27 the one ancestor: a gap names no gap it replaces, and its minter restates its wording
+  // by its own amend.
+  reserved 20, 21, 26, 27;
+  reserved "found_by", "supersedes";
 
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
@@ -1032,21 +1025,11 @@ message Mint {
 
 // Close ends a gap on verified repair.
 message Close {
-  // LINEAGE NEVER DROPS. A regression closure that names no successor loses the thread from the
-  // defect to the gap now carrying it, and the repair_regression denominator counts a closure that
-  // resolved nothing. It was an `if` in validate, which left the DATABASE willing to store the very
-  // state the tool refused.
-  option (check) = {
-    expr: "\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL"
-    why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
-  };
-
   // THE CLOSURE ARGUMENT, KEPT AS A WALL WHILE IT STOPPED BEING A FIELD RULE.
   //
   // `prose` was `required: true`, which is unconditional and therefore refused a CARRY before
   // validate's exemption for one could run. Dropping the marking fixed the carry and made the
-  // column nullable — and that would have handed the database the state the tool refuses, which
-  // is exactly the hole the regression check above exists to close. Stated here instead, where a
+  // column nullable — and that would have handed the database the state the tool refuses. Stated here instead, where a
   // rule about two fields together belongs: everything that is not a carry owes an argument.
   option (check) = {
     expr: "\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL"
@@ -1075,12 +1058,10 @@ message Close {
   optional string anchor_target = 5;
   optional string carried_from = 6;
 
-  // successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
-  // because lineage never drops — and now it must name a gap that EXISTS. "Lineage never drops"
-  // was enforced as "the field is not empty", which a typo satisfies: the closure recorded a
-  // successor, the successor pointed at nothing, and the remainder was carried forward to a gap
-  // id no board has ever had.
-  optional string successor = 7 [(sql) = { references: "mint.gap_id" }];
+  // 7 held successor, the gap a close named as carrying its remainder: a regression a repair caused
+  // is a gap of its own. Reserved: a stored close carries the bytes.
+  reserved 7;
+  reserved "successor";
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
@@ -1168,6 +1149,55 @@ message Regrade {
   optional Grade result_likelihood = 8;
   optional Grade result_impact = 9;
   optional Grade result_complexity_cost = 10;
+}
+
+// Amend restates a gap's wording, with its reason: its minter's change to the demand on its open gap.
+// The gap keeps its id, so every act naming it — docketings, proposals, tombstones, anchors and
+// tokens, closings, dispatch rows — keeps naming it; the log stays append-only, and the gap's wording
+// at an event is the latest amend at or before it, else the mint. Shaped as Regrade: the fields it
+// names change, and the write stamps the whole wording once it stands. It changes no class, subject,
+// location or check kind: those are what the gap is about, and a different one is another gap.
+message Amend {
+  // AN AMEND CHANGES SOMETHING. A reason alone restates nothing, and a version with no change is a
+  // history row no reader can tell from a real one.
+  option (check) = {
+    expr: "\"problem\" IS NOT NULL OR \"required_fix\" IS NOT NULL OR \"acceptance_check\" IS NOT NULL OR \"fix_new\" IS NOT NULL"
+    why: "an amend restates at least one of the gap's problem, required fix, acceptance check or prescription"
+  };
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    references: "mint.gap_id"
+    why: "which gap this amends"
+  }];
+  // The wording the amend states, each in the mint's sense; a field left absent keeps the gap's
+  // current one.
+  optional string problem = 2 [(sql) = { flag: "problem" }, (prose) = true];
+  optional string required_fix = 3 [(sql) = { flag: "required-fix" }, (prose) = true];
+  optional string acceptance_check = 4 [(sql) = { flag: "acceptance-check" }, (prose) = true];
+  optional string fix_new = 5 [(sql) = { flag: "fix-new" }];
+  // fix_basis is stamped with fix_new by the write, as the mint's is.
+  optional string fix_basis = 6;
+  optional string basis = 7 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "a change to a gap's demand is recorded with its reason"
+  }, (prose) = true];
+  // answers is the open gap about this gap that the amend answers (BlueEdit.answers' sense).
+  optional string answers = 8 [(sql) = { references: "mint.gap_id" }];
+  // accepted is the author's concession of the docketing standing on `answers`, set by --accept.
+  optional bool accepted = 9;
+
+  // THE GAP'S WORDING ONCE THIS AMEND STANDS, stamped by the write path and never by a seat
+  // (recordsql.stampAmendResult). On each field: this amend's where it names one, else the gap's
+  // wording before it — the result of its latest earlier amend, or the mint's. Both inputs are fixed
+  // once this amend is written, so the stored wording is the gap's from this amend until the next,
+  // and the gap view reads it rather than deriving it.
+  optional string result_problem = 10;
+  optional string result_required_fix = 11;
+  optional string result_acceptance_check = 12;
+  optional string result_fix_new = 13;
+  optional string result_fix_basis = 14;
 }
 
 // SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
@@ -1880,7 +1910,7 @@ enum LogType {
   // THE ENGINE'S OWN STOP IS ONE TOO, under the harness seat: the engine threw, and the lead wrote
   // the error with the operator's `engine-stopped`. No outcome goes with it, so the run stays open.
   LOG_TYPE_FAILURE = 7 [(seat_may_file) = false, (means) = "a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this"];
-  LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
+  LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it"];
 }
 
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
@@ -1958,8 +1988,11 @@ message Motion {
   oneof act {
     Regrade regrade = 15;
     Close close = 16;
-    Mint supersede = 17;
   }
+  // 17 held a proposed supersede: a gap names no gap it replaces, and its minter restates its wording
+  // by its own amend. Reserved: a stored motion carries the bytes.
+  reserved 17;
+  reserved "supersede";
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the

@@ -106,7 +106,7 @@ func TestABadValueIsRefusedWithTheFlagsOwnLine(t *testing.T) {
 func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
 	said := assertShortRefusal(t, "red-lens-evidence", "mint", []string{"mint", "stray", "--quote", "q", "--reason", "r"},
 		"takes no arguments; got \"stray\"\nThis verb's flags: --about, --about-kind, ")
-	if !strings.Contains(said, "--supersedes.") {
+	if !strings.Contains(said, "--severity.") {
 		t.Errorf("the flags a value can go behind are not all listed:\n%s", said)
 	}
 }

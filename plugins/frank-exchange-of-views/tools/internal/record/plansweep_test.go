@@ -35,7 +35,7 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ReportHasParts(run)
 	_, _, _ = PartStanding(run, "harness")
 	_, _ = ExistingProposalByText(run, "blue-respond", "q", "h")
-	// A proposed close and a proposed supersede, and a tombstone, so the decode reads their tables.
+	// A proposed close and a tombstone, so the decode reads their tables.
 	// A seat's proposal waits on the gap's one exchange: blue's edit leaves the lens its re-audit, so
 	// the round ends with the lens's sitting.
 	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}})
@@ -56,33 +56,21 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	if db, err := openRunForRead(run); err == nil && db != nil {
 		_, _, _ = closingTakesText(db, "G1")
 	}
-	// A gap holds one proposal at a time (F5): the assignee accepts the close, which closes G1, and a
-	// closed gap takes the proposed supersede (F8).
-	mustAppend(t, Identity{Run: run, SeatID: evLens}, &recordpb.MotionRule{MotionId: proto.String("M2"), Opinion: proto.String("ruled"),
-		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum()}}})
-	successor := successorMint("G2", "G1")
-	if _, err := Append(blue, &recordpb.Motion{MotionId: proto.String("M3"), Basis: proto.String("b"),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
-		Act:    &recordpb.Motion_Supersede{Supersede: successor}}); err != nil {
-		t.Fatal(err)
-	}
-	// The tool dockets the proposal, each party's closing states what it states, and the bench
-	// sides with the supersede in the docket sitting convened for G1; a Mint under the bench — the
-	// successor as the replay meets it after that ruling — asks for the ruling it stands on
-	// (requireBenchSuccessor). The closings' and the ruling's refusals are not this test's: each is
-	// issued so its statements are planned.
+	// The tool dockets the proposal the assignee did not accept, each party's closing states what it
+	// states, and the bench sides with the proposed close in the docket sitting convened for G1. The
+	// closings' and the ruling's refusals are not this test's: each is issued so its statements are
+	// planned.
 	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Docketing{DocketingId: proto.String("K1"), GapId: proto.String("G1"),
-		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: proto.String("M3"), Basis: proto.String("the assignee did not accept it")})
-	_, _ = Append(blue, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the successor states the defect")})
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: proto.String("M2"), Basis: proto.String("the assignee did not accept it")})
+	_, _ = Append(blue, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the proposed close states the defect moot")})
 	_, _ = Append(Identity{Run: run, SeatID: evLens}, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the gap stands"),
 		NoText: proto.Bool(true)})
-	if _, err := Append(convene(t, run, "G1"), &recordpb.MotionRule{MotionId: proto.String("M3"), Opinion: proto.String("ruled"),
+	if _, err := Append(convene(t, run, "G1"), &recordpb.MotionRule{MotionId: proto.String("M2"), Opinion: proto.String("ruled"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("K1"),
-			SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Principle: proto.String("pr"), Tension: proto.String("tn"),
-			ReviewFlag: proto.String("rf"), Settled: proto.String("st")}}}); err != nil {
+			SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_MOOT.Enum(), Final: proto.Bool(true),
+			Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}}}); err != nil {
 		t.Fatal(err)
 	}
-	_ = wouldReplay(t, run, "judge", recordpb.EventType_EVENT_TYPE_MINT, successorMint("G3", "G1"))
 	if db, err := openRunForRead(run); err == nil && db != nil {
 		_ = requireRemandOfOpenGap(db, "G1", "docketing K1")
 	}
@@ -106,7 +94,7 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
 	// The readers of the standing rows: the proposal arm, the class arm's held set and the work list's
-	// protected gaps, the successor a supersede ruling stored among them.
+	// protected gaps.
 	if db, err := openRunForRead(run); err == nil && db != nil {
 		_ = requireNotEstoppedOn(db, "G1")
 		_, _ = withRuledGapsOfClassAt(db, nil, recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION)

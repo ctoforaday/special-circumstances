@@ -101,9 +101,21 @@ type Manifest struct {
 	// (EventSchema 80). A stated empty list where there is none.
 	SettledEdits []int64 `json:"settled_edits"`
 	// UnowedEngagements is the source id of each blue engagement written as no event because its
-	// sitting owes no successor: the successors it engaged were named by a cross-seat lineage link,
-	// which is dropped (EventSchema 80). A stated empty list where there is none.
+	// sitting owes no engagement on the record as migrated (EventSchema 80). A stated empty list where
+	// there is none.
 	UnowedEngagements []int64 `json:"unowed_engagements"`
+	// SupersedeLinks is Translation 7 (EventSchema 82): every archived mint that superseded a gap, and
+	// what it became — an amend of the chain's first gap, or its own gap with the link dropped and why.
+	// A stated empty list where there is none.
+	SupersedeLinks []SupersedeLink `json:"supersede_links"`
+	// RekeyedAnchors is the source id of each Anchor an amended successor placed on its own marker,
+	// written as no event: the successor kept its first gap's location, whose marker stands there
+	// (Translation 7). A stated empty list where there is none.
+	RekeyedAnchors []int64 `json:"rekeyed_anchors"`
+	// AmendedAncestorActs is the source id of each close or regrade naming a gap an amended link
+	// restated, written after the successor's mint, as no event: the successor is that gap now, and
+	// its own acts go on answering it (Translation 7). A stated empty list where there is none.
+	AmendedAncestorActs []int64 `json:"amended_ancestor_acts"`
 	// Dockets is Translations 3 and 4's residue (EventSchema 80): the source ids written as no event
 	// because the bench convenes on a docketing the dispatch writes and sides with a party's stated
 	// position. Each list is stated empty where there is none.
@@ -253,10 +265,6 @@ type DocketResidue struct {
 	// PartyDockets is each docket motion no dispatch filed (a chair's by hand, a minter's own, blue's)
 	// and its ruling: a motion stores an act, and these stored none.
 	PartyDockets []int64 `json:"party_dockets"`
-	// Superseded is each docket the dispatch filed, and its ruling, on a gap a successor superseded
-	// after it with no ruling or Close between: the live write refuses that supersede, so the
-	// docketing would stand on a gap holding no state of its own.
-	Superseded []int64 `json:"superseded"`
 	// EndedRulings is each ruling of a docketing a Close of its gap had ended before it.
 	EndedRulings []int64 `json:"ended_rulings"`
 	// BenchRegrades is each regrade the bench wrote of its own: the bench writes no grade of its own.
@@ -267,4 +275,22 @@ type DocketResidue struct {
 	// InquiryChecks is each inquiry check whose inquiry only gaps the bench's dropped closes had closed
 	// hold wanting on the migrated record, which refuses a check while one stands.
 	InquiryChecks []int64 `json:"inquiry_checks"`
+}
+
+// SupersedeLink is one archived supersede link and what Translation 7 made of it.
+type SupersedeLink struct {
+	// OldID is the source id of the mint that carried the link.
+	OldID int64 `json:"old_id"`
+	// Successor is the gap id the mint named itself; Ancestor the gap it superseded, as migrated.
+	Successor string `json:"successor"`
+	Ancestor  string `json:"ancestor"`
+	// Outcome is what the link became: `amended` (an Amend of Ancestor, with a Regrade where the
+	// grades differ, and every later reference to Successor re-keyed to Ancestor), or the reason it
+	// dropped, the successor standing as its own gap: `cross_seat`, `closed_ancestor`, `moved_field`
+	// or `absent_ancestor`.
+	Outcome string `json:"outcome"`
+	// Regraded is whether the amend was written with a regrade.
+	Regraded bool `json:"regraded,omitempty"`
+	// Moved names the fixed fields a `moved_field` link's successor changed.
+	Moved []string `json:"moved,omitempty"`
 }

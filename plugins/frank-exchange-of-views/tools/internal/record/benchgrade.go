@@ -222,6 +222,15 @@ func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regra
 // requireNoRegradeResult refuses a regrade that arrives with result grades. The insert stamps them
 // from the gap's grades and the axes the regrade names (recordsql.stampRegradeResult); a writer that
 // could set them could give a gap any grade without naming the axis it moved.
+// requireNoAmendResult refuses an amend that arrives with the wording the write stamps
+// (recordsql.stampAmendResult): the result is the gap's wording once the amend stands, never a seat's.
+func requireNoAmendResult(a *recordpb.Amend) error {
+	if recordsql.HasAmendResult(a) {
+		return fmt.Errorf("an amend's resulting wording is stamped by the tool from the gap's wording and the fields the amend names, never supplied by a seat — amend without it")
+	}
+	return nil
+}
+
 func requireNoRegradeResult(r *recordpb.Regrade) error {
 	if recordsql.HasRegradeResult(r) {
 		return fmt.Errorf("a regrade's result grades are stamped by the tool from the gap's grades and the axes the regrade names, never supplied by a seat — regrade without them")

@@ -87,14 +87,15 @@ func Entries() Registry {
 		// A MINT'S COINING COLUMNS ARE NOT CARRIED, for the same reason: the jsonl era's mint-carried
 		// trio and the sqlite era's class_new flag both arrive here. Nor is a mint's distinct_from
 		// list, which a source before epoch 45 may hold.
-		"mint": oneAncestor(mapped("mint", nil, drops{
+		"mint": mapped("mint", nil, drops{
 			"class_new":     mintCoiningDrop,
 			"definition":    mintCoiningDrop,
 			"neighbor":      mintCoiningDrop,
 			"distinguisher": mintCoiningDrop,
 			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
 			"found_by":      "the findings a gap was minted from: a finding translates to no event, so its id names nothing on the migrated record",
-		}, nil)),
+			"supersedes":    supersedesDrop,
+		}, nil),
 		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding a
 		// finding to an open gap's found_by after the mint. No live act writes it, and the finding it
 		// credits is written as no event. The manifest counts each in events_in and none in events_out.
@@ -357,32 +358,6 @@ func remandDirection(r *recordpb.DocketRuling) {
 		return
 	}
 	r.Direction, r.ReopensOn = r.ReopensOn, nil
-}
-
-// oneAncestor wraps a mint's entry with Translation 1 (EventSchema 80): a mint supersedes one gap, and
-// a source before it holds its ancestors as a list. The first link is kept as the one ancestor; any
-// later link is not carried — the residue the change states (quadratic-formula R2-7 keeps R1-4 and
-// loses R1-9, which R2-3 superseded first).
-func oneAncestor(e Entry) Entry {
-	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
-		if vals, ok := old.Lists["supersedes"]; ok {
-			lists := map[string][]string{}
-			for k, v := range old.Lists {
-				if k != "supersedes" {
-					lists[k] = v
-				}
-			}
-			fields := map[string]any{}
-			for k, v := range old.Fields {
-				fields[k] = v
-			}
-			if len(vals) > 0 {
-				fields["supersedes"] = vals[0]
-			}
-			old.Lists, old.Fields = lists, fields
-		}
-		return e.Translate(old)
-	}}
 }
 
 // toNoEvent translates an archived event to none, whatever its era's columns.

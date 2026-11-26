@@ -401,8 +401,7 @@ func TestAForcedChainsFirstPlanReadiesItsOwnerAndNotBlue(t *testing.T) {
 	}
 }
 
-// closedHow is how the record says gap id closed: its closure reason, and the successor carrying it
-// forward where one does.
+// closedHow is how the record says gap id closed: its closure reason.
 func (r *runner) closedHow(id string) string {
 	b, ok := r.board()
 	if !ok {
@@ -412,9 +411,5 @@ func (r *runner) closedHow(id string) string {
 	if g == nil {
 		return "the record holds no such gap"
 	}
-	how := "closed " + g.ClosureReason()
-	if s := g.Successor(); s != "" {
-		how += ", carried forward by " + s
-	}
-	return how
+	return "closed " + g.ClosureReason()
 }

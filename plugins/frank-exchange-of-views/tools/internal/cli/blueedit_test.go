@@ -505,7 +505,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
 	}
-	for _, want := range []string{"estoppel", prior, "--supersedes", "your fix for " + prior} {
+	for _, want := range []string{"estoppel", prior, "an amendment to " + prior, "your fix for " + prior} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
@@ -541,21 +541,6 @@ func TestEstoppelNamesTheLensWhoseFixItWas(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "your fix") || strings.Contains(strings.ToLower(err.Error()), "you prescribed") {
 		t.Errorf("the refusal tells %s that %s's words were its own: %v", other, lensSeat, err)
-	}
-}
-
-// RED IS NOT SILENCED. Declaring the lineage IS the amendment the guard asks for, so a mint
-// naming the estopping gap in --supersedes goes through.
-func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
-	runDir := newRun(t)
-	prior := seedProposalApplied(t, runDir)
-
-	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G2", "--class", "spec_underspecification", "--quote", prescribedText,
-		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
-		"--supersedes", prior); err != nil {
-		t.Fatalf("red was blocked from AMENDING its own prescription, which the guard must allow: %v", err)
 	}
 }
 

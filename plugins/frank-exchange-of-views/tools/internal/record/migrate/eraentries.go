@@ -19,7 +19,7 @@ import (
 // named the procedural route rather than the outcome.
 var dispositionRename = map[string]string{
 	"closed":                   "repaired",
-	"closed_with_regression":   "repaired_with_regression",
+	"closed_with_regression":   "repaired",
 	"rebuttal_sustained":       "not_a_defect",
 	"risk_accepted":            "defect_accepted",
 	"routed_to_infrastructure": "defect_owed_elsewhere",
@@ -51,8 +51,11 @@ func eraEntries() Registry {
 		// makes per gap (deadlock); the field is reserved and the word is dropped on replay.
 		"outcome": mapped("outcome", ren{"reason": "prose"},
 			drops{"ended": "how a run ended is the verdict's to say — CEILING is derived from the board and deadlock is per gap (plans/roundless.md §III.B); Outcome.ended (7) is reserved"}, nil),
-		"close": mapped("close", ren{"reason": "prose"}, nil,
-			vals{"closure_class": dispositionRename}),
+		// TRANSLATION 5 (plans/findings-fold.md §III.B8): a close names no successor, and a repair that
+		// broke something else is a repair, whose regression is a gap of its own.
+		"close": mapped("close", ren{"reason": "prose"}, drops{
+			"successor": "a close names no gap carrying its remainder: a regression a repair caused is a gap of its own, minted as one, and the successor stands as its own gap",
+		}, vals{"closure_class": dispositionRename}),
 		// The era's proof carried its output INLINE beside its sha; it is the act's stored output
 		// (computations.go), and the record carries no second copy.
 		"proof": {Translate: proofEntry},

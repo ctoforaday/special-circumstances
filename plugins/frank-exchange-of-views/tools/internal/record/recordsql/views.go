@@ -408,6 +408,9 @@ CREATE VIEW "demand_reach" AS
 --                       names and no non-carry close of the gap after it ends, and its event. The
 --                       Go fold (record.docketingsAt) states the same rule, and
 --                       TestTheStoredDocketingIsTheFold holds the two level.
+--   amend_event, current_problem, current_required_fix, current_acceptance_check, current_fix_new,
+--                       current_fix_basis  the gap's latest amend and its wording now: that amend's
+--                       stamped result, else the mint's (the mint's own columns stay the mint's).
 --   remanded            a remand stands on the open gap and no proposal or docketing stands on it: the
 --                       remand sends the gap back for ONE more exchange, and the record's Go fold
 --                       (exchangesOf, over the remand view) decides where it stands against that.
@@ -453,7 +456,13 @@ SELECT
   s."remanded"                 AS "remanded",
   s."unruled_docket_motion"    AS "unruled_docket_motion",
   s."standing_docketing"       AS "standing_docketing",
-  s."standing_docketing_at"    AS "standing_docketing_at"
+  s."standing_docketing_at"    AS "standing_docketing_at",
+  s."amend_event"              AS "amend_event",
+  s."current_problem"          AS "current_problem",
+  s."current_required_fix"     AS "current_required_fix",
+  s."current_acceptance_check" AS "current_acceptance_check",
+  s."current_fix_new"          AS "current_fix_new",
+  s."current_fix_basis"        AS "current_fix_basis"
 FROM "gap_state" s
 JOIN "mint" m ON m."event_id" = s."minted_event"
 JOIN "events" e ON e."id" = s."minted_event";

@@ -54,6 +54,57 @@ type remap struct {
 	// token is removed from every field and its id from every id list; in a seat's wording a bare
 	// label or id is left as written.
 	dropped map[string]bool
+	// rekeyed is every successor id Translation 7 wrote as an amend, to the id of the chain's first
+	// gap, both as the migrated record spells them (rekey). Every id field and token naming the
+	// successor after its mint names the first gap.
+	rekeyed map[string]string
+	firsts  map[string]bool // the first gaps rekeyed names
+}
+
+// rekey records that the migrated id succ names the gap first from here on (Translation 7).
+func (r *remap) rekey(succ, first string) {
+	if r.rekeyed == nil {
+		r.rekeyed, r.firsts = map[string]string{}, map[string]bool{}
+	}
+	r.rekeyed[succ], r.firsts[first] = first, true
+}
+
+// current is the id the migrated record names gap id by from here on: the first gap of the chain a
+// re-keyed successor joined, else id.
+func (r *remap) current(id string) string {
+	if first, ok := r.rekeyed[id]; ok {
+		return first
+	}
+	return id
+}
+
+// rekeyedTokens is v with every token naming a re-keyed successor naming its first gap, and a token
+// that then repeats the token before it, with only whitespace between, taken out: a successor's
+// marker beside its first gap's in one sentence is one marker.
+func (r *remap) rekeyedTokens(v string) string {
+	if len(r.rekeyed) == 0 {
+		return v
+	}
+	v = anchor.Replace(v, func(tok, id string) string {
+		if first, ok := r.rekeyed[id]; ok {
+			return anchor.Token(first)
+		}
+		return tok
+	})
+	var b strings.Builder
+	last, prevEnd, prevID := 0, -1, ""
+	anchor.Each(v, func(start, end int, id string) {
+		if id == prevID && r.firsts[id] && strings.TrimSpace(v[prevEnd:start]) == "" {
+			b.WriteString(v[last:start])
+			last = end
+		}
+		prevEnd, prevID = end, id
+	})
+	if last == 0 {
+		return v
+	}
+	b.WriteString(v[last:])
+	return b.String()
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -111,8 +162,8 @@ var (
 //
 // mints names the id fields whose value brings an id into being, and the kind it is an id of.
 var (
-	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes
-		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids
+	idFields = fieldSet(`Mint.gap_id Mint.about_ref
+		Close.gap_id Closing.gap_id Regrade.gap_id Amend.gap_id Amend.answers SpotCheck.ids
 		Anchor.id Anchor.sentence_of Cite.label Verify.anchor Computation.computation_id
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers Cite.answers
 		Motion.motion_id DocketMotion.gap_id
@@ -123,7 +174,7 @@ var (
 		QuestionPart.part_id QuestionPartCheck.part_id`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
-		Regrade.basis SpotCheck.reason Cite.text
+		Regrade.basis Amend.problem Amend.required_fix Amend.acceptance_check Amend.basis SpotCheck.reason Cite.text
 		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryCheck.reason BlueEdit.text Retire.reason
 		Log.text Motion.basis Motion.relief Docketing.basis DocketRuling.principle DocketRuling.tension
@@ -136,6 +187,8 @@ var (
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from
 		Dispatch.seat_id PositionHearing.lens Plan.printed Inquiry.supersedes_status Mint.fix_basis Mint.fix_new Closing.location Closing.fix_new
+		Amend.fix_new Amend.fix_basis Amend.result_problem Amend.result_required_fix Amend.result_acceptance_check
+		Amend.result_fix_new Amend.result_fix_basis
 		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
 		Register.agent_id Register.agent_type
@@ -374,12 +427,16 @@ func (r *remap) respellIDs(field, v string) string {
 		}
 		return anchor.Token(r.id(tagKind[m[1]], m[2]))
 	})
+	v = r.rekeyedTokens(v)
 	switch {
 	case mints[field] != "":
 		return r.id(mints[field], v)
 	case idFields[field]:
 		if nv, ok := r.ids[v]; ok {
-			return nv
+			v = nv
+		}
+		if first, ok := r.rekeyed[v]; ok {
+			return first
 		}
 	case argumentFields[field] && len(r.ids) > 0:
 		if r.wordsOf != len(r.ids) {

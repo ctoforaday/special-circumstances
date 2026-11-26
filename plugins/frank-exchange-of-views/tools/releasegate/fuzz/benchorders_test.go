@@ -43,7 +43,7 @@ var axisFlags = [4]string{"severity", "likelihood", "impact", "complexity"}
 // lockedAxes is, per gap, the axes a ruling on a grade holds locked — recomputed by the fuzz from the
 // stream, independent of the record's fold: a ruling that is not a remand decides the axes its regrade
 // proposal names, or at grade movement the axes a party's regrade moved since each axis's last ruling;
-// a successor inherits its ancestor's locks; a ruling tombstone's end row ends every lock a ruling on
+// a ruling tombstone's end row ends every lock a ruling on
 // its gap set. It also reports how many rulings locked an axis.
 func (r *runner) lockedAxes() (map[string][4]bool, int) {
 	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_MOTION,
@@ -73,13 +73,7 @@ func (r *runner) lockedAxes() (map[string][4]bool, int) {
 			if _, seen := locks[g]; seen {
 				continue
 			}
-			cur := unlocked
-			if a := b.GetSupersedes(); a != "" {
-				if from, ok := locks[a]; ok {
-					cur = from
-				}
-			}
-			locks[g] = cur
+			locks[g] = unlocked
 			grades[g] = [4]recordpb.Grade{b.GetSeverity(), b.GetLikelihood(), b.GetImpact(), b.GetComplexityCost()}
 		case *recordpb.Motion:
 			if rg := b.GetRegrade(); rg != nil {

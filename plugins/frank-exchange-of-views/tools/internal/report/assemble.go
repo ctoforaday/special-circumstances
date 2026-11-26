@@ -941,11 +941,7 @@ func boardSection(run record.Run, fam record.Family) string {
 			if cc == "" {
 				cc = "closed (no recorded class)"
 			}
-			succ := g.Successor()
-			if succ == "" {
-				succ = "-"
-			}
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), succ, regradeHistory(g), closureDetail(g, read[g.ID])))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), regradeHistory(g), closureDetail(g, read[g.ID])))
 		}
 	}
 	var b strings.Builder

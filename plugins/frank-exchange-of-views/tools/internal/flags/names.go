@@ -225,11 +225,8 @@ const (
 	About     = "about"
 	AboutKind = "about-kind"
 
-	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
-	// it. Symmetric words, because the reader has to hold both at once.
-	Supersedes   = "supersedes"
-	SupersededBy = "superseded-by"
-	CarriedFrom  = "carried-from"
+	// CarriedFrom is the epoch a carried closure restates.
+	CarriedFrom = "carried-from"
 
 	// Closure evidence: who checked it, with what, against what. NOT --anchor-*: --anchor is
 	// a document anchor id everywhere else in this vocabulary, and a seat that learned it
@@ -341,7 +338,7 @@ func All() []string {
 		Severity, Likelihood, Impact, Complexity,
 		Class,
 		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
-		Supersedes, SupersededBy, CarriedFrom,
+		CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Lens,
@@ -429,7 +426,6 @@ var payloadFlag = map[string]string{
 	"old":              Quote,
 	"fix_new":          New,
 	"superseded_by":    New,
-	"successor":        SupersededBy,
 	"acceptance_check": Check,
 	"complexity_cost":  Complexity,
 	"anchor_seat":      VerifiedBy,

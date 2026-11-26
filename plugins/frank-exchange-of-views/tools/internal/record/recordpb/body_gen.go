@@ -165,6 +165,10 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Docketing, true
 		}
+	case *Event_Amend:
+		if b != nil {
+			return b.Amend, true
+		}
 	}
 	return nil, false
 }

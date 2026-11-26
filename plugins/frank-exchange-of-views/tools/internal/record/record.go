@@ -926,12 +926,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	}
-	// A PROPOSED SUPERSEDE CARRIES ITS SUCCESSOR'S STATEMENT, stamped as the successor's mint will be.
-	if m, ok := body.(*recordpb.Motion); ok && m.GetSupersede() != nil {
-		if err := stampClassMaterial(m.GetSupersede()); err != nil {
-			return err
-		}
-	}
 	// ORDER IS THE MESSAGE. A ruling's motion is established FIRST — that it exists and was filed
 	// under the subject this act names — because every later refusal is phrased in terms of it: a
 	// bench typing `motion docket rule` at a petition should be told it named the wrong subject,
@@ -1105,42 +1099,17 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 					b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
 			}
 		}
-		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
-			return err
-		}
-		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
-		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(q, b.GetSuccessor(), "--superseded-by",
-			"the unresolved remainder cannot move into a gap that is already finished"); err != nil {
-			return err
-		}
-		// A FRESH close of a closed gap double-counts closure history and corrupts the
-		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
-		// close is exempt: restating an earlier closure is exactly what it means, and it
-		// is separately checked against a real prior closure below.
+		// A FRESH close of a closed gap double-counts closure history (see replay.go on
+		// ClosedByBench). A --carried-from close is exempt: restating an earlier closure is
+		// exactly what it means, and it is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil {
 			if err := requireOpenGap(q, b.GetGapId(), "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
+				"closing it twice double-counts closure history; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
 			}
 		}
-		// --superseded-by NAMES THE REGRESSION, and nothing else. A gap whose purpose moves to a
-		// successor is closed by that successor's mint (supersession.go), so the one remainder a close
-		// carries forward is the regression a repair caused, in a gap that does not supersede this one.
-		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
-			return fmt.Errorf("repaired_with_regression requires --superseded-by (lineage never drops)")
-		}
-		if b.GetClosureClass() != recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor != nil {
-			return feov.Errorf(feov.Validation,
-				"--superseded-by names the gap carrying a regression, and is given only with --as repaired_with_regression. "+
-					"A gap whose purpose passes to a successor is closed by minting that successor with --supersedes %s, which closes it in the same act", b.GetGapId())
-		}
-		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
-		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
-		// that landed in the open part of a string-valued closure_class and skipped the successor
-		// check above, which is the opposite of "lineage never drops". `ClosureClass` is a closed
-		// enum now, so no near-miss can be REPRESENTED here — the refusal moves to wherever a
-		// seat's word is resolved to a value (recordpb.BySpelling, and the enum refusal's near-miss
+		// NO NEAR-MISS CAN BE REPRESENTED HERE: `ClosureClass` is a closed enum, so the refusal of
+		// one moves to wherever a seat's word is resolved to a value (recordpb.BySpelling, and the enum refusal's near-miss
 		// sentence through recordpb.SameWord), and that resolution is the CLI's parse, not this
 		// write path.
 		// A closure is a claim, and the claim's substance is its argument: what was verified and
@@ -1238,6 +1207,29 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireNoRegradeResult(b); err != nil {
+			return err
+		}
+	case *recordpb.Amend:
+		// A GAP'S WORDING IS ITS MINTER'S TO RESTATE, on its open gap (plans/findings-fold.md §III.B7):
+		// an amend is a change to the demand, which only the party that raised it may make. The bench's
+		// application of a for-raiser ruling on a gap about this gap is written in that ruling's
+		// transaction.
+		if seatclass.RoleOfSeat(seatID) != "bench" {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "amend"); err != nil {
+				return err
+			}
+		}
+		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
+			return err
+		}
+		if err := requireOpenGap(q, b.GetGapId(), "--id",
+			"a gap's wording is what the next act on it answers, so restating it on a finished gap changes a demand nobody owes"); err != nil {
+			return err
+		}
+		if err := requireNoAmendResult(b); err != nil {
+			return err
+		}
+		if err := refuseMintReportVoice(&recordpb.Mint{Problem: b.Problem, RequiredFix: b.RequiredFix, FixNew: b.FixNew}); err != nil {
 			return err
 		}
 	case *recordpb.Motion:

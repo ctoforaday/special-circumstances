@@ -29,8 +29,8 @@ import (
 //     a Close of its gap ended first, and every regrade the bench wrote, are written as no event.
 //
 // A bench opinion is written as no event: the engine convened the bench there and no party stated a
-// position, so its gap reads as the opinion found it. A dispatch's docket left standing on a gap a
-// successor superseded is written as no event with its ruling: the live write refuses that supersede.
+// position, so its gap reads as the opinion found it. A dispatch's docket on a gap a later mint
+// superseded is written on its gap's id, as every docketing is (Translation 7, supersede.go).
 // A spot-check of a gap whose close one of these drops took away names an open gap, which the write
 // refuses, and is written as no event too; so is an inquiry check whose inquiry such a gap alone
 // holds wanting, which the write refuses as well (requireInquiryCheck). Each drop is stated in the manifest
@@ -41,18 +41,13 @@ import (
 type archivedDockets struct {
 	docketing map[string]string // archived motion id of a dispatch's docket -> its docketing's id
 	dropped   map[string]bool   // archived motion ids of every other docket motion (O2)
-	// superseded is the archived motion ids of a dispatch's docket whose gap a successor superseded
-	// after it, with no ruling of it and no Close of the gap between: the live write refuses that
-	// supersede (requireSupersededOffDocket), so no live record holds the docketing standing on a gap a
-	// successor closed. The docketing and its ruling are written as no event.
-	superseded map[string]bool
-	gapOf      map[string]string // archived motion id -> its archived gap id, for every docket motion
+	gapOf     map[string]string // archived motion id -> its archived gap id, for every docket motion
 }
 
 // docketsOf reads the source stream once. A docket motion is recognised by its translated body, so
 // every era's spelling of one is read the same way.
 func docketsOf(evs []OldEvent, reg Registry, rm *remap) (archivedDockets, error) {
-	out := archivedDockets{docketing: map[string]string{}, dropped: map[string]bool{}, superseded: map[string]bool{}, gapOf: map[string]string{}}
+	out := archivedDockets{docketing: map[string]string{}, dropped: map[string]bool{}, gapOf: map[string]string{}}
 	for i, old := range evs {
 		if old.Word != "motion" {
 			continue
@@ -73,9 +68,6 @@ func docketsOf(evs []OldEvent, reg Registry, rm *remap) (archivedDockets, error)
 			}
 			if dispatched {
 				out.docketing[m.GetMotionId()] = rm.spelling("docketing", fmt.Sprintf("D-mig-%d", old.ID))
-				if supersededStanding(evs[i+1:], reg, m.GetMotionId(), m.GetDocket().GetGapId()) {
-					out.superseded[m.GetMotionId()] = true
-				}
 			} else {
 				out.dropped[m.GetMotionId()] = true
 			}
@@ -114,37 +106,6 @@ func filedByTheDispatch(evs []OldEvent, i int) (bool, error) {
 	return false, nil
 }
 
-// supersededStanding reports whether, in the source events after a dispatch's docket motion on gap,
-// a mint superseding gap comes before any ruling of the motion and any Close of gap.
-func supersededStanding(after []OldEvent, reg Registry, motion, gap string) bool {
-	for _, e := range after {
-		if e.Word != "mint" && e.Word != "close" && e.Word != "motion_rule" {
-			continue
-		}
-		bodies, err := reg.Translate(e)
-		if err != nil {
-			continue
-		}
-		for _, b := range bodies {
-			switch x := b.(type) {
-			case *recordpb.Mint:
-				if x.GetSupersedes() == gap {
-					return true
-				}
-			case *recordpb.Close:
-				if x.GetGapId() == gap {
-					return false
-				}
-			case *recordpb.MotionRule:
-				if x.GetMotionId() == motion {
-					return false
-				}
-			}
-		}
-	}
-	return false
-}
-
 // chairSeat is the chair's roundless seat id.
 const chairSeat = "red-chair"
 
@@ -152,9 +113,8 @@ const chairSeat = "red-chair"
 type docketDrop int
 
 const (
-	keptDocket       docketDrop = iota
-	partyDocket                 // a docket no dispatch filed, or its ruling (O2)
-	supersededDocket            // a dispatch's docket left standing on a gap a successor superseded, or its ruling
+	keptDocket  docketDrop = iota
+	partyDocket            // a docket no dispatch filed, or its ruling (O2)
 )
 
 // translate rewrites the bodies one source event translates to under Translations 3 and 4, before
@@ -172,10 +132,6 @@ func (d archivedDockets) translate(bodies []proto.Message) (out []proto.Message,
 				drop = partyDocket
 				continue
 			}
-			if d.superseded[m.GetMotionId()] {
-				drop = supersededDocket
-				continue
-			}
 			if id, ok := d.docketing[m.GetMotionId()]; ok {
 				k := &recordpb.Docketing{DocketingId: proto.String(id), GapId: m.GetDocket().GapId}
 				if m.Basis != nil {
@@ -187,10 +143,6 @@ func (d archivedDockets) translate(bodies []proto.Message) (out []proto.Message,
 		case *recordpb.MotionRule:
 			if d.dropped[m.GetMotionId()] {
 				drop = partyDocket
-				continue
-			}
-			if d.superseded[m.GetMotionId()] {
-				drop = supersededDocket
 				continue
 			}
 			id, ok := d.docketing[m.GetMotionId()]

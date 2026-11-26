@@ -889,7 +889,7 @@ func LatestSitting(q queryRower, seat string) (open sql.NullInt64, rank int64, e
 // moment two processes shared one.
 //
 // THE STAMPS ARE WRITTEN IN THE SAME UNIT: the sitting and the two windows on the envelope, a
-// regrade's result grades, and the report checkpoint the event lands (stampReportCheckpoint).
+// regrade's result grades, an amend's resulting wording, and the report checkpoint the event lands (stampReportCheckpoint).
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	p, err := sittingOf(tx, ev)
 	if err != nil {
@@ -910,6 +910,11 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	}
 	if r, ok := body.(*recordpb.Regrade); ok {
 		if err := stampRegradeResult(tx, r); err != nil {
+			return 0, err
+		}
+	}
+	if a, ok := body.(*recordpb.Amend); ok {
+		if err := stampAmendResult(tx, a); err != nil {
 			return 0, err
 		}
 	}

@@ -3,7 +3,6 @@ package migrate_test
 import (
 	"regexp"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -107,9 +106,6 @@ func assertRoundless(t *testing.T, fam record.Family) {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
 			if !regexp.MustCompile(`^G-[0-9a-f]{8}$`).MatchString(m.GetGapId()) {
 				t.Errorf("mint %q is not a gap id", m.GetGapId())
-			}
-			if s := m.GetSupersedes(); strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
-				t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
 			}
 		}
 	}

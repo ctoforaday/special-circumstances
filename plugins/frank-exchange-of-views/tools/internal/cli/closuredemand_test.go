@@ -396,68 +396,6 @@ func TestARetireOfTheOnlyAnswerRacingTheCloseRefusesIt(t *testing.T) {
 	}
 }
 
-// THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT (ruled by gblock 2026-11-05): a `source`
-// successor of a refuted reading's unanswered gap is met by what would have met the ancestor — blue's
-// retire of the citation the reading read, or the reader's own backing re-read — and another lens's
-// re-read meets nothing, its refusal naming the ancestor's citation and reader.
-func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
-	reread := func(t *testing.T, b readingBoard, seat string) {
-		b.sit(seat)
-		b.mustRead(seat, citeReading(b.c1, "supports")...)
-	}
-	for _, c := range []struct {
-		name string
-		act  func(t *testing.T, b readingBoard)
-		met  bool
-	}{
-		{"blue retires the citation the ancestor's reading read", func(t *testing.T, b readingBoard) { retireAnchor(t, b.runDir, b.c1) }, true},
-		{"the reader's own backing re-read", func(t *testing.T, b readingBoard) { reread(t, b, lensL) }, true},
-		{"another lens's backing re-read", func(t *testing.T, b readingBoard) { reread(t, b, lensM) }, false},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			b := readingRun(t)
-			b.mustRead(lensL, citeReading(b.c1, "refutes")...)
-			g1, out, err := b.mintSource(lensL, "claim_contradicts_source", about(b.c1)...)
-			if err != nil {
-				t.Fatalf("the gap on the refuting reading: %v\n%s", err, out)
-			}
-			g2 := demandGap(t, b.runDir, "succ", "source", "--supersedes", g1)
-			if open, answered, awaiting := gapRow(t, b.runDir, g2); !open || answered || !awaiting {
-				t.Fatalf("successor %s: open %v answered %v awaiting %v, want open and awaiting the demand it carries", g2, open, answered, awaiting)
-			}
-			c.act(t, b)
-			_, answered, _ := gapRow(t, b.runDir, g2)
-			err = lensClose(t, b.runDir, lensL, g2, "repaired")
-			if c.met {
-				if !answered || err != nil {
-					t.Fatalf("successor %s: evidence_answered %v, close %v; want its ancestor's reach to meet it", g2, answered, err)
-				}
-				return
-			}
-			if answered {
-				t.Errorf("another lens's re-read met successor %s's demand", g2)
-			}
-			wantDemandRefusal(t, err, g2, "source", "blue's `retire --anchor "+b.c1+"`, the citation "+g1+" was about, whose demand this gap carries",
-				"a reading of "+b.c1+" by "+lensL)
-		})
-	}
-}
-
-// ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, and a seat that may not is told that before what a
-// successor would owe.
-func TestANonMinterIsToldTheMinterRuleBeforeTheDemand(t *testing.T) {
-	runDir := citedRun(t)
-	g := demandGap(t, runDir, "G", "source")
-	const other = "red-lens-logic"
-	registerSeatOnce(t, runDir, other)
-	_, err := runMint(t, "--run", runDir, "--seat-id", other, "--class", "spec_underspecification", "--problem", "p", "--fix", "f",
-		"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--check-kind", "document",
-		"--about-kind", "section", "--about", "Findings", "--supersedes", g)
-	if err == nil || !strings.Contains(err.Error(), "only its assignee closes a gap") || strings.Contains(err.Error(), "live-answer demand") {
-		t.Fatalf("%s's document successor of %s's awaiting %s: %v; want the minter rule's refusal", other, lensSeat, g, err)
-	}
-}
-
 // A CHECK KIND THE BINARY DOES NOT DECLARE IS NO DEMAND IT CAN STATE: the read is an error, never the
 // "" a `document` gap answers, and the close it guards is refused.
 func TestAnUndeclaredCheckKindIsALoudDemandRead(t *testing.T) {

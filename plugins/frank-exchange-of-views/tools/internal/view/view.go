@@ -271,10 +271,6 @@ func ledgerMD(in Input) []byte {
 		"",
 	}
 	for _, g := range open {
-		supersedes := ""
-		if s := g.Mint.GetSupersedes(); s != "" {
-			supersedes = " | supersedes " + s
-		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
 			// `reason` WAS THE PAYLOAD KEY; the field is `basis` (recordpb/required.go declares
@@ -290,11 +286,11 @@ func ledgerMD(in Input) []byte {
 				class = proto.String(recordpb.Word(m.GetClass()))
 			}
 		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
+		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s\n",
 			g.ID, truncate(g.Mint.GetProblem(), 100),
 			g.Mint.GetLocation(),
 			gradeText(g.Severity), gradeText(g.Likelihood), gradeText(g.Impact), gradeText(g.ComplexityCost), undefStr(class),
-			supersedes, regraded,
+			regraded,
 			g.Mint.GetRequiredFix(),
 			undefStr(check)))
 	}
@@ -310,11 +306,7 @@ func ledgerMD(in Input) []byte {
 		if cc == "" {
 			cc = "repaired"
 		}
-		succ := g.Successor()
-		if succ == "" {
-			succ = "-"
-		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60), succ))
+		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60)))
 	}
 	ledgerParts = append(ledgerParts, anomalyFooter)
 	return []byte(strings.Join(ledgerParts, "\n"))
@@ -347,12 +339,8 @@ func archiveMD(in Input) []byte {
 		if carriedFrom != nil {
 			anchor = "CARRIED from " + undefStr(carriedFrom)
 		}
-		successor := ""
-		if s := g.Successor(); s != "" {
-			successor = "\nsuccessor: " + s
-		}
-		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s%s\n",
-			g.ID, cc, g.Mint.GetProblem(), anchor, successor))
+		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s\n",
+			g.ID, cc, g.Mint.GetProblem(), anchor))
 	}
 	return []byte(strings.Join(archiveParts, "\n"))
 }
@@ -387,7 +375,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		seenEpoch[r] = true
 	}
 	// Defensive: a gap minted or closed outside the event epoch span still gets its row.
-	byID := record.GapsByID(in.Gaps)
 	for _, g := range in.Gaps {
 		seenEpoch[g.Epoch] = true
 		if g.HasClosed {
@@ -405,7 +392,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	var telemetry []*recordpb.TelemetryLine
 	prevClasses := map[string]bool{} // the previous epoch's mint classes — the repeat-rate basis
 	for _, r := range epochs {
-		var openAtR, minted, closedAtR, lineage []*record.Gap
+		var openAtR, minted []*record.Gap
 		realizedOpen := 0
 		for _, g := range in.Gaps {
 			closedEpoch := 99 // mirrors `g.closedRound ?? 99`
@@ -420,27 +407,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			}
 			if g.Epoch == r {
 				minted = append(minted, g)
-				if len(g.Mint.GetSupersedes()) > 0 {
-					lineage = append(lineage, g)
-				}
-			}
-			if g.HasClosed && g.ClosedEpoch == r {
-				closedAtR = append(closedAtR, g)
-			}
-		}
-		var down, up float64
-		for _, g := range lineage {
-			if anc := g.Mint.GetSupersedes(); anc != "" {
-				a := byID[anc]
-				if a == nil {
-					continue
-				}
-				d := record.GapMass(record.GradeStr(g.Likelihood), record.GradeStr(g.Impact)) - record.GapMass(record.GradeStr(a.Likelihood), record.GradeStr(a.Impact))
-				if d < 0 {
-					down += -d
-				} else {
-					up += d
-				}
 			}
 		}
 		// ORDER IS OWNED HERE, which is the schema's stated reason for `repeated` over a map:
@@ -532,10 +498,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 				maxSeverity = sevs[0].Enum()
 			}
 		}
-		var ratio *float64
-		if len(closedAtR) > 0 {
-			ratio = proto.Float64(round2(float64(len(lineage)) / float64(len(closedAtR))))
-		}
 		line := &recordpb.TelemetryLine{
 			Epoch:          proto.Int32(int32(r)),
 			MappingVersion: proto.String(record.MassMappingVersion),
@@ -550,15 +512,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			},
 			Mass:         proto.Float64(massSum(openAtR)),
 			RealizedOpen: proto.Int32(int32(realizedOpen)),
-			RepairRegression: &recordpb.RepairRegression{
-				Closures:     proto.Int32(int32(len(closedAtR))),
-				LineageMints: proto.Int32(int32(len(lineage))),
-				Ratio:        ratio,
-			},
-			EdgeDeltas: &recordpb.EdgeDeltas{
-				DownMass: proto.Float64(round2(down)),
-				UpMass:   proto.Float64(round2(up)),
-			},
 		}
 		telemetry = append(telemetry, line)
 		prevClasses = nextPrevClasses
@@ -938,8 +891,7 @@ func AsWritten(s, _ string) string { return s }
 //
 // One struct per nested object, in the field order the line has always had. Pointers WITHOUT
 // omitempty are deliberate: a nil renders as `null`, which is what this wire says for "not
-// measured this epoch" — max_severity with nothing graded, class_repeat_rate with nothing minted,
-// ratio with nothing closed. Omitting the key instead would make an unmeasured epoch and an epoch
+// measured this epoch" — max_severity with nothing graded, class_repeat_rate with nothing minted. Omitting the key instead would make an unmeasured epoch and an epoch
 // that never reported the field indistinguishable to a reader.
 
 // TelemetryLineShape is the zero value of ONE telemetry line, exported so the projection's
@@ -953,15 +905,13 @@ func AsWritten(s, _ string) string { return s }
 func TelemetryLineShape() any { return telemetryLineJSON{} }
 
 type telemetryLineJSON struct {
-	Epoch            *int32         `json:"epoch"`
-	MappingVersion   *string        `json:"mapping_version"`
-	OpenCount        *int32         `json:"open_count"`
-	MaxSeverity      *string        `json:"max_severity"`
-	NewMint          newMintJSON    `json:"new_mint"`
-	Mass             *float64       `json:"mass"`
-	RealizedOpen     *int32         `json:"realized_open"`
-	RepairRegression repairRegJSON  `json:"repair_regression"`
-	EdgeDeltas       edgeDeltasJSON `json:"edge_deltas"`
+	Epoch          *int32      `json:"epoch"`
+	MappingVersion *string     `json:"mapping_version"`
+	OpenCount      *int32      `json:"open_count"`
+	MaxSeverity    *string     `json:"max_severity"`
+	NewMint        newMintJSON `json:"new_mint"`
+	Mass           *float64    `json:"mass"`
+	RealizedOpen   *int32      `json:"realized_open"`
 }
 
 type newMintJSON struct {
@@ -980,17 +930,6 @@ type severityTallyJSON struct {
 type classTallyJSON struct {
 	Class string `json:"class"`
 	Count *int32 `json:"count"`
-}
-
-type repairRegJSON struct {
-	Closures     *int32   `json:"closures"`
-	LineageMints *int32   `json:"lineage_mints"`
-	Ratio        *float64 `json:"ratio"`
-}
-
-type edgeDeltasJSON struct {
-	DownMass *float64 `json:"down_mass"`
-	UpMass   *float64 `json:"up_mass"`
 }
 
 // telemetryWire maps the typed row onto that shape. gradeText, not recordpb.Word: an ungraded top
@@ -1022,12 +961,6 @@ func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 	}
 	for _, ct := range nm.GetByClass() {
 		w.NewMint.ByClass = append(w.NewMint.ByClass, classTallyJSON{Class: recordpb.Word(ct.GetClass()), Count: ct.Count})
-	}
-	if rr := t.GetRepairRegression(); rr != nil {
-		w.RepairRegression = repairRegJSON{Closures: rr.Closures, LineageMints: rr.LineageMints, Ratio: rr.Ratio}
-	}
-	if ed := t.GetEdgeDeltas(); ed != nil {
-		w.EdgeDeltas = edgeDeltasJSON{DownMass: ed.DownMass, UpMass: ed.UpMass}
 	}
 	return w
 }

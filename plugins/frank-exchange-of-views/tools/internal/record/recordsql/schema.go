@@ -227,6 +227,9 @@ var QueryIndexDDL = `
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
+-- A gap's latest amend, whose stored result wording the write path overlays the next amend on
+-- (recordsql.stampAmendResult) and the refresh reads as the current wording.
+CREATE INDEX "amend_gap" ON "amend" ("gap_id", "event_id");
 -- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");

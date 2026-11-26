@@ -484,22 +484,11 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 			perClassSentence[k] = append(perClassSentence[k], g)
 		}
 	}
-	// A GAP ITS SUCCESSOR NAMES IN --supersedes IS NOT A SECOND GAP ON THE SUBJECT: the rule admits the
-	// successor over it by design (record.requireOneGapPerClassAndSubject), as checkOneGap does at the
-	// mint. Every other pair is the rule broken, and the run names it.
+	// Every pair is the rule broken (record.requireOneGapPerClassAndSubject), and the run names it.
 	for _, k := range keys {
-		gs := perClassSentence[k]
-		superseded := map[string]bool{}
-		for _, g := range gs {
-			if a := g.Mint.GetSupersedes(); a != "" {
-				superseded[a] = true
-			}
-		}
 		var standing []string
-		for _, g := range gs {
-			if !superseded[g.ID] {
-				standing = append(standing, g.ID)
-			}
+		for _, g := range perClassSentence[k] {
+			standing = append(standing, g.ID)
 		}
 		res.maxOpenPerClassSentence = max(res.maxOpenPerClassSentence, len(standing))
 		if len(standing) > 1 && res.oneGapBreach == "" {

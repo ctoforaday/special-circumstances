@@ -48,7 +48,10 @@ type Result struct {
 	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
 	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 80)
 	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 80)
-	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes no successor once cross-seat links drop, written as no event (EventSchema 80)
+	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes none on the migrated record, written as no event (EventSchema 80)
+	SupersedeLinks      []migration.SupersedeLink     // Translation 7: every archived supersede link and what it became (supersede.go)
+	RekeyedAnchors      []int64                       // Translation 7: source ids of an amended successor's marker placements, written as no event
+	AmendedAncestorActs []int64                       // Translation 7: source ids of a close or regrade naming a gap an amended link restated, after it, written as no event
 	Dockets             migration.DocketResidue       // Translations 3 and 4's residue: the source ids written as no event (EventSchema 80)
 	LostActs            []migration.Refusal           // archived acts the delivered-text rule refuses, written as no event (undeliveredLoss)
 
@@ -129,6 +132,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		In:             map[string]int{},
 		Out:            map[string]int{},
 		AcceptedLosses: map[string]string{},
+		SupersedeLinks: []migration.SupersedeLink{},
 	}
 	res.SourceHash, err = hashEvents(evs)
 	if err != nil {
@@ -150,6 +154,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// citation its carrying reading named is the subject the live mint names, read off the source
 	// stream, since the migrated Verify names no gap.
 	cited := citedInActMints(evs)
+	// A SUPERSEDE LINK IS AN AMEND OR NOTHING (Translation 7, supersede.go): the ancestor each archived
+	// mint named is read off the SOURCE stream, since no translated mint carries it.
+	ancestors := supersededBy(evs)
+	amendedAncestors := map[string]bool{} // first gaps an amended link restated (actOnAmendedAncestor)
 	// AN ARCHIVED DOCKET IS A DOCKETING, OR NO EVENT (EventSchema 80, docketing.go): which docket the
 	// dispatch filed is read off the source stream's order, which no translated body carries.
 	dockets, err := docketsOf(evs, reg, rm)
@@ -352,12 +360,8 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		}
 		var drop docketDrop
 		if bodies, drop = dockets.translate(bodies); drop != keptDocket {
-			if drop == supersededDocket {
-				res.Dockets.Superseded = append(res.Dockets.Superseded, old.ID)
-			} else {
-				res.Dockets.PartyDockets = append(res.Dockets.PartyDockets, old.ID)
-			}
-			if r, ok := src.Fields["motion_id"].(string); ok && src.Word == "motion_rule" && drop == partyDocket {
+			res.Dockets.PartyDockets = append(res.Dockets.PartyDockets, old.ID)
+			if r, ok := src.Fields["motion_id"].(string); ok && src.Word == "motion_rule" {
 				reopened[rm.respelled(dockets.gapOf[r])] = true
 			}
 			if err := pinBefore(old.ID); err != nil {
@@ -447,13 +451,33 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				continue
 			}
 			if m, ok := body.(*recordpb.Mint); ok {
-				if err := dropCrossSeatLink(batch.Querier(), m, seatID); err != nil {
-					return nil, err
+				if raw, linked := ancestors[src.ID]; linked {
+					link, amend, regrade, err := supersedeLink(batch.Querier(), m, seatID, rm.current(rm.respelled(raw)))
+					if err != nil {
+						return nil, err
+					}
+					link.OldID = old.ID
+					res.SupersedeLinks = append(res.SupersedeLinks, link)
+					if amend != nil {
+						wrote, err := writeAmend(batch, id, ts, amend, regrade, res)
+						if err != nil {
+							res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+							continue
+						}
+						rm.rekey(m.GetGapId(), amend.GetGapId())
+						amendedAncestors[amend.GetGapId()] = true
+						if _, seen := newID[old.ID]; !seen {
+							for _, k := range links[1:] {
+								newID[byKey[k].ID] = wrote
+							}
+							newID[old.ID] = wrote
+						}
+						continue
+					}
 				}
 			}
-			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT, and counted (UnowedEngagements):
-			// the successors it engaged were named by a cross-seat lineage link dropCrossSeatLink drops,
-			// so the record names none for it. A pin naming it names the record before it.
+			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT, and counted (UnowedEngagements): the
+			// record as migrated names none for it. A pin naming it names the record before it.
 			if d, ok := body.(*recordpb.Dispatch); ok {
 				if none, err := record.EngagementOwesNone(batch.Querier(), seatID, d); err != nil {
 					return nil, err
@@ -576,6 +600,32 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				if err := CarryPlanPass(pl, batch.Querier()); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
+				}
+			}
+			// AN ACT ON A GAP AN AMENDED LINK RESTATED, NAMING THE GAP ITSELF RATHER THAN ITS SUCCESSOR, IS
+			// WRITTEN AS NO EVENT (Translation 7): under the rule of its day the seat went on acting on the
+			// gap it had superseded — closing it as carried by the successor, regrading it — and the
+			// successor is that gap now, so the act would close or move the gap the successor's own acts
+			// go on answering. A pin naming it names the record before it.
+			if actOnAmendedAncestor(rm, src, body, amendedAncestors) {
+				res.AmendedAncestorActs = append(res.AmendedAncestorActs, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			// A RE-KEYED SUCCESSOR'S MARKER IS ITS FIRST GAP'S (Translation 7): the successor kept the first
+			// gap's location, so its Anchor placed a second marker on the sentence the first gap's already
+			// marks, and is written as no event; a pin naming it names the record before it.
+			if _, ok := body.(*recordpb.Anchor); ok {
+				if raw, _ := src.Fields["id"].(string); raw != "" {
+					if _, rekeyed := rm.rekeyed[rm.respelled(raw)]; rekeyed {
+						res.RekeyedAnchors = append(res.RekeyedAnchors, old.ID)
+						if err := pinBefore(old.ID); err != nil {
+							return nil, err
+						}
+						continue
+					}
 				}
 			}
 			// A DROPPED LABEL'S OR FINDING'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
@@ -805,9 +855,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		res.SupersededOutcomes = []migration.SupersededOutcome{}
 	}
 	res.QuotelessReadings, res.SettledEdits = statedIDs(res.QuotelessReadings), statedIDs(res.SettledEdits)
-	res.UnowedEngagements = statedIDs(res.UnowedEngagements)
+	res.UnowedEngagements, res.RekeyedAnchors = statedIDs(res.UnowedEngagements), statedIDs(res.RekeyedAnchors)
+	res.AmendedAncestorActs = statedIDs(res.AmendedAncestorActs)
 	d := &res.Dockets
-	d.Opinions, d.PartyDockets, d.Superseded = statedIDs(d.Opinions), statedIDs(d.PartyDockets), statedIDs(d.Superseded)
+	d.Opinions, d.PartyDockets = statedIDs(d.Opinions), statedIDs(d.PartyDockets)
 	d.EndedRulings, d.BenchRegrades, d.SpotChecks, d.InquiryChecks = statedIDs(d.EndedRulings), statedIDs(d.BenchRegrades), statedIDs(d.SpotChecks), statedIDs(d.InquiryChecks)
 	return res, nil
 }
@@ -1130,4 +1181,22 @@ func statedIDs(ids []int64) []int64 {
 		return []int64{}
 	}
 	return ids
+}
+
+// writeAmend writes an amended supersede link's acts (Translation 7): the Amend, then the Regrade where
+// the grades differ, under the successor's seat and stamp. It answers the Amend's events.id.
+func writeAmend(batch *record.Replay, id record.Identity, ts time.Time, amend *recordpb.Amend, regrade *recordpb.Regrade, res *Result) (int64, error) {
+	ev, actID, err := batch.Write(id, amend, ts)
+	if err != nil {
+		return 0, err
+	}
+	res.Out[wordOf(ev)]++
+	if regrade != nil {
+		rev, _, err := batch.Write(id, regrade, ts)
+		if err != nil {
+			return 0, fmt.Errorf("the amend landed and its regrade is refused: %w", err)
+		}
+		res.Out[wordOf(rev)]++
+	}
+	return actID, nil
 }

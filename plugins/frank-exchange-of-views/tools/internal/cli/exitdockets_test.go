@@ -9,9 +9,8 @@ import (
 // proposalActs is each act a proposal takes on gap, as its filing's words.
 func proposalActs(gap string) map[string][]string {
 	return map[string][]string{
-		"regrade":   {"motion", "docket", "file", "regrade", "--id", gap, "--severity", "low", "--reason", "the harm needs two failures"},
-		"close":     append([]string{"motion", "docket", "file", "close", "--id", gap, "--reason", "not a defect"}, closeFlags("not_a_defect")...),
-		"supersede": append([]string{"motion", "docket", "file", "supersede", "--id", gap, "--reason", "the gap misstates the defect"}, supersedeFlags()...),
+		"regrade": {"motion", "docket", "file", "regrade", "--id", gap, "--severity", "low", "--reason", "the harm needs two failures"},
+		"close":   append([]string{"motion", "docket", "file", "close", "--id", gap, "--reason", "not a defect"}, closeFlags("not_a_defect")...),
 	}
 }
 

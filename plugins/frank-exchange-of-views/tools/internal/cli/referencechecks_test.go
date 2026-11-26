@@ -41,10 +41,6 @@ var referenceChecks = []struct {
 }{
 	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
-		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--class", against: "the GapClass set", bogus: "no-such-class-slug",
 		extra: []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
@@ -77,8 +73,6 @@ var referenceChecks = []struct {
 		extra: []string{"--severity", "low", "--reason", "r"}},
 	{verb: []string{"motion", "docket", "file", "close"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "not_a_defect", "--verified-by", "blue-respond", "--verified-with", "read", "--verified-against", "the report", "--reason", "r"}},
-	{verb: []string{"motion", "docket", "file", "supersede"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: append(supersedeFlags(), "--reason", "r")},
 	// The accept names the motion it answers, by its id.
 	{verb: []string{"motion", "docket", "accept"}, flag: "--id", against: "the motions on the record", bogus: "M-00000009",
 		extra: []string{"--reason", "r"}},
@@ -98,13 +92,11 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "supports", "--confidence", "high", "--reason", "r"}},
 	{verb: []string{"reproduce"}, flag: "--anchor", against: "the computations on the record", bogus: "K-deadbeef",
 		extra: []string{"--as", "sound", "--reason", "r"}},
-	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
-	// gap references and needs its own fixture — which is the whole point of deriving this gate
+	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the gap
+	// reference and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
 	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--carried-from", "1", "--as", "repaired", "--reason", "r"}},
-	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	// A READ'S REFERENCE IS CHECKED TOO: the changes view scoped to a gap nobody minted answers
 	// with nothing, which reads as a gap nobody has answered.
 	{verb: []string{"show", "changes"}, flag: "--id", against: "the board", bogus: "G2"},

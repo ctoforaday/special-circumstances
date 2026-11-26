@@ -130,12 +130,37 @@ func (r *demandRecord) ruleDocket(id, motion string, as recordpb.Disposition) in
 	return r.add("lead-judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, mr)
 }
 
-// proposeSupersede files docket motion id on gap, proposing the supersede by successor.
-func (r *demandRecord) proposeSupersede(id, gap, successor string) int64 {
+// proposeClose files docket motion id on gap, proposing its close as repaired.
+func (r *demandRecord) proposeClose(id, gap string) int64 {
 	return r.add(other, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-		MotionId: proto.String(id), Basis: proto.String("the gap misstates its defect"),
+		MotionId: proto.String(id), Basis: proto.String("the report no longer states the defect"),
 		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
-		Act:    &recordpb.Motion_Supersede{Supersede: r.mintBody(successor, recordpb.CheckKind_CHECK_KIND_DOCUMENT, "", gap)}})
+		Act: &recordpb.Motion_Close{Close: &recordpb.Close{GapId: proto.String(gap), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+			Prose: proto.String("repaired"), AnchorSeat: proto.String(other), AnchorTool: proto.String("the report read"), AnchorTarget: proto.String("the sentence")}}})
+}
+
+// amend restates gap's problem.
+func (r *demandRecord) amend(gap, problem string) int64 {
+	return r.add(reader, recordpb.EventType_EVENT_TYPE_AMEND, &recordpb.Amend{
+		GapId: proto.String(gap), Problem: proto.String(problem), Basis: proto.String("the wording overstated the defect")})
+}
+
+// mintOf mints gap of kind about anchor, or a section when about is "".
+func (r *demandRecord) mintOf(gap string, kind recordpb.CheckKind, about string) int64 {
+	return r.add(reader, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody(gap, kind, about))
+}
+
+// mintBody is the mint mintOf writes.
+func (r *demandRecord) mintBody(gap string, kind recordpb.CheckKind, about string) *recordpb.Mint {
+	m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
+		GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		Problem: proto.String("p"), AcceptanceCheck: proto.String("a"), CheckKind: kind.Enum(),
+		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings")}
+	if about != "" {
+		m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(about)
+	}
+	return m
 }
 
 // answerAct answers docket motion id's proposed act as seat, siding with side: the bench names the
@@ -176,49 +201,40 @@ func gapIs(gap, cond string) string {
 }
 
 // gapStateSteps is a record that moves every column of gap_state through every marker trigger, one
-// act per step, with the state each act leaves, including the three paths no archived run holds: the
-// minter's re-read of the anchor its gap is about, an upheld position's remand, and an evidence demand
-// carried to an heir by supersession.
+// act per step, with the state each act leaves, including the paths no archived run holds: the
+// minter's re-read of the anchor its gap is about, an upheld position's remand, and an amend of the
+// gap's wording.
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	var hMint, rClose, rRetire, rCarry, m1, k1, k2, k2Rule, dClose, xMint, yRule, f1, gClose int64
+	var rClose, rRetire, rCarry, m1, k1, k2, k2Rule, dClose, yRule, f1, gClose, amEvent int64
 	impasse, movement, proposal := recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL
 	at := func(v *int64) string { return fmt.Sprint(*v) }
 	none := func() []string { return nil }
 	return []gapStep{
 		// A check made before its anchor is placed meets nothing until the anchor is placed.
 		{func() { r.mintOf("A", src, "C1") }, func() []string {
-			return []string{gapIs("A", `"open" AND NOT "evidence_answered" AND "awaiting_evidence" AND "supersedes" IS NULL AND "assignee" = '`+reader+`'
+			return []string{gapIs("A", `"open" AND NOT "evidence_answered" AND "awaiting_evidence" AND "minted_by" = '`+reader+`'
 			  AND "close_event" IS NULL AND "closed_by_bench" = 0 AND "material"`)}
 		}},
 		{func() { r.verify(reader, "C1", "", supports) }, func() []string { return []string{gapIs("A", `NOT "evidence_answered"`)} }},
 		{func() { r.cite("C1", "") }, func() []string { return []string{gapIs("A", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
 		// A recheck that does not hold replaces one that held.
 		{func() { r.verify(reader, "C1", "", refutes) }, func() []string { return []string{gapIs("A", `NOT "evidence_answered" AND "awaiting_evidence"`)} }},
-		// The heir carries A's demand (same evidence kind) and its mint closes A; the reader's refuting
-		// check came before the heir's mint, so it meets nothing for H.
-		{func() { hMint = r.mintOf("H", src, "", "A") }, func() []string {
-			return []string{
-				gapIs("A", `NOT "open" AND "superseded_by" = 'H' AND "supersede_event" = `+at(&hMint)+` AND NOT "closed_by_bench" AND NOT "bench_closed_last" AND NOT "awaiting_evidence"`),
-				gapIs("H", `"open" AND "supersedes" = 'A' AND NOT "evidence_answered" AND "awaiting_evidence"`),
-			}
-		}},
-		// Another seat's reading of the ancestor's anchor meets nothing: the demand is the minter's.
+		// Another seat's reading of the gap's anchor meets nothing: the demand is the minter's.
 		{func() { r.verify(other, "C1", "", supports) }, func() []string {
-			return []string{gapIs("A", `NOT "evidence_answered"`), gapIs("H", `NOT "evidence_answered" AND "awaiting_evidence"`)}
+			return []string{gapIs("A", `NOT "evidence_answered" AND "awaiting_evidence"`)}
 		}},
-		// The minter's re-read of the anchor, after the heir's mint: it meets A and, through the
-		// inherited reach, H; its refutation unmeets both.
+		// The minter's re-read of the anchor meets A; its refutation unmeets it.
 		{func() { r.verify(reader, "C1", "", supports) }, func() []string {
-			return []string{gapIs("A", `"evidence_answered"`), gapIs("H", `"evidence_answered" AND NOT "awaiting_evidence"`)}
+			return []string{gapIs("A", `"evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
 		{func() { r.verify(reader, "C1", "", refutes) }, func() []string {
-			return []string{gapIs("A", `NOT "evidence_answered"`), gapIs("H", `NOT "evidence_answered" AND "awaiting_evidence"`)}
+			return []string{gapIs("A", `NOT "evidence_answered" AND "awaiting_evidence"`)}
 		}},
-		// A retire of the ancestor's anchor after the heir's mint meets the heir.
+		// A retire of the gap's anchor meets it.
 		{func() { r.retire("C1") }, func() []string {
-			return []string{gapIs("A", `"evidence_answered"`), gapIs("H", `"evidence_answered" AND NOT "awaiting_evidence"`)}
+			return []string{gapIs("A", `"evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
 		// A computation placed as a gap's answer.
 		{func() { r.mintOf("P", comp, "") }, func() []string { return []string{gapIs("P", `"awaiting_evidence"`)} }},
@@ -241,10 +257,6 @@ func gapStateSteps(r *demandRecord) []gapStep {
 			return []string{gapIs("R", `"answers_retired_event" = `+at(&rRetire)+` AND "close_event" = `+at(&rCarry))}
 		}},
 		{func() { r.close("R", "") }, func() []string { return []string{gapIs("R", `"answers_retired_event" IS NULL`)} }},
-		// A mint naming a closed gap closes nothing.
-		{func() { r.mintOf("V", doc, "", "R") }, func() []string {
-			return []string{gapIs("R", `"supersede_event" IS NULL AND "superseded_by" IS NULL`), gapIs("V", `"open" AND "supersedes" = 'R' AND NOT "awaiting_evidence"`)}
-		}},
 		// The docket: a proposal, the docketing holding it remanded, then an impasse docketing ruled
 		// closing; a regrade moves the gap's grades and materiality.
 		{func() { r.mintOf("D", doc, "") }, func() []string { return []string{gapIs("D", `"current_severity" = 'medium' AND "material"`)} }},
@@ -305,40 +317,22 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
 			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
 		}},
-		// A SUCCESSOR IS ITS CHAIN'S ORIGIN'S, whoever writes it. Another lens's lineage mint of R
-		// (closed, reader's) is reader's, and so is that successor's own successor.
-		{func() { r.add(other, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("W", doc, "", "R")) }, func() []string {
-			return []string{gapIs("W", `"open" AND "supersedes" = 'R' AND "assignee" = '`+reader+`'`)}
-		}},
-		{func() { r.add(other, recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("W2", doc, "")) }, func() []string {
-			return []string{gapIs("W2", `"supersedes" IS NULL AND "assignee" = '`+other+`'`)}
-		}},
-		// The assignee accepts a proposed supersede: the accept closes nothing, and its own mint of the
-		// successor closes X as red's.
+		// The assignee accepts a proposal: the accept answers the filing and closes nothing.
 		{func() { r.mintOf("X", doc, "") }, none},
-		{func() { r.proposeSupersede("M4", "X", "X2") }, func() []string { return []string{gapIs("X", `"open" AND "unruled_docket_motion" = 'M4'`)} }},
+		{func() { r.fileDocket("M4", "X") }, func() []string { return []string{gapIs("X", `"open" AND "unruled_docket_motion" = 'M4'`)} }},
 		{func() { r.answerAct(reader, "M4", "", recordpb.SidedWith_SIDED_WITH_FILER) }, func() []string {
 			return []string{gapIs("X", `"open" AND "unruled_docket_motion" IS NULL AND "bench_close_event" IS NULL AND NOT "closed_by_bench"`)}
 		}},
-		{func() { xMint = r.mintOf("X2", doc, "", "X") }, func() []string {
-			return []string{gapIs("X", `NOT "open" AND "supersede_event" = `+at(&xMint)+` AND NOT "closed_by_bench"`),
-				gapIs("X2", `"open" AND "assignee" = '`+reader+`'`)}
-		}},
-		// The bench sides with one on its docketing: its ruling is the bench's close of Y, and the
-		// successor it writes after names a closed gap — lineage, closing nothing — and is Y's assignee's.
+		// The bench sides with the filer on its docketing, closing: its ruling is the bench's close of Y.
 		{func() { r.mintOf("Y", doc, "") }, none},
-		{func() { r.proposeSupersede("M5", "Y", "Y2") }, none},
+		{func() { r.proposeClose("M5", "Y") }, none},
 		{func() { r.docket("K4", "Y", proposal, "M5") }, func() []string { return []string{gapIs("Y", `"open" AND "standing_docketing" = 'K4'`)} }},
-		{func() { yRule = r.answerAct("lead-judge", "M5", "K4", recordpb.SidedWith_SIDED_WITH_FILER) }, func() []string {
+		{func() { yRule = r.ruleDocket("K4", "M5", recordpb.Disposition_DISPOSITION_REPAIRED) }, func() []string {
 			return []string{gapIs("Y", `NOT "open" AND "closed_by_bench" AND "bench_closed_last" AND "bench_close_event" = `+at(&yRule))}
 		}},
-		{func() { r.add("lead-judge", recordpb.EventType_EVENT_TYPE_MINT, r.mintBody("Y2", doc, "", "Y")) }, func() []string {
-			return []string{gapIs("Y", `"supersede_event" IS NULL AND "superseded_by" IS NULL AND "bench_close_event" = `+at(&yRule)),
-				gapIs("Y2", `"open" AND "supersedes" = 'Y' AND "assignee" = '`+reader+`'`)}
-		}},
-		// The bench sides with the assignee: the supersede does not apply, and the gap stands as it was.
+		// The bench sides with the assignee: the proposed close does not apply, and the gap stands as it was.
 		{func() { r.mintOf("Z", doc, "") }, none},
-		{func() { r.proposeSupersede("M6", "Z", "Z2") }, none},
+		{func() { r.proposeClose("M6", "Z") }, none},
 		{func() { r.docket("K5", "Z", proposal, "M6") }, none},
 		{func() { r.answerAct("lead-judge", "M6", "K5", recordpb.SidedWith_SIDED_WITH_ASSIGNEE) }, func() []string {
 			return []string{gapIs("Z", `"open" AND NOT "closed_by_bench" AND "bench_close_event" IS NULL AND "unruled_docket_motion" IS NULL
@@ -350,28 +344,21 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.retire("DY") }, func() []string {
 			return []string{gapIs("DY", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
-		// And an heir's, once a retire after its mint takes out the marker of the --quote ancestor whose
-		// demand it carries.
-		{func() { r.mintQuote("DW", src) }, none},
-		{func() { r.mintQuote("DX", src, "DW") }, func() []string {
-			return []string{gapIs("DX", `"open" AND "awaiting_evidence" AND NOT "evidence_answered"`)}
-		}},
-		{func() { r.retire("DW") }, func() []string {
-			return []string{gapIs("DW", `"evidence_answered"`), gapIs("DX", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
+		// An amend restates the gap's wording: the stored state is its result.
+		{func() { r.mintOf("AM", doc, "") }, func() []string { return []string{gapIs("AM", `"amend_event" IS NULL AND "current_problem" = 'p'`)} }},
+		{func() { amEvent = r.amend("AM", "restated") }, func() []string {
+			return []string{gapIs("AM", `"open" AND "amend_event" = `+at(&amEvent)+` AND "current_problem" = 'restated'`)}
 		}},
 	}
 }
 
-// mintQuote mints gap at a sentence of the report (--quote: no subject, a location), superseding supersedes.
-func (r *demandRecord) mintQuote(gap string, kind recordpb.CheckKind, supersedes ...string) int64 {
+// mintQuote mints gap at a sentence of the report (--quote: no subject, a location).
+func (r *demandRecord) mintQuote(gap string, kind recordpb.CheckKind) int64 {
 	m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), AcceptanceCheck: proto.String("a"), CheckKind: kind.Enum(),
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Location: proto.String("The figure is " + gap + ".")}
-	if len(supersedes) > 0 {
-		m.Supersedes = proto.String(supersedes[0])
-	}
 	return r.add(reader, recordpb.EventType_EVENT_TYPE_MINT, m)
 }
 
@@ -398,10 +385,9 @@ func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 // THE STORED GAP STATE IS THE RULES', AT EVERY EVENT, ON EVERY SHAPE. Each step's act leaves the
 // state the fixture states for it, and the stored state, kept append by append through the marker
 // triggers, is the refresh asked of every gap at once: the minter's re-read of its gap's anchor, an
-// upheld position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
-// a failing recheck, a carry close after the answers retire, a supersession of a closed gap, an older
-// docket standing again under a remand, a bench closure red's later close overrules, and a --quote
-// gap's demand met by the retire of its own marker, or of its ancestor's marker after the heir's mint.
+// upheld position's remand, a check before its anchor, a failing recheck, a carry close after the
+// answers retire, an older docket standing again under a remand, a bench closure red's later close
+// overrules, a --quote gap's demand met by the retire of its own marker, and an amend of a gap's wording.
 func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	r := newDemandRecord(t)
 	for i, step := range gapStateSteps(r) {
@@ -413,12 +399,10 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 			t.Fatalf("after step %d the stored gap state is not the refresh of every gap:\n%s", i, d)
 		}
 	}
-	// THE FIRST CLOSING ACT, of each arm: A's by the mint superseding it, R's by red's first close
-	// (two closes follow it), D's by the bench (red's close follows it), the rest open.
-	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open",
-		"F": "close", "G": "close",
-		"W": "open", "W2": "open", "X": "mint", "X2": "open", "Y": "motion_rule", "Y2": "open", "Z": "open",
-		"DY": "open", "DW": "mint", "DX": "open"}
+	// THE FIRST CLOSING ACT, of each arm: R's by red's first close (two closes follow it), D's by the
+	// bench (red's close follows it), the rest open.
+	want := map[string]string{"A": "open", "P": "open", "Q": "open", "R": "close", "D": "motion_rule", "E": "open", "U": "open",
+		"F": "close", "G": "close", "X": "open", "Y": "motion_rule", "Z": "open", "DY": "open", "AM": "open"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -434,7 +418,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 13 {
+	if len(markers) != 14 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {

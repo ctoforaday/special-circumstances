@@ -75,14 +75,4 @@ func TestTheChairsPassItemsAreTheGatesGaps(t *testing.T) {
 		t.Fatalf("PASS items = %q, want one naming G2 as material and none for the low G1", items)
 	}
 
-	// A superseded ancestor is closed, whatever its grade: its successor's mint closed it, and the
-	// list names neither it nor the low successor.
-	s := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").sit(2, evLens).
-		mint(evLens, "G1", "medium").mintSuperseding(evLens, "G3", "low", "G1").
-		register("red-chair")
-	items = passItems(sittingOfRunT(t, s.seed(), "chair", "red-chair"))
-	if len(items) != 0 {
-		t.Fatalf("PASS items = %q, want none: the material G1 closed at G3's mint, and G3 is low", items)
-	}
 }

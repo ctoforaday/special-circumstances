@@ -196,9 +196,7 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 	}
 
 	// Audit p8's trace: blue proposes close W, red's closing missing — --for-red refused naming the
-	// missing text; with red's text, --for-red closes G repaired, no later plan dockets G, blue's F8
-	// supersede proposal of G is refused naming the ruling tombstone, and after blue's reword of G's
-	// sentence it files.
+	// missing text; with red's text, --for-red closes G repaired, and no later plan dockets G.
 	t.Run("audit p8: blue's close, for red", func(t *testing.T) {
 		runDir := newRun(t)
 		quoteBoardBelowImpasse(t, runDir)
@@ -223,32 +221,12 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 		if after, _ := docketingsOn(t, runDir, boardGap); len(after) != len(before) {
 			t.Errorf("a plan after the ruling docketed the closed G again: %d → %d", len(before), len(after))
 		}
-		supersede := append([]string{"motion", "docket", "file", "supersede", "--id", boardGap, "--reason", "the gap misstates the defect",
-			"--quote", redRoad, "--class", otherClass}, "--problem", "the defect, restated", "--fix", "the fix, restated",
-			"--check-kind", "document", "--check", "the acceptance check red runs at re-audit", "--severity", "medium",
-			"--likelihood", "medium", "--impact", "medium")
-		asSeat(t, runDir, blueSeat, "register")
-		actRefusedNaming(t, runDir, "blue's F8 supersede of the ruled G", blueSeat, []string{"docketing " + d, "tombstone"}, supersede...)
-		rewordRuled(t, runDir, "RW", redRoad, "The index rose by four points in the producers' spring survey, on revised weights.")
-		asSeat(t, runDir, blueSeat, "register")
-		argv := append(supersede[:0:0], supersede...)
-		for i := range argv {
-			if argv[i] == redRoad {
-				argv[i] = "The index rose by four points in the producers' spring survey, on revised weights."
-			}
-		}
-		if out, err := runAt(t, append(argv, "--run", runDir, "--seat-id", blueSeat)...); err != nil {
-			t.Errorf("blue's F8 supersede after the reword ended the tombstone: %v\n%s", err, out)
-		}
 	})
 }
 
 // T-B19 (11): on an open G ruled for red on blue's regrade proposal, a grade-movement docketing on an
 // axis the proposal did not name lands through `dispatch next`, and the chair's own regrade proposal
-// on G is refused naming the tombstone. T-B19 (13), through the verbs: the bench's supersede accept
-// writes G's ruling row and then S; a lens's `mint --supersedes G`, S's assignee's `mint --supersedes
-// S` and a proposal on S after S's exchange are each refused naming it; after blue's reword of G's
-// sentence, a proposal on S lands.
+// on G is refused naming the tombstone.
 func TestARulingProtectsTheGapItLeavesStanding(t *testing.T) {
 	t.Run("(11) an open G ruled for red", func(t *testing.T) {
 		runDir := newRun(t)
@@ -272,49 +250,6 @@ func TestARulingProtectsTheGapItLeavesStanding(t *testing.T) {
 		asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 		if got := lastDocketing(t, runDir, boardGap); got.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT || got.GetDocketingId() == d {
 			t.Errorf("the plan after the impact moves wrote %+v, want a grade-movement docketing on the ruled G", got)
-		}
-	})
-
-	t.Run("(13) the successor a supersede accept leaves standing", func(t *testing.T) {
-		runDir := newRun(t)
-		quoteBoardBelowImpasse(t, runDir)
-		blueProposes(t, runDir, "supersede", "--reason", "the gap misstates the defect", "--quote", ruledSentence, "--class", otherClass,
-			"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
-			"--check", "the acceptance check red runs at re-audit", "--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-		d := docketsUnaccepted(t, runDir, "red-lens-evidence", boardGap).GetDocketingId()
-		benchAnswers(t, runDir, d, "for-blue")
-		s := lastBody(t, runDir, &recordpb.Mint{}).GetGapId()
-		rows, after := tombstoneRows(t, runDir)
-		if len(rows) != 1 || rows[0].GetGapId() != boardGap || rows[0].GetDocketingId() != d || after[0] != "*recordpb.MotionRule" {
-			t.Fatalf("tombstone rows %v after %v, want G's ruling row right after the ruling", rows, after)
-		}
-		m, err := record.MergedEvents(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		next := ""
-		for i, e := range m.Events {
-			if _, ok := recordpb.BodyAs[*recordpb.Tombstone](e); ok && i+1 < len(m.Events) {
-				if mt, ok := recordpb.BodyAs[*recordpb.Mint](m.Events[i+1]); ok {
-					next = mt.GetGapId()
-				}
-			}
-		}
-		if next != s {
-			t.Errorf("the act right after G's ruling row is not S's mint (%q, want %s)", next, s)
-		}
-		names := []string{"docketing " + d, "tombstone"}
-		asSeat(t, runDir, otherLens, "register")
-		mintRefusedNaming(t, runDir, "a lens's mint --supersedes G", otherLens, "spec_underspecification", ruledSentence, names, "--supersedes", boardGap)
-		asSeat(t, runDir, "red-lens-evidence", "register")
-		mintRefusedNaming(t, runDir, "S's assignee's mint --supersedes S", "red-lens-evidence", otherClass, ruledSentence, names, "--supersedes", s)
-		exchangeOn(t, runDir, s)
-		proposeS := []string{"motion", "docket", "file", "regrade", "--id", s, "--severity", "low", "--reason", "the harm needs two failures"}
-		actRefusedNaming(t, runDir, "a proposal on S", blueSeat, names, proposeS...)
-		rewordRuled(t, runDir, "RW", ruledSentence, "The index rose by nine points in the producers' spring survey.")
-		asSeat(t, runDir, blueSeat, "register")
-		if out, err := runAt(t, append(proposeS, "--run", runDir, "--seat-id", blueSeat)...); err != nil {
-			t.Errorf("the proposal on S after blue's reword of G's sentence: %v\n%s", err, out)
 		}
 	})
 }

@@ -21,8 +21,8 @@ import (
 func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	db := store(t)
 
-	mint := func(id string, supersedes ...string) *recordpb.Mint {
-		m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
+	mint := func(id string) *recordpb.Mint {
+		return &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("a problem for " + id),
@@ -31,15 +31,11 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 			Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 			Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
 		}
-		if len(supersedes) == 1 {
-			m.Supersedes = proto.String(supersedes[0])
-		}
-		return m
 	}
 	originals := []proto.Message{
 		mint("G1"),
 		mint("G2"),
-		mint("G3", "G1"),
+		mint("G3"),
 		&recordpb.Position{PositionId: proto.String("A-00000001"), Text: proto.String("red speaks")},
 		// A docket motion: the oneof arm WITH scalar columns, referencing the mint above, and the
 		// second oneof's arm holding a LIST of its own (the proposed close's anchors).
@@ -152,11 +148,6 @@ func BenchmarkEvents(b *testing.B) {
 	b.Cleanup(func() { _ = Close(path) })
 	for i := 0; i < 400; i++ {
 		gap := fmt.Sprintf("R1-%d", i+1)
-		// The gap minted before this one: it names only a gap already minted.
-		var supersedes *string
-		if i > 0 {
-			supersedes = proto.String(fmt.Sprintf("R1-%d", i))
-		}
 		bodies := []proto.Message{
 			&recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String(gap),
@@ -166,7 +157,6 @@ func BenchmarkEvents(b *testing.B) {
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 				Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-				Supersedes:      supersedes,
 			},
 			&recordpb.Position{PositionId: proto.String("A-00000002"), Text: proto.String("a position")},
 			&recordpb.Motion{

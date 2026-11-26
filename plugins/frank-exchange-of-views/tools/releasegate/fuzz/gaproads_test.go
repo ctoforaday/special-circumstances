@@ -13,8 +13,8 @@ import (
 const aboutGapWords = "a gap is not the subject of another gap"
 
 // aboutGapRefusedDrive is a lens's one `mint --about-kind gap` of the run, naming an open gap: the
-// word is refused before any validate, naming both roads a point about a gap takes — a proposed act
-// on it, or a mint superseding it (plans/findings-fold.md §III.A3). No draw types the word, so this
+// word is refused before any validate, naming the road a point about a gap takes — a proposed act on
+// it (plans/findings-fold.md §III.A3). No draw types the word, so this
 // drive is the gate's (about_gap_refused). An admission, another code, or a refusal naming no road
 // fails the run.
 func (r *runner) aboutGapRefusedDrive(seatID string) {
@@ -45,8 +45,8 @@ func (r *runner) aboutGapRefusedDrive(seatID string) {
 		r.noteActErr("mint --about-kind gap was refused with no refusal envelope: " + firstLine(out))
 	case env.Code != string(feov.Validation):
 		r.noteActErr("mint --about-kind gap was refused with code " + env.Code + ", not validation: " + firstLine(env.Error))
-	case !strings.Contains(env.Error, aboutGapWords) || !strings.Contains(env.Error, "motion docket file") || !strings.Contains(env.Error, "--supersedes"):
-		r.noteActErr("mint --about-kind gap was refused without naming both roads: " + firstLine(env.Error))
+	case !strings.Contains(env.Error, aboutGapWords) || !strings.Contains(env.Error, "motion docket file"):
+		r.noteActErr("mint --about-kind gap was refused without naming the proposal road: " + firstLine(env.Error))
 	default:
 		r.mu.Lock()
 		r.aboutGapRefused++
@@ -188,8 +188,8 @@ func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
 	}
 }
 
-// THE ONE `--about-kind gap` OF A RUN IS REFUSED NAMING BOTH ROADS, and a second call drives none.
-func TestTheAboutGapDriveIsRefusedNamingBothRoads(t *testing.T) {
+// THE ONE `--about-kind gap` OF A RUN IS REFUSED NAMING THE PROPOSAL ROAD, and a second call drives none.
+func TestTheAboutGapDriveIsRefusedNamingTheProposalRoad(t *testing.T) {
 	r, _ := staleRun(t)
 	r.dispatchSits("lens", staleFiler)
 	r.aboutGapRefusedDrive(staleFiler)

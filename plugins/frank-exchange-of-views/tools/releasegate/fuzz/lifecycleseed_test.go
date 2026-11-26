@@ -64,9 +64,8 @@ type lifecycleCounts struct {
 	// sourceAnswers: `cite --answers G` admitted.
 	sourceAnswers int
 	// closedAnswersRetired: a closed gap the board reads closed, with `answers_retired_event` set, after
-	// the retire of its last answer; retiredItemsCleared: its lens's item gone once the lens minted a gap
-	// superseding it.
-	closedAnswersRetired, retiredItemsCleared int
+	// the retire of its last answer.
+	closedAnswersRetired int
 	// retiredAboutCloses: the lens's close admitted of a `source` or `computation` gap about an anchor
 	// blue retired naming no gap (L1).
 	retiredAboutCloses int
@@ -91,8 +90,7 @@ type lifecycleCounts struct {
 	// unsound, at the end of a run that ends with one.
 	screenedUnsound int
 	// quoteGapMootAfterMarkerRetired: the lens's `moot` close admitted of a `--quote` computation or
-	// source gap, refused before, once blue's claim retire took out its own marker or, after the heir's
-	// mint, the marker of the ancestor whose demand it carries.
+	// source gap, refused before, once blue's claim retire took out its own marker.
 	quoteGapMootAfterMarkerRetired int
 }
 
@@ -101,7 +99,6 @@ type lifecycleTally struct {
 	ComputationRetires             int `json:"computation_retires"`
 	SourceAnswers                  int `json:"source_answers"`
 	ClosedAnswersRetired           int `json:"closed_answers_retired"`
-	RetiredItemsCleared            int `json:"retired_items_cleared"`
 	RetiredAboutCloses             int `json:"retired_about_closes"`
 	CitedRetiresRefused            int `json:"cited_retires_refused"`
 	ReadingDemandMetByRetire       int `json:"reading_demand_met_by_retire"`
@@ -119,8 +116,8 @@ type lifecycleTally struct {
 func (c lifecycleCounts) tally() lifecycleTally {
 	return lifecycleTally{
 		ComputationRetires: c.computationRetires, SourceAnswers: c.sourceAnswers,
-		ClosedAnswersRetired: c.closedAnswersRetired, RetiredItemsCleared: c.retiredItemsCleared,
-		RetiredAboutCloses: c.retiredAboutCloses, CitedRetiresRefused: c.citedRetiresRefused,
+		ClosedAnswersRetired: c.closedAnswersRetired,
+		RetiredAboutCloses:   c.retiredAboutCloses, CitedRetiresRefused: c.citedRetiresRefused,
 		ReadingDemandMetByRetire: c.readingDemandMetByRetire, ReadingDemandMetByReread: c.readingDemandMetByReread,
 		UnreadDemandReread: c.unreadDemandReread, UnreadDemandRefused: c.unreadDemandRefused,
 		UnsoundDemandRejudged: c.unsoundDemandRejudged, UnsoundDemandRefused: c.unsoundDemandRefused,
@@ -134,7 +131,6 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 	t.ComputationRetires += o.ComputationRetires
 	t.SourceAnswers += o.SourceAnswers
 	t.ClosedAnswersRetired += o.ClosedAnswersRetired
-	t.RetiredItemsCleared += o.RetiredItemsCleared
 	t.RetiredAboutCloses += o.RetiredAboutCloses
 	t.CitedRetiresRefused += o.CitedRetiresRefused
 	t.ReadingDemandMetByRetire += o.ReadingDemandMetByRetire
@@ -162,7 +158,6 @@ func (t lifecycleTally) gates() []struct {
 		{t.ComputationRetires, "retires of a computation (`retire --anchor K-`) admitted"},
 		{t.SourceAnswers, "citations placed as a source gap's answer (`cite --answers`) admitted"},
 		{t.ClosedAnswersRetired, "closed gaps whose answers were all retired read closed with answers_retired_event set"},
-		{t.RetiredItemsCleared, "answers-retired items gone once the lens minted the gap superseding the closed one"},
 		{t.RetiredAboutCloses, "closes admitted of a source or computation gap about an anchor blue retired naming no gap (L1)"},
 		{t.CitedRetiresRefused, "retires of a citation a live computation applies, refused naming the computation (L6)"},
 		{t.ReadingDemandMetByRetire, "closes admitted of a source gap minted about a citation on a refuting reading, its demand met by blue's retire of the citation"},
@@ -417,8 +412,8 @@ func (r *runner) driveLifecycle(blue string) string {
 		func() string { return r.lifecycleRetiredAbout(blue, lens, comp, c[7], c[8]) },
 		func() string { return r.lifecycleReachingRetire(blue, lens, c[9]) },
 		func() string { return r.lifecycleCitedRetire(blue, c[10], c[11]) },
-		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13], "") },
-		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15], c[16]) },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13]) },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15]) },
 	} {
 		if s := arm(); s != "" {
 			return s
@@ -429,7 +424,7 @@ func (r *runner) driveLifecycle(blue string) string {
 
 // lifecycleClosedAnswerRetired: a source gap closed on blue's citation; blue retires the citation; the
 // board reads the gap closed with answers_retired_event set, and the lens's list holds the item, blocking
-// nothing; the lens mints the gap superseding it, and the item is gone.
+// nothing.
 func (r *runner) lifecycleClosedAnswerRetired(blue, lens, claim string) string {
 	g, why := r.lifecycleMint(lens, "source", claim, "", "low")
 	if g == "" {
@@ -460,17 +455,6 @@ func (r *runner) lifecycleClosedAnswerRetired(blue, lens, claim string) string {
 	r.countLifecycle(func(c *lifecycleCounts) { c.closedAnswersRetired++ })
 	if it, ok := r.answersRetiredItem(lens, g); !ok || it.Blocks {
 		return fmt.Sprintf("%s's list holds no unblocking answers-retired item for %s (found %v, blocks %v)", lens, g, ok, it.Blocks)
-	}
-	succ, why := r.lifecycleMint(lens, "document", claim, "", "low", "--supersedes", g)
-	if succ == "" {
-		return "the mint superseding closed gap " + g + " was refused: " + why
-	}
-	if _, ok := r.answersRetiredItem(lens, g); ok {
-		return "the answers-retired item for " + g + " stands after " + lens + " minted " + succ + " superseding it"
-	}
-	r.countLifecycle(func(c *lifecycleCounts) { c.retiredItemsCleared++ })
-	if env, ok := r.lifecycleClose(lens, succ); !ok {
-		return "the close of " + succ + " was refused: " + env.Error
 	}
 	return ""
 }
@@ -770,23 +754,14 @@ func (r *runner) lifecycleCitedRetire(blue, claim, next string) string {
 }
 
 // lifecycleQuoteGapMoot (P12a, the demand holds while its subject stands): the lens mints a --quote
-// gap of check kind on claim, nothing answering it; where heirClaim is set it mints the heir superseding
-// it on heirClaim, which carries its demand. The heir's (else the gap's) `moot` is refused by the
-// demand; blue's edit cuts claim onto next carrying the marker, and its claim retire takes the marker
+// gap of check kind on claim, nothing answering it. Its `moot` is refused by the demand; blue's edit cuts claim onto next carrying the marker, and its claim retire takes the marker
 // out with the claim; at the lens's next sitting, delivered the cut, the same `moot` is admitted.
-func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next, heirClaim string) string {
+func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next string) string {
 	g, why := r.lifecycleMint(lens, kind, claim, "", "low")
 	if g == "" {
 		return "the --quote " + kind + " gap's mint was refused: " + why
 	}
 	closing := g
-	if heirClaim != "" {
-		h, why := r.lifecycleMint(lens, kind, heirClaim, "", "low", "--supersedes", g)
-		if h == "" {
-			return "the heir superseding --quote gap " + g + " was refused: " + why
-		}
-		closing = h
-	}
 	if env, ok := r.lifecycleCloseAs(lens, closing, "moot"); ok || !demandRefusal(env, closing, kind) {
 		return "the moot close of " + closing + " with its subject standing was not refused by its demand: " + env.Error
 	}

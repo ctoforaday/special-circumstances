@@ -486,57 +486,15 @@ func docketBenchSat(t *testing.T) Run {
 	return run
 }
 
-// Lineage is never dangling: a mint that supersedes an id no mint created is
-// refused, because the supersedes chain is what the whole analysis reads.
-func TestValidateRefusesDanglingLineage(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-chair"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
-	})
-	base := func(supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			GapId: proto.String("G2"), AcceptanceCheck: proto.String("c"),
-			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Class:     recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes: firstAncestor(supersedes),
-		}
-	}
-
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
-		t.Errorf("a real ancestor was refused: %v", err)
-	}
-	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G3"))
-	if err == nil {
-		t.Fatal("a dangling ancestor was accepted")
-	}
-	if !strings.Contains(err.Error(), "G3") || !strings.Contains(err.Error(), "dangling lineage refused") {
-		t.Errorf("error must name the dangling id: %v", err)
-	}
-	// A mint naming itself names a gap the record does not hold before it.
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G2")); err == nil || !strings.Contains(err.Error(), "dangling lineage refused") {
-		t.Errorf("a mint naming itself was not refused as dangling: %v", err)
-	}
-	// An empty lineage is not a dangling one.
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
-		t.Errorf("an empty lineage was refused: %v", err)
-	}
-}
-
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
 	seatID := evLens
-	// BOTH gaps are minted: G1 is the one being closed, G2 the successor a
-	// repaired_with_regression names. A successor is a reference like any other and is
-	// now checked, so a fixture that names one has to create it. The lens mints them on an
-	// ingested report and sits with its delivery, so each close is answered by the rule it names.
+	// G1 is the gap being closed. The lens mints it on an ingested report and sits with its
+	// delivery, so each close is answered by the rule it names.
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")}),
 		recordtest.At(t, seatID, seatID+":register", &recordpb.Register{}),
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
 	deliver(t, mustRun(t, runDir), seatID)
 	anchored := func() *recordpb.Close {
@@ -545,14 +503,6 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 			AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:path"),
 			Prose: proto.String("verified against the ref; the claim now holds"),
 		}
-	}
-	withClass := func(c recordpb.Disposition, successor string) *recordpb.Close {
-		a := anchored()
-		a.ClosureClass = c.Enum()
-		if successor != "" {
-			a.Successor = proto.String(successor)
-		}
-		return a
 	}
 	cases := []struct {
 		name    string
@@ -576,8 +526,6 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
 		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
-		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, ""), "requires --superseded-by"},
-		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, "G2"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

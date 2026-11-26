@@ -89,7 +89,7 @@ func TestTheLockedAxesAreTheWindowsMovedAxes(t *testing.T) {
 // TestNoLaterDocketingOverturnsARuling): A RULING'S LOCK ENDS WITH ITS TOMBSTONE (gblock 2026-11-21, "Ends
 // with the tombstone"). R1 (--keep) locks severity and likelihood, R2 (for blue on a regrade proposal)
 // re-locks severity; the row that ends G1's ruling tombstone — blue's reword's — ends every lock a
-// ruling on G1 set, and a successor's inherited lock with them; a later ruling's placement revives no
+// ruling on G1 set; a later ruling's placement revives no
 // ended lock, and a later grade ruling locks afresh.
 func TestARulingsLockEndsWithItsTombstone(t *testing.T) {
 	const lens = "red-lens-logic"
@@ -120,11 +120,6 @@ func TestARulingsLockEndsWithItsTombstone(t *testing.T) {
 	b.register(lens).add(lens, &recordpb.Regrade{GapId: proto.String("G1"), Impact: sev, Basis: proto.String("b")})
 	b.register("red-chair").add("red-chair", movement("D2"))
 	b.register("judge").add("judge", keep("D2")).add("judge", stone("D2", false))
-	b.register(lens).add(lens, func() *recordpb.Mint {
-		m := liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
-		m.Supersedes = proto.String("G1")
-		return m
-	}())
 	b.register("blue-respond").add("blue-respond", stone("", true))
 	b.register("red-chair").add("red-chair", &recordpb.Docketing{DocketingId: proto.String("D3"), GapId: proto.String("G1"),
 		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse")})
@@ -160,14 +155,8 @@ func TestARulingsLockEndsWithItsTombstone(t *testing.T) {
 	if got := locked(before["G1"]); len(got) != 3 {
 		t.Fatalf("before the end, G1's locked axes = %v, want severity, likelihood (R1) and impact (R2)", got)
 	}
-	if got := locked(before["G2"]); len(got) != 3 {
-		t.Fatalf("before the end, the successor G2 inherits %v, want G1's three", got)
-	}
 	after := benchSetAxesOf(evs, ids)
 	if got := locked(after["G1"]); len(got) != 0 {
 		t.Errorf("after the end row and a later closing ruling, G1's locked axes = %v, want none: the lock ended with its tombstone and a ruling on no grade revives none", got)
-	}
-	if got := locked(after["G2"]); len(got) != 0 {
-		t.Errorf("after the end row, the successor's inherited lock = %v, want none", got)
 	}
 }

@@ -112,13 +112,13 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// The docket motion is filed after the close — a close is refused while one stands on the gap —
-	// and a closed gap takes a proposed successor alone (F8).
+	// The motion is a petition, filed after the close: the board is clean but for it.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Basis:    proto.String("b"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
-		Act:      &recordpb.Motion_Supersede{Supersede: successorMint("G2", "G1")},
+		Basis:    proto.String("the required fix asks me to assert a search nobody ran"),
+		Relief:   proto.String("strike the requirement"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
+			Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_INTEGRITY)}},
 	}); err != nil {
 		t.Fatal(err)
 	}

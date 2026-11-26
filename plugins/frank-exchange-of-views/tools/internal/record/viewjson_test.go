@@ -287,9 +287,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	}
 }
 
-// TestBoardJSONFlattensMintWithoutDuplicating pins the board's one copy of a gap: its lineage
-// (supersedes) is a top-level field and no nested `mint` object re-states the top-level fields, so
-// each gap carries its prose once and nothing a reader needs is buried.
+// TestBoardJSONFlattensMintWithoutDuplicating pins the board's one copy of a gap: no nested `mint`
+// object re-states the top-level fields, so each gap carries its prose once and nothing a reader
+// needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
@@ -309,7 +309,6 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes:      proto.String("G1"),
 		}),
 	})
 	b, err := BoardJSONBytes(mustRun(t, runDir))
@@ -317,12 +316,6 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	// The lineage is a top-level field. Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"supersedes"`, `"G1"`} {
-		if !strings.Contains(s, want) {
-			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
-		}
-	}
 	// No nested `mint` object re-states the gap, so the prose appears exactly ONCE.
 	if strings.Contains(s, `"mint":`) {
 		t.Error("the board carries a nested `mint` object")

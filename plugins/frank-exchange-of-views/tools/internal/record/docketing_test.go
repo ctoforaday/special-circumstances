@@ -57,21 +57,17 @@ func (r *rawRecord) must(seat string, body proto.Message) {
 	}
 }
 
-func (r *rawRecord) mint(gap string, supersedes ...string) {
+func (r *rawRecord) mint(gap string) {
 	r.t.Helper()
-	r.must(evLens, rawMint(gap, supersedes...))
+	r.must(evLens, rawMint(gap))
 }
 
-// rawMint is a gap's mint, naming the one gap it supersedes where given.
-func rawMint(gap string, supersedes ...string) *recordpb.Mint {
-	m := &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
+// rawMint is a gap's mint.
+func rawMint(gap string) *recordpb.Mint {
+	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 		ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("a"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
-	if len(supersedes) > 0 {
-		m.Supersedes = proto.String(supersedes[0])
-	}
-	return m
 }
 
 func (r *rawRecord) docket(id, gap string, cause recordpb.DocketingCause, motion string) {
@@ -83,17 +79,12 @@ func (r *rawRecord) docket(id, gap string, cause recordpb.DocketingCause, motion
 	r.must(chairSeat, d)
 }
 
-// propose files blue's proposal id on gap: a supersede by successor, or (successor "") a regrade.
-func (r *rawRecord) propose(id, gap, successor string) {
+// propose files blue's proposal id on gap: a regrade.
+func (r *rawRecord) propose(id, gap string) {
 	r.t.Helper()
-	m := &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String("b"),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}}
-	if successor == "" {
-		m.Act = &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String(gap), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("lower")}}
-	} else {
-		m.Act = &recordpb.Motion_Supersede{Supersede: rawMint(successor, gap)}
-	}
-	r.must("blue-respond", m)
+	r.must("blue-respond", &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String("b"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		Act:    &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String(gap), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("lower")}}})
 }
 
 func (r *rawRecord) close(gap string, as recordpb.Disposition, carriedFrom string) {
@@ -200,13 +191,13 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 		}, map[string]string{"G1": "", "G3": ""}},
 		{"an impasse docketing stands", func() { r.docket("K1", "G1", impasse, "") }, map[string]string{"G1": "K1"}},
 		{"a grade-movement docketing stands", func() { r.docket("K2", "G2", movement, "") }, map[string]string{"G2": "K2"}},
-		{"a proposal stands", func() { r.propose("M3", "G3", "") }, map[string]string{"G3": "M3"}},
+		{"a proposal stands", func() { r.propose("M3", "G3") }, map[string]string{"G3": "M3"}},
 		{"its docketing holds it", func() { r.docket("K3", "G3", proposal, "M3") }, map[string]string{"G3": "K3 M3"}},
 		{"a moot close ends the impasse docketing", func() { r.close("G1", moot, "") }, map[string]string{"G1": ""}},
 		{"a repaired close ends the grade-movement docketing", func() { r.close("G2", repaired, "") }, map[string]string{"G2": ""}},
 		{"a close ends the proposal's docketing and the proposal", func() { r.close("G3", notADefect, "") }, map[string]string{"G3": ""}},
 		{"a close before the docketing's row", func() { r.close("G4", repaired, "") }, map[string]string{"G4": ""}},
-		{"a proposal on the closed gap (F8)", func() { r.propose("M4", "G4", "") }, map[string]string{"G4": "M4"}},
+		{"a proposal on the closed gap (F8)", func() { r.propose("M4", "G4") }, map[string]string{"G4": "M4"}},
 		{"its docketing stands on the closed gap", func() { r.docket("K4", "G4", proposal, "M4") }, map[string]string{"G4": "K4 M4"}},
 		{"a carry close after it ends nothing", func() { r.close("G4", repaired, "G4") }, map[string]string{"G4": "K4 M4"}},
 		{"a docketing the bench rules", func() { r.docket("K5", "G5", impasse, "") }, map[string]string{"G5": "K5"}},
@@ -289,7 +280,7 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 			motion := ""
 			if c.cause == proposal {
 				motion = "M"
-				r.propose(motion, "G", "")
+				r.propose(motion, "G")
 			}
 			if c.cause == proposal {
 				r.docket("K", "G", c.cause, motion)

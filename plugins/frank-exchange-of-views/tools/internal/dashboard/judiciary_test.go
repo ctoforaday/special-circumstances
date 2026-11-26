@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-func judMint(t *testing.T, seat, id string, l, i recordpb.Grade, supersedes ...string) *recordpb.Event {
+func judMint(t *testing.T, seat, id string, l, i recordpb.Grade) *recordpb.Event {
 	t.Helper()
 	return recordtest.Event(t, seat, &recordpb.Mint{
 		GapId:           proto.String(id),
@@ -24,7 +24,6 @@ func judMint(t *testing.T, seat, id string, l, i recordpb.Grade, supersedes ...s
 		Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood:      recordtest.P(l),
 		Impact:          recordtest.P(i),
-		Supersedes:      firstAncestor(supersedes),
 	})
 }
 
@@ -55,9 +54,9 @@ func docketRuled(t *testing.T, docketing string, d recordpb.Disposition, princip
 }
 
 // judiciaryRun is a record holding every fact the Judiciary table shows: a docket sitting with
-// two rulings, an epoch 3 the chair has opened and nothing has happened in, and a chain — G2
-// supersedes G1, which was minted HIGH/HIGH and regraded LOW/LOW and is still open — beside a gap
-// the bench closed in the epoch it was minted.
+// two rulings, an epoch 3 the chair has opened and nothing has happened in, G1 — minted HIGH/HIGH
+// in epoch 1, regraded LOW/LOW and still open — G2 open since epoch 2, and a gap the bench closed
+// in the epoch it was minted.
 func judiciaryRun(t *testing.T) string {
 	t.Helper()
 	hi, med, lo := recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_MEDIUM, recordpb.Grade_GRADE_LOW
@@ -66,7 +65,7 @@ func judiciaryRun(t *testing.T) string {
 		registered(t, "red-chair", "C1"), // opens epoch 1
 		judMint(t, "red-lens-evidence", "G1", hi, hi),
 		registered(t, "red-chair", "C2"), // opens epoch 2
-		judMint(t, "red-lens-logic", "G2", med, med, "G1"),
+		judMint(t, "red-lens-logic", "G2", med, med),
 		judMint(t, "red-lens-logic", "G3", lo, lo),
 		recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1"), Likelihood: &lo, Impact: &lo, Basis: proto.String("the source was found")}),
 		docketFiled(t, "M1", "G1"),
@@ -81,7 +80,7 @@ func judiciaryRun(t *testing.T) string {
 
 // EVERY JUDICIARY FIGURE COMES OFF THE RECORD. The run's journal is empty here, as it is in effect
 // on every real run: no seat's envelope schema declares `gaps` or `dispute_responses`, so a
-// reader of those keys printed no verdict, no chains and no dispute answers over a record that
+// reader of those keys printed no verdict, no gap lives and no dispute answers over a record that
 // holds all three. One subtest per figure, so a figure that falls back to zero names itself.
 func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 	m := BuildModel(runtest.Open(t, judiciaryRun(t)), t.TempDir(), Config{}, 0)
@@ -98,20 +97,20 @@ func TestTheJudiciaryReadsTheRecord(t *testing.T) {
 		}
 	})
 	// AN OPEN GAP LIVES TO THE CURRENT EPOCH, the last with work in it. Epoch 3 is a chair
-	// register and nothing else, and counting it would lengthen every open chain by one.
-	t.Run("argument chains", func(t *testing.T) {
-		if want := map[int]int{1: 1, 2: 1}; j.Chains != 2 || !reflect.DeepEqual(j.ChainSpans, want) {
-			t.Errorf("Chains = %d spans %v, want 2 chains spanning %v (G1→G2 open, epochs 1-2; G3 minted and closed in 2)", j.Chains, j.ChainSpans, want)
+	// register and nothing else, and counting it would lengthen every open gap's life by one.
+	t.Run("gap lives", func(t *testing.T) {
+		if want := map[int]int{1: 2, 2: 1}; j.Lives != 3 || !reflect.DeepEqual(j.LifeSpans, want) {
+			t.Errorf("Lives = %d spans %v, want 3 lives spanning %v (G1 open, epochs 1-2; G2 open in 2; G3 minted and closed in 2)", j.Lives, j.LifeSpans, want)
 		}
 	})
 	t.Run("grade migration", func(t *testing.T) {
 		if j.MigDown != 1 || j.MigUp != 0 || j.MigFlat != 0 {
-			t.Errorf("migration down/up/flat = %d/%d/%d, want 1/0/0 (the G1 chain fell from HIGH/HIGH)", j.MigDown, j.MigUp, j.MigFlat)
+			t.Errorf("migration down/up/flat = %d/%d/%d, want 1/0/0 (G1 fell from HIGH/HIGH)", j.MigDown, j.MigUp, j.MigFlat)
 		}
 	})
 	t.Run("the page shows them", func(t *testing.T) {
 		h := RenderHTML(m)
-		for _, want := range []string{"<b>—</b><span>final verdict</span>", "remanded: 1", "2 chains"} {
+		for _, want := range []string{"<b>—</b><span>final verdict</span>", "remanded: 1", "3 gaps"} {
 			if !strings.Contains(h, want) {
 				t.Errorf("the rendered page lacks %q", want)
 			}
@@ -179,12 +178,4 @@ func TestTheJudiciaryOnAnUnreadRecordIsNotMeasured(t *testing.T) {
 	if strings.Contains(h, "no judge sittings") {
 		t.Error("the page reports a bench that never sat over a record it could not read")
 	}
-}
-
-// firstAncestor is the one gap a fixture mint supersedes: the first of ancestors, or none.
-func firstAncestor(ancestors []string) *string {
-	if len(ancestors) == 0 {
-		return nil
-	}
-	return proto.String(ancestors[0])
 }

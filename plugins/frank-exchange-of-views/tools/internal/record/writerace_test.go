@@ -118,20 +118,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			want: "docketing D9 stands on it",
 		},
 		{
-			name:  "a close superseded by a gap the bench closes",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:D1", benchClosing("D1"))}
-			},
-			seat: evLens, body: func() proto.Message {
-				c := repairClose("G2")
-				c.ClosureClass = recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum()
-				c.Successor = proto.String("G1")
-				return c
-			},
-			want: "--superseded-by names gap G1, which is already CLOSED",
-		},
-		{
 			name:  "a regrade while the bench's ruling closes the gap",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {

@@ -24,12 +24,12 @@ func chairBoard(t *testing.T, lensSat bool) *stage {
 
 const outsideLens = "red-lens-logic"
 
-func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes ...string) *recordpb.Mint {
+func cmMint(gap string, cm recordpb.ClassMaterial, severity string) *recordpb.Mint {
 	sev, _ := GradeOf(severity)
 	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordtest.ClassFor(cm).Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		ClassMaterial: cm.Enum(), Supersedes: firstAncestor(supersedes)}
+		ClassMaterial: cm.Enum()}
 }
 
 // openChairSitting opens the chair's sitting after the parties sat and closes its log channel, so
@@ -98,10 +98,6 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 		{"by_grade-medium", func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, true, false},
-		{"superseded by_grade-medium ancestor", func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
-			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
-		}, false, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := chairBoard(t, true)
@@ -119,12 +115,6 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 			for _, g := range mustWorkJSONT(t, run).Open {
 				if g.ID == "G1" && g.Material != c.wantMaterial {
 					t.Errorf("open[G1].material=%v, want %v", g.Material, c.wantMaterial)
-				}
-			}
-			// THE SUCCESSOR'S MINT CLOSED THE MATERIAL ANCESTOR: no row of the list names it.
-			if strings.HasPrefix(c.name, "superseded") {
-				if it, listed := itemNaming(s, "gap G1 "); listed {
-					t.Errorf("the superseded ancestor is still on the chair's list: %q", it.What)
 				}
 			}
 		})

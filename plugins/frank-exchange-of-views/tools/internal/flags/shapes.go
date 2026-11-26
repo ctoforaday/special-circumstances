@@ -75,8 +75,8 @@ var (
 // not to run it.
 //
 // It takes the FLAG as the seat typed it ("--answers") because one checker serves several flags:
-// GapExists backs --id, --answers, --supersedes and --superseded-by, and a refusal naming a flag
-// the seat never typed sends it to re-read the wrong part of its command.
+// GapExists backs --id and --answers, and a refusal naming a flag the seat never typed sends it to
+// re-read the wrong part of its command.
 type Checker func(runDir, flag, value string) error
 
 // ShapedValue is a pflag.Value that refuses a value whose FORM is wrong, whatever the record

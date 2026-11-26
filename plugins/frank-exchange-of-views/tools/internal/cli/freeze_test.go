@@ -8,10 +8,8 @@ import (
 )
 
 // THE FREEZE HOLDS EVERY STATEMENT STANDING ON A GAP UNTIL ITS RULING (#1695 §III.B14, L43, L45, L48),
-// driven through the command tree as the seats run it: red's closing's road and a standing supersede
-// proposal's quote are re-planned on the report each blue edit leaves; a road is estopped as a red mint
-// is, at the closing and at the ruling; a supersede proposal's successor is checked mintable against the
-// gap's assignee at the filing, and the acts that move its checks' inputs are refused while it stands.
+// driven through the command tree as the seats run it: red's closing's road is re-planned on the report
+// each blue edit leaves, and a road is estopped as a red mint is, at the closing and at the ruling.
 
 const (
 	// freezeElse is the sentence before acceptS in acceptRun's report.
@@ -42,24 +40,6 @@ func heldRefusal(t *testing.T, what, out string, err error, want ...string) {
 			t.Errorf("%s: the refusal does not name %q:\n%v\n%s", what, w, err, out)
 		}
 	}
-}
-
-// supersedeOf is blue's supersede proposal of gap whose successor quotes quote, of class, its fix new
-// where one is given; it returns the refusal and the motion id where it landed.
-func supersedeOf(t *testing.T, runDir, gap, quote, class, new string) (string, error) {
-	t.Helper()
-	args := []string{"motion", "docket", "file", "supersede", "--run", runDir, "--seat-id", blueSeat, "--id", gap,
-		"--reason", "the gap misstates the defect", "--json", "--quote", quote, "--class", class,
-		"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
-		"--check", "the acceptance check red runs at re-audit", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"}
-	if new != "" {
-		args = append(args, "--new", new)
-	}
-	out, err := runAt(t, args...)
-	if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
-		out, err = runAt(t, args...)
-	}
-	return out, err
 }
 
 // T-B29's freeze and estoppel rows.
@@ -163,120 +143,17 @@ func estoppelOver(t *testing.T, runDir string) string {
 	return p
 }
 
-// T-B38's filing and freeze rows: the successor is checked mintable against G's assignee at the
-// filing, and while M stands the acts that move its checks' inputs are refused naming M.
-func TestASupersedeDocketingLandsAtTheExit(t *testing.T) {
-	setup := func(t *testing.T) (runDir, gap string) {
-		runDir = acceptRun(t)
-		gap, err := mintQuote(t, runDir, "G", acceptS+".")
-		if err != nil {
-			t.Fatal(err)
-		}
-		exchangeOn(t, runDir, gap)
-		return runDir, gap
-	}
-
-	t.Run("a successor the assignee's one-gap rule holds is refused at the filing, and nothing is recorded", func(t *testing.T) {
-		runDir, gap := setup(t)
-		if _, err := mintQuote(t, runDir, "G2", acceptS+".", "--class", otherClass); err != nil {
-			t.Fatal(err)
-		}
-		before := motionsOnRecord(t, runDir)
-		out, err := supersedeOf(t, runDir, gap, acceptS+".", otherClass, "")
-		heldRefusal(t, "a successor the one-gap rule holds", out, err, "assignee", "Nothing was recorded")
-		if after := motionsOnRecord(t, runDir); after != before {
-			t.Errorf("the refused filing recorded a motion (%d → %d)", before, after)
-		}
-	})
-
-	t.Run("a successor whose quote does not place is refused at the filing", func(t *testing.T) {
-		runDir, gap := setup(t)
-		out, err := supersedeOf(t, runDir, gap, "words the report never held.", otherClass, "")
-		heldRefusal(t, "a successor quoting nothing", out, err, "Nothing was recorded")
-	})
-
-	t.Run("a successor whose fix the accept would not apply is refused at the filing", func(t *testing.T) {
-		runDir, gap := setup(t)
-		out, err := supersedeOf(t, runDir, gap, acceptS+".", otherClass, acceptS+".")
-		heldRefusal(t, "a successor whose fix changes nothing", out, err, "Nothing was recorded")
-	})
-
-	t.Run("with M standing: the assignee's mint its one-gap rule would then hold, and blue's edit of its quote, are refused naming M; the bench's for-blue lands the successor", func(t *testing.T) {
-		runDir, gap := setup(t)
-		out, err := supersedeOf(t, runDir, gap, acceptS+".", otherClass, "")
-		if err != nil {
-			t.Fatalf("the supersede proposal: %v\n%s", err, out)
-		}
-		m := filedMotionID(t, out)
-		_, merr := mintQuote(t, runDir, "G2", acceptS+".", "--class", otherClass)
-		heldRefusal(t, "the assignee's mint the successor's one-gap rule would hold", "", merr, m)
-		eout, eerr := blueEditOf(t, runDir, "over", gap, acceptS, "Costs rose a little across the first quarter")
-		heldRefusal(t, "blue's edit of the successor's quote", eout, eerr, m)
-		d := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
-		conveneBench(t, runDir, gap)
-		if out, err := answerDocketing(t, runDir, d, "for-blue"); err != nil {
-			t.Fatalf("--for-blue on the supersede: %v\n%s", err, out)
-		}
-		if g := gapOf(t, runDir, gap); g == nil || g.Open {
-			t.Errorf("gap %s is open after the bench sided with its supersede", gap)
-		}
-	})
-
-	// THE ARM REFUSES THE ACT THAT MOVES AN INPUT, NOT EVERY ACT AFTER ONE MOVED: another lens's mint of
-	// the successor's class on its quote — an act the arm does not judge — leaves M's successor one the
-	// bench could not write, and the assignee's next act that moves none of its inputs is still its own.
-	t.Run("with M's successor already held by another lens's gap: the assignee's act that moves none of its inputs lands, and the bench's for-blue is refused naming M", func(t *testing.T) {
-		runDir := acceptRun(t)
-		seedCastWith(t, runDir, otherLens)
-		gap, err := mintQuote(t, runDir, "G", acceptS+".")
-		if err != nil {
-			t.Fatal(err)
-		}
-		exchangeOn(t, runDir, gap)
-		out, err := supersedeOf(t, runDir, gap, acceptS+".", otherClass, "")
-		if err != nil {
-			t.Fatalf("the supersede proposal: %v\n%s", err, out)
-		}
-		m := filedMotionID(t, out)
-		asSeat(t, runDir, otherLens, "register")
-		args := []string{"--run", runDir, "--seat-id", otherLens, "--quote", acceptS + ".", "--class", otherClass,
-			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
-			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"}
-		out, err = runMint(t, args...)
-		if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
-			out, err = runMint(t, args...)
-		}
-		if err != nil {
-			t.Fatalf("another lens's mint of the successor's class on its quote: %v %s", err, out)
-		}
-		if _, err := mintQuote(t, runDir, "G3", freezeLater, "--class", "false_universal"); err != nil {
-			t.Errorf("the assignee's mint of another class on another sentence, which moves nothing of M's successor, was refused: %v", err)
-		}
-		d := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
-		conveneBench(t, runDir, gap)
-		// AT THE BENCH THE SUCCESSOR STILL CANNOT BE WRITTEN: its answer for blue is refused naming M and
-		// the successor, and it remands.
-		bout, berr := answerDocketing(t, runDir, d, "for-blue")
-		heldRefusal(t, "the bench's answer for blue writing an unwritable successor", bout, berr, m, "could not be written", "answer for the other side, or remand")
-		if out, err := answerDocketing(t, runDir, d, "remand", "--direction", "one more exchange on the successor's subject"); err != nil {
-			t.Errorf("the bench's remand of the docketing holding M: %v\n%s", err, out)
-		}
-	})
-}
-
 // T-B30: no proposal is filed on a docketed gap (L38), by any filer, of any act; after a remand one
 // lands.
 func TestNoProposalOutlivesARulingOfItsGap(t *testing.T) {
 	runDir, d := impasseDocketed(t)
-	for _, f := range []struct{ seat, act string }{{"blue-respond", "close"}, {"blue-respond", "regrade"}, {"blue-respond", "supersede"}, {"red-chair", "close"}} {
+	for _, f := range []struct{ seat, act string }{{"blue-respond", "close"}, {"blue-respond", "regrade"}, {"red-chair", "close"}} {
 		args := []string{"motion", "docket", "file", f.act, "--id", boardGap, "--reason", "after the docketing"}
 		switch f.act {
 		case "close":
 			args = append(args, closeFlags("not_a_defect")...)
 		case "regrade":
 			args = append(args, "--severity", "low")
-		case "supersede":
-			args = append(args, supersedeFlags()...)
 		}
 		actRefusedNaming(t, runDir, f.seat+"'s "+f.act+" proposal on a docketed gap", f.seat, []string{"docketing " + d}, args...)
 	}

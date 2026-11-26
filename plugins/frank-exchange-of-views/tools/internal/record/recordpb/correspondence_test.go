@@ -105,7 +105,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And two more for the question part and its check: the parts of the question the run was asked,
 	// each with its coverage, and the logic lens's judgement of each (#1830 P5).
-	const wantBodies = 37
+	const wantBodies = 38
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

@@ -81,7 +81,6 @@ func Run(f record.Family) []Check {
 	return []Check{
 		gapsDisposed(f),
 		dialecticRefsResolve(f),
-		supersedesResolve(f),
 		passClosesAllGaps(f),
 		registerBeforeAppend(f),
 	}
@@ -183,24 +182,6 @@ func dialecticGapID(e *record.Event) (string, bool) {
 		return "", true
 	}
 	return "", false
-}
-
-// supersedesResolve: a successor gap's lineage names ancestors that exist — the chain the
-// docket detector follows must not dead-end at a phantom.
-func supersedesResolve(f record.Family) Check {
-	var bad []string
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		if anc := g.Mint.GetSupersedes(); anc != "" && f.Gap(anc) == nil {
-			bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
-		}
-	}
-	return result("supersedes-resolve",
-		"every supersedes ancestor is a real gap",
-		"a gap's lineage names an ancestor that is not on the record", bad)
 }
 
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS with an open MATERIAL gap is a

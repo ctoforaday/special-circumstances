@@ -145,12 +145,6 @@ func requiredProbes() map[string]requiredProbe {
 		args: fixed("motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low", "--reason", "r")}
 	probes["motion docket file close"] = requiredProbe{seat: "red-chair", setup: exchanged,
 		args: fixed(append([]string{"motion", "docket", "file", "close", "--id", "G1", "--reason", "r"}, closeFlags("not_a_defect")...)...)}
-	probes["motion docket file supersede"] = requiredProbe{seat: "red-chair", setup: exchanged,
-		// The statement's subject by --quote, which is required unless --about-kind/--about name one.
-		args: fixed("motion", "docket", "file", "supersede", "--id", "G1", "--reason", "r",
-			"--quote", "§2 the finding prose lands in a quoted sentence.", "--class", "spec_underspecification",
-			"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
-			"--check", "the acceptance check", "--severity", "medium", "--likelihood", "medium", "--impact", "medium")}
 	// The assignee's accept answers blue's proposal on its gap, read in a sitting of its own.
 	probes["motion docket accept"] = requiredProbe{seat: lensSeat,
 		setup: func(t *testing.T, runDir string) actVars {

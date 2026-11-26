@@ -146,8 +146,8 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 //
 // A DOCKET PROPOSAL IS SPELLED BY THE ACT IT PROPOSES: it records a `motion`, and its flags are the
 // act's own, generated from the act's sets and refused by the act's own parse — so each is held to
-// that act's declared set. Keyed as `motion`, the supersede's --class would share a key with the
-// petition's, and whichever the walk reached last would be the one checked.
+// that act's declared set. Keyed as `motion`, the close's --as would share a key with the other
+// motion pages', and whichever the walk reached last would be the one checked.
 func setKey(c *cobra.Command) string {
 	if p := c.Parent(); p != nil && p.Name() == "file" && p.Parent() != nil && p.Parent().Name() == "docket" {
 		if typ, ok := proposedActType[c.Name()]; ok {
@@ -161,7 +161,7 @@ func setKey(c *cobra.Command) string {
 }
 
 // proposedActType is the event type each docket proposal's act is.
-var proposedActType = map[string]string{"regrade": "regrade", "close": "close", "supersede": "mint"}
+var proposedActType = map[string]string{"regrade": "regrade", "close": "close"}
 
 // setSite is one set-shaped flag on one page: the key record.EnumFields and the exemption tables
 // spell it by, the help it renders, and the flag, whose parse says what the page refuses.

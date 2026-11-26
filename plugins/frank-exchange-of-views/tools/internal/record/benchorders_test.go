@@ -204,21 +204,6 @@ func TestAnAxisARulingDecidedStaysDecided(t *testing.T) {
 		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", sev, low))
 		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", impact, low))
 	})
-	t.Run("a successor carries the ruled grade", func(t *testing.T) {
-		s := benchRuledSeverity(t)
-		lens := sit(t, s.run, evLens)
-		successor := func(g recordpb.Grade) *recordpb.Mint {
-			m := corrMint("G2")
-			m.Supersedes, m.Severity = proto.String("G1"), g.Enum()
-			return m
-		}
-		_, err := Append(lens, successor(medium))
-		mustRefuse(t, err, "--supersedes names G1", "mint it at --severity low")
-		mustAppend(t, lens, successor(low))
-		// THE LOCK FOLLOWS THE LINEAGE: the successor's severity is the ruling's too.
-		_, err = Append(sit(t, s.run, evLens), regradeOf("G2", sev, high))
-		mustRefuse(t, err, "gap G2's severity is low, which the bench's ruling at event")
-	})
 }
 
 // A BENCH REGRADE IS NO PARTY'S MOVEMENT. Inside the remand's exchange it would read as the exchange

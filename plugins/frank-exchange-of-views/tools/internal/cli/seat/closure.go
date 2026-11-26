@@ -15,13 +15,12 @@ import (
 // its gap (plans/roundless.md §III.B.3) — and `chair carry`, the chair restating a closure the
 // archive already holds. One payload, one flag set, one result shape, so the two cannot drift.
 
-// ClosureFlags registers --id, --as and --superseded-by.
+// ClosureFlags registers --id and --as.
 func ClosureFlags(c *cobra.Command) {
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	Require(c, flags.ID)
 	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), "HOW the gap ended — one vocabulary with every closure on the record")
 	Require(c, flags.As)
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the regression forward; only with --as repaired_with_regression")
 }
 
 // ClosurePayload reads the closure a verb carries. Its disposition is the seat's to state: the tool
@@ -51,7 +50,6 @@ func ClosurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	return &recordpb.Close{
 		GapId:        proto.String(Str(cmd, flags.ID)),
 		ClosureClass: &class,
-		Successor:    OptStr(cmd, flags.SupersededBy),
 		Prose:        proto.String(prose),
 	}, nil
 }

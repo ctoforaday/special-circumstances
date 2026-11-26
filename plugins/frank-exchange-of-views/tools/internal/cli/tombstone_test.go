@@ -150,7 +150,7 @@ func tombstoneMint(t *testing.T, runDir, seat, class, quote string, extra ...str
 // ruled for blue at impasse: (1) the ruling's transaction holds, right after the ruling, one
 // Tombstone{G, RULING, D} row; (12) the report is byte-identical across it; (9) the work list's
 // estopped row and the board's ruling_tombstone name it; (2) another lens's mint of G's class on the
-// sentence, G's assignee's own and a mint --supersedes G are refused naming the ruling, its docketing
+// sentence and G's assignee's own are refused naming the ruling, its docketing
 // and what ends it; (3) a proposal on G is refused naming the tombstone; (4) a mint of another class on
 // the sentence lands; (6) blue's edit rewording G's sentence writes the end row, and (2) then lands on
 // the reworded sentence; on a second run, an edit that cuts the sentence writes no row and (3) is still
@@ -188,7 +188,6 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 	mintRefusedNaming(t, runDir, "(2) another lens's mint of the ruled class on the sentence", otherLens, class, ruledSentence, names)
 	asSeat(t, runDir, "red-lens-evidence", "register")
 	mintRefusedNaming(t, runDir, "(2) the assignee's own mint of the ruled class", "red-lens-evidence", class, ruledSentence, names)
-	mintRefusedNaming(t, runDir, "(2) a mint --supersedes the ruled gap", "red-lens-evidence", class, ruledSentence, names, "--supersedes", boardGap)
 	actRefusedNaming(t, runDir, "(3) a proposal on the ruled gap", otherLens, []string{"the bench ruled gap " + boardGap, "docketing " + d, "tombstone"},
 		"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 	if out, err := tombstoneMint(t, runDir, otherLens, otherClass, ruledSentence); err != nil {
@@ -344,7 +343,7 @@ func ruleForRedAtImpasse(t *testing.T, runDir string) string {
 // either side. If it sided with blue, red can't create double jeopardy - it lost and can't reraise that
 // gap there."), driven through the verbs: after a for-blue and after a for-red ruling at impasse, the
 // ruling's transaction holds G's ruling tombstone and nothing else; red's re-raising of G — a mint of
-// G's class on G's sentence, by another lens and by G's assignee, a mint --supersedes G, a proposal on
+// G's class on G's sentence, by another lens and by G's assignee, a proposal on
 // G — is refused naming the ruling; a mint of another class on the sentence lands (T-B19 (4)). The
 // bench's application of red's text is no blue accept: on a for-red ruling it places no estoppel row,
 // whether G's mint prescribes nothing or prescribes the very text red's closing states.
@@ -374,7 +373,6 @@ func TestARulingBarsItsGapForEitherSide(t *testing.T) {
 			mintRefusedNaming(t, runDir, "another lens's mint of G's class on its sentence", otherLens, class, c.sentence, names)
 			asSeat(t, runDir, "red-lens-evidence", "register")
 			mintRefusedNaming(t, runDir, "the assignee's own mint of G's class", "red-lens-evidence", class, c.sentence, names)
-			mintRefusedNaming(t, runDir, "a mint --supersedes G", "red-lens-evidence", class, c.sentence, names, "--supersedes", boardGap)
 			actRefusedNaming(t, runDir, "a proposal on G", otherLens, names,
 				"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 			if out, err := tombstoneMint(t, runDir, otherLens, otherClass, c.sentence); err != nil {

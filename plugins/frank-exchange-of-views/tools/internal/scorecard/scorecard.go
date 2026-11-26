@@ -181,29 +181,6 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
 	var rows []Row
 
-	// repair_regression_ratio
-	var ratios []float64
-	for _, t := range telemetry {
-		// ABSENT RATIO IS NOT ZERO. An epoch that closed nothing has no ratio to report, and the
-		// message says so by leaving the field unset — averaging a 0.0 in its place would report
-		// perfect repair durability for an epoch that repaired nothing. The map read this replaces
-		// got the same answer by a weaker route: a missing key failed the type assertion.
-		if rr := t.GetRepairRegression(); rr != nil && rr.Ratio != nil {
-			ratios = append(ratios, rr.GetRatio())
-		}
-	}
-	if len(ratios) > 0 {
-		sum := 0.0
-		for _, r := range ratios {
-			sum += r
-		}
-		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark",
-			Value: sum / float64(len(ratios)),
-			Joint: "reads WITH red rigour: a low ratio under a lax adversary means nothing"})
-	} else {
-		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry epochs with closures"})
-	}
-
 	// THE LOG IS NOT SCORED FOR PRESENCE. A sitting that hit nothing files nothing — clean is derived
 	// from having sat and filed nothing — so a metric counting sittings without an entry scores the
 	// correct behaviour as a failure, and seats read their own scorecard. Two such metrics lived here

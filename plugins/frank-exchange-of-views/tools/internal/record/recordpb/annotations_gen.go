@@ -116,6 +116,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_QUESTION_PART_CHECK", Means: "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"},
 	{Name: "EVENT_TYPE_TOMBSTONE", Means: "the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb"},
 	{Name: "EVENT_TYPE_DOCKETING", Means: "the tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal its assignee did not accept; written by the dispatch, by no verb"},
+	{Name: "EVENT_TYPE_AMEND", Means: "a gap's minter restating its wording — problem, required fix, acceptance check or prescription — on its open gap, with the reason; the gap keeps its id, and each amend is a version in its history"},
 }
 
 var annotationsGrade = [...]ValueAnnotations{
@@ -193,8 +194,6 @@ var annotationsGapClass = [...]ValueAnnotations{
 var annotationsDisposition = [...]ValueAnnotations{
 	{Name: "DISPOSITION_UNSPECIFIED"},
 	{Name: "DISPOSITION_REPAIRED", Means: "the repair was verified at the leaf and nothing regressed", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_REPAIRED_WITH_REGRESSION", Means: "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_AMENDS_PRIOR", Means: "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_ACCEPTED", Means: "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_OWED_ELSEWHERE", Means: "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", Closes: DeclaredBool{Declared: true, Value: true}},
@@ -340,7 +339,7 @@ var annotationsLogType = [...]ValueAnnotations{
 	{Name: "LOG_TYPE_FRICTION", DefinedTerm: "friction", SeatMayFile: DeclaredBool{Declared: true, Value: true}},
 	{Name: "LOG_TYPE_REFUSAL", Means: "the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
 	{Name: "LOG_TYPE_FAILURE", Means: "a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
-	{Name: "LOG_TYPE_ESTOPPEL", Means: "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
+	{Name: "LOG_TYPE_ESTOPPEL", Means: "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
 }
 
 var annotationsGradeDimension = [...]ValueAnnotations{

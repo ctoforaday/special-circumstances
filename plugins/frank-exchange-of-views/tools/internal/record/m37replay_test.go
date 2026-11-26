@@ -107,11 +107,6 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 				closed = true
 				break
 			}
-			// A mint of the lens's superseding the gap closes it in that act.
-			if mt := f.GetMint(); mt != nil && mt.GetSupersedes() == g {
-				closed = true
-				break
-			}
 			if r := f.GetRegrade(); r != nil && r.GetGapId() == g {
 				break
 			}
@@ -325,27 +320,6 @@ func TestACompliantRemandAnswerIsNotRedocketed(t *testing.T) {
 	}
 }
 
-// A SUPERSEDED GAP AT ITS LIMITS IS CLOSED (G-8405d5e1, ruled by gblock 2026-11-04). Its successor's
-// mint closed it: the plan files nothing on it and readies no seat on it, and its lens's close is
-// refused, naming the successor.
-func TestASupersededGapAtItsLimitsIsClosed(t *testing.T) {
-	st := mintedOn(t)
-	st.add(evLens, successorMint("G2", "G1"))
-	run := st.register("red-chair").seed()
-	writeRunConfig(t, run.Dir(), `{"kMax": 2}`)
-	plan, err := PlanDispatch(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if slices.Contains(docketGaps(plan), "G1") || slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("a superseded gap is closed, and the plan must name it nowhere: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
-	}
-	err = validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1"))
-	if err == nil || !strings.Contains(err.Error(), "G1, which closed when G2 was minted superseding it") || !strings.Contains(err.Error(), "Act on G2") {
-		t.Errorf("the close of a superseded gap = %v, want it refused naming its successor G2", err)
-	}
-}
-
 // ONCE DOCKETED, A GAP LEAVES THE PARTIES' LISTS BUT FOR ITS CLOSING, AND THE LENS'S CLOSE IS REFUSED
 // (ruled by gblock 2026-10-31). Blue's answer is on the record and reaches no list. The row rides `closings_owed` while the closing is owed and goes with it. The
 // bench's list still holds the gap.
@@ -475,13 +449,6 @@ func TestYourTurnIsThePlansEngagement(t *testing.T) {
 	st := remandedAtImpasse(t)
 	st.register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-r").blueComputes("G1").stop("blue-r")
 	check(t, "remand answered", st.register("red-chair").seed())
-}
-
-// successorMint is a lens's mint naming ancestor as the gap it supersedes.
-func successorMint(gap, ancestor string) *recordpb.Mint {
-	m := highMint(gap)
-	m.Supersedes = proto.String(ancestor)
-	return m
 }
 
 // AN ANSWER THE LENS HAS READ IS NO NEWS (defect 6): once it has audited blue's answer, a later edit of

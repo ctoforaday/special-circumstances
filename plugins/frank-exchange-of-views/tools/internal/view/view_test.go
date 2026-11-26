@@ -245,7 +245,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
 		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
-		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("G3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
+		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
 	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
 	if err != nil {
@@ -275,16 +275,13 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	if !strings.Contains(ledger, "class spec_underspecification") {
 		t.Errorf("a gap's class must be rendered:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "G2 | repaired_with_regression | a closed problem | G3") {
+	if !strings.Contains(ledger, "G2 | repaired | a closed problem") {
 		t.Errorf("closure index row is wrong:\n%s", ledger)
 	}
 
 	archive := md(t, runDir, "archive")
 	if !strings.Contains(archive, "verification anchor: L1 | git show | 7bc501e:f") {
 		t.Errorf("the anchor triple is not in the archive:\n%s", archive)
-	}
-	if !strings.Contains(archive, "successor: G3") {
-		t.Errorf("the successor is not in the archive:\n%s", archive)
 	}
 	if strings.Contains(archive, "G1") {
 		t.Error("an OPEN gap appears in the archive")
@@ -318,27 +315,18 @@ func TestTelemetryIsComputed(t *testing.T) {
 	})
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
-		// THE LINEAGE MINT. `supersedes` is what makes a gap a lineage mint — not the closure's
-		// successor, which is a different edge — and it is what repair_regression counts. The
-		// edge_deltas assertion reads the mass drop across that edge: G1 is medium x high (6),
-		// this one is low x low (1), so the repair moved 5 points of mass down.
 		recordtest.At(t, r2, r2+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			GapId:           proto.String("G3"),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p3"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Supersedes:      proto.String("G1"),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
 		}),
-		// A LINEAGE closure: it reports a regression and names the epoch-2 gap carrying it forward,
-		// which is what makes repair_regression's ratio 1 rather than 0. The record refuses this
-		// closure class without a successor, so the fixture cannot express the half-state.
 		recordtest.At(t, r2, r2+":close:G1", &recordpb.Close{
 			GapId:        proto.String("G1"),
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION),
-			Successor:    proto.String("G3"),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			Prose:        proto.String("verified at the leaf"),
 		}),
 	})
@@ -369,18 +357,6 @@ func TestTelemetryIsComputed(t *testing.T) {
 		t.Errorf("epoch 1 mass = %v, want 7", got)
 	}
 
-	var r2line map[string]any
-	if err := json.Unmarshal([]byte(lines[1]), &r2line); err != nil {
-		t.Fatal(err)
-	}
-	rr := r2line["repair_regression"].(map[string]any)
-	if rr["closures"] != float64(1) || rr["lineage_mints"] != float64(1) || rr["ratio"] != float64(1) {
-		t.Errorf("epoch 2 repair_regression = %v", rr)
-	}
-	ed := r2line["edge_deltas"].(map[string]any)
-	if ed["down_mass"] != float64(5) || ed["up_mass"] != float64(0) {
-		t.Errorf("epoch 2 edge_deltas = %v, want down 5 / up 0", ed)
-	}
 }
 
 // THE STOPPING SIGNAL (#284). Severity answers "how bad"; it can sit flat for epochs while

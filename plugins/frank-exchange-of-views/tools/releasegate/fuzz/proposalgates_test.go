@@ -14,8 +14,7 @@ import (
 )
 
 // THE PROPOSED ACTS AND THEIR DOCKETINGS, GATED (#1695 §III.B9, §III.B13, §III.B14). Some keys are
-// counted by the drives as they run (countGate): the successor a filer reads refused and answers, a
-// proposal a ruling's tombstone bars, a side that stated nothing refused, the acts a closings-only
+// counted by the drives as they run (countGate): a proposal a ruling's tombstone bars, a side that stated nothing refused, the acts a closings-only
 // sitting refuses and the closings filed there. The rest are read off the stream at the run's end
 // (docketTally): the docketings by cause, the bench's answers by cause and side, the ruling tombstones
 // by the side the ruling took. The sweep fails on any key at zero.
@@ -35,23 +34,18 @@ var proposalGateKeys = []struct{ key, what string }{
 	{"tombstone:placed:red", "ruling tombstones placed by a ruling for red"},
 	{"tombstone:placed:blue", "ruling tombstones placed by a ruling for blue"},
 	{"estopped_refused:regrade", "proposed regrades refused by a ruling's standing tombstone"},
-	{"estopped_refused:supersede", "proposed successors refused by a ruling's standing tombstone"},
 	{"closing_no_text", "red closings stating no text (--no-text)"},
 	{"closings_only_refused", "acts other than a closing refused in a closings-only sitting"},
 	{"final_sitting_closings:red", "red closings filed in a closings-only sitting"},
 	{"final_sitting_closings:blue", "blue closings filed in a closings-only sitting"},
 	{"motion:blue:close", "close proposals filed by blue"},
 	{"motion:blue:regrade", "regrade proposals filed by blue"},
-	{"motion:blue:supersede", "supersede proposals filed by blue"},
 	{"motion:lens:close", "close proposals filed by another lens"},
 	{"motion:lens:regrade", "regrade proposals filed by another lens"},
-	{"motion:lens:supersede", "supersede proposals filed by another lens"},
 	{"motion:chair:close", "close proposals filed by the chair"},
 	{"motion:chair:regrade", "regrade proposals filed by the chair"},
-	{"motion:chair:supersede", "supersede proposals filed by the chair"},
 	{"assignee_accepts:close", "close proposals the assignee accepted as filed"},
 	{"assignee_accepts:regrade", "regrade proposals the assignee accepted as filed"},
-	{"assignee_accepts:supersede", "supersede proposals the assignee accepted as filed"},
 	{"accepts_refused", "assignee accepts the act's own checks refused"},
 }
 
@@ -240,13 +234,13 @@ func TestEveryProposalGateKeyIsOneItsCountersWrite(t *testing.T) {
 	for _, m := range []recordpb.MovedGrades{recordpb.MovedGrades_MOVED_GRADES_KEPT, recordpb.MovedGrades_MOVED_GRADES_RESTORED} {
 		answers[recordpb.Word(m)] = true
 	}
-	drives := map[string]bool{"estopped_refused:regrade": true, "estopped_refused:supersede": true,
+	drives := map[string]bool{"estopped_refused:regrade": true,
 		"closing_no_text": true, "closings_only_refused": true,
 		"final_sitting_closings:red": true, "final_sitting_closings:blue": true,
-		"assignee_accepts:close": true, "assignee_accepts:regrade": true, "assignee_accepts:supersede": true, "accepts_refused": true}
+		"assignee_accepts:close": true, "assignee_accepts:regrade": true, "accepts_refused": true}
 	roles := map[string]bool{"blue": true, "lens": true, "chair": true}
 	acts := map[string]bool{}
-	for _, a := range []*recordpb.Motion{{Act: &recordpb.Motion_Close{}}, {Act: &recordpb.Motion_Regrade{}}, {Act: &recordpb.Motion_Supersede{}}} {
+	for _, a := range []*recordpb.Motion{{Act: &recordpb.Motion_Close{}}, {Act: &recordpb.Motion_Regrade{}}} {
 		acts[record.ActWord(a)] = true
 	}
 	for _, g := range proposalGateKeys {

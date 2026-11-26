@@ -48,6 +48,7 @@ var bodyTables = map[string]func() bodyTable{
 	"question_part_check": func() bodyTable { return &questionPartCheckTable{} },
 	"tombstone":           func() bodyTable { return &tombstoneTable{} },
 	"docketing":           func() bodyTable { return &docketingTable{} },
+	"amend":               func() bodyTable { return &amendTable{} },
 }
 
 // registerTable reads the "register" table's rows past an event id, with its lists and oneof arms, keyed by event.
@@ -366,8 +367,6 @@ type motionTable struct {
 	actRegradeBad     map[int64]error
 	actClose          map[int64]*recordpb.Close
 	actCloseBad       map[int64]error
-	actSupersede      map[int64]*recordpb.Mint
-	actSupersedeBad   map[int64]error
 }
 
 func (t *motionTable) load(q Querier, after int64) error {
@@ -559,8 +558,7 @@ func (t *motionTable) load(q Querier, after int64) error {
 			var c4 sql.NullString
 			var c5 sql.NullString
 			var c6 sql.NullString
-			var c7 sql.NullString
-			if err := scanRows(q, "motion_close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "motion_close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+			if err := scanRows(q, "motion_close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose" FROM "motion_close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
 				m := &recordpb.Close{}
 				if c0.Valid {
 					m.GapId = ref(c0.String)
@@ -585,10 +583,7 @@ func (t *motionTable) load(q Querier, after int64) error {
 					m.CarriedFrom = ref(c5.String)
 				}
 				if c6.Valid {
-					m.Successor = ref(c6.String)
-				}
-				if c7.Valid {
-					m.Prose = ref(c7.String)
+					m.Prose = ref(c6.String)
 				}
 				t.actClose[id] = m
 			}); err != nil {
@@ -603,127 +598,6 @@ func (t *motionTable) load(q Querier, after int64) error {
 			m.Anchors = append(m.Anchors, v)
 		}); err != nil {
 			return err
-		}
-	}
-	// Only an arm some row names is read.
-	if caseNamed(t.actCase, "supersede") {
-		t.actSupersede = map[int64]*recordpb.Mint{}
-		{
-			var id int64
-			var c0 sql.NullString
-			var c1 sql.NullString
-			var c2 sql.NullString
-			var c3 sql.NullString
-			var c4 sql.NullString
-			var c5 sql.NullString
-			var c6 sql.NullString
-			var c7 sql.NullString
-			var c8 sql.NullString
-			var c9 sql.NullString
-			var c10 sql.NullString
-			var c11 sql.NullString
-			var c12 sql.NullString
-			var c13 sql.NullString
-			var c14 sql.NullString
-			var c15 sql.NullString
-			var c16 sql.NullString
-			var c17 sql.NullString
-			var c18 sql.NullString
-			if err := scanRows(q, "motion_supersede", `SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."supersedes", t."mint_reason", t."class_material" FROM "motion_supersede" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18}, func() {
-				m := &recordpb.Mint{}
-				if c0.Valid {
-					m.GapId = ref(c0.String)
-				}
-				if c1.Valid {
-					m.MintKey = ref(c1.String)
-				}
-				if c2.Valid {
-					if v, err := wordOf[recordpb.GapClass]("motion_supersede.class", c2.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.Class = ref(v)
-					}
-				}
-				if c3.Valid {
-					m.Location = ref(c3.String)
-				}
-				if c4.Valid {
-					if v, err := wordOf[recordpb.AboutKind]("motion_supersede.about_kind", c4.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.AboutKind = ref(v)
-					}
-				}
-				if c5.Valid {
-					m.AboutRef = ref(c5.String)
-				}
-				if c6.Valid {
-					m.Problem = ref(c6.String)
-				}
-				if c7.Valid {
-					m.RequiredFix = ref(c7.String)
-				}
-				if c8.Valid {
-					m.FixNew = ref(c8.String)
-				}
-				if c9.Valid {
-					m.FixBasis = ref(c9.String)
-				}
-				if c10.Valid {
-					m.AcceptanceCheck = ref(c10.String)
-				}
-				if c11.Valid {
-					if v, err := wordOf[recordpb.CheckKind]("motion_supersede.check_kind", c11.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.CheckKind = ref(v)
-					}
-				}
-				if c12.Valid {
-					if v, err := wordOf[recordpb.Grade]("motion_supersede.severity", c12.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.Severity = ref(v)
-					}
-				}
-				if c13.Valid {
-					if v, err := wordOf[recordpb.Grade]("motion_supersede.likelihood", c13.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.Likelihood = ref(v)
-					}
-				}
-				if c14.Valid {
-					if v, err := wordOf[recordpb.Grade]("motion_supersede.impact", c14.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.Impact = ref(v)
-					}
-				}
-				if c15.Valid {
-					if v, err := wordOf[recordpb.Grade]("motion_supersede.complexity_cost", c15.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.ComplexityCost = ref(v)
-					}
-				}
-				if c16.Valid {
-					m.Supersedes = ref(c16.String)
-				}
-				if c17.Valid {
-					m.MintReason = ref(c17.String)
-				}
-				if c18.Valid {
-					if v, err := wordOf[recordpb.ClassMaterial]("motion_supersede.class_material", c18.String); err != nil {
-						t.actSupersedeBad = refuse(t.actSupersedeBad, id, err)
-					} else {
-						m.ClassMaterial = ref(v)
-					}
-				}
-				t.actSupersede[id] = m
-			}); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -785,15 +659,6 @@ func (t *motionTable) attach(ev *recordpb.Event, id int64) error {
 			return err
 		}
 		m.Act = &recordpb.Motion_Close{Close: a}
-	case "supersede":
-		a := t.actSupersede[id]
-		if a == nil {
-			return noBody(id, "motion_supersede")
-		}
-		if err := t.actSupersedeBad[id]; err != nil {
-			return err
-		}
-		m.Act = &recordpb.Motion_Supersede{Supersede: a}
 	}
 	ev.Body = &recordpb.Event_Motion{Motion: m}
 	return nil
@@ -1026,8 +891,7 @@ func (t *mintTable) load(q Querier, after int64) error {
 		var c15 sql.NullString
 		var c16 sql.NullString
 		var c17 sql.NullString
-		var c18 sql.NullString
-		if err := scanRows(q, "mint", `SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."supersedes", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18}, func() {
+		if err := scanRows(q, "mint", `SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17}, func() {
 			m := &recordpb.Mint{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1106,13 +970,10 @@ func (t *mintTable) load(q Querier, after int64) error {
 				}
 			}
 			if c16.Valid {
-				m.Supersedes = ref(c16.String)
+				m.MintReason = ref(c16.String)
 			}
 			if c17.Valid {
-				m.MintReason = ref(c17.String)
-			}
-			if c18.Valid {
-				if v, err := wordOf[recordpb.ClassMaterial]("mint.class_material", c18.String); err != nil {
+				if v, err := wordOf[recordpb.ClassMaterial]("mint.class_material", c17.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.ClassMaterial = ref(v)
@@ -1155,8 +1016,7 @@ func (t *closeTable) load(q Querier, after int64) error {
 		var c4 sql.NullString
 		var c5 sql.NullString
 		var c6 sql.NullString
-		var c7 sql.NullString
-		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose" FROM "close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
 			m := &recordpb.Close{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1181,10 +1041,7 @@ func (t *closeTable) load(q Querier, after int64) error {
 				m.CarriedFrom = ref(c5.String)
 			}
 			if c6.Valid {
-				m.Successor = ref(c6.String)
-			}
-			if c7.Valid {
-				m.Prose = ref(c7.String)
+				m.Prose = ref(c6.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -2796,5 +2653,93 @@ func (t *docketingTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_Docketing{Docketing: m}
+	return nil
+}
+
+// amendTable reads the "amend" table's rows past an event id, with its lists and oneof arms, keyed by event.
+type amendTable struct {
+	rows map[int64]*recordpb.Amend
+	bad  map[int64]error
+}
+
+func (t *amendTable) load(q Querier, after int64) error {
+	t.rows = map[int64]*recordpb.Amend{}
+	{
+		var id int64
+		var c0 sql.NullString
+		var c1 sql.NullString
+		var c2 sql.NullString
+		var c3 sql.NullString
+		var c4 sql.NullString
+		var c5 sql.NullString
+		var c6 sql.NullString
+		var c7 sql.NullString
+		var c8 sql.NullInt64
+		var c9 sql.NullString
+		var c10 sql.NullString
+		var c11 sql.NullString
+		var c12 sql.NullString
+		var c13 sql.NullString
+		if err := scanRows(q, "amend", `SELECT t."event_id", t."gap_id", t."problem", t."required_fix", t."acceptance_check", t."fix_new", t."fix_basis", t."basis", t."answers", t."accepted", t."result_problem", t."result_required_fix", t."result_acceptance_check", t."result_fix_new", t."result_fix_basis" FROM "amend" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13}, func() {
+			m := &recordpb.Amend{}
+			if c0.Valid {
+				m.GapId = ref(c0.String)
+			}
+			if c1.Valid {
+				m.Problem = ref(c1.String)
+			}
+			if c2.Valid {
+				m.RequiredFix = ref(c2.String)
+			}
+			if c3.Valid {
+				m.AcceptanceCheck = ref(c3.String)
+			}
+			if c4.Valid {
+				m.FixNew = ref(c4.String)
+			}
+			if c5.Valid {
+				m.FixBasis = ref(c5.String)
+			}
+			if c6.Valid {
+				m.Basis = ref(c6.String)
+			}
+			if c7.Valid {
+				m.Answers = ref(c7.String)
+			}
+			if c8.Valid {
+				m.Accepted = ref(c8.Int64 != 0)
+			}
+			if c9.Valid {
+				m.ResultProblem = ref(c9.String)
+			}
+			if c10.Valid {
+				m.ResultRequiredFix = ref(c10.String)
+			}
+			if c11.Valid {
+				m.ResultAcceptanceCheck = ref(c11.String)
+			}
+			if c12.Valid {
+				m.ResultFixNew = ref(c12.String)
+			}
+			if c13.Valid {
+				m.ResultFixBasis = ref(c13.String)
+			}
+			t.rows[id] = m
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *amendTable) attach(ev *recordpb.Event, id int64) error {
+	m := t.rows[id]
+	if m == nil {
+		return noBody(id, "amend")
+	}
+	if err := t.bad[id]; err != nil {
+		return err
+	}
+	ev.Body = &recordpb.Event_Amend{Amend: m}
 	return nil
 }

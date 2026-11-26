@@ -63,7 +63,7 @@ func docketingsOfMigrated(t *testing.T, name string) (*migration.Manifest, []arc
 
 // docketResidue is the stated residue a run's manifest carries, per list (migration.DocketResidue).
 type docketResidue struct {
-	opinions, party, superseded, ended, benchRegrades, spotChecks, inquiryChecks []int64
+	opinions, party, ended, benchRegrades, spotChecks, inquiryChecks []int64
 }
 
 // wantDocketResidue is the measured residue of Translations 3 and 4 per run (probe of 2026-11-22,
@@ -85,14 +85,13 @@ var wantDocketResidue = map[string]docketResidue{
 	"2026-09-11_is-91-prime-b6.tar.gz":               {party: []int64{179, 180, 186, 187}},
 	"2026-10-12_is-91-prime-wave-b.tar.gz":           {party: []int64{325, 326, 431, 432, 489, 609, 615, 672}, spotChecks: []int64{626, 698}},
 	"2026-10-17_is-91-prime-07d.tar.gz":              {party: []int64{372, 383}},
-	"2026-10-18_is-91-prime-m29.tar.gz":              {superseded: []int64{351, 426}},
 	"2026-10-24_is-91-prime-1565.tar.gz":             {ended: []int64{557, 558, 559, 560, 872}},
 	"2026-10-27_is-91-prime-m35.tar.gz":              {party: []int64{404, 520, 584, 586}, ended: []int64{580, 581, 583}},
 	"2026-10-30_mersenne-31-prime-sum.tar.gz":        {party: []int64{541, 542, 667, 668, 780, 836, 881, 882}, ended: []int64{792}},
 	"2026-11-04_eiffel-tower-height.tar.gz":          {party: []int64{777, 885}},
 	"2026-11-11_eiffel-tower-height.tar.gz":          {benchRegrades: []int64{669}},
 	"2026-11-14_is-91-prime-1883.tar.gz":             {party: []int64{266, 459}, inquiryChecks: []int64{489}},
-	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {superseded: []int64{471, 745}, ended: []int64{971, 1196, 1197}},
+	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {ended: []int64{971, 1196, 1197}},
 	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {benchRegrades: []int64{427, 718}},
 }
 
@@ -115,7 +114,7 @@ var wantDocketings = map[string][]string{
 // T-B26. AN ARCHIVED DOCKET BECOMES A DOCKETING (EventSchema 80, §III.B13 Translation 3). Every
 // docket the dispatch filed (O3, structural) is a Docketing at its place; its ruling names that
 // docketing and no motion; every other docket and its ruling are written as no event (O2), with the
-// opinion era's pairs, the dispatch's dockets left standing on a gap a successor superseded, and the
+// opinion era's pairs, and the
 // spot-checks of a gap those drops left open, and the inquiry checks only such a gap holds wanting — each stated in the manifest. No migrated record holds a
 // docket motion, and none is refused.
 func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
@@ -132,7 +131,6 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 		}{
 			{"opinions", res.Dockets.Opinions, want.opinions},
 			{"party dockets", res.Dockets.PartyDockets, want.party},
-			{"superseded dockets", res.Dockets.Superseded, want.superseded},
 			{"ended rulings", res.Dockets.EndedRulings, want.ended},
 			{"bench regrades", res.Dockets.BenchRegrades, want.benchRegrades},
 			{"spot-checks", res.Dockets.SpotChecks, want.spotChecks},
@@ -189,7 +187,7 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 		}
 	}
 	t.Logf("written as no event: %v; docketings written: %d", total, total["docketings"])
-	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "superseded dockets": 4, "ended rulings": 12,
+	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "ended rulings": 12,
 		"bench regrades": 3, "spot-checks": 7, "inquiry checks": 1, "docketings": 25} {
 		if total[what] != want {
 			t.Errorf("census: %s %d, want %d", what, total[what], want)

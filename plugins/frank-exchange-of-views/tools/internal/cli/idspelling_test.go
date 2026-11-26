@@ -110,16 +110,6 @@ func TestAboutRefusesAWellSpelledIDTheRecordDoesNotHold(t *testing.T) {
 	}
 }
 
-func TestMintsListsTakeAnIDByItsShape(t *testing.T) {
-	runDir, _, _ := heldRecord(t)
-	if out, err := mintWith(t, runDir, "--quote", "Fire is hot."); err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-	gap := lastBody(t, runDir, &recordpb.Mint{}).GetGapId()
-	_, err := mintWith(t, runDir, "--quote", "Closing paragraph stays.", "--supersedes", anchor.Token(gap))
-	refusedForItsSpelling(t, err, anchor.Token(gap), "a gap id is G-")
-}
-
 // A RETIRE NAMING AN ANCHOR BY ITS TOKEN RETIRES THAT ANCHOR. The token passed the shape and was then
 // used as the id, so the report was searched for a token wrapped in a token, and the refusal said the
 // report held none.
@@ -145,7 +135,7 @@ func TestEveryIDListFlagHoldsItsItemsToAShape(t *testing.T) {
 					return
 				}
 				switch f.Name {
-				case flags.IDs, flags.Anchor, flags.Supersedes:
+				case flags.IDs, flags.Anchor:
 				default:
 					return
 				}

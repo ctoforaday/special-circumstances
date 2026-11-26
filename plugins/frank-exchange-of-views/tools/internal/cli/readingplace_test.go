@@ -99,7 +99,7 @@ func TestAReadingOfARepeatedSentenceIsKeyedOnTheAnchor(t *testing.T) {
 // 26. A READING OVER AN APPLIED PRESCRIPTION RECORDS, AND THE GAP ON IT MEETS THE ESTOPPEL GUARD LIKE
 // ANY GAP (F4 (a), ruled): a cited source's gap names the citation and no quote, so the guard never
 // asks of it; a found source's claim_contradicts_source is a quote mint, refused naming the
-// prescribing gap and admitted with --supersedes it.
+// prescribing gap.
 func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testing.T) {
 	cc := "claim_contradicts_source"
 	applied := func(t *testing.T) (readingBoard, string, string) {
@@ -148,20 +148,12 @@ func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testi
 	})
 	t.Run("c: a found-source reading and its quote gap", func(t *testing.T) {
 		b, g0, primeText := applied(t)
-		// The prescribing lens reads: a supersession is the minter's own act.
 		b.sit(lensP)
 		b.mustRead(lensP, urlReading(rdU4, primeText, "refutes")...)
 		_, out, err := b.mintSource(lensP, cc, "--quote", primeText)
 		mustRefuse(t, err, out, "estoppel", g0)
 		if n := estoppels(t, b.runDir); n != 2 {
 			t.Errorf("the found source's quote mint logged no estoppel: %d entries", n)
-		}
-		g2, out, err := b.mintSource(lensP, cc, "--quote", primeText, "--supersedes", g0)
-		if err != nil {
-			t.Fatalf("the quote mint superseding the prescribing gap: %v\n%s", err, out)
-		}
-		if og := openGap(t, b.runDir, g2); !og.Open {
-			t.Errorf("%s is not open", g2)
 		}
 	})
 }

@@ -166,7 +166,6 @@ func TestTheDecodeRefusesAnUndeclaredEnumWord(t *testing.T) {
 	db := store(t)
 	mint := &recordpb.Mint{}
 	fillBody(mint.ProtoReflect(), fillEvery, 0, 1)
-	mint.Supersedes = nil // an ancestor is another test's; this one reads an enum word
 	ev := event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, mint)
 	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		t.Fatal(err)
@@ -194,9 +193,6 @@ func TestTheDecodeRefusesAnUndeclaredEnumWord(t *testing.T) {
 
 // writeEveryBody writes, for every arm of Event's `body` oneof, one fixture per fillShape and per arm
 // of the body's own oneofs, and returns them with their ids.
-// fixtureAncestor is the gap every mint fixture that names an ancestor names.
-const fixtureAncestor = "fixture-ancestor"
-
 func writeEveryBody(t *testing.T, db *sql.DB) ([]*recordpb.Event, []int64) {
 	t.Helper()
 	for _, p := range []string{`PRAGMA foreign_keys = OFF`, `PRAGMA ignore_check_constraints = ON`} {
@@ -231,18 +227,6 @@ func writeEveryBody(t *testing.T, db *sql.DB) ([]*recordpb.Event, []int64) {
 	var written []*recordpb.Event
 	var ids []int64
 	n := 0
-	// A SUCCESSOR'S ASSIGNEE IS ITS ANCESTOR'S, read from the ancestor's stored state into a NOT NULL
-	// column no pragma turns off, so every mint fixture that names an ancestor names this one.
-	ancestor := &recordpb.Mint{}
-	fillBody(ancestor.ProtoReflect(), fillRequired, 0, 0)
-	ancestor.GapId, ancestor.Supersedes = proto.String(fixtureAncestor), nil
-	seed := &recordpb.Event{SeatId: proto.String("red-chair"), Ts: proto.String("2026-01-01T00:00:00Z"),
-		Key: proto.String("fixture:ancestor"), Type: recordpb.EventType_EVENT_TYPE_MINT.Enum(), Body: &recordpb.Event_Mint{Mint: ancestor}}
-	if id, err := Insert(db, seed); err != nil {
-		t.Fatalf("writing the fixtures' ancestor: %v", err)
-	} else {
-		written, ids = append(written, seed), append(ids, id)
-	}
 	for i := 0; i < od.Fields().Len(); i++ {
 		arm := od.Fields().Get(i)
 		if _, ok := bodyTables[string(arm.Name())]; !ok {
@@ -259,9 +243,6 @@ func writeEveryBody(t *testing.T, db *sql.DB) ([]*recordpb.Event, []int64) {
 				evm := ev.ProtoReflect()
 				body := evm.NewField(arm).Message()
 				fillBody(body, shape, k, n)
-				if m, ok := body.Interface().(*recordpb.Mint); ok && m.Supersedes != nil {
-					m.Supersedes = proto.String(fixtureAncestor)
-				}
 				evm.Set(arm, protoreflect.ValueOfMessage(body))
 				typ, ok := recordpb.EventTypeOf(string(arm.Name()))
 				if !ok {

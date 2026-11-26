@@ -40,9 +40,9 @@ func TestNoSurfaceMountsAFinding(t *testing.T) {
 // The roads, in the words each case's refusal states them; none names a finding, a no-act docket
 // motion or reconsideration grounds.
 const (
-	roadSupersede = "motion docket file supersede --id "
-	roadOnBoard   = "nothing more is recorded"
-	roadExchange  = "a proposal on it is admitted once it has had one exchange"
+	roadPropose  = "motion docket file regrade --id "
+	roadOnBoard  = "nothing more is recorded"
+	roadExchange = "a proposal on it is admitted once it has had one exchange"
 )
 
 var roadNever = []string{"finding", "--grounds", "--about-kind gap"}
@@ -67,8 +67,7 @@ func roadRefusal(t *testing.T, err error, out string, want, never []string) {
 }
 
 // THE ONE-GAP REFUSAL NAMES THE REFUSED SEAT'S ROAD, per case, on every arm of the rule (plan
-// §III.A2, T-A3). The refused seat's own gap is restated by superseding it and reweighed by regrading
-// it; another seat's gap already carries a point that agrees with it, and a dispute of it is a
+// §III.A2, T-A3). The refused seat's own gap is reweighed by regrading it; another seat's gap already carries a point that agrees with it, and a dispute of it is a
 // proposed act, with the exchange sentence while the gap has had none.
 func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 	const plain = "spec_underspecification"
@@ -105,7 +104,7 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 			}
 			_, out, err = mint(b, lensL, a.second(b, q)...)
 			roadRefusal(t, err, out,
-				[]string{held, "is yours", "`--supersedes " + held + "`", "`regrade --id " + held + "`", "Nothing was written"},
+				[]string{held, "is yours", "`regrade --id " + held + "`", "Nothing was written"},
 				[]string{"motion docket", roadOnBoard, roadExchange})
 		})
 		t.Run(a.name+", another seat's gap", func(t *testing.T) {
@@ -117,8 +116,8 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 			}
 			_, out, err = mint(b, lensL, a.second(b, q)...)
 			roadRefusal(t, err, out,
-				[]string{held, "assigned to " + lensM, roadOnBoard, roadSupersede + held, roadExchange, "Nothing was written"},
-				[]string{"is yours", "regrade --id"})
+				[]string{held, "assigned to " + lensM, roadOnBoard, roadPropose + held, roadExchange, "Nothing was written"},
+				[]string{"is yours", "`regrade --id"})
 		})
 	}
 
@@ -151,28 +150,14 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 		// Both parties sat and neither has sat again: the record cannot close either sitting.
 		recordtest.Seed(t, b.runDir, cycle(1)...)
 		_, out, err = mint(b, lensL, "--quote", rdFree2)
-		roadRefusal(t, err, out, []string{roadSupersede + held, roadExchange, "NOT MEASURED"}, nil)
+		roadRefusal(t, err, out, []string{roadPropose + held, roadExchange, "NOT MEASURED"}, nil)
 		// Their next sittings close the first: one exchange, and no sentence.
 		recordtest.Seed(t, b.runDir, cycle(2)...)
 		_, out, err = mint(b, lensL, "--quote", rdFree2)
-		roadRefusal(t, err, out, []string{roadSupersede + held, roadOnBoard}, []string{roadExchange, "NOT MEASURED"})
+		roadRefusal(t, err, out, []string{roadPropose + held, roadOnBoard}, []string{roadExchange, "NOT MEASURED"})
 	})
 
-	// A mint superseding another seat's open gap is refused with the proposal road named first.
-	t.Run("a supersede of another seat's open gap", func(t *testing.T) {
-		b := readingRun(t)
-		held, out, err := mint(b, lensM, "--quote", rdFree1)
-		if err != nil {
-			t.Fatalf("the first mint: %v\n%s", err, out)
-		}
-		_, out, err = mint(b, lensL, "--quote", rdFree1, "--supersedes", held)
-		roadRefusal(t, err, out, []string{held, "assigned to " + lensM, roadSupersede + held, roadExchange, roadOnBoard}, nil)
-		if i, j := strings.Index(err.Error(), roadSupersede), strings.Index(err.Error(), roadOnBoard); i > j {
-			t.Errorf("the refusal names the proposal after the board, want it first:\n%v", err)
-		}
-	})
-
-	// A gap is not the subject of another gap: `--about-kind gap` is refused naming both roads.
+	// A gap is not the subject of another gap: `--about-kind gap` is refused naming the proposal road.
 	t.Run("about-kind gap", func(t *testing.T) {
 		b := readingRun(t)
 		held, out, err := mint(b, lensM, "--quote", rdFree1)
@@ -186,8 +171,8 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 		// The whole first line, so a prefix the flag frame adds and the refusal repeats is caught.
 		want := `--about-kind takes no "gap": a gap is not the subject of another gap. ` +
 			"If you dispute a gap — its problem, fix, check or weight — propose the act you want on it " +
-			"(`motion docket file supersede --id <gap>`, or regrade or close in place of supersede), argued in --reason; its assignee may accept it, else the bench rules. " +
-			"If you restate a gap's defect, mint superseding it (`--supersedes <gap>`) — your own open gap, or any closed gap. Nothing was written"
+			"(`motion docket file regrade --id <gap>`, or close in place of regrade), argued in --reason; its assignee may accept it, else the bench rules. " +
+			"Nothing was written"
 		if got, _, _ := strings.Cut(err.Error(), "\n"); got != want {
 			t.Errorf("the refusal reads:\n%s\nwant:\n%s", got, want)
 		}

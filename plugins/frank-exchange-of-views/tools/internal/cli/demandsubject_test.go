@@ -37,8 +37,8 @@ func retireMarkerWithClaim(t *testing.T, runDir, sentence, g string) {
 	}
 }
 
-// A `--quote` gap's own marker, and a superseded `--quote` ancestor's marker after the heir's mint,
-// leaving the report with its claim: the demand is met, and `moot` lands where it was refused.
+// A `--quote` gap's own marker leaving the report with its claim: the demand is met, and `moot` lands
+// where it was refused.
 func TestAQuoteGapClosesOnceItsMarkerLeaves(t *testing.T) {
 	const sentence = "Water is wet."
 	for _, check := range []string{"source", "computation"} {
@@ -54,22 +54,7 @@ func TestAQuoteGapClosesOnceItsMarkerLeaves(t *testing.T) {
 				t.Fatalf("the moot close of %s after its marker left with its claim was refused: %v", g, err)
 			}
 		})
-		t.Run(check+"/a superseded ancestor's marker", func(t *testing.T) {
-			runDir := citedRun(t, "https://water/1")
-			a := quoteGap(t, runDir, "ancestor", check, sentence)
-			h := quoteGap(t, runDir, "heir", check, "Fire is hot.", "--supersedes", a)
-			if open, answered, awaiting := gapRow(t, runDir, h); !open || answered || !awaiting {
-				t.Fatalf("heir %s reads open=%v evidence_answered=%v awaiting_evidence=%v, want open and awaiting the demand it carries", h, open, answered, awaiting)
-			}
-			wantDemandRefusal(t, lensClose(t, runDir, lensSeat, h, "moot"), h, check)
-			retireMarkerWithClaim(t, runDir, sentence, a)
-			if open, answered, awaiting := gapRow(t, runDir, h); !open || !answered || awaiting {
-				t.Errorf("after %s's marker left, heir %s reads open=%v evidence_answered=%v awaiting_evidence=%v, want open and met", a, h, open, answered, awaiting)
-			}
-			if err := lensClose(t, runDir, lensSeat, h, "moot"); err != nil {
-				t.Fatalf("the moot close of heir %s after its ancestor's marker left was refused: %v", h, err)
-			}
-		})
+
 	}
 }
 

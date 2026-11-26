@@ -65,7 +65,7 @@ func newDocketFile() *cobra.Command {
 	var ev lens.CloseEvidence
 	c.AddCommand(propose("close", "how you hold the gap ended, verified as a close is",
 		func(c *cobra.Command) {
-			enumhelp.FlagRefusing(c, flags.As, record.ProposedCloseClasses(), "HOW you hold the gap ended — one vocabulary with every closure on the record but repaired_with_regression, which names the gap carrying the regression and is the assignee's own act", proposableClass)
+			enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), "HOW you hold the gap ended — one vocabulary with every closure on the record")
 			seat.Require(c, flags.As)
 			ev.Register(c)
 			seat.Records(c, "close")
@@ -206,13 +206,4 @@ func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act)
 		_, err := record.AppendActs(s.Identity(), ruling)
 		return err
 	}
-}
-
-// proposableClass refuses at the flag a closure class a proposed close may not state
-// (record.ProposedCloseRefusal); a word the set does not hold falls through to the menu's refusal.
-func proposableClass(w string) error {
-	if d, ok := record.DispositionOf(w); ok {
-		return record.ProposedCloseRefusal(d)
-	}
-	return nil
 }

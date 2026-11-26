@@ -16,8 +16,8 @@ import (
 // the end name no gap, or a gap's id only as prose.
 func TestEveryActOnAGapIsRead(t *testing.T) {
 	const lens, blue = evLens, "blue-respond"
-	mint := func(gap string, about recordpb.AboutKind, ref string, supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref), Supersedes: firstAncestor(supersedes)}
+	mint := func(gap string, about recordpb.AboutKind, ref string) *recordpb.Mint {
+		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref)}
 	}
 	proposal := func(q string) *recordpb.Inquiry {
 		return &recordpb.Inquiry{InquiryId: proto.String(q), Question: proto.String("q"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
@@ -45,7 +45,6 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"a regrade", lens, "G1", &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")}},
 		{"a close", lens, "G1", &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		{"a closing", blue, "G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("t")}},
-		{"a mint superseding it", lens, "G1", mint("G3", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings", "G1")},
 		{"an edit answering it", blue, "G1", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("a")}},
 		{"a computation answering it", blue, "G1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("P1"), Answers: proto.String("G1")}},
 		{"a judgement of a computation answering it", lens, "G1", &recordpb.Reproduce{ComputationId: proto.String("P1")}},

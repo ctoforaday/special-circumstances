@@ -889,6 +889,21 @@ Owed by this spec, each one translation with a test on an archived run:
   is not re-judged. The 2 docketings Translation 3 dropped are written on their gap's id; where the supersede that stood over one
   becomes an `Amend` (an own-seat open-ancestor link), that `Amend` ends it unruled as the live amend would (§III.B4),
   and an archived ruling or closing on it after the successor's mint drops; T-B13 counts each outcome.
+- **Translation 7 as built (R1, 2026-11-26; measured by T-B43 over `partBRuns`, 40 archives, zero refusals).**
+  Classed on the record as migrated (seats as translated, the ancestor's open state and current grades at the
+  successor's mint): 82 links — **amended 17 in 7 runs** (m27, m30, mersenne, m37, eiffel 11-04, eiffel 11-11, 1883),
+  3 with a Regrade (grades compared with the ancestor's CURRENT grades, as a live amend names only what moves; the
+  8 above compared with its mint grades), closed ancestor 8, cross seat 16, moved field 41 (the August runs and
+  `quadratic-formula`'s merge links among them). The 18 is not reproduced: the plan's own `uses_db.json` read by its
+  stated criteria gives the same 17 (1883 G-bda7e56c→G-1e3ca98e follows a close of its ancestor). Two lead calls,
+  migration residue only, each stated in the manifest: an amended successor's own marker `Anchor` is written as no
+  event (`rekeyed_anchors`; the first gap's marker stands on the same sentence, and the write refuses a second
+  anchor on one id in a sitting), and a close or regrade naming the amended ancestor ITSELF after the successor's
+  mint is written as no event (`amended_ancestor_acts`; the seat went on acting on the gap it had superseded —
+  closing it as carried by the successor — and the successor is that gap now; mersenne's archive refused four acts
+  without it). The other archive counts (`archive_test`, `findingsfold_test`, `storedplanids_test`, the
+  docketing and tombstone tests, the render and gap goldens) are recounted after Commit C's DDL, with the docketings
+  an amend ends (X18).
 - **Translation 5** — `Close.successor` dropped, `repaired_with_regression` (and the
   round era's `closed_with_regression`) respelled `repaired`, `amends_prior` refused loudly (0 archived). Measured on
   34 archives: 18 closes carry a successor.

@@ -519,12 +519,6 @@ func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Clo
 		if k.Cause != recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE {
 			return feov.Errorf(feov.Validation, "--as states blue's word on a gap docketed at impasse, and %s is not: on a proposal blue's statement is the proposal, and at grade movement the recorded grades. Nothing was recorded", c.GetGapId())
 		}
-		switch c.GetClosureClass() {
-		case recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION:
-			return feov.Errorf(feov.Validation, "repaired_with_regression names the successor carrying the regression, and no ruling carries one: state another word, or none. Nothing was recorded")
-		case recordpb.Disposition_DISPOSITION_AMENDS_PRIOR:
-			return feov.Errorf(feov.Validation, "amends_prior is no word blue's closing states: one of repaired, not_a_defect, defect_accepted, defect_owed_elsewhere, moot. Nothing was recorded")
-		}
 		return nil
 	}
 	if c.ClosureClass != nil {

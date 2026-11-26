@@ -234,16 +234,6 @@ func gapFlowMermaid(f record.Family) string {
 			id, recordpb.Word(g.Mint.GetClass()), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
-	// supersedes edges — a gap's lineage.
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		if anc := g.Mint.GetSupersedes(); anc != "" {
-			out.WriteString(fmt.Sprintf("  %s -.supersedes.-> %s\n", nodeID("g", id), nodeID("g", anc)))
-		}
-	}
 	return out.String()
 }
 
@@ -255,7 +245,7 @@ func sep(reason string) string {
 }
 
 // Dot renders the gap lifecycle as a graphviz digraph — the escape hatch for a run dense enough
-// that mermaid's layout struggles. Same gaps, states, and lineage; graphviz does the layout.
+// that mermaid's layout struggles. Same gaps and states; graphviz does the layout.
 func Dot(f record.Family) string {
 	tally := tallyByGap(f)
 	var out strings.Builder
@@ -282,15 +272,6 @@ func Dot(f record.Family) string {
 			fill = "#f6ead0"
 		}
 		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d mot%d/%d disp%d", id, state, pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions), fill))
-	}
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		if anc := g.Mint.GetSupersedes(); anc != "" {
-			out.WriteString(fmt.Sprintf("  %q -> %q [style=dashed, label=\"supersedes\"];\n", id, anc))
-		}
 	}
 	out.WriteString("}\n")
 	return out.String()

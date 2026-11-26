@@ -101,25 +101,6 @@ func TestTheAssigneesAcceptAppliesTheActAsFiled(t *testing.T) {
 			t.Errorf("after the accept G is %+v, want closed not_a_defect", gp)
 		}
 	})
-	t.Run("supersede, anchored at its quote", func(t *testing.T) {
-		runDir, g, m := proposed(t, "accept-supersede", "supersede", "--quote", quoteTwo, "--class", "spec_underspecification",
-			"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
-			"--check", "the check", "--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-		_, successor, _ := proposalRow(t, runDir, m)
-		if _, err := accept(t, runDir, lensSeat, m); err != nil {
-			t.Fatalf("the accept: %v", err)
-		}
-		got := eventsFromRuling(t, runDir, m)
-		if len(got) < 3 || got[0] != "motion_rule@"+lensSeat || got[1] != "mint@"+lensSeat || got[2] != "anchor@"+lensSeat {
-			t.Errorf("the accept wrote %v, want the lens's ruling, its mint and the mint's anchor", got)
-		}
-		if s := gapOf(t, runDir, successor); s == nil || !s.Open {
-			t.Errorf("the successor %s is %+v, want open", successor, s)
-		}
-		if gp := gapOf(t, runDir, g); gp == nil || gp.Open {
-			t.Errorf("G after the accept is %+v, want closed by its successor", gp)
-		}
-	})
 }
 
 // T-B6: AN ACCEPT IS REFUSED for a seat that is not the assignee, and where the act's own check

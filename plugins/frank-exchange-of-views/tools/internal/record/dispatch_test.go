@@ -53,16 +53,6 @@ func (b *stage) mint(evLens, gap, severity string) *stage {
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 }
 
-// mintSuperseding mints gap as the successor of ancestor — lineage the record keeps: a mint
-// superseding an open gap closes it.
-func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
-	sev, _ := GradeOf(severity)
-	return b.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Supersedes: proto.String(ancestor)})
-}
-
 // docketMotion is a party's proposal on gap — a regrade of its severity to low, the act `motion docket
 // file regrade` proposes. The stage seeds it; a test that files it live, after seeding, appends the
 // same body.
@@ -330,36 +320,6 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	why := strings.Join(plan.Why, "\n")
 	if !strings.Contains(why, "G1: docketed and unruled — the bench is ready") || !strings.Contains(why, "G2: docketed and unruled — the bench is ready") {
 		t.Errorf("the plan must say the bench is ready for each:\n%s", why)
-	}
-}
-
-// A SUPERSEDED ANCESTOR IS CLOSED, AND READIES NOBODY (ruled by gblock 2026-11-04). The successor's
-// mint closed it, so no seat is engaged on it, the plan gives it no reason, and the successor — a
-// trifle — holds no PASS.
-func TestASupersededAncestorReadiesNobody(t *testing.T) {
-	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").readFully(2, evLens).
-											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
-											register("red-chair")
-	plan, err := PlanDispatch(b.seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	engaged := map[string][]string{}
-	for _, p := range plan.Parties {
-		engaged[p.SeatID] = p.GapIDs
-	}
-	for seat, gaps := range engaged {
-		if slices.Contains(gaps, "G1") {
-			t.Errorf("%s is engaged on G1, which G2's mint closed", seat)
-		}
-	}
-	if !plan.PassPermitted {
-		t.Errorf("PASS is not permitted, held by %+v: the ancestor is closed and its successor is a trifle", plan.Blockers)
-	}
-	why := strings.Join(plan.Why, "\n")
-	if strings.Contains(why, "G1") || !strings.Contains(why, "G2: open and not material (graded low)") {
-		t.Errorf("the plan must name no reason on the closed ancestor, and the successor as readying nobody:\n%s", why)
 	}
 }
 

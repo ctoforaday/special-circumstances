@@ -189,12 +189,6 @@ func (d drive) docketMotion(what, seatID string) string {
 		"--verified-against", "blue/report.md")
 }
 
-// supersedeMotion proposes G1's successor.
-func (d drive) supersedeMotion(what, seatID string) string {
-	d.t.Helper()
-	return d.propose(what, seatID, append([]string{"supersede"}, supersedeFlags()...)...)
-}
-
 // answerDrive is one row of the table, driven. helps names every help page that states the row, as
 // "<role> <path>"; TestEveryHelpAnswerIsAdmitted fails a page whose answer no drive here covers.
 type answerDrive struct {
@@ -300,22 +294,6 @@ func answerDrives() []answerDrive {
 				"--verified-with", "read", "--verified-against", "blue/report.md", "--reason", "the class was wrong"); !strings.Contains(r, "carry") {
 				d.t.Fatalf("the second close's refusal does not name the carry:\n%s", r)
 			}
-			// "propose it in a docket motion where it is not": blue's supersede proposal is admitted,
-			// and the lens's own proposal on its own gap is refused, naming the act that is its own.
-			if r := d.refused("the lens's proposal on its own closed gap", lensSeat, append([]string{"motion", "docket", "file", "supersede",
-				"--id", "G1", "--reason", "my close was wrong"}, supersedeFlags()...)...); !strings.Contains(r, "--supersedes") {
-				d.t.Fatalf("the lens's own proposal is refused without naming its own act:\n%s", r)
-			}
-			d.supersedeMotion("a supersede proposal on the closed gap, by blue", "blue-respond")
-			// "mint it where the gap is yours": on a run where no proposal stands, the lens mints the
-			// successor of its closed gap itself.
-			own := drive{t: d.t, run: actFixture(d.t)}
-			own.closeG1(lensSeat)
-			own.nextSitting(lensSeat)
-			own.admitted("the lens's successor of its closed gap", lensSeat, "mint", "--quote", quoteTwo, "--key", "M-successor",
-				"--supersedes", "G1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
-				"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
-				"--problem", "the close was wrong", "--fix", "f")
 		}},
 		{name: "close, the chair's carry", row: rowCarry, helps: []string{"chair carry"}, drive: func(d drive) {
 			d.closeG1(lensSeat)
@@ -330,7 +308,6 @@ func answerDrives() []answerDrive {
 			}
 			d.admitted("the carry", "red-chair", carry("repaired")...)
 			d.endsWithRow(d.refused("a second carry in the sitting", "red-chair", carry("not_a_defect")...), rowCarry)
-			d.supersedeMotion("a supersede proposal on the closed gap, by the chair", "red-chair")
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
@@ -379,13 +356,6 @@ func answerDrives() []answerDrive {
 			d.refused("a regrade in the accepting sitting", lensSeat, regrade...)
 			d.nextSitting(lensSeat)
 			d.landed("the next sitting's regrade", lensSeat, regrade...)
-			// "a successor naming it in --supersedes once it is closed".
-			d.closeG1(lensSeat)
-			d.nextSitting(lensSeat)
-			d.admitted("the successor of the closed gap", lensSeat, "mint", "--quote", quoteTwo, "--key", "M-successor",
-				"--supersedes", "G1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
-				"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
-				"--problem", "the accepted act was wrong", "--fix", "f")
 		}},
 		{name: "a ruling on a petition", row: rowPetition, helps: []string{"bench motion petition rule"}, drive: func(d drive) {
 			m := motionID(d.t, d.run, "motion", "petition", "file", "--seat-id", lensSeat,

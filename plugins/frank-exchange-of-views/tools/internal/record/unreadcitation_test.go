@@ -119,7 +119,7 @@ func TestABenchRulingDoesNotClearAnUnreadCitation(t *testing.T) {
 }
 
 // THE CLOSE OF THE GAP THAT CARRIES A FAILED CHECK IS REFUSED WHILE THE CHECK STANDS (requireFailedCheckAnswered),
-// whatever its class, a regression close handing it to a successor included; and once blue retires
+// whatever its class; and once blue retires
 // the citation, it closes.
 func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 	closeAs := func(gap string, word recordpb.Disposition) *recordpb.Close {
@@ -133,11 +133,6 @@ func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 		_, err := Append(lens, closeAs("G-1", word))
 		mustRefuse(t, err, "gap G-1 carries citation C-1", "Nothing is recorded", "retires the citation")
 	}
-	mustAppend(t, lens, sectionMint("G-3"))
-	handed := closeAs("G-1", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
-	handed.Successor = proto.String("G-3")
-	_, err := Append(lens, handed)
-	mustRefuse(t, err, "gap G-1 carries citation C-1")
 
 	// Blue retires the citation and keeps its sentence (the verb's guard is cli/blue's; the record
 	// layer is under test here).

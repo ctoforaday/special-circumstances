@@ -275,7 +275,7 @@ var EnumFields = map[string][]EnumField{
 		// the flag REQUIRED, and conflating them here would make several flags mandatory as a
 		// side effect. required.go owns requiredness.
 		Optional: true,
-		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
+		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index and the report's closed rows. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
 	"mint": {
 		{

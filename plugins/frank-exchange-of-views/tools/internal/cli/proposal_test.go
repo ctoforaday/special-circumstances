@@ -23,16 +23,8 @@ func closeFlags(class string) []string {
 		"--verified-against", "the report's sentence"}
 }
 
-// supersedeFlags is a supersede proposal's statement of the successor.
-func supersedeFlags() []string {
-	return []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification",
-		"--problem", "the defect, restated", "--fix", "the fix, restated", "--check-kind", "document",
-		"--check", "the acceptance check red runs at re-audit", "--severity", "medium", "--likelihood", "medium",
-		"--impact", "medium"}
-}
-
 // proposalRow is the act a stored motion carries, read off the record's act tables.
-func proposalRow(t *testing.T, runDir, motionID string) (act, actGap, supersedes string) {
+func proposalRow(t *testing.T, runDir, motionID string) (act, actGap string) {
 	t.Helper()
 	p, found, err := record.DocketProposalOf(runtest.Open(t, runDir), motionID)
 	if err != nil || !found {
@@ -40,25 +32,22 @@ func proposalRow(t *testing.T, runDir, motionID string) (act, actGap, supersedes
 	}
 	switch a := p.Motion.GetAct().(type) {
 	case *recordpb.Motion_Regrade:
-		return "regrade", a.Regrade.GetGapId(), ""
+		return "regrade", a.Regrade.GetGapId()
 	case *recordpb.Motion_Close:
-		return "close", a.Close.GetGapId(), ""
-	case *recordpb.Motion_Supersede:
-		return "supersede", a.Supersede.GetGapId(), a.Supersede.GetSupersedes()
+		return "close", a.Close.GetGapId()
 	}
-	return "", "", ""
+	return "", ""
 }
 
 // T-B2: A DOCKET MOTION PROPOSES ONE ACT, stored in that act's own table. A bare `file` is refused
-// naming the acts; each act lands; each act's shape binds at the filing; a close proposing the
-// regression it caused is the assignee's own act, and the proposal mounts no --superseded-by.
+// naming the acts; each act lands; each act's shape binds at the filing.
 func TestADocketMotionStoresTheActItProposes(t *testing.T) {
 	runDir := seatRun(t)
 	g := mintGap(t, runDir, "proposal-shape", "spec_underspecification")
 	exchangeOn(t, runDir, g)
 
 	if out, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", blueSeat, "--id", g, "--reason", "r"); err == nil ||
-		!strings.Contains(err.Error()+out, "regrade, close, supersede") {
+		!strings.Contains(err.Error()+out, "regrade, close") {
 		t.Errorf("a bare `motion docket file` = %v %q, want refused naming the acts", err, out)
 	}
 
@@ -68,27 +57,19 @@ func TestADocketMotionStoresTheActItProposes(t *testing.T) {
 		flags []string
 		want  string
 	}{
-		"a regrade that moves no axis":       {"regrade", []string{"--severity", "medium"}, "moves no axis"},
-		"a close naming its regression":      {"close", closeFlags("repaired_with_regression"), "assignee's own act"},
-		"a supersede with no stated problem": {"supersede", []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium"}, "problem"},
+		"a regrade that moves no axis": {"regrade", []string{"--severity", "medium"}, "moves no axis"},
 	} {
 		if out, err := propose(t, runDir, blueSeat, c.act, g, c.flags...); err == nil || !strings.Contains(err.Error()+out, c.want) {
 			t.Errorf("%s = %v %q, want refused with %q", name, err, out, c.want)
 		}
 	}
-	if out, err := propose(t, runDir, blueSeat, "close", g, append(closeFlags("not_a_defect"), "--superseded-by", g)...); err == nil {
-		t.Errorf("--superseded-by on a close proposal was taken: %q", out)
-	}
-
-	// Each act lands in its own table, on the motion's gap; a supersede's successor id is the
-	// tool's, and its ancestor the motion's gap.
+	// Each act lands in its own table, on the motion's gap.
 	for _, c := range []struct {
 		act   string
 		flags []string
 	}{
 		{"regrade", []string{"--severity", "low"}},
 		{"close", closeFlags("not_a_defect")},
-		{"supersede", supersedeFlags()},
 	} {
 		h := mintGap(t, runDir, "proposal-"+c.act, "policy_without_mechanism")
 		exchangeOn(t, runDir, h)
@@ -96,13 +77,11 @@ func TestADocketMotionStoresTheActItProposes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s proposal: %v", c.act, err)
 		}
-		act, actGap, supersedes := proposalRow(t, runDir, filedMotionID(t, out))
+		act, actGap := proposalRow(t, runDir, filedMotionID(t, out))
 		switch {
 		case act != c.act:
 			t.Errorf("the %s proposal stored act %q", c.act, act)
-		case c.act == "supersede" && (supersedes != h || actGap == "" || actGap == h):
-			t.Errorf("the supersede stores successor %q of %q, want a tool-assigned successor of %q", actGap, supersedes, h)
-		case c.act != "supersede" && actGap != h:
+		case actGap != h:
 			t.Errorf("the %s proposal names gap %q, want %q", c.act, actGap, h)
 		}
 	}
@@ -110,7 +89,7 @@ func TestADocketMotionStoresTheActItProposes(t *testing.T) {
 
 // T-B3: A PROPOSAL IS REFUSED where no seat should file it: on the filer's own gap (its assignee
 // takes the act itself), before the gap's first exchange — NOT MEASURED where its sittings cannot be
-// closed — while another motion stands on it, and on a closed gap unless it is a supersede.
+// closed — while another motion stands on it, and on a closed gap.
 func TestAProposalIsRefusedWhereItCannotStand(t *testing.T) {
 	runDir := seatRun(t)
 	g := mintGap(t, runDir, "proposal-refused", "spec_underspecification")
@@ -153,12 +132,5 @@ func TestAProposalIsRefusedWhereItCannotStand(t *testing.T) {
 	}
 	if out, err := propose(t, runDir, blueSeat, "regrade", h, "--severity", "low"); err == nil || !strings.Contains(err.Error()+out, "is closed") {
 		t.Errorf("a regrade proposal on a closed gap = %v %q, want refused", err, out)
-	}
-	// Blue reads the closed gap in a sitting of its own before it proposes on it (AppendFresh).
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-respond"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := propose(t, runDir, blueSeat, "supersede", h, supersedeFlags()...); err != nil {
-		t.Errorf("a supersede proposal on a closed gap was refused: %v", err)
 	}
 }

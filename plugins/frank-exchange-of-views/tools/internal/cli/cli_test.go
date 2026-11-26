@@ -594,40 +594,6 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	}
 }
 
-// THE CSV FIELDS ARE ALWAYS RENDERED, even empty, because an absent key reads as "lineage
-// unknown" where the truth is "lineage none".
-//
-// THE LINEAGE KEY IS ALWAYS RENDERED. What a reader sees is the projection: a gap that supersedes
-// nothing renders `"supersedes": ""` rather than omitting the key, because an absent key reads as
-// lineage UNKNOWN where the truth is lineage NONE.
-func TestTheLineageKeyIsAlwaysRenderedEvenWhenEmpty(t *testing.T) {
-	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
-	// with no registry is refused rather than waved through.
-	runDir := newRun(t)
-	seatID := lensSeat
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
-	}
-	b, err := record.BoardJSONBytes(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(b)
-	for _, want := range []string{`"supersedes": ""`} {
-		if !strings.Contains(s, want) {
-			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
-				"where the truth is \"lineage none\":\n%s", want, s)
-		}
-	}
-	// And a gap that HAS lineage renders it, so the check above is not passing on an empty board.
-	if strings.Count(s, `"supersedes"`) != 1 {
-		t.Errorf("expected exactly one gap on the board, got %d supersedes keys", strings.Count(s, `"supersedes"`))
-	}
-}
-
 // Grade validation refuses at the flag, before the payload is built, and the
 // message names the values that would have worked.
 func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
@@ -939,38 +905,6 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	// rather than being told about an anchor for a gap that does not exist.
 	if !strings.Contains(err.Error(), handleText(t, runDir, "names gap G2")) {
 		t.Errorf("error = %q", err)
-	}
-}
-
-func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
-	runDir := findingsRun(t)
-	seatID := lensSeat // the lens that mints is the one that closes
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
-	}
-	// The successor must EXIST: a successor is a reference like any other and is checked
-	// at write time now, so the fixture mints the gap it will name.
-	succOut, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--key", "successor-gap", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
-	if err != nil {
-		t.Fatal(err)
-	}
-	successor := regexp.MustCompile(`G-[0-9a-f]{8}`).FindString(succOut)
-	if successor == "" {
-		t.Fatalf("could not read the successor id from %q", succOut)
-	}
-	base := []string{"close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
-		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason", "verified", "--as", "repaired_with_regression"}
-	if _, err := runAt(t, base...); err == nil {
-		t.Fatal("repaired_with_regression was accepted without a successor — lineage dropped")
-	}
-	if _, err := runAt(t, append(base, "--superseded-by", successor)...); err != nil {
-		t.Fatalf("a successor'd regression close was refused: %v", err)
 	}
 }
 

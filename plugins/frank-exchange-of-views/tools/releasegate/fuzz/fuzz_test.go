@@ -588,7 +588,7 @@ type runner struct {
 	oneGapRedirects     map[string]int
 	oneGapNamingFinding int
 	// aboutGapDriven is whether this run drove its one `mint --about-kind gap`, and aboutGapRefused
-	// how many the record refused naming both roads (aboutGapRefusedDrive). The sweep gates it at zero.
+	// how many the record refused naming the proposal road (aboutGapRefusedDrive). The sweep gates it at zero.
 	aboutGapDriven  bool
 	aboutGapRefused int
 	// movedDisputed is whether this run drove its one dispute of a gap another seat regraded while

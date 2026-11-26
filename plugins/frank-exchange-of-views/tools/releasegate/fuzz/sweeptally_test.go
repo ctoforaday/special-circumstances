@@ -1159,11 +1159,11 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.oneGapNamingFinding > 0 {
 			t.Errorf("%d one-gap refusal(s) named a finding, a reconsideration's grounds or an about-kind gap as the road — a lens reports a defect one way, as a gap", f.oneGapNamingFinding)
 		}
-		// ABOUT_GAP_REFUSED (§III.A3, §III.A6): `mint --about-kind gap` is refused naming both roads. No
-		// draw types the word; aboutGapRefusedDrive does, once a run.
-		t.Logf("about-kind gap: %d mint(s) refused naming both roads", f.aboutGapRefused)
+		// ABOUT_GAP_REFUSED (§III.A3, §III.A6): `mint --about-kind gap` is refused naming the proposal
+		// road. No draw types the word; aboutGapRefusedDrive does, once a run.
+		t.Logf("about-kind gap: %d mint(s) refused naming the proposal road", f.aboutGapRefused)
 		if f.aboutGapRefused == 0 {
-			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's two roads is unexercised (false green)", f.completed)
+			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's proposal road is unexercised (false green)", f.completed)
 		}
 		// NON_MATERIAL_MINTS (§III.A6): a small defect is a gap minted in a by_grade class below medium.
 		t.Logf("non-material mints: %d gap(s) minted in a by_grade class below medium", f.nonMaterialMints)

@@ -1,8 +1,9 @@
 package migrate
 
 import (
-	"fmt"
+	"database/sql"
 	"maps"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -18,36 +19,8 @@ func partBRuns(t *testing.T) []string {
 	return append(archivedRuns(t), "bundle-store/2026-10-31_is-91-prime-m37.tar.gz", "bundle-store/2026-11-04_is-91-prime-m38.tar.gz")
 }
 
-// sourceLink is one archived `supersedes` entry: the successor, the ancestor, the entry's place in
-// the successor's list, and each mint's writer as the source records it.
-type sourceLink struct {
-	successor, ancestor string
-	ord                 int
-}
-
-func (l sourceLink) String() string { return fmt.Sprintf("%s<-%s", l.successor, l.ancestor) }
-
-// sourceLinksOf is every `supersedes` entry the archive's mints carry, in record order.
-func sourceLinksOf(evs []OldEvent) []sourceLink {
-	var out []sourceLink
-	for _, e := range evs {
-		if e.Word != "mint" {
-			continue
-		}
-		g, _ := e.Fields["gap_id"].(string)
-		sup := e.Lists["supersedes"]
-		if s, ok := e.Fields["supersedes"].(string); ok && s != "" {
-			sup = append(sup, s)
-		}
-		for i, a := range sup {
-			out = append(out, sourceLink{g, a, i})
-		}
-	}
-	return out
-}
-
-// migratedMints is each migrated gap's ancestor and the seat of its Mint event.
-func migratedMints(t *testing.T, dir string) (ancestor, writer map[string]string, run record.Run) {
+// migratedMinters is the seat of each migrated gap's Mint event.
+func migratedMinters(t *testing.T, dir string) (writer map[string]string, run record.Run) {
 	t.Helper()
 	run, err := record.OpenRun(dir)
 	if err != nil {
@@ -57,13 +30,13 @@ func migratedMints(t *testing.T, dir string) (ancestor, writer map[string]string
 	if err != nil {
 		t.Fatal(err)
 	}
-	ancestor, writer = map[string]string{}, map[string]string{}
+	writer = map[string]string{}
 	for _, e := range fam.Events {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			ancestor[m.GetGapId()], writer[m.GetGapId()] = m.GetSupersedes(), e.GetSeatId()
+			writer[m.GetGapId()] = e.GetSeatId()
 		}
 	}
-	return ancestor, writer, run
+	return writer, run
 }
 
 // migratedGapID is the id the migrated record gives an archived gap id: respelled where the
@@ -127,131 +100,63 @@ func TestAnArchivedGradeMotionLeavesNoEvent(t *testing.T) {
 	}
 }
 
-// T-B11. A MINT KEEPS ITS FIRST ANCESTOR (Translation 1, §III.B11). Three archived mints name a second
-// ancestor, each dropped; the first stands where it is the writer's own. quadratic-formula's R2-7 names
-// R1-4, and R1-9, which R2-3 also superseded, reads closed on the migrated record.
-func TestAMintKeepsItsFirstAncestor(t *testing.T) {
-	want := map[string][]string{
-		"2026-08-23_sleeper-service-plan.tar.gz": {"R3-3<-R2-3"},
-		"2026-09-02_quadratic-formula.tar.gz":    {"R2-7<-R1-9"},
-		"2026-11-12_is-91-prime-1838.tar.gz":     {"G-a9991ec0<-G-6a8778c0"},
-	}
-	got := map[string][]string{}
-	for _, name := range partBRuns(t) {
-		man, dir := MigratedArchive(t, name)
-		ancestor, _, _ := migratedMints(t, dir)
-		for _, l := range sourceLinksOf(sourceEvents(t, name)) {
-			if l.ord == 0 {
-				continue
-			}
-			got[name] = append(got[name], l.String())
-			if a := ancestor[migratedGapID(man, l.successor)]; a == migratedGapID(man, l.ancestor) {
-				t.Errorf("%s: %s still names its second ancestor %s", name, l.successor, l.ancestor)
-			}
-		}
-	}
-	if !maps.EqualFunc(got, want, slices.Equal) {
-		t.Errorf("second ancestors dropped:\n%v\nwant:\n%v", got, want)
-	}
-	man, dir := MigratedArchive(t, "2026-09-02_quadratic-formula.tar.gz")
-	ancestor, _, run := migratedMints(t, dir)
-	r27, r14, r19 := migratedGapID(man, "R2-7"), migratedGapID(man, "R1-4"), migratedGapID(man, "R1-9")
-	if ancestor[r27] != r14 {
-		t.Errorf("quadratic-formula R2-7 (%s) names %q, want R1-4 (%s)", r27, ancestor[r27], r14)
-	}
-	fam, err := record.FamilyOf(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g := fam.Gap(r19); g == nil || g.Open {
-		t.Errorf("quadratic-formula R1-9 (%s) is not closed on the migrated record: %+v", r19, g)
-	}
-}
-
-// T-B11. EVERY CROSS-SEAT LINEAGE LINK DROPS (Translation 2, §III.B7). A first ancestor written by
-// another seat — seats compared as the migrated record holds them, so the merge era's links, all the
-// chair's, stand — is dropped; each is named here by run, successor and ancestor. A blue engagement
-// whose sitting then owes no successor is written as no event, by source id. Every other first
-// ancestor stands, and every archive migrates with zero refusals.
-func TestACrossSeatLineageLinkDrops(t *testing.T) {
-	wantDropped := map[string][]string{
-		"2026-10-18_is-91-prime-m28.tar.gz":              {"G-79f965fd<-G-1e4a7bb0"},
-		"2026-10-24_is-91-prime-1565.tar.gz":             {"G-bf2de55d<-G-82c43e74"},
-		"2026-10-24_is-91-prime-m32.tar.gz":              {"G-cc9fe904<-G-11c8fa75"},
-		"2026-10-27_is-91-prime-m35.tar.gz":              {"G-86478f5a<-G-af7292e8"},
-		"2026-11-04_eiffel-tower-height.tar.gz":          {"G-50d8e3db<-G-164778cb", "G-00a137f3<-G-2d17fcf4", "G-92a782b9<-G-65119bba", "G-b7596566<-G-cec1c0f9", "G-b2ba7d66<-G-b0c8d93b"},
-		"2026-11-11_eiffel-tower-height.tar.gz":          {"G-4338072a<-G-2bb7b6ec", "G-581f7470<-G-2bb7b6ec"},
-		"2026-11-12_is-91-prime-1838.tar.gz":             {"G-6cafa44e<-G-7395c02f"},
-		"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {"G-011bc585<-G-f822ce4a", "G-37347c3c<-G-e8929d64", "G-4febbcc9<-G-55eb14f9"},
-		"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {"G-29f07d26<-G-eb79c13d"},
-	}
-	wantUnowed := map[string][]int64{
-		"2026-10-24_is-91-prime-1565.tar.gz":             {906},
-		"2026-11-11_eiffel-tower-height.tar.gz":          {647},
-		"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {1186},
-	}
-	gotDropped, gotUnowed, kept := map[string][]string{}, map[string][]int64{}, map[string]int{}
+// T-B43. A SUPERSEDE LINK BECOMES AN AMEND, OR NOTHING (Translation 7, §III.B8). Every archived link is
+// classed on the record as migrated: an own-seat link to an open ancestor that keeps the class,
+// subject, location and check kind is an Amend of the chain's first gap (a Regrade beside it where the
+// grades differ), and every other drops, the successor standing as its own gap. Counted per outcome
+// over every archive, with zero refusals; an amended successor holds no mint, and an amended
+// ancestor's gap view reads the amend.
+func TestASupersedeLinkBecomesAnAmend(t *testing.T) {
+	outcomes, regraded := map[string]int{}, 0
 	for _, name := range partBRuns(t) {
 		man, dir := MigratedArchive(t, name)
 		if len(man.Refusals) != 0 {
 			t.Errorf("%s: %d refusal(s); the first: %+v", name, len(man.Refusals), man.Refusals[0])
 		}
-		ancestor, _, _ := migratedMints(t, dir)
-		for _, l := range sourceLinksOf(sourceEvents(t, name)) {
-			if l.ord != 0 {
+		db, err := sql.Open("sqlite", "file:"+filepath.Join(dir, "records", "record.db")+"?mode=ro")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+		for _, l := range man.SupersedeLinks {
+			outcomes[l.Outcome]++
+			t.Logf("%s: %d %s<-%s %s %v regraded=%v", name, l.OldID, l.Successor, l.Ancestor, l.Outcome, l.Moved, l.Regraded)
+			if l.Outcome != linkAmended {
 				continue
 			}
-			switch ancestor[migratedGapID(man, l.successor)] {
-			case migratedGapID(man, l.ancestor):
-				kept[name]++
-			case "":
-				gotDropped[name] = append(gotDropped[name], l.String())
-			default:
-				t.Errorf("%s: %s names %q, neither its first ancestor %s nor none", name, l.successor, ancestor[migratedGapID(man, l.successor)], l.ancestor)
+			if l.Regraded {
+				regraded++
+			}
+			var minted, amended int
+			if err := db.QueryRow(`SELECT count(*) FROM "mint" WHERE "gap_id" = ?`, l.Successor).Scan(&minted); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.QueryRow(`SELECT count(*) FROM "gap" WHERE "gap_id" = ? AND "amend_event" IS NOT NULL`, l.Ancestor).Scan(&amended); err != nil {
+				t.Fatal(err)
+			}
+			if minted != 0 || amended != 1 {
+				t.Errorf("%s: %s amended into %s: %d mint(s) of the successor (want 0), ancestor reads an amend: %v", name, l.Successor, l.Ancestor, minted, amended == 1)
 			}
 		}
-		if len(man.UnowedEngagements) > 0 {
-			gotUnowed[name] = man.UnowedEngagements
-		}
 	}
-	if !maps.EqualFunc(gotDropped, wantDropped, slices.Equal) {
-		t.Errorf("cross-seat links dropped:\n%#v\nwant:\n%#v", gotDropped, wantDropped)
-	}
-	if !maps.EqualFunc(gotUnowed, wantUnowed, slices.Equal) {
-		t.Errorf("engagements written as no event:\n%#v\nwant:\n%#v", gotUnowed, wantUnowed)
-	}
-	n := 0
-	for _, l := range gotDropped {
-		n += len(l)
-	}
-	if n != 16 {
-		t.Errorf("%d cross-seat links dropped, want 16", n)
-	}
-	if kept["2026-09-02_quadratic-formula.tar.gz"] != 14 {
-		t.Errorf("quadratic-formula keeps %d chair links, want 14", kept["2026-09-02_quadratic-formula.tar.gz"])
-	}
+	t.Logf("links by outcome %v, %d amended with a regrade", outcomes, regraded)
 }
 
-// T-B11. EVERY ARCHIVED GAP IS ASSIGNED TO ITS CHAIN'S ORIGIN (§III.B4a, §III.B7). Each migrated gap's
-// stored assignee, as the board reads it, is the writer of the first gap of its chain recomputed from
-// the migrated mints — and, with every kept link one seat's, its own writer.
-func TestEveryArchivedGapIsAssignedToItsChainsOrigin(t *testing.T) {
+// T-B11. EVERY ARCHIVED GAP IS ITS MINTER'S (§III.R B5). Each migrated gap's minted_by, as the board
+// reads it, is the seat of its own Mint event: no link hands a gap to another seat.
+func TestEveryArchivedGapIsItsMinters(t *testing.T) {
 	gaps := 0
 	for _, name := range partBRuns(t) {
 		_, dir := MigratedArchive(t, name)
-		ancestor, writer, run := migratedMints(t, dir)
+		writer, run := migratedMinters(t, dir)
 		bj, err := record.BoardJSONOfRun(run)
 		if err != nil {
 			t.Fatal(err)
 		}
 		for _, g := range append(bj.Open, bj.Closed...) {
 			gaps++
-			origin := g.ID
-			for ancestor[origin] != "" {
-				origin = ancestor[origin]
-			}
-			if g.Assignee != writer[origin] || g.Assignee != writer[g.ID] {
-				t.Errorf("%s %s: assignee %q, its chain's origin %s written by %q, itself by %q", name, g.ID, g.Assignee, origin, writer[origin], writer[g.ID])
+			if g.Assignee != writer[g.ID] {
+				t.Errorf("%s %s: minted by %q, its mint written by %q", name, g.ID, g.Assignee, writer[g.ID])
 			}
 		}
 	}

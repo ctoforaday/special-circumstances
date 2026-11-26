@@ -80,37 +80,6 @@ func ActWord(m *recordpb.Motion) string {
 // ProposedActs is the acts a docket motion proposes, in the order the filing verb mounts them.
 var ProposedActs = []string{"regrade", "close"}
 
-// ProposedCloseRefusal refuses a closure class a docket motion may not propose: repaired_with_regression
-// names the successor carrying the regression, a lineage fact the assignee states and no ruling
-// carries. `motion docket file close --as` offers the classes it passes (ProposedCloseClasses) and
-// refuses the rest at the flag with this sentence.
-func ProposedCloseRefusal(class recordpb.Disposition) error {
-	if class == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION {
-		return proposedRegressionRefusal()
-	}
-	return nil
-}
-
-func proposedRegressionRefusal() error {
-	return feov.Errorf(feov.Validation,
-		"a close as repaired_with_regression is the gap's assignee's own act, naming the gap that carries the regression: that successor is a lineage fact no ruling carries, so an accept would drop it. Propose another disposition, or propose the supersede you want. Nothing was recorded")
-}
-
-// ProposedCloseClasses is the close's closure_class set less each class ProposedCloseRefusal refuses:
-// the menu a proposed close offers.
-func ProposedCloseClasses() EnumField {
-	e := MustEnum("close", "closure_class")
-	vs := make([]EnumValue, 0, len(e.Values))
-	for _, v := range e.Values {
-		if d, ok := DispositionOf(v.Name); ok && ProposedCloseRefusal(d) != nil {
-			continue
-		}
-		vs = append(vs, v)
-	}
-	e.Values = vs
-	return e
-}
-
 // requireProposedAct is the shape of the act a docket motion proposes (validate): the act's own shape,
 // on the motion's gap. Who may take it is asked at the accept, against the seat that takes it — the
 // filer cannot pass a check keyed on the assignee.
@@ -132,12 +101,6 @@ func requireProposedAct(q recordsql.Querier, m *recordpb.Motion) error {
 		c := a.Close
 		if c.GetGapId() != g {
 			return fmt.Errorf("the proposed close names gap %s and the motion is on %s: a proposal closes the gap it is filed on", c.GetGapId(), g)
-		}
-		if err := ProposedCloseRefusal(c.GetClosureClass()); err != nil {
-			return err
-		}
-		if c.Successor != nil {
-			return proposedRegressionRefusal()
 		}
 		if !recordpb.Closes(c.GetClosureClass()) {
 			return fmt.Errorf("--as %s closes nothing; a proposed close states one of %s", recordpb.Word(c.GetClosureClass()), strings.Join(ClosingDispositions(), " | "))

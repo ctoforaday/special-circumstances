@@ -88,8 +88,8 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 	if motionArms != 8 {
 		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 8 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "41 44 69" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 41 44 69", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "41 48 76" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 41 48 76", got)
 	}
 }
 
@@ -223,7 +223,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		}
 		l := &recordpb.Log{Text: proto.String("closes G2, not G20 or G2x")}
 		d := &recordpb.Dispatch{GapIds: []string{"G2", "G9"}}
-		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: proto.String("G2")}
+		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found")}
 		mo := &recordpb.MotionRule{Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Principle: proto.String("G2 stands")}}}
 		p := &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
 		for _, b := range []proto.Message{l, d, m, mo, p} {
@@ -233,7 +233,6 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			"Log.text":                   l.GetText(),
 			"Dispatch.gap_ids":           strings.Join(d.GetGapIds(), ","),
 			"Mint.problem":               m.GetProblem(),
-			"Mint.supersedes":            m.GetSupersedes(),
 			"DocketRuling.principle":     mo.GetDocket().GetPrinciple(),
 			"Computation.drift":          p.GetDrift(),
 			"Computation.computation_id": p.GetComputationId(),
@@ -241,7 +240,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		} {
 			want := map[string]string{
 				"Log.text": "closes " + g2 + ", not G20 or G2x", "Dispatch.gap_ids": g2 + ",G9", "Mint.problem": "as " + g2 + " found",
-				"Mint.supersedes": g2, "DocketRuling.principle": g2 + " stands", "Computation.drift": g2 + " drifted",
+				"DocketRuling.principle": g2 + " stands", "Computation.drift": g2 + " drifted",
 				"Computation.computation_id": "K-0a1b2c3d", "Computation.location": "x<!--gap:" + g2 + "--><!--cite:C-00112233-->",
 			}[what]
 			if got != want {

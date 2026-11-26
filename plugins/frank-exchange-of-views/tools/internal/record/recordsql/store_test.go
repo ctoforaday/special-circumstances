@@ -54,8 +54,6 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 // joins, constraints and aggregates — which is the trade this test exists to refuse.
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 1, "G1")
-	mintGap(t, db, 2, "G2")
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(),
@@ -64,7 +62,6 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      proto.String("G2"),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -86,15 +83,6 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 	}
 	if means == "" {
 		t.Error("the grade joins to an empty meaning")
-	}
-
-	// The one ancestor is a column, so lineage is queryable rather than a string to split.
-	var ancestor string
-	if err := db.QueryRow(`SELECT "supersedes" FROM "mint" WHERE "event_id" = ?`, id).Scan(&ancestor); err != nil {
-		t.Fatal(err)
-	}
-	if ancestor != "G2" {
-		t.Errorf("supersedes = %q, want G2", ancestor)
 	}
 }
 
@@ -144,54 +132,6 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 // A constraint that is wrong for one subject is worse than none. It refuses correct work,
 // and it reads as a guarantee.
 
-// A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
-//
-// "repaired_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable
-// for every other closure class — so it lived as an `if` in validate. That left the DATABASE
-// willing to store the exact state the tool refused, and for a record that is EVIDENCE the gap is
-// real: anything writing SQL directly could create it, and the row would look legitimate.
-func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
-	db := store(t)
-	// Every gap named below, INCLUDING the successor: `close.successor` references mint.gap_id now,
-	// so "lineage never drops" no longer means "the field is non-empty". A successor naming a gap
-	// that does not exist carried the remainder forward to an id no board ever had.
-	for i, id := range []string{"G1", "G2", "G3", "G4"} {
-		mintGap(t, db, int32(10+i), id)
-	}
-	mk := func(seq int32) *recordpb.Event {
-		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-			GapId:        proto.String("G1"),
-			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-			Prose:        proto.String("repaired, and the retry path broke"),
-		})
-	}
-	if _, err := Insert(db, mk(0)); err == nil {
-		t.Fatal("a regression closure with no successor was stored — the thread from the defect to " +
-			"the gap now carrying it is lost, and the repair_regression denominator counts a closure " +
-			"that resolved nothing")
-	}
-
-	ok := event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G2"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G4"),
-		Prose:        proto.String("repaired, and G4 carries the regression"),
-	})
-	if _, err := Insert(db, ok); err != nil {
-		t.Fatalf("a regression closure that NAMES its successor was refused: %v", err)
-	}
-
-	// And an ordinary closure still needs no successor, or the rule is a wall rather than a gate.
-	plain := event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G3"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-		Prose:        proto.String("verified at the leaf"),
-	})
-	if _, err := Insert(db, plain); err != nil {
-		t.Fatalf("an ordinary closure was refused for having no successor: %v", err)
-	}
-}
-
 // THE ROUND TRIP MUST PRESERVE PRESENCE, not merely values.
 //
 // Every field is optional, so "the seat set this" and "the seat did not" are different states and
@@ -209,7 +149,6 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      proto.String("G2"),
 		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
 		// graded on, which must come back ungraded.
 	}
@@ -659,13 +598,11 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 		got[word] = closes
 	}
 	want := map[string]bool{
-		"amends_prior":             true,
-		"remanded":                 false,
-		"repaired":                 true,
-		"repaired_with_regression": true,
-		"not_a_defect":             true,
-		"defect_accepted":          true,
-		"defect_owed_elsewhere":    true,
+		"remanded":              false,
+		"repaired":              true,
+		"not_a_defect":          true,
+		"defect_accepted":       true,
+		"defect_owed_elsewhere": true,
 		// MOOT ENDS THE GAP WITHOUT ANSWERING IT (#847). The predicate expired — the text the
 		// gap attached to is gone — so there is nothing left to repair and nothing to argue,
 		// and the gap does not survive to the next round. Closing, and deliberately not folded
@@ -756,47 +693,13 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 	}
 }
 
-// A SUCCESSOR MUST BE A GAP, NOT A STRING THAT LOOKS LIKE ONE.
-//
-// "Lineage never drops" was enforced as "the field is not empty" — a rule a typo satisfies. The
-// closure recorded a successor, the successor pointed at nothing, and the unresolved remainder was
-// carried forward to a gap id no board has ever had. The CHECK and the foreign key are both needed
-// and they say different things: one that a regression closure NAMES a successor, the other that
-// what it names EXISTS.
-func TestASuccessorMustBeAGapThatExists(t *testing.T) {
-	db := store(t)
-	mintGap(t, db, 0, "G1")
-
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G1"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G2"),
-		Prose:        proto.String("repaired, and G2 carries the regression"),
-	})); err == nil {
-		t.Fatal("a closure named G2 as carrying its regression forward and no such gap exists — the CHECK is satisfied, the lineage is broken, and the repair_regression denominator counts a closure that resolved nothing")
-	}
-
-	mintGap(t, db, 2, "G2")
-	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G1"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G2"),
-		Prose:        proto.String("repaired, and G2 carries the regression"),
-	})); err != nil {
-		t.Fatalf("a closure naming a REAL successor was refused: %v", err)
-	}
-}
-
 // AN ABSENT FLAG MUST NOT BE STORED AS THE EMPTY STRING.
 //
-// `merge close` set `successor` unconditionally — `proto.String(seat.Str(cmd, flags.SupersededBy))`
-// — so an ordinary closure recorded `successor = ”`. Once successor referenced `mint.gap_id` that
-// became a hard refusal (no gap is named ”), which is how it was found; BEFORE the reference
-// existed the same rows were written and read as a closure whose successor was the empty gap.
+// A reference column written as ” where the seat passed nothing names a row no table holds, and reads
+// back as a value the seat never stated.
 //
-// This is the storage half of that guarantee: an unset field lands as NULL and comes back unset,
-// so "the seat never said" and "the seat said nothing" stay different facts all the way down. The
-// CLI half is TestAnAbsentFlagIsNotWrittenAsEmpty in internal/cli.
+// An unset field lands as NULL and comes back unset, so "the seat never said" and "the seat said
+// nothing" stay different facts all the way down.
 func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 	db := store(t)
 	mintGap(t, db, 0, "G1")
@@ -810,13 +713,13 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 
 	// NULL, not ''. A '' here would satisfy the foreign key only because SQLite skips the check on
 	// NULL — so the column reading '' is precisely the state that made every close fail.
-	var successor *string
-	if err := db.QueryRow(`SELECT "successor" FROM "close" WHERE "gap_id" = 'G1'`).Scan(&successor); err != nil {
+	var carried *string
+	if err := db.QueryRow(`SELECT "carried_from" FROM "close" WHERE "gap_id" = 'G1'`).Scan(&carried); err != nil {
 		t.Fatal(err)
 	}
-	if successor != nil {
-		t.Errorf("an unpassed --superseded-by stored %q — an absent flag written as a value is a fact "+
-			"the seat never stated, and here it is a reference to a gap that cannot exist", *successor)
+	if carried != nil {
+		t.Errorf("an unpassed --carried-from stored %q — an absent flag written as a value is a fact "+
+			"the seat never stated", *carried)
 	}
 
 	// And it survives the round trip as ABSENT rather than as an empty string.
@@ -831,8 +734,8 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 			continue
 		}
 		closes++
-		if c.Successor != nil {
-			t.Errorf("the closure read back with successor set to %q, want unset", c.GetSuccessor())
+		if c.CarriedFrom != nil {
+			t.Errorf("the closure read back with carried_from set to %q, want unset", c.GetCarriedFrom())
 		}
 	}
 	if closes != 1 {
@@ -860,40 +763,6 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 	t.Fatalf("no \"sqlite\" driver is registered (have %v) — if this fails the import moved out of "+
 		"the package that opens the database, and the binary will fail at the first write while the "+
 		"suite stays green", sql.Drivers())
-}
-
-// A GAP'S ANCESTOR IS ONE COLUMN, AND THE GAP VIEW CARRIES IT: "does this gap supersede anything"
-// is "supersedes IS NOT NULL", stored in gap_state at the mint, and NULL is the honest answer for a
-// gap with no ancestor.
-func TestAGapsAncestorIsAColumnOfTheView(t *testing.T) {
-	db := store(t)
-	mintGap(t, db, 0, "G1")
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
-		GapId:           proto.String("G2"),
-		Class:           recordpb.GapClass_GAP_CLASS_PARTIAL_CONTROL_COVERAGE.Enum(),
-		Problem:         proto.String("p"),
-		AcceptanceCheck: proto.String("a"),
-		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
-		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes:      proto.String("G1"),
-	})); err != nil {
-		t.Fatal(err)
-	}
-
-	var ancestor sql.NullString
-	if err := db.QueryRow(`SELECT "supersedes" FROM "gap" WHERE "gap_id" = 'G2'`).Scan(&ancestor); err != nil {
-		t.Fatal(err)
-	}
-	if ancestor.String != "G1" {
-		t.Errorf("gap G2 supersedes %v, want G1", ancestor)
-	}
-	if err := db.QueryRow(`SELECT "supersedes" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&ancestor); err != nil {
-		t.Fatal(err)
-	}
-	if ancestor.Valid {
-		t.Errorf("a gap with no ancestor supersedes %q, want NULL", ancestor.String)
-	}
 }
 
 // tmpRun is tmpRun(t) with the release its record handle needs.

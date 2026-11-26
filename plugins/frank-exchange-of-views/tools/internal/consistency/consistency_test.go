@@ -22,7 +22,7 @@ import (
 // The assertion is ZERO violations. A failure here is not a broken test; it is two readers of one
 // record disagreeing, which is the crop this oracle exists to harvest.
 
-func mint(t *testing.T, seat string, id string, supersedes ...string) *recordpb.Event {
+func mint(t *testing.T, seat string, id string) *recordpb.Event {
 	t.Helper()
 	return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{
 		GapId: proto.String(id), Problem: proto.String("problem " + id),
@@ -31,7 +31,6 @@ func mint(t *testing.T, seat string, id string, supersedes ...string) *recordpb.
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Supersedes: firstAncestor(supersedes),
 	})
 }
 
@@ -211,33 +210,6 @@ func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 	check(t, dir)
 }
 
-// A regression closure whose successor amends the chain: lineage across three mints.
-func TestSupersedesChainWithAmendsPrior(t *testing.T) {
-	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir,
-		chairSits(t, 1),
-		mint(t, "red-chair", "G1"),
-		chairSits(t, 2),
-		// G2 holds the regression G1's repair caused, and supersedes nothing.
-		mint(t, "red-chair", "G2"),
-		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
-			GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-			Successor:  proto.String("G2"),
-			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
-			Prose: proto.String("repaired here; the regression carries forward"),
-		}),
-		chairSits(t, 3),
-		// G3 names the closed G1 as lineage and supersedes the open G2, which its mint closes.
-		mint(t, "red-chair", "G3", "G1", "G2"),
-		recordtest.At(t, "red-chair", "red-chair:close:G3", &recordpb.Close{
-			GapId: proto.String("G3"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
-			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
-			Prose: proto.String("a defect between two clean repairs"),
-		}),
-	)
-	check(t, dir)
-}
-
 // Citations: the citation count, authored and read.
 func TestCitations(t *testing.T) {
 	dir := recordtest.TmpRun(t)
@@ -374,12 +346,4 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 			}
 		}
 	})
-}
-
-// firstAncestor is the one gap a fixture mint supersedes: the first of ancestors, or none.
-func firstAncestor(ancestors []string) *string {
-	if len(ancestors) == 0 {
-		return nil
-	}
-	return proto.String(ancestors[0])
 }

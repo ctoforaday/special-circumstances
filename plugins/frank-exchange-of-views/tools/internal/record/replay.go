@@ -162,8 +162,7 @@ type Gap struct {
 	ComplexityCost recordpb.Grade
 	// ClosedByBench distinguishes a JUDICIAL closure from one red made: whether the act that
 	// ENDED the gap — its first standing closing act — was the bench's. Red cannot close a
-	// bench-closed gap itself without double-counting closure history and corrupting the
-	// repair_regression denominator, so the projection has to record WHO closed it, not merely
+	// bench-closed gap itself without double-counting closure history, so the projection has to record WHO closed it, not merely
 	// that it is closed. A ruling on a docket motion that stood unruled after the lens closed the
 	// gap does not make the bench its closer.
 	ClosedByBench bool
@@ -256,14 +255,6 @@ func (g *Gap) ClosureReason() string {
 		}
 	}
 	return recordpb.Word(g.BenchClosure.GetDisposition())
-}
-
-// Successor is the gap its close names as carrying its regression, "" where it names none.
-func (g *Gap) Successor() string {
-	if g == nil {
-		return ""
-	}
-	return g.Closure.GetSuccessor()
 }
 
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.

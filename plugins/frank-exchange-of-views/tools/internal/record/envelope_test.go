@@ -160,22 +160,10 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 	})
 }
 
-// BLUE-RESPOND'S ENVELOPE IS HELD BY WHAT ITS SITTING OWES: an `engage` on the successor of a gap it
-// found closed, and the computation a computation gap it is engaged on demands, until a recorded act — a
-// computation, a motion on the gap, a retire of its sentence — answers it. Prose does not.
+// BLUE-RESPOND'S ENVELOPE IS HELD BY WHAT ITS SITTING OWES: the computation a computation gap it is
+// engaged on demands, until a recorded act — a computation, a motion on the gap, a retire of its
+// sentence — answers it. Prose does not.
 func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
-	t.Run("an owed engage holds it, and engaging admits it", func(t *testing.T) {
-		_, run := m31Epoch10(t)
-		if r := refusalOf(t, run, blueSeatID); !strings.Contains(r, "record `engage`") || !strings.Contains(r, m31Successor) {
-			t.Fatalf("the owed engage does not hold blue's envelope: %q", r)
-		}
-		if err := engage(t, run, m31Successor); err != nil {
-			t.Fatal(err)
-		}
-		if r := refusalOf(t, run, blueSeatID); r != "" {
-			t.Errorf("engaged, blue's envelope is refused: %q", r)
-		}
-	})
 	computation := func(t *testing.T, engaged string, build func(b *stage)) Run {
 		b := newStage(t).cast(evLens, "red-chair", blueSeatID, "judge").ingest().
 			register("red-chair").dispatch(2, evLens).register(evLens)

@@ -23,21 +23,11 @@ import (
 // write refuses a gap the record names as no successor, and one already engaged this epoch, which
 // is the bound — at most one sitting per successor per epoch.
 
-// successorsOf is each gap's successors as the record names them, in record order: the gap its
-// close names in `superseded_by`.
-func successorsOf(evs []*Event) map[string][]string {
-	out := map[string][]string{}
-	add := func(of, succ string) {
-		if succ != "" && !slices.Contains(out[of], succ) {
-			out[of] = append(out[of], succ)
-		}
-	}
-	for _, e := range evs {
-		if b, ok := mustBody(e).(*recordpb.Close); ok {
-			add(b.GetGapId(), b.GetSuccessor())
-		}
-	}
-	return out
+// successorsOf is each gap's successors as the record names them: none, since no act names a gap
+// as carrying another's remainder. The engagement it feeds stands, and its owed set is restated over
+// the gaps minted after blue's engaged sitting (plans/findings-fold.md X22a).
+func successorsOf([]*Event) map[string][]string {
+	return map[string][]string{}
 }
 
 // OwedSuccessor is one successor blue's sitting owes an `engage` on: the gap, and the engaged gap
