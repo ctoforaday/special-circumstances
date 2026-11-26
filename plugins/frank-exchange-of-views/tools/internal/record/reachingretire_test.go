@@ -334,3 +334,41 @@ func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
 		t.Errorf("the lens owes %q for one retire, want %q", owes[evLens], want)
 	}
 }
+
+// blueCutsIn is the chair engaging blue on gap, and blue sitting once and cutting a sentence whose
+// anchors are removed, its edit answering no gap.
+func (b *stage) blueCutsIn(gap string, removed ...string) *stage {
+	agent := fmt.Sprintf("blue-cuts-%d", b.n)
+	return b.dispatch(2, "blue-respond", gap).registerAs("blue-respond", agent).
+		add("blue-respond", &recordpb.BlueEdit{Old: proto.String("the sentence " + removed[0] + " backs."), New: proto.String(""),
+			EditKey: proto.String(fmt.Sprintf("E-cut-%d", b.n)), RemovedAnchors: removed}).stop(agent)
+}
+
+// A REACHING CUT MOVES THE GAP IT REACHES, as a reaching retire does (exchangeFold's BlueEdit arm over
+// WindowIndex.Reaches): a cut answering no gap takes out the computation G1 is about, and the lens's
+// audit after it ends one exchange the cut moved, not a stalled one. Without the arm the exchange
+// stalls, and at k stalls G1 would go to the bench though blue acted on it.
+func TestAReachingCutMovesTheGapItReaches(t *testing.T) {
+	minted := func(t *testing.T) *stage {
+		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2)
+		st = st.computation("K-x", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, "K-x").
+			stop("lens-mints").register("red-chair")
+		st.seed()
+		return st
+	}
+	t.Run("the cut moves G1: the lens's audit ends an exchange that did not stall", func(t *testing.T) {
+		more := minted(t).more()
+		more.blueCutsIn("G1", "K-x").register("red-chair").seed()
+		if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 0 {
+			t.Errorf("the lens's audit after the cut ends one exchange the cut moved: %+v (%v)", x["G1"], err)
+		}
+	})
+	t.Run("a cut that reaches nothing leaves G1's exchange stalled", func(t *testing.T) {
+		more := minted(t).more()
+		more.computation("K-v", "s2").blueCutsIn("G1", "K-v").register("red-chair").seed()
+		if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Stalled != 1 {
+			t.Errorf("a cut of another computation moved G1: %+v (%v)", x["G1"], err)
+		}
+	})
+}
