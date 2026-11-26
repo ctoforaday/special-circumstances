@@ -44,11 +44,11 @@ report text only after a tool call, never at dispatch. A lens is delivered blue'
 whole, in context, at its first sitting and once more at its next — its full re-read — and at
 every other sitting each edit since its pin as the whole paragraphs it touched, before and after,
 with the passages of its own gaps; the chair is delivered each stale area's changes it has not
-borne, and the bench the passages of the gaps its motions are about. A snippet NEVER substitutes:
+borne. A snippet NEVER substitutes:
 a decontextualized quote is how audits go blind, which is why a change arrives as whole
 paragraphs. The tool records what it delivered when a delivery's last item reaches the seat, and
 the envelope waits until it has; a delivery that cannot advance ends the seat's turn at once; a
-close, a spot-check and a ruling on a motion about gaps stand only on delivered text. Where the
+close and a spot-check stand only on delivered text; the bench rules on the parties' statements on the record, and no ruling stands on delivered text. Where the
 report stands at a lens's pin and its full re-read is behind it, the read it is owed is the one
 already performed, and performing it again returns the same bytes to the same reader. Reading the report yourself is context: it
 records nothing and moves no pin. Under a harness whose hooks cannot yet deliver report text into

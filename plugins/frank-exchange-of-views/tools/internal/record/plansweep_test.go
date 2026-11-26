@@ -102,7 +102,6 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 		_, _ = NextDeliveryWhole(db, evLens)
 		_, _ = PinAt(db, evLens)
 		_ = requireDeliveredText(db, evLens, "a close", []string{"G1"})
-		_, _ = motionGaps(db, "M1")
 		_ = requireReportRead(db, evLens, &recordpb.ReportRead{Head: proto.Int64(1)})
 	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included

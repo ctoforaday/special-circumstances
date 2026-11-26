@@ -61,7 +61,7 @@ type Result struct {
 }
 
 // undeliveredLoss is the accepted loss of an archived act the delivered-text rule refuses.
-const undeliveredLoss = "an archived close, spot-check or ruling on a motion about gaps stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
+const undeliveredLoss = "an archived close or spot-check stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
 
 // dependentLossWhy is the accepted loss of an archived act refused only because it depends on a lost act.
 const dependentLossWhy = "an archived act refused only because it depends on a gap a lost act took with it is that same loss; it is written as no event, each such act listed in lost_acts with the act it depended on"
@@ -675,7 +675,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				continue
 			}
 			// AN ARCHIVED ACT THE DELIVERED-TEXT RULE REFUSES IS WRITTEN AS NO EVENT (gblock
-			// 2026-11-14): an archived close, spot-check or ruling on a motion about gaps whose sitting
+			// 2026-11-14): an archived close or spot-check whose sitting
 			// holds no delivery of report text stood on text the record never recorded reaching its
 			// seat. Nothing is synthesized to make it stand; it is an accepted loss, listed by act, and
 			// a pin or read point that named it names the last event written before it. The run's

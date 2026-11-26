@@ -66,7 +66,7 @@ type Manifest struct {
 	Accepted           map[string]string   `json:"accepted_losses,omitempty"`
 	// LostActs is each archived act written as no event because the write refuses it and no
 	// translation can make it stand: an accepted loss, one row per act, its word's reason in
-	// Accepted. An archived close, spot-check or ruling on a motion about gaps that its sitting
+	// Accepted. An archived close or spot-check that its sitting
 	// holds no delivery of report text for is one (record.DeliveredTextRefusal).
 	LostActs []Refusal         `json:"lost_acts,omitempty"`
 	IDs      map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id

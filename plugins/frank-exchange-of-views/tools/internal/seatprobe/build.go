@@ -331,10 +331,6 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 		if m.Subject == "docket" {
 			return fmt.Errorf("motion %d: a board stages a docket proposal standing — its ruling answers the docketing the dispatch writes, for a side", i+1)
 		}
-		// A ruling on a motion about gaps stands only on report text delivered to its ruler.
-		if err := readDelivery("judge"); err != nil {
-			return fmt.Errorf("rule motion %d: %w", i+1, err)
-		}
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", "judge",
 			"--id", staged[fmt.Sprintf("M%d", i+1)], "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {

@@ -957,14 +957,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
-		// A RULING ON A DOCKETING OR ON A MOTION ABOUT GAPS STANDS ON THEIR PASSAGES DELIVERED TO
-		// THE BENCH. A position names no passage, and its ruling needs none. A docketing or motion
-		// already ruled is told so first: no delivery would let a second ruling stand
-		// (requireUnanswered asks it again under the write lock).
+		// A docketing or motion already ruled is told so before any other refusal: no field would let
+		// a second ruling stand (requireUnanswered asks it again under the write lock). A ruling
+		// stands on the parties' statements on the record, not on report text delivered to the
+		// bench, so the delivered-text rule asks nothing of it.
 		if err := requireUnanswered(q, seatID, b); err != nil {
-			return err
-		}
-		if err := DeliveredTextRefusal(q, seatID, b); err != nil {
 			return err
 		}
 	}

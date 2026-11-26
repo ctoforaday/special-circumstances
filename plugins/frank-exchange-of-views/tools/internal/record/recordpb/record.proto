@@ -2722,7 +2722,7 @@ enum TombstoneKind {
 // report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
 // ReportRead is the tool handing a delivery's last report-text item into the seat's context; every
 // item of it was cut from the report at `head`. The delivery writer appends it, one per seat and
-// sitting, for a lens, the chair or the bench; a read through `show report` writes none. The seat and
+// sitting, for a lens or the chair; a read through `show report` writes none. The seat and
 // the sitting are the envelope's.
 //
 // IT IS EVIDENCE THE TEXT WAS DELIVERED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
