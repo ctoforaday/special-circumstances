@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -170,6 +171,9 @@ func TestRegistryConcurrentWritersAndPrunes(t *testing.T) {
 // server's whole record: a record pruned between listing and reading reads as absent, and a record
 // being replaced reads as its old or its new self.
 func TestReadersSkipRecordsPrunedUnderThem(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows refuses to replace or remove a file another handle has open, so a lock-free reader there can meet a sharing violation; live delivery, which reads the registry while it changes, runs on Linux only")
+	}
 	rt := t.TempDir()
 	if _, _, err := RegisterWith(rt, agyShell("conv-live", "localhost:1", "tok"), hostID(4000, 1, false), at); err != nil {
 		t.Fatal(err)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -121,6 +122,9 @@ func TestAgentsWaitingUnreadableMessage(t *testing.T) {
 }
 
 func TestAgentsWaitingScanError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("listing a regular file as a directory is ENOTDIR on Unix; what Windows returns for it is not pinned here")
+	}
 	h := newHarness(t)
 	notADir := filepath.Join(t.TempDir(), "brain")
 	if err := os.WriteFile(notADir, nil, 0o644); err != nil {
