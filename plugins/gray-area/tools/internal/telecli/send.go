@@ -73,7 +73,11 @@ that linked since the daemon started — which adopts conversations under the CL
 daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds it,
 that server delivers. Before every attempt send checks again that no process but
 that server holds the conversation, because two writers corrupt it; any other
-holder, or a holder it cannot inspect, queues the message and is named. A record is
+holder, or a holder it cannot inspect, queues the message and is named. Send moves
+on from a server only when it could not be reached at all. A server that was sent the
+message and did not confirm it — no answer, a dropped connection, an error status —
+may have it: send then tries no other server, queues nothing, says the delivery is
+UNKNOWN and exits non-zero, because a second copy could arrive. A record is
 used only while its server process is running; a record whose process cannot be
 judged (another pid namespace, a host with no machine id) is never used. The
 server's token reaches nothing but an agent's shell commands, so when no
@@ -83,10 +87,11 @@ telepathy link --help says where the record lives; telepathy agents lists every
 conversation with messages still waiting.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
-acted on the message, and the Claude Code socket does not report a hold or a drop. A
-Claude Code session that is not running has no inbox and is refused; telepathy
-agents shows which are. On native Windows a Claude Code inbox takes posts only from
-its own session, so sending to one is refused there.`,
+acted on the message, an UNKNOWN delivery does not say whether it arrived, and the
+Claude Code socket does not report a hold or a drop. A Claude Code session that is
+not running has no inbox and is refused; telepathy agents shows which are. On native
+Windows a Claude Code inbox takes posts only from its own session, so sending to one
+is refused there.`,
 		Example: `  telepathy send 8a3d5199 "PR #1730 conflicts with mine; rebase after it merges"
   git diff --stat | telepathy send f13f9d4f -`,
 		Args: cobra.ExactArgs(2),
@@ -253,13 +258,18 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, []string
 	}
 	r := &agyRouter{env: env, c: c, m: m, daemonID: daemonID, hasDaemon: hasDaemon,
 		agyRoot: filepath.Dir(filepath.Dir(c.dir)), live: env.recordLiveness(),
-		client: &http.Client{Timeout: 15 * time.Second}}
+		client: &http.Client{Timeout: env.sendTimeout()}}
 	if hasDaemon {
 		r.daemonKey = peer.ServerKey(daemonID.PID, daemonID.StartTime, "")
 	}
 	d, ok := r.route()
 	if ok {
 		return d, nil, nil
+	}
+	if r.unknown != nil {
+		// A second server, or the mailbox, could deliver the message twice: once through the server
+		// that may already have it, and once more.
+		return peer.Delivery{}, nil, fmt.Errorf("delivery UNKNOWN: %v — the message may have arrived, so no other server was tried and nothing was queued; check the conversation before sending it again", r.unknown)
 	}
 	q, err := peer.EnqueueAgy(c.dir, m, env.Now())
 	q.NotWoken = r.cause
@@ -281,6 +291,9 @@ type agyRouter struct {
 	daemonKey string
 	// cause is why the message was not delivered live: the reason the last target tried stopped.
 	cause string
+	// unknown is the failure of a server that was sent the message and did not confirm it, which
+	// ends the send with its arrival unknown.
+	unknown error
 }
 
 func (r *agyRouter) queue(format string, a ...any) (peer.Delivery, bool) {
@@ -314,7 +327,9 @@ func (r *agyRouter) route() (peer.Delivery, bool) {
 
 // toUnheld tries, while nobody holds the conversation, the Live record it linked to last and then
 // the current daemon's. A target that now finds the conversation held stops the send: the holder
-// is the only server that may reach it, and it is reported rather than bypassed.
+// is the only server that may reach it, and it is reported rather than bypassed. So does a target
+// that was sent the message and did not confirm it; only one that could not be reached at all
+// passes the message on to the next.
 func (r *agyRouter) toUnheld() (peer.Delivery, bool) {
 	own := peer.NewestLiveListing(r.servers, r.c.id, r.live)
 	if own != nil {
@@ -341,12 +356,9 @@ func (r *agyRouter) toUnheld() (peer.Delivery, bool) {
 func (r *agyRouter) throughHolder(x peer.Server, pid int) (peer.Delivery, bool) {
 	g := r.env.conversationBusy(r.agyRoot, r.c.id, pid)
 	switch {
-	case soleHolder(g, pid):
-		d, err := peer.SendAgyServer(r.client, x, r.m, r.routeFor(x))
-		if err != nil {
-			return r.queue("%v", err)
-		}
-		return d, true
+	case g.Kind == peer.HolderNone:
+		d, ok, _ := r.send(x)
+		return d, ok
 	case g.Kind == peer.HolderUninspectable:
 		return r.queue("%s", uninspectable(g))
 	}
@@ -354,24 +366,32 @@ func (r *agyRouter) throughHolder(x peer.Server, pid int) (peer.Delivery, bool) 
 }
 
 // attempt sends through target once a probe excluding only target's pid finds nobody holding the
-// conversation. stop reports that the probe found a holder, which ends the send.
+// conversation. stop reports that the send ends here: the probe found a holder, or target may have
+// the message.
 func (r *agyRouter) attempt(target peer.Server) (d peer.Delivery, ok, stop bool) {
 	g := r.env.conversationBusy(r.agyRoot, r.c.id, target.PID)
-	if !soleHolder(g, target.PID) {
+	if g.Kind != peer.HolderNone {
 		r.queue("%s", r.heldBy(g))
 		return peer.Delivery{}, false, true
 	}
+	return r.send(target)
+}
+
+// send delivers through target. A target that could not be reached leaves the message
+// undelivered, with that as the cause; any other failure leaves its arrival unknown and stops the
+// send.
+func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
 	d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
-	if err != nil {
+	var unreached *peer.UnreachedError
+	switch {
+	case err == nil:
+		return d, true, false
+	case errors.As(err, &unreached):
 		r.queue("%v", err)
 		return peer.Delivery{}, false, false
 	}
-	return d, true, false
-}
-
-// soleHolder reports whether g leaves pid's server the only process holding the conversation.
-func soleHolder(g peer.Holder, pid int) bool {
-	return g.Kind == peer.HolderNone || (g.Kind == peer.HolderPresenceLock && g.PID == pid)
+	r.unknown = err
+	return peer.Delivery{}, false, true
 }
 
 // daemonTarget is the current daemon's record when it may adopt the conversation, or nil and why not.

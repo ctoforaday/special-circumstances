@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -475,7 +476,11 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (De
 	req.Header.Set("x-codeium-csrf-token", s.Token)
 	resp, err := client.Do(req)
 	if err != nil {
-		return Delivery{}, fmt.Errorf("the language server recorded at %s did not answer (it has restarted or gone since the record was made): %w", s.Address, err)
+		var op *net.OpError
+		if errors.As(err, &op) && op.Op == "dial" {
+			return Delivery{}, &UnreachedError{Address: s.Address, Err: err}
+		}
+		return Delivery{}, fmt.Errorf("the language server recorded at %s was sent the message and did not confirm it: %w", s.Address, err)
 	}
 	defer resp.Body.Close()
 	msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
@@ -484,6 +489,20 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (De
 	}
 	return Delivery{Route: route, Via: s.Address}, nil
 }
+
+// UnreachedError is a SendAgyServer failure in which the message never reached the server: no
+// connection to it could be opened. Every other failure — no answer, a dropped connection, an error
+// status — can follow the server's receipt of the message, so whether it arrived is unknown.
+type UnreachedError struct {
+	Address string
+	Err     error
+}
+
+func (e *UnreachedError) Error() string {
+	return fmt.Sprintf("the language server recorded at %s cannot be reached (it has restarted or gone since the record was made): %v", e.Address, e.Err)
+}
+
+func (e *UnreachedError) Unwrap() error { return e.Err }
 
 // agyMailboxMessage is the file Antigravity's own send_message writes into a recipient's mailbox.
 type agyMailboxMessage struct {

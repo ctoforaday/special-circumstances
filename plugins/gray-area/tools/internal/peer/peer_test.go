@@ -3,6 +3,7 @@ package peer
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -307,6 +308,49 @@ func TestSendAgyServerRefusalIsAnError(t *testing.T) {
 	_, err := SendAgyServer(srv.Client(), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "stale"}, AgyMessage{}, RouteAgyOwnRecord)
 	if err == nil || !strings.Contains(err.Error(), "403") {
 		t.Errorf("err = %v, want the status named", err)
+	}
+}
+
+// ONLY A CONNECTION NEVER OPENED PROVES THE MESSAGE DID NOT ARRIVE. A refused connection is an
+// UnreachedError; a server that took the request and did not answer, or answered an error status,
+// is not.
+func TestSendAgyServerSaysWhetherTheMessageCanHaveArrived(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := ln.Addr().String()
+	ln.Close()
+
+	release := make(chan struct{})
+	hang := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer hang.Close()
+	defer close(release)
+	fail := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer fail.Close()
+
+	client := &http.Client{Timeout: 200 * time.Millisecond}
+	for _, tc := range []struct {
+		name, addr string
+		unreached  bool
+	}{
+		{"refused", closed, true},
+		{"no answer", strings.TrimPrefix(hang.URL, "http://"), false},
+		{"error status", strings.TrimPrefix(fail.URL, "http://"), false},
+	} {
+		_, err := SendAgyServer(client, Server{Address: tc.addr, Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+		var u *UnreachedError
+		if err == nil || errors.As(err, &u) != tc.unreached {
+			t.Errorf("%s: err = %v, want unreached=%v", tc.name, err, tc.unreached)
+		}
 	}
 }
 

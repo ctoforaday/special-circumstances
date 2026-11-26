@@ -1,7 +1,6 @@
 package telecli
 
 import (
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -71,19 +70,19 @@ func TestSendQueuedCauseGoldens(t *testing.T) {
 			w.linkAs(t, agySelf, "localhost:7000", newDaemon, frozen)
 			w.env.RecordLiveness = func(peer.Server) catalogue.Liveness { return catalogue.Unknown }
 		}},
-		{"daemon-answered-error", func(t *testing.T, w *sendWorld, names map[string]string) {
-			addr, _ := countingServer(t, http.StatusInternalServerError)
+		{"daemon-unreached", func(t *testing.T, w *sendWorld, names map[string]string) {
+			addr := unreachable(t)
 			names[addr] = "<DAEMON-ADDR>"
 			w.linkAs(t, agySelf, addr, newDaemon, frozen)
 		}},
-		{"holder-answered-error", func(t *testing.T, w *sendWorld, names map[string]string) {
-			addr, _ := countingServer(t, http.StatusInternalServerError)
+		{"holder-unreached", func(t *testing.T, w *sendWorld, names map[string]string) {
+			addr := unreachable(t)
 			names[addr] = "<S1-ADDR>"
 			w.linkAs(t, agySelf, addr, serverS1, frozen)
 			w.holders(map[int]peer.Holder{0: dbHolder(serverS1.PID)})
 		}},
 		{"holder-took-it", func(t *testing.T, w *sendWorld, names map[string]string) {
-			addr, _ := countingServer(t, http.StatusInternalServerError)
+			addr := unreachable(t)
 			names[addr] = "<S1-ADDR>"
 			w.linkAs(t, agyPeer, addr, serverS1, frozen)
 			w.linkAs(t, agySelf, "localhost:7000", newDaemon, frozen)
@@ -102,7 +101,7 @@ func TestSendQueuedCauseGoldens(t *testing.T) {
 		}},
 	} {
 		t.Run(tc.cause, func(t *testing.T) {
-			if tc.cause == "records-unreadable" && runtime.GOOS == "windows" {
+			if (tc.cause == "records-unreadable" || strings.HasSuffix(tc.cause, "-unreached")) && runtime.GOOS == "windows" {
 				t.Skip("the golden carries the operating system's own error text, which is Unix's here")
 			}
 			w := newSendWorld(t)

@@ -199,13 +199,13 @@ func TestAVerbRunFromAnAntigravityShellMakesItReachableLive(t *testing.T) {
 	}
 }
 
-// THE CAUSE PRINTED IS THE ONE THAT STOPPED THE LAST TARGET TRIED. The record's server refuses the
-// token (403), and the daemon, the next target, is not running: that is what queued the message.
-func TestSendHTTPFailureCauseIsLastTarget(t *testing.T) {
+// THE CAUSE PRINTED IS THE ONE THAT STOPPED THE LAST TARGET TRIED. The record's server cannot be
+// reached, and the daemon, the next target, is not running: that is what queued the message.
+func TestSendUnreachedCauseIsLastTarget(t *testing.T) {
 	w := newSendWorld(t)
-	addr, _ := w.languageServer(t)
+	addr := unreachable(t)
 	stale := func(k string) string {
-		return map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "from-before-the-restart"}[k]
+		return map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "tok"}[k]
 	}
 	if _, _, err := peer.RegisterWith(w.runtime, stale, w.env.HostServer, frozen); err != nil {
 		t.Fatal(err)
@@ -214,8 +214,8 @@ func TestSendHTTPFailureCauseIsLastTarget(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "not delivered live: no daemon is running") || strings.Contains(out, "HTTP 403") {
-		t.Errorf("stdout = %q, want the daemon's cause and not the record's 403", out)
+	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "not delivered live: no daemon is running") || strings.Contains(out, "cannot be reached") {
+		t.Errorf("stdout = %q, want the daemon's cause and not the record's", out)
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
@@ -224,12 +224,12 @@ func TestSendHTTPFailureCauseIsLastTarget(t *testing.T) {
 
 func TestSendWhenOwnRecordIsDaemonDoesNotMislabelAsNoDaemonRecorded(t *testing.T) {
 	w := newSendWorld(t)
-	addr, _ := w.languageServer(t)
+	addr := unreachable(t)
 	daemon := peer.ServerIdentity{PID: 3003, StartTime: 33333, Daemon: true}
 	w.env.HostServer = func() peer.ServerIdentity { return daemon }
 	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return daemon, true }
 	stale := func(k string) string {
-		return map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "bad-tok"}[k]
+		return map[string]string{peer.EnvConversation: agyPeer, peer.EnvAddress: addr, peer.EnvToken: "tok"}[k]
 	}
 	if _, _, err := peer.RegisterWith(w.runtime, stale, w.env.HostServer, frozen); err != nil {
 		t.Fatal(err)
@@ -238,7 +238,7 @@ func TestSendWhenOwnRecordIsDaemonDoesNotMislabelAsNoDaemonRecorded(t *testing.T
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "answered HTTP 403") {
+	if !strings.Contains(out, "QUEUED") || !strings.Contains(out, "the language server recorded at "+addr+" cannot be reached") {
 		t.Errorf("stdout = %q", out)
 	}
 	if strings.Contains(out, "has not been linked") {

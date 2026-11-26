@@ -49,6 +49,9 @@ telepathy link                   from an Antigravity shell: make this conversati
   daemon started and when the conversation last recorded a step. `claude-socket` means it reached
   the session's inbox, where a session that bypasses permission prompts holds it for its human. No
   route says the message was read.
+- AFTER a `send` that exits non-zero with delivery UNKNOWN, YOU MUST look at the conversation's
+  latest turns before sending again: a language server was sent the message and did not confirm
+  it, so it may have arrived; `send` tried no other server and queued nothing.
 - BEFORE waiting on a queued message, YOU MUST check `telepathy agents`' "waiting for Antigravity"
   section: a message stays listed there until the conversation's client reads it, and is marked
   "yours" when you sent it.
@@ -60,8 +63,9 @@ telepathy link                   from an Antigravity shell: make this conversati
   live delivery for every idle CLI conversation under `~/.gemini/antigravity-cli` (a standalone
   interactive `agy` does not restore the daemon route). `send` first finds who holds the
   conversation (`presence/<id>.lock`, or `conversations/<id>.db` open): a recorded, running server
-  that holds it delivers; with no holder, the running server it linked to last, then the daemon,
-  delivers; any other holder queues the message and is named. Every verb deletes the records of
+  that holds it delivers; with no holder, the running server it linked to last delivers, and the
+  daemon only when that server could not be reached at all; any other holder queues the message
+  and is named. Every verb deletes the records of
   servers that are gone. When Gray
   Area's hook asks you to run `telepathy link`, run it: that one command is what lets other agents
   wake conversations on this server. When no daemon-hosted conversation has linked since a restart,

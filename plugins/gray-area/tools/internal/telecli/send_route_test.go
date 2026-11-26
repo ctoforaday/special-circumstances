@@ -2,6 +2,8 @@ package telecli
 
 import (
 	"encoding/json"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,6 +39,38 @@ func countingServer(t *testing.T, status int) (string, *atomic.Int32) {
 		rw.Write([]byte("{}"))
 	}))
 	t.Cleanup(srv.Close)
+	return strings.TrimPrefix(srv.URL, "http://"), &hits
+}
+
+// unreachable is an address nothing listens on: a send to it fails to connect, so it never arrives.
+func unreachable(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close()
+	return addr
+}
+
+// hangingServer stands in a language server that takes a request and never answers it, and
+// counts the requests it gets.
+func hangingServer(t *testing.T) (string, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
+	}))
+	// Cleanups run last-registered first: the handler is released before Close waits for it.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(done) })
 	return strings.TrimPrefix(srv.URL, "http://"), &hits
 }
 
@@ -256,12 +290,11 @@ func TestSendUninspectableQueues(t *testing.T) {
 	}
 }
 
-// A SERVER THAT TOOK THE CONVERSATION WHILE FAILING ENDS THE SEND. Target 1 answers 500 and has
-// loaded the conversation; the probe before the daemon finds it holding, and the daemon is never
-// called.
+// A CONVERSATION TAKEN BEFORE THE FALLBACK ENDS THE SEND. Target 1 cannot be reached, and by the
+// probe before the daemon a process holds the conversation; the daemon is never called.
 func TestSendReprobesBeforeDaemonFallback(t *testing.T) {
 	w := newSendWorld(t)
-	a1, _ := countingServer(t, http.StatusInternalServerError)
+	a1 := unreachable(t)
 	ad, hd := countingServer(t, http.StatusOK)
 	w.linkAs(t, agyPeer, a1, serverS1, frozen)
 	w.linkAs(t, agySelf, ad, newDaemon, frozen)
@@ -291,9 +324,83 @@ func TestSendGateUninspectableNoAlso(t *testing.T) {
 	}
 }
 
-// THE HOLDER IS NEVER BYPASSED. X has the conversation open and answers 500; the daemon, which has a
-// record, is not tried.
-func TestSendHolderHTTPFailureQueues(t *testing.T) {
+// THE HOLDER IS NEVER BYPASSED. X has the conversation open and cannot be reached; the daemon,
+// which has a record, is not tried.
+func TestSendHolderUnreachedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	ax := unreachable(t)
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, ax, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	w.holders(map[int]peer.Holder{0: dbHolder(serverS1.PID)})
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, "the language server recorded at "+ax+" cannot be reached")
+	if hd.Load() != 0 {
+		t.Errorf("the daemon got %d requests while X held the conversation", hd.Load())
+	}
+}
+
+// wantUnknown asserts a send that ended with its delivery unknown: a non-zero exit saying so, and
+// nothing in the mailbox.
+func wantUnknown(t *testing.T, w *sendWorld, cause string) string {
+	t.Helper()
+	w.callerEnv = map[string]string{"CLAUDE_CODE_SESSION_ID": "caller-1"}
+	out, errOut, code := w.run(t, "send", agyPeer, "hello")
+	if code == 0 || out != "" {
+		t.Errorf("send: exit %d, stdout %q; want a non-zero exit and nothing printed as delivered or queued", code, out)
+	}
+	if !strings.Contains(errOut, "delivery UNKNOWN: "+cause) || !strings.Contains(errOut, "may have arrived") {
+		t.Errorf("stderr = %q\nwant delivery UNKNOWN with the cause %q", errOut, cause)
+	}
+	if n := len(w.mailbox(t)); n != 0 {
+		t.Errorf("%d undelivered markers, want none: a queued copy could arrive a second time", n)
+	}
+	return errOut
+}
+
+// A SERVER THAT WAS SENT THE MESSAGE AND DID NOT ANSWER MAY HAVE IT. Target 1 takes the request and
+// never answers; the send stops there, with no second server and no mailbox file.
+func TestSendTimeoutAfterSendIsUnknown(t *testing.T) {
+	w := newSendWorld(t)
+	w.env.SendTimeout = 200 * time.Millisecond
+	a1, h1 := hangingServer(t)
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	probes := w.holders(nil)
+	wantUnknown(t, w, "the language server recorded at "+a1+" was sent the message and did not confirm it")
+	if h1.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests: target 1 %d, daemon %d; want 1 and 0", h1.Load(), hd.Load())
+	}
+	for _, p := range *probes {
+		if p == newDaemon.PID {
+			t.Errorf("probes %v: the daemon was probed as a next target", *probes)
+		}
+	}
+}
+
+// AN ERROR STATUS IS AN ANSWER FROM A SERVER THAT HAD THE MESSAGE: unknown, not a fallback.
+func TestSendErrorStatusIsUnknown(t *testing.T) {
+	w := newSendWorld(t)
+	a1, h1 := countingServer(t, http.StatusInternalServerError)
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	errOut := wantUnknown(t, w, "the language server recorded at "+a1+" answered HTTP 500: boom")
+	if h1.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests: target 1 %d, daemon %d; want 1 and 0", h1.Load(), hd.Load())
+	}
+	assertGolden(t, "send-unknown", strings.ReplaceAll(errOut, a1, "<S1-ADDR>"))
+}
+
+// THE HOLDER'S ERROR IS UNKNOWN TOO: X has the conversation open and answers 500.
+func TestSendHolderErrorStatusIsUnknown(t *testing.T) {
 	w := newSendWorld(t)
 	ax, _ := countingServer(t, http.StatusInternalServerError)
 	ad, hd := countingServer(t, http.StatusOK)
@@ -302,10 +409,27 @@ func TestSendHolderHTTPFailureQueues(t *testing.T) {
 	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
 	w.running(serverS1, newDaemon)
 	w.holders(map[int]peer.Holder{0: dbHolder(serverS1.PID)})
-	out := w.sendFromClaude(t)
-	wantQueued(t, w, out, "the language server recorded at "+ax+" answered HTTP 500")
+	wantUnknown(t, w, "the language server recorded at "+ax+" answered HTTP 500")
 	if hd.Load() != 0 {
 		t.Errorf("the daemon got %d requests while X held the conversation", hd.Load())
+	}
+}
+
+// A SERVER THAT CANNOT BE REACHED NEVER GOT THE MESSAGE, so the daemon delivers it.
+func TestSendDialFailureFallsBack(t *testing.T) {
+	w := newSendWorld(t)
+	a1 := unreachable(t)
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	out := w.sendFromClaude(t)
+	if !strings.Contains(out, "via antigravity-daemon, the language server at "+ad) || hd.Load() != 1 {
+		t.Errorf("stdout = %q, daemon requests %d; want delivery through the daemon", out, hd.Load())
+	}
+	if n := len(w.mailbox(t)); n != 0 {
+		t.Errorf("%d undelivered markers, want none", n)
 	}
 }
 

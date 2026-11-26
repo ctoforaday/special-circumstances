@@ -64,7 +64,11 @@ conversation live through one language server, chosen by who holds the conversat
 or, when nobody does, the running server it linked to last, then (for conversations under
 `~/.gemini/antigravity-cli`) the current remote-control daemon's server. Before each attempt it
 checks that no other process holds the conversation, and it names the route it took
-(`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). Failing that (and
+(`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). It moves on to the
+daemon only when the first server could not be reached at all; a server that was sent the message
+and did not confirm it (no answer, a dropped connection, an error status) may have it, so `send`
+tries no other server, queues nothing, and exits non-zero saying the delivery is unknown. Failing
+live delivery otherwise (and
 always off Linux, where second-writer safety cannot be verified) it queues to the on-disk mailbox,
 read at the conversation's next turn, and prints the cause, when the daemon started and when the
 conversation last recorded a step; `telepathy agents` lists every conversation with mail its client

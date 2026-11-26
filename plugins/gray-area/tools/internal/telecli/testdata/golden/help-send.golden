@@ -38,7 +38,11 @@ that linked since the daemon started — which adopts conversations under the CL
 daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds it,
 that server delivers. Before every attempt send checks again that no process but
 that server holds the conversation, because two writers corrupt it; any other
-holder, or a holder it cannot inspect, queues the message and is named. A record is
+holder, or a holder it cannot inspect, queues the message and is named. Send moves
+on from a server only when it could not be reached at all. A server that was sent the
+message and did not confirm it — no answer, a dropped connection, an error status —
+may have it: send then tries no other server, queues nothing, says the delivery is
+UNKNOWN and exits non-zero, because a second copy could arrive. A record is
 used only while its server process is running; a record whose process cannot be
 judged (another pid namespace, a host with no machine id) is never used. The
 server's token reaches nothing but an agent's shell commands, so when no
@@ -48,10 +52,11 @@ telepathy link --help says where the record lives; telepathy agents lists every
 conversation with messages still waiting.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
-acted on the message, and the Claude Code socket does not report a hold or a drop. A
-Claude Code session that is not running has no inbox and is refused; telepathy
-agents shows which are. On native Windows a Claude Code inbox takes posts only from
-its own session, so sending to one is refused there.
+acted on the message, an UNKNOWN delivery does not say whether it arrived, and the
+Claude Code socket does not report a hold or a drop. A Claude Code session that is
+not running has no inbox and is refused; telepathy agents shows which are. On native
+Windows a Claude Code inbox takes posts only from its own session, so sending to one
+is refused there.
 
 Usage:
   telepathy send <session-id> <message|-> [flags]
