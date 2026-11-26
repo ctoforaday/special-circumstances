@@ -1855,9 +1855,10 @@ and `~/.claude/scratch/p12/r2/`):
       G's marker by an edit answering H, G's work row lists that edit once.
 
     Three `reopened` readers take no union, each for a stated reason:
-    - `anchorchecks.go:78, 262` (the ledger row's `edit`): the fold table's `BlueEdit` arm marks a removed anchor
-      retired, and a retired anchor's `edit` is 0 (`:77-78`), so a union there is unobservable. The retired marking is
-      the one mechanism.
+    - `anchorchecks.go:78, 262` (the ledger row's `edit`): the fold table's `BlueEdit` arm marks each removed anchor
+      as the `Retire` arm does (`:267-271`: `edit` 0, `retired` true), and the `reopened` loop (`:261-265`) moves
+      `edit` only while the anchor is not retired, so a union there is unobservable. The retired marking is the one
+      mechanism.
     - `consistency/consistency.go:580, 612` are comments, not reads: staleness reads standing checks through
       `record.StandingChecks`, which the ledger's retired marking already covers. They are carriers: `:614-615`'s "an
       edit never drops an anchor, and a retire takes the check out of standing" becomes "a retire or a cut takes the
@@ -2027,6 +2028,9 @@ and `~/.claude/scratch/p12/r2/`):
        - **The retire** is dropped once every token it took is in an edit's `removed_anchors`; otherwise it keeps the
          tokens of the second kind. No archived retire mixes the two kinds (r6, `measure-main.txt`): each of the 17
          anchored ones on main's 41 takes only tokens of one kind.
+       - **F14 decides per retire.** A retire of the second kind that takes an OPEN gap's own `G-` is dropped whole
+         under F14, and every token it took stays on its kept sentence, its `F-` tokens included (F22: they take
+         their `G-` neighbours' treatment). m36's 442 is the one such retire.
        - **Edits between a baring edit and the retire.** When a token's baring edit is not the edit before the
          retire, every edit between whose stored `old` or `new` quotes the token is rewritten without it, since the
          token is out of the report from its baring edit on. Their stored `old_paragraphs` and `new_paragraphs` keep it
@@ -2107,7 +2111,8 @@ and `~/.claude/scratch/p12/r2/`):
 
        `TestNoMigratedArchiveHoldsABareAnchor` asserts each row's treatment from the migrated record (the token in
        the named `removed_anchors`, re-seated, on an anchor-only retire, or standing), and the census at open stops on
-       any `F-` token outside this table or with another treatment, for a ruling before code (§V 13.1).
+       any `F-` token a baring edit or a claim retire touches that is outside this table or takes another treatment,
+       for a ruling before code (§V 13.1).
   5. **No tombstone is written.** Main holds none; #1889's re-derivation reads the filled `removed_anchors` on its
      rebase (F16).
   6. **A rewrite that left a token past its sentence's full stop is re-seated** (F20, RULED by gblock 2026-11-21,
@@ -2126,9 +2131,11 @@ and `~/.claude/scratch/p12/r2/`):
        not bare; m35's F-3201caa4 (230) and m28's F-0e004c80 (276) are taken by a later retire (translation 2). The
        render alone cannot decide it: a pure cut's bare token also sits after the previous sentence's terminator
        (`claimcount.go:119-125`).
-     - **Measured** (r6, `t6.txt`, the predicate's scan over every stored edit of main's 41 archives): it selects
-       m26's 11 tokens at their edits 233, 240, 490 and 491 and nothing else. m26's 260 re-quotes three of them
-       already bare, so it is a later edit, rewritten and not counted (below).
+     - **Measured** (r6, `t6.txt`, all four clauses scanned over every stored edit of main's 41 archives): it selects
+       m26's 11 tokens at their edits 233, 240, 490 and 491 and nothing else. Five candidates pass the first three
+       clauses and are dropped: m26's 260 re-quotes G-0f2d72fd, F-dc74b9c1 and F-e17d48bd already bare (bare before
+       the edit), so it is a later edit, rewritten and not counted (below); m28's 276 (bare before, and retired at 510)
+       and m35's 230 (retired at 259).
      - Nothing is removed, and no `removed_anchors` is filled. The population is m26's eleven (ids P3-tip, c6ae0335b
        in braces):
 
@@ -3185,8 +3192,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          migrate, "Re-run on main": 6 more claim retires, 1883's 229 an F18 pair, and no `F-` token). On the 39, its
          counts equal §III.10c's: 0 refusals, 108 claim retires (92 anchorless and 16 anchored, `F-` standing on main),
          the 7 tokens other than `F-` left on no words at a run's end, the one L6 residue, and 0 lane parts holding a
-         token. Each `F-` token takes the treatment §III.10c's "The `F-` population" table gives it; a token outside
-         the table, or another treatment, stops the work for a ruling before code. Each added archive is read fresh
+         token. Each `F-` token takes the treatment §III.10c's "The `F-` population" table gives it; a token a baring
+         edit or a claim retire touches that is outside the table, or another treatment, stops the work for a ruling
+         before code. Each added archive is read fresh
          against the same rules: a claim
          retire, a bare token, a rewrite translation 6's predicate selects, or an L6 hit in it widens §III.10c's figures
          and F18's, translation 4's or translation 6's table before code. Any difference on the 39 does the same.
@@ -3637,6 +3645,17 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   - **The side not taken:** the cut lands and the computation names a citation in no document, stated as residue.
 - **P12's lead calls — disclosed, not gblock's, each reversible at approval** (RULINGS.md 11-20 "LEAD CALLS" and the
   plan's own "lead call" marks). The approver reads each as unruled:
+  - **Translation 6's widened predicate** (§III.10c; plan-audit r6 gap 2): it reaches a token separated from the
+    terminator by whitespace and other tokens (m26's seven `F-`), and gains two clauses, bare after the edit and not
+    before, and no later retire taking it, which keep m26's 260, m28's 276 and m35's 230 out (measured) | the
+    predicate as F20 stated it, under which m26's seven `F-` stay bare and migrate refuses m26.
+  - **Migrate deletes a token it writes into an edit's `removed_anchors` from that edit's `reopened`** (§III.10c "The
+    migrated duplicate") | keep the archived `reopened` and accept the union listing the edit twice for that gap.
+  - **m36's two `F-` stay with the F14-dropped retire 442** (§III.10c translation 2, "F14 decides per retire") |
+    keep 442 as an anchor-only retire of its two `F-` alone.
+  - **Three `reopened` readers take no union** (`anchorchecks.go`, `consistency.go`, `runtest/reopened.go`; §III.10c),
+    each for its stated reason, where plan-audit r6 asked for deletion checks | union them and add a check each,
+    which no test can turn red at `anchorchecks.go`.
   - **Every seat-facing string built from a removal names its act** (§III.10c; plan-audit r6 gap 1; RULINGS.md
     2026-11-26 "P12b migrate" entry, lead call): `AnchorRetire` becomes `AnchorRemoval` carrying `anchor_removal.by`,
     `reaching` gains `by`, and each of ten sites states the cut's wording beside the retire's, pinned by
@@ -3682,6 +3701,12 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     m26's `reseated` count from 4 to 11, adds m19's four tokens to translation 4, and classifies the two `F-`-only claim
     retires (m32's 382 folds; m35's 259 becomes an anchor-only retire, its edit 230 a rewrite like mersenne's). m35 has
     no `G-` neighbour; its treatment is the shape rule F22 applies, an agent reading stated for the approver.
+  - **What the record shows of m26's seven.** Edits 233 and 240 stood each `F-` in a paragraph of its own "so each
+    cut claim stands as bare anchors that its retirement can name" (233's reason; 240's: "The bare anchors of the
+    removed search-pages bullet are retired next"), and no retire followed. Blue meant them cut; the pick "m26's are
+    re-seated" is applied as picked, and its option wording was the agent's. A cut instead would fill 233's and 240's
+    `removed_anchors` with the seven, a shape no live write makes for an edit whose `new` holds prose (the reason F20
+    picked the re-seat).
 - **F23 — a claim retire whose tokens different edits bared (P12b migrate translation 2; plan-audit r6 gap 2). RULED by
   gblock 2026-11-26 (picked; option wording the agent's): "Per token, at its baring edit".** RULINGS.md 2026-11-26
   "P12b migrate" entry.
