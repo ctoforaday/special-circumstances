@@ -480,7 +480,11 @@ func (r *agyRouter) daemonStarted() string {
 }
 
 // daemonLine bounds a queued message's wait from below: nothing woke the conversation since then.
+// Off Linux the daemon is never looked for, so its absence is not a measurement.
 func (r *agyRouter) daemonLine() string {
+	if r.env.goos() != "linux" {
+		return "daemon start not measured"
+	}
 	if !r.hasDaemon {
 		return "no daemon is running"
 	}

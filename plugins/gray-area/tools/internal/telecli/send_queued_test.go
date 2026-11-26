@@ -157,18 +157,20 @@ func TestQueuedDaemonLine(t *testing.T) {
 	boot := func() (int64, bool) { return bootAt.Unix(), true }
 	for _, tc := range []struct {
 		name  string
+		goos  string
 		has   bool
 		start int64
 		boot  func() (int64, bool)
 		want  string
 	}{
-		{"measured", true, 30000, boot, "daemon started 2026-09-09 11:45:00 UTC"},
-		{"no daemon", false, 0, boot, "no daemon is running"},
-		{"no boot", true, 30000, func() (int64, bool) { return 0, false }, "daemon start not measured"},
-		{"nil boot", true, 30000, nil, "daemon start not measured"},
-		{"no start time", true, 0, boot, "daemon start not measured"},
+		{"measured", "linux", true, 30000, boot, "daemon started 2026-09-09 11:45:00 UTC"},
+		{"no daemon", "linux", false, 0, boot, "no daemon is running"},
+		{"not looked for off Linux", "darwin", false, 0, boot, "daemon start not measured"},
+		{"no boot", "linux", true, 30000, func() (int64, bool) { return 0, false }, "daemon start not measured"},
+		{"nil boot", "linux", true, 30000, nil, "daemon start not measured"},
+		{"no start time", "linux", true, 0, boot, "daemon start not measured"},
 	} {
-		r := &agyRouter{env: &Env{Boot: tc.boot}, hasDaemon: tc.has, daemonID: peer.ServerIdentity{PID: 1, StartTime: tc.start}}
+		r := &agyRouter{env: &Env{Boot: tc.boot, GOOS: tc.goos}, hasDaemon: tc.has, daemonID: peer.ServerIdentity{PID: 1, StartTime: tc.start}}
 		if got := r.daemonLine(); got != tc.want {
 			t.Errorf("%s: daemonLine = %q, want %q", tc.name, got, tc.want)
 		}
