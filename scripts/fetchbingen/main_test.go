@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -147,5 +148,118 @@ func TestASessionStartBinaryCarriesTheVersionCheck(t *testing.T) {
 	doc := hooksDocWith(t, "SessionStart", guardCmd("x", "SessionStart"), false)
 	if got := guardProblems("p", doc); len(got) != 0 {
 		t.Fatalf("a plugin whose one SessionStart hook is its own binary was refused: %v", got)
+	}
+}
+
+func agyGuardCmd(bin, ev string) string {
+	return `R="${PWD}"; B="$R/bin/` + bin + `"; if [ -x "$B" ] || [ -x "$B.exe" ]; then exec "$B"; fi; ` +
+		`F="$R/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" hook ` + ev + `; fi`
+}
+
+func TestAgyGuardProblems(t *testing.T) {
+	t.Run("valid with ensure entry", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `},{"command":` + jsonQuote(agyGuardCmd("feov-subagentstart", "SubagentStart")) + `}]}}`
+		if got := agyGuardProblems("p", []byte(doc)); len(got) != 0 {
+			t.Fatalf("unexpected problems: %v", got)
+		}
+	})
+	t.Run("valid with SessionStart binary", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyGuardCmd("sc-sessionstart", "SessionStart")) + `}]}}`
+		if got := agyGuardProblems("p", []byte(doc)); len(got) != 0 {
+			t.Fatalf("unexpected problems: %v", got)
+		}
+	})
+	t.Run("missing ensure when only subagentstart on SessionStart", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyGuardCmd("feov-subagentstart", "SubagentStart")) + `}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "no SessionStart hook runs the version check") {
+			t.Fatalf("want missing version check problem, got %v", got)
+		}
+	})
+	t.Run("wrong event literal fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"PreToolUse":[{"matcher":".*","hooks":[{"command":` + jsonQuote(agyGuardCmd("x", "PostToolUse")) + `}]}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "event other than PreToolUse") {
+			t.Fatalf("want wrong event problem, got %v", got)
+		}
+	})
+	t.Run("missing fetch-bin fallback fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":"R=\"${PWD}\"; B=\"$R/bin/x\"; exec \"$B\""}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "does not hand") {
+			t.Fatalf("want missing fetch-bin problem, got %v", got)
+		}
+	})
+	t.Run("ensure entry plus SessionStart binary fails", func(t *testing.T) {
+		doc := `{"p-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `},{"command":` + jsonQuote(agyGuardCmd("sc-sessionstart", "SessionStart")) + `}]}}`
+		got := agyGuardProblems("p", []byte(doc))
+		if len(got) != 1 || !strings.Contains(got[0], "both the ensure entry and a SessionStart binary") {
+			t.Fatalf("want duplicate SessionStart version-check problem, got %v", got)
+		}
+	})
+}
+
+func jsonQuote(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+// TestCheckPluginsWiresBothClaudeAndAgyGuards pins main's call sites into guardProblems and
+// agyGuardProblems so removing either call cannot pass the suite.
+func TestCheckPluginsWiresBothClaudeAndAgyGuards(t *testing.T) {
+	want := []byte("#!/bin/sh\n# stub\n")
+	setup := func(t *testing.T, claudeHooks, agyHooks string) string {
+		t.Helper()
+		root := t.TempDir()
+		pDir := filepath.Join(root, "plugins", "demo")
+		for _, sub := range []string{"hooks", "bin", ".claude-plugin"} {
+			if err := os.MkdirAll(filepath.Join(pDir, sub), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_ = os.WriteFile(filepath.Join(pDir, "hooks", "fetch-bin.sh"), want, 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, "bin", ".gitkeep"), nil, 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, ".claude-plugin", "hooks.json"), []byte(claudeHooks), 0o644)
+		_ = os.WriteFile(filepath.Join(pDir, "hooks.json"), []byte(agyHooks), 0o644)
+		// Seed the hookinvocation_test.go copy checked by ensureCopyProblems.
+		hiPath := filepath.Join(root, "plugins", "frank-exchange-of-views", "tools", "releasegate", "fuzz", "hookinvocation_test.go")
+		if err := os.MkdirAll(filepath.Dir(hiPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(hiPath, []byte("const x = `"+ensureEntry+"`\n"), 0o644)
+		return root
+	}
+
+	validClaude := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` + jsonQuote(ensureEntry) + `}]}],"Stop":[{"hooks":[{"type":"command","command":` + jsonQuote(guardCmd("x", "Stop")) + `}]}]}}`
+	validAgy := `{"demo-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":` + jsonQuote(agyGuardCmd("x", "Stop")) + `}]}}`
+
+	if got := checkPlugins(setup(t, validClaude, validAgy), []string{"demo"}, want); len(got) != 0 {
+		t.Fatalf("valid plugin reported problems: %v", got)
+	}
+
+	badClaude := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` + jsonQuote(ensureEntry) + `}]}],"Stop":[{"hooks":[{"type":"command","command":"exec \"${CLAUDE_PLUGIN_ROOT}/bin/x\""}]}]}}`
+	if got := checkPlugins(setup(t, badClaude, validAgy), []string{"demo"}, want); len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), "does not hand") {
+		t.Fatalf("checkPlugins did not wire Claude guardProblems: %v", got)
+	}
+
+	badAgy := `{"demo-hooks":{"SessionStart":[{"command":` + jsonQuote(agyEnsureEntry) + `}],"Stop":[{"command":"R=\"${PWD}\"; exec \"$R/bin/x\""}]}}`
+	if got := checkPlugins(setup(t, validClaude, badAgy), []string{"demo"}, want); len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), "does not hand") {
+		t.Fatalf("checkPlugins did not wire Antigravity agyGuardProblems: %v", got)
+	}
+
+	// N4 (M4c): runIn (called directly by main) must return non-zero and report problems on stderr.
+	badRoot := setup(t, validClaude, badAgy)
+	if err := os.MkdirAll(filepath.Join(badRoot, "plugins", "demo", "tools", "cmd", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(badRoot, filepath.Dir(src)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srcBody := []byte("#!/bin/sh\n# stub\n")
+	_ = os.WriteFile(filepath.Join(badRoot, src), srcBody, 0o644)
+	_ = os.WriteFile(filepath.Join(badRoot, "plugins", "demo", "hooks", "fetch-bin.sh"), render(srcBody), 0o644)
+	var outBuf, errBuf bytes.Buffer
+	if code := runIn(badRoot, true, &outBuf, &errBuf); code == 0 || !strings.Contains(errBuf.String(), "does not hand") {
+		t.Fatalf("runIn(-check) must fail on bad agy guard: code=%d stdout=%q stderr=%q", code, outBuf.String(), errBuf.String())
 	}
 }

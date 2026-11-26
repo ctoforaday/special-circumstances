@@ -6,6 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -523,4 +524,77 @@ func TestAntigravityPreInvocationCheckpointRestoreCases(t *testing.T) {
 			t.Fatalf("clean PreInvocation did not clear StageHookUnmarshal after being shown: %s", string(fb))
 		}
 	})
+}
+
+func TestAntigravitySessionStartRunsRealEnsureWithPluginRootOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fetch-bin.sh is a POSIX shell script")
+	}
+	root := t.TempDir()
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "[ \"$1\" = ensure ] && [ \"$2\" = SessionStart ] && printf '{\"systemMessage\":\"agy-sc-self-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	t.Setenv("PLUGIN_ROOT", root)
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	proj := t.TempDir()
+	payload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "SessionStart",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+	})
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"-event", "SessionStart"}, bytes.NewReader(payload), &stdout, &stderr, proj, time.Now(), []hookunit.Unit{
+		{Name: "noop", Run: func(*hookunit.Ctx) hookunit.Result { return hookunit.Result{Name: "noop"} }},
+	})
+	if code != 0 {
+		t.Fatalf("SessionStart exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-sc-self-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected Antigravity SessionStart to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", stdout.String())
+	}
+
+	// Unified per-turn-start ensure rule (matching gray-area-capture and feov-pretooluse):
+	// mid-turn PreInvocation(invocationNum==1) never runs ensure (closes D5), while every
+	// turn-start PreInvocation(invocationNum==0) runs ensure("PreInvocation") so resumed
+	// conversations and mid-conversation updates both self-heal.
+	turnBody := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-sc-turnstart-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(turnBody), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	midTurn, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+		"invocationNum":  1,
+	})
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(midTurn), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("mid-turn PreInvocation exit %d stderr=%s", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") {
+		t.Fatalf("mid-turn PreInvocation(invocationNum=1) must not run ensure, got: %s", stdout.String())
+	}
+
+	turnStart, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-ensure-sc",
+		"cwd":            proj,
+		"invocationNum":  0,
+	})
+	stdout.Reset()
+	if code := run([]string{"-event", "PreInvocation"}, bytes.NewReader(turnStart), &stdout, &stderr, proj, time.Now(), nil); code != 0 {
+		t.Fatalf("turn-start PreInvocation(0) exit %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "agy-sc-turnstart-heal-ok") || !strings.Contains(stdout.String(), "injectSteps") {
+		t.Fatalf("expected turn-start PreInvocation(0) to run fetch-bin.sh ensure, got: %s", stdout.String())
+	}
 }

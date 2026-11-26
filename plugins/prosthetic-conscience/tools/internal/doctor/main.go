@@ -23,6 +23,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/pluginroot"
 )
 
 type requirements struct {
@@ -452,23 +453,6 @@ func isSemver(s string) bool {
 	return hasDot
 }
 
-// isPluginDir reports whether dir looks like a plugin root by holding a manifest,
-// requirements.json, or tools/cmd.
-func isPluginDir(dir string) bool {
-	for _, sub := range []string{
-		"requirements.json",
-		"plugin.json",
-		filepath.Join(".claude-plugin", "plugin.json"),
-		filepath.Join(".antigravity-plugin", "plugin.json"),
-		filepath.Join("tools", "cmd"),
-	} {
-		if _, err := os.Stat(filepath.Join(dir, sub)); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
 // isAntigravity reports whether the process runs inside a Google Antigravity session.
 func isAntigravity() bool {
 	return os.Getenv("ANTIGRAVITY_AGENT") != "" ||
@@ -590,7 +574,7 @@ func siblingPluginRoots(root string) []pluginRef {
 				continue
 			}
 			siblingDir := filepath.Join(parent, e.Name())
-			if !isPluginDir(siblingDir) {
+			if !pluginroot.IsPluginDir(siblingDir) {
 				continue
 			}
 			name, ver := pluginIdentity(siblingDir)
@@ -898,22 +882,13 @@ func resolveRoot(rootFlag, envRoot string, executable func() (string, error)) st
 	if rootFlag != "" {
 		return rootFlag
 	}
-	if envRoot != "" {
-		return envRoot
-	}
-	if pRoot := os.Getenv("PLUGIN_ROOT"); pRoot != "" {
-		return pRoot
-	}
-	if exe, err := executable(); err == nil {
-		grandparent := filepath.Dir(filepath.Dir(exe))
-		if isPluginDir(grandparent) {
-			return grandparent
-		}
+	if r := pluginroot.Resolve(envRoot, os.Getenv("PLUGIN_ROOT"), executable); r != "" {
+		return r
 	}
 	if isAntigravity() {
 		if h := homeDir(); h != "" {
 			dir := filepath.Join(h, ".gemini", "config", "plugins", "prosthetic-conscience")
-			if isPluginDir(dir) {
+			if pluginroot.IsPluginDir(dir) {
 				return dir
 			}
 		}
@@ -1041,11 +1016,7 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 // Main is the process boundary: it wires the real environment in and returns the
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
-	envRoot := os.Getenv("CLAUDE_PLUGIN_ROOT")
-	if envRoot == "" {
-		envRoot = os.Getenv("PLUGIN_ROOT")
-	}
-	return run(os.Args[1:], os.Stdout, envRoot, os.Executable, fix)
+	return run(os.Args[1:], os.Stdout, os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Executable, fix)
 }
 
 // displayVersion prefers the line the check command already produced during Probe over running

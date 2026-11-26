@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -820,5 +821,55 @@ func TestApplyBoundAgySittingNeverCreatesBoundMarker(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(sdir, "seat-red-chair.bound")); err == nil {
 		t.Fatalf("applyBoundAgySitting created seat-red-chair.bound despite read-only contract")
+	}
+}
+
+func TestAntigravityPreInvocationTurnStartRunsRealEnsure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fetch-bin.sh is a POSIX shell script")
+	}
+	root := t.TempDir()
+	script := filepath.Join(root, "hooks", "fetch-bin.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "[ \"$1\" = ensure ] && [ \"$2\" = PreInvocation ] && printf '{\"systemMessage\":\"agy-feov-resume-heal-ok\"}\\n'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
+	t.Setenv("PLUGIN_ROOT", root)
+	t.Setenv("PLUGIN_DATA", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	cwd := t.TempDir()
+	// Mid-turn PreInvocation (invocationNum == 1) must NOT run ensure.
+	midPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-feov-resume",
+		"cwd":            cwd,
+		"invocationNum":  1,
+	})
+	var midOut bytes.Buffer
+	if err := Pre(bytes.NewReader(midPayload), &midOut, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(midOut.String(), "agy-feov-resume-heal-ok") {
+		t.Fatalf("mid-turn PreInvocation(1) must not run ensure, got: %s", midOut.String())
+	}
+
+	// Turn-start PreInvocation (invocationNum == 0) runs ensure and emits injectSteps.
+	startPayload, _ := json.Marshal(map[string]any{
+		"hookEventName":  "PreInvocation",
+		"conversationId": "conv-feov-resume",
+		"cwd":            cwd,
+		"invocationNum":  0,
+	})
+	var startOut bytes.Buffer
+	if err := Pre(bytes.NewReader(startPayload), &startOut, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(startOut.String(), "agy-feov-resume-heal-ok") || !strings.Contains(startOut.String(), "injectSteps") {
+		t.Fatalf("expected FEOV PreInvocation(0) to emit fetch-bin.sh ensure message via PLUGIN_ROOT, got: %s", startOut.String())
 	}
 }

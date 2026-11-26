@@ -110,7 +110,7 @@ func Unit(pluginRoot string, probe func([]toolchain.Tool) []toolchain.Status) ho
 			if pluginRoot == "" {
 				// No plugin root at all: the manifest cannot even be located, and the nudge was
 				// silent about exactly the tools it exists to name.
-				c.Rec.Fail(StageManifest, "no plugin root (CLAUDE_PLUGIN_ROOT unset) — the toolchain nudge cannot read requirements.json, so it cannot say which tools are missing")
+				c.Rec.Fail(StageManifest, "no plugin root (CLAUDE_PLUGIN_ROOT and PLUGIN_ROOT unset) — the toolchain nudge cannot read requirements.json, so it cannot say which tools are missing")
 			} else {
 				manifest := filepath.Join(pluginRoot, "requirements.json")
 				switch raw, err := os.ReadFile(manifest); {

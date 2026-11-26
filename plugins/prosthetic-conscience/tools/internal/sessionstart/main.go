@@ -129,11 +129,7 @@ func needsResumeRestore(req hookcore.Request, hostID string, rec *hookfailures.R
 		return false
 	}
 	// Only check on invocationNum == 0 (first model step of a turn), never mid-turn.
-	var payload struct {
-		InvocationNum *int `json:"invocationNum"`
-	}
-	_ = json.Unmarshal(req.Raw, &payload)
-	if payload.InvocationNum != nil && *payload.InvocationNum != 0 {
+	if !hookcore.IsTurnStartPreInvocation(req.Raw) {
 		return false
 	}
 	if req.PluginDataDir == "" {
@@ -180,14 +176,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", eventName, now, stderr)
-	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. It runs
-	// before the project root is resolved: the binaries are the machine's, and a session with no
-	// root still heals — only the message waits, because such a session writes nothing to stdout.
-	healed, err := ensure(eventName)
-	if err != nil {
-		rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
-	} else {
-		rec.OK(hookfailures.StageEnsure)
+	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. Run it on
+	// SessionStart only (not on every Antigravity PreInvocation model step, matching gray-area-capture).
+	// It runs before the project root is resolved: the binaries are the machine's, and a session with
+	// no root still heals — only the message waits, because such a session writes nothing to stdout.
+	var healed string
+	if eventName == "SessionStart" {
+		var err error
+		healed, err = ensure(eventName)
+		if err != nil {
+			rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+		} else {
+			rec.OK(hookfailures.StageEnsure)
+		}
 	}
 	ctx := hookunit.NewCtx(eventName, req.Raw, projectDir, now, rec)
 	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {
@@ -244,6 +245,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 		if !sawHookErr {
 			rec.OKTTL(hookcore.StageHookUnmarshal(), scope)
+		}
+
+		// Run the version check on every turn start (invocationNum == 0, matching gray-area-capture
+		// and feov-pretooluse), independent of checkpoint-restore, so resumed conversations and
+		// mid-conversation updates both heal without paying the check on mid-turn model steps.
+		if hookcore.IsTurnStartPreInvocation(req.Raw) {
+			var err error
+			healed, err = ensure("PreInvocation")
+			if err != nil {
+				rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
+			} else {
+				rec.OK(hookfailures.StageEnsure)
+			}
 		}
 
 		// Antigravity does not fire SessionStart on conversation resume (--conversation) or after a

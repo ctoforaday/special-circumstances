@@ -56,6 +56,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/shared/pluginroot"
 )
 
 // Stage names what failed. Each stage is declared by the package that can fail it, so a new failure
@@ -310,11 +312,16 @@ const StageEnsure Stage = "ensure"
 // a plugin with none keeps the check as its SessionStart entry. fetch-bin.sh stays the one
 // implementation of the check, the fetch and the throttle on what it says.
 //
-// Outside a plugin hook — no CLAUDE_PLUGIN_ROOT — there is nothing to ensure and it returns nothing.
+// Outside a plugin hook — neither CLAUDE_PLUGIN_ROOT nor PLUGIN_ROOT is set and the binary's
+// grandparent carries no plugin marker — there is nothing to ensure and it returns nothing.
 // Whether the root is a development checkout, which is never healed, is fetch-bin.sh's question too:
 // it refuses there and says nothing on stdout, so Ensure returns nothing.
 func Ensure(event string) (string, error) {
-	root := os.Getenv("CLAUDE_PLUGIN_ROOT")
+	return ensureWith(event, os.Executable)
+}
+
+func ensureWith(event string, executable func() (string, error)) (string, error) {
+	root := pluginroot.Resolve(os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("PLUGIN_ROOT"), executable)
 	if root == "" {
 		return "", nil
 	}
