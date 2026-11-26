@@ -2076,7 +2076,9 @@ and `~/.claude/scratch/p12/r2/`):
         `retired`: `by` (`retire` or `edit`), the `event` of the act that took it out, and its `reason` (the retire's,
         or the edit's `--reason`)" (site 10). Its `retires` sentence becomes "`retires` IS EVERY RETIRE ON THE RECORD,
         in record order: the sentence the anchor stood on, which stays, blue's `reason`, and the `anchors` it took out";
-        the `claim_kept`, `removal_basis` and `superseded_by` clauses go with the fields.
+        the `claim_kept`, `removal_basis` and `superseded_by` clauses go with the fields. Its sibling, the `--anchor`
+        flag help (`verbs.go:707`): "a retired one with the retire that took it out" becomes "one out of the report with
+        the act that took it out (`retired.by`: `retire` or `edit`)".
   - **Prose in code.**
     - `anchor.go:82-88` on main (`lifecycle`, `evidenceLeaves`, seat-facing through `Label`): under P12b every kind
       leaves the same two ways, so `evidenceLeaves` and its branch (`anchor.go:347-348`) go, and `lifecycle` becomes
@@ -2092,7 +2094,8 @@ and `~/.claude/scratch/p12/r2/`):
       anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it,
       and one still on prose that stays leaves when you name it to the retire with --anchor" becomes "To take the
       claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor
-      with it; to take only the anchor off a sentence that stays, retire it with --anchor".
+      with it; to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker
+      is not retired: carry it, or cut its sentence, which hands the gap to its lens" (F14).
     - `retire.go`'s doc comment, `:24-51` on main, rewritten whole. It opens "retire: the ONLY way substance leaves
       the report" (`:24`) and says "a claim can only LEAVE through this verb" (`:33`), and at `:40-41` "`edit` refuses a
       replacement that drops an anchor, so a counted claim leaves only where a retire names the anchors it takes",
@@ -2121,8 +2124,9 @@ and `~/.claude/scratch/p12/r2/`):
     - `record/passblockers.go:306` (`blueFailedItem`, blue-respond's work-list remedy for an unsound computation,
       rendered by `sitting.go:376`): "… or a new computation with this one retired — or retire the claim it backs"
       becomes "… or a new computation with this one retired — or cut the sentence it backs, which takes the
-      computation with it". The census at `census-c.md:20` read only the `:306-308` citation branch, which stays
-      ("Retire the citation").
+      computation with it". Its "an edit that makes its sentence say what the program shows, which leaves the
+      computation unchecked" is a rewrite, and stays. The census at `census-c.md:20` read only the `:306-308` citation
+      branch: its remedy ("Retire the citation") stays, and its last clause (`:312`) is the reopen face's (below).
     - Code comments that speak the claim retire or a retire-only removal:
       - `sitting.go:511-514`: "blue's retire of its claim, or a report that renders again, is what moves it" becomes
         "blue's retire of the anchor or cut of its sentence, or a report that renders again, is what moves it";
@@ -2269,6 +2273,103 @@ and `~/.claude/scratch/p12/r2/`):
         while a check of it stands is a disagreement: a check is recorded only of a live sentence, an anchor leaves
         only by a retire or a cut, and either takes the check out of standing (the ledger's removal arm reads
         `anchor_removal`)". The bare arm (`:645-647`) goes with the bare state.
+  - **The reopen face: what an edit does to an anchor's check** (plan-audit r10; wording on main 7cfd3a396). A cut is
+    an edit, so text that says an edit of an anchor's sentence CLEARS a failed check stays true. A cut falsifies only
+    the consequence clause ("which leaves it unchecked", "owed a fresh check", "is reopened"): a cut takes the anchor
+    and lists it in `removed_anchors`, in no `reopened` row; its check leaves with it (`anchorChecksOf`'s `BlueEdit`
+    arm), a failed check on it clears (`requireFailedCheckAnswered`), and no fresh check or judgement is owed of it.
+    Each site below says which edit it means: a rewrite leaves the anchor unchecked; a cut takes it and its check out,
+    owing nothing.
+    - Work lists, the PASS refusal and the plan hold (`record/passblockers.go`):
+      - `:274` (`failedClears`, unsound): "or by a judgement from a sitting opened after blue's edit changed the
+        sentence, since an edit leaves it unchecked — or when blue retires it" becomes "or by a judgement from a
+        sitting opened after blue's rewrite changed the sentence, since a rewrite leaves it unchecked — or when the
+        computation leaves the report, by blue's retire or a cut of its sentence, which owes no fresh judgement";
+      - `:276` (citation): "or when blue retires the citation, or edits its sentence, which leaves it unchecked"
+        becomes "or when blue rewrites its sentence, which leaves it unchecked, or when the citation leaves the report,
+        by blue's retire or a cut of its sentence, which owes no fresh check";
+      - `:312` (`blueFailedItem`, citation): "; an edit of its sentence leaves it unchecked, owed a fresh check"
+        becomes "; a rewrite of its sentence leaves it unchecked, owed a fresh check, and a cut of the sentence takes
+        the citation and its check out, owing nothing — refused while a computation in the report applies the citation
+        (L6)";
+      - `:329` (`failedCheckRefusal`): "A computation clears when it is judged sound again or retired, a citation when
+        a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it
+        unchecked" becomes "A computation clears when it is judged sound again, a citation when a lens reads its
+        source, and either when blue's rewrite changes its sentence, which leaves it unchecked, or when it leaves the
+        report, by blue's retire or a cut of its sentence, which owes nothing";
+      - `:426` and `:428` (the plan hold's `why`): "until the computation is judged sound again or retired" becomes
+        "until the computation is judged sound again or leaves the report, by a retire or a cut"; "until a lens reads
+        its source or blue retires the citation" becomes "until a lens reads its source or the citation leaves the
+        report, by blue's retire or a cut". A rewrite turns the failed check into an unchecked anchor, which still
+        holds the PASS, so neither names it.
+    - Repeat and close refusals (`record/failedcheck.go`):
+      - `:185` (the repeat `unsound`): "The judgement and its gap stand until blue edits the sentence, which leaves the
+        computation unchecked for a fresh judgement, or retires the computation" becomes "The judgement and its gap
+        stand until blue rewrites the sentence, which leaves the computation unchecked for a fresh judgement, or the
+        computation leaves the report, by blue's retire or a cut of its sentence";
+      - `:238` (the close, unsound): "blue edits its sentence (the computation is then owed a fresh judgement) or blue
+        retires it" becomes "blue rewrites its sentence (the computation is then owed a fresh judgement), or the
+        computation leaves the report, by blue's retire or a cut of its sentence (nothing is then owed of it)";
+      - `:243` (the close, unread): "blue retires the citation (its sentence may stay), blue edits its sentence (the
+        citation is then owed a fresh check) or a lens reads its source" becomes "blue retires the citation (its
+        sentence stays), blue rewrites its sentence (the citation is then owed a fresh check), blue cuts its sentence
+        (the citation leaves with it, and nothing is then owed of it) or a lens reads its source";
+      - the comments `:31-32` ("is changed by an edit (which leaves it unchecked, owed a fresh check), or is retired")
+        become "is changed by a rewrite (which leaves it unchecked, owed a fresh check), or leaves the report by a
+        retire or a cut"; `:155-157` ("An edit naming the anchor leaves it unchecked, and a check after that is a fresh
+        one, admitted; a retire takes the anchor out") becomes "A rewrite naming the anchor leaves it unchecked, and a
+        check after that is a fresh one, admitted; a retire, or a cut of its sentence, takes the anchor out".
+    - Help pages:
+      - `verify.md:11`: "so does blue's retire of the citation, and an edit of its sentence leaves it owed a fresh
+        check" becomes "so does the citation leaving the report, by blue's retire or a cut of its sentence, which owes
+        no fresh check; a rewrite of its sentence leaves it owed a fresh check";
+      - `reproduce.md:23`: "until you judge the sentence again or blue edits it — an edit reopens the anchor, and a
+        judgement from a sitting opened after the edit is owed" becomes "until you judge the sentence again or blue
+        edits it — a rewrite reopens the anchor, and a judgement from a sitting opened after the rewrite is owed; a cut
+        takes the computation out of the report, its judgements with it, and none is owed";
+      - `reproduce.md:25`: "or by one from a sitting opened after blue's edit — or blue retires the computation"
+        becomes "or by one from a sitting opened after blue's rewrite — or the computation leaves the report, by blue's
+        retire or a cut of its sentence";
+      - `edit.md:28`: "Either way the record lists each anchor whose sentence your edit changed. A citation or
+        computation among them is reopened — …" becomes "Either way the record lists each anchor whose sentence your
+        rewrite changed. A citation or computation among them is reopened — …", ending "… and a PASS waits until one
+        does. A cut lists none of the anchors it takes: each leaves the report with its check, and nothing is owed of
+        it". Its "Either way" reads the two rewrite cases of `:22-26`; the cut is defined at the new `:20`;
+      - `mint.md:15`: "until it is judged sound again or retired" becomes "until it is judged sound again or leaves the
+        report"; "until a lens reads the source or blue retires the citation" becomes "until a lens reads the source or
+        the citation leaves the report". Its last sentence is reworded under "The pages that describe a removal name
+        its act" (above);
+      - `close.md:13`: "Retiring the answer of an open gap leaves it owed" becomes "Taking the answer of an open gap out
+        of the report, by a retire or a cut, leaves it owed", the twin of `lens-audit-and-mint.md:8`. Its "The check
+        clears once blue retires the citation or computation, blue's edit changes the sentence, or a check of it holds"
+        is the clearing half, true of a cut, and stays; its "the claim its marker marks" clause is the first list's
+        "out of scope", and stays.
+    - `fragments/blue-search-and-cite.md:23-28` (after the `:5-21` rewrite and `:22`): "The record lists each anchor
+      whose sentence an edit changed. A citation or computation among them is REOPENED — …" becomes "The record lists
+      each anchor whose sentence a rewrite changed. A citation or computation among them is REOPENED — …", ending "…
+      and a PASS waits until one does. A cut lists none of the anchors it takes: each leaves the report with its check,
+      and nothing is owed of it."
+    - `terms.json:1095-1096` (the `reopened` collision resolution; `vocabdoc` renders `docs/vocabulary.md:633`): "an
+      edit's `reopened` lists every anchor its sentence change touched, of any kind" becomes "an edit's `reopened` lists
+      every anchor whose sentence the edit changed and that still stands, of any kind"; the rest stays, and it ends "An
+      anchor a cut took is in the edit's `removed_anchors`, never its `reopened`".
+    - Code comments:
+      - `deliveredtext.go:79-80` (`changedSinceSQL`): "an edit whose reopened lists it, which includes one that left it
+        bare" becomes "an edit whose `reopened` lists it (a rewrite of its sentence) or whose `removed_anchors` does (a
+        cut)", the query's union ("The raiser's turn");
+      - `deliverycut.go:345` (`latestReopeningSQL`): "the latest edit whose reopened lists gap ?1" becomes "the latest
+        edit whose `reopened` or `removed_anchors` lists gap ?1"; `:349-351` (`gapPassages`): "for a gap whose anchor is
+        gone or bare, the paragraph that held it before the latest edit that reopened it" becomes "for a gap whose
+        anchor is gone, the paragraph that held it before the edit that cut it";
+      - `recordsql/schema.go:285-286`: "the latest is the edit that took its text, whose stamped old paragraphs still
+        hold it, and the first after a head is the change that touched it since" becomes "the first after a head is the
+        change that touched it since; an edit that took its text lists it in `removed_anchors` instead";
+      - `anchorchecks.go:257-259` (the fold): "A RETIRE IS FIRST AND PERMANENT … a retire takes the anchor out of the
+        report, an edit invents no anchor, so no edit reopens it and no later retire names it again" becomes "A REMOVAL
+        IS FIRST AND PERMANENT … a retire or a cut takes the anchor out of the report, an edit invents no anchor, so no
+        edit reopens it and no later act names it again";
+      - `reportproj/render.go:162`: "the retire validated its presence at the write" becomes "the retire or the cut
+        validated its presence at the write".
   - **Agentgen sources.**
     - `blue-synthesizer.md:13-14`: "each an appended event the report is replayed from, which names what it changed
       and why, and cannot drop an anchor. A claim leaves only by being retired" becomes "each an appended event the
@@ -2462,19 +2563,39 @@ and `~/.claude/scratch/p12/r2/`):
       vanishing, and the edit names the anchors it took. A marker that disappears with no event naming it is a
       detector hit"; `:73-74` ("carried by every edit, and leaves only by `retire`") becomes "carried by every
       rewrite, and leaves by a retire or with its sentence in a cut".
-  - **The property.** No shipped text — `plugins/*/docs` and the root `README.md` included — says a claim leaves by a
-    retire, says an anchor leaves only by `retire`, or says CHANGELOG lists retired claims. Its converse face holds
-    too: no shipped text says an edit never removes an anchor, or that every edit carries its span's anchors, except
-    as a statement about a rewrite; and the pages that teach `edit` (`edit.md`, `verbs.go`'s blue `show report`
-    paragraph, `cite.md`) say that a cut of a whole sentence takes that sentence's anchors, the ones at its end
-    included. Each site is judged by
-    what it means, not by a pattern's silence: no phrase sweep is complete (plan-audit r8 found the old one both
-    leaking and over-matching). `record/migrate/` is outside it: it translates the archived claim retires.
-  - **The sweep's classified list.** §V 13.1's phrase sweep (a superset of plan-audit r8's
-    `~/.claude/scratch/p12-audit/r8/broad.txt`, plus `plugins/frank-exchange-of-views/docs`) prints 127 lines (118 sites) on
-    main 7cfd3a396 (`~/.claude/scratch/p12b-r9/broad-main.txt`); the narrower phrase set this plan carried before matched 58
-    sites (60 lines). Every hit is classified here by meaning. Paths are under `plugins/frank-exchange-of-views/`
-    except `README.md` and `scripts/agentgen/src/`.
+  - **The property** (stated once, for every face; §V 13.1 reads it). Every statement in shipped text —
+    `plugins/*/docs` and the root `README.md` included — of how an anchor or a claim leaves the report, or of what an
+    edit does to an anchor and its check, speaks this model, or limits itself to the case it describes:
+    - an anchor leaves the report two ways: alone by a retire naming it, its sentence staying word for word (an open
+      gap's own marker excepted, F14), or with its sentence when an edit cuts that sentence whole. A claim leaves only
+      with its sentence, by a cut. No anchor stands bare, and CHANGELOG lists no retired claims;
+    - a rewrite (every edit that is not a cut) carries every anchor of its span and never drops, duplicates or invents
+      one. An anchor whose sentence a rewrite changed stays in the report and is listed in the edit's `reopened`; a
+      citation or computation among them is unchecked, owed a fresh check or judgement;
+    - a cut takes its sentences' anchors, the ones at their end included, and lists each in `removed_anchors`, never in
+      `reopened`. Each anchor's check leaves the report with it: a failed check on it clears, and no fresh check or
+      judgement is owed of it. A cut of an open gap's own marker is its raiser's turn.
+
+    A statement that names one way out, or one consequence of an edit, is true only where it says which it means (a
+    retire; a rewrite) — "an edit leaves it unchecked" is false of a cut, and "leaves only by `retire`" is false of
+    every anchor. The pages that teach `edit` (`edit.md`, `verbs.go`'s blue `show report` paragraph, `cite.md`) say
+    that a cut of a whole sentence takes that sentence's anchors, the ones at its end included. Each site is judged by
+    what it means, not by a pattern's silence. The faces below are the KNOWN SET of sites; §V 13.1's gate is the
+    in-full read of the seat-facing surface. `record/migrate/` is outside it: it translates the archived claim
+    retires.
+  - **The sweep's classified list.** Its candidate command (a superset of plan-audit r8's
+    `~/.claude/scratch/p12-audit/r8/broad.txt`, plus `plugins/frank-exchange-of-views/docs`), run from the repository
+    root, prints 127 lines (118 sites) on main 7cfd3a396 (`~/.claude/scratch/p12b-r9/broad-main.txt`); the narrower
+    phrase set this plan carried before matched 58 sites (60 lines):
+    ```
+    F=plugins/frank-exchange-of-views
+    { find $F/tools/internal -type f ! -name '*_test.go' ! -path '*/testdata/*' ! -path '*/record/migrate/*'
+      find scripts/agentgen/src $F/skills/*/references $F/docs -type f
+      echo $F/skills/research-protocol/scripts/debate.js; ls README.md plugins/*/README.md; } |
+    xargs perl -0777 -ne 'my $s=q{[\s/#*>`-]+}; while (/((?:retir(?:e|es|ed|ing)|withdraw\w*)${s}(?:the|its|that|a)${s}claims?|(?:with|takes?)${s}(?:the|its)${s}claims?|claims?${s}(?:blue${s}|the${s}report${s})?(?:retired?|withdrawn)|(?:retired|withdrawn)${s}claims?|claims?${s}(?:leaves?|leaving)|claims?${s}is${s}retired|leaves?${s}only|replaces${s}a${s}retired|retire${s}its${s}anchors)/gi) { my $m=$1; my $l = 1 + (substr($_,0,pos($_)-length($m)) =~ tr/\n//); $m =~ s/\s+/ /g; print "$ARGV:$l\t$m\n" }'
+    ```
+    Every hit is classified here by meaning. Paths are under `plugins/frank-exchange-of-views/` except `README.md` and
+    `scripts/agentgen/src/`.
     - **Carrier, with its wording above:** `README.md:167`; `docs/citations-and-bibliography.md:146, 151`;
       `docs/finding-markers.md:69, 94`; `docs/propagation-and-anchoring.md:60, 74`; `docs/seat-command-triggers.md:89`
       (two hits); `scripts/agentgen/src/blue-synthesizer.md:14`; `…/fragments/blue-additive-only.md:1`;
@@ -2501,7 +2622,8 @@ and `~/.claude/scratch/p12/r2/`):
       - `…/fragments/blue-search-and-cite.md:22` — where an anchor goes when a sentence splits: placement;
       - `cli/seat/help/verify.md:27` and its copy `help_gen.go:176` — "the claim it was read against" is the sentence a
         reading reads;
-      - `cli/seat/help/close.md:13`, `mint.md:13` and their copies `help_gen.go:31, 91` — "the claim its marker marks,
+      - `cli/seat/help/close.md:13` (this statement; its "Retiring the answer" is the reopen face's), `mint.md:13` and
+        their copies `help_gen.go:31, 91` — "the claim its marker marks,
         which leaves only with that marker": a cut takes the claim and the marker together, and no writer leaves one
         without the other;
       - `fetchcache/fetchcache.go:276, 651` — a fetch summary's claim that a source's text was retrieved;
@@ -2511,19 +2633,42 @@ and `~/.claude/scratch/p12/r2/`):
       a debt discharges on "an edit [that] changes the sentence" or a retire; a cut is such an edit.
   - **The converse face's classified list** (plan-audit r9). Text that says an edit never removes an anchor, or that
     every edit carries its span's anchors, is "an anchor leaves only by `retire`" said from the edit's side, and the
-    sweep above does not reach it. §V 13.1's converse sweep finds its candidates: 346 sites (359
-    lines) on main 7cfd3a396 (`~/.claude/scratch/p12b-r10/converse-main2.txt`), each read by meaning and classified
-    here. Paths are under `plugins/frank-exchange-of-views/tools/internal/` for code and help pages, under
+    sweep above does not reach it. Its candidate command (it skips `*_gen.go` and `*.pb.go`, each a generated copy of
+    a source it reads) prints 346 sites (359 lines) on main 7cfd3a396 (`~/.claude/scratch/p12b-r10/converse-main2.txt`),
+    each read by meaning and classified here:
+    ```
+    F=plugins/frank-exchange-of-views
+    { find $F/tools/internal -type f ! -name '*_test.go' ! -path '*/testdata/*' ! -path '*/record/migrate/*' ! -name '*_gen.go' ! -name '*.pb.go'
+      find scripts/agentgen/src $F/skills/*/references $F/docs -type f
+      echo $F/skills/research-protocol/scripts/debate.js; ls README.md plugins/*/README.md; } |
+    xargs perl -0777 -ne 'my $s=q{[\s/#*>`-]+}; my $w=q{(?:\S+[\s/#*>`-]+){0,8}?};
+     my $v=q{(?:carr(?:y|ies|ied|ying)|drop(?:s|ped|ping)?|disappear\w*|surviv\w*|stays?|travel\w*|transit\w*|lost|destroy\w*|untouched|removed\s+only|never\s+(?:leaves?|removes?)|puts?\s+back|keeps?|kept)};
+     my $a=q{(?:anchors?|tokens?|markers?|citations?|footnotes?)};
+     my $x=q{(?:surviv\w*|carr\w*)[\s/#*>`-]+(?:by[\s/#*>`-]+)?(?:every|each|any|all)[\s/#*>`-]+(?:later[\s/#*>`-]+)?(?:edit|rewrite)s?|(?:every|each|any)[\s/#*>`-]+(?:later[\s/#*>`-]+)?edits?[\s/#*>`-]+carr\w*|refus\w*[\s/#*>`-]+(?:\S+[\s/#*>`-]+){0,6}?(?:drops?|dropping|dropped)\b};
+     while (/((?:\b$v\b${s}${w}\b$a\b)|(?:\b$a\b${s}${w}\b$v\b)|$x)/gi) { my $m=$1; next unless $m =~ /edit|replac|span|cut|rewrit|every|never|surviv|drop|carr|transit|lost|destroy|untouched|stays?\b/i; my $l = 1 + (substr($_,0,pos($_)-length($m)) =~ tr/\n//); $m =~ s/\s+/ /g; print "$ARGV:$l\t$m\n" }'
+    ```
+    Its second finder, the prose carriers' lines that name an anchor, token or marker beside an edit or a removal (175
+    lines on main 7cfd3a396), was read by meaning. The sites it reaches outside this list (`verify.md:11`,
+    `reproduce.md:23`, `edit.md:28`, `verbs.go:707`; plan-audit r10) are worded above, under the reopen face and site 10:
+    ```
+    F=plugins/frank-exchange-of-views
+    git grep -n -i -E 'anchor|token|marker' -- "$F/tools/internal/cli/seat/help/*.md" 'scripts/agentgen/src/**' \
+      "$F/docs/*.md" README.md 'plugins/*/README.md' "$F/skills/*/references/*" "$F/tools/internal/cli/seat/verbs.go" \
+      "$F/skills/research-protocol/scripts/debate.js" |
+      grep -i -E 'edit|cut|leav|remov|drop|carr|retir|replac|span|bare|stay|surviv|transit|lost|gone|out'
+    ```
+    Paths are under `plugins/frank-exchange-of-views/tools/internal/` for code and help pages, under
     `plugins/frank-exchange-of-views/` for `docs/` and `skills/`, and from the repository root for
     `scripts/agentgen/src/`.
-    - **Carrier, with its wording above (64):** `docs/finding-markers.md:58, 62, 64, 66, 102, 112, 113, 121, 140`;
+    - **Carrier, with its wording above (68):** `docs/finding-markers.md:58, 62, 64, 66, 102, 112, 113, 121, 140`;
       `docs/record-flow.md:81`; `docs/seat-command-triggers.md:82`; `anchor/anchor.go:7, 8, 22, 84, 88`;
       `anchor/window.go:16, 17`; `bluedoc/bluedoc.go:120, 121, 185, 186, 207, 238, 302, 303, 304`;
       `claimcount/claimcount.go:23, 38, 122, 181`; `cli/blue/edit.go:27, 173, 174, 247, 271, 274, 292, 293, 423, 465,
       476, 676`; `cli/blue/retire.go:34, 175, 176`; `cli/seat/help/cite.md:7`; `cli/seat/help/edit.md:20, 22, 24, 46`;
       `cli/seat/verbs.go:368`; `consistency/consistency.go:606, 614`; `record/recordpb/record.proto:1743, 1744, 1745`;
       `record/recordsql/evidencetables.go:14`; `report/seatread.go:23`; `reportproj/render.go:154, 156`;
-      `scripts/agentgen/src/blue-synthesizer.md:14`; `scripts/agentgen/src/fragments/blue-search-and-cite.md:6, 18`.
+      `scripts/agentgen/src/blue-synthesizer.md:14`; `scripts/agentgen/src/fragments/blue-search-and-cite.md:6, 18`;
+      and, worded under the reopen face, `record/failedcheck.go:155, 157, 243` and `reportproj/render.go:162`.
     - **Carrier already worded above, the wording now covering this face too (23):**
       `docs/citations-and-bibliography.md:145, 146, 149, 182`; `docs/propagation-and-anchoring.md:74`;
       `docs/seat-command-triggers.md:89`; `cli/blue/edit.go:341, 342, 345`; `cli/blue/retire.go:40, 43, 165`;
@@ -2543,7 +2688,7 @@ and `~/.claude/scratch/p12/r2/`):
       replacement always carries the gap's token (`record.ProposalOver`), so a fix with no words is refused as bare,
       and `mint`'s refusals (`mint.go:426-465`, `mint.md:27`) speak of a rewrite. `edit.go:440, 490` name an
       unrecorded drop once `droppedMarker` reads the cut's list (above).
-    - **Another sense, out of scope (197):** `docs/citations-and-bibliography.md:48, 139, 245, 248, 258, 298, 317,
+    - **Another sense, out of scope (193):** `docs/citations-and-bibliography.md:48, 139, 245, 248, 258, 298, 317,
       319`; `docs/finding-markers.md:5, 8, 38, 131`; `docs/propagation-and-anchoring.md:63`;
       `docs/seat-command-triggers.md:55, 68, 217`; `docs/vocabulary.md:361`;
       `skills/research-protocol/references/report_template.md:151`; `skills/research-protocol/scripts/debate.js:874`;
@@ -2560,7 +2705,7 @@ and `~/.claude/scratch/p12/r2/`):
       `record/about.go:68`; `record/actjudge.go:25, 124`; `record/anchorchecks.go:36, 131`; `record/blueedit.go:6`;
       `record/citationid.go:123, 141, 180, 203, 366, 378`; `record/computationverdict.go:26`;
       `record/deliveredtext.go:82`; `record/demand.go:17, 32`; `record/evidenceview.go:15, 29, 48, 52, 54, 320`;
-      `record/failedcheck.go:28, 34, 62, 155, 157, 242, 243`; `record/livesentence.go:133, 136, 151`;
+      `record/failedcheck.go:28, 34, 62, 242`; `record/livesentence.go:133, 136, 151`;
       `record/migration/manifest.go:172`; `record/passage.go:16`; `record/passblockers.go:218`;
       `record/planguard/scope.go:393`; `record/record.go:466, 1033, 1614, 1650`; `record/recordpb/descriptions.go:45`;
       `record/recordpb/record.proto:541, 552, 1222, 1250, 1310, 1334, 1458, 1491, 1531`; `record/recordroot.go:100`;
@@ -2569,7 +2714,7 @@ and `~/.claude/scratch/p12/r2/`):
       `record/viewjson.go:196, 491`; `record/windowindex.go:125`; `report/assemble.go:47, 581, 895, 900, 957`;
       `report/computationanchor.go:5`; `report/computations.go:22, 34, 54, 102, 196`; `report/docs.go:150, 206, 208,
       254`; `report/layout.go:728, 741, 789`; `report/md.go:637, 685, 688, 787`; `report/rawhtml.go:37`;
-      `reportproj/plan.go:75`; `reportproj/render.go:133, 162`; `reportvoice/tells.go:81`; `runlive/infer.go:141,
+      `reportproj/plan.go:75`; `reportproj/render.go:133`; `reportvoice/tells.go:81`; `runlive/infer.go:141,
       191`; `runlive/runlive.go:285`; `scorecard/scorecard.go:131, 137, 239, 328`; `seatenv/seatenv.go:16`;
       `seatprobe/boards.go:296`; `setup/run.go:45`; `sittingwrite/delivery.go:195`; `terms/terms.json:564`;
       `tessocr/reading.go:28`; `tessocr/reconstruct.go:37, 368`; `view/view.go:176`;
@@ -2580,7 +2725,8 @@ and `~/.claude/scratch/p12/r2/`):
       Each reads `carries`, `drops`, `stays`, `keeps` or `lost` of something other than an edit's effect on an anchor:
       the report, a record field or a sentence holding an anchor, citation or marker; a fetch, OCR, session, flag or
       config marker; a removed detector's history; a retire's anchor-leaves, text-stays fact; or a replay or render
-      step. None says what an edit does to an anchor.
+      step. None says what an edit does to an anchor; where one states an anchor's check (`cli/seat/verbs.go:299`), the
+      reopen face's list reads it.
     - **Read beside the converse sweep, carriers with their wording above:** `cli/seat/help/edit.md:30` ("retire the
       anchor first … then edit the sentence out", whose words match no pattern); `cli/blue/retire.go:24` and `:33`
       ("the ONLY way substance leaves the report", "a claim can only LEAVE through this verb"), outside the old sweep
@@ -2588,6 +2734,53 @@ and `~/.claude/scratch/p12/r2/`):
       and `:115` (its match is absorbed into `:113`'s); and the text naming a retire as an evidence anchor's alone
       (`cli/seat/verbs.go:297, 682`, `view/changes.go:49-50`, `record/blueanswered.go:85, 118`,
       `record/impasse.go:27`, `cli/blue/retire.go:164, 463`, `record.proto` `Retire.answers`).
+  - **The reopen face's classified list** (plan-audit r10). Text that says an edit of an anchor's sentence leaves the
+    anchor in the report, unchecked or owed a fresh check, is "every edit carries its span's anchors" said through the
+    check ledger; neither sweep above reaches it. Its candidate command, from the repository root, prints 84 lines
+    (82 sites) on main 7cfd3a396 (`~/.claude/scratch/p12-audit/r10/reopen.txt`), each read by meaning and classified
+    here; paths as in the converse list:
+    ```
+    F=plugins/frank-exchange-of-views
+    { find $F/tools/internal -type f ! -name '*_test.go' ! -path '*/testdata/*' ! -path '*/record/migrate/*' ! -name '*_gen.go' ! -name '*.pb.go'
+      find scripts/agentgen/src $F/skills/*/references $F/docs -type f
+      echo $F/skills/research-protocol/scripts/debate.js; } |
+    xargs perl -0777 -ne 'while (/(edit\w*[\s\S]{0,80}?(?:unchecked|reopen\w*|fresh (?:check|judgement|reading)|owed again|check(?:ed)? again))/gi){my $m=$1; my $l=1+(substr($_,0,pos($_)-length($m))=~tr/\n//); $m=~s/\s+/ /g; print "$ARGV:$l\t$m\n"}'
+    ```
+    - **Worded under the reopen face, above (20):** `record/passblockers.go:274, 276, 312, 329`;
+      `record/failedcheck.go:31, 156, 185, 238, 243`; `cli/seat/help/edit.md:28`, `reproduce.md:23`, `verify.md:11`;
+      `terms/terms.json:1095, 1096`; `scripts/agentgen/src/fragments/blue-search-and-cite.md:24`;
+      `record/deliveredtext.go:79`; `record/deliverycut.go:345, 351`; `record/recordsql/schema.go:285`;
+      `record/anchorchecks.go:259`.
+    - **A carrier worded elsewhere in this section (5):** `cli/blue/edit.go:173` (the converse face's `:173-174`);
+      `consistency/consistency.go:612` (`:606-615`); `claimcount/claimcount.go:180` (`:179-182`);
+      `record/record.go:1447` (`:1447-1448`, ruling 1); `record/recordpb/record.proto:1847` (`Retire.answers`).
+    - **In code P12b deletes (1):** `bluedoc/bluedoc.go:339`, the bare-listing branch (`:339-347`).
+    - **A generated copy (2 lines, 1 site):** `docs/vocabulary.md:633`, from `terms.json:1095-1096` by `vocabdoc`.
+    - **A query the raiser's turn unions with `removed_anchors` (2):** `record/deliveredtext.go:84`
+      (`changedSinceSQL`), `record/deliverycut.go:346` (`latestReopeningSQL`); their comments are worded above.
+    - **The state of an anchor still in the report, or a rewrite, true under P12b (27 lines, 26 sites):**
+      `cli/seat/help/reproduce.md:29` and `fragments/lens-audit-and-mint.md:6` (each conditional: on a standing
+      `unsound` of an unchanged sentence, and "after blue's edit reopens the sentence"; `:6`'s "each clears when blue
+      edits the sentence or retires the anchor" is the clearing half, true of a cut); `cli/seat/verbs.go:299, 304`;
+      `docs/citations-and-bibliography.md:164, 309`; `fragments/blue-search-and-cite.md:33` ("an edit that makes the
+      sentence say what the program shows" is a rewrite); `record/evidenceview.go:208, 230, 285, 650`;
+      `record/computationverdict.go:27, 207` (`:207` twice); `record/anchorchecks.go:14, 41, 78, 143`;
+      `record/passblockers.go:77, 250, 256`; `record/unchecked.go:5, 12`; `record/viewjson.go:1324, 1327`;
+      `report/citations.go:128`; `record/dispatch.go:719`. Where one says "not retired" or "once it is retired"
+      (`verbs.go:299`, `evidenceview.go:230, 285`, `anchorchecks.go:78`), "retired" is the ledger's mark, which the
+      fold's `BlueEdit` arm sets for a cut anchor too, or the row's `retired` field, which carries `by` (site 10).
+    - **`reopened` field, index and reader mechanics (24):** `bluedoc/bluedoc.go:320, 501`; `cli/blue/edit.go:497`;
+      `record/estoppel.go:35, 38, 65, 66`; `record/gapacts.go:253`; `record/livesentence.go:31`;
+      `record/narrowedview.go:18`; `record/recordpb/record.proto:1760, 1798`; `record/recordsql/schema.go:287`;
+      `record/runtest/reopened.go:13, 31, 46`; `record/viewjson.go:858, 1055, 1174, 2206, 2211`;
+      `record/anchorchecks.go:261`; `consistency/consistency.go:579, 652`. Each says what `reopened` lists, or
+      indexes or reads it; `reopened` keeps its meaning (an anchor whose sentence changed and still stands), and the
+      cut's arm is read beside it where the raiser's turn says.
+    - **Another sense (3):** `cli/blue/retire.go:92`, `cli/lens/mint.go:150`, `record/record.go:1058` ("checked
+      again": a write re-checked against the record it lands on).
+    - **Read beside the reopen sweep, worded above:** the exit enumerations that name only the retire
+      (`mint.md:15`, `reproduce.md:25`, `close.md:13`, `passblockers.go:426, 428`, the comments
+      `failedcheck.go:155-157` and `render.go:162`), and `ErrAnchorDropped`'s F14 exception.
 - **Migrate** (one epoch, 82, §III.10c "Epoch"; F18 RULED (A); translation 4 RULED 2026-11-21 for b3, b6 and b9;
   translation 6 RULED 2026-11-21 as F20 (B); no `Close` written, F21). Translations 1, 2, 4 and 6 write; 3 and 5 state
   what migrate does not write. Each runs on every committed archive (the 41 of "What P12b buys").
@@ -3256,6 +3449,11 @@ The census:
     `record-flow.md:81-82`, `propagation-and-anchoring.md:60-62, 73-74`);
   - the help pages of the converse face (`edit.md:20, 22, 24, 30, 32, 46`, `cite.md:7, 11`, `compute.md:15`,
     `verbs.go:368`, the `--quote` flag at `edit.go:247`);
+  - the reopen face (§III.10c "The reopen face"): `passblockers.go:274, 276, 312, 329, 426, 428`,
+    `failedcheck.go:31-32, 155-157, 185, 238, 243`, the help pages `verify.md:11`, `reproduce.md:23, 25`, `edit.md:28`,
+    `mint.md:15`, `close.md:13`, `fragments/blue-search-and-cite.md:23-28`, `terms.json:1095-1096`, the comments
+    `deliveredtext.go:79-80`, `deliverycut.go:345, 349-351`, `recordsql/schema.go:285-286`, `anchorchecks.go:257-259`
+    and `render.go:162`; and `verbs.go:707` and `ErrAnchorDropped`'s F14 exception;
   - the simulator's goldens.
 
   Nothing changes in debate.js's two enginegen regions, in `skills/research-protocol/scripts/debate.py` (the
@@ -3862,72 +4060,64 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          - `BaredAnchors(` returns only `edit.go`'s refusal and `mint.go`'s caller;
          - every `reopened` reader also reads the edit arm;
          - every `Retire` fold hit is in §III.10c's fold table;
-         - the property of §III.10c "Carriers of the old shape" holds: no shipped text says a claim leaves by a
-           retire, says an anchor leaves only by `retire`, or says CHANGELOG lists retired claims. No pattern proves
-           it; this step finds candidates and a reader judges each. From the repository root, read across line
-           breaks (127 lines, 118 sites, on main 7cfd3a396):
+         - **§III.10c's property ("The property", every face) holds, read by SCOPE.** No phrase set reaches every
+           wording: plan-audits r8, r9 and r10 each found a phrasing of the same concept the sweep before it missed.
+           So the gate is not a sweep. The implementer reads every file of the seat-facing surface IN FULL — every
+           sentence, string literal and comment, not the lines a pattern selects — by meaning, against the property.
+           From the repository root (247 files and 54 help pages on main 7cfd3a396):
            ```
-           F=plugins/frank-exchange-of-views
-           { find $F/tools/internal -type f ! -name '*_test.go' ! -path '*/testdata/*' ! -path '*/record/migrate/*'
-             find scripts/agentgen/src $F/skills/*/references $F/docs -type f
-             echo $F/skills/research-protocol/scripts/debate.js; ls README.md plugins/*/README.md; } |
-           xargs perl -0777 -ne 'my $s=q{[\s/#*>`-]+}; while (/((?:retir(?:e|es|ed|ing)|withdraw\w*)${s}(?:the|its|that|a)${s}claims?|(?:with|takes?)${s}(?:the|its)${s}claims?|claims?${s}(?:blue${s}|the${s}report${s})?(?:retired?|withdrawn)|(?:retired|withdrawn)${s}claims?|claims?${s}(?:leaves?|leaving)|claims?${s}is${s}retired|leaves?${s}only|replaces${s}a${s}retired|retire${s}its${s}anchors)/gi) { my $m=$1; my $l = 1 + (substr($_,0,pos($_)-length($m)) =~ tr/\n//); $m =~ s/\s+/ /g; print "$ARGV:$l\t$m\n" }'
+           F=plugins/frank-exchange-of-views; T=$F/tools/internal
+           { ls $T/cli/seat/help/*.md
+             ls $T/cli/{blue,lens,chair,bench,motion,seat}/*.go $T/flags/*.go $T/view/*.go $T/bluedoc/bluedoc.go \
+                $T/anchor/anchor.go $T/record/*.go $T/terms/terms.json
+             find scripts/agentgen/src -type f
+             echo $F/skills/research-protocol/scripts/debate.js
+             grep -liE 'anchor|\bedit' $F/docs/*.md README.md plugins/*/README.md $F/hooks/README.md $F/skills/*/references/*
+           } | grep -v -e '_test\.go$' -e '_gen\.go$' -e '/docs/vocabulary\.md$' \
+                       -e '^plugins/\(gray-area\|prosthetic-conscience\|sleeper-service\)/' | sort -u > $S/scope.txt
+           wc -l < $S/scope.txt                                                                    # 247
+           grep -h '^\$ feov-record .*--help' $F/agents/*.md | sort -u > $S/help-pages.txt; wc -l < $S/help-pages.txt   # 54
            ```
-           - Each remaining hit is read by meaning against §III.10c's classified list ("The sweep's classified
-             list"). A hit classified "out of scope" stays with its stated reason. A carrier, deleted-code or
-             generated-copy hit that remains is read: it passes only if its sentence now speaks P12b's model. A hit at
-             a site the list does not name is read and classified before merge, and the list gains it.
-           - Prose leaks past any phrase set (plan-audit r8). So every line holding `retir` in the prose carriers —
-             `$F/docs/*.md`, `README.md`, `plugins/*/README.md`, `scripts/agentgen/src/**/*.md`,
-             `$F/tools/internal/cli/seat/help/*.md` and `$F/skills/*/references/*` — is read by meaning too:
-             `git grep -n -i retir -- <those paths>`.
-           - The sweep's file scope holds every authored shipped file: `grep -rli retir plugins scripts README.md`
-             outside it returns only generated copies (`agents/`, `agents-claude/`, `skills/*/SKILL.md`), tests, and
-             files whose `retir` is another sense (a lens's retirement, retired words or units; checked on main
-             7cfd3a396).
-         - the converse face of that property holds: no shipped text says an edit never removes an anchor, or that
-           every edit carries its span's anchors, except as a statement about a rewrite, and `edit.md`, `cite.md` and
-           `verbs.go`'s blue `show report` paragraph say that a cut of a whole sentence takes that sentence's anchors,
-           the ones at its end included. The sweep above does not reach it (plan-audit r9: none of its sites holds
-           `retir`), so it has its own read. From the repository root, across line breaks (359 lines, 346 sites, on
-           main 7cfd3a396; it skips `*_gen.go` and `*.pb.go`, which `broad.sh` reads, because each is a generated copy
-           of a source it reads):
-           ```
-           F=plugins/frank-exchange-of-views
-           { find $F/tools/internal -type f ! -name '*_test.go' ! -path '*/testdata/*' ! -path '*/record/migrate/*' ! -name '*_gen.go' ! -name '*.pb.go'
-             find scripts/agentgen/src $F/skills/*/references $F/docs -type f
-             echo $F/skills/research-protocol/scripts/debate.js; ls README.md plugins/*/README.md; } |
-           xargs perl -0777 -ne 'my $s=q{[\s/#*>`-]+}; my $w=q{(?:\S+[\s/#*>`-]+){0,8}?};
-            my $v=q{(?:carr(?:y|ies|ied|ying)|drop(?:s|ped|ping)?|disappear\w*|surviv\w*|stays?|travel\w*|transit\w*|lost|destroy\w*|untouched|removed\s+only|never\s+(?:leaves?|removes?)|puts?\s+back|keeps?|kept)};
-            my $a=q{(?:anchors?|tokens?|markers?|citations?|footnotes?)};
-            my $x=q{(?:surviv\w*|carr\w*)[\s/#*>`-]+(?:by[\s/#*>`-]+)?(?:every|each|any|all)[\s/#*>`-]+(?:later[\s/#*>`-]+)?(?:edit|rewrite)s?|(?:every|each|any)[\s/#*>`-]+(?:later[\s/#*>`-]+)?edits?[\s/#*>`-]+carr\w*|refus\w*[\s/#*>`-]+(?:\S+[\s/#*>`-]+){0,6}?(?:drops?|dropping|dropped)\b};
-            while (/((?:\b$v\b${s}${w}\b$a\b)|(?:\b$a\b${s}${w}\b$v\b)|$x)/gi) { my $m=$1; next unless $m =~ /edit|replac|span|cut|rewrit|every|never|surviv|drop|carr|transit|lost|destroy|untouched|stays?\b/i; my $l = 1 + (substr($_,0,pos($_)-length($m)) =~ tr/\n//); $m =~ s/\s+/ /g; print "$ARGV:$l\t$m\n" }'
-           ```
-           - Each hit is read by meaning against §III.10c's "The converse face's classified list", the same way as
-             the sweep above: an "another sense" or "about a rewrite" hit stays with its stated reason, a carrier or
-             deleted-code hit that remains passes only if its sentence now speaks P12b's model, and a hit at a site the
-             list does not name is read and classified before merge.
-           - No phrase set reaches every wording ("retire the anchor first … then edit the sentence out" matches
-             none). So every line of the prose carriers that names an anchor, token or marker beside an edit or a
-             removal is read by meaning too (175 lines on main 7cfd3a396):
-             ```
-             F=plugins/frank-exchange-of-views
-             git grep -n -i -E 'anchor|token|marker' -- "$F/tools/internal/cli/seat/help/*.md" 'scripts/agentgen/src/**' \
-               "$F/docs/*.md" README.md 'plugins/*/README.md' "$F/skills/*/references/*" "$F/tools/internal/cli/seat/verbs.go" \
-               "$F/skills/research-protocol/scripts/debate.js" |
-               grep -i -E 'edit|cut|leav|remov|drop|carr|retir|replac|span|bare|stay|surviv|transit|lost|gone|out'
-             ```
-           - The converse sweep's file scope holds every authored shipped file that names an anchor or marker: `grep
-             -rliE 'anchor|marker' plugins/frank-exchange-of-views scripts README.md` outside it returns only generated
-             copies (`agents/`, `agents-claude/`, `skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`),
-             tests, testdata and goldens, `record/migrate/`, dev tooling (`scripts/*`, `tools/devcmd/*`,
-             `tests/simulator/*.mjs`), and three authored files read on main 7cfd3a396 with no site of this face:
-             `skills/research/SKILL.md:46` (the `.run-live` marker's removal), `hooks/README.md:32` (the removed
-             lockdown's history) and `skills/research-protocol/scripts/debate.py` (its generated `PLAN` schema, `:65`).
-           `record/migrate/` is left out because it translates the archived claim retires; tests and testdata are
-           left out because the claim-shape tests are §III.11's to rewrite, and the named tests pin the new wording.
-       - Re-armed by: any file in §III.11's P12b list, and any help page, agentgen source, `debate.js`, reference,
-         `plugins/*/docs` page or README that describes a removal, or says what an edit does to an anchor.
+           - **The surface, by part** (counts on main 7cfd3a396):
+             - every help page: the authored pages `cli/seat/help/*.md` (34), and the 54 pages a seat reads, each run
+               rendered once (`feov-record <verb> --help`), so its flag help is read as a seat reads it;
+             - `verbs.go` and the verb packages that build those pages' flag help and refusals:
+               `cli/{blue,lens,chair,bench,motion,seat}/*.go` (47, `cli/seat/verbs.go` and `cli/motion/verbs.go` among
+               them), `flags/*.go` (8, shared flag usage), `bluedoc/bluedoc.go` (`ErrAnchorDropped` and the rewrite
+               refusals), `anchor/anchor.go` (`Label`), `view/*.go` (2, the `show` pages' headers);
+             - every agentgen source and fragment: `scripts/agentgen/src/**` (33);
+             - `debate.js` (1), its prompt strings;
+             - the record package WHOLE: `record/*.go`, not tests and not generated (108), which holds every work-list
+               item, refusal, plan hold, blocker and gap-news string a seat reads. It is read whole because a file
+               chosen by its constructor or its string length is a pattern again: such a selection (`feov.Errorf`,
+               `Item{`, literals over 150 characters) left out `deliverycut.go`, whose passage heading a lens is served,
+               and missed `refs.go`'s L6 refusal, a `fmt.Errorf`. With it `terms/terms.json` (1), rendered into every
+               manual's word list and `docs/vocabulary.md`;
+             - the docs and READMEs that name an anchor or an edit (11): `docs/{citations-and-bibliography,
+               duty-docket-preregistration, finding-markers, propagation-and-anchoring, record-flow,
+               seat-command-triggers, seat-surface-naming}.md`, the root `README.md`, `hooks/README.md`, and
+               `references/{report_template,run-directory}.md`. The other plugins' READMEs match `edit` in another
+               sense (checked on main 7cfd3a396).
+           - **Outside it:** generated copies, each regenerated from a source in it (`agents/`, `agents-claude/`,
+             `skills/*/SKILL.md`, `help_gen.go`, `docs/vocabulary.md`, `debate.py`'s `PLAN` schema); tests, testdata and
+             goldens (the claim-shape tests are §III.11's to rewrite, and the named tests pin the new wording);
+             `record/migrate/`, which translates the archived claim retires; dev tooling; and code no seat reads, whose
+             comments the known set holds (`recordsql/`, `recordpb/record.proto`, `reportproj/`, `report/`,
+             `claimcount/`, `consistency/`, `seatprobe/`, `runtest/`).
+           - **The read is recorded:** `$S/scope-read.txt` holds one line per file, its path, a tab, and the sites it
+             fixed or `none`; `$S/help-read.txt` the same per help page. `diff <(cut -f1 $S/scope-read.txt)
+             $S/scope.txt` and `diff <(cut -f1 $S/help-read.txt) $S/help-pages.txt` are empty. A file the command
+             prints at P12b's base that is not in the 247 is read the same way, and the count is restated.
+           - **The known set is checked first, site by site:** §III.10c's three classified lists ("The sweep's
+             classified list", "The converse face's classified list", "The reopen face's classified list") and the
+             wordings they point to. Each list keeps the candidate command that found it, as provenance; a clean run of
+             one proves nothing. A statement the in-full read finds at a site no list names joins the list of its face,
+             classified, before merge. The known set also holds the comments outside the surface, which are fixed from
+             the lists, their files not read in full.
+           - **After the change** the in-full read is repeated on the changed files of the surface, and every changed
+             golden line is read.
+       - Re-armed by: any file of the surface above, any file a known-set site lives in, and any file in §III.11's P12b
+         list.
     2. **Named tests, listed first.**
        ```
        cd plugins/frank-exchange-of-views/tools
@@ -4424,6 +4614,29 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     set, anchor changes to the work lists. Reading it as leaving anchor-only retires out of CHANGELOG is the lead's:
     on main the section is the only CHANGELOG reader of a retire, and the `change` view and `show evidence`'s
     `retires` still carry each one | keep a CHANGELOG list of anchor-only retires.
+  - **Seven calls of plan 9f1d79c7a** (RULINGS.md 2026-11-26, the last "Lead calls" entry; plan-audit r10, Focus 4,
+    read each sound on main):
+    - **The `terms.json` bans move to "pure cut"** (§III.10c "`terms.json`"): the GATED "claims withdrawn" and the
+      REGISTRY-ONLY "withdraw" go under a new "pure cut" term, so a gated hit names the cut, not the deleted claim
+      retire | drop both bans with the claim retire, and leave the words ungated.
+    - **`anchor.go`'s `lifecycle` and `evidenceLeaves` collapse into one string** (§III.10c "Prose in code"), because
+      every kind leaves the same two ways (`kinds_test.go:62` follows) | keep two strings, the evidence kinds' naming
+      the L6 order.
+    - **`droppedMarker` takes `removed_anchors`** (§III.10c, the converse face's code prose): it reads the planned
+      report after the list's removes, the same `after` `refuseBaredAnchors` reads; mutant 22 pins it | keep its
+      signature and build a second planned report before the removes for it alone, so the two checks read different
+      `after`s.
+    - **Text that calls a retire evidence-only is reworded** (§III.10c "Text that names a retire as an evidence
+      anchor's alone"), per the 2026-11-20 ruling that a retire takes any kind | reword the seat-facing strings only,
+      and leave the code comments that say it.
+    - **`consistency.go`'s bare arm goes** (§III.10c, `consistency.go:645-647`): no writer leaves a bare anchor, and
+      translation 4 with `TestNoMigratedArchiveHoldsABareAnchor` covers the archive | keep the arm as an oracle over
+      migrated records.
+    - **The dead `unbacked_citations` clause is dropped** from `citations-and-bibliography.md:151` and
+      `record-flow.md:81` (the detector is gone, `scorecard.go:237-242`) | keep the clause and file the detector's
+      absence as its own issue.
+    - **The seatprobe gains a `drifted` gap on `sources`** (§III.10c "The simulator"), baiting an anchor-only retire so
+      a board still demands `retire` | add `retire` to `AlwaysTaken` or `NoSituation`, stated, and probe no retire.
 - **F21 — how a pure cut of a gap's marker ends the gap (P12b). RULED by gblock 2026-11-26 (picked; option wording
   the agent's): "Raiser's turn, land now".** RULINGS.md 2026-11-26 entry.
   - **The conflict.** The 2026-11-20 pick had the record write a `moot` `Close` in the cutting edit's transaction.
