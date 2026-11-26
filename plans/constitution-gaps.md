@@ -3504,6 +3504,13 @@ The census:
 
   Each of the 28 is rewritten or deleted, never edited to keep the shape. An unknown `--quote` would fail
   `crossseat_test.go` and `requiredmarker_test.go` loudly in any case.
+
+  **At P12b's open on main 7cfd3a396 (after P12a, #1939) the union is 30** (`~/.claude/scratch/p12b/tests-claim-shape.txt`):
+  the 28, plus `internal/cli/demandsubject_test.go` (P12a's `retireMarkerWithClaim`, `:32`, and `:94`: claim retires
+  of a `G-` marker, rewritten as the pure cuts they become) and `internal/record/recordsql/gapstate_test.go` (its hit
+  is the comment `:249`, naming a `--quote` ancestor; its P12a retire steps are rewritten under §III.10c's marker
+  test). In `releasegate`, `lifecycleseed_test.go` counts 3 (`:761, :765, :804`): P12a's `:804` is a claim retire of
+  a `G-` marker, rewritten as a pure cut. No ruled decision moves.
 - **`Retire` literals that set no `ClaimKept`.** These are claim retires today by default, and a name grep misses them.
   Command (on `ae2b9a9fb`, from `plugins/frank-exchange-of-views/tools`): `grep -rn 'recordpb.Retire{[^}]'
   --include=*_test.go .`, each hit read with its next three lines for `Anchors` and `ClaimKept`
