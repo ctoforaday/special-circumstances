@@ -63,7 +63,7 @@ builds gblock's rulings so that each one becomes a record fact the tool composes
 | AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8) and the sonnet price row is corrected against the bill (9): two standalone PRs, merged (#1861, #1863). Certify's counts are composed where they render (11): shipped (#1862). A closure line states what the closer's sitting was delivered, composed from its report-read rows, with no Close field (7; ruled by gblock 2026-11-13). A voice closure judging its section (10, gblock's P ruling; F5) is WITHDRAWN: one gap per site supersedes it (F15). | P1a, P1b, P11, P8 |
 | Fixture | The archive this plan's migrate tests read is committed, and a missing archive fails the test. | P0 |
 | **2026-11-20** (per site, demand) | One gap per site is a lens duty in every carrier, with no tool refusal (F13); P9 withdrawn (F15); the live-answer demand holds while its subject stands, and a `--quote` gap whose marker has left closes `moot`. Value: 105 of 252 archived marker gaps reach beyond their sentence, 87 of 142 negative checks match outside it, 16 archived `--quote` mints are computation/source gaps, the kind whose demand nothing meets once their marker leaves. **Drafted 2026-11-20, not covered by the 11-14 approval** | P12a |
-| **2026-11-20** (anchors, moot) | A pure cut removes the cut sentence's anchors (recorded on the edit as a tool-stamped list, F17 (a); no bare anchor in any writer); a cut of a gap's marker is its raiser's turn: it readies the minting lens, which closes the gap `moot`, keeps it, or the exchange limits docket it, and the record writes no `Close` (F21, ruled 2026-11-26); `retire` is anchor-only for every kind (an open gap's marker refused, F14), and the claim retire and its three fields go; migrate folds claim retires into their cuts, per token (F18, F23), and every archived `F-` token takes its `G-` neighbours' rule (F22). Value, over the 39 committed archives: no bare-token state, and 108 claim retires gone (each a second act); no archived gap fate changes by migrate; m26's 11 tokens a rewrite left past their full stop are re-seated (F20, F22). **Drafted 2026-11-20, rebuilt 2026-11-26, not covered by the 11-14 approval** | P12b |
+| **2026-11-20** (anchors, moot) | A pure cut removes the cut sentence's anchors (recorded on the edit as a tool-stamped list, F17 (a); no bare anchor in any writer); a cut of a gap's marker is its raiser's turn: it readies the minting lens, which closes the gap `moot`, keeps it, or the exchange limits docket it, and the record writes no `Close` (F21, ruled 2026-11-26); `retire` is anchor-only for every kind (an open gap's marker refused, F14), and the claim retire and its three fields go; migrate folds claim retires into their cuts, per token (F18, F23), and every archived `F-` token takes its `G-` neighbours' rule (F22). Value, over the 41 committed archives: no bare-token state, and 114 claim retires gone (each a second act); no archived gap fate changes by migrate; m26's 11 tokens a rewrite left past their full stop are re-seated (F20, F22). **Drafted 2026-11-20, rebuilt 2026-11-26, not covered by the 11-14 approval** | P12b |
 
 **What this plan adds** (counted from §III; P0, P1a, P1b, P2 and P11 add none of these; P6 is deferred; P5 and P10
 are implemented as their own PRs, gblock 2026-11-14, and are counted here because their design is this plan's). r8
@@ -1179,7 +1179,7 @@ reference holds there; the live-answer sweep (§III.11 "P12a") ran on c7666d2f3.
 21 of them hold gaps; n1 has no mint. They are 22 of the 39 archives committed at P12's base (§III.10c "What P12b
 buys"). The other 17 were not read for these figures: moot-measure read the 2026-10-09 to 11-11 window, which leaves
 out the 16 older archives and P0's 2026-11-10 run. These figures motivate the duty change, and no §V check rests on
-them. Every P12b figure counts all 39.
+them. Every P12b figure counts all 41 archives main commits (§III.10c "What P12b buys").
 - **One gap per site.**
   - 105 of 252 marker-anchored gaps reach beyond their marked sentence. Voice is 43 of 64.
   - Of 142 negative acceptance checks, 87 match report lines outside the gap's marked sentence (F13's evidence).
@@ -1366,23 +1366,24 @@ merged. It lands before #1889, and #1889 rebases onto it (ruled by gblock 2026-1
   interactions, decided on its rebase. F16 is kept as the rule #1889's rebase builds on P12b's record (§III.10c "F16
   on #1889's rebase").
 
-**What P12b buys, with the archive numbers.** Every figure below counts the 39 archives P12b's migrate reads at its
-base: the 36 in `run-archive/`, the 2 in `run-archive/bundle-store/` (m37, m38), and P0's 2026-11-10 run, which
-reaches main with P0 (#1875) before P3. The method is in §III.10c's migrate entry ("The full-set measurement").
+**What P12b buys, with the archive numbers.** Every figure below counts the 41 archives P12b's migrate reads at its
+base af3e6ccbe: the 39 in `run-archive/` (P0's 2026-11-10 run and the #1838 and #1883 smoke runs of 11-12 and 11-14
+among them) and the 2 in `run-archive/bundle-store/` (m37, m38). The method is in §III.10c's migrate entry ("The full-set measurement").
 - **The bare state goes.**
   - Today an edit may leave a `G-` token standing on no words. The gap stays open in a `gone` state that its lens can
     neither repair nor close, until blue issues a second, claim-shaped retire.
-  - The archives hold 108 claim retires. 16 of them carry anchors and 92 carry none (the 4 in archives before
-    2026-10-09 among the 92). Each of these is a second act spent removing what the first act already cut.
-  - In 4 gaps the token was cut by an edit and then taken by a claim retire, while the gap was kept, worked or closed
-    against a sentence no longer in the report: wave-a G-f6f63173, m28 G-3a2c77c1, and m37 G-20128984 and G-477feea1
-    (F18).
+  - The archives hold 114 claim retires. 17 of them carry anchors and 97 carry none (the 4 in archives before
+    2026-10-09 and 1838's 5 among the 97). Each of these is a second act spent removing what the first act already cut.
+  - In 6 gaps the token was cut by an edit and then taken by a claim retire, while the gap was kept, worked or closed
+    against a sentence no longer in the report: wave-a G-f6f63173, m28 G-3a2c77c1, m37 G-20128984 and G-477feea1,
+    and 1883 G-05dad92a and G-3dc8d8e2 (F18).
   - In 3 more the edit cut the sentence and no retire followed, so the token stood bare to the end of the run: b3
     G-19b1727b, b6 G-68c6ecf7 and b9 G-8bd21b5d (translation 4, ruled 2026-11-21). Each of those cuts also bared one
     `F-` token, and m19's edit 274 bared four `F-` and no `G-` (F22). m26's G-59e61f8c and G-0f2d72fd, two citations
     and seven `F-` tokens were left after a full stop by rewrites that kept the sentence; migrate re-seats them, and
     both gaps keep their history (translation 6, F20 ruled 2026-11-21; the `F-` by F22).
-- **The `--quote` demand is met by the cut.** Any of the 16 archived kind (`--quote`, computation or source) whose
+- **The `--quote` demand is met by the cut.** Any `--quote` gap of check kind computation or source (16 in P12a's
+  measured window, §III.10b; 1838 adds two `--quote` computation mints and 1883 one, r6 `quote-mints.txt`) whose
   claim a cut takes has its demand met (arm 4, read from the edit arm), so its lens's `moot` lands on its turn.
 - **The model.** One rule reaches every seat: text changes are the changes set, and anchor changes are the work list
   (ruling 1).
@@ -1392,8 +1393,8 @@ reaches main with P0 (#1875) before P3. The method is in §III.10c's migrate ent
 
   | | naive (P12a alone) | P12b |
   |---|---|---|
-  | acts per cut marker | the edit, blue's claim retire, the lens's turn and its close: 108 archived claim retires, each a second act | the edit, the lens's turn and its close: the claim retire goes |
-  | floating states | an open gap whose marker stands bare in `gone`, which its lens reads as its sentence until the retire; 7 archived gaps worked against a sentence that left (F18's 4, translation 4's 3) | none: no writer leaves a token bare. An open gap whose marker a cut took reads `gone` and is its lens's turn |
+  | acts per cut marker | the edit, blue's claim retire, the lens's turn and its close: 114 archived claim retires, each a second act | the edit, the lens's turn and its close: the claim retire goes |
+  | floating states | an open gap whose marker stands bare in `gone`, which its lens reads as its sentence until the retire; 9 archived gaps worked against a sentence that left (F18's 6, translation 4's 3) | none: no writer leaves a token bare. An open gap whose marker a cut took reads `gone` and is its lens's turn |
   | record shape | unchanged | one epoch; `Retire` loses 3 fields; `BlueEdit` gains `removed_anchors` and its child table; one new view, three changed; one marker |
   | code | unchanged | claim mode deleted (`retire.go:55-155`, `:218-447`); the lens turn, delivered-text and gap-passage readers read the edit arm (§III.10c "The raiser's turn"); one `judgeAct` arm (L6 on the cut); of 9 Go fold sites over `Retire`, 7 read the edit's list or the index, 1 is re-keyed and 1 stays retire-only; 4 migrate translations that write; 28 claim-shape test files rewritten |
   | residue | none | no archived fate changes by migrate; m26's 11 tokens re-seated (F20, F22); every archived `F-` token treated as its `G-` neighbours are (F22) |
@@ -1507,7 +1508,7 @@ and `~/.claude/scratch/p12/r2/`):
   lookup (3.3 ms at 10× the edits) and 17 ms for the full `MIN` (2.1 s at 10× edits and anchors). An indexed lookup
   costs 10–26 µs at every scale.
 - **Ingest checks no token** (`cli/blue/ingest.go:55-110`; validate has no `ReportPart` arm). No archived lane part
-  holds `<!--`: the 39 committed archives hold 34 parts (the 7 runs of 2026-08-22 to 09-02 have none), and 0 of them
+  holds `<!--`: the 41 committed archives hold 36 parts (the 7 runs of 2026-08-22 to 09-02 have none), and 0 of them
   hold one, so ingest's new token refusal refuses no archive. `TestEveryArchivedRunMigrates` asserts it on every
   migrated part (§V 13.4).
 - **Moot is a disposition.** `DISPOSITION_MOOT` = 8 (`record.proto:529`, "the claim or artifact it attached to is no
@@ -1536,7 +1537,7 @@ and `~/.claude/scratch/p12/r2/`):
       correct: nothing else took it first.
     - **No other edit changes.** The dropped-token refusal (`bluedoc.go:191-240`) admits no edit whose `new` drops a
       located token, so keeping un-carried located tokens should be a no-op for every stored edit, and an edit with an
-      empty list replays byte for byte as today. That is a claim about 39 archives written under older binaries, so §V
+      empty list replays byte for byte as today. That is a claim about 41 archives written under older binaries, so §V
       13.4 proves it with `TestEveryArchivedRunRenders`: every line of its golden keeps its raw digest, except the lines
       of the archives translation 4 takes tokens from (b3, b6, b9: one `G-` and one `F-` each; m19: four `F-`), whose
       raw and normalized digests move, and m26's line, whose raw, normalized and skeleton digests all move under
@@ -1544,7 +1545,7 @@ and `~/.claude/scratch/p12/r2/`):
       to 0. Removing each bare `G-` from the migrated render with `RemoveAnchorAt` leaves the skeleton digest of b3,
       b6, b9 and m26 unchanged (r5); whether removing the `F-` tokens moves b3's, b6's, b9's or m19's skeleton digest
       is not measured, and is read on the golden's first regeneration. The archived pairs translation 2 folds (F18's
-      three, m28's and m32's) keep the bare token in their stored `new`, so the splice yields it in place and the
+      four, m28's and m32's) keep the bare token in their stored `new`, so the splice yields it in place and the
       folded list's remove takes it: the migrated final report equals the archived one, and their lines keep every
       digest.
     - **The test.** `TestReplayRemovesWhatTheWriteRemoved` has one subtest per token position: inside the span and
@@ -1871,7 +1872,7 @@ and `~/.claude/scratch/p12/r2/`):
     `ReopenedAnchors` listed a bare anchor), and translations 2 and 4 put the same token in that edit's
     `removed_anchors`, so the union would list the edit twice for that gap. A live P12b edit never lists a removed
     anchor in `reopened`. Translations 2 and 4 therefore delete each token they write into an edit's
-    `removed_anchors` from that edit's `reopened` (F18's three edits, translation 4's three, m19's 274, m28's 265 and
+    `removed_anchors` from that edit's `reopened` (F18's four edits, translation 4's three, m19's 274, m28's 265 and
     m32's 381), and `TestNoMigratedArchiveHoldsABareAnchor` asserts that no migrated edit names a token in both lists.
     The `archived_gaps` golden prints each gap's location state, not its edit list, so it cannot show a duplicate;
     the assertion is the test's.
@@ -1974,7 +1975,7 @@ and `~/.claude/scratch/p12/r2/`):
     `gone` clause (`debate.js:909` on main) stays: under P12b it is true of every open gap reading `gone`.
 - **Migrate** (one epoch, 82, §III.10c "Epoch"; F18 RULED (A); translation 4 RULED 2026-11-21 for b3, b6 and b9;
   translation 6 RULED 2026-11-21 as F20 (B); no `Close` written, F21). Translations 1, 2, 4 and 6 write; 3 and 5 state
-  what migrate does not write. Each runs on every committed archive (the 39 of "What P12b buys").
+  what migrate does not write. Each runs on every committed archive (the 41 of "What P12b buys").
 
   **The full-set measurement** (`~/.claude/scratch/p12/r5/`, `SUMMARY.txt`). A scratch test in the migrate package
   migrated all 39 archives with `migrate.MigratedArchive` in two trees, #1889's c6ae0335b (Part A: no `F-`) and
@@ -1983,7 +1984,7 @@ and `~/.claude/scratch/p12/r2/`):
   classified every `Retire` body. Results:
   - Both trees: 0 refusals in all 39. The 7 runs of 2026-08-22 to 09-02 record no part, so they have no report and
     no bare population.
-  - 138 retires: 30 already anchor-only, and 108 claim retires.
+  - 138 retires: 30 already anchor-only, and 108 claim retires (on main's 41, r6 below: 145, 31 and 114).
   - Tokens left on no words, other than `F-`, fall into three shapes:
     - a cut followed by a claim retire: F18's pairs;
     - a rewrite followed by a retire of the token, the sentence staying: mersenne's three `K-` (edits 407, 413, 698, each
@@ -1991,7 +1992,7 @@ and `~/.claude/scratch/p12/r2/`):
       neighbour", §III.10c "The pure cut");
     - no retire at all, the token still on no words at the run's end: 7 tokens in 4 archives (below).
   - L6: m37's K-93f0a1a7 → C-849a1f53 is the only computation over all 39 whose citation leaves while it stays,
-    counting translation 4's tokens as removed.
+    counting translation 4's tokens as removed; r6 finds no other over the 41.
 
   Event ids are P3-tip migrated ids (ae2b9a9fb), as in F18's table. The c6ae0335b ids the 2026-11-21 ruling quotes
   follow in braces. P12b's census at open re-measures on its own base (§V 13.1).
@@ -2000,22 +2001,24 @@ and `~/.claude/scratch/p12/r2/`):
   same scratch test and two more (`zz_p12tok_test.go`, every event naming a token; a translation-6 predicate scan).
   Main commits 41 archives. The 39 migrate with 0 refusals, under the same event ids and with the same bare
   population as on ae2b9a9fb. The other two, `2026-11-12_is-91-prime-1838` and `2026-11-14_is-91-prime-1883`, migrate
-  with 0 refusals and bare no `F-` token. They add 6 claim retires: 1838's 5 carry no anchor, and 1883's 229 takes
-  G-05dad92a and G-3dc8d8e2, which edit 228 cut to their tokens (`new` is the two tokens alone), the F18 shape. Every
-  figure in this plan counts the 39; the census at open counts the 41 (§V 13.1), and 1883's pair folds by
-  translation 2 as F18's do.
+  with 0 refusals and bare no `F-` token. They add 7 retires: 1883's 227 is already anchor-only, 1838's 5 claim
+  retires carry no anchor, and 1883's 229 takes G-05dad92a and G-3dc8d8e2, which edit 228 cut to their tokens (`new`
+  is the two tokens alone): the F18 shape, an edit-then-claim-retire pair, folded by F18 (A)'s rule as ruled (F18's
+  table, §VI). They add 2 lane parts, no lane part holding a token, no other bare token and no L6 hit. Over the 41:
+  145 retires, 31 already anchor-only and 114 claim retires (97 anchorless, 17 anchored); 36 lane parts. Every figure
+  in this plan counts the 41.
 
   1. **The fields.** A `retire` entry `mapped("retire", …, drops{claim_kept, removal_basis, superseded_by})`
      (`migrate/eraentries.go:79-110` form). `remap.go:117, 126, 141-142` loses the deleted fields
      (`TestEveryStringFieldIsInOneList`).
   2. **The fold (F18, per token by F23).** A look-ahead pre-scan in the `gapplace` placer (`migrate/gapplace.go:53-187`)
-     classifies each of the 108 claim retires:
-     - **92 carry no anchor.** They are dropped. What is lost is their claim text and reason; each cutting edit keeps
+     classifies each of the 114 claim retires:
+     - **97 carry no anchor.** They are dropped. What is lost is their claim text and reason; each cutting edit keeps
        its own `--reason`. m19's event 260 is one of them: it has no `retire_anchors` row, so nothing of it needs an
        edit to fold into. 4 are in archives before 2026-10-09: quadratic-formula {459}, b3 {88} (the retire after
-       translation 4's cut {87}), and b9 {141, 142}. m19's 416 is another: its claim text quotes m19's four `F-`
+       translation 4's cut {87}), and b9 {141, 142}. 1838's 33, 34, 68, 69 and 451 are 5 more. m19's 416 is another: its claim text quotes m19's four `F-`
        tokens, and it carries no anchor row (translation 4 takes the tokens).
-     - **The 16 that carry anchors are classified PER TOKEN** (F23). Each token's **baring edit** is the edit after
+     - **The 17 that carry anchors are classified PER TOKEN** (F23). Each token's **baring edit** is the edit after
        which `claimcount.BareAnchorIDs` first reads the token bare, with the token bare from there to the retire; an
        edit between that keeps it bare (m28's 276, below) does not move it. The baring edit's shape, by §III.10c's
        pure-cut definition, decides the token's treatment, whatever edit stands just before the retire:
@@ -2047,8 +2050,8 @@ and `~/.claude/scratch/p12/r2/`):
        G-e24f46e2 and two `F-` tokens, and retire 442 took them off that kept sentence; mersenne's edits 407, 413 and
        698 moved a `K-` to its kept sentence's start, and retires 409, 414 and 699 took it.
 
-       Measured on the migrated archives, with every `F-` token classified ("The `F-` population", below): 4 fold
-       into cuts (wave-a 284, m28 510 into two, m32 382, m37 982), 11 become anchor-only retires (m19 3, mersenne 4,
+       Measured on the migrated archives, with every `F-` token classified ("The `F-` population", below): 5 fold
+       into cuts (wave-a 284, m28 510 into two, m32 382, m37 982, 1883 229), 11 become anchor-only retires (m19 3, mersenne 4,
        eiffel 11-04 2, m35 1, m37 1), and m36's 442 is dropped under F14, its tokens staying on their kept sentence.
        `TestAClaimRetireFoldsIntoItsCut` pins this split over every committed archive, and that m28's three tokens
        land in 265 and 509 as above (§V 13.4).
@@ -2078,9 +2081,9 @@ and `~/.claude/scratch/p12/r2/`):
        `gap_ids` pass `requireGap` (`refs.go:160-172`), which checks only that the gap exists, and a docket motion
        carries no open-gap check (`record.go:1366-1368`). The first migration's `lost_acts` is compared with this
        expectation, and a difference widens the residue before code.
-     - **F18's table, read against the same rules.** With no moot written, F18's four gaps keep the fates they have at
-       P3's tip (F18's table, "migrated today"): m37's G-477feea1 stays `repaired` at 1019, and the other three stay
-       open, each reading `gone` from its folded cut. The acts F18's table once dropped on a closed gap (m37's close
+     - **F18's table, read against the same rules.** With no moot written, F18's six gaps keep the fates they have
+       migrated today (F18's table): m37's G-477feea1 stays `repaired` at 1019, 1883's G-05dad92a and G-3dc8d8e2 stay
+       `repaired` at 307 and 344, and the other three stay open, each reading `gone` from its folded cut. The acts F18's table once dropped on a closed gap (m37's close
        1019, m28's regrade 566) land as written; m28's closing 660 and the `declare_gap_ids` entry at 666 are left to
        the first migration, and a difference widens the residue before code.
      - **The check.** After translations 2, 4 and 6, migrate REFUSES, loudly, a record whose final report still holds
@@ -2181,12 +2184,12 @@ and `~/.claude/scratch/p12/r2/`):
   **Carrier.** `TestEveryArchivedRunRenders`' comment (`migrate/everyrender_test.go:20-21`: "No archived run replays
   a retire, so the retire tidy … is pinned by its own tests") becomes false under the fold and translation 4,
   whose list removes run `RemoveAnchorAt` on archived runs. It is reworded to say the golden pins the list's removes
-  on the archives that hold them (F18's three pairs, m28's and m32's folds, translation 4's cuts, m19's included).
+  on the archives that hold them (F18's four pairs, m28's and m32's folds, translation 4's cuts, m19's included).
 
   **Residue, stated:**
-  - The claim text, reason and `superseded_by` of 108 claim retires are lost; each edit keeps its own `--reason`.
-  - No archived gap fate changes by migrate. The 7 gaps whose marker a fold or translation 4 takes (F18's 4,
-    translation 4's 3) keep their fates as at P3's tip; 6 of them end open, reading `gone`, with the run ended on
+  - The claim text, reason and `superseded_by` of 114 claim retires are lost; each edit keeps its own `--reason`.
+  - No archived gap fate changes by migrate. The 9 gaps whose marker a fold or translation 4 takes (F18's 6,
+    translation 4's 3) keep the fates they have migrated today; 6 of them end open, reading `gone`, with the run ended on
     their lens's turn.
   - m26's eleven tokens move inside their sentences, and its final report bytes change by their positions and the
     paragraph breaks between its seven `F-` tokens (translation 6).
@@ -2900,7 +2903,7 @@ noted.
 | R16 | P12b: a lens closes `moot` a gap whose defect stands at other sentences. Example: m28's G-3a2c77c1 had its marked sentence cut at native 502; the lens kept it open on six other lines and closed it `repaired` at 632 | M × M × M | The cut is the raiser's turn, not a close: the lens re-audits the report as it stands and may keep the gap. P12a ships first, so lenses mint per site, and the other sentences are their own gaps (ruling 1). P4 D(1) re-readies a retired minter on the cut (§III.10c). P12b's universe run reports `moot` closes after a cut followed by a same-class mint at another sentence (§V 13.7) |
 | R17 | P12b: blue cuts a sentence to be rid of an inconvenient gap | M × M × M | The cut closes nothing: the gap's lens re-audits it on its turn and may keep it. The cut needs `--reason`, and its old and new paragraphs reach every lens in its area in the changes set. A cut that loses a needed claim is a new gap (ruling 1 of §III.10c). Measured, not refused: moots per run and re-mints on the cut paragraph (§V 13.7) |
 | R18 | P12b: the recorded removal and the text disagree: a token outside the located span, or a span between blocks yielding the neighbouring block | L × H × M | The removal is recorded at the write, and replay applies it rather than re-locating (F17). The release-fuzz `anchor_removal` oracle compares it with the replayed text after every drawn act (§III.12). The no-bare oracle and the deletion checks also guard it (§V 13.3) |
-| R19 | P12b's migrate drops acts and leaves gaps open with their marker gone. No archived fate changes: F18's four gaps and translation 4's three keep their fates at P3's tip, and six end open, reading `gone`, on their lens's turn. m26's two gaps keep their fates; translation 6 re-seats their tokens and the seven `F-` beside them (F20, F22). The claim text of 108 claim retires is lost. b3, b6, b9 and m19 lose bare `F-` tokens; m28's edit 276 may drop | H × L × L | The ruled residue (rulings 7, 10-13 of §III.10c, F21, and "migration cost is not a reason"). Every dropped act is in the manifest's `lost_acts`, counted per archive. The stored outcomes are carried as history (F10). Every `F-` token's treatment is listed and asserted (§III.10c "The `F-` population"); a token outside the list stops the work for a ruling before code (§V 13.1) |
+| R19 | P12b's migrate drops acts and leaves gaps open with their marker gone. No archived fate changes: F18's six gaps and translation 4's three keep the fates they have migrated today, and six end open, reading `gone`, on their lens's turn. m26's two gaps keep their fates; translation 6 re-seats their tokens and the seven `F-` beside them (F20, F22). The claim text of 114 claim retires is lost. b3, b6, b9 and m19 lose bare `F-` tokens; m28's edit 276 may drop | H × L × L | The ruled residue (rulings 7, 10-13 of §III.10c, F21, and "migration cost is not a reason"). Every dropped act is in the manifest's `lost_acts`, counted per archive. The stored outcomes are carried as history (F10). Every `F-` token's treatment is listed and asserted (§III.10c "The `F-` population"); a token outside the list stops the work for a ruling before code (§V 13.1) |
 | R20 | P12a: one gap per site multiplies mints (voice: 43 of 64 archived gaps were class-wide), and with them turns | M × M × L | The class field groups them, and #1828 deletes the mint cap. P12a's universe run reports mints per lens and class against the archive's (§V 12.5) |
 | R21 | P12b lands on main before #1889 (tombstones, the docketing, `F-` deleted), and #1889 rebases onto it. Both move the same files (`gapstate.go`, `record.go`, `edit.go`, `views.go`) | H × L × M | Ruled (F21): P12b builds on main as it stands and takes 82; #1889's rebase builds F16's end rule and its docketing interactions on `removed_anchors` and `anchor_removal`. P12b re-runs and diffs its census on main (§V 13.1) |
 | R22 | P12b: a cut by an edit answering another gap, or none, leaves its gap's lens without a turn, so the gap reads `gone` and nobody re-audits it | M × M × L | `lensTurnActsOf` reads `removed_anchors` beside `reopened` (§III.10c "The raiser's turn"); `TestACutReadiesItsRaiser` drives both edits, and the fuzz's `CutReadiedRaiser` cell fails at zero (§III.12). The turn is not movement on the gap: a keep after such a cut counts a stall toward impasse, as a reword under another gap's name does today (§III.10c "A turn, not movement") |
@@ -3187,17 +3190,15 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          )
          git -C "$W" status --porcelain -- run-archive plugins/frank-exchange-of-views/tools/internal/record/migrate   # empty
          ```
-         **The set is every archive committed at P12b's base, not only the 39.** It includes the archives added since
-         the 39 were counted: the smoke runs of #1838 and #1883, committed on af3e6ccbe and measured there (§III.10c
-         migrate, "Re-run on main": 6 more claim retires, 1883's 229 an F18 pair, and no `F-` token). On the 39, its
-         counts equal §III.10c's: 0 refusals, 108 claim retires (92 anchorless and 16 anchored, `F-` standing on main),
-         the 7 tokens other than `F-` left on no words at a run's end, the one L6 residue, and 0 lane parts holding a
-         token. Each `F-` token takes the treatment §III.10c's "The `F-` population" table gives it; a token a baring
+         **The set is every archive committed at P12b's base: the 41 on af3e6ccbe**, the smoke runs of #1838 and #1883
+         included (§III.10c migrate, "Re-run on main"). Its counts equal §III.10c's: 0 refusals, 145 retires (31
+         anchor-only, 114 claim: 97 anchorless and 17 anchored, `F-` standing on main), F18's five pairs, the 7 tokens
+         other than `F-` left on no words at a run's end, the one L6 residue, and 36 lane parts, 0 holding a token. Each `F-` token takes the treatment §III.10c's "The `F-` population" table gives it; a token a baring
          edit or a claim retire touches that is outside the table, or another treatment, stops the work for a ruling
          before code. Each added archive is read fresh
          against the same rules: a claim
          retire, a bare token, a rewrite translation 6's predicate selects, or an L6 hit in it widens §III.10c's figures
-         and F18's, translation 4's or translation 6's table before code. Any difference on the 39 does the same.
+         and F18's, translation 4's or translation 6's table before code. Any difference on the 41 does the same.
        - **After the PR:**
          - `ClaimKept\|claim_kept\|RemovalBasis\|removal_basis\|RemovalVerified\|RemovalAsserted` returns 0 hits
            outside `migrate/` and `prose-rewrites.golden`;
@@ -3312,19 +3313,20 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              (`archiveNames`) and `devcmd/archiverun/outcomes_test.go:103` (`TestEveryArchiveIsMeasured`). No P12b
              assertion depends on either, and walking them moves tests r5 did not measure; each still reads only
              `run-archive/*.tar.gz`, so m37 and m38 are outside those two censuses.
-       - **Each assertion and the test that makes it**, over the 39 committed archives (36 in `run-archive/`, 2 in
-         `run-archive/bundle-store/`, and P0's 2026-11-10 run):
+       - **Each assertion and the test that makes it**, over the 41 committed archives (39 in `run-archive/`, P0's
+         2026-11-10 run and the #1838 and #1883 runs among them, and 2 in `run-archive/bundle-store/`):
          - Migrate reports zero refusals in each, every `F-` token taking its listed treatment (§III.10c migrate, "The
            `F-` population"): `TestEveryArchivedRunMigrates`.
          - No migrated record holds a token on no words in its final report, and each translation-4 gap reads open and
            `gone`, its marker in its baring edit's `removed_anchors`, with no `Close` migrate wrote:
            `TestNoMigratedArchiveHoldsABareAnchor`. No record holds a claim-shaped `retire`, because
            the fields are gone (compile).
-         - All 108 claim retires are classified, `F-` standing on main: 92 carry none and are dropped (by archive), and
-           of the 16 anchored, 4 fold into cuts (wave-a 284, m28 510 per token into 265 and 509, m32 382, m37 982), 11
+         - All 114 claim retires are classified, `F-` standing on main: 97 carry none and are dropped (by archive), and
+           of the 17 anchored, 5 fold into cuts (wave-a 284, m28 510 per token into 265 and 509, m32 382, m37 982, 1883
+           229), 11
            become anchor-only retires (m35's 259 among them), and m36's 442 is dropped under F14:
            `TestAClaimRetireFoldsIntoItsCut`.
-         - F18's four gaps and translation 4's three keep their fates at P3's tip, each marker in its cut's
+         - F18's six gaps and translation 4's three keep the fates they have migrated today, each marker in its cut's
            `removed_anchors`, and no `Close` is written by migrate: `TestAClaimRetireFoldsIntoItsCut` (F18) and
            `TestNoMigratedArchiveHoldsABareAnchor` (translation 4).
          - m26's eleven tokens land inside the sentences translation 6's table names, both gaps keep their fates, and
@@ -3342,7 +3344,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            (translation 6). It gains m37's and m38's lines, read in full on their first regeneration. m26's lines in
            `archived_gaps` and `archived_gap_rewrites` move too (translation 6, "Render bytes"), each read on
            regeneration.
-         - No migrated lane part holds `<!--` (34 parts): `TestEveryArchivedRunMigrates`, per migrated `ReportPart`.
+         - No migrated lane part holds `<!--` (36 parts): `TestEveryArchivedRunMigrates`, per migrated `ReportPart`.
          - The L6 residue is exactly m37's K-93f0a1a7 naming C-849a1f53: `TestConsistencyNamesTheArchivedL6Residue`.
        - Re-armed by: any `record.proto` change or epoch bump, and any tarball added under `run-archive/`.
     5. **Generated carriers and gates.**
@@ -3529,28 +3531,30 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
 - **F18 — how migrate reads an archived edit that bared a token, followed by the claim retire that took it (P12b;
   migrate translations 2–4). RULED by gblock 2026-11-20 (picked): (A) as the pure cut it was, the dropped acts
   listed.** Under F21 no `Close` is written, by migrate or by replay (§III.10c translation 3): the pick's "the 4 fates
-  become `moot`" rested on the record's moot, and each of the four gaps keeps its fate at P3's tip, its marker in the
+  become `moot`" rested on the record's moot, and each of the six gaps keeps its fate as migrated today, its marker in the
   folded cut's `removed_anchors`.
   - **The evidence.**
     - **The method.** All 21 archives with gaps were migrated with `feov-migrate` at `ec8757c87`, and each was
       replayed (`~/.claude/scratch/p12/r2/mig/`, `rp/`). Event ids below are migrated ids, with native ids in
       brackets.
-    - **The population** (the 21 archives above; r5's measurement over all 39 finds no other pair, §III.10c migrate).
-      Three archived edits bared a `G-`, `C-` or `K-` token, and in each the next event, a claim retire, took it out:
+    - **The population** (the 21 archives above; r5's measurement over 39 archives finds no other pair, and r6's over
+      main's 41 finds one more, 1883's, §III.10c migrate). Four archived edits bared a `G-`, `C-` or `K-` token, and in each the next event, a claim retire, took it out:
       - wave-a 283[253], which bared G-f6f63173 and C-3743f72c (retire 284);
       - m28 509[502], which bared G-3a2c77c1 (retire 510);
-      - m37 981[1043], which bared G-20128984 and G-477feea1 (retire 982).
+      - m37 981[1043], which bared G-20128984 and G-477feea1 (retire 982);
+      - 1883 228, which bared G-05dad92a and G-3dc8d8e2 (retire 229).
 
       Two more baring edits bared only `F-` tokens: m28 265, whose token stayed bare through edit 276 (which moved it
       flush after the question mark) to retire 510, and m32 381. They fold by F22 and F23 (§III.10c translation 2). Eiffel 11-04 375[393] is not a cut: it is a rewrite that moved its tokens onto the next
       sentence, and G-8dbfce13 was closed at 355, before it.
-    - **The 16 anchored claim retires, classified on the migrated records** (`r2/mig/`, query in
-      `~/.claude/scratch/p12/r2/`): 2 hold only `F-` anchors, and F22 classifies them (m32's 382 folds into its cut 381; m35's 259 becomes an anchor-only retire); 3 fold into the cuts
-      above (wave-a 284, m28 510, m37 982); 1 is m36's 442, whose two `G-` markers (G-34314cff, G-e24f46e2) were OPEN
+    - **The 17 anchored claim retires, classified on the migrated records** (`r2/mig/`, query in
+      `~/.claude/scratch/p12/r2/`; r6 for 1883): 2 hold only `F-` anchors, and F22 classifies them (m32's 382 folds into its cut 381; m35's 259 becomes an anchor-only retire); 4 fold into the cuts
+      above (wave-a 284, m28 510, m37 982, 1883 229); 1 is m36's 442, whose two `G-` markers (G-34314cff, G-e24f46e2) were OPEN
       at the retire, so F14 refuses it and migrate drops it, the markers staying on their kept sentence; the other 10
       (m19 3, mersenne 4, eiffel 11-04 2, m37 1) took `C-`/`K-` anchors off sentences no edit bared, and become
       anchor-only retires. `TestAClaimRetireFoldsIntoItsCut` pins this split.
-    - **The tokens left bare with no retire.** r2 read these as `F-` only (m19 4, m26 7). Over all 39 archives (r5),
+    - **The tokens left bare with no retire.** r2 read these as `F-` only (m19 4, m26 7). Over 39 archives (r5) and
+      main's 41 (r6),
       7 more stand on no words at a run's end with no retire: b3 G-19b1727b, b6 G-68c6ecf7, b9 G-8bd21b5d, m26
       G-59e61f8c and G-0f2d72fd, and m26's C-8a9958e3 and C-8c470447. b3's, b6's and b9's are translation 4's;
       m26's four are translation 6's (F20).
@@ -3564,7 +3568,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       applies: `answers` and dispatch `gap_ids` pass `requireGap`, which checks only that the gap exists
       (`record.go:1056, 1081, 1514`), a docket motion carries no open-gap check (`:1366-1368`), and replay never runs
       `judgeAct` (`actjudge.go:24-26`).
-    - **The four gaps:**
+    - **The six gaps:**
 
       | run | gap | migrated today (P3 tip) | under (A), F21 | folded into the cut, or left to the first migration | land as written |
       |---|---|---|---|---|---|
@@ -3572,13 +3576,21 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       | m28 | G-3a2c77c1 | open, docket unruled (native close 632 and ruling 659 already lost) | open, `gone` from 509 | retire 510, folded; closing 660 and the `declare_gap_ids` entry at 666, left to the first migration | `answers` on edits 514, 586; regrade 566; docket motion 601; dispatches 522, 530, 608 |
       | m37 | G-20128984 | open at run end | open, `gone` from 981 | retire 982's row, folded | — |
       | m37 | G-477feea1 | `repaired` at 1019[1085] | `repaired` at 1019 | retire 982's row, folded | close 1019; dispatches 999, 1000 |
+      | 1883 | G-05dad92a | `repaired` at 307 (migrated on af3e6ccbe) | `repaired` at 307 | retire 229's row, folded into 228 | dispatch 280; plan 281; close 307; stale 326 |
+      | 1883 | G-3dc8d8e2 | `repaired` at 344 (migrated on af3e6ccbe) | `repaired` at 344 | retire 229's row, folded into 228 | `answers` on edit 228; dispatches 279, 280; plan 281; close 344 |
+
+      1883's rows are measured on main af3e6ccbe (r6, `1883-gaps.txt`, `tok-1883.txt`; migrated ids, native ids not
+      read). Edit 228 (`new` is the two tokens alone, answering G-3dc8d8e2) and the next event, claim retire 229, are
+      the F18 shape, and F18 (A) rules that shape: the pair migrates as the pure cut it was, with no new pick. Both
+      closes come after the cut, and the stored `reopened` of 228 already lists both tokens, so the delivered-text
+      rule saw the cut in today's migration; no act on either gap is expected to drop.
 
       `TestAClaimRetireFoldsIntoItsCut` compares each archive's `lost_acts` with this table. Where the first
       migration differs, this table and the residue are corrected before code.
     - **Also:**
       - Under F14, m36's retire 442 (G-34314cff and G-e24f46e2 open at it) is dropped, and both markers stay on their
         kept sentence; the gaps' recorded fates (one `moot` by its lens, one `repaired`) stand.
-      - The 92 anchorless claim retires are dropped (88 in the 21 archives above, 4 older), m19's event 260 among
+      - The 97 anchorless claim retires are dropped (88 in the 21 archives above, 4 older, 1838's 5), m19's event 260 among
         them; it holds no anchor.
   - **(B) Fold the token's removal into the edit, but write no moot.** Under F21 this is (A)'s text and fate: the 11-20
     pick between them was a pick of the record's moot, which F21 deletes.
@@ -3686,8 +3698,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     judge-level exemptions, the for-red bench-edit skip), and #1889's three conditions on the record's moot.
   - **Built in §III.10c** ("The raiser's turn"): `lensTurnActsOf`, `changedSinceSQL` and `latestReopeningSQL` read
     `removed_anchors` beside `reopened`, and `blueAnswers`' `gone` item fires on the lens's turn.
-  - **Consequences, stated:** migrate writes no `Close`, so F18's four gaps and translation 4's three keep their fates
-    at P3's tip (§III.10c translation 3); main holds `F-`, so the archived `F-` tokens are P12b's, each treated as
+  - **Consequences, stated:** migrate writes no `Close`, so F18's six gaps and translation 4's three keep the fates
+    they have migrated today (§III.10c translation 3); main holds `F-`, so the archived `F-` tokens are P12b's, each treated as
     its `G-` neighbours are (F22, §III.10c migrate); docketing interactions with a cut are #1889's.
 - **F22 — the archived `F-` tokens (P12b migrate; plan-audit r6 gap 2). RULED by gblock 2026-11-26 (picked; option
   wording the agent's): "Same rules, listed per token".** RULINGS.md 2026-11-26 "P12b migrate" entry.
@@ -3846,10 +3858,11 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     - r1's archive figures: census-b's F2 read 21 records (n1 has no gap); of its claim retires most carry no anchor,
       so the fold changes 16, not 103; m19's event 260 carries no anchor; and its six "cut markers" were four (F18:
       m36's two were a rewrite, eiffel's closed before the cut; wave-a's G-f6f63173 was missed on the native record).
-    - The archive set. r1 to r4 counted 22 archives, 2026-10-09 to 11-11, and called them all that is tracked. 38 are
-      committed on main (36 in `run-archive/`, 2 in `run-archive/bundle-store/`), and P0 adds the 2026-11-10 run.
-      Over the 39, there are 108 claim retires (92 anchorless, 16 anchored), not 104 (88, 16); the 4 more are
-      anchorless retires of 2026-09-02 to 09-11. The bare population is not empty: 7 tokens in b3, b6, b9 and m26
+    - The archive set. r1 to r4 counted 22 archives, 2026-10-09 to 11-11, and called them all that is tracked. 41 are
+      committed on main af3e6ccbe (39 in `run-archive/`, P0's 2026-11-10 run and the #1838 and #1883 smoke runs
+      among them; 2 in `run-archive/bundle-store/`). Over the 41, there are 114 claim retires (97 anchorless, 17
+      anchored), not 104 (88, 16); the 10 more are 4 anchorless retires of 2026-09-02 to 09-11, 1838's 5 anchorless
+      ones and 1883's anchored 229. The bare population is not empty: 7 tokens in b3, b6, b9 and m26
       (§III.10c translations 4 and 6, F20). The archive tests read only `run-archive/*.tar.gz`, one level, so before
       P12b none checked m37's or m38's refusals or render (§V 13.4).
 12. **The F14-then-cut order** (§III.10b, residue on P12b's tree). The heir of a superseded `--quote` ancestor whose
