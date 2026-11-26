@@ -1667,12 +1667,12 @@ Readers, run on `a995a886f`: `git grep -n -E 'docketingsAt\(|standingDocketings\
 
 Run on `adc7262d4` (`~/.claude/scratch/1695/amendv/wording-readers.md`, raw `raw.txt`): `git grep -n -E 'GetProblem\(\)|GetRequiredFix\(\)|GetAcceptanceCheck\(\)|GetFixNew\(\)|GetFixBasis\(\)|\.(Problem|RequiredFix|AcceptanceCheck|FixNew|FixBasis)\b|"problem"|"required_fix"|"acceptance_check"|"fix_new"|"fix_basis"' HEAD -- F/tools/internal ':!*_test.go' ':!*/testdata/*' ':!*.pb.go'`, each site read. `Gap.Mint` is the first `Mint` body (`F/record/gapstates.go:87-102`), so a `g.Mint.Get…()` read is D, as `g.Mint.GetLikelihood()` is beside the regraded `g.Likelihood`.
 
-- **V, through the gap view — reads `current_*`:** `F/record/viewjson.go` (GapJSON `:393-441`, the work gap `:1137-1175,1335-1353`, `locateGap` `:2076`); `F/record/sittingwrite/delivery.go:291-295`; `F/report/assemble.go:718,723` (risk matrix); `F/record/onegapperclass.go:214`. 9 sites, 4 files.
+- **V, through the gap view — reads `current_*`:** `F/record/viewjson.go` (GapJSON `:393-441`, the work gap `:1137-1175,1335-1353`, `locateGap` `:2076`); `F/record/sittingwrite/delivery.go:291-295`; `F/report/assemble.go:718,723` (risk matrix); `F/record/onegapperclass.go:214`; and the gap view's own projection, `F/record/recordsql/views.go:430-436` (`m."problem"` …, which becomes `current_*`; audit p14's re-run). 10 sites, 5 files.
 - **D, switched to `Gap.Current` / `current_*`:** `F/record/estoppel.go:180` (`prescriptionAt` → `edit --accept`, `Proposal`, `proposalAppliedVerbatimAt`), `:140` (`DeclineStatsOf`: a verified fix on any version); `F/record/tombstone.go:226` (`verbatimPlacement`); `F/record/changesjson.go:104-118` and `F/view/changes.go:122-150` (`show changes --id`: every version, `wordingAt`); `F/record/composedsource.go:92-105` (and its `:28` comment); `F/report/assemble.go:914-921,1098-1112`; `F/view/view.go:287-288,294,298,317`; `F/cli/blue/edit.go:660`; `F/record/onegapperclass.go:256`. 15 sites, 9 files.
 - **D, kept mint-time:** `F/cli/lens/mint.go:69-73,390-393` (`RepeatsKeyed`: a keyed retry restates the mint). 2 sites, 1 file.
 - **P, a past moment:** `F/record/estoppel.go:70-71` (`appliedVerbatim`: `wordingAt` the edit), `:103-106` (`EstoppelConflict`: the placing act's text, §III.B6); `F/report/assemble.go:948,1035-1036` and `F/view/view.go:355` (closed gaps: current = in force at the close, since an amend needs an open gap). 5 sites, 3 files.
 - **W:** `F/cli/lens/mint.go:97,175-196,306,334-335`; `F/record/redvoice.go:51-53`; `F/record/required_gen.go:101-117` (regenerated for `Amend`); `F/cli/motion/propose.go:106,249`. 7 sites, 4 files.
-- **O, the same names on other bodies** (`Closing`, `Road`, a proposal's stored act): `F/record/freeze.go:323,333`, `F/record/docketing.go:502`, `F/cli/lens/closing.go`, `F/record/benchanswer.go:349-398`, `F/cli/motion/docketrule.go:220-228`, `F/cli/blue/freeze.go`, `F/record/viewjson.go:1420-1423`, `F/cli/motion/propose.go:153`, seatprobe's fixture, `F/flags/names.go`. 10 sites.
+- **O, the same names on other bodies** (`Closing`, `Road`, a proposal's stored act): `F/record/freeze.go:323,333`, `F/record/docketing.go:502`, `F/cli/lens/closing.go`, `F/record/benchanswer.go:349-398`, `F/cli/motion/docketrule.go:220-228`, `F/cli/blue/freeze.go`, `F/record/viewjson.go:1420-1423`, `F/cli/motion/propose.go:153`, seatprobe's fixtures (`F/seatprobe/build.go:130-134` included), `F/flags/names.go`. 11 sites.
 - **Migrate:** `F/record/migrate/remap.go:124,138` (field sets; no value read). debate.js, dashboard, graph, verify, capture, consistency and scorecard read no wording.
 
 ## M33 the supersede chain, every carrier deleted, in both directions and both trees — Part B (ruled 2026-11-26 "AMEND", plan X22)
@@ -1681,8 +1681,838 @@ Trees: branch `adc7262d4`, `origin/main` `af3e6ccbe` (`main` merges into R1, P12
 
 1. **Forward, by symbol** (`m33-sym-<sha>.txt`): `git grep -n -E 'supersessionsOf|successorClosing|SupersededGap|supersededRefusal|requireSupersedable|requireSupersededOffDocket|requireNotSuperseded|successorsOf|successorsOwed|OwedSuccessor|requireEngage|EngagementOwesNone|isSuccessorOfAny|blueEngagedThisEpoch|GetSupersedes\(\)|AncestorID|dropCrossSeatLink|mintChain|actingSeat|mintActors|mintActingSeat|demand_lineage|demandReachSQL|supersede_event|superseded_by|mint_ancestor|mint_supersedes|SuccessorsOwed|successors_owed|newEngage' <sha> -- F ':!*_test.go' ':!*/testdata/*' ':!*.pb.go' ':!*_gen.go' ':!*.golden' ':!*/agents/*' ':!*/agents-claude/*'` → branch 225 lines / 54 files, `main` 179 / 45. Largest: `record/successor.go` (41 | 34), `record/supersession.go` (25 | 25), `record/proposal.go` (18 | —), `recordsql/gapstate.go` (16 | 20), `record/sitting.go` (10 | 10), `recordsql/demandlineage.go` (10 | 12), `migrate/replay.go` (9 | 5), `recordsql/views.go` (8 | 9).
 2. **Forward, by sense** (`sweep-<sha>.txt`, `cls-<sha>.txt`): `git grep -n -i -E 'supersed|successor|lineage|ancestor|chain tip|chain.s origin|from the chain' <sha> -- F scripts/agentgen`, each hit classed authored, test, testdata, generated; authored 1299 | 947 lines; tests 154 files / 1365 hits | 130 / 993; generated carriers (agents, `record.pb.go`, `decode_gen.go`, `help_gen.go`, `required_gen.go`, `annotations_gen.go`, `definitions_gen.go`, `docs/vocabulary.md`, the two SKILL.md) regenerate.
-3. **Backward, by declaration** (`decl-<sha>.tsv` from `declmap.bin`; `callers-*.tsv`): each hit's enclosing declaration and each chain declaration's callers. Tagged C (deleted) or O, groups A and D done: chain lines 447 + 394 = **841 on the branch, 133 + 192 = 325 on `main`**; groups B, C, E (the rest of the declarations) tag at R4, every O re-read by hand. Whole chain files: branch 628 lines (`supersession.go` 161, `successor.go` 262, `cli/blue/engage.go` 68, `demandlineage.go` 72, `flags/ancestor.go` 30, `migrate/lineage.go` 35), `main` 528.
+3. **Backward, by declaration** (`decl-<sha>.tsv` from `declmap.bin`; `callers-*.tsv`): each hit's enclosing declaration and each chain declaration's callers. All five groups tagged (audit p14; rubric `amendv/RUBRIC.md`, senses `amend-senses.txt`), pasted below: 790 rows (531 branch, 259 `main`) plus group W. Lines deleted or rewritten (every tag but O and the engagement kept): **1,902 on the branch, 835 on `main`**. Change per tag: C-core → deleted (X22); C-proposal → deleted (X1, X3, X4); C-regression → deleted (X8); C-text → rewritten (X20); MIXED → its chain arm deleted, the declaration kept (X22); C-engage and every engage part of another row → the engagement kept and restated, only the chain input (`successorsOf`'s `supersedes` and `successor` arms, `isSuccessorOfAny`) and the successor wording going (X22a, ruled "Keep, generalized"); O → kept, its sense in the note. Whole chain files deleted: branch 298 lines (`supersession.go` 161, `demandlineage.go` 72, `flags/ancestor.go` 30, `migrate/lineage.go` 35), `main` 203; `successor.go` (262 | 257) and `cli/blue/engage.go` (68 | 68) stay as X22a's engagement, losing their chain input and wording. (1)'s pattern's `requireEngage|EngagementOwesNone|blueEngagedThisEpoch|newEngage` hits are X22a's: O at check 5. A MIXED or C-text row's X row follows the part its note names (X8 for a regression part, X1/X3/X4 for a proposal part, X22a for an engage part).
 - **Declarations that lose only their chain arm:** listed in plan X22.
-- **O, other senses kept:** `Retire.superseded_by`; `QuestionPart.supersedes_coverage`; `Inquiry.supersedes_status`; `EVENT_TYPE_RETIRE`'s "what supersedes it"; `record/supersede.go`'s superseder table (one answer superseding a refused repeat; its rows `:82,84,92` teaching `--supersedes` are rewritten); the declarations fold; `amends_prior` (reserved); the dispatch's `engage` rows; capture's "ancestors" (directories); a dispatch's "lineage none".
+- **O, other senses kept:** `Retire.superseded_by`; `QuestionPart.supersedes_coverage`; `Inquiry.supersedes_status`; `EVENT_TYPE_RETIRE`'s "what supersedes it"; `record/supersede.go`'s superseder table (one answer superseding a refused repeat; its rows `:82,84,92` teaching `--supersedes` are rewritten); the declarations fold; the dispatch's `engage` rows; capture's "ancestors" (directories); a dispatch's "lineage none".
 - **Replaces** M12 and M13 (their carriers are now deleted, not rewritten) and M22's lineage rows.
+4. **Widened sweep** (check 5, O lines allowed: `\.Supersedes\b` also hits `SupersedesCoverage`/`SupersedesStatus`, which are O): `git grep -n -E 'repair_regression|lineage_mints|EdgeDeltas|edge_deltas|"supersedes"|\.Supersedes\b' <sha> -- F scripts/agentgen` with (1)'s exclusions → branch 55 lines, `main` 32; the 11 | 15 in no tag row are group W.
+
+**Group A** (`amendv/tag-A.tsv`)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B | `T/record/actjudge.go:43-80` | requireClosingsOnlySitting | C-text | 2 | rewritten · X20; its engage part kept, restated · X22a | C-engage: "blue's engage row are no acts" + the DISPATCH arm that admits blue's engage row; L44' closings-only gate stays |
+| B | `T/record/actjudge.go:98-187` | judgeAct | MIXED | 10 | chain arm deleted · X22; its engage part kept, restated · X22a | mintActingSeat (bench-written successor's acting seat, L104-109) + Dispatch arm requireEngageNamesEveryOwed (C-engage); act dispatcher stays |
+| B | `T/record/actjudge.go:189-218` | judgeMint | MIXED | 12 | chain arm deleted · X22 | except param + requireSupersededOffDocket + requireSuccessorCarriesDemand arms and doc lines; anchor/reading/one-gap/voice checks stay |
+| B | `T/record/actjudge.go:24` | - | C-text | 1 | rewritten · X20 | package refusal list names supersession of another lens's gap and successor-at-another-check-kind refusals |
+| B | `T/record/answersretired.go:24-55` | answersRetiredItems | C-text | 4 | rewritten · X20 | supersededBySeatAfter skip + "mint it, naming G as the gap it supersedes" teaching; answers-retired news item stays |
+| B | `T/record/answersretired.go:57-66` | supersededBySeatAfter | C-core | 10 | deleted · X22 | whether seat minted a successor naming gap in supersedes (mintActors chain) |
+| B | `T/record/answersretired.go:21` | - | C-text | 1 | rewritten · X20 | doc bullet: lens minted a gap naming it in supersedes |
+| B | `T/record/available.go:166-171` | assigneeOf | MIXED | 2 | chain arm deleted · X22 | assignee via mintChain (chain origin's minter); map stays, becomes the mint's seat |
+| B | `T/record/available.go:260-270` | latestDispatchOf | C-text | 1 | rewritten · X20; its engage part kept, restated · X22a | C-engage: comment "or an engage blue wrote for its own next sitting"; latest-dispatch reader stays |
+| B | `T/record/benchanswer.go:26-61` | Positions | C-text | 2 | rewritten · X20 | C-proposal: Act comment (Mint = supersede proposal) and TextSide "or a supersede on open G"; docketing positions stay |
+| B | `T/record/benchanswer.go:130-235` | positionsAt | MIXED | 2 | chain arm deleted · X22 | C-proposal: *recordpb.Mint in the textual case + comment "or a supersede on open G"; positions fold stays |
+| B | `T/record/benchanswer.go:251-272` | (Positions).AnswerWord | C-text | 1 | rewritten · X20 | C-proposal: doc "a successor" statement writes no word |
+| B | `T/record/benchanswer.go:431-437` | (Positions).wordRefusal | C-text | 1 | rewritten · X20 | C-proposal: refusal text "a successor" |
+| B | `T/record/benchanswer.go:19` | - | C-text | 1 | rewritten · X20 | C-proposal: file doc "statement against a supersede of a closed G" |
+| B | `T/record/benchgrade.go:58-65` | axisGrade | C-text | 2 | rewritten · X20 | comments: lock inherited from an ancestor/successor; type stays |
+| B | `T/record/benchgrade.go:67-184` | benchSetAxesOf | MIXED | 10 | chain arm deleted · X22 | lineage lock block L92-99 + tombstone "wherever the lineage carried it" (all-gaps sweep could narrow to the gap); axis fold stays |
+| B | `T/record/benchgrade.go:241-262` | requireSuccessorKeepsBenchGrades | C-core | 22 | deleted · X22 | refuses a successor moving a ruled-locked grade of its ancestor |
+| B | `T/record/benchgrade.go:25` | - | C-text | 1 | rewritten · X20 | file doc: mint superseding the gap refused, lock follows lineage |
+| B | `T/record/benchgrade.go:26` | - | C-text | 1 | rewritten · X20 | file doc: successor carries the ruled grade |
+| B | `T/record/benchgrade.go:31` | - | C-text | 1 | rewritten · X20 | file doc: tombstone ends the successor's inherited lock |
+| B | `T/record/benchsitting.go:9-54` | docketHeld | O | 0 | O | stand in for: stream positions substitute for events.id |
+| B | `T/record/blueanswered.go:12-114` | blueAnswers | O | 0 | O | engaged: chair's dispatch engages blue on gaps (blue's sitting engaged on a gap), not successors |
+| B | `T/record/blueanswered.go:116-141` | blueAnswer | O | 0 | O | engaged/pending: a blue sitting the chair's dispatch engaged on the gap |
+| B | `T/record/blueanswered.go:166-168` | (blueAnswer).answered | O | 0 | O | closed sitting engaged on it: chair dispatch engagement |
+| B | `T/record/blueanswered.go:170-282` | blueAnswersOf | O | 0 | O | s.Engaged = dispatch engagement; SupersedesCoverage: a question part record supersedes the part's earlier coverage |
+| B | `T/record/bluesittings.go:7-23` | BlueSitting | C-text | 1 | rewritten · X20 | FoundClosed comment "or the mint that closed it by superseding it"; Engaged/FoundClosed stay (work list found_closed) |
+| B | `T/record/bluesittings.go:25-66` | BlueSittings | O | 0 | O | engagementOf call/Engaged: chair dispatch engagement of blue |
+| B | `T/record/bluesittings.go:68-95` | engagementOf | MIXED | 5 | chain arm deleted · X22 | supersessionsOf map + Mint arm closing the ancestor by supersession (L76,81-84); dispatch found-closed/open split stays |
+| B | `T/record/bluesittings.go:97-102` | FoundClosure | C-text | 1 | rewritten · X20 | comment "or the successor's mint that superseded it"; found-closed gap (work list found_closed) stays |
+| B | `T/record/bluesittings.go:104-110` | (FoundClosure).Fate | MIXED | 2 | chain arm deleted · X22 | ClosedSuperseded fallback for a supersession-closed gap; close's class stays |
+| B | `T/record/closingowed.go:125-149` | closingReadsOf | MIXED | 7 | chain arm deleted · X22 | supersessionsOf block (mint closes ancestor) L139-145; also assigneeOf (chain origin); closing reads stay |
+| B | `T/record/composedsource.go:47-110` | composedSourcesOf | MIXED | 3 | chain arm deleted · X22 | mintActors acting seat (bench-written successor = assignee's text) L82-84; composed-source fold stays |
+| B | `T/record/composedsource.go:28` | - | C-text | 1 | rewritten · X20 | C-proposal: "problem and fix change only by a successor" |
+| B | `T/record/composedsource.go:29` | - | C-text | 1 | rewritten · X20 | C-proposal: proposed supersede carrying reworded text |
+| B | `T/record/composedsource.go:30` | - | C-text | 1 | rewritten · X20 | C-proposal: voice lens's own gap it supersedes itself |
+| B | `T/record/declarations.go:19` | - | O | 0 | O | a later declaration supersedes an earlier one (declaration fold) |
+| B | `T/record/demand.go:14-29` | EvidenceDemand | C-text | 1 | rewritten · X20 | or an ancestor it carries the demand from; demand type stays |
+| B | `T/record/demand.go:31-35` | Reach | MIXED | 2 | chain arm deleted · X22 | From field + comment exist only for ancestor reach (demand_reach.from_gap); Anchor/Seat stay |
+| B | `T/record/demand.go:54-102` | evidenceDemandAt | MIXED | 2 | chain arm deleted · X22 | from_gap column + ORDER BY from_gap<>gap_id (demand_reach over demand_lineage); demand read stays |
+| B | `T/record/demand.go:116-148` | DemandRefusal | C-text | 4 | rewritten · X20 | r.From!=gapID ancestor branch (3) + "a close to a successor" (C-regression wording); refusal stays |
+| B | `T/record/demand.go:150-157` | appendNew | C-core | 8 | deleted · X22 | dedup exists only because gap and ancestor reach one anchor; DemandRefusal's two calls become append |
+| B | `T/record/demand.go:166-184` | SupersessionAdmitted | C-core | 19 | deleted · X22 | pre-write supersedes checks (requireSupersedable, requireSuccessorCarriesDemand) |
+| B | `T/record/demand.go:186-190` | awaitingAncestor | C-core | 5 | deleted · X22 | ancestor awaiting live answer |
+| B | `T/record/demand.go:192-214` | requireSuccessorCarriesDemand | C-core | 23 | deleted · X22 | demand_lineage: successor must carry ancestor's check kind |
+| B | `T/record/demand.go:216-244` | successorDemandRefusal | C-core | 29 | deleted · X22 | refusal for the above |
+| B | `T/record/demand.go:159` | - | C-core | 1 | deleted · X22 | section doc THE DEMAND MOVES TO THE SUCCESSOR |
+| B | `T/record/demand.go:162` | - | C-core | 1 | deleted · X22 | same section doc |
+| B | `T/record/demand.go:163` | - | C-core | 1 | deleted · X22 | same section doc |
+| B | `T/record/demand.go:164` | - | C-core | 1 | deleted · X22 | same section doc |
+| B | `T/record/dispatch.go:16-22` | Party | O | 0 | O | engages/engaged: chair dispatch engages a party on gaps |
+| B | `T/record/dispatch.go:41-50` | ExchangeCount | O | 0 | O | engaged sittings: dispatch engagement |
+| B | `T/record/dispatch.go:60-141` | Plan | O | 0 | O | engage/engaged: chair dispatch engages parties |
+| B | `T/record/dispatch.go:325-869` | foldPlan | C-text | 1 | rewritten · X20 | C-proposal: L709 "(F8: a proposed successor of a closed gap)"; all other hits are the engage/engageClosing closure = chair dispatch (O); FLAG: closed-gap docketing arm may lose its only case |
+| B | `T/record/dispatch.go:985-994` | dispatchRow | MIXED | 3 | chain arm deleted · X22; its engage part kept, restated · X22a | C-engage: engage field (blue-written engage row); "engaged" in doc is O |
+| B | `T/record/dispatch.go:996-1023` | dispatchLedger | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | C-engage: engage: isEngageRow(e) in the row literal; ledger stays |
+| B | `T/record/dispatch.go:1034-1043` | sittingFor | O | 0 | O | benchSatFor named in doc: bench sat for a docketing (no chain sense) |
+| B | `T/record/dispatch.go:1163-1205` | sittingCloser | O | 0 | O | engaged gaps: chair dispatch engagement |
+| B | `T/record/dispatch.go:1306-1311` | PartyRow | O | 0 | O | engaged the party on: chair dispatch |
+| B | `T/record/dispatch.go:1313-1355` | DispatchGroups | MIXED | 4 | chain arm deleted · X22; its engage part kept, restated · X22a | C-engage: engage row opens no group (3 comment lines + !d.engage); grouping stays |
+| B | `T/record/dispatch.go:1497-1519` | owedSitting | MIXED | 4 | chain arm deleted · X22; its engage part kept, restated · X22a | C-engage: engage row owed by the next sitting (L1511-1515); "stand in for" is O; owed-dispatch reader stays |
+| B | `T/record/dispatch.go:1593-1601` | requireBenchDocket | O | 0 | O | bench engaged on gaps: chair dispatch |
+| B | `T/record/dispatchnext.go:14-28` | DispatchNext | O | 0 | O | engages a party: chair dispatch |
+| B | `T/record/dispatchnext.go:39-169` | dispatchNext | O | 0 | O | engages the parties its rows already engage: chair dispatch |
+| B | `T/record/docketing.go:452-491` | closingTakesText | MIXED | 2 | chain arm deleted · X22 | C-proposal: act "supersede" in the return + doc "or a supersede a party proposed"; text-road question stays |
+| B | `T/record/docketing.go:493-564` | requireClosingStatement | C-text | 2 | rewritten · X20 | C-regression: repaired_with_regression "names the successor" refusal arm on blue's closing |
+| B | `T/record/enums.go:160-179` | artifactByClass | C-text | 1 | rewritten · X20 | C-regression: row comment "a live successor carries the remainder" |
+| B | `T/record/enums.go:181-194` | ArtifactStateOf | O | 0 | O | walks the lineage: amends_prior's earlier-ruling lineage, not the gap chain |
+| B | `T/record/enums.go:218-319` | EnumFields | C-text | 1 | rewritten · X20 | C-regression: Why "the successor invariant that fires on repaired_with_regression" |
+| B | `T/record/estoppel.go:77-79` | Estoppel | C-text | 1 | rewritten · X20 | acting seat of that gap's mint (actingSeat): bench-successor authorship; type stays |
+| B | `T/record/estoppel.go:118-122` | minterOf | MIXED | 2 | chain arm deleted · X22 | mintActors + doc "assignee where the bench wrote the mint as a successor"; becomes the mint's seat |
+| B | `T/record/estoppel.go:35` | - | C-text | 1 | rewritten · X20 | file doc: red mints --supersedes the prescribing gap, as the refusal says |
+| B | `T/record/evidenceview.go:348-362` | EvidenceRetireJSON | O | 0 | O | Retire.superseded_by: a retired CLAIM superseded by another claim |
+| B | `T/record/evidenceview.go:396-615` | EvidenceJSONOf | O | 0 | O | Retire.superseded_by projected: claim supersession |
+| B | `T/record/failedcheck.go:70-126` | failedChecksOf | MIXED | 1 | chain arm deleted · X22 | mintActors acting seat for a mint's seat; failed-check fold stays |
+| B | `T/record/failedcheck.go:217-249` | requireFailedCheckAnswered | C-text | 4 | rewritten · X20 | doc lines 221-222 + two refusal sentences teaching --supersedes and demand carry; refusal stays |
+| B | `T/record/freeze.go:37-96` | requireSuccessorMintable | C-proposal | 60 | deleted · X1/X3/X4 | L48 successor-mintable check of a supersede proposal |
+| B | `T/record/freeze.go:98-102` | successorCheck | C-proposal | 5 | deleted · X1/X3/X4 | error type for the above |
+| B | `T/record/freeze.go:104` | (successorCheck).Error | C-proposal | 1 | deleted · X1/X3/X4 | method of successorCheck |
+| B | `T/record/freeze.go:105` | (successorCheck).Unwrap | C-proposal | 1 | deleted · X1/X3/X4 | method of successorCheck |
+| B | `T/record/freeze.go:107-113` | successorRefusal | C-proposal | 7 | deleted · X1/X3/X4 | filing refusal of an unwritable successor |
+| B | `T/record/freeze.go:115-119` | standingSupersede | C-proposal | 5 | deleted · X1/X3/X4 | standing supersede proposal |
+| B | `T/record/freeze.go:121-160` | standingSupersedesAt | C-proposal | 40 | deleted · X1/X3/X4 | every standing supersede proposal |
+| B | `T/record/freeze.go:162-174` | judgedLanded | C-proposal | 13 | deleted · X1/X3/X4 | which acts the freeze's successor arm judges |
+| B | `T/record/freeze.go:176-207` | unwritableSuccessors | C-proposal | 32 | deleted · X1/X3/X4 | pre-write unwritable successors |
+| B | `T/record/freeze.go:209-236` | judgeLanded | C-proposal | 28 | deleted · X1/X3/X4 | freeze successor arm L48 |
+| B | `T/record/freeze.go:244-254` | Road | MIXED | 3 | chain arm deleted · X22 | C-proposal: Successor field + "or a supersede proposal's stored quote and fix"; closing roads stay |
+| B | `T/record/freeze.go:256-259` | (*Landing).StandingRoads | C-text | 2 | rewritten · X20 | C-proposal: doc "each standing supersede proposal's stored quote" |
+| B | `T/record/freeze.go:261-326` | standingRoadsAt | MIXED | 12 | chain arm deleted · X22 | C-proposal: standingSupersedesAt loop L315-324; also assigneeOf (chain origin); closing roads stay |
+| B | `T/record/freeze.go:21` | - | C-text | 1 | rewritten · X20 | C-proposal: file doc "a standing supersede proposal's successor" |
+| B | `T/record/freeze.go:28` | - | C-proposal | 1 | deleted · X1/X3/X4 | L48 bullet THE SUCCESSOR |
+| B | `T/record/freeze.go:29` | - | C-proposal | 1 | deleted · X1/X3/X4 | L48 bullet |
+| B | `T/record/freeze.go:32` | - | C-proposal | 1 | deleted · X1/X3/X4 | L48 bullet |
+| M | `T/record/actjudge.go:36-142` | judgeAct | MIXED | 13 | chain arm deleted · X22; its engage part kept, restated · X22a | main: requireSupersededOffDocket + requireSuccessorCarriesDemand arms (L56-64) + Dispatch requireEngageNamesEveryOwed (C-engage); dispatcher stays |
+| M | `T/record/answersretired.go:25-56` | answersRetiredItems | C-text | 4 | rewritten · X20 | main: supersededBySeatAfter skip + "naming G as the gap it supersedes" |
+| M | `T/record/answersretired.go:58-66` | supersededBySeatAfter | C-core | 9 | deleted · X22 | main: repeated supersedes (slices.Contains), event seat |
+| M | `T/record/available.go:304-365` | regradesAfforded | O | 0 | O | (supersede.go): superseder table, the act that answers a refused repeated act |
+| M | `T/record/benchgrade.go:72-79` | axisGrade | C-text | 2 | rewritten · X20 | main: ancestor/successor lock comments |
+| M | `T/record/benchgrade.go:81-132` | benchSetAxesOf | MIXED | 9 | chain arm deleted · X22 | main: lineage lock loop over repeated supersedes L94-102 |
+| M | `T/record/benchgrade.go:208-230` | requireSuccessorKeepsBenchGrades | C-core | 23 | deleted · X22 | main: repeated-supersedes version |
+| M | `T/record/benchsitting.go:9-56` | docketHeld | O | 0 | O | stand in for: positions substitute for events.id |
+| M | `T/record/blueanswered.go:11-113` | blueAnswers | O | 0 | O | engaged: chair dispatch engagement of blue |
+| M | `T/record/blueanswered.go:169-280` | blueAnswersOf | O | 0 | O | Engaged = dispatch; SupersedesCoverage = question-part coverage supersession |
+| M | `T/record/bluesittings.go:68-97` | engagementOf | MIXED | 7 | chain arm deleted · X22 | main: supersessionsOf + Mint arm over repeated supersedes |
+| M | `T/record/closingowed.go:104-170` | closingDutiesOf | MIXED | 7 | chain arm deleted · X22 | main: supersessionsOf closedAt block L127-133; closing duties stay |
+| M | `T/record/demand.go:116-148` | DemandRefusal | C-text | 4 | rewritten · X20 | main: r.From ancestor branch + "a close to a successor" (C-regression wording) |
+| M | `T/record/demand.go:192-215` | requireSuccessorCarriesDemand | C-core | 24 | deleted · X22 | main: loop over repeated supersedes |
+| M | `T/record/demand.go:217-245` | successorDemandRefusal | C-core | 29 | deleted · X22 | main: refusal text |
+| M | `T/record/dispatch.go:16-22` | Party | O | 0 | O | engages: chair dispatch |
+| M | `T/record/dispatch.go:60-143` | Plan | O | 0 | O | engage/engaged: chair dispatch |
+| M | `T/record/dispatch.go:301-765` | foldPlan | O | 0 | O | engage closure + engaged: chair dispatch readies parties; no chain text on main |
+| M | `T/record/dispatch.go:1452-1483` | benchReadiness | O | 0 | O | engage callback: chair dispatch readies the bench |
+| M | `T/record/dispatch.go:1514-1543` | benchSatFor | O | 0 | O | engaged: dispatch engaging the bench/nobody |
+| M | `T/record/dispatchnext.go:14-28` | DispatchNext | O | 0 | O | engages a party: chair dispatch |
+| M | `T/record/dispatchnext.go:39-162` | dispatchNext | O | 0 | O | engages the parties: chair dispatch |
+| M | `T/record/enums.go:160-179` | artifactByClass | C-text | 1 | rewritten · X20 | C-regression: row comment "a live successor carries the remainder" |
+| M | `T/record/enums.go:218-320` | EnumFields | C-text | 1 | rewritten · X20 | C-regression: Why "successor invariant ... repaired_with_regression" |
+
+**Group B** (`amendv/tag-B.tsv`)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B | `T/record/gapacts.go:11-43` | gapAct | C-text | 1 | rewritten · X20 | act list names 'a mint superseding it' as an assignee act (l.22-23); gapAct (acts on a gap) stays |
+| B | `T/record/gapacts.go:45-93` | gapActsOf | MIXED | 2 | chain arm deleted · X22 | case Mint: on=GetSupersedes arm goes; gapActsOf (every act on a gap, lens turn/exchange) stays |
+| B | `T/record/gapacts.go:95-190` | fateActsOf | MIXED | 15 | chain arm deleted · X22 | superseded-gap exclusion goes (115-119 comment, 122 clause, 125 supersessionsOf, 162-165, 181-184); fate acts stay; 152 SupersedesCoverage is O |
+| B | `T/record/gapacts.go:204-217` | lensTurnOn | O | 0 | O | engages: the dispatch plan engages the assignee on the gap (not successors) |
+| B | `T/record/gapstates.go:77-122` | gapStatesOf | MIXED | 1 | chain arm deleted · X22 | g.SupersededBy = c.supersededBy assignment goes (part of l.117); gap family assembly stays |
+| B | `T/record/gapstates.go:124-132` | GapsByID | C-text | 1 | rewritten · X20 | comment 'readers that follow lineage (an ancestor lookup)'; GapsByID is the family's id index, kept |
+| B | `T/record/gapstates.go:193-198` | NewFamily | C-text | 1 | rewritten · X20 | comment 'a lineage lookup is a map hit'; NewFamily kept |
+| B | `T/record/gapstates.go:200-213` | gapFamilyActs | C-text | 1 | rewritten · X20 | comment names 'superseding mints'; mints stay in the filter as the family's own acts |
+| B | `T/record/impasse.go:14-82` | GapExchanges | C-text | 1 | rewritten · X20 | l.30-31 movement clause 'its lineage moved (a mint superseding G)'; 19,44 'engaged' = dispatch engagement (O) |
+| B | `T/record/impasse.go:108-127` | partySitting | O | 0 | O | engaged: a dispatch engages a seat's sitting on a gap |
+| B | `T/record/impasse.go:129-158` | Exchanges | O | 0 | O | engaged: dispatch events say who was engaged on what |
+| B | `T/record/impasse.go:222-264` | gapSittingsOf | O | 0 | O | engaged: dispatch engagement; seat stays engaged after a failed sitting |
+| B | `T/record/impasse.go:266-424` | exchangeFold | MIXED | 3 | chain arm deleted · X22 | Mint.supersedes counted as movement on the ancestor (295-297) goes; exchange fold stays |
+| B | `T/record/inquiry.go:17-26` | InquiryStatuses | O | 0 | O | successor: a run that queues its own successor run (deferred inquiry), not a gap successor |
+| B | `T/record/inquiry.go:93-177` | InquiriesOf | C-text | 1 | rewritten · X20 | comment cites actingSeat (bench-written successor's acting seat); InquiriesOf fold stays |
+| B | `T/record/inquiry.go:226-261` | InquiryJSON | O | 0 | O | superseded fate: an inquiry's earlier fate in its history |
+| B | `T/record/inquirycheck.go:87-154` | inquiryJudgementsOf | MIXED | 5 | chain arm deleted · X22 | superseding mint as a cause goes (106 comment, 121-123); 131 actingSeatOf -> mint's seat; judgement fold stays |
+| B | `T/record/itemkind.go:17-59` | ItemAudit,ItemReaudit,ItemNews,ItemLog,... | MIXED | 3 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed const+comment (41-43) goes; 25 'engaged on' = dispatch (O); other kinds stay |
+| B | `T/record/itemkind.go:61-71` | ItemKinds | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed dropped from the returned list (part of l.69) |
+| B | `T/record/lensturn.go:9-17` | EarlyLensDispatch | O | 0 | O | engaged a lens: chair's dispatch row engages a lens on a gap |
+| B | `T/record/lensturn.go:19-44` | EarlyLensDispatches | C-text | 2 | rewritten · X20 | sentence 23-24: a successor's mint closed the gap, its row engages no turn; 19-20 'engaged' is dispatch (O) |
+| B | `T/record/lensturn.go:46-79` | earlyLensDispatchesOf | MIXED | 13 | chain arm deleted · X22 | superseded map (52-61) and skip (70-72) go; early-lens-dispatch audit stays |
+| B | `T/record/motion.go:166-217` | Motion | C-text | 1 | rewritten · X20 | Act comment lists 'supersede' among proposed acts; Motion type stays |
+| B | `T/record/motion.go:515-544` | requireUnanswered | O | 0 | O | SupersedingAnswer: superseder table, the act that answers a refused repeated act |
+| B | `T/record/motion.go:546-571` | RequireUnruledMotion | O | 0 | O | comment cites supersede.go: superseder table (act answering a wrong ruling) |
+| B | `T/record/oncepersitting.go:47-80` | requireOncePerSitting | O | 0 | O | superseder table tail (supersede.go) on a once-per-sitting refusal |
+| B | `T/record/onegapperclass.go:15-190` | requireOneGapPerClassAndSubject | MIXED | 12 | chain arm deleted · X22 | --supersedes exemption comment (46-48) and exemption block (79-87: ancestor arm C-core + ruling-successor arm C-proposal) go; one-gap-per-class rule stays |
+| B | `T/record/onegapperclass.go:232-266` | withRuledGapsOfClassAt | MIXED | 9 | chain arm deleted · X22 | supersede-accept successor arm (241-249, F-J, C-proposal) goes; ruled-gap tombstone join stays |
+| B | `T/record/onegapperclass.go:268-295` | oneGapRefusal | C-text | 4 | rewritten · X20 | road text: 'restated by superseding it', successorClause call, '--supersedes %s' advice, 'motion docket file supersede' (proposal) rewritten |
+| B | `T/record/onegapperclass.go:320-326` | successorClause | C-proposal | 7 | deleted · X1/X3/X4 | successorClause: names the successor a supersede accept left standing |
+| B | `T/record/proposal.go:69-80` | ActWord | MIXED | 2 | chain arm deleted · X22 | Motion_Supersede case goes; ActWord stays for regrade/close |
+| B | `T/record/proposal.go:82-83` | ProposedActs | MIXED | 1 | chain arm deleted · X22 | 'supersede' dropped from ProposedActs (part of l.83) |
+| B | `T/record/proposal.go:85-94` | ProposedCloseRefusal | C-regression | 10 | deleted · X8 | refuses repaired_with_regression as a proposed close because it names the regression successor (Close.successor) |
+| B | `T/record/proposal.go:96-99` | proposedRegressionRefusal | C-regression | 4 | deleted · X8 | refusal sentence: regression successor is a lineage fact no ruling carries; also says 'propose the supersede' |
+| B | `T/record/proposal.go:116-162` | requireProposedAct | MIXED | 9 | chain arm deleted · X22 | Close.Successor refusal (141-143, C-regression) and Motion_Supersede arm (154-159, C-proposal) go; regrade/close shape stays |
+| B | `T/record/proposal.go:195-244` | requireDocketFiling | MIXED | 17 | chain arm deleted · X22 | --supersedes advice (211), F8 closed-gap-takes-a-supersede (196-197, 225-231), L48 successor-mintable (235-242) go; F1/F5/estoppel/exchange checks stay |
+| B | `T/record/proposal.go:301-321` | requireBenchSuccessor | C-proposal | 21 | deleted · X1/X3/X4 | requireBenchSuccessor: the bench's one Mint, the successor a supersede proposal assigned |
+| B | `T/record/proposal.go:323-332` | actingSeat | C-core | 10 | deleted · X22 | actingSeat: acting seat through the chain; bench writes a Mint only as a supersede successor (proposal); becomes the event seat |
+| B | `T/record/proposal.go:334-342` | mintActors | C-core | 9 | deleted · X22 | mintActors: acting seat via mintChain; becomes each mint event seat; 6 readers with other jobs still need the minter |
+| B | `T/record/proposal.go:344-364` | mintChain | MIXED | 6 | chain arm deleted · X22 | ancestor-assignee inheritance (357-359), acting map, comment go; assignee map stays as the minter map (assigneeOf, 12 readers) |
+| B | `T/record/proposal.go:366-367` | actingSeatOf | C-core | 2 | deleted · X22 | actingSeatOf wraps mintActors (chain acting seat); caller inquiryJudgementsOf reads the minter instead |
+| B | `T/record/proposal.go:369-380` | mintActingSeat | C-core | 12 | deleted · X22 | mintActingSeat: bench successor checked against the ancestor assignee (chain origin) |
+| B | `T/record/proposal.go:382-390` | benchClosureWord | MIXED | 6 | chain arm deleted · X22 | `superseded` word for a ruling siding with a supersede proposal goes (382-384 comment, 386-388); returns the disposition word |
+| B | `T/record/proposal.go:392-406` | StoredAct | MIXED | 5 | chain arm deleted · X22 | Motion_Supersede arm (class material cleared, 400-403) and comment clause go; StoredAct stays for regrade/close |
+| B | `T/record/proposal.go:408-430` | requireNotEstoppedOn | MIXED | 5 | chain arm deleted · X22 | 'successor a supersede accept left standing' (409 comment, 422-425) goes; estoppel refusal stays |
+| B | `T/record/proposal.go:16` | - | C-text | 1 | rewritten · X20 | file comment lists 'or a supersede' among proposed acts |
+| B | `T/record/questionpart.go:130-134` | questionGapsSQL | C-text | 1 | rewritten · X20 | comment 'which a bench-written successor's writer is not'; with no bench successor the gap_state JOIN for assignee reduces to the mint's seat |
+| B | `T/record/questionpart.go:361-390` | requireQuestionPart | O | 0 | O | SupersedesCoverage: a coverage record supersedes a question part's earlier coverage |
+| B | `T/record/questionpart.go:467-477` | partCoveragesAtSQL | O | 0 | O | supersedes_coverage: question-part coverage record vs its proposal |
+| B | `T/record/reading.go:50-155` | requireNotARetriedReading | O | 0 | O | SupersedingAnswer: superseder table (answer to a refused repeated reading) |
+| B | `T/record/record.go:667-716` | appendBodies | MIXED | 6 | chain arm deleted · X22 | unwritableSuccessors read at BEGIN for the freeze's successor arm (676-679, var, 692) goes; appendBodies stays |
+| B | `T/record/record.go:804-886` | writeIn | O | 0 | O | superseder table tail (supersede.go) on a duplicate-key refusal |
+| B | `T/record/record.go:888-1706` | validate | MIXED | 66 | chain arm deleted · X22 | chain 38 (939-944 stamp, 991-1002 mint arm, carry+docket requireNotSuperseded, 1462-1468 engage); C-regression 28 (1128-1165); supersedes_status O |
+| B | `T/record/record.go:1782-1803` | requireOriginator | C-text | 2 | rewritten · X20 | 'the lens that minted its chain's first gap' in comment (1783) and refusal (1800); originator rule stays |
+| B | `T/record/record.go:1975-2031` | mintShape | C-text | 1 | rewritten · X20 | comment 'or stored as a proposed supersede'; mintShape (mint statement shape) stays |
+| B | `T/record/refs.go:359-369` | gapState | C-text | 1 | rewritten · X20 | comment 'or the mint that superseded it' among closing arms |
+| B | `T/record/refs.go:371-388` | requireOpenGap | MIXED | 5 | chain arm deleted · X22 | successor-naming refusal (371-372 comment, 382-384 requireNotSuperseded) goes; closed-gap refusal stays |
+| B | `T/record/refs.go:17` | - | C-text | 1 | rewritten · X20 | history comment: 'mint --supersedes' was checked |
+| B | `T/record/refs.go:30` | - | C-text | 1 | rewritten · X20 | measurement comment: '6 successors' |
+| B | `T/record/refs.go:354` | - | C-text | 1 | rewritten · X20 | dropped-rule comment 'supersedes must name a closed gap' |
+| B | `T/record/refs.go:355` | - | C-text | 1 | rewritten · X20 | same comment: superseding a still-open predecessor is normal |
+| B | `T/record/remand.go:161-167` | remandedClosedGapSQL | MIXED | 1 | chain arm deleted · X22 | COALESCE(g.supersede_event) term in max() goes |
+| B | `T/record/remand.go:370-388` | partiesOnRoute | O | 0 | O | engages: a route engages the assignee and blue (dispatch) |
+| B | `T/record/replay.go:111-176` | Gap | MIXED | 4 | chain arm deleted · X22 | SupersededBy field+comment (153-156) goes; 142 'a successor' in Close is Close.successor (C-regression text) |
+| B | `T/record/replay.go:230-263` | (*Gap).ClosureReason | MIXED | 5 | chain arm deleted · X22 | supersession arm (252-256) goes; closure word stays |
+| B | `T/record/replay.go:265-267` | ClosedSuperseded | C-core | 3 | deleted · X22 | ClosedSuperseded word; also read by benchClosureWord (proposal) and FoundClosure.Fate, consistency.walk |
+| B | `T/record/replay.go:269-279` | (*Gap).Successor | MIXED | 5 | chain arm deleted · X22 | SupersededBy arm + comment go; remaining arm returns Close.successor (C-regression) |
+| B | `T/record/replay.go:341-365` | priorClosureEpochs | C-text | 2 | rewritten · X20 | comment 'the same rule mint applies to supersedes' |
+| B | `T/record/required.go:9-55` | RequiredFields | C-text | 1 | rewritten · X20 | l.13 '--supersedes (optional)' example; l.30 '--successor' is a regression example |
+| B | `T/record/retirement.go:205-267` | gapNewsOf | O | 0 | O | engaged: blue's sitting engaged on the gap by dispatch |
+| B | `T/record/retirement.go:359-375` | freshMaterialOf | MIXED | 1 | chain arm deleted · X22 | 'AND supersedes IS NULL' (fresh = superseding nothing) goes |
+| B | `T/record/retirement.go:377-387` | freshMaterialOfStates | MIXED | 1 | chain arm deleted · X22 | '&& g.Supersedes == ""' goes |
+| B | `T/record/retirement.go:20` | - | O | 0 | O | engaged: a lens engaged on gaps by dispatch |
+| B | `T/record/retirement.go:41` | - | O | 0 | O | engaged: sittings a seat is engaged for by dispatch |
+| B | `T/record/retirement.go:52` | - | C-text | 1 | rewritten · X20 | '(superseding nothing)' in productive-sitting definition |
+| B | `T/record/sitting.go:160-626` | sittingOf | MIXED | 13 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed block (367-379) goes; 326-341 engagedOf.GapIDs / 'not engaged on it' is blue's dispatch engagement (O) |
+| B | `T/record/sitting.go:661-675` | sittingOfBlueRespond | O | 0 | O | engagedOf / found closed: blue's dispatch engagement split by closes, not successors |
+| B | `T/record/sitting.go:677-693` | EngagedJSON | MIXED | 6 | chain arm deleted · X22; its engage part kept, restated · X22a | SuccessorsOwed field+comment (687-692) goes; GapIDs/FoundClosed = blue's dispatch engagement (O) |
+| B | `T/record/sitting.go:695-706` | FoundClosedJSON | MIXED | 5 | chain arm deleted · X22 | Successors field+comment (696-697, 702-705) goes; found-closed row (id, closer, fate) stays |
+| B | `T/record/sitting.go:708-746` | engagedOf | MIXED | 8 | chain arm deleted · X22 | successorsOf/successorsOwedOnTheWorkList reads and Successors fill (732-735, 738-742) go; engaged block stays |
+| B | `T/record/sitting.go:764-780` | benchRegisteredSince | O | 0 | O | hit on owedSitting / registered occasion: the sitting a seat owes for its dispatch; no chain sense |
+| B | `T/record/standingreading.go:746-784` | readingBehind | MIXED | 1 | chain arm deleted · X22 | mintActors(evs)[gapID] -> the mint's own seat (l.758 rewrite) |
+| B | `T/record/standingreading.go:863-878` | mintRowsOf | MIXED | 1 | chain arm deleted · X22 | acting := mintActors(evs) -> e.GetSeatId() (l.867/873 rewrite) |
+| B | `T/record/successor.go:26-47` | successorsOf | C-engage | 22 | chain wording/input deleted · X22a | successorsOf: Close.superseded_by (regression) + Mint.supersedes successors; feeds engage and FoundClosedJSON.Successors |
+| B | `T/record/successor.go:49-54` | OwedSuccessor | C-engage | 6 | kept, restated · X22a | OwedSuccessor |
+| B | `T/record/successor.go:56-65` | successorsOwed | C-engage | 10 | kept, restated · X22a | successorsOwed |
+| B | `T/record/successor.go:67-81` | successorsOwedOnTheWorkList | C-engage | 15 | kept, restated · X22a | successorsOwedOnTheWorkList |
+| B | `T/record/successor.go:83-106` | owedSuccessorsOf | C-engage | 24 | kept, restated · X22a | owedSuccessorsOf |
+| B | `T/record/successor.go:108-123` | blueSittingNow | C-engage | 16 | kept, restated · X22a | blueSittingNow: sole caller successorsOwed |
+| B | `T/record/successor.go:125-138` | blueEngagedThisEpoch | C-engage | 14 | kept, restated · X22a | blueEngagedThisEpoch: callers owedSuccessorsOf, requireEngage only |
+| B | `T/record/successor.go:140-156` | successorsOwedAt | C-engage | 17 | kept, restated · X22a | successorsOwedAt |
+| B | `T/record/successor.go:158-167` | EngagementOwesNone | C-engage | 10 | kept, restated · X22a | EngagementOwesNone: migrate/replay.go reads it |
+| B | `T/record/successor.go:169-175` | isEngageRow | C-engage | 7 | kept, restated · X22a | isEngageRow: dispatchLedger/dispatchRow (another job) branch on it |
+| B | `T/record/successor.go:177-226` | requireEngage | C-engage | 50 | kept, restated · X22a | requireEngage |
+| B | `T/record/successor.go:228-249` | requireEngageNamesEveryOwed | C-engage | 22 | kept, restated · X22a | requireEngageNamesEveryOwed (judgeAct act judgement) |
+| B | `T/record/successor.go:251-259` | isSuccessorOfAny | C-engage | 9 | chain wording/input deleted · X22a | isSuccessorOfAny |
+| B | `T/record/successor.go:13` | - | C-engage | 1 | reworded · X22a | successor.go header (R2 ruling) |
+| B | `T/record/successor.go:17` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/successor.go:20` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/successor.go:21` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/successor.go:22` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/successor.go:23` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/successor.go:24` | - | C-engage | 1 | reworded · X22a | successor.go header |
+| B | `T/record/supersede.go:29-44` | superseder | O | 0 | O | superseder table: the act that answers a refused repeated act |
+| B | `T/record/supersede.go:46-57` | supersederKey | O | 0 | O | superseder table key |
+| B | `T/record/supersede.go:65-107` | superseders | C-text | 4 | rewritten · X20 | superseders rows CLOSE (82-84) and lens docket-accept (91-92) send seats to --supersedes / a supersede proposal; table itself is O |
+| B | `T/record/supersede.go:128-146` | AnswerTo | O | 0 | O | superseder table lookup |
+| B | `T/record/supersede.go:148-177` | AnswersTo | O | 0 | O | superseder table rows for help |
+| B | `T/record/supersede.go:190-210` | (superseder).render | O | 0 | O | superseder row render |
+| B | `T/record/supersede.go:212-220` | SupersedingAnswer | O | 0 | O | superseder tail for refusals of a repeated act |
+| B | `T/record/supersede.go:243-255` | RefusesARepeat | O | 0 | O | superseder table coverage (RefusesARepeat) |
+| B | `T/record/supersede.go:17` | - | O | 0 | O | superseder table header |
+| B | `T/record/supersession.go:24-61` | supersessionsOf | C-core | 38 | deleted · X22 | supersessionsOf (incl. bench-sided supersede proposal arm) |
+| B | `T/record/supersession.go:63-69` | successorClosing | C-core | 7 | deleted · X22 | successorClosing reads gap.superseded_by |
+| B | `T/record/supersession.go:71-75` | SupersededGap | C-core | 5 | deleted · X22 | SupersededGap: migrate actOnSupersededGap reads it |
+| B | `T/record/supersession.go:77-83` | supersededRefusal | C-core | 7 | deleted · X22 | supersededRefusal |
+| B | `T/record/supersession.go:85-112` | requireSupersedable | C-core | 28 | deleted · X22 | requireSupersedable (refusal text also names the supersede proposal) |
+| B | `T/record/supersession.go:114-149` | requireSupersededOffDocket | C-core | 36 | deleted · X22 | requireSupersededOffDocket (except = the proposal's own successor) |
+| B | `T/record/supersession.go:151-161` | requireNotSuperseded | C-core | 11 | deleted · X22 | requireNotSuperseded |
+| B | `T/record/supersession.go:9` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:10` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:11` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:12` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:15` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:16` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| B | `T/record/supersession.go:21` | - | C-core | 1 | deleted · X22 | supersession.go header |
+| M | `T/record/gapacts.go:11-43` | gapAct | C-text | 1 | rewritten · X20 | act list names 'a mint superseding it' (l.23); gapAct stays |
+| M | `T/record/gapacts.go:45-97` | gapActsOf | MIXED | 2 | chain arm deleted · X22 | case Mint: on = GetSupersedes() arm goes |
+| M | `T/record/gapacts.go:99-194` | fateActsOf | MIXED | 15 | chain arm deleted · X22 | superseded-gap exclusion (comment, supersessionsOf call, two DeleteFunc filters) goes; fate acts stay |
+| M | `T/record/gapacts.go:208-221` | lensTurnOn | O | 0 | O | engages: the plan engages the minting lens (dispatch) |
+| M | `T/record/grounds.go:72-73` | GroundsKinds | C-text | 1 | rewritten · X20 | --grounds kinds phrase 'or superseding it' |
+| M | `T/record/grounds.go:113-123` | groundsActSQL | MIXED | 1 | chain arm deleted · X22 | OR EXISTS mint_supersedes term goes; grounds lookup stays |
+| M | `T/record/grounds.go:26` | - | C-text | 1 | rewritten · X20 | grounds comment 'superseding it' |
+| M | `T/record/impasse.go:14-82` | GapExchanges | C-text | 1 | rewritten · X20 | movement clause 'its lineage moved (a mint superseding G)'; engaged = dispatch (O) |
+| M | `T/record/impasse.go:266-421` | exchangeFold | MIXED | 3 | chain arm deleted · X22 | repeated supersedes counted as movement (294-296) goes |
+| M | `T/record/inquirycheck.go:89-155` | inquiryJudgementsOf | MIXED | 4 | chain arm deleted · X22 | superseding mint as a cause (108 comment, 123-125) goes |
+| M | `T/record/itemkind.go:17-70` | ItemAudit,ItemReaudit,ItemRegradeOwed,ItemFindingOnGap,... | MIXED | 3 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed const+comment (46-48) goes; 26 engaged = dispatch (O) |
+| M | `T/record/itemkind.go:72-82` | ItemKinds | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed dropped from list |
+| M | `T/record/lensturn.go:46-79` | earlyLensDispatchesOf | MIXED | 13 | chain arm deleted · X22 | superseded map (52-61) and skip (70-72) go |
+| M | `T/record/motion.go:540-549` | requireUnanswered | O | 0 | O | SupersedingAnswer: superseder table |
+| M | `T/record/oncepersitting.go:47-80` | requireOncePerSitting | O | 0 | O | superseder table tail |
+| M | `T/record/onegapperclass.go:15-170` | requireOneGapPerClassAndSubject | MIXED | 4 | chain arm deleted · X22 | --supersedes exemption comment (47-49) and DeleteFunc (77) go |
+| M | `T/record/reading.go:54-134` | requireNotARetriedReading | O | 0 | O | superseder table tail |
+| M | `T/record/record.go:774-855` | writeIn | O | 0 | O | superseder table tail |
+| M | `T/record/record.go:857-1739` | validate | MIXED | 59 | chain arm deleted · X22 | chain 31 (1012-1022 mint arm, carry+docket requireNotSuperseded, 1500-1506 engage); C-regression 28 (1158-1196); supersedes_status O |
+| M | `T/record/record.go:1803-1824` | requireOriginator | O | 0 | O | engages: the chair's dispatch engages the lens (main has no chain text here) |
+| M | `T/record/remand.go:162-170` | remandedClosedGapSQL | MIXED | 1 | chain arm deleted · X22 | COALESCE(g.supersede_event) term goes |
+| M | `T/record/remand.go:366-384` | partiesOnRoute | O | 0 | O | engages: route engages minting lens and blue (dispatch) |
+| M | `T/record/replay.go:236-269` | (*Gap).ClosureReason | MIXED | 5 | chain arm deleted · X22 | supersession arm (258-262) goes |
+| M | `T/record/required.go:9-55` | RequiredFields | C-text | 1 | rewritten · X20 | l.13 '--supersedes (optional)'; l.30 '--successor' is a regression example |
+| M | `T/record/retirement.go:92-130` | (lensFold).readiness | O | 0 | O | engages: the plan engages the lens on its whole_report_owed blocker |
+| M | `T/record/retirement.go:216-262` | gapNewsOf | O | 0 | O | engaged: blue's sitting engaged on the gap by dispatch |
+| M | `T/record/retirement.go:390-406` | freshMaterialOf | MIXED | 1 | chain arm deleted · X22 | 'AND supersedes_count = 0' goes |
+| M | `T/record/retirement.go:408-418` | freshMaterialOfStates | MIXED | 1 | chain arm deleted · X22 | '&& len(g.Supersedes) == 0' goes |
+| M | `T/record/sitting.go:150-584` | sittingOf | MIXED | 13 | chain arm deleted · X22; its engage part kept, restated · X22a | ItemSuccessorOwed block (351-363) goes; 310-325 engaged = blue's dispatch engagement (O) |
+| M | `T/record/successor.go:26-47` | successorsOf | C-engage | 22 | chain wording/input deleted · X22a | successorsOf (repeated supersedes) |
+| M | `T/record/successor.go:148-209` | requireEngage | C-engage | 62 | kept, restated · X22a | requireEngage |
+| M | `T/record/successor.go:211-244` | requireEngageNamesEveryOwed | C-engage | 34 | kept, restated · X22a | requireEngageNamesEveryOwed |
+| M | `T/record/supersede.go:43-50` | supersederKey | O | 0 | O | superseder table key |
+| M | `T/record/supersede.go:59-102` | superseders | O | 0 | O | superseder table (main CLOSE row answers with a docket motion, no chain text) |
+| M | `T/record/supersede.go:121-140` | AnswerTo | O | 0 | O | superseder table lookup |
+| M | `T/record/supersede.go:142-162` | AnswersTo | O | 0 | O | superseder table rows for help |
+| M | `T/record/supersede.go:197-205` | SupersedingAnswer | O | 0 | O | superseder tail for refusals of a repeated act |
+| M | `T/record/supersession.go:24-49` | supersessionsOf | C-core | 26 | deleted · X22 | supersessionsOf (repeated supersedes) |
+| M | `T/record/supersession.go:73-98` | requireSupersedable | C-core | 26 | deleted · X22 | requireSupersedable (ancestor by ancestor; minter-only) |
+| M | `T/record/supersession.go:100-117` | requireSupersededOffDocket | C-core | 18 | deleted · X22 | requireSupersededOffDocket (ancestor by ancestor) |
+
+**Group C** (`amendv/tag-C.tsv`)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B | `T/record/migrate/docketing.go:39-50` | archivedDockets | MIXED | 5 | chain arm deleted · X22 | superseded map + doc (44-48): dockets on gaps a successor's mint closed; docketing/dropped/gapOf stay |
+| B | `T/record/migrate/docketing.go:52-85` | docketsOf | MIXED | 4 | chain arm deleted · X22 | superseded init and supersededStanding branch (76-78) go; dispatch-docket pre-pass stays |
+| B | `T/record/migrate/docketing.go:117-146` | supersededStanding | C-core | 30 | deleted · X22 | archive: a mint superseding the gap before ruling/close (requireSupersededOffDocket premise) |
+| B | `T/record/migrate/docketing.go:154-158` | keptDocket,partyDocket,supersededDocket | MIXED | 1 | chain arm deleted · X22 | supersededDocket value goes; keptDocket/partyDocket stay |
+| B | `T/record/migrate/docketing.go:160-211` | (archivedDockets).translate | MIXED | 8 | chain arm deleted · X22 | two superseded arms (175-178, 192-195) go; Translations 3/4 stay |
+| B | `T/record/migrate/docketing.go:33` | loose | C-text | 2 | rewritten · X20 | file comment 32-33: dispatch docket on a superseded gap written as no event |
+| B | `T/record/migrate/entries.go:13-129` | Entries | MIXED | 1 | chain arm deleted · X22 | oneAncestor( wrapper on the mint entry (90) goes; entry table stays |
+| B | `T/record/migrate/entries.go:362-386` | oneAncestor | C-core | 25 | deleted · X22 | Translation 1: a source's supersedes list -> first ancestor |
+| B | `T/record/migrate/eraentries.go:28-68` | eraEntries | O | 0 | O | ancestor: inquiry-support was the inquiry review's predecessor event kind |
+| B | `T/record/migrate/eraentries.go:268-287` | inquiryEntry | O | 0 | O | supersedes_status: a fate row supersedes the inquiry's proposal row |
+| B | `T/record/migrate/lineage.go:12-35` | dropCrossSeatLink | C-core | 24 | deleted · X22 | Translation 2: drops a cross-seat ancestor link because assignee = chain origin |
+| B | `T/record/migrate/manifest.go:26-55` | NewManifest | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | UnowedEngagements (51, C-engage) goes; SupersededOutcomes (40) O: an outcome a later outcome replaced |
+| B | `T/record/migrate/outcomes.go:22-56` | supersededOutcomes | O | 0 | O | an outcome a later outcome replaced (correction/replacement), not the gap chain |
+| B | `T/record/migrate/plankinds.go:22-31` | planKindsRetired | C-text | 2 | rewritten · X20 | comment 24-25 justifies stranded_gap by 'a mint superseding an open gap closes it'; map stays |
+| B | `T/record/migrate/publish.go:41-49` | build | O | 0 | O | ancestor: nearest existing parent directory of --to |
+| B | `T/record/migrate/publish.go:119-159` | newBuild | O | 0 | O | ancestor: nearest existing parent directory |
+| B | `T/record/migrate/publish.go:222-259` | (*build).publish | O | 0 | O | ancestor: nearest existing parent directory (fsync order) |
+| B | `T/record/migrate/remap.go:100-151` | idFields,argumentFields,dataFields,mints | MIXED | 1 | chain arm deleted · X22 | tokens Mint.supersedes (C-core), Close.successor (C-regression) go; Inquiry.supersedes_status, Retire.superseded_by, QuestionPart.supersedes_coverage O |
+| B | `T/record/migrate/replay.go:34-60` | Result | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | UnowedEngagements (52, C-engage) goes; SupersededOutcomes (45) O |
+| B | `T/record/migrate/replay.go:102-767` | replay | MIXED | 34 | chain arm deleted · X22; its engage part kept, restated · X22a | drops: actOnSupersededGap (458-465), dropCrossSeatLink call, UnowedEngagements block (C-engage), supersededMotions, Dockets.Superseded; SupersededOutcomes O |
+| B | `T/record/migrate/replay.go:769-793` | carryInquiryMethod | O | 0 | O | SupersedesStatus: fate row vs proposal row |
+| B | `T/record/migrate/replay.go:912-965` | actOnSupersededGap | C-core | 54 | deleted · X22 | drops archive acts on a gap a successor's mint closed (record.SupersededGap) |
+| B | `T/record/migrate/sqlitesource.go:236-314` | (*SQLiteSource).classify | C-text | 2 | rewritten · X20 | demand_lineage case STAYS (archived sources hold the table); comment 262-264 'destination folds its own' rewritten |
+| B | `T/record/migration/manifest.go:24-120` | Manifest | MIXED | 4 | chain arm deleted · X22; its engage part kept, restated · X22a | UnowedEngagements field+doc (98-101, C-engage) goes; SupersededOutcomes O |
+| B | `T/record/migration/manifest.go:167-173` | SupersededOutcome | O | 0 | O | a source outcome a later outcome replaced |
+| B | `T/record/migration/manifest.go:201-209` | DiscardedSitting | O | 0 | O | a superseded dispatch: a later dispatch replaced it |
+| B | `T/record/migration/manifest.go:242-265` | DocketResidue | MIXED | 4 | chain arm deleted · X22 | Superseded field + doc (251-254) goes; other residues stay |
+| B | `T/record/planguard/plan.go:25-30` | Plan | O | 0 | O | ancestors: plan-tree parent nodes |
+| B | `T/record/planguard/plan.go:32-65` | BuildPlan | O | 0 | O | ancestor: plan-tree parent node |
+| B | `T/record/planguard/shape.go:312-325` | perRow | O | 0 | O | ancestor: plan-tree parent node |
+| B | `T/record/recordpb/descriptions.go:40-45` | DemandClause | C-text | 1 | rewritten · X20 | clause 'or once its lens mints a gap ... superseding it, which takes the demand on' cut from the one-line const |
+| B | `T/record/recordsql/demandlineage.go:5-25` | DemandLineageDDL | C-core | 21 | deleted · X22 | doc of a chain-only projection; NB line 60 also appends evidenceCheckIndexesSQL (not chain): must move to another DDL var |
+| B | `T/record/recordsql/demandlineage.go:26-30` | DemandLineageDDL/table:demand_lineage | C-core | 5 | deleted · X22 | chain-only: with no supersedes every row is (G,G); demand_reach reads mint h = a directly |
+| B | `T/record/recordsql/demandlineage.go:31-33` | DemandLineageDDL/index:demand_lineage_from | C-core | 3 | deleted · X22 | heirs-of-a-gap index |
+| B | `T/record/recordsql/demandlineage.go:34-36` | DemandLineageDDL/trigger:demand_lineage_is_append_only_update | C-core | 3 | deleted · X22 | append-only guard of demand_lineage |
+| B | `T/record/recordsql/demandlineage.go:37-40` | DemandLineageDDL/trigger:demand_lineage_is_append_only_delete | C-core | 4 | deleted · X22 | append-only guard of demand_lineage |
+| B | `T/record/recordsql/demandlineage.go:41-45` | DemandLineageDDL/trigger:demand_lineage_mint | C-core | 5 | deleted · X22 | (G,G) self row: an identity join once the chain goes |
+| B | `T/record/recordsql/demandlineage.go:46-60` | DemandLineageDDL/trigger:demand_lineage_supersedes | C-core | 15 | deleted · X22 | passes the ancestor's demand to the first superseding mint |
+| B | `T/record/recordsql/gapstate.go:9-33` | GapStateDDL | O | 0 | O | demand_reach/demandReachSQL: a gap's own anchor reach, which stays |
+| B | `T/record/recordsql/gapstate.go:34-66` | GapStateDDL/table:gap_state | MIXED | 4 | chain arm deleted · X22 | columns supersede_event, supersedes, superseded_by + 'the mint that superseded it' (36); assignee stays (= writer) |
+| B | `T/record/recordsql/gapstate.go:123-127` | reachingSQL | O | 0 | O | reads demand_reach (gap's own reach), stays |
+| B | `T/record/recordsql/gapstate.go:129-165` | gapMarkers | MIXED | 2 | chain arm deleted · X22 | mint marker's UNION SELECT NEW.supersedes + comment; marker table stays |
+| B | `T/record/recordsql/gapstate.go:181-369` | GapRefreshViewDDL | MIXED | 42 | chain arm deleted · X22 | motion_supersede bench arm 208-221 (C-proposal); supersede_event arm+k CTE; lineage join; from_gap; 3 cols; assigneeSQL |
+| B | `T/record/recordsql/gapstate.go:371-380` | assigneeSQL | C-core | 10 | deleted · X22 | assignee = chain origin; its 3 sites (gap_refresh, demandReachSQL, proposal.go comment) take the writer e.seat_id |
+| B | `T/record/recordsql/schema.go:257-261` | QueryIndexDDL/index:mint_about | O | 0 | O | comment names the demand_reach view, which stays |
+| B | `T/record/recordsql/schema.go:292-294` | QueryIndexDDL/index:mint_ancestor | C-core | 3 | deleted · X22 | index for supersede_event and demand_lineage_supersedes |
+| B | `T/record/recordsql/schema.go:300-329` | Schema | MIXED | 1 | chain arm deleted · X22 | WriteString(DemandLineageDDL) goes, but evidenceCheckIndexesSQL it carries must still be written |
+| B | `T/record/recordsql/schema.go:748-757` | listTable | C-text | 2 | rewritten · X20 | doc cites supersedes as the list that made a gap's lineage unqueryable |
+| B | `T/record/recordsql/views.go:342-363` | ViewsDDL/view:demand_reach | MIXED | 8 | chain arm deleted · X22 | inheritance doc 351-357 + FROM demand_lineage; view stays (EvidenceDemandOf, reachingRetiresOf, gap markers) |
+| B | `T/record/recordsql/views.go:364-471` | ViewsDDL/view:gap | MIXED | 6 | chain arm deleted · X22 | doc 396-398 + cols supersede_event, supersedes, superseded_by; assignee doc 'chain's origin' |
+| B | `T/record/recordsql/views.go:509-535` | ViewsDDL/view:inquiry_state | O | 0 | O | supersedes_status: fate row vs proposal row |
+| B | `T/record/recordsql/views.go:536-584` | ViewsDDL/view:question_part_state | O | 0 | O | supersedes_coverage: coverage row vs proposal row |
+| B | `T/record/recordsql/views.go:667-679` | demandReachSQL | MIXED | 5 | chain arm deleted · X22 | lineage param, from_gap, lineage JOIN, assigneeSQL->e.seat_id, doc; lineage arg also drives join order (planguard baseline moves) |
+| B | `T/record/tombstone.go:294-308` | RulingTombstone | MIXED | 4 | chain arm deleted · X22 | On + successor fields and doc 295-296 (C-proposal); ruling row stays |
+| B | `T/record/tombstone.go:310-320` | rulingTombstoneSQL | MIXED | 3 | chain arm deleted · X22 | motion_supersede LEFT JOIN, s.gap_id column, doc (C-proposal) |
+| B | `T/record/tombstone.go:322-350` | rulingTombstonesAt | MIXED | 1 | chain arm deleted · X22 | &t.successor scan target (C-proposal) |
+| B | `T/record/tombstone.go:352-370` | rulingProtecting | MIXED | 9 | chain arm deleted · X22 | successor arm 363-369 + doc (C-proposal); own-row read stays |
+| B | `T/record/tombstone.go:372-397` | rulingsProtectingAll | MIXED | 14 | chain arm deleted · X22 | successor protection 382-394 + doc (C-proposal); ruled-gap map stays |
+| B | `T/record/tombstone.go:457-463` | (RulingTombstone).ruled | C-proposal | 7 | deleted · X1/X3/X4 | On-or-Gap exists only for a successor's protection; callers read .Gap |
+| B | `T/record/viewjson.go:72-196` | GapJSON | MIXED | 10 | chain arm deleted · X22 | Supersedes/SupersededBy fields+doc (173-179), Assignee 'chain's origin' (170), successor clause in RulingTombstone doc (159) |
+| B | `T/record/viewjson.go:198-211` | strs | C-text | 4 | rewritten · X20 | doc 202-205 cites the 'supersedes: []' lineage rule; func stays (2 callers) |
+| B | `T/record/viewjson.go:327-335` | BoardJSONOfRun | C-text | 1 | rewritten · X20 | 'the ancestor' in the scalar list |
+| B | `T/record/viewjson.go:337-350` | boardView | MIXED | 1 | chain arm deleted · X22 | EVENT_TYPE_MINT loaded only for a successor's mint as closing act |
+| B | `T/record/viewjson.go:352-498` | boardJSONOfRecord | MIXED | 4 | chain arm deleted · X22 | supersedes column, ancestor var/scan, Supersedes: ancestor, SupersededBy assign |
+| B | `T/record/viewjson.go:500-512` | closeState | MIXED | 1 | chain arm deleted · X22 | supersededBy field |
+| B | `T/record/viewjson.go:514-517` | (*closeState).reason | MIXED | 1 | chain arm deleted · X22 | SupersededBy argument |
+| B | `T/record/viewjson.go:519-524` | gapClosure | MIXED | 2 | chain arm deleted · X22 | supersedeEvent, supersededBy |
+| B | `T/record/viewjson.go:526-527` | gapClosureColumns | MIXED | 1 | chain arm deleted · X22 | supersede_event, superseded_by columns |
+| B | `T/record/viewjson.go:529-532` | (*gapClosure).dest | MIXED | 1 | chain arm deleted · X22 | two scan targets |
+| B | `T/record/viewjson.go:543-591` | closeStateOf | MIXED | 12 | chain arm deleted · X22 | supersede arm 567-577 + condition 550; close/bench arms stay |
+| B | `T/record/viewjson.go:616-661` | WorkJSON | O | 0 | O; its engage part kept, restated · X22a | Engaged: blue's dispatch engagement; SuccessorsOwed lives in sitting.go EngagedJSON (other group) |
+| B | `T/record/viewjson.go:722-858` | WorkGapJSON | C-text | 1 | rewritten · X20 | Assignee doc 'its chain's origin'; YourTurn 'engages' is O (dispatch) |
+| B | `T/record/viewjson.go:860-931` | EstoppedJSON | C-text | 2 | rewritten · X20 | 878 Close.successor regression 'successor R2-1' in a measurement note; 928 ruling 'on a successor' (C-proposal) |
+| B | `T/record/viewjson.go:947-1024` | WorkGapState | MIXED | 1 | chain arm deleted · X22 | Supersedes field; 1000 'route engages' O |
+| B | `T/record/viewjson.go:1026-1055` | workReads | MIXED | 3 | chain arm deleted · X22 | supersedes []standingSupersede + doc (C-proposal) |
+| B | `T/record/viewjson.go:1088-1183` | workReadsAt | MIXED | 5 | chain arm deleted · X22 | standingSupersedesAt read (C-proposal), supersedes column + scan (C-core) |
+| B | `T/record/viewjson.go:1314-1380` | workJSONOfGaps | MIXED | 3 | chain arm deleted · X22 | 'inherits:'+Supersedes else arm (C-core); successor in comment (C-proposal) |
+| B | `T/record/viewjson.go:1397-1429` | frozenIn | MIXED | 1 | chain arm deleted · X22 | rd.Successor condition (Road.Successor, C-proposal) |
+| B | `T/record/viewjson.go:1431-1453` | frozenDebtIn | C-proposal | 23 | deleted · X1/X3/X4 | freeze on a standing supersede proposal's successor (L48) |
+| B | `T/record/viewjson.go:1550-1598` | WorkOfSeat | O | 0 | O | engagedOf: blue's dispatch engagement, stays |
+| B | `T/record/viewjson.go:1736-1746` | DebateBenchJSON | O | 0 | O | an earlier certification superseded by the last |
+| B | `T/record/windowindex.go:80-84` | reaching | MIXED | 2 | chain arm deleted · X22 | from field + doc; read by blueanswered.go:151-152 (inherited-demand wording) |
+| B | `T/record/windowindex.go:86-102` | retiredAnchorsSQL,reachedGapsSQL,firstClosureSQL | MIXED | 4 | chain arm deleted · X22 | comment 94-95, from_gap column + ORDER BY in reachedGapsSQL |
+| B | `T/record/windowindex.go:104-153` | reachingRetiresOf | MIXED | 4 | chain arm deleted · X22 | from plumbing (122,129,146) + doc 106 |
+| M | `T/record/migrate/eraentries.go:28-69` | eraEntries | O | 0 | O | ancestor: inquiry-support was the inquiry review's predecessor event kind |
+| M | `T/record/migrate/lostacts.go:15` | loose | C-text | 1 | rewritten · X20 | 'a mint superseding it' as an act depending on a lost close |
+| M | `T/record/migrate/manifest.go:26-52` | NewManifest | O | 0 | O | SupersededOutcomes only: an outcome a later outcome replaced |
+| M | `T/record/migrate/remap.go:100-150` | idFields,argumentFields,dataFields,mints | MIXED | 1 | chain arm deleted · X22 | tokens Mint.supersedes, Close.successor (C-regression) go; supersedes_status, Retire.superseded_by, supersedes_coverage O |
+| M | `T/record/migrate/replay.go:32-55` | Result | O | 0 | O | SupersededOutcomes: an outcome replaced |
+| M | `T/record/migrate/replay.go:103-664` | replay | MIXED | 15 | chain arm deleted · X22 | supersededMotions (248) + actOnSupersededGap drop block (373-386); SupersededOutcomes hits O |
+| M | `T/record/migrate/replay.go:809-846` | actOnSupersededGap | C-core | 38 | deleted · X22 | drops archive acts on a gap a successor's mint closed |
+| M | `T/record/migrate/sqlitesource.go:236-314` | (*SQLiteSource).classify | C-text | 2 | rewritten · X20 | demand_lineage case STAYS for archived sources; comment rewritten |
+| M | `T/record/migration/manifest.go:24-108` | Manifest | O | 0 | O | SupersededOutcomes: an outcome replaced |
+| M | `T/record/planguard/rule.go:22` | loose | C-text | 1 | rewritten · X20 | example plan line 'SCAN mint_supersedes USING INDEX ...' |
+| M | `T/record/recordpb/descriptions.go:40-45` | DemandClause | C-text | 2 | rewritten · X20 | 'superseding it, which takes the demand on' + '(or, for a demand carried from an ancestor, ...)' |
+| M | `T/record/recordsql/demandlineage.go:5-25` | DemandLineageDDL | C-core | 21 | deleted · X22 | doc of chain-only projection (mint_supersedes.value); line 62 appends evidenceCheckIndexesSQL: must move |
+| M | `T/record/recordsql/demandlineage.go:46-62` | DemandLineageDDL/trigger:demand_lineage_supersedes | C-core | 17 | deleted · X22 | trigger on mint_supersedes, OR IGNORE for diamonds |
+| M | `T/record/recordsql/gapstate.go:34-63` | GapStateDDL/table:gap_state | MIXED | 4 | chain arm deleted · X22 | supersede_event, supersedes_count, superseded_by + comment 36 |
+| M | `T/record/recordsql/gapstate.go:120-153` | gapMarkers | MIXED | 4 | chain arm deleted · X22 | mint_supersedes marker (128-129), demand_lineage heir arm (143) + comment; own-marker arm stays as the gap itself |
+| M | `T/record/recordsql/gapstate.go:169-337` | GapRefreshViewDDL | MIXED | 28 | chain arm deleted · X22 | supersede_event arm+k CTE; lineage join; met arm 2 from_gap, arm 4 reduced to own marker; cols supersede_event/supersedes_count/superseded_by |
+| M | `T/record/recordsql/schema.go:245-247` | QueryIndexDDL/index:mint_about | O | 0 | O | comment names demand_reach view, which stays |
+| M | `T/record/recordsql/schema.go:282-284` | QueryIndexDDL/index:mint_supersedes_value | C-core | 3 | deleted · X22 | index on mint_supersedes(value,event_id) |
+| M | `T/record/recordsql/store.go:743-767` | Insert | C-text | 3 | rewritten · X20 | comment's example is a mint's two supersedes rows in mint_supersedes; needs another list example |
+| M | `T/record/recordsql/views.go:357-457` | ViewsDDL/view:gap | MIXED | 5 | chain arm deleted · X22 | doc 391-392 + cols supersede_event, supersedes_count, superseded_by |
+| M | `T/record/recordsql/views.go:742-754` | demandReachSQL | MIXED | 5 | chain arm deleted · X22 | lineage param, from_gap, JOIN via lineage, doc; seat already e.seat_id on main; lineage arg also drives join order (planguard baseline moves) |
+| M | `T/record/recordsql/views.go:779-791` | wholeDeliverySQL | O | 0 | O | comment analogy naming demandReachSQL, which stays |
+| M | `T/record/viewjson.go:81-201` | GapJSON | MIXED | 5 | chain arm deleted · X22 | Supersedes []string + SupersededBy field/doc (180-184) |
+| M | `T/record/viewjson.go:367-375` | BoardJSONOfRun | C-text | 1 | rewritten · X20 | 'list tables answer found_by/supersedes' |
+| M | `T/record/viewjson.go:377-391` | boardView | MIXED | 1 | chain arm deleted · X22 | EVENT_TYPE_MINT loaded only for a successor's mint as closing act |
+| M | `T/record/viewjson.go:393-560` | boardJSONOfRecord | MIXED | 3 | chain arm deleted · X22 | listValuesByEvent(mint_supersedes), Supersedes: strs(...), SupersededBy assign |
+| M | `T/record/viewjson.go:605-653` | closeStateOf | MIXED | 12 | chain arm deleted · X22 | supersede arm 629-639 + condition 612 |
+| M | `T/record/viewjson.go:803-946` | WorkGapJSON | O | 0 | O | YourTurn: the dispatch engages this reader (not successors) |
+| M | `T/record/viewjson.go:948-1015` | EstoppedJSON | C-text | 1 | rewritten · X20 | 'successor R2-1' (Close.successor regression) in a measurement note |
+| M | `T/record/viewjson.go:1031-1105` | WorkGapState | MIXED | 1 | chain arm deleted · X22 | Supersedes []string (shares line with FoundBy); 1082 'engages' O |
+| M | `T/record/viewjson.go:1107-1127` | workReads | MIXED | 1 | chain arm deleted · X22 | supersedes map (shares line with foundBy) |
+| M | `T/record/viewjson.go:1160-1249` | workReadsAt | MIXED | 3 | chain arm deleted · X22 | listValuesByEvent(mint_supersedes) read + err block |
+| M | `T/record/viewjson.go:1251-1308` | workGapStatesOf | MIXED | 1 | chain arm deleted · X22 | g.Supersedes assignment (shares line with FoundBy) |
+| M | `T/record/viewjson.go:1377-1441` | workJSONOfGaps | MIXED | 2 | chain arm deleted · X22 | 'inherits:'+Join(Supersedes) arm |
+| M | `T/record/viewjson.go:1553-1614` | WorkOfSeat | O | 0 | O | engagedOf: blue's dispatch engagement, stays |
+| B | `T/record/recordpb/record.proto:172-174` | (file comment: message checks) | C-regression | 2 | deleted · X8 | example 'repaired_with_regression requires a successor'; goes only with Close.successor |
+| B | `T/record/recordpb/record.proto:301` | EventType.EVENT_TYPE_RETIRE | O | 0 | O | 'what supersedes it': a retired claim's replacement (Retire.superseded_by) |
+| B | `T/record/recordpb/record.proto:513` | Disposition.DISPOSITION_REPAIRED_WITH_REGRESSION | C-regression | 1 | deleted · X8 | (means) REQUIRES a successor naming the regression's gap |
+| B | `T/record/recordpb/record.proto:514` | Disposition.DISPOSITION_AMENDS_PRIOR | C-text | 1 | rewritten · X20 | (means) defines its lineage as 'the supersedes the gap was minted with'; value stays, means rewritten |
+| B | `T/record/recordpb/record.proto:891-894` | RepairRegression.lineage_mints | C-core | 4 | deleted · X22 | count of mints with supersedes (view.go telemetry); ratio = lineage/closures goes with it |
+| B | `T/record/recordpb/record.proto:999-1002` | Mint.supersedes | C-core | 4 | deleted · X22 | field 27 + doc; 27 joins the reserved list (1003-1005 stay) |
+| B | `T/record/recordpb/record.proto:1035-1042` | Close.(check) | C-regression | 8 | deleted · X8 | 'lineage never drops' check: regression closure must name successor |
+| B | `T/record/recordpb/record.proto:1078-1083` | Close.successor | C-regression | 6 | deleted · X8 | field 7 + doc |
+| B | `T/record/recordpb/record.proto:1226-1227` | AboutKind.(reserved 3) | C-text | 1 | rewritten · X20 | 'a restatement of its defect is a mint superseding it' |
+| B | `T/record/recordpb/record.proto:1645-1646` | QuestionPart.supersedes_coverage | O | 0 | O | marks a coverage record rather than a proposal |
+| B | `T/record/recordpb/record.proto:1690-1691` | Inquiry.supersedes_status | O | 0 | O | marks a fate record rather than a proposal |
+| B | `T/record/recordpb/record.proto:1773-1776` | Retire.reason | O | 0 | O | 'superseded' as a reason a claim leaves the report |
+| B | `T/record/recordpb/record.proto:1777` | Retire.superseded_by | O | 0 | O | a retired claim superseded by another claim |
+| B | `T/record/recordpb/record.proto:1862` | LogType.LOG_TYPE_ESTOPPEL | C-text | 1 | rewritten · X20 | (means) 'or mint with --supersedes so the lineage is explicit' |
+| B | `T/record/recordpb/record.proto:1940` | Motion.supersede | C-proposal | 1 | deleted · X1/X3/X4 | oneof act arm Mint supersede = 17 (reserve 17) |
+| B | `T/record/recordpb/record.proto:2564` | Dispatch.(doc) | O | 0 | O | 'lineage none': empty gap_ids, not unknown |
+| M | `T/record/recordpb/record.proto:172-174` | (file comment: message checks) | C-regression | 2 | deleted · X8 | example 'repaired_with_regression requires a successor' |
+| M | `T/record/recordpb/record.proto:298` | EventType.EVENT_TYPE_RETIRE | O | 0 | O | 'what supersedes it': a retired claim's replacement |
+| M | `T/record/recordpb/record.proto:508` | Disposition.DISPOSITION_REPAIRED_WITH_REGRESSION | C-regression | 1 | deleted · X8 | (means) REQUIRES a successor |
+| M | `T/record/recordpb/record.proto:509` | Disposition.DISPOSITION_AMENDS_PRIOR | C-text | 1 | rewritten · X20 | (means) lineage = 'the supersedes the gap was minted with' |
+| M | `T/record/recordpb/record.proto:893-896` | RepairRegression.lineage_mints | C-core | 4 | deleted · X22 | count of mints with supersedes; ratio goes with it |
+| M | `T/record/recordpb/record.proto:1007-1010` | Mint.supersedes | C-core | 4 | deleted · X22 | repeated field 20 (table mint_supersedes) + doc |
+| M | `T/record/recordpb/record.proto:1042-1049` | Close.(check) | C-regression | 8 | deleted · X8 | 'lineage never drops' check |
+| M | `T/record/recordpb/record.proto:1085-1090` | Close.successor | C-regression | 6 | deleted · X8 | field 7 + doc |
+| M | `T/record/recordpb/record.proto:1662-1663` | QuestionPart.supersedes_coverage | O | 0 | O | coverage record vs proposal |
+| M | `T/record/recordpb/record.proto:1707-1708` | Inquiry.supersedes_status | O | 0 | O | fate record vs proposal |
+| M | `T/record/recordpb/record.proto:1811-1814` | Retire.reason | O | 0 | O | 'superseded' as a retire reason |
+| M | `T/record/recordpb/record.proto:1815` | Retire.superseded_by | O | 0 | O | a retired claim superseded by another claim |
+| M | `T/record/recordpb/record.proto:1900` | LogType.LOG_TYPE_ESTOPPEL | C-text | 1 | rewritten · X20 | (means) 'mint with --supersedes so the lineage is explicit' |
+| M | `T/record/recordpb/record.proto:2539` | Dispatch.(doc) | O | 0 | O | 'lineage none': empty gap_ids |
+
+**Group D** (`amendv/tag-D.tsv`)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B | `F/tools/devcmd/enginegen/vocabulary.go:299-343` | (vocabulary).renderParties | O | 0 | O | engaged: chair dispatch engages a party on gaps (Plan party shape), not successors |
+| B | `T/capture/capture.go:1830-2062` | Run | O | 0 | O | ancestors: parent directories of a path; engaged: dispatches engaging a lens (lens-turn audit) |
+| B | `T/capture/dispatchparity.go:15-218` | DispatchParityAudit | O | 0 | O | engaged: last dispatching chair sitting engaged the bench (dispatch parity) |
+| B | `T/capture/lensturn.go:10-30` | LensTurnAudit | O | 0 | O | engaged/engagement: dispatch engaging a lens before blue acted (lens-turn audit) |
+| B | `T/cli/blue/command.go:19-33` | Verbs | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | other job: registers every blue verb; newEngage() line goes (C-engage) |
+| B | `T/cli/blue/engage.go:16-59` | newEngage | C-engage | 44 | kept, restated · X22a | blue engage verb: successors of gaps found closed, record.requireEngage |
+| B | `T/cli/blue/engage.go:61-64` | engageResult | C-engage | 4 | kept, restated · X22a | engage verb result type |
+| B | `T/cli/blue/engage.go:66-68` | (engageResult).Human | C-engage | 3 | kept, restated · X22a | engage verb confirmation text |
+| B | `T/cli/blue/freeze.go:32-59` | requireRoadsHold | MIXED | 3 | chain arm deleted · X22 | other job: freeze guard on standing roads; successor-quote wording branch (r.Successor) goes (C-proposal) |
+| B | `T/cli/blue/freeze.go:61-81` | roadPlans | MIXED | 3 | chain arm deleted · X22 | other job: plans red-text/retire roads; r.Successor arm + doc clause go (C-proposal L48) |
+| B | `T/cli/blue/freeze.go:83-96` | SuccessorPlans | C-proposal | 14 | deleted · X1/X3/X4 | plans a proposed supersede's successor quote/fix (L48) |
+| B | `T/cli/blue/freeze.go:13` | - | C-text | 1 | rewritten · X20 | freeze package doc: 'standing supersede proposal's stored quote and fix' clause (C-proposal) |
+| B | `T/cli/blue/inquiry.go:122-172` | newInquiryRecord | O | 0 | O | SupersedesStatus: an inquiry fate record supersedes its prior status row |
+| B | `T/cli/blue/question.go:51-74` | newQuestionCover | O | 0 | O | SupersedesCoverage: a question-part coverage row supersedes the prior coverage |
+| B | `T/cli/blue/retire.go:24-167` | newRetire | O | 0 | O | Retire.superseded_by: a retired CLAIM superseded by replacement text (--new) |
+| B | `T/cli/capture.go:15-61` | newCapture | O | 0 | O | ancestors: parent directories in capture's path resolution |
+| B | `T/cli/enumhelp/enumhelp.go:28` | - | C-regression | 2 | deleted · X8 | enumhelp pkg doc: repaired_with_regression requires --successor (regression flag); stays unless regression goes |
+| B | `T/cli/lens/close.go:16-77` | newClose | C-regression | 0 | deleted · X8 | comment 'a close to a successor included' = repaired_with_regression close; newClose stays |
+| B | `T/cli/lens/closing.go:16` | - | C-text | 1 | rewritten · X20 | closing.go doc: 'or a supersede proposed on it' (C-proposal); red-brings-text doc stays |
+| B | `T/cli/lens/mint.go:25-116` | newMint | MIXED | 17 | chain arm deleted · X22 | other job: mint verb; AncestorID var, p.Supersedes set, SupersessionAdmitted block, --supersedes flag + key-help mention go |
+| B | `T/cli/lens/mint.go:384-402` | mintAsserted | C-text | 1 | rewritten · X20 | other job: retry-assertion table; supersedes row goes |
+| B | `T/cli/lens/mint.go:409-425` | requireNotEstopped | MIXED | 4 | chain arm deleted · X22 | other job: estoppel guard; supersedes param + 'unless the mint supersedes' exemption go (exemption must be re-expressed for amend) |
+| B | `T/cli/lens/mint.go:441-454` | aboutGapRefusal | C-text | 3 | rewritten · X20 | refusal names 'motion docket file supersede' and '--supersedes <gap>'; --about-kind gap refusal stays, needs amend wording |
+| B | `T/cli/lens/mint.go:456-546` | WriteMint | MIXED | 7 | chain arm deleted · X22 | other job: mint write + estoppel log; accept-of-supersede doc, --supersedes comments, GetSupersedes guard arg, msg 'mint with --supersedes' go |
+| B | `T/cli/lens/mint.go:548-552` | Statement | C-text | 2 | rewritten · X20 | doc: Statement shared with 'motion docket file supersede' (C-proposal); type stays for mint |
+| B | `T/cli/lens/mint.go:564-602` | (*Statement).Fill | C-text | 1 | rewritten · X20 | doc 'ancestor' is the writer's; Fill stays |
+| B | `T/cli/motion/command.go:38-77` | NewCommandFor | C-text | 1 | rewritten · X20 | docket subject Short: 'or a supersede' (C-proposal) |
+| B | `T/cli/motion/docketrule.go:24-36` | docketAnswers | C-text | 3 | rewritten · X20 | docket answer help rows: 'close or supersede', 'a supersede's successor' (C-proposal); table stays |
+| B | `T/cli/motion/docketrule.go:38-45` | docketRuleSays | C-text | 2 | rewritten · X20 | docket rule page: supersede-of-closed-gap side, 'a supersede's successor' (C-proposal) |
+| B | `T/cli/motion/docketrule.go:172-196` | applyAnswer | MIXED | 2 | chain arm deleted · X22 | other job: applies bench answer; doc clause 'held supersede's successor' + *recordpb.Mint case arm go (C-proposal) |
+| B | `T/cli/motion/propose.go:24-28` | proposeSays | C-text | 3 | rewritten · X20 | proposal page: supersede act, 'closed gap only as a supersede', 'gap a successor superseded' sentence (C-proposal+C-core) |
+| B | `T/cli/motion/propose.go:30-112` | newDocketFile | MIXED | 27 | chain arm deleted · X22 | other job: docket file group (regrade, close); whole supersede subcommand goes (C-proposal) |
+| B | `T/cli/motion/propose.go:114-176` | propose | MIXED | 13 | chain arm deleted · X22 | other job: builds every proposal verb; L48 successor-quote guard block goes (C-proposal) |
+| B | `T/cli/motion/propose.go:178-224` | newAccept | C-text | 1 | rewritten · X20 | accept page: 'or the successor the proposal states' (C-proposal) |
+| B | `T/cli/motion/propose.go:226-265` | applyAccepted | MIXED | 17 | chain arm deleted · X22 | other job: applies accepted regrade/close; *recordpb.Mint (successor) case + doc goes (C-proposal) |
+| B | `T/cli/motion/propose.go:19` | - | C-text | 1 | rewritten · X20 | propose.go doc: 'regrade, close or supersede' (C-proposal) |
+| B | `T/cli/motion/verbs.go:18-24` | fileSubjectSays | C-text | 1 | rewritten · X20 | file subject page: 'or its supersede' as proposed act (C-proposal) |
+| B | `T/cli/seat/answer.go:18-27` | KeysOn | O | 0 | O | superseders: record table of acts answering a refused repeated act |
+| B | `T/cli/seat/answer.go:35-72` | teachAnswer | O | 0 | O | superseders: record table of acts answering a refused repeated act |
+| B | `T/cli/seat/closure.go:18-25` | ClosureFlags | C-regression | 1 | deleted · X8 | --superseded-by flag registration (repaired_with_regression successor); --id/--as stay |
+| B | `T/cli/seat/closure.go:27-57` | ClosurePayload | C-regression | 1 | deleted · X8 | Close.successor from --superseded-by; closure payload stays |
+| B | `T/cli/seat/seat.go:1147-1168` | OptStr | C-regression | 5 | deleted · X8 | OptStr doc: successor='' FK case (regression successor); OptStr has other callers |
+| B | `T/cli/seat/selector.go:280-350` | selectJSONArrays | O | 0 | O | superseded: an earlier inquiry fate's words; engaged: work JSON null example |
+| B | `T/cli/seat/verbs.go:245-320` | views | O | 0 | O | superseded: earlier certify statements; Retire.superseded_by of a claim |
+| B | `T/cli/seat/verbs.go:322-357` | workPage | C-text | 2 | rewritten · X20; its engage part kept, restated · X22a | workPage: engaged para found_closed successors/successors_owed/engage (C-engage); estopped 'successor a supersede ... left' (C-proposal); regression row stays |
+| B | `T/cli/surface.go:161-205` | CommandReferences | C-regression | 1 | deleted · X8 | comment example 'superseded-by': gap-id (regression flag); CommandReferences stays |
+| B | `T/consistency/consistency.go:42-66` | gtGap | MIXED | 1 | chain arm deleted · X22 | other job: ground-truth gap; supersedes field goes |
+| B | `T/consistency/consistency.go:94-300` | walk | MIXED | 23 | chain arm deleted · X22 | other job: consistency raw walk; docketSupersede map, supersedes field, mint-closes-ancestor block (C-core), bench supersede-ruling closure arm (C-proposal) go |
+| B | `T/consistency/consistency.go:349-565` | Check | MIXED | 7 | chain arm deleted · X22 | other job: consistency oracle; lineage ancestor-exists + cycle block goes (graph node check stays) |
+| B | `T/consistency/consistency.go:683-718` | findCycle | C-core | 36 | deleted · X22 | cycle walk over supersedes edges |
+| B | `T/consistency/consistency.go:7` | - | C-text | 1 | rewritten · X20 | pkg doc: 'the lineage graph' (graph package's gap flow; renames) |
+| B | `T/dashboard/model.go:454-565` | buildJudiciary | MIXED | 30 | chain arm deleted · X22 | other job: judiciary sittings/rulings/gap lives; union-find over supersedes chains goes, chain spans collapse to per-gap |
+| B | `T/dashboard/render.go:214-549` | RenderHTML | C-text | 1 | rewritten · X20 | 'argument chains (supersedes-aware)' row (C-core); line 476 'superseded' = a seat attempt replaced by a later one (O) |
+| B | `T/debatejs/debatejs.go:154-174` | HeldBy | O | 0 | O | engaged: dispatch plan parties engaged on gaps |
+| B | `T/feov/error.go:27-45` | NotFound,MissingField,RoleViolation,Validation,... | C-text | 1 | rewritten · X20 | Conflict doc example 'a lineage that does not hold' |
+| B | `T/fetchcache/readscanned.go:123-236` | renderAndReadPages | O | 0 | O | superseded: a stale page render replaced by a reading (fetchcache) |
+| B | `T/fetchcache/shell.go:212-233` | TDMReservation | O | 0 | O | engage: a use engaging a machine-readable rights signal (TDM) |
+| B | `T/flags/ancestor.go:8-9` | OneAncestorRule | C-core | 2 | deleted · X22 | --supersedes one-ancestor rule text |
+| B | `T/flags/ancestor.go:11-14` | OneAncestorRefusal | C-core | 4 | deleted · X22 | --supersedes one-ancestor refusal text |
+| B | `T/flags/ancestor.go:16-20` | AncestorValue | C-core | 5 | deleted · X22 | --supersedes flag value type |
+| B | `T/flags/ancestor.go:22-23` | AncestorID | C-core | 2 | deleted · X22 | --supersedes flag constructor |
+| B | `T/flags/ancestor.go:25-30` | (*AncestorValue).Set | C-core | 6 | deleted · X22 | --supersedes Set refusing a comma |
+| B | `T/flags/csv.go:8-24` | CSV | C-text | 5 | rewritten · X20 | CSV doc: '--supersedes G2,G7' and supersedes-chain array rationale; CSV stays (--ids) |
+| B | `T/flags/names.go:26-325` | Run,SeatID,For,Occasion,... | MIXED | 3 | chain arm deleted · X22 | other job: flag-name constants; Supersedes const + lineage comment go; SupersededBy stays (regression) |
+| B | `T/flags/names.go:327-354` | All | MIXED | 1 | chain arm deleted · X22 | other job: flag census; Supersedes name goes |
+| B | `T/flags/names.go:415-451` | payloadFlag | C-regression | 1 | deleted · X8 | 'successor': SupersededBy row = Close.successor (regression); 'superseded_by': New is Retire (O) |
+| B | `T/flags/repeated.go:18-31` | (*Repeat).Said | MIXED | 3 | chain arm deleted · X22 | other job: repeated-flag refusal; AncestorValue branch goes |
+| B | `T/flags/shapes.go:69-80` | Checker | C-text | 1 | rewritten · X20 | Checker doc lists --supersedes among GapExists users |
+| B | `T/flags/shapes.go:19` | - | C-text | 1 | rewritten · X20 | shapes doc example '--supersedes against the board' |
+| B | `T/graph/graph.go:191-248` | gapFlowMermaid | MIXED | 6 | chain arm deleted · X22 | other job: gap-flow mermaid; supersedes edges loop + doc go |
+| B | `T/graph/graph.go:257-297` | Dot | MIXED | 5 | chain arm deleted · X22 | other job: graphviz gap flow; supersedes dashed edges go |
+| B | `T/report/assemble.go:817-874` | withdrawnClaims | O | 0 | O | Retire.superseded_by: a retired claim superseded by new text |
+| B | `T/report/assemble.go:891-970` | boardSection | MIXED | 0 | chain arm deleted · X22 | other job: board section; g.Successor() also reads Close.successor (regression), reader stays, Successor() narrows in record |
+| B | `T/report/assemble.go:1575-1633` | recordVerification | O | 0 | O | lineage gap: a gap about lineage in #415 history (comment), not the chain |
+| B | `T/report/docs.go:115-279` | (readers).assemble | O | 0 | O | superseded: inquiry path records and later certifications |
+| B | `T/report/docs.go:522-550` | supersededAsks | O | 0 | O | supersededAsks: earlier bench certify statements a later one replaced |
+| B | `T/report/edits.go:11-66` | editHistory | O | 0 | O | superseded: an earlier wording of a report sentence |
+| B | `T/report/layout.go:132-232` | layout | C-text | 1 | rewritten · X20 | docket path text 'regrade\|close\|supersede' (C-proposal); Superseded bench statements heading is O |
+| B | `T/runlive/runlive.go:420-439` | canonical | O | 0 | O | ancestor: deepest existing parent directory of a path |
+| B | `T/seatprobe/boards.go:270-328` | sources | O | 0 | O | superseded: a probe board's claim the report kept stating |
+| B | `T/seatprobe/boards.go:330-387` | docket | O | 0 | O | successor defect: red narrative prose in a probe board |
+| B | `T/seatprobe/boards.go:389-455` | audit | O | 0 | O | engages: chair dispatch engages the lens |
+| B | `T/seatprobe/boards.go:971-1010` | NoSituation | C-text | 7 | rewritten · X20 | NoSituation rows for 'motion docket file supersede' x4 seats (C-proposal); table stays |
+| B | `T/seatprobe/boards.go:1025-1036` | AlwaysTaken | C-text | 1 | rewritten · X20; its engage part kept, restated · X22a | AlwaysTaken 'engage' row (C-engage); table stays |
+| B | `T/seatprobe/build.go:66-340` | Build | O | 0 | O | engages: chair dispatch engages blue on a gap (exchange) |
+| B | `T/seatprobe/build.go:442-454` | exchangeOn | O | 0 | O | engages: chair dispatch engages blue on a gap (exchange) |
+| B | `T/seatprobe/production.go:33-88` | backendFor | O | 0 | O | engaged: plan's dispatch parties engaged on board gaps |
+| B | `T/verify/verify.go:79-88` | Run | MIXED | 1 | chain arm deleted · X22 | other job: verify check list; supersedesResolve entry goes |
+| B | `T/verify/verify.go:188-204` | supersedesResolve | C-core | 17 | deleted · X22 | verify check: every supersedes ancestor exists |
+| B | `T/verify/verify.go:298-365` | Compute | C-text | 1 | rewritten · X20 | dispute stat comment 'or a supersede' (C-proposal) |
+| B | `T/view/view.go:251-321` | ledgerMD | MIXED | 5 | chain arm deleted · X22 | other job: board ledger; supersedes column goes; Successor() closure-index column stays (regression) |
+| B | `T/view/view.go:323-358` | archiveMD | MIXED | 0 | chain arm deleted · X22 | other job: archive; g.Successor() also reads Close.successor (regression), reader stays |
+| B | `T/view/view.go:360-567` | telemetryRows | MIXED | 22 | chain arm deleted · X22 | other job: telemetry series; lineage mints, edge deltas over ancestors, repair-regression ratio/LineageMints go |
+| B | `T/view/view.go:818-902` | InquiryBody | O | 0 | O | superseded: an inquiry's earlier fate records |
+| B | `T/view/view.go:904-930` | superseded | O | 0 | O | superseded: an inquiry's records before its current fate |
+| B | `T/view/view.go:983-987` | repairRegJSON | MIXED | 1 | chain arm deleted · X22 | other job: repair-regression JSON; lineage_mints field goes (closures stay) |
+| B | `T/view/view.go:994-1031` | telemetryWire | MIXED | 1 | chain arm deleted · X22 | other job: telemetry wire; LineageMints copy goes |
+| M | `T/capture/capture.go:1827-2062` | Run | O | 0 | O | ancestors: parent directories; engaged: dispatches engaging a lens |
+| M | `T/cli/blue/command.go:19-33` | Verbs | MIXED | 1 | chain arm deleted · X22; its engage part kept, restated · X22a | other job: registers every blue verb; newEngage() line goes (C-engage) |
+| M | `T/cli/blue/retire.go:24-167` | newRetire | O | 0 | O | Retire.superseded_by: a retired claim superseded by --new text |
+| M | `T/cli/lens/close.go:16-96` | newClose | C-regression | 0 | deleted · X8 | comment 'a close to a successor included' = repaired_with_regression close |
+| M | `T/cli/lens/mint.go:25-232` | newMint | MIXED | 16 | chain arm deleted · X22 | other job: mint verb; repeated --supersedes IDList, Supersedes set, SupersessionAdmitted block, flag + comments go; --found-by stays |
+| M | `T/cli/lens/mint.go:500-509` | contains | C-core | 10 | deleted · X22 | contains: membership for the --supersedes estoppel exemption only |
+| M | `T/cli/lens/mint.go:511-530` | mintAsserted | C-text | 1 | rewritten · X20 | other job: retry-assertion table; supersedes row goes |
+| M | `T/cli/lens/mint.go:537-551` | requireNotEstopped | MIXED | 3 | chain arm deleted · X22 | other job: estoppel guard; []supersedes param + exemption go |
+| M | `T/cli/motion/verbs.go:20-27` | fileSubjectSays | C-text | 1 | rewritten · X20 | docket page: 'A GAP A SUCCESSOR SUPERSEDED IS NOT DOCKETED... docket the successor' (C-core) |
+| M | `T/cli/seat/answer.go:34-71` | teachAnswer | O | 0 | O | superseders: record table of acts answering a refused repeated act |
+| M | `T/cli/seat/closure.go:18-25` | ClosureFlags | C-regression | 1 | deleted · X8 | --superseded-by flag registration (regression successor) |
+| M | `T/cli/seat/closure.go:27-57` | ClosurePayload | C-regression | 1 | deleted · X8 | Close.successor from --superseded-by |
+| M | `T/cli/seat/selector.go:280-350` | selectJSONArrays | O | 0 | O | superseded: earlier inquiry fate words; engaged: work JSON null example |
+| M | `T/cli/seat/verbs.go:237-313` | views | O | 0 | O | superseded: earlier certify statements; Retire.superseded_by of a claim |
+| M | `T/cli/seat/verbs.go:315-352` | workPage | C-text | 2 | rewritten · X20; its engage part kept, restated · X22a | workPage: engaged para successors/successors_owed/engage (C-engage); estopped 'lineage successor naming ruled gap in supersedes' (C-core) |
+| M | `T/consistency/consistency.go:42-66` | gtGap | MIXED | 1 | chain arm deleted · X22 | other job: ground-truth gap; supersedes []string field goes |
+| M | `T/consistency/consistency.go:96-294` | walk | MIXED | 12 | chain arm deleted · X22 | other job: consistency raw walk; supersedes field + mint-closes-ancestors loop go |
+| M | `T/consistency/consistency.go:343-573` | Check | MIXED | 8 | chain arm deleted · X22 | other job: consistency oracle; lineage ancestor-exists + cycle block goes |
+| M | `T/consistency/consistency.go:700-735` | findCycle | C-core | 36 | deleted · X22 | cycle walk over supersedes edges |
+| M | `T/dashboard/model.go:457-578` | buildJudiciary | MIXED | 30 | chain arm deleted · X22 | other job: judiciary; union-find over supersedes chains goes |
+| M | `T/dashboard/render.go:214-553` | RenderHTML | C-text | 1 | rewritten · X20 | 'argument chains (supersedes-aware)' row; 'superseded' at 480 is a seat attempt (O) |
+| M | `T/feov/error.go:27-45` | NotFound,MissingField,RoleViolation,Validation,... | C-text | 1 | rewritten · X20 | Conflict doc example 'a lineage that does not hold' |
+| M | `T/flags/csv.go:8-25` | CSV | C-text | 5 | rewritten · X20 | CSV doc: '--supersedes G2,G7' and supersedes-array rationale; CSV stays (--found-by, --ids) |
+| M | `T/flags/names.go:26-314` | Run,SeatID,For,Occasion,... | MIXED | 3 | chain arm deleted · X22 | other job: flag-name constants; Supersedes const + lineage comment go |
+| M | `T/flags/names.go:316-342` | All | MIXED | 1 | chain arm deleted · X22 | other job: flag census; Supersedes name goes |
+| M | `T/graph/graph.go:180-237` | gapFlowMermaid | MIXED | 6 | chain arm deleted · X22 | other job: gap-flow mermaid; supersedes edges go |
+| M | `T/graph/graph.go:246-286` | Dot | MIXED | 5 | chain arm deleted · X22 | other job: graphviz; supersedes edges go |
+| M | `T/report/assemble.go:922-1037` | boardSection | MIXED | 0 | chain arm deleted · X22 | other job: board section; g.Successor() also regression, reader stays |
+| M | `T/report/docs.go:115-279` | (readers).assemble | O | 0 | O | superseded: inquiry path records and later certifications |
+| M | `T/report/layout.go:132-232` | layout | O | 0 | O | Superseded bench statements: earlier certify statements |
+| M | `T/seatprobe/boards.go:324-390` | docket | O | 0 | O | successor defect: red narrative prose in a probe board |
+| M | `T/seatprobe/boards.go:392-458` | audit | O | 0 | O | engages: chair dispatch engages the lens |
+| M | `T/verify/verify.go:79-89` | Run | MIXED | 1 | chain arm deleted · X22 | other job: verify check list; supersedesResolve entry goes |
+| M | `T/verify/verify.go:221-239` | supersedesResolve | C-core | 19 | deleted · X22 | verify check: every supersedes ancestor exists |
+| M | `T/view/view.go:251-356` | ledgerMD | MIXED | 5 | chain arm deleted · X22 | other job: board ledger; supersedes column goes; Successor() column stays |
+| M | `T/view/view.go:395-602` | telemetryRows | MIXED | 22 | chain arm deleted · X22 | other job: telemetry series; lineage mints, edge deltas, LineageMints go |
+
+**Group E** (`amendv/tag-E.tsv`)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B | `F/docs/citations-and-bibliography.md:181` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | clause "a close naming a successor included" (close --superseded-by, C-regression); para teaches live-answer demand |
+| B | `F/docs/citations-and-bibliography.md:183` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | sentence: lens mint superseding a source/computation gap carries its check kind (demand_lineage) |
+| B | `F/docs/citations-and-bibliography.md:184` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | same sentence: "the demand moves to the successor" (demand_lineage) |
+| B | `F/docs/propagation-and-anchoring.md:163` | ## Status | O | 0 | O | successor = replacement metric (unminted_findings replaced undisposed metric #327) |
+| B | `F/docs/record-flow.md:12` | ## A wrong act | O | 0 | O | superseders table (internal/record/supersede.go): the act that answers a refused repeated act |
+| B | `F/docs/record-flow.md:56` | ## Invariants the diagram encodes | C-text | 1 | rewritten · X20 | a supersede listed among acts a disputing lens proposes (C-proposal teaching); bullet stays for one-gap-per-class |
+| B | `F/docs/record-flow.md:87` | ## Out of scope (separate concepts) | C-text | 1 | rewritten · X20 | #62 pt2 deferral names `supersedes` as chair de-editorialising/dedup mechanism; pointer rewritten |
+| B | `F/docs/seat-command-triggers.md:67` | ## Merge \| lens close row | C-text | 1 | rewritten · X20 | row stays (lens close); clause "unless it names its successor with --superseded-by" is C-regression |
+| B | `F/docs/seat-command-triggers.md:89` | ## Blue \| blue engage row | C-engage | 1 | kept, restated · X22a | whole row: blue engage on successors, envelope successors[] (R2) |
+| B | `F/docs/seat-command-triggers.md:112` | ## Bench \| motion docket file supersede row | C-proposal | 1 | deleted · X1/X3/X4 | whole row: supersede docket proposal; also teaches --supersedes for assignee |
+| B | `F/docs/seat-command-triggers.md:217` | ## Status of the collapses | O | 0 | O | no successor vocabulary: no replacement vocabulary for checked-held after observe/dispose retired |
+| B | `F/docs/seat-surface-naming.md:313` | ## Every claim, checked at the leaf | O | 0 | O | historical word counts of an old prompt/constitution (supersedes, lineage counted); measurement record |
+| B | `F/docs/seat-surface-naming.md:316` | ## Every claim, checked at the leaf | O | 0 | O | historical word counts of an old prompt/constitution (supersedes, lineage counted); measurement record |
+| B | `F/docs/seat-surface-naming.md:386` | # Interview 1 (superseded), 2026-08-20 | O | 0 | O | document section superseded by a later interview (doc history) |
+| B | `F/docs/seat-surface-naming.md:489` | # Superseded, 2026-08-20 — the scoped tree | O | 0 | O | design superseded by a later model (doc history) |
+| B | `F/docs/seat-surface-naming.md:496` | # Superseded, 2026-08-20 — the scoped tree | O | 0 | O | superseded configuration (doc history) |
+| B | `F/hooks/README.md:133` | ## SubagentStart | O | 0 | O | engages: dispatch engages a seat on gaps (work-list injection) |
+| B | `F/skills/research-protocol/references/report_template.md:182` | ## Superseded bench statements | O | 0 | O | superseded bench certification statements (bench statement replaced by later one) |
+| B | `F/skills/research-protocol/references/run-directory.md:30` | # The run directory (tree) | O | 0 | O | superseded asks: bench certifications replaced by a later one |
+| B | `F/skills/research-protocol/scripts/debate.js:17` | file header comment (TESTING & MODEL-SELECTION STRATEGY) | C-text | 1 | rewritten · X20 | founding regression "lineage-blind docket (run 3)" names docket chain-following |
+| B | `F/skills/research-protocol/scripts/debate.js:204` | TOOL_COMPOSED | O | 0 | O | 'Superseded bench statements' report section (bench certifications) |
+| B | `F/skills/research-protocol/scripts/debate.js:393` | PLAN schema (envelope vocabulary) | O | 0 | O | gap_ids: the gaps a party is engaged on (dispatch) [generated-region: enginegen] |
+| B | `F/skills/research-protocol/scripts/debate.js:406` | PLAN schema (envelope vocabulary) | O | 0 | O | exchanges: per gap a party is engaged on (dispatch) [generated-region: enginegen] |
+| B | `F/skills/research-protocol/scripts/debate.js:530` | BLUE_ENVELOPE found_closed comment | O | 0 | O | found_closed (#868): engaged gaps blue found closed; feeds log line; stays |
+| B | `F/skills/research-protocol/scripts/debate.js:532` | BLUE_ENVELOPE found_closed comment | C-text | 1 | rewritten · X20 | clause "and whether blue sits again on a successor" |
+| B | `F/skills/research-protocol/scripts/debate.js:533` | BLUE_ENVELOPE.found_closed | O | 0 | O | found_closed field: blue found engaged gap closed (dispatch engagement); stays for log |
+| B | `F/skills/research-protocol/scripts/debate.js:534` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| B | `F/skills/research-protocol/scripts/debate.js:535` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| B | `F/skills/research-protocol/scripts/debate.js:536` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| B | `F/skills/research-protocol/scripts/debate.js:537` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| B | `F/skills/research-protocol/scripts/debate.js:538` | BLUE_ENVELOPE.successors comment | C-engage | 2 | reworded · X22a | R2 successors comment (incl. next line) |
+| B | `F/skills/research-protocol/scripts/debate.js:540` | BLUE_ENVELOPE.successors | C-engage | 1 | kept, restated · X22a | successors envelope field |
+| B | `F/skills/research-protocol/scripts/debate.js:868` | lens comment above lastReadClause | C-text | 1 | rewritten · X20 | keeping lineage among minter duties |
+| B | `F/skills/research-protocol/scripts/debate.js:877` | lastReadClause | O | 0 | O | engages: nothing engages you (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:903` | lensPrompt | O | 0 | O | engaged: gaps the lens is engaged on (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:904` | lensPrompt | O | 0 | O | engaged: gaps the lens is engaged on (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:906` | lensPrompt | O | 0 | O | engaged: gaps the lens is engaged on (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:907` | lensPrompt | C-text | 1 | rewritten · X20 | REOPEN ... carrying that history, "forks the lineage" in mint clause |
+| B | `F/skills/research-protocol/scripts/debate.js:910` | lensPrompt | C-text | 1 | rewritten · X20 | THE ASSIGNEE CLOSES, AND LINEAGE IS NEVER DROPPED clause: assignee=chain origin, successor names gap it supersedes, docket follows chains |
+| B | `F/skills/research-protocol/scripts/debate.js:920` | bluePrompt | O | 0 | O | You are engaged on: (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:926` | bluePrompt | O | 0 | O | gap you are engaged on (dispatch) |
+| B | `F/skills/research-protocol/scripts/debate.js:927` | bluePrompt | C-engage | 1 | kept, restated · X22a | its open successors; "Engage your next sitting on each successor ... name it in successors" (found_closed text stays) |
+| B | `F/skills/research-protocol/scripts/debate.js:929` | benchPrompt | C-text | 1 | rewritten · X20 | ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS |
+| B | `F/skills/research-protocol/scripts/debate.js:1015` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| B | `F/skills/research-protocol/scripts/debate.js:1016` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| B | `F/skills/research-protocol/scripts/debate.js:1017` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| B | `F/skills/research-protocol/scripts/debate.js:1018` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| B | `F/skills/research-protocol/scripts/debate.js:1019` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| B | `F/skills/research-protocol/scripts/debate.js:1021` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | blueEngaged set (only bounds successor re-sitting); also blueSittings.again + p.again args go |
+| B | `F/skills/research-protocol/scripts/debate.js:1039` | epoch loop (while !stopped()) — blue sittings | O | 0 | O | foundClosed: engaged gaps blue found closed, feeds logs; its use in `again` goes |
+| B | `F/skills/research-protocol/scripts/debate.js:1041` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | successors from envelope |
+| B | `F/skills/research-protocol/scripts/debate.js:1042` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | again = successors blue sits on |
+| B | `F/skills/research-protocol/scripts/debate.js:1044` | epoch loop (while !stopped()) — blue sittings | C-engage | 5 | kept, restated · X22a | if (again.length) block (5 lines) |
+| B | `F/skills/research-protocol/scripts/debate.js:1046` | epoch loop (while !stopped()) — blue sittings | C-engage | 0 | kept, restated · X22a | counted in again.length block: log of re-sitting on successors |
+| B | `F/skills/research-protocol/scripts/debate.js:1048` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | unsat successors |
+| B | `F/skills/research-protocol/scripts/debate.js:1049` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | log of unsat successors |
+| B | `F/skills/research-protocol/scripts/debate.js:1054` | epoch loop (while !stopped()) — blue sittings | O | 0 | O | blue found every engaged gap closed (dispatch, #868) |
+| B | `F/skills/research-protocol/scripts/debate.py:334` | run_lens (async def) | O | 0 | O | Engaged gaps: chair dispatch engages lens on gaps; debate.py has NO successor/found_closed handling (debate.js does) |
+| B | `T/cli/seat/help/carry.md:11` | ## detail | C-core | 1 | deleted · X22 | whole para: carry of a superseded gap refused, naming the successor |
+| B | `T/cli/seat/help/close.md:13` | ## detail | C-text | 1 | rewritten · X20 | failed-check para stays; "and every successor of it" + successor-superseding sentences (demand_lineage) rewritten |
+| B | `T/cli/seat/help/close.md:17` | ## detail | C-core | 1 | deleted · X22 | whole para: superseded gap already closed (C-core) + 2nd sentence --superseded-by names regression (C-regression) |
+| B | `T/cli/seat/help/closing-red.md:9` | ## detail | C-text | 1 | rewritten · X20 | or for a close or a supersede proposed on it (C-proposal); para stays (red provides text) |
+| B | `T/cli/seat/help/dispatch.md:19` | ## detail | O | 0 | O | engaged: chair dispatch engages lens on a gap (exchange) |
+| B | `T/cli/seat/help/dispatch.md:21` | ## detail | C-text | 1 | rewritten · X20 | proposed regrade, close or supersede — supersede proposal (C-proposal) in proposal-window para |
+| B | `T/cli/seat/help/dispatch.md:23` | ## detail | O | 0 | O | engaged: party engaged on gap in plan.exchanges |
+| B | `T/cli/seat/help/edit.md:52` | ## detail | C-text | 1 | rewritten · X20 | the quote and fix of a supersede proposed on it (C-proposal); standing-statement para stays |
+| B | `T/cli/seat/help/engage.md:3` | ## menu | C-engage | 1 | kept, restated · X22a | whole verb help page; menu line: engage verb on successors |
+| B | `T/cli/seat/help/engage.md:7` | ## detail | C-engage | 1 | kept, restated · X22a | whole verb help page; engage detail: successors_owed, superseded_by, supersedes, envelope successors |
+| B | `T/cli/seat/help/engage.md:9` | ## detail | C-engage | 1 | kept, restated · X22a | whole verb help page; engage refusals: exactly the successor set owed |
+| B | `T/cli/seat/help/mint.md:9` | ## detail | C-text | 1 | rewritten · X20 | one-gap-per-class para stays; sentence "A mint naming the open gap as its ancestor ... is not refused" goes |
+| B | `T/cli/seat/help/mint.md:11` | ## detail | C-text | 1 | rewritten · X20 | tombstone para stays; "on the successor a supersede it applied" (C-proposal) + "one naming it as ancestor" go |
+| B | `T/cli/seat/help/mint.md:13` | ## detail | C-text | 1 | rewritten · X20 | read-board para stays; "mint it as that gap's successor", REOPEN "carries its lineage" rewritten |
+| B | `T/cli/seat/help/mint.md:15` | ## detail | C-core | 1 | deleted · X22 | whole para: mint naming open ancestor closes it; assignee-only supersede; demand_lineage; closed-gap lineage |
+| B | `T/cli/seat/help/mint.md:21` | ## detail | C-text | 1 | rewritten · X20 | closure-stands para stays; "naming that gap as the one it supersedes" rewritten |
+| B | `T/cli/seat/help/mint.md:25` | ## detail | C-text | 1 | rewritten · X20 | estoppel para stays; "or mint declaring that gap as its ancestor" (estoppel --supersedes escape, mint.go:420) goes |
+| B | `T/cli/seat/help/mint.md:31` | ## detail | C-text | 1 | rewritten · X20 | fix/check para stays; "corrected by minting its successor" rewritten; NB "no act amends a check after the mint" = existing amend sense |
+| B | `T/cli/seat/help/regrade.md:9` | ## detail | O | 0 | O | engaged: dispatch engaged the lens on the gap (exchange) |
+| B | `T/cli/seat/help/regrade.md:11` | ## detail | C-text | 1 | rewritten · X20 | ruled-axis para stays; "a gap you mint superseding this one carries the ruled grade" goes |
+| B | `T/cli/seat/help/retire.md:19` | ## detail | C-text | 1 | rewritten · X20 | the quote and fix of a supersede proposed on it (C-proposal); standing-statement para stays |
+| B | `T/terms/terms.json:673` | term "assignee" (671-683) | C-text | 1 | rewritten · X20 | definition: assignee = minter of the origin of the gap's lineage, carried by every successor (chain origin); term stays |
+| B | `T/terms/terms.json:818` | term "report read" (806-821) | O | 0 | O | engages: the chair engages a party at a dispatch pin |
+| B | `T/terms/terms.json:893` | term "grade movement" (880-896) | C-text | 1 | rewritten · X20 | collision resolution: exchange moves gap when "its lineage changes" |
+| B | `T/terms/terms.json:1056` | term "reopened" (1042-1063) | C-text | 1 | rewritten · X20 | collision: "minting a successor over a closed gap reopens the gap" |
+| B | `T/terms/terms.json:1106` | term "superseded" (1105-1140) | C-core | 36 | deleted · X22 | whole term entry (def, seats, ban, collisions) goes; its O collision rows (retire, inquiry/bench) need a new home |
+| B | `T/terms/terms.json:1107` | term "superseded" definition | C-core | 0 | deleted · X22 | counted in term entry: definition of supersede-by-mint, demand passing |
+| B | `T/terms/terms.json:1119` | term "superseded" ban stranded gap | C-core | 0 | deleted · X22 | counted in term entry: GATED ban pattern "stranded (superseded )?(gaps?\|ancestors?)" |
+| B | `T/terms/terms.json:1124` | term "superseded" collision | C-core | 0 | deleted · X22 | counted in term entry: superseded (a closed gap) = lineage/reopen |
+| B | `T/terms/terms.json:1125` | term "superseded" collision | C-core | 0 | deleted · X22 | counted in term entry: mint naming closed gap is lineage; successor is assignee's |
+| B | `T/terms/terms.json:1128` | term "superseded" collision | C-regression | 0 | deleted · X8 | counted in term entry: `--superseded-by` (close) collision row |
+| B | `T/terms/terms.json:1129` | term "superseded" collision | C-regression | 0 | deleted · X8 | counted in term entry: --superseded-by names regression gap, only with repaired_with_regression |
+| B | `T/terms/terms.json:1132` | term "superseded" collision | O | 0 | O | superseded_by (retire): a retired claim's replacement; row must move if entry goes |
+| B | `T/terms/terms.json:1136` | term "superseded" collision | O | 0 | O | superseded (inquiry record/bench statement): later record standing in place; row must move if entry goes |
+| B | `T/vecembed/vocab.txt:5118` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:6333` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:8148` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:8527` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:10749` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:13033` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:13322` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:18531` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:19887` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:20584` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `T/vecembed/vocab.txt:24256` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| B | `scripts/agentgen/src/blue-researcher.md:57` | (bullet list, no heading) response-sitting duties | O | 0 | O | engaged: blue dispatched/engaged on gaps |
+| B | `scripts/agentgen/src/fragments/lens-audit-and-mint.md:8` | ## How a lens audits, mints and closes | C-text | 1 | rewritten · X20 | live-answer bullet stays; sentence "A successor you mint superseding it ... demand passes to it" (demand_lineage) goes |
+| B | `scripts/agentgen/src/fragments/lens-audit-and-mint.md:14` | ## How a lens audits, mints and closes | C-text | 1 | rewritten · X20 | whole "Lineage is mandatory" bullet (chains, docket follows chains; regressed closure = C-regression) |
+| B | `scripts/agentgen/src/fragments/lens-duties.md:5` | ## What a lens may not do | C-text | 1 | rewritten · X20 | its supersede proposal (C-proposal) + assignee = lens whose mint began its chain, every successor (C-core) |
+| B | `scripts/agentgen/src/fragments/lens-duties.md:9` | ## What a lens may not do | C-text | 1 | rewritten · X20 | regrade, close or supersede of it and "a close or a supersede proposed on it" (C-proposal) x2 |
+| B | `scripts/agentgen/src/lead-judge.md:43` | (bench duties bullets) Ancestor demanded reads | C-text | 1 | rewritten · X20 | whole bullet: ruling on a gap with a lineage chain reads named ancestors' closures |
+| B | `scripts/agentgen/src/lead-judge.md:131` | (bench duties bullets) certification | O | 0 | O | superseded certification text kept in CHANGELOG.md |
+| B | `scripts/agentgen/src/red-chair.md:14` | ## What only the chair does | O | 0 | O | engaged: a lens with no gap engaged (dispatch) |
+| B | `scripts/agentgen/src/red-lens-voice.md:15` | ## What you audit | C-text | 1 | rewritten · X20 | problem and fix change only by its minter's successor; "propose its successor"/"mint its successor" (C-core/C-proposal) |
+| B | `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:22` | # adversarial-audit | C-text | 1 | rewritten · X20 | grade stability along supersedes chains metric |
+| B | `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:26` | # adversarial-audit | O | 0 | O | engages: no gap engages you (dispatch) |
+| B | `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:31` | # adversarial-audit | C-text | 1 | rewritten · X20 | the successor you propose on that gap (C-proposal) in voice bullet |
+| B | `scripts/agentgen/src/skills/research-protocol/SKILL.md:84` | ## Report structure | O | 0 | O | asks a later certification superseded (bench statements) |
+| M | `F/docs/citations-and-bibliography.md:181` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | clause "a close naming a successor included" (close --superseded-by, C-regression); para teaches live-answer demand |
+| M | `F/docs/citations-and-bibliography.md:183` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | sentence: lens mint superseding a source/computation gap carries its check kind (demand_lineage) |
+| M | `F/docs/citations-and-bibliography.md:184` | ## 2. Cite — putting it on the record | C-text | 1 | rewritten · X20 | same sentence: "the demand moves to the successor" (demand_lineage) |
+| M | `F/docs/finding-markers.md:179` | ## Status | O | 0 | O | superseded drafts of the finding-markers design (doc history) |
+| M | `F/docs/propagation-and-anchoring.md:163` | ## Status | O | 0 | O | successor = replacement metric (unminted_findings replaced undisposed metric #327) |
+| M | `F/docs/record-flow.md:12` | ## A wrong act | O | 0 | O | superseders table (internal/record/supersede.go): the act that answers a refused repeated act |
+| M | `F/docs/record-flow.md:89` | ## Out of scope (separate concepts) | C-text | 1 | rewritten · X20 | #62 pt2 deferral names `supersedes` as chair de-editorialising/dedup mechanism; pointer rewritten |
+| M | `F/docs/seat-command-triggers.md:68` | ## Merge \| lens close row | C-text | 1 | rewritten · X20 | row stays (lens close); clause "unless it names its successor with --superseded-by" is C-regression |
+| M | `F/docs/seat-command-triggers.md:90` | ## Blue \| blue engage row | C-engage | 1 | kept, restated · X22a | whole row: blue engage on successors, envelope successors[] (R2) |
+| M | `F/docs/seat-command-triggers.md:117` | ## Bench \| bench grade ruling row | C-text | 1 | rewritten · X20 | row stays; clause "a successor carries it" (bench-moved axis inherited by successor) |
+| M | `F/docs/seat-command-triggers.md:218` | ## Status of the collapses | O | 0 | O | no successor vocabulary: no replacement vocabulary for checked-held after observe/dispose retired |
+| M | `F/docs/seat-surface-naming.md:313` | ## Every claim, checked at the leaf | O | 0 | O | historical word counts of an old prompt/constitution (supersedes, lineage counted); measurement record |
+| M | `F/docs/seat-surface-naming.md:316` | ## Every claim, checked at the leaf | O | 0 | O | historical word counts of an old prompt/constitution (supersedes, lineage counted); measurement record |
+| M | `F/docs/seat-surface-naming.md:386` | # Interview 1 (superseded), 2026-08-20 | O | 0 | O | document section superseded by a later interview (doc history) |
+| M | `F/docs/seat-surface-naming.md:489` | # Superseded, 2026-08-20 — the scoped tree | O | 0 | O | design superseded by a later model (doc history) |
+| M | `F/docs/seat-surface-naming.md:496` | # Superseded, 2026-08-20 — the scoped tree | O | 0 | O | superseded configuration (doc history) |
+| M | `F/hooks/README.md:159` | ## SubagentStart | O | 0 | O | engages: dispatch engages a seat on gaps (work-list injection) |
+| M | `F/skills/research-protocol/references/report_template.md:186` | ## Superseded bench statements | O | 0 | O | superseded bench certification statements (bench statement replaced by later one) |
+| M | `F/skills/research-protocol/references/run-directory.md:30` | # The run directory (tree) | O | 0 | O | superseded asks: bench certifications replaced by a later one |
+| M | `F/skills/research-protocol/scripts/debate.js:17` | file header comment (TESTING & MODEL-SELECTION STRATEGY) | C-text | 1 | rewritten · X20 | founding regression "lineage-blind docket (run 3)" names docket chain-following |
+| M | `F/skills/research-protocol/scripts/debate.js:204` | TOOL_COMPOSED | O | 0 | O | 'Superseded bench statements' report section (bench certifications) |
+| M | `F/skills/research-protocol/scripts/debate.js:394` | PLAN schema (envelope vocabulary) | O | 0 | O | gap_ids: the gaps a party is engaged on (dispatch) [generated-region: enginegen] |
+| M | `F/skills/research-protocol/scripts/debate.js:407` | PLAN schema (envelope vocabulary) | O | 0 | O | exchanges: per gap a party is engaged on (dispatch) [generated-region: enginegen] |
+| M | `F/skills/research-protocol/scripts/debate.js:536` | BLUE_ENVELOPE found_closed comment | O | 0 | O | found_closed (#868): engaged gaps blue found closed; feeds log line; stays |
+| M | `F/skills/research-protocol/scripts/debate.js:538` | BLUE_ENVELOPE found_closed comment | C-text | 1 | rewritten · X20 | clause "and whether blue sits again on a successor" |
+| M | `F/skills/research-protocol/scripts/debate.js:539` | BLUE_ENVELOPE.found_closed | O | 0 | O | found_closed field: blue found engaged gap closed (dispatch engagement); stays for log |
+| M | `F/skills/research-protocol/scripts/debate.js:540` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| M | `F/skills/research-protocol/scripts/debate.js:541` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| M | `F/skills/research-protocol/scripts/debate.js:542` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| M | `F/skills/research-protocol/scripts/debate.js:543` | BLUE_ENVELOPE.successors comment | C-engage | 1 | reworded · X22a | R2 successors comment |
+| M | `F/skills/research-protocol/scripts/debate.js:544` | BLUE_ENVELOPE.successors comment | C-engage | 2 | reworded · X22a | R2 successors comment (incl. next line) |
+| M | `F/skills/research-protocol/scripts/debate.js:546` | BLUE_ENVELOPE.successors | C-engage | 1 | kept, restated · X22a | successors envelope field |
+| M | `F/skills/research-protocol/scripts/debate.js:877` | lens comment above lastReadClause | C-text | 1 | rewritten · X20 | keeping lineage among minter duties |
+| M | `F/skills/research-protocol/scripts/debate.js:886` | lastReadClause | O | 0 | O | engages: nothing engages you (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:908` | lensPrompt | O | 0 | O | engaged: gaps the lens is engaged on (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:909` | lensPrompt | O | 0 | O | YOU ARE ENGAGED ON (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:911` | lensPrompt | O | 0 | O | ${engaged} interpolation (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:912` | lensPrompt | C-text | 1 | rewritten · X20 | REOPEN ... carrying that history, "forks the lineage" |
+| M | `F/skills/research-protocol/scripts/debate.js:915` | lensPrompt | C-text | 1 | rewritten · X20 | THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED: successor names gaps it supersedes, docket follows chains |
+| M | `F/skills/research-protocol/scripts/debate.js:925` | bluePrompt | O | 0 | O | You are engaged on: (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:931` | bluePrompt | O | 0 | O | gap you are engaged on (dispatch) |
+| M | `F/skills/research-protocol/scripts/debate.js:932` | bluePrompt | C-engage | 1 | kept, restated · X22a | its open successors; "Engage your next sitting on each successor ... name it in successors" (found_closed text stays) |
+| M | `F/skills/research-protocol/scripts/debate.js:934` | benchPrompt | C-text | 1 | rewritten · X20 | ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS |
+| M | `F/skills/research-protocol/scripts/debate.js:1014` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| M | `F/skills/research-protocol/scripts/debate.js:1015` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| M | `F/skills/research-protocol/scripts/debate.js:1016` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| M | `F/skills/research-protocol/scripts/debate.js:1017` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| M | `F/skills/research-protocol/scripts/debate.js:1018` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | reworded · X22a | BLUE SITS AGAIN ON A SUCCESSOR (R2) comment |
+| M | `F/skills/research-protocol/scripts/debate.js:1020` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | blueEngaged set (only bounds successor re-sitting); also blueSittings.again + p.again args go |
+| M | `F/skills/research-protocol/scripts/debate.js:1038` | epoch loop (while !stopped()) — blue sittings | O | 0 | O | foundClosed: engaged gaps blue found closed, feeds logs; its use in `again` goes |
+| M | `F/skills/research-protocol/scripts/debate.js:1040` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | successors from envelope |
+| M | `F/skills/research-protocol/scripts/debate.js:1041` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | again = successors blue sits on |
+| M | `F/skills/research-protocol/scripts/debate.js:1043` | epoch loop (while !stopped()) — blue sittings | C-engage | 5 | kept, restated · X22a | if (again.length) block (5 lines) |
+| M | `F/skills/research-protocol/scripts/debate.js:1045` | epoch loop (while !stopped()) — blue sittings | C-engage | 0 | kept, restated · X22a | counted in again.length block: log of re-sitting on successors |
+| M | `F/skills/research-protocol/scripts/debate.js:1047` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | unsat successors |
+| M | `F/skills/research-protocol/scripts/debate.js:1048` | epoch loop (while !stopped()) — blue sittings | C-engage | 1 | kept, restated · X22a | log of unsat successors |
+| M | `F/skills/research-protocol/scripts/debate.js:1053` | epoch loop (while !stopped()) — blue sittings | O | 0 | O | blue found every engaged gap closed (dispatch, #868) |
+| M | `F/skills/research-protocol/scripts/debate.py:487` | run_lens (async def) | O | 0 | O | Engaged gaps: chair dispatch engages lens on gaps; debate.py has NO successor/found_closed handling (debate.js does) |
+| M | `T/cli/seat/help/carry.md:11` | ## detail | C-core | 1 | deleted · X22 | whole para: carry of a superseded gap refused, naming the successor |
+| M | `T/cli/seat/help/close.md:13` | ## detail | C-text | 1 | rewritten · X20 | failed-check para stays; "every successor of it" + successor-superseding sentences (demand_lineage) rewritten |
+| M | `T/cli/seat/help/close.md:17` | ## detail | C-core | 1 | deleted · X22 | whole para: superseded gap already closed (C-core) + 2nd sentence --superseded-by names regression (C-regression) |
+| M | `T/cli/seat/help/dispatch.md:19` | ## detail | O | 0 | O | engaged: chair dispatch engages lens on a gap (exchange) |
+| M | `T/cli/seat/help/dispatch.md:23` | ## detail | O | 0 | O | engaged: party engaged on gap in plan.exchanges |
+| M | `T/cli/seat/help/engage.md:3` | ## menu | C-engage | 1 | kept, restated · X22a | whole verb help page; menu line: engage verb on successors |
+| M | `T/cli/seat/help/engage.md:7` | ## detail | C-engage | 1 | kept, restated · X22a | whole verb help page; engage detail: successors_owed, superseded_by, supersedes, envelope successors |
+| M | `T/cli/seat/help/engage.md:9` | ## detail | C-engage | 1 | kept, restated · X22a | whole verb help page; engage refusals: exactly the successor set owed |
+| M | `T/cli/seat/help/mint.md:9` | ## detail | C-text | 1 | rewritten · X20 | one-gap-per-class para stays; "A mint naming the open gap as its ancestor ... is not refused" goes |
+| M | `T/cli/seat/help/mint.md:11` | ## detail | C-text | 1 | rewritten · X20 | read-board para stays; "mint it as that gap's successor", REOPEN "carries its lineage" rewritten |
+| M | `T/cli/seat/help/mint.md:13` | ## detail | C-core | 1 | deleted · X22 | whole para: mint naming open ancestor(s) closes them; minter-only supersede; demand_lineage; separate mints per check kind (repeated) |
+| M | `T/cli/seat/help/mint.md:19` | ## detail | C-text | 1 | rewritten · X20 | closure-stands para stays; "naming that gap as the one it supersedes" rewritten |
+| M | `T/cli/seat/help/mint.md:25` | ## detail | C-text | 1 | rewritten · X20 | estoppel para stays; "or mint declaring that gap as its ancestor" (estoppel --supersedes escape, mint.go:420) goes |
+| M | `T/cli/seat/help/mint.md:31` | ## detail | C-text | 1 | rewritten · X20 | fix/check para stays; "corrected by minting its successor" rewritten; NB "no act amends a check after the mint" = existing amend sense |
+| M | `T/cli/seat/help/regrade-bench.md:9` | ## detail | C-text | 1 | rewritten · X20 | bench-axis para stays; "a gap minted superseding this one carries your grade" goes |
+| M | `T/cli/seat/help/regrade.md:9` | ## detail | O | 0 | O | engaged: dispatch engaged the lens on the gap (exchange) |
+| M | `T/cli/seat/help/regrade.md:11` | ## detail | C-text | 1 | rewritten · X20 | ruled-axis para stays; "a gap you mint superseding this one carries the ruled grade" goes |
+| M | `T/terms/terms.json:859` | term "report read" (806-821) | O | 0 | O | engages: the chair engages a party at a dispatch pin |
+| M | `T/terms/terms.json:934` | term "grade movement" (880-896) | C-text | 1 | rewritten · X20 | collision resolution: exchange moves gap when "its lineage changes" |
+| M | `T/terms/terms.json:1092` | term "reopened" (1042-1063) | C-text | 1 | rewritten · X20 | collision: "minting a successor over a closed gap reopens the gap" |
+| M | `T/terms/terms.json:1142` | term "superseded" (1141-1176) | C-core | 36 | deleted · X22 | whole term entry (def, seats, ban, collisions) goes; its O collision rows (retire, inquiry/bench) need a new home |
+| M | `T/terms/terms.json:1143` | term "superseded" definition | C-core | 0 | deleted · X22 | counted in term entry: definition (own lens mints successor with --supersedes) |
+| M | `T/terms/terms.json:1155` | term "superseded" ban stranded gap | C-core | 0 | deleted · X22 | counted in term entry: GATED ban pattern "stranded (superseded )?(gaps?\|ancestors?)" |
+| M | `T/terms/terms.json:1160` | term "superseded" collision | C-core | 0 | deleted · X22 | counted in term entry: superseded (a closed gap) = lineage/reopen |
+| M | `T/terms/terms.json:1161` | term "superseded" collision | C-core | 0 | deleted · X22 | counted in term entry: mint naming closed gap is lineage |
+| M | `T/terms/terms.json:1164` | term "superseded" collision | C-regression | 0 | deleted · X8 | counted in term entry: `--superseded-by` (close) collision row |
+| M | `T/terms/terms.json:1165` | term "superseded" collision | C-regression | 0 | deleted · X8 | counted in term entry: --superseded-by names regression gap, only with repaired_with_regression |
+| M | `T/terms/terms.json:1168` | term "superseded" collision | O | 0 | O | superseded_by (retire): a retired claim's replacement; row must move if entry goes |
+| M | `T/terms/terms.json:1172` | term "superseded" collision | O | 0 | O | superseded (inquiry record/bench statement): later record standing in place; row must move if entry goes |
+| M | `T/vecembed/vocab.txt:5118` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:6333` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:8148` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:8527` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:10749` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:13033` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:13322` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:18531` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:19887` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:20584` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `T/vecembed/vocab.txt:24256` | vocab.txt (BERT WordPiece vocabulary, 30522 tokens, go:embed in tokenize.go) | O | 0 | O | embedding tokenizer word list; not FEOV vocabulary, never edited |
+| M | `scripts/agentgen/src/blue-researcher.md:58` | (bullet list, no heading) response-sitting duties | O | 0 | O | engaged: blue dispatched/engaged on gaps |
+| M | `scripts/agentgen/src/fragments/lens-audit-and-mint.md:8` | ## How a lens audits, mints and closes | C-text | 1 | rewritten · X20 | live-answer bullet stays; successor-superseding sentence (demand_lineage) goes |
+| M | `scripts/agentgen/src/fragments/lens-audit-and-mint.md:14` | ## How a lens audits, mints and closes | C-text | 1 | rewritten · X20 | whole "Lineage is mandatory" bullet (chains, docket follows chains; regressed closure = C-regression) |
+| M | `scripts/agentgen/src/lead-judge.md:43` | (bench duties bullets) Ancestor demanded reads | C-text | 1 | rewritten · X20 | whole bullet: ruling on a gap with a lineage chain reads named ancestors' closures |
+| M | `scripts/agentgen/src/lead-judge.md:44` | (bench duties bullets) remand/dispositions | C-text | 1 | rewritten · X20 | Two of them require a successor or a lineage (repaired_with_regression=C-regression, amends_prior lineage) |
+| M | `scripts/agentgen/src/lead-judge.md:45` | (bench duties bullets) set grade before ruling | C-text | 1 | rewritten · X20 | a successor gap carries it (bench-moved axis) |
+| M | `scripts/agentgen/src/lead-judge.md:131` | (bench duties bullets) certification | O | 0 | O | superseded certification text kept in CHANGELOG.md |
+| M | `scripts/agentgen/src/red-chair.md:14` | ## What only the chair does | O | 0 | O | engaged: lens with no gap engaged (dispatch) |
+| M | `scripts/agentgen/src/red-lens-voice.md:15` | ## What you audit | C-text | 1 | rewritten · X20 | change only by its minter's successor; "mint its successor in the reader's voice" |
+| M | `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:22` | # adversarial-audit | C-text | 1 | rewritten · X20 | grade stability along supersedes chains metric |
+| M | `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:26` | # adversarial-audit | O | 0 | O | engages: no gap engages you (dispatch) |
+| M | `scripts/agentgen/src/skills/research-protocol/SKILL.md:91` | ## Report structure | O | 0 | O | asks a later certification superseded (bench statements) |
+
+**Group W** — the widened regex's hits in no tag row (`p15/wide-<sha>.txt`; `repair_regression|lineage_mints|EdgeDeltas|edge_deltas|"supersedes"|\.Supersedes\b`, tests and generated excluded)
+
+| t | file:lines | declaration | tag | del | change | note |
+|---|---|---|---|---|---|---|
+| B, M | `scripts/agentgen/src/lead-judge.md:110` | bench's weighing duties | C-text | 3 | rewritten · X8 | teaches `repair_regression.ratio` "already measured": the sentence keeps the estoppel record's measure and drops the ratio |
+| B, M | `T/record/recordpb/record.proto:843 \| :845` | `TelemetryLine.repair_regression = 8` | C-regression | 1 | reserved · X8 | lineage-derived telemetry |
+| B, M | `T/record/recordpb/record.proto:844,897 \| :846,899` | `edge_deltas = 9`, `message EdgeDeltas` | C-core | 5 | reserved, deleted · X8 | successor's mass less its ancestor's (`view.go:431-444` reads `Mint.supersedes`) |
+| B, M | `T/record/refs.go:350 \| :375`; M `T/record/replay.go:170` | comments | C-text | 1 | rewritten · X8 | name the repair-regression denominator |
+| B, M | `T/scorecard/scorecard.go:184,200,204` | `repair_regression_ratio` rows | C-regression | 3 | deleted · X8 | the scorecard's "Durable repairs" rows |
+| B, M | `T/view/view.go:961 \| :994`; M `:1018` | `RepairRegression`, `LineageMints` | C-regression | 2 | deleted · X8 | telemetry JSON |
+| B, M | `T/view/view.go:962 \| :995,1060-1061` | `EdgeDeltas` | C-core | 3 | deleted · X8 | as the proto row |
+| B, M | `F/tests/simulator/debate.test.mjs:912 \| :871` | scorecard fixture | test | 1 | rewritten · R6 | `repair_regression_ratio` key |
+
 
