@@ -3101,11 +3101,22 @@ func (r *runner) bridgeRefusalOwed() bool {
 	return r.bridgesRefused == 0
 }
 
-// bridgesLanded is how many supports_with_bridge readings naming a bridge the record has taken.
-func (r *runner) bridgesLanded() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.bridgesNamed
+// bridgeDrive numbers the lens readings that name a --bridge, across every run of this process: the
+// kind a reading names is the next in bridgeKinds after the one before it, whichever run took it.
+//
+// THE CYCLE IS THE PROCESS'S, NOT THE RUN'S. A run's own count began every run at `summary`, so a kind
+// third in the cycle was driven only by a run naming three bridges, and a sweep whose runs name at
+// most two drove `near_restatement` nowhere (#1943). Numbered across the process, any three readings
+// in one part name every kind, and the first reading of each of three parts does too. The kind a
+// reading names then depends on the order the process's runs reached it, not on its seed alone.
+var bridgeDrive atomic.Int64
+
+// resetBridgeDrive starts the cycle at part's index, so a split sweep's parts open on different kinds.
+func resetBridgeDrive(part sweepPart) { bridgeDrive.Store(int64(part.K)) }
+
+// nextBridgeKind is the kind the next bridge-naming reading of this process names.
+func nextBridgeKind() string {
+	return bridgeKinds[int((bridgeDrive.Add(1)-1)%int64(len(bridgeKinds)))]
 }
 
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
@@ -6566,12 +6577,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
 					// enough to fail it by chance.
 					kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
-					// THE KIND CYCLES OVER THE NAMED READINGS THE RECORD TOOK, so every kind lands once a run
-					// has three; a drawn kind left `summary` undriven across a whole sweep by chance.
-					bridge := bridgeKinds[r.bridgesLanded()%len(bridgeKinds)]
+					// THE KIND CYCLES OVER THE PROCESS'S BRIDGE-NAMING READINGS (nextBridgeKind), taken where
+					// the flag is set, so every kind taken is a kind passed; a drawn kind left `summary`
+					// undriven across a whole sweep by chance.
 					axes := func(outcome string, c *cmd) *cmd {
 						if outcome == "supports_with_bridge" && !kindless {
-							c = c.set("--bridge", bridge)
+							c = c.set("--bridge", nextBridgeKind())
 						}
 						return c.set("--as", outcome).
 							set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
@@ -9145,6 +9156,7 @@ func TestFuzzDebate(t *testing.T) {
 	engageRefusalPending.Store(armed)
 	mootSpent.Store(false)
 	resetClassDrive(armed)
+	resetBridgeDrive(part)
 
 	// The DEFAULT is a modest smoke that proves the harness and catches gross regressions in
 	// ~15s on Linux — which is what the Linux legs, main pushes, tag builds and the nightly

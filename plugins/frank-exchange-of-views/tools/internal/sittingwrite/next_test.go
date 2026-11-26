@@ -43,6 +43,7 @@ func TestTheNextItemTurnsOnWhatWasHanded(t *testing.T) {
 		{name: "file lost", q: q, want: nextArrived, wantKey: "a"},
 		{name: "last one discharged", prev: delivered{Key: "z", Digest: "1", Queue: []string{"z"}}, had: true, want: "z left your list, and nothing more is queued for you", wantKey: ""},
 		{name: "nothing was queued, nothing is", prev: delivered{Queue: []string{}}, had: true, want: "", wantKey: ""},
+		{name: "the queue filled again after it emptied: its head", prev: delivered{Queue: []string{}}, had: true, q: q, want: nextArrived, wantKey: "a"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
