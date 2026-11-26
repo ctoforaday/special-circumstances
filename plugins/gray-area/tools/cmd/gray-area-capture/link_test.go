@@ -212,3 +212,15 @@ func TestPreInvocationDoesNotAskWhileTheConversationsServerRuns(t *testing.T) {
 		t.Errorf("the conversation's server is running and recorded, yet the hook asked to link: %s", stdout)
 	}
 }
+
+// THE TWO OPENINGS ARE MEASURED SENTENCES, pinned word for word: the plain one is what a fresh
+// conversation acted on, and the stale one is what a conversation whose history showed `linked`
+// acted on after the plain one was ignored.
+func TestLinkRequestWordings(t *testing.T) {
+	if firstLinkWhy != "Other agents cannot yet wake this conversation with `telepathy send`." {
+		t.Errorf("the first-link opening changed: %q", firstLinkWhy)
+	}
+	if staleLinkWhy != "This conversation's earlier `telepathy link` points at a language server that is no longer running, so other agents cannot wake it." {
+		t.Errorf("the stale-link opening changed: %q", staleLinkWhy)
+	}
+}

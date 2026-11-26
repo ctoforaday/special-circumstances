@@ -145,6 +145,10 @@ func TestRegisterLeavesTheLinkedMarker(t *testing.T) {
 			t.Errorf("linked marker directory = %v, %v; want 0700", st, err)
 		}
 	}
+	// A path is refused even where the file it names exists.
+	if err := os.WriteFile(filepath.Join(rt, "gray-area", "escape"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if HasLinked(rt, "../escape") || HasLinked("", "conv-1") {
 		t.Error("HasLinked accepted a path or a missing runtime directory")
 	}
