@@ -2290,8 +2290,8 @@ and `~/.claude/scratch/p12/r2/`):
         by blue's retire or a cut of its sentence, which owes no fresh check";
       - `:312` (`blueFailedItem`, citation): "; an edit of its sentence leaves it unchecked, owed a fresh check"
         becomes "; a rewrite of its sentence leaves it unchecked, owed a fresh check, and a cut of the sentence takes
-        the citation and its check out, owing nothing — refused while a computation in the report applies the citation
-        (L6)";
+        the citation and its check out, owing nothing, and is refused while a computation in the report applies the
+        citation" (L6);
       - `:329` (`failedCheckRefusal`): "A computation clears when it is judged sound again or retired, a citation when
         a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it
         unchecked" becomes "A computation clears when it is judged sound again, a citation when a lens reads its
@@ -2360,10 +2360,11 @@ and `~/.claude/scratch/p12/r2/`):
       - `deliverycut.go:345` (`latestReopeningSQL`): "the latest edit whose reopened lists gap ?1" becomes "the latest
         edit whose `reopened` or `removed_anchors` lists gap ?1"; `:349-351` (`gapPassages`): "for a gap whose anchor is
         gone or bare, the paragraph that held it before the latest edit that reopened it" becomes "for a gap whose
-        anchor is gone, the paragraph that held it before the edit that cut it";
+        anchor is gone, the paragraph that held it before the latest edit that reopened it or cut it";
       - `recordsql/schema.go:285-286`: "the latest is the edit that took its text, whose stamped old paragraphs still
-        hold it, and the first after a head is the change that touched it since" becomes "the first after a head is the
-        change that touched it since; an edit that took its text lists it in `removed_anchors` instead";
+        hold it, and the first after a head is the change that touched it since" becomes "the latest is the last edit
+        that changed its sentence, whose stamped old paragraphs still hold it, and the first after a head is the change
+        that touched it since; an edit that took its sentence lists it in `removed_anchors` instead";
       - `anchorchecks.go:257-259` (the fold): "A RETIRE IS FIRST AND PERMANENT … a retire takes the anchor out of the
         report, an edit invents no anchor, so no edit reopens it and no later retire names it again" becomes "A REMOVAL
         IS FIRST AND PERMANENT … a retire or a cut takes the anchor out of the report, an edit invents no anchor, so no
@@ -3453,7 +3454,9 @@ The census:
     `failedcheck.go:31-32, 155-157, 185, 238, 243`, the help pages `verify.md:11`, `reproduce.md:23, 25`, `edit.md:28`,
     `mint.md:15`, `close.md:13`, `fragments/blue-search-and-cite.md:23-28`, `terms.json:1095-1096`, the comments
     `deliveredtext.go:79-80`, `deliverycut.go:345, 349-351`, `recordsql/schema.go:285-286`, `anchorchecks.go:257-259`
-    and `render.go:162`; and `verbs.go:707` and `ErrAnchorDropped`'s F14 exception;
+    and `render.go:162`; and `verbs.go:707` and `ErrAnchorDropped`'s F14 exception. Of these, only `difftest`'s
+    `manual` golden pins text (the help pages and `verbs.go`), regenerated and read line by line; no test or golden
+    asserts the old reopen-face substrings (grep of `*_test.go`, `*.golden` and `*.mjs` on main 7cfd3a396);
   - the simulator's goldens.
 
   Nothing changes in debate.js's two enginegen regions, in `skills/research-protocol/scripts/debate.py` (the
@@ -4064,18 +4067,18 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            wording: plan-audits r8, r9 and r10 each found a phrasing of the same concept the sweep before it missed.
            So the gate is not a sweep. The implementer reads every file of the seat-facing surface IN FULL — every
            sentence, string literal and comment, not the lines a pattern selects — by meaning, against the property.
-           From the repository root (247 files and 54 help pages on main 7cfd3a396):
+           From the repository root (284 files and 54 help pages on main 7cfd3a396):
            ```
            F=plugins/frank-exchange-of-views; T=$F/tools/internal
            { ls $T/cli/seat/help/*.md
              ls $T/cli/{blue,lens,chair,bench,motion,seat}/*.go $T/flags/*.go $T/view/*.go $T/bluedoc/bluedoc.go \
-                $T/anchor/anchor.go $T/record/*.go $T/terms/terms.json
+                $T/anchor/anchor.go $T/record/*.go $T/record/recordpb/*.go $T/record/recordpb/record.proto \
+                $T/report/*.go $T/terms/terms.json
              find scripts/agentgen/src -type f
              echo $F/skills/research-protocol/scripts/debate.js
-             grep -liE 'anchor|\bedit' $F/docs/*.md README.md plugins/*/README.md $F/hooks/README.md $F/skills/*/references/*
-           } | grep -v -e '_test\.go$' -e '_gen\.go$' -e '/docs/vocabulary\.md$' \
-                       -e '^plugins/\(gray-area\|prosthetic-conscience\|sleeper-service\)/' | sort -u > $S/scope.txt
-           wc -l < $S/scope.txt                                                                    # 247
+             ls $F/docs/*.md README.md $F/README.md $F/hooks/README.md $F/skills/*/references/*
+           } | grep -v -e '_test\.go$' -e '_gen\.go$' -e '\.pb\.go$' -e '/docs/vocabulary\.md$' | sort -u > $S/scope.txt
+           wc -l < $S/scope.txt                                                                    # 284
            grep -h '^\$ feov-record .*--help' $F/agents/*.md | sort -u > $S/help-pages.txt; wc -l < $S/help-pages.txt   # 54
            ```
            - **The surface, by part** (counts on main 7cfd3a396):
@@ -4091,23 +4094,27 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
                item, refusal, plan hold, blocker and gap-news string a seat reads. It is read whole because a file
                chosen by its constructor or its string length is a pattern again: such a selection (`feov.Errorf`,
                `Item{`, literals over 150 characters) left out `deliverycut.go`, whose passage heading a lens is served,
-               and missed `refs.go`'s L6 refusal, a `fmt.Errorf`. With it `terms/terms.json` (1), rendered into every
-               manual's word list and `docs/vocabulary.md`;
-             - the docs and READMEs that name an anchor or an edit (11): `docs/{citations-and-bibliography,
-               duty-docket-preregistration, finding-markers, propagation-and-anchoring, record-flow,
-               seat-command-triggers, seat-surface-naming}.md`, the root `README.md`, `hooks/README.md`, and
-               `references/{report_template,run-directory}.md`. The other plugins' READMEs match `edit` in another
-               sense (checked on main 7cfd3a396).
+               and missed `refs.go`'s L6 refusal, a `fmt.Errorf`. With it: `record/recordpb/*.go` and `record.proto`
+               (12, not generated: `DemandClause`, which the failed-check refusals append, and the enum meanings flag
+               help renders); `report/*.go` (21: the layout table and `docs.go`'s section blurbs, which render into help
+               pages and the report set a seat reads); and `terms/terms.json` (1), rendered into every manual's word
+               list and `docs/vocabulary.md`;
+             - the docs, READMEs and references whole (15), not chosen by a word they hold: `docs/*.md` (9, not the
+               generated `vocabulary.md`), the root `README.md`, `plugins/frank-exchange-of-views/README.md`,
+               `hooks/README.md`, and `skills/research-protocol/references/*` (3).
            - **Outside it:** generated copies, each regenerated from a source in it (`agents/`, `agents-claude/`,
              `skills/*/SKILL.md`, `help_gen.go`, `docs/vocabulary.md`, `debate.py`'s `PLAN` schema); tests, testdata and
              goldens (the claim-shape tests are §III.11's to rewrite, and the named tests pin the new wording);
              `record/migrate/`, which translates the archived claim retires; dev tooling; and code no seat reads, whose
-             comments the known set holds (`recordsql/`, `recordpb/record.proto`, `reportproj/`, `report/`,
-             `claimcount/`, `consistency/`, `seatprobe/`, `runtest/`).
+             comments and strings the known set holds: `anchor/window.go`, `anchortext/`, `recordsql/`, `reportproj/`,
+             `runtest/`, `migration/`, `planguard/`, `claimcount/` and `consistency/` (the operator's `count-claims` and
+             invariant check), `capture/`, `fetchcache/`, `diagnostics/`, `scorecard/`, the operator verbs of `cli/*.go`,
+             and `seatprobe/` (the probe's boards, test fixtures that `surfacecoverage_test.go` pins). Every file a
+             carrier of the three lists names is in the surface or in this list (back-tested on main 7cfd3a396).
            - **The read is recorded:** `$S/scope-read.txt` holds one line per file, its path, a tab, and the sites it
              fixed or `none`; `$S/help-read.txt` the same per help page. `diff <(cut -f1 $S/scope-read.txt)
              $S/scope.txt` and `diff <(cut -f1 $S/help-read.txt) $S/help-pages.txt` are empty. A file the command
-             prints at P12b's base that is not in the 247 is read the same way, and the count is restated.
+             prints at P12b's base that is not in the 284 is read the same way, and the count is restated.
            - **The known set is checked first, site by site:** §III.10c's three classified lists ("The sweep's
              classified list", "The converse face's classified list", "The reopen face's classified list") and the
              wordings they point to. Each list keeps the candidate command that found it, as provenance; a clean run of
