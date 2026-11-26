@@ -23,7 +23,8 @@ import (
 //                   Every placing verb — cite, compute, finding, mint, and a reading that
 //                   mints its gap — appends one after its own event, which is metadata and
 //                   inserts nothing.
-//   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
+//   - a retire    → the anchor it names, taken out with the husk it leaves (removeMut); a cut's
+//                   removed_anchors are taken out the same way, after the edit's splice.
 //
 // Because replay reproduces the identical running text each verb saw, the locators resolve the
 // identical offsets. Once a part is ingested and its file deleted, this is the ONLY way the report
@@ -38,13 +39,29 @@ import (
 // with new, then tidy the two seams the splice created. NO legality guards — those (anchors
 // transit, no dropped marker, present-and-unique) are write-time validation that already passed
 // when the edit was recorded; replay reproduces bytes, it does not re-authorise.
+//
+// THE SPLICE NEVER REMOVES A TOKEN. A token inside the span that new does not carry is kept, in
+// order, at the end of the replacement (keepUncarried); a cut's removed_anchors list is the one
+// remover, by the removes replay applies after the splice (RemoveListed). A rewrite carries every
+// token of its span (bluedoc.AnchorsTransitUnchanged), so for it the keep changes nothing.
 func ApplySplice(report string, start, end int, new string) string {
+	new = keepUncarried(report[start:end], new)
 	next := report[:start] + new + report[end:]
 	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created. Deterministic, narrow,
 	// silent — and it MUST run in replay too, or the replayed text drifts from what the file held.
 	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
 	next, _ = tidySeam(next, start)
 	return next
+}
+
+// keepUncarried is new with every token of span it does not carry appended, in span order.
+func keepUncarried(span, new string) string {
+	for _, id := range anchor.IDs(span) {
+		if tok := anchor.Token(id); !strings.Contains(new, tok) {
+			new += tok
+		}
+	}
+	return new
 }
 
 // Op is one recorded splice from the diff-stack: the (old, new) of a BlueEdit event. Render takes
@@ -151,28 +168,41 @@ func Place(text, location, id string) (string, error) {
 	return insertMut{location: location, marker: anchor.Token(id)}.apply(text)
 }
 
-// removeMut takes out an anchor a retire named — the one way an anchor leaves the report.
-//
-// An edit may carry an anchor but never drop one, so a claim edited away leaves its anchor BARE;
-// `blue retire` records the claim's reason AND the bare anchors that exit with it, and this is
-// the replay of that exit. The anchor goes, and so does the husk it was holding open (anchor.Husk,
-// the rule assembly strips by): an emptied line (a `- ?` bullet, a paragraph that was only the
-// anchor), or the emptied sentence and its stray terminator mid-line. A line or a sentence of
-// symbols — a table's delimiter row, a row of marks, a cell an edit cut down to a dash — is what
-// its author wrote, and stays without the token. Loud when the anchor is not there: the retire validated its presence at
-// the write, so an absent one means the record no longer describes a real sequence.
+// removeMut takes out an anchor an act named — a retire's `anchors` or a cut's `removed_anchors` —
+// the one way an anchor leaves the report. The splice never removes a token: a rewrite carries each,
+// and a cut's are kept by the splice and taken here, in the list's order, so each token has one
+// remover. The anchor goes, and so does the husk it was holding open (anchor.Husk, the rule assembly
+// strips by): an emptied line (a `- ?` bullet, a paragraph that was only the anchor), or the emptied
+// sentence and its stray terminator mid-line. A line or a sentence of symbols — a table's delimiter
+// row, a row of marks, a cell an edit cut down to a dash — is what its author wrote, and stays without
+// the token. Loud when the anchor is not there: the retire or the cut validated its presence at the
+// write, so an absent one means the record no longer describes a real sequence.
 type removeMut struct{ id string }
 
 func (m removeMut) apply(text string) (string, error) {
 	tok := anchor.Token(m.id)
 	i := strings.Index(text, tok)
 	if i < 0 {
-		return "", fmt.Errorf("the retired anchor %s is not in the report", tok)
+		return "", fmt.Errorf("the removed anchor %s is not in the report", tok)
 	}
 	return RemoveAnchorAt(text, i, len(tok)), nil
 }
 
 func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.Token(m.id)) }
+
+// RemoveListed applies the removes of a cut's removed_anchors to text in list order, each by removeMut —
+// the transform replay applies to the report_op rows that follow the cut's splice — so the edit plans
+// the report its replay renders. Loud, as replay is, on a token text does not hold.
+func RemoveListed(text string, ids []string) (string, error) {
+	for _, id := range ids {
+		next, err := (removeMut{id: id}).apply(text)
+		if err != nil {
+			return "", err
+		}
+		text = next
+	}
+	return text, nil
+}
 
 // RemoveAnchorAt removes the anchor token at text[i:i+n] and tidies what it leaves: a line left a
 // husk goes whole (with a blank-line run it opened collapsed), and a sentence left a husk goes
