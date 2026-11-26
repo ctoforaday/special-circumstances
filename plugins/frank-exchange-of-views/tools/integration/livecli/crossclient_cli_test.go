@@ -238,8 +238,8 @@ func stageFullFEOVPlugin(t *testing.T, destPlugin string) string {
 }
 
 // TestLiveFEOVSetupAndTiersCrossClient exercises the real `feov-record setup`, `show tiers`, and
-// `dashboard` commands against live `agy models` discovery — verifying acceptance of a real listed
-// Antigravity model alongside Claude models, and fail-fast exit-2 refusal on an unknown model.
+// `dashboard` commands against live `agy models` discovery — verifying acceptance of a declared
+// Antigravity tier alongside Claude models, and fail-fast exit-2 refusal on an unknown model.
 func TestLiveFEOVSetupAndTiersCrossClient(t *testing.T) {
 	_, agyBin := requireLiveCLI(t, true, true)
 	fakeHome := newIsolatedAgyHome(t)

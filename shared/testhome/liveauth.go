@@ -19,10 +19,91 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// DefaultMinTokenLifetime is the minimum remaining validity required before lending a host OAuth
-// access token into an isolated test HOME (matches scripts/universe.sh AGY_TOKEN_MIN_MINUTES=15,
-// exceeding any single HOOKCORE_LIVE test timeout so a lent token never expires mid-run).
-const DefaultMinTokenLifetime = 15 * time.Minute
+// AgyRefreshThreshold is the remaining access-token lifetime at which `agy -p` invokes OAuth
+// refresh rather than reusing the cached access token. Measured empirically on agy 1.5.17 in an
+// isolated HOME: 315s and 305s succeed without refreshing (including refresh-stripped staged
+// tokens); 295s, 285s, and 240s trigger refresh (and hang refresh-stripped children on OAuth login).
+const AgyRefreshThreshold = 5 * time.Minute
+
+// AgyTestRuntimeBudget is the worst-case runtime headroom a single live Antigravity test needs
+// between StageAgyAccessToken and its final `agy -p` invocation (covering callers such as
+// telepathy/live_agy_test.go, pluginparity/harness_load_test.go, and hookcore shipped-plugin tests).
+const AgyTestRuntimeBudget = 10 * time.Minute
+
+// DefaultAgyMinTokenLifetime is the minimum remaining validity required before lending a host
+// Antigravity access token into an isolated test HOME (AgyRefreshThreshold + AgyTestRuntimeBudget =
+// 15m, #1890), guaranteeing at least 10m of usable lifetime before a refresh-stripped child hits
+// agy's 5m OAuth cliff.
+const DefaultAgyMinTokenLifetime = AgyRefreshThreshold + AgyTestRuntimeBudget
+
+// DefaultClaudeMinTokenLifetime is the minimum remaining validity required before lending a host
+// Claude OAuth access token via CLAUDE_CODE_OAUTH_TOKEN (#1890), kept independent of Antigravity's
+// refresh threshold.
+const DefaultClaudeMinTokenLifetime = 15 * time.Minute
+
+// agyRefreshMargin is added past AgyRefreshThreshold when waiting for the token to enter agy's
+// refresh window so clock/startup jitter never triggers a no-op host turn.
+const agyRefreshMargin = 5 * time.Second
+
+// MaxAgyRefreshWait caps how long StageAgyAccessToken will sleep waiting for a host token to cross
+// AgyRefreshThreshold before failing fast with ErrAgyTokenWaitTooLong rather than stalling a test.
+const MaxAgyRefreshWait = 90 * time.Second
+
+// AgyRenewalAction is the pure decision returned by PlanAgyTokenRenewal.
+type AgyRenewalAction int
+
+const (
+	AgyTokenStage AgyRenewalAction = iota
+	AgyTokenWaitThenRenew
+	AgyTokenRenewNow
+	AgyTokenFail
+)
+
+func (a AgyRenewalAction) String() string {
+	switch a {
+	case AgyTokenStage:
+		return "stage"
+	case AgyTokenWaitThenRenew:
+		return "wait-then-renew"
+	case AgyTokenRenewNow:
+		return "renew"
+	case AgyTokenFail:
+		return "fail"
+	default:
+		return fmt.Sprintf("unknown(%d)", int(a))
+	}
+}
+
+// PlanAgyTokenRenewal is the pure decision function governing host Antigravity token lending:
+//   - left >= minLifetime: stage immediately (AgyTokenStage).
+//   - left < refreshThreshold: renew immediately via host `agy -p` (AgyTokenRenewNow).
+//   - refreshThreshold <= left < minLifetime: wait (left - refreshThreshold) + agyRefreshMargin
+//     and then renew (AgyTokenWaitThenRenew) if that wait is <= maxWait; otherwise fail fast
+//     (AgyTokenFail, returning the needed wait duration for diagnostics) rather than blocking or
+//     running a no-op host turn.
+func PlanAgyTokenRenewal(left, minLifetime, refreshThreshold, maxWait time.Duration) (AgyRenewalAction, time.Duration) {
+	if left >= minLifetime {
+		return AgyTokenStage, 0
+	}
+	if left < refreshThreshold {
+		return AgyTokenRenewNow, 0
+	}
+	wait := (left - refreshThreshold) + agyRefreshMargin
+	if wait > maxWait {
+		return AgyTokenFail, wait
+	}
+	return AgyTokenWaitThenRenew, wait
+}
+
+// ErrAgyTokenNotRefreshed is returned when renewHostAgyToken actually ran and exited cleanly
+// without advancing the host Antigravity access token's expiry (e.g., if a future agy release
+// lowers its refresh threshold below AgyRefreshThreshold).
+var ErrAgyTokenNotRefreshed = errors.New("agy did not refresh")
+
+// ErrAgyTokenWaitTooLong is returned when the host Antigravity token is below minLifetime but still
+// further above AgyRefreshThreshold than MaxAgyRefreshWait, so neither staging nor waiting is safe
+// and no host `agy -p` renewal turn is attempted.
+var ErrAgyTokenWaitTooLong = errors.New("antigravity token wait exceeds max")
 
 // DefaultMaxScanBytes is the per-file ceiling for HostRefreshGuard.CheckTempHome (64 MiB — large
 // enough to scan staged Go hook binaries under fakeHome/bin/ while still failing closed "not
@@ -172,13 +253,13 @@ func LiveClaudeEnv(t LiveTestingT, fakeHome string, extra ...string) ([]string, 
 
 // ClaudeOAuthEnv returns "CLAUDE_CODE_OAUTH_TOKEN=<accessToken>" read from the host user's
 // ~/.claude/.credentials.json, lending ONLY the short-lived access token and enforcing at least
-// DefaultMinTokenLifetime remaining validity (#1890).
+// DefaultClaudeMinTokenLifetime remaining validity (#1890).
 func ClaudeOAuthEnv() (string, error) {
 	hostHome, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("testhome: resolve user home for Claude credentials: %w", err)
 	}
-	return ClaudeOAuthEnvFrom(hostHome, DefaultMinTokenLifetime)
+	return ClaudeOAuthEnvFrom(hostHome, DefaultClaudeMinTokenLifetime)
 }
 
 // ClaudeOAuthEnvFrom is ClaudeOAuthEnv scoped to an explicit hostHome and minimum remaining
@@ -219,48 +300,83 @@ func NeedsRenewal(left, minLifetime time.Duration) bool {
 	return left < minLifetime
 }
 
-// renewHostAgyTokenFn is the host renewal function used by StageAgyAccessToken (swappable in
-// package-internal tests to verify production wiring).
-var renewHostAgyTokenFn = renewHostAgyToken
+// renewHostAgyTokenFn and sleepAgyRenewFn are swappable in package-internal tests.
+var (
+	renewHostAgyTokenFn = renewHostAgyToken
+	sleepAgyRenewFn     = time.Sleep
+)
 
 // StageAgyAccessToken stages a minimal, refresh-stripped Antigravity OAuth access token into
 // fakeHome (plus non-secret antigravity_state.pbtxt and installation_id companion files, #1890).
 //
-// If the host access token has less than DefaultMinTokenLifetime remaining, it acquires an
-// exclusive cross-process file lock in the user cache directory and renews through the host login
-// once (mirroring scripts/universe.sh lend_agy_access_token) before staging.
+// If the host access token has less than DefaultAgyMinTokenLifetime (15m) remaining, it acquires an
+// exclusive cross-process file lock in the user cache directory and decides via PlanAgyTokenRenewal:
+// below AgyRefreshThreshold (5m) it renews immediately; within MaxAgyRefreshWait (90s) of 5m it
+// waits and renews; further above 5m it fails fast with ErrAgyTokenWaitTooLong without calling agy.
 func StageAgyAccessToken(fakeHome string) error {
 	hostHome, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("testhome: resolve user home for Antigravity credentials: %w", err)
 	}
 	lockPath := agyRenewLockPath(hostHome)
-	return StageAgyAccessTokenWithRenew(hostHome, fakeHome, DefaultMinTokenLifetime, lockPath, renewHostAgyTokenFn)
+	return stageAgyAccessTokenWithRenew(hostHome, fakeHome, DefaultAgyMinTokenLifetime, lockPath, renewHostAgyTokenFn, sleepAgyRenewFn)
 }
 
 // StageAgyAccessTokenFrom is StageAgyAccessToken scoped to an explicit hostHome and minimum
 // remaining lifetime without attempting host renewal (for unit tests).
 func StageAgyAccessTokenFrom(hostHome, fakeHome string, minLifetime time.Duration) error {
-	return StageAgyAccessTokenWithRenew(hostHome, fakeHome, minLifetime, "", nil)
+	return stageAgyAccessTokenWithRenew(hostHome, fakeHome, minLifetime, "", nil, nil)
 }
 
 // StageAgyAccessTokenWithRenew is the injectable renewal entry point used by StageAgyAccessToken
-// and unit tests (pinning both the renewal trigger and the post-lock re-check).
+// and unit tests (pinning the renewal trigger, wait-then-renew band, fail-fast band, and post-lock
+// re-check).
 func StageAgyAccessTokenWithRenew(hostHome, fakeHome string, minLifetime time.Duration, lockPath string, renew func(hostHome string) error) error {
-	err := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime)
+	return stageAgyAccessTokenWithRenew(hostHome, fakeHome, minLifetime, lockPath, renew, sleepAgyRenewFn)
+}
+
+func stageAgyAccessTokenWithRenew(hostHome, fakeHome string, minLifetime time.Duration, lockPath string, renew func(hostHome string) error, sleep func(time.Duration)) error {
+	_, _, err := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime)
 	if err == nil || renew == nil || !errors.Is(err, errAgyTokenShort) {
 		return err
 	}
 	runLocked := func() error {
 		// Re-check inside the cross-process lock in case another test process or universe.sh
 		// already renewed the host token while we waited for the lock.
-		if err2 := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime); err2 == nil {
-			return nil
+		beforeExp, srcTok, err2 := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime)
+		if err2 == nil || !errors.Is(err2, errAgyTokenShort) {
+			return err2
+		}
+		left := time.Until(beforeExp)
+		action, wait := PlanAgyTokenRenewal(left, minLifetime, AgyRefreshThreshold, MaxAgyRefreshWait)
+		switch action {
+		case AgyTokenFail:
+			return fmt.Errorf("testhome: %w: %s left (< %s min), agy refreshes only below %s (wait %s or retry after %s; %s)",
+				ErrAgyTokenWaitTooLong, left.Round(time.Second), minLifetime, AgyRefreshThreshold,
+				wait.Round(time.Second), time.Now().Add(wait).UTC().Format(time.RFC3339), srcTok)
+		case AgyTokenWaitThenRenew:
+			if sleep != nil && wait > 0 {
+				sleep(wait)
+			}
+			// Re-check in case another writer (e.g. universe.sh or host agy) renewed during sleep.
+			if _, _, err3 := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime); err3 == nil || !errors.Is(err3, errAgyTokenShort) {
+				return err3
+			}
+		case AgyTokenRenewNow:
+			// Proceed directly to single host renewal below.
 		}
 		if rerr := renew(hostHome); rerr != nil {
-			return fmt.Errorf("testhome: host Antigravity access token needed renewal (%v), and automatic renewal failed (run `agy -p ok --model gemini-3.8-flash-low` in your real HOME): %w", err, rerr)
+			return fmt.Errorf("testhome: host Antigravity access token needed renewal (%v), and automatic renewal failed (run `agy -p ok --model gemini-3.8-flash-low` in your real HOME): %w", err2, rerr)
 		}
-		return stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime)
+		afterExp, _, errAfter := stageAgyAccessTokenOnce(hostHome, fakeHome, minLifetime)
+		if errAfter == nil {
+			return nil
+		}
+		if errors.Is(errAfter, errAgyTokenShort) && !afterExp.IsZero() && !afterExp.After(beforeExp) {
+			return fmt.Errorf("testhome: %w: %s left, its threshold is %s (%s)",
+				ErrAgyTokenNotRefreshed, time.Until(afterExp).Round(time.Second), AgyRefreshThreshold, srcTok)
+		}
+		return errAfter
 	}
 	if lockPath == "" {
 		return runLocked()
@@ -321,36 +437,36 @@ func renewHostAgyToken(hostHome string) error {
 	return nil
 }
 
-func stageAgyAccessTokenOnce(hostHome, fakeHome string, minLifetime time.Duration) error {
+func stageAgyAccessTokenOnce(hostHome, fakeHome string, minLifetime time.Duration) (time.Time, string, error) {
 	srcDir := filepath.Join(hostHome, ".gemini", "antigravity-cli")
 	srcTok := filepath.Join(srcDir, "antigravity-oauth-token")
 	raw, err := os.ReadFile(srcTok)
 	if err != nil {
-		return fmt.Errorf("testhome: read Antigravity credentials %s (sign in with `agy`): %w", srcTok, err)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: read Antigravity credentials %s (sign in with `agy`): %w", srcTok, err)
 	}
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return fmt.Errorf("testhome: parse Antigravity credentials %s: %w", srcTok, err)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: parse Antigravity credentials %s: %w", srcTok, err)
 	}
 	tokObj, ok := doc["token"].(map[string]any)
 	if !ok {
-		return fmt.Errorf("testhome: %s missing token object", srcTok)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: %s missing token object", srcTok)
 	}
 	accessTok, _ := tokObj["access_token"].(string)
 	if accessTok == "" {
-		return fmt.Errorf("testhome: %s missing token.access_token", srcTok)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: %s missing token.access_token", srcTok)
 	}
 	expStr, _ := tokObj["expiry"].(string)
 	if expStr == "" {
-		return fmt.Errorf("testhome: %s missing token.expiry (refusing unverified expiry)", srcTok)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: %s missing token.expiry (refusing unverified expiry)", srcTok)
 	}
 	exp, perr := parseExpiry(expStr)
 	if perr != nil {
-		return fmt.Errorf("testhome: %s has unparseable token.expiry %q (refusing fail-closed): %w", srcTok, expStr, perr)
+		return time.Time{}, srcTok, fmt.Errorf("testhome: %s has unparseable token.expiry %q (refusing fail-closed): %w", srcTok, expStr, perr)
 	}
 	left := time.Until(exp)
 	if NeedsRenewal(left, minLifetime) {
-		return fmt.Errorf("%w: %s expires in %s (need >= %s; renew with `agy -p ok --model gemini-3.8-flash-low`)",
+		return exp, srcTok, fmt.Errorf("%w: %s expires in %s (need >= %s; renew with `agy -p ok --model gemini-3.8-flash-low`)",
 			errAgyTokenShort, srcTok, left.Round(time.Second), minLifetime)
 	}
 
@@ -372,19 +488,19 @@ func stageAgyAccessTokenOnce(hostHome, fakeHome string, minLifetime time.Duratio
 
 	stripped, err := json.Marshal(minimalDoc)
 	if err != nil {
-		return fmt.Errorf("testhome: marshal refresh-stripped Antigravity token: %w", err)
+		return exp, srcTok, fmt.Errorf("testhome: marshal refresh-stripped Antigravity token: %w", err)
 	}
 	if bytes.Contains(stripped, []byte("refresh_token")) {
-		return errors.New("testhome: refresh_token substring survived strip in Antigravity token JSON")
+		return exp, srcTok, errors.New("testhome: refresh_token substring survived strip in Antigravity token JSON")
 	}
 
 	dstDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
 	if err := os.MkdirAll(dstDir, 0o700); err != nil {
-		return fmt.Errorf("testhome: mkdir %s: %w", dstDir, err)
+		return exp, srcTok, fmt.Errorf("testhome: mkdir %s: %w", dstDir, err)
 	}
 	dstTok := filepath.Join(dstDir, "antigravity-oauth-token")
 	if err := os.WriteFile(dstTok, stripped, 0o600); err != nil {
-		return fmt.Errorf("testhome: write %s: %w", dstTok, err)
+		return exp, srcTok, fmt.Errorf("testhome: write %s: %w", dstTok, err)
 	}
 	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
 		data, err := os.ReadFile(filepath.Join(srcDir, extra))
@@ -392,10 +508,10 @@ func stageAgyAccessTokenOnce(hostHome, fakeHome string, minLifetime time.Duratio
 			continue
 		}
 		if err := os.WriteFile(filepath.Join(dstDir, extra), data, 0o600); err != nil {
-			return fmt.Errorf("testhome: write %s: %w", extra, err)
+			return exp, srcTok, fmt.Errorf("testhome: write %s: %w", extra, err)
 		}
 	}
-	return nil
+	return exp, srcTok, nil
 }
 
 func parseExpiry(s string) (time.Time, error) {
