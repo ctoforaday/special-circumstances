@@ -76,12 +76,12 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 	for _, g := range mine {
 		a := answers[g]
 		switch {
-		// A REACHING RETIRE FIRST (gblock, 2026-11-03): "NO edit answers it" would be false of this gap.
-		// Blue took out the anchor the gap is about, so the gap's demand
+		// A REACHING REMOVAL FIRST, by a retire or a cut (gblock, 2026-11-03): "NO edit answers it"
+		// would be false of this gap. Blue took out the anchor the gap is about, so the gap's demand
 		// is met and only its lens can act on it now.
 		case a.metAt > read[g]:
-			say(g, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
-				g, a.met.anchor, a.met.how(g), a.metAt, a.met.result(demand[g])))
+			say(g, fmt.Sprintf("gap %s: %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
+				g, a.met.took(), a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
@@ -119,9 +119,8 @@ type blueAnswer struct {
 	editedAt int64  // the latest change to the report answering it: an edit, old != new, or an evidence-anchor retire
 	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
 	placed   string // that anchor's id
-	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
-	// it is about, whatever gap the retire named. met is what it reached
-	// the gap through.
+	// metAt is the latest reaching removal of it (WindowIndex.Reaches): a retire or a cut that took out
+	// the anchor it is about, whatever gap the act named. met is what it reached the gap through.
 	metAt  int64
 	met    reaching
 	fateAt int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
@@ -146,7 +145,24 @@ func (a blueAnswer) placedNoun() string {
 	return row.Noun
 }
 
-// how is what a reaching retire reached gap g through, as a work list says it.
+// took is the reaching removal's act as a work list says it: a retire of the anchor, whose sentence
+// stays, or a cut of the sentence holding it.
+func (r reaching) took() string {
+	if r.by == RemovedByEdit {
+		return "blue's edit cut the sentence holding " + r.anchor
+	}
+	return "blue retired " + r.anchor
+}
+
+// news is the reaching removal as an item of news on a gap names it (gapNewsOf).
+func (r reaching) news() string {
+	if r.by == RemovedByEdit {
+		return "blue's cut of " + r.anchor + "'s sentence"
+	}
+	return "blue's retire of " + r.anchor
+}
+
+// how is what a reaching removal reached gap g through, as a work list says it.
 func (r reaching) how(g string) string {
 	if r.from != "" && r.from != g {
 		return "which " + r.from + " is about, " + g + " taking " + r.from + "'s demand on"
@@ -154,7 +170,7 @@ func (r reaching) how(g string) string {
 	return "which " + g + " is about"
 }
 
-// result is what a reaching retire leaves of the gap: its demand met, where its check kind is one an
+// result is what a reaching removal leaves of the gap: its demand met, where its check kind is one an
 // evidence anchor answers (recordpb.DemandClause), and otherwise the anchor gone from the report.
 func (r reaching) result(demand bool) string {
 	if demand {
@@ -266,7 +282,8 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 		}
 	}
-	// A REACHING RETIRE IS READ OFF THE WHOLE STREAM, not a sitting's acts: it meets the gap's demand
+	// A REACHING REMOVAL, by a retire or a cut, IS READ OFF THE WHOLE STREAM, not a sitting's acts: it
+	// meets the gap's demand
 	// whichever sitting recorded it.
 	for _, e := range evs {
 		for _, r := range win.Reaches(e) {

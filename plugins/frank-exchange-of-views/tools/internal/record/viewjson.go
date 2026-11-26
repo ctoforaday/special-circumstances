@@ -161,8 +161,8 @@ type GapJSON struct {
 	// its subject stands in the report, by a live answer of its kind or its own check of the anchor
 	// it is about made again since the mint and holding; and once that subject has left the report.
 	EvidenceAnswered bool `json:"evidence_answered"`
-	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
-	// retire that left none of them live, while no closing act other than a carry follows it; null
+	// AnswersRetiredEvent is, on a closed gap whose answers have all left the report, the event of the
+	// retire or pure cut that left none of them live, while no closing act other than a carry follows it; null
 	// on every other gap, never omitted. The closure stands; its lens is told.
 	AnswersRetiredEvent *int64 `json:"answers_retired_event"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint

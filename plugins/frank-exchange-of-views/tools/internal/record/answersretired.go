@@ -8,8 +8,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// CLOSURES ARE HISTORY (gblock, 2026-11-01). A retire moves no closure: a closed gap whose answers
-// are all retired stays closed for every reader, and what the retire adds is one hop to its minting
+// CLOSURES ARE HISTORY (gblock, 2026-11-01). A removal — a retire or a pure cut — moves no closure: a
+// closed gap whose answers have all left the report stays closed for every reader, and what the
+// removal adds is one hop to its minting
 // lens's work list — the gap view's `answers_retired_event`, read through the WORK query. The item
 // blocks nothing, so `complete` and PASS are as they were: no BlockerKind, no lensOwesOf row and no
 // gapNewsOf row reads the column (gapNewsOf holds open gaps).
@@ -45,9 +46,10 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if supersededBySeatAfter(evs, ids, seatID, g.ID, n) {
 			continue
 		}
-		what := fmt.Sprintf("the answers to gap %s, which you closed, have all been retired, the last at event %d (%s) — the closure stands", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
+		took, by := retiredAnswersAt(evs, ids, g.ID, n)
+		what := fmt.Sprintf("the answers to gap %s, which you closed, have all left the report, the last by %s at event %d (%s) — the closure stands", g.ID, by, n, strings.Join(took, ", "))
 		if g.benchClosedLast {
-			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all been retired, the last at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
+			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all left the report, the last by %s at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, by, n, strings.Join(took, ", "))
 		}
 		what += "; if the defect it closed is still in the report, that is a new gap: mint it, naming " + g.ID + " as the gap it supersedes"
 		out = append(out, gapItem(ItemNews, g.ID, what))
@@ -65,12 +67,11 @@ func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int
 	return false
 }
 
-// retiredAnswersAt is the anchors placed as gap's answer that the act at the place at took out: a
+// retiredAnswersAt is the anchors placed as gap's answer that the act at the place at took out — a
 // retire's anchors or a pure cut's removed_anchors (anchor_removal, which gap_state's
-// answers_retired_event reads).
-func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string {
+// answers_retired_event reads) — and that act as the news names it: "blue's retire" or "blue's cut".
+func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) (out []string, by string) {
 	answering := map[string]bool{}
-	var out []string
 	for i, e := range evs {
 		if id, g, ok := placedAnswer(e); ok && g == gap {
 			answering[id] = true
@@ -81,9 +82,9 @@ func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string 
 		var took []string
 		switch b := mustBody(e).(type) {
 		case *recordpb.Retire:
-			took = b.GetAnchors()
+			took, by = b.GetAnchors(), "blue's retire"
 		case *recordpb.BlueEdit:
-			took = b.GetRemovedAnchors()
+			took, by = b.GetRemovedAnchors(), "blue's cut"
 		}
 		for _, a := range took {
 			if answering[a] {
@@ -91,5 +92,5 @@ func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string 
 			}
 		}
 	}
-	return out
+	return out, by
 }

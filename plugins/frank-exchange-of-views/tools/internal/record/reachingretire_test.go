@@ -126,7 +126,7 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 // sitting opened after the retire, or mints a gap superseding it. With one of two answers still live
 // there is no item.
 func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
-	const item = "the answers to gap G1, which you closed, have all been retired"
+	const item = "the answers to gap G1, which you closed, have all left the report"
 	closed := func(t *testing.T, answers ...string) *stage {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).mint(evLens, "G1", "high").stop("lens-mints")
@@ -201,7 +201,7 @@ func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
 // gap holds the item off, as it holds every other item on the gap. A remand leaves the gap closed and
 // the item listed again; a closing ruling is a later closing act, which clears it.
 func TestADocketedGapsAnswersRetiredItemWaitsOnTheBench(t *testing.T) {
-	const item = "the answers to gap G1, which you closed, have all been retired"
+	const item = "the answers to gap G1, which you closed, have all left the report"
 	docketed := func(t *testing.T) *stage {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).mint(evLens, "G1", "high").stop("lens-mints")
@@ -226,7 +226,7 @@ func TestADocketedGapsAnswersRetiredItemWaitsOnTheBench(t *testing.T) {
 	})
 	t.Run("closed by the bench: cleared", func(t *testing.T) {
 		run := docketed(t).dispatch(2, "judge", "G1").register("judge").add("judge", docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).seed()
-		if s := sittingOfRunT(t, run, "lens", evLens); listsItem(s, "have all been retired") {
+		if s := sittingOfRunT(t, run, "lens", evLens); listsItem(s, "have all left the report") {
 			t.Errorf("a closing ruling after the retire left the item listed: %+v", s.Open)
 		}
 	})

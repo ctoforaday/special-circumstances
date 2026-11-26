@@ -164,7 +164,7 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		return slices.ContainsFunc(w.Sitting.Open, func(it Item) bool { return strings.Contains(it.What, frag) })
 	}
 	retiredItem := func(gap string) string {
-		return "the answers to gap " + gap + ", which you closed, have all been retired"
+		return "the answers to gap " + gap + ", which you closed, have all left the report"
 	}
 
 	// THE FINAL STATE: both gaps a retire met are answered and closed — G-342d3cdc by the bench,
