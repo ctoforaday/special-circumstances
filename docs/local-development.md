@@ -41,7 +41,11 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
 on the box are unaffected. Under either harness `XDG_RUNTIME_DIR` is `$WORKDIR/run`: every telepathy
 verb deletes the Antigravity server records under it whose server is gone, and a universe built from
-the checkout must not do that to the host's.
+the checkout must not do that to the host's. Everything else keyed on that directory moves with it:
+Claude Code's inbox sockets (`cc-socks/`) are under `$WORKDIR/run`, and the user's systemd bus is
+out of reach, so `systemctl --user` fails inside the universe. telepathy then finds the
+remote-control daemon by scanning `/proc`, which finds the HOST's daemon; as the universe holds no
+record for it, a universe `send` to a host conversation queues to that conversation's mailbox.
 
 Authentication is the exception, and it is lent rather than shared: `run`, `resume` and `shell` pass
 the host login's current access token in `CLAUDE_CODE_OAUTH_TOKEN`, and the universe holds no

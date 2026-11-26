@@ -245,11 +245,15 @@ func printWaiting(out io.Writer, env *Env) {
 			if !w.Oldest.IsZero() {
 				oldest = utc(w.Oldest.Unix())
 			}
+			notices := "+%d agy notices"
+			if w.Notices == 1 {
+				notices = "+%d agy notice"
+			}
 			var note []string
 			for _, n := range []struct {
 				count int
 				label string
-			}{{w.Yours, "%d yours"}, {w.FromShell, "%d from a shell"}, {w.Unreadable, "%d unreadable"}, {w.Notices, "+%d agy notices"}} {
+			}{{w.Yours, "%d yours"}, {w.FromShell, "%d from a shell"}, {w.Unreadable, "%d unreadable"}, {w.Notices, notices}} {
 				if n.count > 0 {
 					note = append(note, fmt.Sprintf(n.label, n.count))
 				}

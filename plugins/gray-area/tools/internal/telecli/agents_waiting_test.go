@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -86,7 +85,7 @@ func TestAgentsWaitingListsIdleConversations(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(rows[waitA], "1 yours, 1 from a shell, +1 agy notices") || !strings.Contains(rows[waitA], "2026-09-08 22:15:00 UTC") {
+	if !strings.Contains(rows[waitA], "1 yours, 1 from a shell, +1 agy notice") || !strings.Contains(rows[waitA], "2026-09-08 22:15:00 UTC") {
 		t.Errorf("A's row = %q, want two waiting, the shell's the oldest, one yours", rows[waitA])
 	}
 	if !strings.Contains(rows[waitC], "+2 agy notices") {
@@ -122,15 +121,10 @@ func TestAgentsWaitingUnreadableMessage(t *testing.T) {
 }
 
 func TestAgentsWaitingScanError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("listing a regular file as a directory is ENOTDIR on Unix; what Windows returns for it is not pinned here")
-	}
 	h := newHarness(t)
-	notADir := filepath.Join(t.TempDir(), "brain")
-	if err := os.WriteFile(notADir, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	h.env.BrainDirs = []string{notADir}
+	// A path no platform can open (it holds a NUL byte) fails the listing with an error that is not
+	// "does not exist", the same on Unix and Windows.
+	h.env.BrainDirs = []string{filepath.Join(t.TempDir(), "brain\x00")}
 	out, _, code := h.run(t, "agents")
 	if code != 0 || !strings.Contains(out, "waiting messages not measured: ") || strings.Contains(out, "no Antigravity conversation has a message waiting") {
 		t.Errorf("exit %d, an unlistable brain directory reads:\n%s", code, out)
