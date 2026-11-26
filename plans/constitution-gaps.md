@@ -2081,6 +2081,10 @@ and `~/.claude/scratch/p12/r2/`):
         the `claim_kept`, `removal_basis` and `superseded_by` clauses go with the fields. Its sibling, the `--anchor`
         flag help (`verbs.go:707`): "a retired one with the retire that took it out" becomes "one out of the report with
         the act that took it out (`retired.by`: `retire` or `edit`)".
+      - `report/layout.go:306` (`ReportTextNote`, printed on `show report`'s page on every surface that has it): "`show
+        evidence` (the citations and computations, every reading of them, and every retire)" becomes "`show evidence`
+        (the citations and computations, every reading of them, every retire, and the act — a retire or an edit's cut —
+        that took each anchor out)": the view lists a cut's removals through `retiredBy` (site 10).
   - **Prose in code.**
     - `anchor.go:82-88` on main (`lifecycle`, `evidenceLeaves`, seat-facing through `Label`): under P12b every kind
       leaves the same two ways, so `evidenceLeaves` and its branch (`anchor.go:347-348`) go, and `lifecycle` becomes
@@ -2585,8 +2589,8 @@ and `~/.claude/scratch/p12/r2/`):
     retire; a rewrite) — "an edit leaves it unchecked" is false of a cut, and "leaves only by `retire`" is false of
     every anchor. The pages that teach `edit` (`edit.md`, `verbs.go`'s blue `show report` paragraph, `cite.md`) say
     that a cut of a whole sentence takes that sentence's anchors, the ones at its end included. Each site is judged by
-    what it means, not by a pattern's silence. The faces below are the KNOWN SET of sites; §V 13.1's gate is the
-    in-full read of every authored file whose text reaches an agent on the shipped path. `record/migrate/` is in it:
+    what it means, not by a pattern's silence. The faces below are the KNOWN SET of sites; §V 13.1's gate is the read
+    of the text of every authored file that reaches an agent on the shipped path (F24). `record/migrate/` is in it:
     a statement there of the archived claim retire describes the event it translates, and is judged as limited to
     that case.
   - **The sweep's classified list.** Its candidate command (a superset of plan-audit r8's
@@ -4072,12 +4076,13 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          - every `Retire` fold hit is in §III.10c's fold table;
          - **§III.10c's property ("The property", every face) holds, read by SCOPE.** No phrase set reaches every
            wording: plan-audits r8, r9 and r10 each found a phrasing of the same concept the sweep before it missed.
-           So the gate is not a sweep. The implementer reads IN FULL, by meaning, against the property, every authored
-           file whose text reaches an agent on the shipped path: every sentence, string literal and comment, not the
-           lines a pattern selects. The scope is defined by REACH, not by a word a file holds or a judgement of which
-           code a seat reads (such a judgement misses `reportproj/`, `anchortext/`, `sittingwrite/`, `hookgate/` and
-           `reportvoice/`, plan-audit r11). Run from the repository root, once at P12b's base and once at its head,
-           each into its own `$S`:
+           So the gate is not a sweep. The implementer reads, by meaning, against the property, the text of every
+           authored file that reaches an agent on the shipped path, not the lines a pattern selects (§VI F24): every
+           Go string literal and comment group, each judged with its enclosing function's firing condition; every text
+           file and both generator mains whole; and every rendered help page, per surface. The scope is defined by
+           REACH, not by a word a file holds or a judgement of which code a seat reads (such a judgement misses
+           `reportproj/`, `anchortext/`, `sittingwrite/`, `hookgate/` and `reportvoice/`, plan-audit r11). Run from
+           the repository root, once at P12b's base and once at its head, each into its own `$S`:
            ```
            F=plugins/frank-exchange-of-views
            for os in linux darwin windows; do
@@ -4100,16 +4105,163 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            grep -vE "$X" $S/reach.txt > $S/scope.txt; grep -E "$X" $S/reach.txt > $S/excluded.txt
            echo "$X" | while read -r p; do grep -qE "$p" $S/reach.txt || echo "matches nothing: $p"; done   # empty
            wc -l < $S/reach.txt; wc -l < $S/scope.txt; wc -l < $S/excluded.txt                          # 564, 513, 51
-           grep -h '^\$ feov-record .*--help' $F/agents/*.md | sort -u > $S/help-pages.txt; wc -l < $S/help-pages.txt   # 54
            ```
-           - **The help pages.** Each of the 54 pages in `help-pages.txt` is run once (`feov-record <verb> --help`, its
-             output kept in `$S/help/<verb>.txt`) and read in full as a seat reads it, its flag help included; the 34
-             authored pages behind them are in `scope.txt` as files too.
+           `$S` is an absolute path (`go -C` changes directory).
+           - **The Go read.** Every Go file in `scope.txt` but the two generator mains (405 on main 7cfd3a396) is read
+             through its string literals (import paths aside) and comment groups, listed by `astx`, a scratch
+             extractor written into `$S` at each run and never committed (it is a reading aid, not tooling):
+             ```
+             mkdir -p $S/astx $S/bin; printf 'module astx\n\ngo 1.27\n' > $S/astx/go.mod
+             cat > $S/astx/main.go <<'EOF'
+             // astx lists every string literal (imports aside) and comment group of the Go files named on stdin,
+             // one per line: path:line, the enclosing declaration, the kind, its line count and its text.
+             package main
+
+             import (
+               "bufio"
+               "fmt"
+               "go/ast"
+               "go/parser"
+               "go/token"
+               "os"
+               "strings"
+             )
+
+             func declName(d ast.Decl) string {
+               switch d := d.(type) {
+               case *ast.FuncDecl:
+                 if d.Recv != nil && len(d.Recv.List) > 0 {
+                   t := d.Recv.List[0].Type
+                   if s, ok := t.(*ast.StarExpr); ok {
+                     t = s.X
+                   }
+                   if ix, ok := t.(*ast.IndexExpr); ok {
+                     t = ix.X
+                   }
+                   if id, ok := t.(*ast.Ident); ok {
+                     return "func (" + id.Name + ")." + d.Name.Name
+                   }
+                 }
+                 return "func " + d.Name.Name
+               case *ast.GenDecl:
+                 var ns []string
+                 for _, s := range d.Specs {
+                   switch s := s.(type) {
+                   case *ast.ValueSpec:
+                     for _, n := range s.Names {
+                       ns = append(ns, n.Name)
+                     }
+                   case *ast.TypeSpec:
+                     ns = append(ns, s.Name.Name)
+                   }
+                 }
+                 return d.Tok.String() + " " + strings.Join(ns, ",")
+               }
+               return "?"
+             }
+
+             func main() {
+               fs := token.NewFileSet()
+               out := bufio.NewWriter(os.Stdout)
+               defer out.Flush()
+               esc := strings.NewReplacer("\n", `\n`, "\t", `\t`)
+               sc := bufio.NewScanner(os.Stdin)
+               for sc.Scan() {
+                 p := sc.Text()
+                 f, err := parser.ParseFile(fs, p, nil, parser.ParseComments)
+                 if err != nil {
+                   fmt.Fprintln(os.Stderr, err)
+                   os.Exit(1)
+                 }
+                 owner := func(n ast.Node) string { // the declaration holding n, its doc comment included
+                   for _, d := range f.Decls {
+                     start := d.Pos()
+                     if fd, ok := d.(*ast.FuncDecl); ok && fd.Doc != nil {
+                       start = fd.Doc.Pos()
+                     }
+                     if gd, ok := d.(*ast.GenDecl); ok && gd.Doc != nil {
+                       start = gd.Doc.Pos()
+                     }
+                     if n.Pos() >= start && n.End() <= d.End() {
+                       return declName(d)
+                     }
+                   }
+                   return "file"
+                 }
+                 emit := func(n ast.Node, kind, text string) {
+                   a, b := fs.Position(n.Pos()), fs.Position(n.End())
+                   fmt.Fprintf(out, "%s:%d\t%s\t%s\t%d\t%s\n", p, a.Line, owner(n), kind, b.Line-a.Line+1, esc.Replace(text))
+                 }
+                 for _, cg := range f.Comments {
+                   emit(cg, "comment", cg.Text())
+                 }
+                 imports := map[ast.Node]bool{}
+                 for _, is := range f.Imports {
+                   imports[is.Path] = true
+                 }
+                 ast.Inspect(f, func(n ast.Node) bool {
+                   if bl, ok := n.(*ast.BasicLit); ok && bl.Kind == token.STRING && !imports[bl] {
+                     emit(bl, "string", bl.Value)
+                   }
+                   return true
+                 })
+               }
+             }
+             EOF
+             go -C $S/astx build -o $S/bin/astx .
+             grep '\.go$' $S/scope.txt | grep -v '^scripts/' > $S/scope-go.txt
+             $S/bin/astx < $S/scope-go.txt > $S/strings.tsv
+             cut -f1 $S/strings.tsv | sed 's/:[0-9]*$//' | sort -u | comm -3 - <(sort $S/scope-go.txt)   # empty
+             awk -F'\t' '{n[$3]++; l[$3]+=$4} END {for (k in n) print k, n[k], l[k]}' $S/strings.tsv
+             ```
+             On main 7cfd3a396 it lists 22,120 items over 48,221 lines: 14,482 string literals (15,890 lines) and 7,638
+             comment groups (32,331 lines); every Go file in `scope-go.txt` has at least one. Each line is `path:line`,
+             the enclosing declaration (`func Name`, `func (Type).Name`, `var`/`const`/`type` with its names, or `file`
+             for a package comment), the kind, the line count and the text. **Each item is judged with its enclosing
+             function's firing condition**: the reader opens the function at `path:line` and reads the branch the item
+             sits in and the condition its callers run it under, because a statement that "limits itself to the case it
+             describes" is true or false by that condition (`reportproj/plan.go:94` is true only on its branch). An item
+             outside any function is judged with each reader of the declaration that holds it. Text composed at run
+             time from fragments that each read as neutral is the residue this read accepts (§VI F24); the
+             rendered help pages below read the composed help whole. The text files (106 files, 13,354 lines) and the
+             two generator mains (802 lines) are read whole: 62,377 lines in all with the Go items.
+           - **The help pages, per surface.** A page differs by the surface that renders it (`show report --help`
+             renders three bodies on main: blue's, the lane's, and the one red and the bench share), so the read is of
+             each (surface, page) pair, keyed by both. The surfaces are the sample seat of every agent definition in
+             `surfaceOf` (`scripts/agentgen/main.go:111-124`, 12) and `operator`; a surface's pages are those `manual
+             --for <seat>` renders for it, the lead's operator pages (`setup`, `take-over`, `capture`, `dashboard`,
+             `engine-stopped`, `ops *`, `scorecard`) among them. Outside a run a page renders only under `--seat-id
+             <seat>`: without one the tool prints the "--seat-id IS REQUIRED HERE" refusal and the root help, and
+             `manual` itself runs under `--seat-id operator`.
+             ```
+             unset $(env | grep -o '^FEOV_[A-Z_]*')
+             go -C $F/tools build -o $S/bin/feov-record ./cmd/feov-record; B=$S/bin/feov-record
+             sed -nE '/^var surfaceOf = /,/^}/s/^[[:space:]]+"[^"]+":[[:space:]]+\{"[a-z]+", "([^"]+)"\},$/\1/p' \
+               scripts/agentgen/main.go > $S/surfaces.txt
+             [ $(wc -l < $S/surfaces.txt) -eq $(ls $F/agents/*.md | wc -l) ] || echo "surfaceOf not read"   # empty
+             echo operator >> $S/surfaces.txt
+             while read -r s; do
+               $B --seat-id operator manual --for $s > $S/manual.$s.txt || echo "manual failed: $s"        # empty
+               sed -nE 's/^\$ feov-record ?(.*) --help$/\1/p' $S/manual.$s.txt | sed "s/^\$/root/; s|^|$s\t|"
+             done < $S/surfaces.txt > $S/help-pages.txt
+             while IFS=$'\t' read -r s p; do
+               mkdir -p $S/help/$s; v=${p#root}
+               $B --seat-id $s $v --help > $S/help/$s/${p// /-}.txt 2>&1 || echo "render failed: $s $p"      # empty
+             done < $S/help-pages.txt
+             grep -rlE 'IS REQUIRED HERE|is not on your surface' $S/help                                    # empty
+             wc -l < $S/help-pages.txt; cat $S/help/*/*.txt | wc -l                                         # 330, 14192
+             cut -f2 $S/help-pages.txt | sort -u | wc -l; sha256sum $S/help/*/*.txt | cut -d' ' -f1 | sort -u | wc -l   # 70, 87
+             ```
+             On main 7cfd3a396: 330 (surface, page) pairs, 14,192 lines; 70 distinct pages (the 54 the agent
+             definitions carry and 16 on `operator` alone); 87 distinct bodies. Each page is read in full as a seat reads
+             it, its flag help included; a body byte-identical to one already read is read once, under its digest. The
+             34 authored pages behind them are in `scope.txt` as files too.
            - **Reach, classified on main 7cfd3a396.** The shipped binaries are every `cmd/*` (8: `feov-record`, the
              five hook binaries, `feov-sitting-write`, which the hooks spawn, and `feov-migrate`). Their dependencies,
              unioned over the three shipped GOOS (nine files build for some GOOS only), are 61 FEOV packages (8
-             `cmd`, 53 `internal`) and 5 `shared/` packages, 66 in all. Every one is READ IN FULL; none is excluded. Each package's authored files are taken whole
-             (its generated files are below), never chosen by a word or a constructor:
+             `cmd`, 53 `internal`) and 5 `shared/` packages, 66 in all. Every one is read through its literals and
+             comments (the Go read above); none is excluded. Each package's authored files are taken whole (its
+             generated files are below), never chosen by a word or a constructor:
              - the 8 `cmd/*` mains and the 53 `internal` packages: 398 Go files, 104,268 lines. Among them, the
                packages plan-audit r11 traced to a seat: `reportproj/` (`PlanSplice`'s
                refusals reach blue at `cli/blue/edit.go:485`), `anchortext/` (`Refusal`, `ErrAnchorGone`,
@@ -4157,6 +4309,20 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              - `tests/simulator/*.mjs` (4): tests;
              - `tools/research/**` (10): a committed run directory that no shipped code opens;
              - `tools/go.{mod,sum}`, `record.proto.sha256`, `bin/.gitkeep`: build metadata, no prose.
+           - **Outside reach, each for a reason** (no command above takes them):
+             - the other plugins' `plugins/*/README.md` (`prosthetic-conscience`, `gray-area`, `sleeper-service`): no
+               FEOV code or text reads them, and no other plugin relays FEOV text to an agent (no `.go` file of
+               `prosthetic-conscience` or `gray-area` names `research/`, `report.md`, `record.db`, `run.Dir`, `FEOV_RUN`
+               or `feov-record` outside a comment; `runlive`'s two readers, `toolchainnudge/main.go:135` and
+               `pushfreezeguard/main.go:207`, emit their own nudge or freeze text). A search of every non-FEOV file in
+               `plugins/` for retire, reopen, anchor and `removed_anchors` finds each in another sense (gray-area's
+               session reopen, retired hook units, "anchor every instruction"). Only FEOV has a `docs/`;
+             - the root `law/`: this repository's own corpus, not shipped. `setup/run.go:353` mirrors the CONSUMING
+               project's `law/` (from `cfg.Cwd`) into `inputs/law`, which the bench and the chair read
+               (`record/law.go:13`); the copy here reaches a seat only as a consumer's would, as subject matter;
+             - the root `feov-memory/`: not shipped, and `feov-memory/*-scorecard.md` has no seat reader
+               (`setup/run.go:391-399`); `capture` writes it from `scorecard/`, which is in scope, so its wording is
+               read at its source.
            - **The scope command's own back-test** (the scope holds every authored shipped file):
              ```
              for d in $(sed -E 's|/[^/]+$||' $S/reach-go.raw | sort -u); do git ls-files "$d" | grep -E "^$d/[^/]+\.go$"; done |
@@ -4178,26 +4344,43 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
              (25). These are in no shipped binary, not excluded from one. Any other line from any of the three
              commands stops the work until it is classified here.
            - **The read is recorded:** `$S/scope-read.txt` holds one line per file, its path, a tab, and the sites it
-             fixed or `none`; `$S/help-read.txt` the same per help page. The scope is re-run at the PR head into
-             `$H` (the same commands, `S=$H`), so a file P12b adds or a package it newly links gets a line:
-             `diff <(cut -f1 $S/scope-read.txt | sort) <(sort -u $S/scope.txt $H/scope.txt)` and
-             `diff <(cut -f1 $S/help-read.txt | sort) <(sort -u $S/help-pages.txt $H/help-pages.txt)` are empty, and
-             the head's back-test prints what the base's printed. A file the base command prints that is not in the
-             513 above is read the same way, and the counts are restated.
+             fixed or `none` (for a Go file, every item `strings.tsv` lists for it). `$S/help-read.txt` holds one line
+             per (surface, page): the surface, a tab, the page, a tab, the sha256 of the render it was read under, a
+             tab, and the sites or `none`. The scope and the renders are re-run at the PR head into `$H` (the same
+             commands, `S=$H`), so a file P12b adds, a package it newly links or a page a surface newly renders gets a
+             line. These print nothing, and the head's back-test prints what the base's printed:
+             ```
+             diff <(cut -f1 $S/scope-read.txt | sort) <(sort -u $S/scope.txt $H/scope.txt)
+             diff <(cut -f1,2 $S/help-read.txt | sort) <(sort -u $S/help-pages.txt $H/help-pages.txt)
+             while IFS=$'\t' read -r s p d _; do f=$S/help/$s/${p// /-}.txt; [ -f "$f" ] || f=$H/help/$s/${p// /-}.txt
+               [ "$(sha256sum < "$f" | cut -d' ' -f1)" = "$d" ] || echo "read under another render: $s $p"; done < $S/help-read.txt
+             ```
+             A file or page the base command prints that is not in the counts above is read the same way, and the
+             counts are restated.
            - **The known set is checked first, site by site:** §III.10c's three classified lists ("The sweep's
              classified list", "The converse face's classified list", "The reopen face's classified list") and the
              wordings they point to. Each list keeps the candidate command that found it, as provenance; a clean run of
-             one proves nothing. A statement the in-full read finds at a site no list names joins the list of its face,
+             one proves nothing. A statement the scope read finds at a site no list names joins the list of its face,
              classified, before merge. Sites the lists name outside the scope (tests, goldens, and the packages in no
              shipped binary, such as `consistency/`, `runtest/`, `planguard/` and `seatprobe/`) are fixed from the
              lists, their files not read in full.
-           - **After the change** every in-scope file P12b changed is read again in full, and the read is recorded:
-             `$S/scope-reread.txt` holds one line per file, its path, a tab, and the sites it fixed or `none`, and
-             `diff <(cut -f1 $S/scope-reread.txt | sort) <(git diff --name-only <base>...HEAD | sort | comm -12 -
-             <(sort $H/scope.txt))` is empty. The 54 pages are rendered again at the head into `$H/help/`; each file
-             `diff -rq $S/help $H/help` names gets a line in `$S/help-reread.txt` the same way. Every changed golden line is read.
+           - **After the change** every in-scope file P12b changed is read again (a Go file through its items in
+             `$H/strings.tsv`), and the read is recorded: `$S/scope-reread.txt` holds one line per file, its path, a
+             tab, and the sites it fixed or `none`, and `diff <(cut -f1 $S/scope-reread.txt | sort) <(git diff
+             --name-only <base>...HEAD | sort | comm -12 - <(sort $H/scope.txt))` is empty. Every (surface, page) whose
+             render differs between `$S/help` and `$H/help`, or exists on one side only, is read again at the head;
+             `$S/help-reread.txt` holds one line per pair as `help-read.txt` does, with the head render's sha256. The
+             diff compares like keys, so a variant that changes on one surface alone names that pair, and a pair with no
+             line fails it:
+             ```
+             sort -u $S/help-pages.txt $H/help-pages.txt | while IFS=$'\t' read -r s p; do k=$s/${p// /-}.txt
+               cmp -s $S/help/$k $H/help/$k || printf '%s\t%s\n' "$s" "$p"; done > $H/help-changed.txt
+             diff <(cut -f1,2 $S/help-reread.txt | sort) <(sort $H/help-changed.txt)                             # empty
+             ```
+             Every changed golden line is read.
        - Re-armed by: any file in `$S/scope.txt` or `$H/scope.txt`, any change to the `cmd/*` set or to a reached
-         package's imports, any file a known-set site lives in, and any file in §III.11's P12b list.
+         package's imports, any change to `surfaceOf` or to a surface's verb set, any file a known-set site lives in,
+         and any file in §III.11's P12b list.
     2. **Named tests, listed first.**
        ```
        cd plugins/frank-exchange-of-views/tools
@@ -4717,11 +4900,6 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       absence as its own issue.
     - **The seatprobe gains a `drifted` gap on `sources`** (§III.10c "The simulator"), baiting an anchor-only retire so
       a board still demands `retire` | add `retire` to `AlwaysTaken` or `NoSituation`, stated, and probe no retire.
-  - **The scope read** (RULINGS.md 2026-11-26, the last entry; plan-audit r11's fork): P12b's text gate is an in-full
-    read, by meaning, of every authored file whose text reaches an agent on the shipped path, its scope defined by
-    reach (`go list -deps` over every shipped `cmd/*`, with the plugin's authored non-Go files), not by phrase sweeps
-    (§V 13.1). On main 7cfd3a396 that is 513 files and 120,560 lines, with the 54 rendered help pages, read again on
-    every file P12b changes | accept the three candidate sweeps' residue, stated.
 - **F21 — how a pure cut of a gap's marker ends the gap (P12b). RULED by gblock 2026-11-26 (picked; option wording
   the agent's): "Raiser's turn, land now".** RULINGS.md 2026-11-26 entry.
   - **The conflict.** The 2026-11-20 pick had the record write a `moot` `Close` in the cutting edit's transaction.
@@ -4771,6 +4949,21 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     rewrite bared stays on the retire, which becomes anchor-only; the retire is dropped once it holds no token. An edit
     between a baring edit and the retire that quotes the token in its stored `old` or `new` is rewritten without it
     (m28's 276, the one such edit over main's 41 archives).
+- **F24 — The scope read: what P12b's text gate reads (§V 13.1; plan-audits r11 and r12). RULED by gblock 2026-11-26
+  (picked; option wording the agent's): "Strings + comments".** RULINGS.md 2026-11-26, the last entry.
+  - **Ruled.** The gate reads, by meaning, the text of every authored file that reaches an agent on the shipped path,
+    its scope defined by reach (`go list -deps` over every shipped `cmd/*`, with the plugin's authored non-Go files),
+    not by phrase sweeps: every Go string literal and comment group in that scope, extracted by `go/ast` with its
+    `path:line` and enclosing declaration (`astx`, a scratch command in §V 13.1, never committed), each judged with
+    its enclosing function's firing condition; every text file and both generator mains whole; and every rendered
+    help page, per (surface, page).
+  - **Measured on main 7cfd3a396.** 22,120 Go items over 48,221 lines (14,482 literals, 15,890 lines; 7,638 comment
+    groups, 32,331 lines) in 405 files; 106 text files, 13,354 lines; the generator mains, 802 lines: 62,377 lines.
+    The help renders: 330 (surface, page) pairs over 13 surfaces, 14,192 lines, 87 distinct bodies.
+  - **Not taken:** the in-full read of all 513 files (120,560 lines); accept the phrase sweeps' residue, stated.
+  - **The residue, accepted.** Text composed at run time from fragments that each read as neutral. Go prose reaches an
+    agent only through literals, so it is small; the help renders read the composed help whole.
+  - **Superseded:** the 11-26 lead call (in-full read of every file in reach).
 
 ## VII. In the rulings: contradictions, limits and what is left out
 
