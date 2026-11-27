@@ -24,7 +24,10 @@ import (
 // source never anchored it, and gap anchors into an edit's old and new
 // where they now stand. With gap anchors removed, every
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
-// rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
+// also carries the fold (retirefold.go): the anchors an archived cut left on no words go into its
+// removed_anchors, a token a rewrite left past its full stop is re-seated, and a later edit quoting
+// either is rewritten to match. It rewrites nothing else: an exact-span edit or a placement that no
+// longer places is refused.
 //
 // It reads the destination through q, the replay's batch (record.Replay.Querier): the batch holds the
 // record's one connection, so a render through the run would wait on it forever.
@@ -202,7 +205,8 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 80): the replay holds the report
 	// before the edit and after it, which nothing after migration can rebuild without replaying
 	// again, so the archived edit is given what a live edit stamps at its write — and its reopened
-	// anchors computed from them as a live edit's are, an anchor it left bare included.
+	// anchors computed from them as a live edit's are. The paragraphs are the splice's: a token the
+	// edit takes stands in them, as the archived edit left it, and the list's removes come after.
 	oldParas, newParas := bluedoc.TouchedParagraphs(text, after, start, end)
 	b.OldParagraphs, b.NewParagraphs = proto.String(oldParas), proto.String(newParas)
 	reopened := bluedoc.ReopenedAnchors(oldParas, newParas)
@@ -243,7 +247,8 @@ func rewriteOld(text, old string) (string, bool) {
 
 // carry puts into new each gap anchor of span it lacks: where its sentence survives, by AutoPlace;
 // else after the last content character of new's first prose sentence (the fallback, F-c); where new
-// holds no prose, into its marker run (bare). Where new's only prose is a heading, a fence or a table
+// holds no prose, into its marker run, which the pure cut then takes (retirefold.go). Where new's
+// only prose is a heading, a fence or a table
 // row, no sentence carries the anchor: the edit takes it out (it is returned, for the edit's
 // removed_anchors), and the gap reads gone, as one whose quote never placed.
 func (p *placer) carry(span, new string) (string, []string) {
