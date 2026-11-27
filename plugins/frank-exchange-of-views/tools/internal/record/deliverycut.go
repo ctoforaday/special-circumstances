@@ -381,13 +381,13 @@ func gapPassages(q recordsql.Querier, report, stmt, arg string) ([]DeliveryPiece
 		if err := q.QueryRow(latestReopeningSQL, g.id).Scan(&before); err == nil && before != "" {
 			for _, b := range anchor.Blocks(before) {
 				if p := before[b.Start:b.End]; strings.Contains(p, tok) {
-					out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", AS IT STOOD BEFORE THE CHANGE THAT REMOVED ITS TEXT", Text: p})
+					out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", AS IT STOOD BEFORE THE LATEST EDIT THAT CHANGED OR CUT ITS SENTENCE", Text: p})
 					break
 				}
 			}
 			continue
 		}
-		out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", ITS TEXT GONE FROM THE REPORT; ITS RECORDED LOCATION", Text: g.location})
+		out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", ITS MARKER NOT IN THE REPORT; ITS RECORDED LOCATION", Text: g.location})
 	}
 	return out, nil
 }

@@ -17,14 +17,14 @@ import (
 //
 // WHAT REMOVES IT, each off the record and none a new event or a seen-marker:
 //
-//   - the lens has sat through a sitting opened after the retire (satThrough, as lensOwesOf's `owe`
+//   - the lens has sat through a sitting opened after the removal (satThrough, as lensOwesOf's `owe`
 //     reads it): it is listed for the whole of that sitting, so the sitting that clears it is one that
 //     read it, and a sitting that never closed does not clear it;
-//   - the lens has minted a gap naming it in `supersedes` after the retire;
-//   - a closing act other than a carry follows the retire: the column is then NULL.
+//   - the lens has minted a gap naming it in `supersedes` after the removal;
+//   - a closing act other than a carry follows the removal: the column is then NULL.
 
-// answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers are all
-// retired. ids are evs's places.
+// answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers have all
+// left the report, by a retire or a cut. ids are evs's places.
 func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	var held []WorkGapState
 	for _, g := range gaps {

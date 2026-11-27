@@ -77,7 +77,7 @@ type anchorStanding struct {
 	// Neither moves the report head, so dispatch readies the owner off it.
 	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has, or once
-	// it is retired.
+	// the anchor is out of the report — retired, or cut with its sentence.
 	edit int64
 	// retired is whether an act took the anchor out — a retire, or a pure cut's removed_anchors: the
 	// first takes it out for good.

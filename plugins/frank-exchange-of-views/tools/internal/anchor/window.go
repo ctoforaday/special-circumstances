@@ -15,7 +15,8 @@ import (
 //
 // The anchor is the stable identity and it is already enforced as one: `edit` refuses any rewrite
 // that drops, duplicates or invents an anchor token, so `<!--fx:f-a1b2c3-->` survives rewrites,
-// insertions and reflows, and leaves only on an act that names it. Blue MAY rewrite the sentence carrying it — that is transit, not
+// insertions and reflows. It leaves the report alone by a retire naming it, or with its sentence
+// when an edit cuts that sentence whole. Blue MAY rewrite the sentence carrying it — that is transit, not
 // authorship — which is exactly the case a frozen quote gets wrong and a live window gets right.
 //
 // So: the anchor addresses, and line numbers are OUTPUT. A seat can say "I read lines 118–134" and

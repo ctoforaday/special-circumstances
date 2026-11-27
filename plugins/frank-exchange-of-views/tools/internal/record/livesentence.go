@@ -143,7 +143,8 @@ func EvidenceNoun(id string) string {
 // quoted is s in double quotes, flattened to one line.
 func quoted(s string) string { return `"` + strings.Join(strings.Fields(s), " ") + `"` }
 
-// reasonOf states a retire's recorded reason, or that it recorded none.
+// reasonOf states the recorded reason of the act that took an anchor out of the report — a retire,
+// or the edit whose cut took its sentence — or that it recorded none.
 func reasonOf(reason string) string {
 	if strings.TrimSpace(reason) == "" {
 		return "no reason recorded"

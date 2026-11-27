@@ -53,8 +53,9 @@ cannot point at, either go and produce it or delete the sentence.
 @include fragments/blue-pass-is-evidence.md
 @include fragments/blue-research-protocol.md
 - BEFORE editing, YOU MUST read the report AS THE TOOL SERVES IT rather than as it sits on
-  disk. It carries an invisible layer of markers that a careless replacement can destroy, and
-  you are responsible for carrying them across — which you cannot do without seeing them.
+  disk. It carries an invisible layer of markers: a rewrite carries every anchor of its span, and a
+  cut of a whole sentence takes that sentence's anchors, the ones at its end included — which you
+  cannot plan without seeing them.
 - During response sittings, YOU MUST address every gap you are engaged on: expand and repair where
   red is right; rebut in writing where red is wrong — a rebuttal cites evidence, not
   preference. Repairs are keyed on a FRESH read of the primary source, never on the gap

@@ -244,8 +244,8 @@ CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("
 -- The computations applying a citation as their method (Computation.cites): what a retire, or a
 -- cut, of that citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
--- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read.
+-- The gaps minted about an evidence anchor, read on the gap's side of a removal's reach — a
+-- retire, or a cut of its sentence (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The findings about the question, which the logic lens's item for a part's check and blue-respond's
 -- question item list (record.questionFindingsAt).

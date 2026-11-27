@@ -2246,8 +2246,9 @@ const (
 	LocationUnrendered = "unrendered"
 )
 
-// GoneTeaching is what a `gone` gap asks of its reader, word for word wherever it is taught: it names
-// both causes and asserts neither.
+// GoneTeaching is what a `gone` open gap asks of its reader, word for word wherever it is taught: an
+// open gap's own marker leaves the report only with its sentence, by a cut, since a retire of it is
+// refused while the gap is open.
 const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands"
 
 // LocationStates names each location state and what it asks of a reader; the work, board and

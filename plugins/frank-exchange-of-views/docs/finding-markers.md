@@ -37,9 +37,10 @@ invisible*, below). They are two axes with two forms:
   makes red's re-audit independent of blue: red re-locates and re-checks against the original, and
   re-finds the problem even if blue tried to bury it. It doubles as the robust-anchor recovery quote if
   a marker token is ever lost.
-- The detector's PRESENT set is the finding ids grepped from the `<!--fx:…-->` tokens in the current
-  report; EXPECTED is the `anchor` events. (A finding's markers are its sites, so the same tokens also
-  support propagation — as a grep over the comment layer.)
+- The PRESENT set is the finding ids grepped from the `<!--fx:…-->` tokens in the current report.
+  An `anchor` event whose token is not among them was taken out by a retire naming it or with its
+  sentence in a cut, and the record holds that act. (A finding's markers are its sites, so the same
+  tokens also support propagation — as a grep over the comment layer.)
 
 ## Why invisible (the live-run lesson)
 

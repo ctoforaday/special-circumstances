@@ -65,9 +65,9 @@ func (l placedLoss) Error() string { return l.err.Error() }
 const editLoss = "an archived edit the fold leaves nothing to do is written as no event, each listed in lost_acts: a later edit that quoted a token a cut took is rewritten without it, since the token is out of the report from its cut on, and one that no longer locates there is lost; an edit that took out the stray full stop a re-seated run left behind finds it already gone, since the re-seat's splice took it, and is lost rather than take the re-seated sentence's own"
 
 // retireLoss is the accepted loss of an archived claim retire the record holds no act for: one that
-// carried no anchor (a retire now takes anchors and nothing else, and a claim leaves by its cut), and
-// one that takes an open gap's own marker (F14). One reason per word, as editLoss.
-const retireLoss = "an archived claim retire that carried no anchor takes nothing a retire now takes, since a claim leaves the report by its cut; one whose sentence stayed takes anchors off a kept sentence, and one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker), every anchor it took staying on its sentence; each is written as no event and listed in lost_acts"
+// carried no anchor (a retire takes anchors and nothing else, and a claim leaves with its sentence,
+// by a cut), and one that takes an open gap's own marker (F14). One reason per word, as editLoss.
+const retireLoss = "an archived claim retire that carried no anchor takes nothing a retire takes, since a claim leaves the report only with its sentence, by a cut; one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker), every anchor it took staying on its sentence; each is written as no event and listed in lost_acts"
 
 // retiresAhead reads every archived retire in stream order, its anchors in the migrated spelling.
 func retiresAhead(evs []OldEvent, migrated map[string]string) (map[int]retireAt, map[string][]retireAt) {

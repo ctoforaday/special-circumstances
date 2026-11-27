@@ -282,9 +282,9 @@ const failedChecker = "a lens"
 // failedRemedy is blue's act on a failed check.
 func failedRemedy(b Blocker) string {
 	if b.state == CheckUnsound {
-		return "fixes the computation or retires it"
+		return "fixes the computation, retires it, or cuts the sentence it backs"
 	}
-	return "retires the citation or cites a source a lens can read"
+	return "retires the citation, cuts the sentence it backs, or cites a source a lens can read"
 }
 
 // failedOwed is whose act is owed on a failed-check blocker: the gap of the seat whose check failed
@@ -309,7 +309,7 @@ func blueFailedItem(b Blocker) string {
 	if b.answeredBy != "" {
 		retire = "Retire the citation, answering gap " + b.answeredBy + ","
 	}
-	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. %s — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; a rewrite of its sentence leaves it unchecked, owed a fresh check, and a cut of the sentence takes the citation and its check out, owing nothing, and is refused while a computation in the report applies the citation", failedFact(b), carried, retire)
+	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. %s — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; a rewrite of its sentence leaves it unchecked, owed a fresh check, and a cut of the sentence takes the citation and its check out, owing nothing; a retire of the citation or a cut of its sentence is refused while a computation in the report applies the citation", failedFact(b), carried, retire)
 }
 
 // failedCheckRefusal is the gate's paragraph for the failed checks that hold it: each named, then

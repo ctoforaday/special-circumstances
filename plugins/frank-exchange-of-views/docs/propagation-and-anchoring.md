@@ -50,8 +50,8 @@ through edits. The engine's version, compatible with a **read-only red**:
   span *once, at that moment of certainty*. It inserts a durable, **invisible** marker there
   (an HTML-comment-style token, `<!--#c17-->`, that markdown ignores). It is the **tool** that
   writes, not red — red stays read-only; red's `cite` event is the trigger.
-- **Invisible and assembly-stripped.** Blue edits *around* the token; assembly removes it from the
-  final report. Blue's authored prose is never touched, so the "blue owns the visible report"
+- **Invisible and assembly-stripped.** A rewrite carries the token with its sentence, and a cut
+  takes it with the sentence; assembly removes it from the final report. Blue's authored prose is never touched, so the "blue owns the visible report"
   invariant holds. The marker is a parallel anchor layer embedded in the artifact.
 - **Locating is `grep`, not comprehension.** From insertion on, "where is claim c17?" is
   `grep <!--#c17-->` — O(hits), and it **survives blue's rewrites because the token rides the
@@ -61,14 +61,15 @@ through edits. The engine's version, compatible with a **read-only red**:
   report only through an edit on the record, never by silently vanishing, and the edit names the
   anchors it took. A marker that disappears with no event naming it is a detector hit, not a lost
   bookmark.
-- **Robust anchoring is the recovery fallback, not the primary.** If a marker is lost (blue corrupts
-  the raw token), re-anchor by last-known quote+context — belt and suspenders, never the main path.
+- **Robust anchoring is prior art, not a path the tool takes.** No writer corrupts or drops a token:
+  a rewrite that would drop one is refused, so a marker leaves only by a retire naming it or with its
+  sentence in a cut. Re-anchoring by last-known quote+context stays a recovery idea, never the main path.
 - **The marker layer is a projection, not a forked source.** Each insertion is the image of a `cite`
   event on the text (`red cited span S → tool inserted marker M`). Replay the report edits plus the
   cite events and the anchored document reconstructs. It passes the render-shadow test.
 
-**Sequencing is safe.** Blue drafts → red cites (the tool stamps markers) → blue responds (edits
-around them). Turn boundaries, not concurrent writes to one file. Round-0 blue is multi-lane, but
+**Sequencing is safe.** Blue drafts → red cites (the tool stamps markers) → blue responds (a
+rewrite carries the markers of its span, a cut takes them with their sentence). Turn boundaries, not concurrent writes to one file. Round-0 blue is multi-lane, but
 that is *before* red cites anything.
 
 **Built as the anchor layer** (`finding-markers.md`): an anchor of every kind is placed by the tool at

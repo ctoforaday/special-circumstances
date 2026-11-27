@@ -33,7 +33,8 @@ exactly like a clean board. See [[facts-are-fields]].
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
 a claim, `fx:` where red challenged, `computation:` where a program blue ran settles it, `gap:` where red
-holds a gap open — and dropping one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
+holds a gap open — and a rewrite that drops one is refused: an anchor leaves only by a retire naming
+it, or with its sentence in a cut. Write for the reader; put what the machinery depends on in a field.
 
 ## Reading the report
 

@@ -946,7 +946,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the report-voice refusal and a retired --about anchor judge
+		// The one-gap-per-class rule, the report-voice refusal and an --about anchor out of the report —
+		// retired, or cut with its sentence — judge
 		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
 		// place on the roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {

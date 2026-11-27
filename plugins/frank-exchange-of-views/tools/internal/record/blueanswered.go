@@ -309,8 +309,9 @@ func placedAnswer(e *Event) (id, gap string, ok bool) {
 	return "", "", false
 }
 
-// retireAnswers is the gap a retire answers — the key BlueEdit.answers is too: a retire changes the
-// report's anchors and an edit its text, and every reader of blue's answers reads both. "" for any
+// retireAnswers is the gap a retire answers — the key BlueEdit.answers is too: a retire takes an
+// anchor off a sentence that stays, and an edit changes the text, a cut taking its sentences'
+// anchors with it; every reader of blue's answers reads both. "" for any
 // other event, and for a retire answering no gap.
 func retireAnswers(e *Event) string {
 	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {

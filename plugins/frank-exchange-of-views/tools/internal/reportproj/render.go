@@ -90,7 +90,8 @@ func Render(text string, ops []Op) (string, error) {
 }
 
 // mutation is one recorded text change, applied to the running report during replay: a part's
-// append, a splice (blue edit), a marker insertion (cite/compute/finding) or a retire's removal. Each
+// append, a splice (blue edit), a marker insertion (cite/compute/finding) or an anchor's removal, a
+// retire's or one a cut lists in removed_anchors. Each
 // locates against the running text exactly as the verb did, and is loud when it cannot.
 type mutation interface {
 	apply(text string) (string, error)

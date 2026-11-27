@@ -163,7 +163,7 @@ func TestACutReadiesItsRaiser(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !slices.ContainsFunc(cutD.Pieces, func(p record.DeliveryPiece) bool {
-				return strings.Contains(p.Label, "THE PASSAGE OF GAP "+g+", AS IT STOOD BEFORE THE CHANGE THAT REMOVED ITS TEXT") &&
+				return strings.Contains(p.Label, "THE PASSAGE OF GAP "+g+", AS IT STOOD BEFORE THE LATEST EDIT THAT CHANGED OR CUT ITS SENTENCE") &&
 					strings.Contains(p.Text, "The grass is green"+anchor.Token(g))
 			}) {
 				t.Errorf("%s's passage is not the cut's old paragraph: %+v", g, cutD.Pieces)

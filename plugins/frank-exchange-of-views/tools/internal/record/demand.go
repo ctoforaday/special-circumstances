@@ -126,7 +126,7 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 		if r.From != gapID {
 			whose = fmt.Sprintf("the %s %s was about, whose demand this gap carries", anchor.Kind(r.Anchor), r.From)
 		}
-		retire = appendNew(retire, fmt.Sprintf("blue's `retire --anchor %s`, %s", r.Anchor, whose))
+		retire = appendNew(retire, fmt.Sprintf("blue's `retire --anchor %s`, or an edit that cuts its sentence, of %s", r.Anchor, whose))
 		// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading
 		// that backs under `source`, a `sound` judgement under `computation`. Another seat's check meets
 		// nothing.

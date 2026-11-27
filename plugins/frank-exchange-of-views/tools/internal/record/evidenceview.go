@@ -227,7 +227,8 @@ type EvidenceReproductionJSON struct {
 	Soundness string `json:"soundness"`
 	// Standing is whether this verdict still stands on the anchor, by the anchor ledger's one rule
 	// (anchorStanding.stands): it is its seat's latest judgement of the anchor, its sitting opened after
-	// the latest edit naming the anchor reopened, and the computation is not retired.
+	// the latest edit naming the anchor reopened, and the computation is in the report — no retire or
+	// cut has taken it out.
 	Standing bool `json:"standing"`
 	// Claim is the sentence this judgement was of, as the tool read it off the report before the write
 	// (Reproduce.claim), as a verification's `claim` is; "" on a reproduce migrated from a record
@@ -282,8 +283,8 @@ type EvidenceVerificationJSON struct {
 	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
 	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
 	// nor replaces one), it is its seat's latest reading of the citation that read, its sitting opened
-	// after the latest edit naming the anchor reopened, and the citation is not retired. Omitted on a
-	// reading under `independent`, which is of no citation and has nothing to stand on.
+	// after the latest edit naming the anchor reopened, and the citation is in the report — no retire or
+	// cut has taken it out. Omitted on a reading under `independent`, which is of no citation and has nothing to stand on.
 	Standing *bool `json:"standing,omitempty"`
 }
 
@@ -367,15 +368,15 @@ type EvidenceRetiredJSON struct {
 	Reason string `json:"reason"`
 }
 
-// EvidenceRetiredRow is one retired anchor: its row as the live lists would hold it — Source set for
-// a citation, Computation for a computation — and the retire.
+// EvidenceRetiredRow is one anchor out of the report: its row as the live lists would hold it —
+// Source set for a citation, Computation for a computation — and the retire or cut that took it out.
 type EvidenceRetiredRow struct {
 	Source      *EvidenceSourceJSON
 	Computation *EvidenceComputationJSON
 	Retired     EvidenceRetiredJSON
 }
 
-// Anchor is the retired anchor's id.
+// Anchor is the id of the anchor out of the report.
 func (r EvidenceRetiredRow) Anchor() string {
 	if r.Computation != nil {
 		return r.Computation.Anchor
@@ -619,8 +620,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 }
 
 // evidenceView is the evidence read from the record: the sources, computations and their checks,
-// and the edits that change an anchor's sentence with the retires that take one out of the report
-// (unchecked).
+// and the edits that change an anchor's sentence, with the retires and cuts that take one out of the
+// report (unchecked).
 var evidenceView = declareNarrowedView("evidence", func(q recordsql.Querier, evs []*Event, win WindowIndex) (EvidenceJSON, error) {
 	// ONE RENDER PER READ, through the checkpointed path, shared by every row's location.
 	report, err := RenderAt(q)

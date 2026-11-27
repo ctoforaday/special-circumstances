@@ -186,7 +186,7 @@ func TestAGapAboutARetiredEvidenceAnchorCloses(t *testing.T) {
 			id := placeAnswer(t, runDir, c.kind, "The sky is blue.", "https://sky/1", "")
 			g := demandGap(t, runDir, "about", c.check, "--about-kind", "anchor", "--about", id)
 			wantDemandRefusal(t, lensClose(t, runDir, lensSeat, g, "repaired"), g, c.check,
-				"blue's `retire --anchor "+id+"`, the "+c.kind+" it is about", strings.Replace(c.again, "%s", id, 1))
+				"blue's `retire --anchor "+id+"`, or an edit that cuts its sentence, of the "+c.kind+" it is about", strings.Replace(c.again, "%s", id, 1))
 			retireAnchor(t, runDir, id)
 			if open, answered, awaiting := gapRow(t, runDir, g); !open || !answered || awaiting {
 				t.Errorf("after the retire %s reads open=%v evidence_answered=%v awaiting_evidence=%v, want open and met — nothing auto-closes", g, open, answered, awaiting)
@@ -288,7 +288,7 @@ func TestTheDemandOnAReadingsSourceGap(t *testing.T) {
 		}, nil},
 		{"the reader's backing re-read, no edit: met, arm 4", func(t *testing.T, b readingBoard, _ string) { reread(t, b, lensL) }, nil},
 		{"another lens's backing reading: refused by the demand", func(t *testing.T, b readingBoard, _ string) { reread(t, b, lensM) },
-			[]string{"blue's `retire --anchor %c1`, the citation it is about"}},
+			[]string{"blue's `retire --anchor %c1`, or an edit that cuts its sentence, of the citation it is about"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b, g := reading(t)
@@ -437,7 +437,7 @@ func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
 			if answered {
 				t.Errorf("another lens's re-read met successor %s's demand", g2)
 			}
-			wantDemandRefusal(t, err, g2, "source", "blue's `retire --anchor "+b.c1+"`, the citation "+g1+" was about, whose demand this gap carries",
+			wantDemandRefusal(t, err, g2, "source", "blue's `retire --anchor "+b.c1+"`, or an edit that cuts its sentence, of the citation "+g1+" was about, whose demand this gap carries",
 				"a reading of "+b.c1+" by "+lensL)
 		})
 	}

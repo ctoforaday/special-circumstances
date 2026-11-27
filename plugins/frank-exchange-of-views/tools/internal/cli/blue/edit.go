@@ -112,7 +112,8 @@ func newEdit() *cobra.Command {
 		}
 
 		// FRESH: validated against the report the edit lands on, BEFORE the event commits, so a
-		// mis-quote or a marker-spanning edit never lands a phantom stack op. The report is the render
+		// mis-quote, or a rewrite that would drop, duplicate or invent an anchor, never lands a phantom
+		// stack op. The report is the render
 		// of the record so far — there is no file — and it is rendered inside the write's transaction:
 		// another seat's anchor or blue's own parallel edit can commit in between, and an edit planned
 		// against the report before it is an edit replay cannot apply, which fails every render of the
@@ -503,8 +504,8 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 	return next, applied, exact, nil
 }
 
-// validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
-// mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
+// validateEdit rejects a mis-quote, or a rewrite that would drop, duplicate or invent an anchor,
+// against a snapshot, WITHOUT mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
 // document so the caller can record what this edit reopens, computed from the same snapshot the
 // validation used rather than from a re-read that may have moved, and whether the edit took the
 // literal span, which the caller records as exact_span.
