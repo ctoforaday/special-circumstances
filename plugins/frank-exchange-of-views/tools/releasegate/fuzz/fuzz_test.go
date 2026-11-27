@@ -919,8 +919,8 @@ type runner struct {
 	// "" until the first chair sitting.
 	forceScreenUnsound       bool
 	screenUnsoundComputation string
-	// screenJudged is whether the lenses' half of that arm has run (screenAtLimit).
-	screenJudged bool
+	// screenJudged is each owner whose half of the lenses' half of that arm has run (screenAtLimit).
+	screenJudged map[string]bool
 	// limitDebtCite is blue's citation the citation owner reads `refutes` in the epoch that holds blue
 	// out, so the run ends on a reading debt (screenAtLimit); "refused" where blue's cite was, "" until
 	// blue cites it (screenBeforeHeldOut).
@@ -6253,8 +6253,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return map[string]any{}
 
 	case strings.HasPrefix(seatID, "red-chair"):
-		r.sit("chair", seatID)
+		// BLUE'S HALF OF THE SCREEN ARM LANDS BEFORE THE CHAIR'S REGISTER: the register opens epoch 1,
+		// which under limitSeed's limit of 2 is the epoch that holds blue out.
 		r.screenBeforeHeldOut()
+		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
 		standing := map[string]bool{}
@@ -6269,7 +6271,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.tallyTrifleRoutes(plan)
 		r.tallyLensTurns(plan)
 		r.tallyReadingReadied(plan)
-		r.screenAtLimit(plan)
 		r.mu.Lock()
 		r.blueSatSincePlan = false
 		r.mu.Unlock()
@@ -6628,6 +6629,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board.
 		r.sit("lens", seatID)
+		// THE LENSES' HALF OF THE SCREEN ARM LANDS IN EACH OWNER'S OWN SITTING under the plan that holds
+		// blue out: an owner's sitting opened inside the chair's stands between the chair's dispatch and
+		// the plan it asks for again at its envelope, which the record refuses as a sitting no register
+		// opened, and one opened beside the owner's dispatched sitting races its register.
+		r.screenAtLimit(seatID, r.planThisSitting)
 		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
 		r.auditRead(seatID)

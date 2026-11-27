@@ -1312,8 +1312,9 @@ const screenUnsoundComputationName = "fuzz-screen-unsound.js"
 // alone, and every party does at the final epoch (record.requireClosingsOnlySitting). The run ends with
 // the computation live and unsound, and the screen at its end must FAIL naming it (screenUnsound).
 //
-// screenBeforeHeldOut is blue's half, driven at the forced run's first chair sitting before its plan,
-// while the record is still at the epoch the lanes and the synthesis wrote: blue-respond, in a sitting
+// screenBeforeHeldOut is blue's half, driven at the forced run's first chair sitting before the chair's
+// register — which opens epoch 1, the one that holds blue out under the limit of 2 — while the record is
+// still at the epoch the lanes and the synthesis wrote: blue-respond, in a sitting
 // of its own, computes the fuzz sentence and cites a sentence of the report. blue-respond is not sure to
 // be dispatched before blue is held out — under forcedEpochLimit it never is — so the drive sits it.
 // Draws nothing.
@@ -1359,22 +1360,33 @@ func (r *runner) screenBeforeHeldOut() {
 	r.mu.Unlock()
 }
 
-// screenAtLimit is the lenses' half, driven at the chair's sitting whose plan holds blue out
-// (holdsBlueOut): the computation owner, in a sitting of its own, judges blue's computation unsound, and
-// the citation owner reads blue's citation `refutes`. Draws nothing.
-func (r *runner) screenAtLimit(plan map[string]any) {
-	r.mu.Lock()
-	k, cite := r.screenUnsoundComputation, r.limitDebtCite
-	due := r.forceScreenUnsound && !r.screenJudged && k != ""
-	r.screenJudged = r.screenJudged || due && holdsBlueOut(plan)
-	r.mu.Unlock()
-	if !due || !holdsBlueOut(plan) {
+// screenAtLimit is the lenses' half, driven in each owner's own sitting under the plan that holds blue
+// out (holdsBlueOut): the computation owner judges blue's computation unsound, and the citation owner
+// reads blue's citation `refutes`. Draws nothing.
+func (r *runner) screenAtLimit(seatID string, plan map[string]any) {
+	if seatID != computationOwner && seatID != citationOwner {
 		return
 	}
-	if strings.HasPrefix(k, anchorPrefix["computation"]) && r.openSitting(computationOwner) {
-		r.lifecycleJudge(computationOwner, k, "unsound")
+	r.mu.Lock()
+	k, cite := r.screenUnsoundComputation, r.limitDebtCite
+	due := r.forceScreenUnsound && k != "" && holdsBlueOut(plan) && !r.screenJudged[seatID]
+	if due {
+		if r.screenJudged == nil {
+			r.screenJudged = map[string]bool{}
+		}
+		r.screenJudged[seatID] = true
 	}
-	if !strings.HasPrefix(cite, anchorPrefix["citation"]) || !r.openSitting(citationOwner) {
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	if seatID == computationOwner {
+		if strings.HasPrefix(k, anchorPrefix["computation"]) {
+			r.lifecycleJudge(computationOwner, k, "unsound")
+		}
+		return
+	}
+	if !strings.HasPrefix(cite, anchorPrefix["citation"]) {
 		return
 	}
 	at := r.readCited(citationOwner, cite, "refutes")
@@ -1388,6 +1400,19 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	// it, so the run fails here with the cause rather than at its end with the absence.
 	if _, stands := r.debtOf(citationOwner, cite); !stands {
 		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s in the epoch that holds blue out (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
+	}
+}
+
+// screenOwnersAtLimit is screenAtLimit for both owners, each in a sitting the drive opens for it where
+// the arm is due: the shape a test drives with no plan dispatching the owners.
+func (r *runner) screenOwnersAtLimit(plan map[string]any) {
+	if !r.forceScreenUnsound || !holdsBlueOut(plan) {
+		return
+	}
+	for _, owner := range []string{computationOwner, citationOwner} {
+		if r.openSitting(owner) {
+			r.screenAtLimit(owner, plan)
+		}
 	}
 }
 
@@ -1652,7 +1677,7 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 		if !holdsBlueOut(plan) {
 			t.Fatalf("the forced run's first plan (epoch %v of %v) does not hold blue out", plan["epoch"], plan["max_epochs"])
 		}
-		r.screenAtLimit(plan)
+		r.screenOwnersAtLimit(plan)
 		if r.actErr != "" {
 			t.Fatalf("the lenses' judgements in the epoch that holds blue out: %s", r.actErr)
 		}
@@ -1682,7 +1707,7 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	t.Run("a plan that does not hold blue out", func(t *testing.T) {
 		r := stage(t)
 		r.screenBeforeHeldOut()
-		r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(record.DefaultParams.MaxEpochs)})
+		r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(record.DefaultParams.MaxEpochs)})
 		if n, msg := screen(t, r); n != 0 || msg != "" {
 			t.Errorf("the screen of a run whose computation no lens judged counted %d (%s), want 0", n, msg)
 		}
@@ -1690,7 +1715,7 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	t.Run("not forced", func(t *testing.T) {
 		r := stagedSynthesizedRunner(t)
 		r.screenBeforeHeldOut()
-		r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
+		r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 		if r.screenUnsoundComputation != "" {
 			t.Errorf("a run not forced drove the arm: %q", r.screenUnsoundComputation)
 		}
@@ -1729,7 +1754,7 @@ func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
 		t.Fatalf("the other lens's mint quoting lane 1's sentence: %q (%s)", g, r.actErr)
 	}
 	r.screenBeforeHeldOut()
-	r.screenAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
+	r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 	if r.actErr != "" || !strings.HasPrefix(r.limitDebtCite, anchorPrefix["citation"]) || r.limitDebtRead == 0 {
 		t.Fatalf("the forced limit run's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
 	}
