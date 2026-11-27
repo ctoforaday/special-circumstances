@@ -119,7 +119,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// edit's guard stamps removed_anchors before this is asked, so it reads the list the write applies.
 		return requireCitationUncited(q, b.GetRemovedAnchors(), "cut")
 	case *recordpb.Retire:
-		// F14: AN OPEN GAP'S OWN MARKER IS NOT RETIRED. Its sentence stays, and the gap would stand on
+		// F14: AN OPEN GAP'S OWN MARKER STAYS ON ITS SENTENCE. Its sentence stays, and the gap would stand on
 		// nothing; a cut of the sentence is the gap's raiser's turn instead. A closed gap's marker may go.
 		if err := RequireMarkerOfNoOpenGap(q, b.GetAnchors()); err != nil {
 			return err
