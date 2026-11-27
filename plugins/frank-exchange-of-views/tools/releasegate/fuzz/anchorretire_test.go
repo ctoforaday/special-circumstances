@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -95,5 +96,14 @@ func TestTheBarePrescriptionSeedCountsItsRefusal(t *testing.T) {
 	}
 	if r.mintBareRefused != len(anchor.Kinds()) {
 		t.Errorf("the bare prescription: %d refusal(s) counted, want one per kind (%d)", r.mintBareRefused, len(anchor.Kinds()))
+	}
+	// THE GAP THE LENS PLACED IS ITS OWN, AND CLOSED once its prescription was refused.
+	md, err := record.RenderRun(r.run())
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := mintBareAnchor(md, "gap")
+	if g == "" || r.minter[g] != citationOwner || slices.Contains(r.openGaps(), g) {
+		t.Errorf("the seed's gap %q: minted by %q, open %v; want %s's, closed", g, r.minter[g], slices.Contains(r.openGaps(), g), citationOwner)
 	}
 }

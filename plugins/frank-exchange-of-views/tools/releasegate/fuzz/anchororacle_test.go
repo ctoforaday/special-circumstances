@@ -203,7 +203,12 @@ func (a *anchorReplay) judgeText(db *sql.DB) (msg string, moved bool, err error)
 		return "", false, fmt.Errorf("the report ops could not be read: %w", err)
 	}
 	if len(ops) == 0 {
-		return "", true, nil // no part yet: no report
+		// NO OP IS NO PART, and the record renders no report: a report with no op behind it is what the
+		// replay cannot see, so it is said, never passed.
+		if written, err := record.RenderAt(tx); err == nil || !strings.Contains(err.Error(), reportproj.NoPart) {
+			return fmt.Sprintf("the record holds no report op and renders %d byte(s) of report (%v)", len(written), err), true, nil
+		}
+		return "", true, nil
 	}
 	if err := a.advance(ops); err != nil {
 		return "the report could not be replayed: " + err.Error(), true, nil
@@ -327,6 +332,34 @@ func TestTheCitesOracle(t *testing.T) {
 	}
 	if msg := citesAbsent(strings.Replace(text, anchor.Token(c), "", 1), cites); !strings.Contains(msg, k) || !strings.Contains(msg, c) {
 		t.Errorf("a computation applying a citation out of the report passed: %q", msg)
+	}
+}
+
+// THE ORACLES REPLAY A REAL CUT: after blue's pure cut of a cited sentence, the per-act replay has folded
+// the record's ops, no longer holds the citation, and keys its absence on the cutting edit, the event
+// anchor_removal names.
+func TestTheAnchorOraclesReplayARealCut(t *testing.T) {
+	r := stagedLifecycleArms(t)
+	claim := lifecycleClaims[22]
+	cite := r.lifecycleCite("blue-respond", claim, "/replayed-cut", "")
+	if cite == "" {
+		t.Fatalf("the cite: %s", r.actErr)
+	}
+	if removed, why := r.lifecycleCut("blue-respond", claim, ""); why != "" || !slices.Contains(removed, cite) {
+		t.Fatalf("the cut: %v %s (%s)", removed, why, r.actErr)
+	}
+	if r.actErr != "" {
+		t.Fatalf("an oracle failed the cut: %s", r.actErr)
+	}
+	rm, found, err := record.AnchorRemovedAt(r.run(), cite)
+	if err != nil || !found {
+		t.Fatalf("anchor_removal of %s: found %v, %v", cite, found, err)
+	}
+	a := &r.anchorOracle
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.folded == 0 || a.present[cite] || a.firstAbsent[cite] != rm.Event {
+		t.Errorf("the replay folded %d op(s), holds %s %v, keys its absence on event %d; the cut is event %d", a.folded, cite, a.present[cite], a.firstAbsent[cite], rm.Event)
 	}
 }
 

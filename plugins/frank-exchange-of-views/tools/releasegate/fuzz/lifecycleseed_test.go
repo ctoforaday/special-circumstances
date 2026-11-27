@@ -302,7 +302,8 @@ func (r *runner) openSitting(seat string) bool {
 }
 
 // lifecycleMint is seat's mint of a gap under check kind on claim, or about anchor where about is set,
-// graded grade on every axis, with extra flags; it returns the gap id, or "" and the refusal.
+// graded grade on every axis, with extra flags (a --class among them names the gap's class); it
+// returns the gap id, or "" and the refusal.
 func (r *runner) lifecycleMint(seat, kind, claim, about, grade string, extra ...string) (string, string) {
 	args := []string{"--json", "mint", "--seat-id", seat, "--class", mintPoolClasses[0],
 		"--problem", "fuzz: the lifecycle arm's defect", "--check-kind", kind, "--check", "the evidence settles it",
@@ -311,6 +312,11 @@ func (r *runner) lifecycleMint(seat, kind, claim, about, grade string, extra ...
 		args = append(args, "--about-kind", "anchor", "--about", about)
 	} else {
 		args = append(args, "--quote", claim)
+	}
+	// A --class among extra is the gap's class, in place of the first of the pool.
+	if i := slices.Index(extra, "--class"); i >= 0 && i+1 < len(extra) {
+		setArg(args, "--class", extra[i+1])
+		extra = slices.Delete(slices.Clone(extra), i, i+2)
 	}
 	out, err := r.exec(append(args, extra...)...)
 	var minted struct {
@@ -836,11 +842,7 @@ func (r *runner) lifecycleCutQuote(claim string) (quote, why string) {
 // lifecycleCut is blue's pure cut of the sentence claim opens, answering gap where it is set, through
 // cutCitingFirst: it returns the anchors the edit recorded as removed, or why it did not land.
 func (r *runner) lifecycleCut(blue, claim, gap string) (removed []string, why string) {
-	q, why := r.lifecycleCutQuote(claim)
-	if q == "" {
-		return nil, why
-	}
-	return r.cutCitingFirst(blue, q, gap)
+	return r.cutCitingFirst(blue, func() (string, string) { return r.lifecycleCutQuote(claim) }, gap)
 }
 
 // lifecycleCitedCut (L6, ruling Same-act L6): blue cites the eleventh claim (C) and computes on the
@@ -1156,15 +1158,21 @@ func (r *runner) lifecycleAbuttingCuts(blue, quoted, unquoted string) string {
 		if err != nil {
 			return "the report could not be rendered: " + err.Error()
 		}
-		if !strings.Contains(abuttingRun(md, arm.claim), anchor.Token(cite)) {
+		run := abuttingRun(md, arm.claim)
+		if !strings.Contains(run, anchor.Token(cite)) {
 			return "citation " + cite + " does not abut " + arm.claim
 		}
-		removed, why := r.cutCitingFirst(blue, arm.quote(md, arm.claim), "")
+		removed, why := r.cutCitingFirst(blue, func() (string, string) { return arm.quote(md, arm.claim), "" }, "")
 		if why != "" {
 			return why
 		}
 		if !slices.Contains(removed, cite) {
 			return fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, which do not hold %s", arm.claim, removed, cite)
+		}
+		// THE TEXT THE CUT WRITES is the report without the sentence: its words, its tokens, its full
+		// stop and the space after it.
+		if after, _ := record.RenderRun(r.run()); after != strings.Replace(md, arm.claim+run+". ", "", 1) {
+			return "blue's pure cut of " + arm.claim + " left the report other than the report without the sentence"
 		}
 		if why := replayedIsWritten(r.run(), removed); why != "" {
 			return "after blue's pure cut of " + arm.claim + ": " + why

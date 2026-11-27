@@ -3611,13 +3611,21 @@ func (r *runner) retireCitingFirst(seatID, citation string) bool {
 	return true
 }
 
-// cutCitingFirst is blue's pure cut of quote, whole sentences, answering gap where it is set: the cut's
-// twin of retireCitingFirst (L6). While a computation outside the cut applies a citation the cut takes,
-// the cut is refused naming each such computation and writes nothing; blue then retires each by its
-// anchor, and the same cut lands. A computation the cut takes with the citation is no bar (ruling
-// Same-act L6). It returns the anchors the cut recorded as removed, or why it did not land; a refused
-// cut that wrote, or one refused without naming a computation that applies the citation, fails the run.
-func (r *runner) cutCitingFirst(seatID, quote, gap string) (removed []string, why string) {
+// cutCitingFirst is blue's pure cut of the whole sentences quote reads off the report as it stands,
+// answering gap where it is set: the cut's twin of retireCitingFirst (L6). While a computation outside
+// the cut applies a citation the cut takes, the cut is refused naming each such computation and its
+// sentences stay; blue then retires each by its anchor, and the same cut lands. A computation the cut
+// takes with the citation is no bar (ruling Same-act L6). It returns the anchors the cut recorded as
+// removed, or why it did not land; a refused cut that was recorded, or one refused without naming a
+// computation that applies the citation, fails the run.
+//
+// THE QUOTE IS READ AGAIN BEFORE EACH CUT: seats sit concurrently, and a lens's marker can land on the
+// sentence between the refused cut and the one that lands.
+func (r *runner) cutCitingFirst(seatID string, quoteOf func() (string, string), gap string) (removed []string, why string) {
+	quote, why := quoteOf()
+	if quote == "" {
+		return nil, why
+	}
 	var citing []string
 	for _, c := range anchor.IDs(quote) {
 		if anchor.Kind(c) != "citation" {
@@ -3629,7 +3637,7 @@ func (r *runner) cutCitingFirst(seatID, quote, gap string) (removed []string, wh
 			}
 		}
 	}
-	cut := func() *cmd {
+	cut := func(quote string) *cmd {
 		c := r.do("edit", seatID).set("--quote", quote).set("--new", "").set("--reason", "fuzz: the claim cannot stand")
 		if gap != "" {
 			c.set("--answers", gap)
@@ -3637,12 +3645,8 @@ func (r *runner) cutCitingFirst(seatID, quote, gap string) (removed []string, wh
 		return c
 	}
 	if len(citing) > 0 {
-		before, err := record.RenderRun(r.run())
-		if err != nil {
-			return nil, "the report could not be rendered before the cut: " + err.Error()
-		}
-		out, err := cut().result()
-		if after, _ := record.RenderRun(r.run()); err == nil || after != before {
+		out, err := cut(quote).result()
+		if err == nil {
 			why := "blue's pure cut of " + quote + " took a citation computation " + citing[0] + " applies, and the cut was recorded"
 			r.noteActErr(why)
 			return nil, why
@@ -3660,8 +3664,11 @@ func (r *runner) cutCitingFirst(seatID, quote, gap string) (removed []string, wh
 				return nil, "blue's retire of " + k + ", the computation applying a citation the cut takes, was refused"
 			}
 		}
+		if quote, why = quoteOf(); quote == "" {
+			return nil, why
+		}
 	}
-	if out, ok := cut().admit(); !ok {
+	if out, ok := cut(quote).admit(); !ok {
 		return nil, "blue's pure cut of " + quote + " was refused: " + firstLine(out)
 	}
 	b, err := record.FamilyOf(r.run())
@@ -3709,17 +3716,14 @@ func (r *runner) citedCut(seatID string, applied bool) {
 			return
 		}
 	}
-	q, why := r.lifecycleCutQuote(claim)
-	if q == "" {
-		r.noteActErr(why)
-		return
-	}
-	removed, why := r.cutCitingFirst(seatID, q, "")
+	// A LENS'S MARKER MAY LAND ON THE SENTENCE MEANWHILE (seats sit concurrently), and the cut takes it
+	// too: the drive asks only that the citation left with its sentence.
+	removed, why := r.lifecycleCut(seatID, claim, "")
 	switch {
 	case why != "":
 		r.noteActErr(why)
-	case !slices.Equal(removed, []string{cite}):
-		r.noteActErr(fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, want [%s]", claim, removed, cite))
+	case !slices.Contains(removed, cite):
+		r.noteActErr(fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, which do not hold %s", claim, removed, cite))
 	}
 }
 
@@ -3828,9 +3832,15 @@ func (r *runner) mintBaringKind(seatID, kind string) {
 			r.do("finding", seatID).set("--quote", claim).set("--severity", "low").set("--likelihood", "low").
 				set("--impact", "low").set("--reason", "fuzz: the finding a fix would leave bare").admit()
 		case "gap":
-			r.do("mint", seatID).set("--quote", claim).set("--class", mintPoolClasses[1]).set("--problem", "fuzz: the gap a fix would leave bare").
-				set("--check-kind", "document").set("--check", "acc").set("--fix", dirCounter).set("--severity", "low").
-				set("--likelihood", "low").set("--impact", "low").set("--reason", "fuzz: the gap a fix would leave bare").admit()
+			// THE LENS KEEPS ITS GAP AS ITS OWN (noteMint), and closes it once its prescription is refused.
+			if g, why := r.lifecycleMint(seatID, "document", claim, "", "low", "--class", mintPoolClasses[1]); g == "" {
+				r.mu.Lock()
+				if r.mintBareOther == "" {
+					r.mintBareOther = seatID + " (gap): " + why
+				}
+				r.mu.Unlock()
+				return
+			}
 		default:
 			return // blue's half has not placed it
 		}
@@ -3847,12 +3857,13 @@ func (r *runner) mintBaringKind(seatID, kind string) {
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
 		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the "+kind+" anchor bare").result()
 	after, _ := record.RenderRun(r.run())
+	refused := false
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	switch {
 	case err == nil || after != before:
 		r.mintBareAdmittedErr = seatID + " minted a prescription leaving " + kind + " anchor " + id + " bare: " + firstLine(out)
 	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(id)) && strings.Contains(out, "standing bare"):
+		refused = true
 		r.mintBareRefused++
 		if r.mintBareKinds == nil {
 			r.mintBareKinds = map[string]bool{}
@@ -3860,6 +3871,13 @@ func (r *runner) mintBaringKind(seatID, kind string) {
 		r.mintBareKinds[kind] = true
 	case r.mintBareOther == "":
 		r.mintBareOther = seatID + " (" + kind + "): " + firstLine(out)
+	}
+	r.mu.Unlock()
+	// THE LENS CLOSES THE GAP IT PLACED once its prescription is refused. A close another seat's
+	// concurrent change refuses leaves the gap the lens's own (noteMint), for its later sittings.
+	if refused && kind == "gap" {
+		_, closed := r.lifecycleClose(seatID, id)
+		noteEither([]string{"close"}, "the bare-prescription seed's gap, closed in its minting sitting", closed)
 	}
 }
 
@@ -7191,6 +7209,9 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// THE ACT FIRST: an act answered otherwise than expected is the cause of whatever the run did
 	// next, so it leads the failure and what followed from it trails.
 	defer func() {
+		// THE ANCHOR ORACLES JUDGE THE RECORD AS THE DEBATE LEFT IT: the engine's own writes after a
+		// seat's last act reach no execCall.
+		r.anchorOracles()
 		r.mu.Lock()
 		act := r.actErr
 		r.mu.Unlock()
