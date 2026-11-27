@@ -9,7 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -37,7 +36,7 @@ func FindsAgainst(v *recordpb.Verify) bool {
 func readingSentenceIn(report string, v *recordpb.Verify) ([2]int, bool) {
 	spans := anchor.Sentences(report)
 	if v.GetAnchor() != "" {
-		return gapSentenceIn(report, spans, claimcount.BareAnchorIDs(report), v.GetAnchor())
+		return gapSentenceIn(report, spans, v.GetAnchor())
 	}
 	_, end, err := anchortext.LocateOnce(report, v.GetClaim(), anchortext.StopAtParagraph)
 	if err != nil {

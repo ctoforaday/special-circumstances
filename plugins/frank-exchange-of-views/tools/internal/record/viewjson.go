@@ -2283,8 +2283,7 @@ func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, pa
 	if l.err != nil {
 		return LocationUnrendered, stored, "", ""
 	}
-	bare, sentences := l.spans()
-	sp, ok := gapSentenceIn(l.text, sentences, bare, id)
+	sp, ok := gapSentenceIn(l.text, l.spans(), id)
 	if !ok {
 		return LocationGone, stored, "", ""
 	}
@@ -2293,14 +2292,14 @@ func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, pa
 }
 
 // gapSentenceIn is the bounds of the sentence holding gap id's anchor in report, whose sentences
-// are spans and whose bare anchors are bare: the sentence the board shows as a quote gap's
-// location. ok is false where the anchor is not in report, stands bare, or sits in no sentence —
-// the board's `gone`. It is the one reading of "the sentence a gap is on": the board marks a gap
+// are spans: the sentence the board shows as a quote gap's location. ok is false where the anchor is
+// not in report or sits in no sentence — the board's `gone`. No writer leaves an anchor on no words
+// (edit, ingest and mint refuse it), so a token in the report is on a sentence. It is the one reading of "the sentence a gap is on": the board marks a gap
 // with it, and a mint is refused on it (requireOneGapPerClassAndSubject).
-func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]int, bool) {
+func gapSentenceIn(report string, spans [][2]int, id string) ([2]int, bool) {
 	tok := anchor.Token(id)
 	at := strings.Index(report, tok)
-	if at < 0 || slices.Contains(bare, id) {
+	if at < 0 {
 		return [2]int{}, false
 	}
 	for _, sp := range spans {
@@ -2312,14 +2311,12 @@ func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]
 }
 
 // locatedReport is one render of the report with what locateGap reads of it besides the text: the
-// anchors standing bare and the sentence spans. Both are a pass over the whole report and neither
-// depends on the gap, so they are read once per render, on the first gap that needs them, rather
-// than once per gap.
+// sentence spans. They are a pass over the whole report and do not depend on the gap, so they are
+// read once per render, on the first gap that needs them, rather than once per gap.
 type locatedReport struct {
 	text      string
 	err       error
 	read      bool
-	bare      []string
 	sentences [][2]int
 }
 
@@ -2327,9 +2324,9 @@ func newLocatedReport(text string, err error) *locatedReport {
 	return &locatedReport{text: text, err: err}
 }
 
-func (l *locatedReport) spans() ([]string, [][2]int) {
+func (l *locatedReport) spans() [][2]int {
 	if !l.read {
-		l.bare, l.sentences, l.read = claimcount.BareAnchorIDs(l.text), anchor.Sentences(l.text), true
+		l.sentences, l.read = anchor.Sentences(l.text), true
 	}
-	return l.bare, l.sentences
+	return l.sentences
 }

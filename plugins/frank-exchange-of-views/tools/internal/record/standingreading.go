@@ -368,7 +368,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 	}
 	// THE CITATIONS A STANDING READING FINDS AGAINST, by their token: the debt's cross-arm (F9) reads
 	// the gap tokens of each one's sentence.
-	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+	spans := anchor.Sentences(report)
 	for _, s := range anchorChecksOf(evs, win).order {
 		if s.computation {
 			continue
@@ -380,7 +380,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 		if !against {
 			continue
 		}
-		at, ok := gapSentenceIn(report, spans, bare, s.anchor)
+		at, ok := gapSentenceIn(report, spans, s.anchor)
 		if !ok {
 			continue
 		}
@@ -659,13 +659,12 @@ func rewordedTo(m editAt) (reworded string, removed bool, err error) {
 }
 
 // mintSentence is where a mint with a quote lands: the report it lands on with the mint's token
-// placed, the sentence spans and bare anchors of that text, and the span of the sentence the token
+// placed, the sentence spans of that text, and the span of the sentence the token
 // sits in. ok is false where the quote places nothing — the anchor's own placement refuses it, in its
 // own words, after the act judgements that asked.
 type mintSentence struct {
 	placed string
 	spans  [][2]int
-	bare   []string
 	at     [2]int
 	ok     bool
 }
@@ -683,8 +682,8 @@ func mintSentenceAt(w writeView, m *recordpb.Mint) (mintSentence, error) {
 	if err != nil {
 		return mintSentence{placed: report}, nil
 	}
-	ms := mintSentence{placed: placed, spans: anchor.Sentences(placed), bare: claimcount.BareAnchorIDs(placed)}
-	ms.at, ms.ok = gapSentenceIn(placed, ms.spans, ms.bare, m.GetGapId())
+	ms := mintSentence{placed: placed, spans: anchor.Sentences(placed)}
+	ms.at, ms.ok = gapSentenceIn(placed, ms.spans, m.GetGapId())
 	return ms, nil
 }
 
@@ -792,7 +791,7 @@ func readingBehind(evs []*Event, win WindowIndex, report string, found []located
 		if row.found == nil {
 			return standingReading{}, false
 		}
-		if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), gapID); ok {
+		if at, ok := gapSentenceIn(report, anchor.Sentences(report), gapID); ok {
 			r, has := standingReadingOf(evs, win, found, e.GetSeatId(), standingSubject{sentence: at})
 			return r, has && row.found(r.v)
 		}
@@ -1085,7 +1084,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 				if err != nil {
 					return err
 				}
-				if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), g.id); ok {
+				if at, ok := gapSentenceIn(report, anchor.Sentences(report), g.id); ok {
 					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.mintedBy)})
 				}
 			}
