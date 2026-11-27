@@ -71,6 +71,8 @@ type docketResidue struct {
 // names. A run absent states none. A close the delivered-text rule loses ends no docketing, so the
 // ruling after it stands (m28 589, 659; m32 483; m35 582) or is lost with it (m29 576); a
 // spot-check of a gap such a close left open is written as no event (is-91-prime-a 163, wave-b 626).
+// m37's rulings 744 and 745 are of the docketings on G-8405d5e1 and G-584d152f, which the Amend
+// Translation 7 writes for each one's supersede link ended first.
 var wantDocketResidue = map[string]docketResidue{
 	"2026-08-22_is-7-prime-run2.tar.gz":            {opinions: []int64{149, 150, 151, 152, 153, 154, 155}},
 	"2026-08-22_is-7-prime.tar.gz":                 {opinions: []int64{147, 148}},
@@ -91,15 +93,18 @@ var wantDocketResidue = map[string]docketResidue{
 	"2026-11-04_eiffel-tower-height.tar.gz":          {party: []int64{777, 885}},
 	"2026-11-11_eiffel-tower-height.tar.gz":          {benchRegrades: []int64{669}},
 	"2026-11-14_is-91-prime-1883.tar.gz":             {party: []int64{266, 459}, inquiryChecks: []int64{489}},
-	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {ended: []int64{971, 1196, 1197}},
+	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {ended: []int64{744, 745, 971, 1196, 1197}},
 	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {benchRegrades: []int64{427, 718}},
 }
 
 // wantDocketings is each run's docketings, by gap in record order, with the cause the live rule
-// gives each (grade movement, else impasse).
+// gives each (grade movement, else impasse). m29's three impasse docketings, m30's and m37's first
+// two stand on gaps a supersede link named: Translation 7 drops m29's links (a moved location) and
+// amends m30's and m37's, so each gap keeps its id and its docketing comes forward.
 var wantDocketings = map[string][]string{
 	"2026-10-18_is-91-prime-m28.tar.gz":  {"G-1e4a7bb0 impasse", "G-3a2c77c1 impasse"},
-	"2026-10-18_is-91-prime-m29.tar.gz":  {"G-6f6f47fb grade_movement"},
+	"2026-10-18_is-91-prime-m29.tar.gz":  {"G-bde527eb impasse", "G-c55e607d impasse", "G-237fed96 impasse", "G-6f6f47fb grade_movement"},
+	"2026-10-19_is-91-prime-m30.tar.gz":  {"G-97b44713 impasse"},
 	"2026-10-24_is-91-prime-1565.tar.gz": {"G-f94c09fa impasse", "G-960d94a9 impasse", "G-620d9a8f impasse", "G-fe192a8a impasse", "G-5a88e946 impasse"},
 	"2026-10-24_is-91-prime-m32.tar.gz":  {"G-fbdd91f9 impasse"},
 	"2026-10-27_is-91-prime-m35.tar.gz": {"G-91f0c8e6 impasse", "G-08b7972e impasse", "G-1f1ae21f impasse", "G-18a9b00c impasse",
@@ -107,7 +112,7 @@ var wantDocketings = map[string][]string{
 	"2026-10-30_mersenne-31-prime-sum.tar.gz":        {"G-221322e1 impasse"},
 	"2026-11-04_eiffel-tower-height.tar.gz":          {"G-72aab1f2 impasse", "G-42584956 impasse"},
 	"2026-11-11_eiffel-tower-height.tar.gz":          {"G-6e7c400f impasse"},
-	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {"G-c3f84f98 impasse", "G-deced912 impasse", "G-deced912 impasse", "G-37347c3c impasse"},
+	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {"G-8405d5e1 impasse", "G-584d152f impasse", "G-c3f84f98 impasse", "G-deced912 impasse", "G-deced912 impasse", "G-37347c3c impasse"},
 	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {"G-845422d8 impasse", "G-ca807516 impasse"},
 }
 
@@ -187,8 +192,8 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 		}
 	}
 	t.Logf("written as no event: %v; docketings written: %d", total, total["docketings"])
-	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "ended rulings": 12,
-		"bench regrades": 3, "spot-checks": 7, "inquiry checks": 1, "docketings": 25} {
+	for what, want := range map[string]int{"opinions": 41, "party dockets": 34, "ended rulings": 14,
+		"bench regrades": 3, "spot-checks": 7, "inquiry checks": 1, "docketings": 31} {
 		if total[what] != want {
 			t.Errorf("census: %s %d, want %d", what, total[what], want)
 		}
@@ -208,6 +213,8 @@ func TestAnArchivedBenchWordTakesItsSide(t *testing.T) {
 	type kept struct{ gap, answer string }
 	wantKept := map[string][]kept{
 		"2026-10-18_is-91-prime-m28.tar.gz":              {{"G-1e4a7bb0", "author not_a_defect"}, {"G-3a2c77c1", "author not_a_defect"}},
+		"2026-10-18_is-91-prime-m29.tar.gz":              {{"G-bde527eb", "author not_a_defect"}, {"G-c55e607d", "author not_a_defect"}, {"G-237fed96", "author not_a_defect"}},
+		"2026-10-19_is-91-prime-m30.tar.gz":              {{"G-97b44713", "author not_a_defect"}},
 		"2026-10-24_is-91-prime-m32.tar.gz":              {{"G-fbdd91f9", "author not_a_defect"}},
 		"2026-10-27_is-91-prime-m35.tar.gz":              {{"G-91f0c8e6", "remanded"}, {"G-1f1ae21f", "author not_a_defect"}},
 		"2026-11-04_eiffel-tower-height.tar.gz":          {{"G-72aab1f2", "remanded"}, {"G-42584956", "author not_a_defect"}},

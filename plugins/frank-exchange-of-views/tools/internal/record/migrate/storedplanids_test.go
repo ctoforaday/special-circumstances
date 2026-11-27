@@ -273,14 +273,16 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	// Closes that came before them stand on no delivered text, so they are lost acts and end neither.
 	// An archived act the delivered-text rule refuses, or one refused for a gap such a loss took
 	// with it, is an accepted loss listed in lost_acts; the rest of what writes none is the
-	// renumbering this test drives.
+	// renumbering this test drives. G-f93781cc's close (source event 337) is one: Translation 7 drops
+	// the link its successor's mint named it by (a moved location), so the gap is open at its close,
+	// which stands on no delivery.
 	notLost := maps.Clone(dropped)
 	for w, n := range migrate.LostByWord(res) {
 		if notLost[w] -= n; notLost[w] == 0 {
 			delete(notLost, w)
 		}
 	}
-	if want := map[string]int{"anchor": 43, "class_new": 2, "close": 1, "finding": 68, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion": 2, "motion_rule": 5, "position": 8}; !maps.Equal(notLost, want) {
+	if want := map[string]int{"anchor": 43, "class_new": 2, "finding": 68, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion": 2, "motion_rule": 5, "position": 8}; !maps.Equal(notLost, want) {
 		t.Errorf("m28's events that write none, less its lost acts %v: %v, want %v", migrate.LostByWord(res), notLost, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

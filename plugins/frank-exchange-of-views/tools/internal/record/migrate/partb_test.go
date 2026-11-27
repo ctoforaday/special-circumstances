@@ -159,8 +159,10 @@ func TestEveryArchivedGapIsItsMinters(t *testing.T) {
 
 // T-B20. ARCHIVED RUNS CARRY THEIR TOMBSTONES (§III.B12). The replay's write path writes each row right
 // after the act that owes it: an estoppel placement after every archived blue edit that applied a
-// gap's fix_new verbatim, an end after each reword of such a sentence, and a ruling placement after the
-// two non-remand docket rulings the replay keeps. Counted per run, bundle-store's m37 and m38 included, the ends and the ruling by gap; no
+// gap's fix_new verbatim, an end after each reword of such a sentence, a ruling placement after each
+// non-remand docket ruling the replay keeps, and a ruling's end after blue's reword of its gap's
+// sentence (m29's two, on docketings Translation 7 keeps). Counted per run, bundle-store's m37 and m38
+// included, the ends and the rulings by gap; no
 // source holds a row, so events_in counts none and events_out every one; and no dispatch pin, stale
 // read point or served head names a row.
 func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
@@ -190,12 +192,17 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 	}
 	wantRuled := map[string][]string{
 		"2026-10-18_is-91-prime-m28.tar.gz":              {"G-1e4a7bb0", "G-3a2c77c1"},
+		"2026-10-18_is-91-prime-m29.tar.gz":              {"G-bde527eb", "G-c55e607d", "G-237fed96"},
+		"2026-10-19_is-91-prime-m30.tar.gz":              {"G-97b44713"},
 		"2026-10-24_is-91-prime-m32.tar.gz":              {"G-fbdd91f9"},
 		"2026-10-27_is-91-prime-m35.tar.gz":              {"G-1f1ae21f"},
 		"2026-11-04_eiffel-tower-height.tar.gz":          {"G-42584956"},
 		"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {"G-ca807516"},
 	}
-	gotPlaced, gotEnded, gotRuled := map[string]int{}, map[string][]string{}, map[string][]string{}
+	wantRuledEnded := map[string][]string{
+		"2026-10-18_is-91-prime-m29.tar.gz": {"G-bde527eb", "G-c55e607d"},
+	}
+	gotPlaced, gotEnded, gotRuled, gotRuledEnded := map[string]int{}, map[string][]string{}, map[string][]string{}, map[string][]string{}
 	total := 0
 	for _, name := range partBRuns(t) {
 		man, dir := MigratedArchive(t, name)
@@ -229,8 +236,15 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 					gotPlaced[name]++
 				}
 			case recordpb.TombstoneKind_TOMBSTONE_KIND_RULING:
-				if _, ruling := prev.(*recordpb.MotionRule); !ruling || tb.GetEnds() {
-					t.Errorf("%s: the ruling row on %s (ends %v) follows %T, not a docket ruling", name, tb.GetGapId(), tb.GetEnds(), prev)
+				if tb.GetEnds() {
+					if _, edit := prev.(*recordpb.BlueEdit); !edit {
+						t.Errorf("%s: the ruling's end on %s follows %T, not a blue edit", name, tb.GetGapId(), prev)
+					}
+					gotRuledEnded[name] = append(gotRuledEnded[name], tb.GetGapId())
+					continue
+				}
+				if _, ruling := prev.(*recordpb.MotionRule); !ruling {
+					t.Errorf("%s: the ruling row on %s follows %T, not a docket ruling", name, tb.GetGapId(), prev)
 				}
 				gotRuled[name] = append(gotRuled[name], tb.GetGapId())
 			}
@@ -263,8 +277,11 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 	if !maps.EqualFunc(gotRuled, wantRuled, slices.Equal) {
 		t.Errorf("ruling placements %v, want %v", gotRuled, wantRuled)
 	}
-	if total != 48 {
-		t.Errorf("%d tombstone rows over the archives, want 48: 37 estoppel placements, 5 ends, 6 rulings", total)
+	if !maps.EqualFunc(gotRuledEnded, wantRuledEnded, slices.Equal) {
+		t.Errorf("ruling ends %v, want %v", gotRuledEnded, wantRuledEnded)
+	}
+	if total != 54 {
+		t.Errorf("%d tombstone rows over the archives, want 54: 37 estoppel placements, 5 ends, 10 rulings, 2 ruling ends", total)
 	}
 }
 

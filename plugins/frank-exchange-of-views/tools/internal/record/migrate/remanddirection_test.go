@@ -16,10 +16,10 @@ import (
 // the count of the source's rulings of that fate that stated one, and no remand keeps a reopen
 // condition. An archived opinion that stated neither migrates with a stated miss in the field its
 // fate owns, and is counted there. A ruling Translations 3 and 4 write as no event (an opinion, a party
-// docket's, one of an ended or superseded docketing) is the manifest's stated residue, and is not
-// counted; one migrate leaves out with its docket, an act on a gap a successor's mint had closed
-// (epoch 62), is the residue supersededRulings states; a ruling the
-// manifest lists as lost (no delivery in the bench's sitting) is the accepted loss.
+// docket's, one of an ended docketing) is the manifest's stated residue, and is not counted; a ruling
+// the manifest lists as lost (no delivery in the bench's sitting) is the accepted loss. m29's and
+// m30's closing rulings with a reopen condition stand on gaps whose supersede link Translation 7 drops
+// or amends, and come forward with their docketings.
 func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 	remands := 0
 	for _, name := range archivedRuns(t) {
@@ -27,14 +27,14 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 			res, dir := MigratedArchive(t, name)
 			skip := LostIDs(res)
 			maps.Copy(skip, docketResidueIDs(res.Dockets))
-			remands += remandsCarried(t, archivedSource(t, recordtest.ExtractArchive(t, name)), dir, skip, supersededRulings[name])
+			remands += remandsCarried(t, archivedSource(t, recordtest.ExtractArchive(t, name)), dir, skip)
 		})
 	}
 	// The translation is exercised on the delivered-bench fixture's source, whose lens and chair act
 	// on their deliveries, so no act the ruling stands on is lost.
 	t.Run("delivered bench", func(t *testing.T) {
 		_, src, to := MigratedDeliveredBench(t)
-		remands += remandsCarried(t, src, to, nil, 0)
+		remands += remandsCarried(t, src, to, nil)
 	})
 	if remands == 0 {
 		t.Fatal("no source holds a remand, so no direction was carried")
@@ -43,15 +43,15 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 
 // remandsCarried holds the migrated record at dir to its source's rulings: the count of remands
 // with a direction and of closing rulings with a reopen condition is the source's, less each ruling
-// the manifest lists as lost or Translations 3 and 4 write as no event (lost), and the superseded
-// rulings left out with their docket. It returns the remands carried.
-func remandsCarried(t *testing.T, src Source, dir string, lost map[int64]bool, superseded int) int {
+// the manifest lists as lost or Translations 3 and 4 write as no event (lost). It returns the
+// remands carried.
+func remandsCarried(t *testing.T, src Source, dir string, lost map[int64]bool) int {
 	t.Helper()
 	evs, err := src.Events()
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantRemand, wantReopens := 0, -superseded
+	wantRemand, wantReopens := 0, 0
 	for _, old := range evs {
 		if old.Word != "motion_rule" || lost[old.ID] {
 			continue
@@ -99,11 +99,4 @@ func remandsCarried(t *testing.T, src Source, dir string, lost map[int64]bool, s
 			gotRemand, gotReopens, wantRemand, wantReopens)
 	}
 	return gotRemand
-}
-
-// supersededRulings is, per archived run, the closing rulings with a reopen condition migrate leaves
-// out with their docket motions, each on a gap a successor's mint had closed (actOnSupersededGap).
-var supersededRulings = map[string]int{
-	"2026-10-18_is-91-prime-m29.tar.gz": 1,
-	"2026-10-19_is-91-prime-m30.tar.gz": 1,
 }

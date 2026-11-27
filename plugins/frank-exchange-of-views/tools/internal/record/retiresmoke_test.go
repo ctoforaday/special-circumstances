@@ -46,9 +46,9 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 			return ok && c.GetGapId() == gap && e.GetSeatId() == lens
 		})
 	}
-	mintOf := func(gap string) int {
-		return place("mint of "+gap, 1, func(e *Event) bool {
-			m, ok := recordpb.BodyAs[*recordpb.Mint](e)
+	amendOf := func(gap string) int {
+		return place("amend of "+gap, 1, func(e *Event) bool {
+			m, ok := recordpb.BodyAs[*recordpb.Amend](e)
 			return ok && m.GetGapId() == gap
 		})
 	}
@@ -77,20 +77,20 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	}
 
 	r1, r2 := retireOf("K-71a99b9a"), retireOf("K-bc8ac2b6")
-	// G-a0c6ca1e CLOSED AT G-342d3cdc's MINT, which superseded it while open; the smoke's later
-	// `close --as moot` of it is an act on a closed gap, which migrate leaves out.
-	c221, cA0 := closeOf("G-221322e1"), mintOf("G-342d3cdc")
-	// G-78817cfa CLOSED AT G-c7f98181's MINT, which superseded it while open, after the retire of
-	// K-bc8ac2b6 met its demand; the bench's later ruling on its docket is an act on a closed gap,
-	// which migrate leaves out. G-342d3cdc's docket was blue's, and G-221322e1's docketing was ended by
-	// its lens's close: neither bench ruling is on the migrated record (EventSchema 80), so G-342d3cdc
-	// reads open at the run's end, its demand met, and G-221322e1 closed by its lens.
-	s788 := mintOf("G-c7f98181")
+	// G-a0c6ca1e IS AMENDED WHERE G-342d3cdc's MINT SUPERSEDED IT WHILE OPEN (Translation 7): the gap
+	// keeps its id and takes the successor's wording, and the smoke's later `close --as moot` of it is
+	// an act on the amended ancestor, which migrate writes as no event (amended_ancestor_acts).
+	c221, aA0 := closeOf("G-221322e1"), amendOf("G-a0c6ca1e")
+	// G-78817cfa STANDS AS ITS OWN GAP: the link G-c7f98181's mint named it by moved its class, about,
+	// location and check kind, which Translation 7 drops, so it reads open at the run's end (its stated
+	// residue). G-342d3cdc's docket was blue's, and G-221322e1's docketing was ended by its lens's
+	// close: neither bench ruling is on the migrated record (EventSchema 80), so G-a0c6ca1e reads open
+	// at the run's end, its demand met, and G-221322e1 closed by its lens.
 	_, s1Closed, s1Register := sittingAfter(r1)
 	_, s2Closed, s2Register := sittingAfter(r2)
-	if !(c221 < cA0 && cA0 < r1 && r1 < r2 && r1 < s1Register && s1Register < s1Closed && r2 < s2Register && s2Register < s2Closed) {
-		t.Fatalf("the archive's order is not the smoke's: close %d, supersede %d, retire %d, retire %d, sittings (%d,%d) (%d,%d)",
-			c221, cA0, r1, r2, s1Register, s1Closed, s2Register, s2Closed)
+	if !(c221 < aA0 && aA0 < r1 && r1 < r2 && r1 < s1Register && s1Register < s1Closed && r2 < s2Register && s2Register < s2Closed) {
+		t.Fatalf("the archive's order is not the smoke's: close %d, amend %d, retire %d, retire %d, sittings (%d,%d) (%d,%d)",
+			c221, aA0, r1, r2, s1Register, s1Closed, s2Register, s2Closed)
 	}
 
 	type gapCols struct {
@@ -129,42 +129,44 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		return "the answers to gap " + gap + ", which you closed, have all been retired"
 	}
 
-	// THE FINAL STATE: both gaps a retire met are answered — G-342d3cdc open, no ruling on the record
-	// closing it, G-78817cfa closed by its successor's mint.
-	if c := cols(len(whole), "G-342d3cdc"); !c.open || !c.answered || c.awaiting {
-		t.Errorf("final: G-342d3cdc reads %+v, want open and its demand met", c)
-	}
-	if c := cols(len(whole), "G-78817cfa"); c.open || !c.answered || c.awaiting {
-		t.Errorf("final: G-78817cfa reads %+v, want closed and its demand met", c)
-	}
-	if s788 < r2 {
-		t.Errorf("G-c7f98181's mint closed G-78817cfa at %d, before the retire %d", s788, r2)
+	// THE FINAL STATE: both gaps a retire met are open and answered — no ruling on the record closes
+	// either.
+	for _, g := range []string{"G-a0c6ca1e", "G-78817cfa"} {
+		if c := cols(len(whole), g); !c.open || !c.answered || c.awaiting {
+			t.Errorf("final: %s reads %+v, want open and its demand met", g, c)
+		}
 	}
 
-	// G-342d3cdc BEFORE AND AFTER THE RETIRE THAT REACHED IT.
-	if c := cols(r1-1, "G-342d3cdc"); !c.awaiting || !lists(r1-1, "blue", blue, "gap G-342d3cdc was minted --check-kind computation") {
-		t.Errorf("through %d, before the retire, G-342d3cdc reads %+v and blue's list must hold its debt", r1-1, c)
+	// G-a0c6ca1e BEFORE AND AFTER THE RETIRE THAT REACHED IT.
+	if c := cols(r1-1, "G-a0c6ca1e"); !c.awaiting || !lists(r1-1, "blue", blue, "gap G-a0c6ca1e was minted --check-kind computation") {
+		t.Errorf("through %d, before the retire, G-a0c6ca1e reads %+v and blue's list must hold its debt", r1-1, c)
 	}
-	if c := cols(s1Register, "G-342d3cdc"); c.awaiting || lists(s1Register, "blue", blue, "gap G-342d3cdc") ||
-		!lists(s1Register, "lens", lens, "gap G-342d3cdc: blue retired K-71a99b9a, which G-342d3cdc is about, at event "+strconv.Itoa(r1)+", so its demand is met") {
-		t.Errorf("through %d, inside the lens's sitting after the retire, G-342d3cdc reads %+v; blue's list must hold nothing for it and the lens's the met-demand item", s1Register, c)
+	if c := cols(s1Register, "G-a0c6ca1e"); c.awaiting || lists(s1Register, "blue", blue, "gap G-a0c6ca1e") ||
+		!lists(s1Register, "lens", lens, "gap G-a0c6ca1e: blue retired K-71a99b9a, which G-a0c6ca1e is about, at event "+strconv.Itoa(r1)+", so its demand is met") {
+		t.Errorf("through %d, inside the lens's sitting after the retire, G-a0c6ca1e reads %+v; blue's list must hold nothing for it and the lens's the met-demand item", s1Register, c)
 	}
-	// THE PLAN AFTER THE RETIRE ENGAGES THE LENS ON G-342d3cdc, and the retire is blue's only act on it.
+	// THE PLAN AFTER THE RETIRE ENGAGES THE LENS ON G-a0c6ca1e. Blue's edit just before the retire
+	// answered G-342d3cdc, which is this gap's id since Translation 7, so the plan's engagement is not
+	// the retire's alone on this archive; the met-demand item above is.
 	fam, err := MergedEvents(full)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, a := range gapActsOf(fam.Events, fam.At.IDs(fam.Events), fam.At)["G-342d3cdc"] {
-		if a.seat == blue && a.at > int64(mintOf("G-342d3cdc")) && a.at < int64(r1) {
-			t.Fatalf("blue acted on G-342d3cdc at %d, before the retire %d: the arm under test is not the retire's alone", a.at, r1)
+	var blueActs []int64
+	for _, a := range gapActsOf(fam.Events, fam.At.IDs(fam.Events), fam.At)["G-a0c6ca1e"] {
+		if a.seat == blue && a.at > int64(aA0) && a.at < int64(r1) {
+			blueActs = append(blueActs, a.at)
 		}
+	}
+	if !slices.Equal(blueActs, []int64{int64(r1 - 1)}) {
+		t.Errorf("blue's acts on G-a0c6ca1e between its amend %d and the retire %d are %v, want its edit at %d alone", aA0, r1, blueActs, r1-1)
 	}
 	plan, err := PlanDispatch(prefix(r1 + 1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(gapsOf(plan, lens), "G-342d3cdc") {
-		t.Errorf("the plan through %d does not engage %s on G-342d3cdc, which the retire at %d reached: parties %+v, why %q", r1+1, lens, r1, plan.Parties, plan.Why)
+	if !slices.Contains(gapsOf(plan, lens), "G-a0c6ca1e") {
+		t.Errorf("the plan through %d does not engage %s on G-a0c6ca1e, which the retire at %d reached: parties %+v, why %q", r1+1, lens, r1, plan.Parties, plan.Why)
 	}
 
 	// G-221322e1: CLOSED BEFORE THE RETIRE TOOK ITS ANSWER, AND IT STAYS CLOSED. No later closing act
@@ -190,23 +192,19 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		}
 	}
 
-	// G-a0c6ca1e: CLOSED BY ITS SUCCESSOR'S MINT, ITS ANSWER RETIRED AFTER.
-	for _, n := range []int{cA0, r2 - 1, r2, s2Register, s2Closed, len(whole)} {
+	// G-a0c6ca1e: OPEN, AND NOT ALL ITS ANSWERS RETIRED. The retire of K-bc8ac2b6 takes the computation
+	// blue answered it with, and blue's edit before the retire of K-71a99b9a answered it too, which no
+	// retire takes; the gap is open, so no answers-retired item is the lens's news.
+	for _, n := range []int{aA0, r2 - 1, r2, s2Register, s2Closed, len(whole)} {
 		c := cols(n, "G-a0c6ca1e")
-		if c.open {
-			t.Errorf("through %d G-a0c6ca1e is open: a retire moves no closure", n)
+		if !c.open {
+			t.Errorf("through %d G-a0c6ca1e is closed: no closing act is on the migrated record", n)
 		}
-		want := sql.NullInt64{}
-		if n >= r2 {
-			want = sql.NullInt64{Int64: int64(r2), Valid: true}
+		if c.retired.Valid {
+			t.Errorf("through %d G-a0c6ca1e's answers_retired_event = %v, want none: blue's edit answers it", n, c.retired)
 		}
-		if c.retired != want {
-			t.Errorf("through %d G-a0c6ca1e's answers_retired_event = %v, want %d from the retire on", n, c.retired, r2)
-		}
-	}
-	for n, want := range map[int]bool{s2Register: true, s2Closed: false} {
-		if got := lists(n, "lens", lens, retiredItem("G-a0c6ca1e")); got != want {
-			t.Errorf("through %d the lens's list holds G-a0c6ca1e's answers-retired item: %v, want %v", n, got, want)
+		if lists(n, "lens", lens, retiredItem("G-a0c6ca1e")) {
+			t.Errorf("through %d the lens's list holds an answers-retired item for G-a0c6ca1e, which is open", n)
 		}
 	}
 
@@ -214,7 +212,7 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 	for _, c := range []struct {
 		n   int
 		gap string
-	}{{s1Register, "G-221322e1"}, {s2Register, "G-a0c6ca1e"}} {
+	}{{s1Register, "G-221322e1"}} {
 		blockers, err := PassBlockers(prefix(c.n))
 		if err != nil {
 			t.Fatal(err)
@@ -225,10 +223,9 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 			}
 		}
 	}
-	// THROUGH THE EVENT BEFORE THE ACT THAT CLOSED IT, G-78817cfa is answered: its lens's close is the
-	// demand's to admit (the close itself is driven through the CLI in
-	// TestTheSmokesMetGapsCloseThroughTheCLI).
-	if c := cols(s788-1, "G-78817cfa"); !c.open || !c.answered {
-		t.Errorf("through %d G-78817cfa reads %+v, want open with its demand met", s788-1, c)
+	// FROM THE RETIRE OF K-bc8ac2b6 ON, G-78817cfa is answered: its lens's close is the demand's to
+	// admit (the close itself is driven through the CLI in TestTheSmokesMetGapsCloseThroughTheCLI).
+	if c := cols(r2, "G-78817cfa"); !c.open || !c.answered {
+		t.Errorf("through %d G-78817cfa reads %+v, want open with its demand met", r2, c)
 	}
 }

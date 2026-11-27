@@ -171,7 +171,8 @@ var (
 		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.docketing_id
 		Docketing.docketing_id Docketing.gap_id Docketing.motion_id DocketRuling.docketing_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids
-		QuestionPart.part_id QuestionPartCheck.part_id`)
+		QuestionPart.part_id QuestionPartCheck.part_id
+		Regrade.accepts Regrade.answers Close.accepts Inquiry.answers QuestionPart.answers`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis Amend.problem Amend.required_fix Amend.acceptance_check Amend.basis SpotCheck.reason Cite.text
@@ -180,7 +181,8 @@ var (
 		Log.text Motion.basis Motion.relief Docketing.basis DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction PositionHearing.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
-		Certify.statement Declare.holding QuestionPart.text QuestionPart.reason`)
+		Certify.statement Declare.holding QuestionPart.text QuestionPart.reason
+		Closing.problem Closing.required_fix Closing.acceptance_check`)
 	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old BlueEdit.old_paragraphs BlueEdit.new_paragraphs Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_captured_at Cite.copy_url Cite.fetched_at
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before

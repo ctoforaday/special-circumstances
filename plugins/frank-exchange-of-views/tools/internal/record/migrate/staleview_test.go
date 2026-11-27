@@ -37,9 +37,10 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 	}
 
 	assertMigratedGapView(t, archive)
-	// m20's closes are lost acts (no lens sitting of it holds a delivery), so its one closed gap is
-	// closed by a successor's mint alone; the closing-act columns are read on the gap-audit run, an
-	// older epoch too, whose lenses' closes stand on their deliveries.
+	// m20's closes are lost acts (no lens sitting of it holds a delivery), and the successor's mint
+	// that closed its one other gap is that gap's Amend (Translation 7), so it holds no closed gap; the
+	// closing-act columns are read on the gap-audit run, an older epoch too, whose lenses' closes
+	// stand on their deliveries.
 	if named := assertMigratedGapView(t, gapAuditArchive); named == 0 {
 		t.Error("the gap-audit run names no closing act on its gap view, so nothing here read the closure columns")
 	}
@@ -47,8 +48,8 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 
 // assertMigratedGapView migrates the archive and holds its gap view to the family: the record states
 // this binary's epoch and reads; every closed gap carries its reason and epoch; and the view names a
-// closing act on every closed gap. It returns how many
-// gaps the view names a closing act on.
+// closing act on every closed gap. It returns how many gaps the view names a closing act on; its
+// caller holds that above zero where the archive closes a gap.
 func assertMigratedGapView(t *testing.T, archive string) int {
 	t.Helper()
 	res, dst := migrateArchive(t, archive)
@@ -71,9 +72,6 @@ func assertMigratedGapView(t *testing.T, archive string) int {
 		if !g.HasClosed || g.ClosureReason() == "" || g.ClosedEpoch == 0 {
 			t.Errorf("%s: gap %s reads closed with has_closed %v, reason %q, closed_epoch %d", archive, g.ID, g.HasClosed, g.ClosureReason(), g.ClosedEpoch)
 		}
-	}
-	if closed == 0 {
-		t.Errorf("%s: the migrated record holds no closed gap, so nothing here read the gap view's closure", archive)
 	}
 	db := openRO(t, dst.Dir())
 	var named int

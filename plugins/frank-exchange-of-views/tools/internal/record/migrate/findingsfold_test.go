@@ -155,9 +155,13 @@ func TestNoMigratedArchiveHoldsAFindingIDOrToken(t *testing.T) {
 	// 373, the 1838 and 1883 archives' 12 among them, less those in the acts the delivered-text rule
 	// loses (each is a lost act, written as no event): the two in grade rulings' opinions (sleeper-service-plan, b9) leave with those rulings
 	// (EventSchema 80), and the 47 in bench opinions, party dockets' rulings and the rulings of ended
-	// docketings leave with them (EventSchema 80): each translates to no event.
-	if prose != 373 {
-		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 373", prose)
+	// docketings leave with them (EventSchema 80): each translates to no event. 387 since Translation 7:
+	// m29's three and m30's one docketing stand on gaps whose supersede link it drops or amends, so
+	// their rulings come forward (m29 +6 review flags, +5 opinions; m30 +1 opinion), with a regrade
+	// each (m29's on an ancestor that is open now; m30's written beside its amend, with the
+	// successor's reason as its basis as well as the amend's).
+	if prose != 387 {
+		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 387", prose)
 	}
 }
 
@@ -301,7 +305,7 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 			}
 		}
 	}
-	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{40, 39, 52, 5}; got != want {
+	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{40, 39, 44, 5}; got != want {
 		t.Errorf("dockets, rulings, written as no event, finding tokens = %v, want %v", got, want)
 	}
 }

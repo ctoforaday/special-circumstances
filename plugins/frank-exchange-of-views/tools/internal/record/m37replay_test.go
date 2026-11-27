@@ -12,7 +12,7 @@ import (
 )
 
 // m37Archive is universe-m37: 1263 events, CEILING at epoch 12 under k-max 2, six dockets filed by the
-// dispatch and six rulings on them, four docketings on the migrated record
+// dispatch and six rulings on them, six docketings on the migrated record
 // (TestM37DocketsComeAfterTheLensHasRead). It holds the bundle store (computations/<bundle>/), which the
 // migrate package's archive census does not read as the proof store of every run in run-archive/, so
 // it stands in a directory of its own.
@@ -20,17 +20,17 @@ const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 
 // UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's docketings is folded again on
 // the record as it stood before the plan that wrote it. On every one the plan now files nothing and
-// readies the gap's assignee alone. What that lens did next is the run's own record: on four it
+// readies the gap's assignee alone. What that lens did next is the run's own record: on five it
 // closed the gap, each within minutes, so no docket exists and the bench has nothing to rule. On
 // G-deced912's first docket it kept its grade, and that docket and its remand stand a sitting later:
 // the one ruling that decided anything.
 //
-// The run filed six; the migrated record holds four. G-8405d5e1's successor G-07884fea was minted
-// superseding it while it was open, which closes it (ruled by gblock 2026-11-04), so its docket and
-// its ruling are acts on a closed gap and are left out of the migration. G-584d152f's lens minted a
-// successor superseding it while its docket stood unruled, which the live write refuses, so that
-// docket and its ruling are written as no event (EventSchema 80, ruled 2026-11-22).
+// The run filed six, and the migrated record holds all six. G-8405d5e1's and G-584d152f's lenses
+// each minted a successor superseding the gap while its docket stood; Translation 7 writes each link
+// as the Amend of the gap it named, which ends the docketing unruled, so the two rulings are written
+// as no event, and what each lens did next is its close of the gap, the successor's re-keyed to it.
 //
+//   - G-8405d5e1, G-584d152f: the lens amends, then closes; no ruling stands.
 //   - G-c3f84f98: blue's computation answered the kept grade; the lens reads it before any docket.
 //   - G-deced912, first: the lens audits blue's answer, and keeps. The dispute is real.
 //   - G-deced912, second: blue obeyed the remand with a computation, and no wording changed. The re-audit
@@ -41,7 +41,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 	want := []struct {
 		gap     string
 		remains bool
-	}{{"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
+	}{{"G-8405d5e1", false}, {"G-584d152f", false}, {"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
 	minted := assigneeOf(whole)
 	k, remain := 0, 0
 	for i, e := range whole {
@@ -50,7 +50,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			continue
 		}
 		if k == len(want) {
-			t.Fatalf("a fifth docketing on the record: %s", m.GetDocketingId())
+			t.Fatalf("a seventh docketing on the record: %s", m.GetDocketingId())
 		}
 		g := m.GetGapId()
 		if g != want[k].gap {

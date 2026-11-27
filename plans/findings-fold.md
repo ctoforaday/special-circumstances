@@ -861,7 +861,7 @@ the bench takes no delivery (§V R1), so no bench ruling is lost on it. A lost `
   626 (G-ede17021; close 376 lost) check a gap a dropped bench act reopened and the lost close left open;
 - the archived dockets and rulings written as no event are 52, not 56 (the 4 rulings above), and the prose ids 373, not 409
   (measured on the merged head; not broken down by cause).
-- the counts above predate Translation 7 and are re-measured when it lands.
+- the counts above predate Translation 7; its recount follows (**R1 recount**, below).
 
 Built and deleted: Translations 1 (a mint's first ancestor) and 2 (cross-seat links dropped; `migrate/lineage.go`'s
 `dropCrossSeatLink`), and Translation 3's drop of the 2 docketings on a superseded gap (`migrate/docketing.go`, whose
@@ -904,6 +904,37 @@ Owed by this spec, each one translation with a test on an archived run:
   without it). The other archive counts (`archive_test`, `findingsfold_test`, `storedplanids_test`, the
   docketing and tombstone tests, the render and gap goldens) are recounted after Commit C's DDL, with the docketings
   an amend ends (X18).
+- **R1 recount after Translation 7 and Commit C** (2026-11-27; the migrate package's archive tests at
+  0 FAIL, each count read off the migrated archives; the cause of each move traced to its link in the
+  manifest's `supersede_links`). Every move comes from a supersede link Translation 7 drops or amends:
+  - **docketings 25 → 31**: m29's three impasse docketings (G-bde527eb, G-c55e607d, G-237fed96 — each
+    the ancestor of a dropped moved-location link, 298, 402 and 398, whose archived docket was written
+    as no event while the successor's mint read it closed) and m30's one (G-97b44713, amended by link
+    225) now stand on their gap's id, each ruled for the author `not_a_defect` as archived; m37's two
+    (G-8405d5e1, G-584d152f) stand too, each ended unruled by its link's Amend, so their rulings 744
+    and 745 are written as no event: **ended rulings 12 → 14**;
+  - **dockets and rulings written as no event 52 → 44** (the 8 dockets and rulings of m29's and m30's
+    four); **prose finding ids 373 → 387**: those rulings' opinions and review flags (m29 +11, m30 +1)
+    and a regrade's basis each (m29's on an ancestor open now; m30's written beside its Amend);
+  - **ruling tombstones**: placements 6 → 10 (the four rulings above) and 2 ruling ends (blue's reword
+    of m29's G-bde527eb and G-c55e607d after their rulings), so the rows are **54, not 48**;
+  - **closings written as no event**: m29 7 → 4 and m30 2 → 1 (blue's closings on those docketings come
+    forward; the lens's, refused by `requireClosingStatement`, leave its duty missing);
+  - **lost closes of unanswered `source` gaps 6 → 8**: quadratic's R1-4 and R1-7, ancestors of dropped
+    moved-check-kind links (354, 353), stand open, and their own closes are lost acts; quadratic's
+    other closes of ancestors (7) are lost acts too, not acts on a superseded gap, and its render prints
+    the open R3-4's problem, which names the archived label `c-95969800` (a seat's prose, kept);
+  - m28's G-f93781cc close (source 337) is a lost act, not an act on a closed gap (link 335 dropped);
+  - the remands' reopen conditions migrate whole: m29's and m30's closing rulings with `reopens_on`
+    come forward with their docketings;
+  - m20 holds no closed gap: the successor's mint that closed its one other gap is that gap's Amend;
+  - mersenne: G-a0c6ca1e holds G-342d3cdc's wording (link 702 amended), so blue's edit answering the
+    successor answers it, and no retire leaves all its answers retired; G-78817cfa (link 814 dropped, a
+    moved class, about, location and check kind) reads open at the run's end: Translation 7's residue.
+  The archived-gap golden loses exactly the 16 amended successors of the 38 tarballs (m37's is in the
+  bundle store); four archives' render hashes move (m27, m30, eiffel 11-11, 1883, each holding an
+  amend). An archived current-epoch source holding an `Amend` re-migrates with its stamped resulting
+  wording dropped and stamped again (`amendResultDrop`), as a regrade's result grades are.
 - **Translation 5** — `Close.successor` dropped, `repaired_with_regression` (and the
   round era's `closed_with_regression`) respelled `repaired`, `amends_prior` refused loudly (0 archived). Measured on
   34 archives: 18 closes carry a successor.

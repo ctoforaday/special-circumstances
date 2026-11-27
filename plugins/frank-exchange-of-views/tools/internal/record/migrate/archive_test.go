@@ -88,22 +88,22 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// the 19 closings and the 10 positions the write refuses — every closing is the chair's or blue's
 	// on a gap no docket motion stood on, and every position but the chair's five is blue's or a
 	// lane's — written as none (epoch 38) — LESS the 5 inquiry reviews and the 5 rulings on an
-	// inquiry, whose duty the record no longer holds, written as none (epoch 58) — LESS the 7 closes
-	// of R1 gaps the R2 merge closed after minting their successors superseding them, which those
-	// mints had closed (epoch 62) — LESS the 26 repair receipts, whose repair is its edit, written as
+	// inquiry, whose duty the record no longer holds, written as none (epoch 58) — LESS the 26 repair receipts, whose repair is its edit, written as
 	// none (epoch 65) — LESS the 5 FAIL verdicts, one per round, written as none (epoch 78) — LESS
 	// the 40 findings and the 40 Anchors that placed their tokens, which a lens's defect no longer
 	// writes, and the 1 reading whose quote was only a finding's token and a dropped label's (source
 	// event 758), and the 4 grade motions and their 4 rulings, written as none (epoch 80).
 	// LESS every lost act: an archived close or spot-check stands only on a delivery in its seat's
 	// sitting, which no sitting of this run holds, so each — and any act on a gap it took with it — is
-	// written as no event and listed in lost_acts.
+	// written as no event and listed in lost_acts. Every one of the 10 closes is lost: the 7 the R2
+	// merge wrote on the R1 gaps its successors named are closes of open gaps, since Translation 7
+	// drops those links (a moved location, class or check kind) and each ancestor stands as its own gap.
 	lost := migrate.LostByWord(res)
 	lostTotal := len(res.LostActs)
-	if outTotal != 649-lostTotal || res.Out["tombstone"] != 2 || res.In["verdict"] != 5 || res.Out["verdict"] != 0 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
-		res.In["verify"] != 111 || res.Out["verify"] != 110 || !slices.Equal(res.QuotelessReadings, []int64{758}) || res.In["manifest_row"] != 26 || res.Out["manifest_row"] != 0 || res.In["close"] != 10 || res.Out["close"] != 3-lost["close"] || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
+	if outTotal != 656-lostTotal || res.Out["tombstone"] != 2 || res.In["verdict"] != 5 || res.Out["verdict"] != 0 || res.In["finding"] != 40 || res.Out["finding"] != 0 || res.In["anchor"] != 40 || res.Out["anchor"] != 43 ||
+		res.In["verify"] != 111 || res.Out["verify"] != 110 || !slices.Equal(res.QuotelessReadings, []int64{758}) || res.In["manifest_row"] != 26 || res.Out["manifest_row"] != 0 || res.In["close"] != 10 || res.Out["close"] != 10-lost["close"] || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || len(res.GapAnchors.Shapes) != 1 {
-		t.Fatalf("813 in + the cast - 17 opinions - 3 spot-checks of their gaps - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading - 4 grade motions - 4 grade rulings - 5 FAILs + 2 estoppel tombstone rows the write path wrote beside their verbatim edits = 649 out, less %d lost acts %v; got %d (in %v, out %v), anchors added %v, quoteless %v", lostTotal, lost, outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
+		t.Fatalf("813 in + the cast - 17 opinions - 3 spot-checks of their gaps - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 26 receipts - 40 findings - 40 finding anchors - 1 quoteless reading - 4 grade motions - 4 grade rulings - 5 FAILs + 2 estoppel tombstone rows the write path wrote beside their verbatim edits = 656 out, less %d lost acts %v; got %d (in %v, out %v), anchors added %v, quoteless %v", lostTotal, lost, outTotal, res.In, res.Out, res.GapAnchors.Shapes, res.QuotelessReadings)
 	}
 	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]-4 || res.Out["motion_rule"] != res.In["motion_rule"]-5-4-lost["motion_rule"] || res.Out["spot_check"] != res.In["spot_check"]-3-lost["spot_check"] {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)

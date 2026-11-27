@@ -4772,6 +4772,13 @@
 2026-10-18_is-91-prime-m29	Closing.text	P-7294a683 -> K-7294a683	an) is true of the stored computations: P-7294a683 prints the Fermat and strong residues a
 2026-10-18_is-91-prime-m29	Closing.text	P-b1275396 -> K-b1275396	ints the Fermat and strong residues and P-b1275396 asserts the Carmichael, Korselt and Gau
 2026-10-18_is-91-prime-m29	Closing.text	P-7294a683 -> K-7294a683	ot among the recorded computations, but P-7294a683's recorded output prints the primes 80
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-7294a683 -> K-7294a683	94 (the computation lens's finding that P-7294a683 prints these terms), F-a20dc822 (the ac
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-7294a683 -> K-7294a683	h the check, not with the body). I read P-7294a683 and P-b1275396 in full, with their reco
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-b1275396 -> K-b1275396	t with the body). I read P-7294a683 and P-b1275396 in full, with their recorded outputs. P
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-7294a683 -> K-7294a683	6 in full, with their recorded outputs. P-7294a683 prints the primes 80 to 105 including 8
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-7294a683 -> K-7294a683	an) is true of the stored computations: P-7294a683 prints the Fermat and strong residues a
+2026-10-18_is-91-prime-m29	MotionRule.opinion	P-b1275396 -> K-b1275396	strong residues and the trial divisors, P-b1275396 asserts Carmichael, Korselt and the Gau
+2026-10-18_is-91-prime-m29	DocketRuling.review_flag	P-7294a683 -> K-7294a683	entence when G-8a6dbfba closes, against P-7294a683's recorded output.
 2026-10-18_is-91-prime-m29	Position.text	P-7294a683 -> K-7294a683	on. The stored strong-test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 9
 2026-10-18_is-91-prime-m29	Position.text	P-edf9e02b -> K-edf9e02b	test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 97, 101 and 103 among 8
 2026-10-18_is-91-prime-m29	Position.text	P-84051b61 -> K-84051b61	production sentence, now carrying proof P-84051b61 (an independent recomputation of every

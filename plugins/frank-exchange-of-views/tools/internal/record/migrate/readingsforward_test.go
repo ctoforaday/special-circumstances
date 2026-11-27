@@ -242,8 +242,27 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// A seat's prose keeps the label it wrote. quadratic's R3-4 names c-95969800 in its problem,
+			// and the risk matrix prints it: Translation 7 drops the link R4-1's mint named R3-4 by (a
+			// moved class and location), so R3-4 stands open as its own gap (plans/findings-fold.md
+			// §III.B8, the moved-field residue).
+			inOpenProblem := map[string]string{}
+			if la.name == "2026-09-02_quadratic-formula.tar.gz" {
+				inOpenProblem["c-95969800"] = "G-057d5781"
+			}
+			fam, err := record.FamilyOf(run)
+			if err != nil {
+				t.Fatal(err)
+			}
 			for sp := range dropped {
-				if strings.Contains(string(md), sp) {
+				if !strings.Contains(string(md), sp) {
+					continue
+				}
+				gap, open := inOpenProblem[sp], false
+				for _, g := range fam.Gaps {
+					open = open || g.ID == gap && g.Open && strings.Contains(g.Mint.GetProblem(), sp)
+				}
+				if !open {
 					t.Errorf("the assembled report holds %s", sp)
 				}
 			}

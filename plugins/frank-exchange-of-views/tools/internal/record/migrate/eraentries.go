@@ -73,6 +73,9 @@ func eraEntries() Registry {
 // regradeResultDrop is why a regrade's stored result grades are not carried.
 const regradeResultDrop = "the write path stamps a regrade's result grades from the gap's grades before it and the axes it names, so the replay stamps them again"
 
+// amendResultDrop is why an amend's stored resulting wording is not carried.
+const amendResultDrop = "the write path stamps an amend's resulting wording from the gap's wording before it and the fields it names, so the replay stamps it again"
+
 type (
 	ren   map[string]string
 	drops map[string]string

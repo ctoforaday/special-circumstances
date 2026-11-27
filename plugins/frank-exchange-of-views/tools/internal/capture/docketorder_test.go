@@ -84,9 +84,9 @@ func TestTheDocketOrderAuditReadsDocketings(t *testing.T) {
 		})
 	}
 
-	// THE ARCHIVES. m37 holds six impasse dockets the dispatch filed before the lens's re-audit — four
-	// on the migrated record, one on a gap a successor superseded while it stood and one on a gap
-	// superseded before it are written as no event — and
+	// THE ARCHIVES. m37 holds six impasse dockets the dispatch filed before the lens's re-audit, all six
+	// on the migrated record (the two on gaps a successor's mint superseded stand on those gaps' ids,
+	// each ended by the Amend Translation 7 writes for its link) — and
 	// m38 its adversary's G-ca807516 docketed in the final sitting with no re-audit; migrated, each is a
 	// docketing of cause impasse, and the audit names them. Translation 3 (an archived dispatch docket
 	// becomes a Docketing) is what these read.
@@ -95,7 +95,7 @@ func TestTheDocketOrderAuditReadsDocketings(t *testing.T) {
 		want    int
 		gap     string
 	}{
-		{"bundle-store/2026-10-31_is-91-prime-m37.tar.gz", 4, ""},
+		{"bundle-store/2026-10-31_is-91-prime-m37.tar.gz", 6, ""},
 		{"bundle-store/2026-11-04_is-91-prime-m38.tar.gz", 0, "G-ca807516"},
 	} {
 		t.Run(filepath.Base(tc.archive), func(t *testing.T) {

@@ -152,6 +152,9 @@ func TestAStatedListIsCarriedAndProseIsNotReadAgain(t *testing.T) {
 	to := filepath.Join(recordtest.TmpRun(t), "run")
 	m, err := migrate.Migrate(run.Dir(), to, migrate.Entries(), migrate.Options{})
 	if err != nil {
+		if m != nil && len(m.Refusals) > 0 {
+			t.Fatalf("%v; the first: %+v", err, m.Refusals[0])
+		}
 		t.Fatal(err)
 	}
 	if len(m.Refusals) != 0 {

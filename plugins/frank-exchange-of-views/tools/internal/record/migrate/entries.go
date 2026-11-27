@@ -38,6 +38,16 @@ func Entries() Registry {
 		// record derives from the sitting's ends. No archived run holds one. The manifest counts each in
 		// events_in and none in events_out.
 		"sitting_limit": {Translate: toNoEvent},
+		// AN AMEND'S RESULTING WORDING IS THE WRITE PATH'S, stamped as each amend is replayed from the
+		// record being rebuilt (recordsql.stampAmendResult), as a regrade's result grades are; a source
+		// holding amends holds it, and it is not carried.
+		"amend": mapped("amend", nil, drops{
+			"result_problem":          amendResultDrop,
+			"result_required_fix":     amendResultDrop,
+			"result_acceptance_check": amendResultDrop,
+			"result_fix_new":          amendResultDrop,
+			"result_fix_basis":        amendResultDrop,
+		}, nil),
 		// A FINDING TRANSLATES TO NO EVENT (EventSchema 80). A lens reports a defect as a gap, and a
 		// small defect is a gap graded below what holds the gate; a finding has no equivalent. Its id
 		// leaves every id list, its token every field, and its Anchor is written as no event

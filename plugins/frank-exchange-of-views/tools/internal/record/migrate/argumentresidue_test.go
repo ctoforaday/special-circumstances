@@ -27,8 +27,9 @@ import (
 // and their closings are refused with them; a docketing a Close ended owes nothing after it, so the
 // closings filed after the close are refused (no docketing stands); and red's closing on a docketing
 // whose question takes text, with no road, is refused (requireClosingStatement), leaving the lens's
-// duty missing where its docketing was ruled or stands. A docket on a gap a successor's mint had
-// closed (epoch 62) is left out as an act on a closed gap, with its closings.
+// duty missing where its docketing was ruled or stands. m29's three docketings and m30's one stand on
+// gaps whose supersede link Translation 7 drops or amends, so blue's closings on them come forward and
+// the lens's, refused, leave its duty missing.
 var argumentResidue = map[string]struct {
 	closings, positions int
 	duties, sittings    string
@@ -59,9 +60,9 @@ var argumentResidue = map[string]struct {
 	"2026-10-17_is-91-prime-m26":                  {0, 3, "", "not_owed=8"},
 	"2026-10-17_is-91-prime-m27":                  {0, 5, "", "not_owed=10"},
 	"2026-10-18_is-91-prime-m28":                  {3, 8, "blue:not_owed=2,lens:not_owed=2", "not_owed=12"},
-	"2026-10-18_is-91-prime-m29":                  {7, 6, "blue:not_owed=1,lens:not_owed=1", "not_owed=9"},
+	"2026-10-18_is-91-prime-m29":                  {4, 6, "blue:awaited=1,blue:filed=3,lens:missing=4", "not_owed=9"},
 	"2026-10-18_is-91-prime-n1":                   {0, 0, "", "not_owed=2"},
-	"2026-10-19_is-91-prime-m30":                  {2, 3, "", "not_owed=7"},
+	"2026-10-19_is-91-prime-m30":                  {1, 3, "blue:filed=1,lens:missing=1", "not_owed=7"},
 	"2026-10-24_is-91-prime-m32":                  {2, 0, "blue:not_owed=1,lens:not_owed=1", "filed=1,not_owed=6"},
 	"2026-10-24_is-91-prime-1565":                 {6, 0, "blue:filed=2,blue:not_owed=3,lens:not_owed=5", "not_owed=12"},
 	"2026-10-27_is-91-prime-m35":                  {8, 0, "blue:filed=4,blue:not_owed=2,lens:filed=1,lens:missing=2,lens:not_owed=3", "not_owed=6"},

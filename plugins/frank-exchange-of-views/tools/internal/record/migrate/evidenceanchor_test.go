@@ -85,7 +85,7 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			             JOIN "docketing" dk ON dk."docketing_id" = rd."docketing_id"
 			             JOIN "enum_disposition" x ON x."value" = rd."disposition"
 			             WHERE x."closes" GROUP BY dk."gap_id") b ON b."gap_id" = g."gap_id"
-			  WHERE g."open" <> (c."c" IS NULL AND b."b" IS NULL AND g."supersede_event" IS NULL)
+			  WHERE g."open" <> (c."c" IS NULL AND b."b" IS NULL)
 			     OR COALESCE(g."close_event", 0) <> COALESCE(c."c", 0)
 			     OR COALESCE(g."bench_close_event", 0) <> COALESCE(b."b", 0)
 			  ORDER BY g."minted_event"`)
@@ -118,7 +118,10 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			t.Errorf("the delivered lens's close of an unanswered source gap replayed %d time(s), want once", replayed)
 		}
 	})
-	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "-m23": 1}
+	// quadratic-formula's R1-4 and R1-7 are ancestors of supersede links Translation 7 drops (a moved
+	// check kind): each stands as its own open gap, its own lost close counted here (plans/findings-fold.md
+	// §III.B8).
+	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 3, "is-91-prime-a": 1, "-b6": 1, "-m23": 1}
 	got, total := map[string]int{}, 0
 	for name := range sourceCloses {
 		n := sourceCloses[name] + lostSourceCloses[name]
@@ -129,8 +132,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		}
 	}
-	if total != 6 || fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 6)", sourceCloses, lostSourceCloses, total, want)
+	if total != 8 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 8)", sourceCloses, lostSourceCloses, total, want)
 	}
 }
 
