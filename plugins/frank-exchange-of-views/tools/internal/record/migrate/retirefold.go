@@ -55,15 +55,10 @@ type placedLoss struct {
 
 func (l placedLoss) Error() string { return l.err.Error() }
 
-// editLoss is the accepted loss of an archived edit the translations leave nothing to do: a later
-// edit that quoted a token a cut took and no longer locates once its quote is rewritten without it.
-// One reason per word: the manifest states each word's accepted loss once, and each act's own reason
-// is on its lost_acts entry.
-const editLoss = "an archived edit the fold leaves nothing to do is written as no event, each listed in lost_acts: a later edit that quoted a token a cut took is rewritten without it, since the token is out of the report from its cut on, and one that no longer locates there is lost"
-
 // retireLoss is the accepted loss of an archived claim retire the record holds no act for: one that
 // carried no anchor (a retire takes anchors and nothing else, and a claim leaves with its sentence,
-// by a cut), and one that takes an open gap's own marker (F14). One reason per word, as editLoss.
+// by a cut), and one that takes an open gap's own marker (F14). One reason per word: the manifest states
+// each word's accepted loss once, and each act's own reason is on its lost_acts entry.
 const retireLoss = "an archived claim retire that carried no anchor takes nothing a retire takes, since a claim leaves the report only with its sentence, by a cut; one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker), every anchor it took staying on its sentence; each is written as no event and listed in lost_acts"
 
 // retiresAhead reads every archived retire in stream order, its anchors in the migrated spelling.

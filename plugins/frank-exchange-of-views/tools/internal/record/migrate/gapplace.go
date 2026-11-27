@@ -157,9 +157,7 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	// A token a cut took is out of the report from that cut on, and a run P12b translation 6 moved stands
 	// where it moved to: a later edit quoting either is rewritten to the report it lands on. Its
 	// stored paragraphs keep them, as recorded history.
-	quoted := b.GetOld()
 	b.Old, b.New = proto.String(p.takenOut(b.GetOld())), proto.String(p.takenOut(b.GetNew()))
-	cutQuoted := b.GetOld() != quoted
 	b.Old, b.New = proto.String(p.movedOn(b.GetOld())), proto.String(p.movedOn(b.GetNew()))
 	old, abuts := b.GetOld(), false
 	// Before any gap is placed there is no gap anchor to carry, and the edit is only stamped.
@@ -169,9 +167,6 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		}
 	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
-	if !ok && cutQuoted {
-		return placedLoss{fmt.Errorf("this edit quoted a token a cut took, and its quote rewritten without it (%q) does not locate in the report it lands on", b.GetOld()), editLoss}
-	}
 	// Before any gap is placed an edit that does not locate is the render's to refuse, loudly and
 	// naming any refusal before it (replayInOrder): the placer neither stamps nor judges it.
 	if !ok && !p.placed {
