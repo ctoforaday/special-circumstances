@@ -368,7 +368,8 @@ type runner struct {
 	// endWithoutEnvelope is how many of the next agent-bearing sittings' dispatches end without their
 	// envelope (endsWithoutEnvelope), for a test that drives that shape on no draw.
 	endWithoutEnvelope int
-	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go): every blue-respond sitting opens
+	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go), and blueFails holds it for the
+	// forced-UNVERIFIED run too: every blue-respond sitting opens
 	// under an agent and ends without its envelope, until the engine stops the run on it.
 	forceBlueFails bool
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
@@ -799,16 +800,11 @@ type runner struct {
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
 	positionRulingsRefused, repeatedPositionsRefused int
-	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
-	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
-	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
-	// and earns red a further sitting instead. A 1-in-60 outcome cannot carry an enum gate: the
-	// sweep failed on `outcome --as UNVERIFIED` at N=40 having passed at N=60 on luck, which is a
-	// flake either way. So it is driven the way HALTED is — deterministically, by a dedicated
-	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
-	// here, and it is right. Its gaps are all disputes (mintWith), every severity it types is
-	// material (severityGrade), and its first-epoch lenses each mint, so the PASS is held by
-	// construction rather than by the grade draw.
+	// forceUnverified drives the run to the UNVERIFIED terminal verdict on a deterministic path: its
+	// first-epoch lenses each mint a material gap blue disputes (mintWith, severityGrade), so the PASS is
+	// held by construction, and every blue-respond sitting ends without its envelope (blueFails), so the
+	// engine stops the debate UNVERIFIED at blue's third failed sitting in a row (debate.js seatStop). The
+	// random sweep reaches UNVERIFIED only by such a stop, and an enum gate cannot stand on a draw.
 	forceUnverified bool
 	// benchOccasion is the occasion of the bench's sitting the drive holds now: who sits after its
 	// ruling depends on it (sitsAfterRuling).
@@ -2614,7 +2610,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// from retiring — needs all three.
 	case r.forceOwedComputation && seatID == computationOwner:
 		r.admit(registerArgs(seatID, occ)...)
-	case r.openUnderAgent || r.forceBlueFails && seatID == "blue-respond" || r.coin(25):
+	case r.openUnderAgent || r.blueFails() && seatID == "blue-respond" || r.coin(25):
 		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
 		agent = r.lookThenRegister(seatID)
@@ -2701,7 +2697,7 @@ func (r *runner) unreturnedDispatches() string {
 func (r *runner) endsWithoutEnvelope(seatID string) bool {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
-	forced := agent != "" && r.forceBlueFails && seatID == "blue-respond"
+	forced := agent != "" && r.blueFails() && seatID == "blue-respond"
 	arranged := agent != "" && r.endWithoutEnvelope > 0
 	if arranged {
 		r.endWithoutEnvelope--
@@ -4660,14 +4656,8 @@ func (r *runner) mintWith(seatID, class string) string {
 	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
 	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
 	directive := directives[r.rng.Intn(len(directives))]
-	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS, and this is the condition the first
-	// three attempts at this test each missed in turn. debate.js sits the bench only when the
-	// docket is contested (`if (contested.length > 0)`), and the bench is what declares the
-	// deadlock that makes the exit UNVERIFIED rather than CEILING. Left to the draw, a run whose
-	// gaps all happened to be repairable never contested anything, the judge never sat, and the
-	// run reached the round ceiling — which is a different verdict and a passing sweep saying so.
-	// DISPUTE-LOST specifically: blue contests and red REJECTS, so the docket is contested AND
-	// the gap stays open, which are the two things the deadlock arm reads.
+	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS: each stays open whatever blue would do, so
+	// nothing but blue's failed sittings (blueFails) ends the run, and no PASS lands before them.
 	if r.forceUnverified {
 		directive = dirDisputeLost
 	}
@@ -6534,8 +6524,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
 		// naming the petitions it was convened for: a petition sitting cannot end with one standing,
-		// so it then rules them like any other. The run's UNVERIFIED exit is blue's proposed
-		// regrades, which hold a PASS and not the chair's sitting.
+		// so it then rules them like any other. The run's UNVERIFIED exit is blue's failed sittings.
 		if r.forceUnverified {
 			r.envelopeRefusedEarly(seatID, "motion ")
 		}
@@ -7063,12 +7052,15 @@ func debateWrapped(t *testing.T) string {
 }
 
 type outcome struct {
-	seed      int64
-	err       string // non-empty = a finding
-	runDir    string
-	verdict   string         // the terminal verdict this run reached (coverage signal)
-	epochs    int            // how many chair sittings it ran (coverage signal)
-	why       string         // the plan's first stated reason at exit — what UNVERIFIED and CEILING are made of
+	seed    int64
+	err     string // non-empty = a finding
+	runDir  string
+	verdict string // the terminal verdict this run reached (coverage signal)
+	epochs  int    // how many chair sittings it ran (coverage signal)
+	why     string // the plan's first stated reason at exit — what UNVERIFIED and CEILING are made of
+	// seatStop is the seat whose failed sittings in a row stopped the debate (debate.js seatStop), as
+	// the settled return's termination names it, or "".
+	seatStop  string
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
 
 	// epochLimit is the debate ending at the run's epoch limit — the last plan's
@@ -7832,6 +7824,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.epochs = int(n)
 	if term, ok := result["termination"].(map[string]any); ok {
 		res.epochLimit, _ = term["epoch_limit_reached"].(bool)
+		if stop, ok := term["seat_stop"].(map[string]any); ok {
+			res.seatStop, _ = stop["seat"].(string)
+		}
 	}
 	if r.passBlockersErr != "" {
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
@@ -10529,22 +10524,13 @@ func seatOfRole(role string) string {
 	}[role]
 }
 
-// TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically.
-//
-// IT USED TO BE LUCK. debate.js computes UNVERIFIED only for a run that is not halted, whose red
-// never passed, and which did NOT stop at the ceiling — the judged-deadlock exit with gaps still
-// open. In the random sweep that happens about once in sixty runs, because a bench that disposes
-// its whole docket clears the board and the engine grants red a further sitting instead, which
-// then passes. So `outcome --as UNVERIFIED` was an enum value the coverage gate demanded and the
-// sweep supplied by chance: it passed at N=60 with 2 occurrences and 1 at N=40, then failed at
-// N=40 with none. Roughly a one-in-three flake, and it had been one all along.
-//
-// coverage_test.go already refused the other answer, in writing: `outcome --as UNVERIFIED` was
-// once exempted on a claim that the engine had no path to it, a real run falsified that, and the
-// note left behind says an unreachable value should make the sweep SAY so rather than earn an
-// exemption explaining why it never was. So this drives it, the way TestFuzzHaltPath drives
-// HALTED — a terminal shape too disruptive for the random sweep gets a dedicated run, and its
-// invocations land in the same package-level tally the gate reads.
+// TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically, on the seat-failure
+// path: the forced run's lenses mint material gaps blue disputes, and every blue-respond sitting ends
+// without its envelope (runner.blueFails), so debate.js stops the debate at blue's NO_PROGRESS_EPOCHS-th
+// failed sitting in a row (seatStop) and stamps UNVERIFIED as the asserted word. The record's docket
+// cycle keeps a run with blue sitting in progress until its epoch limit, which is CEILING, so a run that
+// never stops on a failed seat does not reach UNVERIFIED; this proves the stop, and the record's
+// outcome, as TestFuzzHaltPath drives HALTED.
 func TestFuzzUnverifiedPath(t *testing.T) {
 	releaseGate(t)
 	sweepPath(t)
@@ -10585,6 +10571,10 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	}
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
 		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run; %s", v, forcedTrajectory(t, runDir, result))
+	}
+	// THE PATH, not only the word: debate.js writes UNVERIFIED on four arms, and this run's is blue's stop.
+	if msg := r.blueFailsForcedErr(result); msg != "" {
+		t.Fatalf("%s; %s", msg, forcedTrajectory(t, runDir, result))
 	}
 	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
 	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.

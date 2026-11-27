@@ -112,6 +112,7 @@ type runTally struct {
 	Err                        string                    `json:"err"`
 	Verdict                    string                    `json:"verdict"`
 	Why                        string                    `json:"why"`
+	SeatStop                   string                    `json:"seat_stop"`
 	Epochs                     int                       `json:"epochs"`
 	EpochLimit                 bool                      `json:"epoch_limit"`
 	Dialectic                  map[string]int            `json:"dialectic"`
@@ -234,7 +235,7 @@ type runTally struct {
 // tallyOf is the run's tally.
 func tallyOf(o outcome) runTally {
 	return runTally{
-		Seed: o.seed, Err: o.err, Verdict: o.verdict, Why: o.why, Epochs: o.epochs, EpochLimit: o.epochLimit,
+		Seed: o.seed, Err: o.err, Verdict: o.verdict, Why: o.why, SeatStop: o.seatStop, Epochs: o.epochs, EpochLimit: o.epochLimit,
 		Dialectic: o.dialectic, BlueSittings: o.blueSittings, BlueAgain: o.blueAgain,
 		CiteAnchors: o.citeAnchors, CacheFiles: o.cacheFiles, EditAnswers: o.editAnswers,
 		VerifiedBasis: o.verifiedBasis, VerbatimApplied: o.verbatimApplied,
@@ -579,6 +580,7 @@ type sweepFold struct {
 	whyHist, dcov                        map[string]int
 	citeAnchors, cacheFiles, editAnswers int
 	forcedVerdict, forcedWhy             string
+	forcedSeatStop                       string
 	// passExits is each forced-PASS run's exit, by seed: verifiedSeed's and each position seed's
 	// (forcedPassSeeds).
 	passExits                                       map[int64]forcedExit
@@ -684,7 +686,7 @@ func foldRuns(runs []runTally) sweepFold {
 		// declining drive has to be reported as itself, and "the forced run ended CEILING"
 		// is the whole diagnosis; a count says only that nothing reached the word.
 		if r.Seed == unverifiedSeed {
-			f.forcedVerdict, f.forcedWhy = r.Verdict, r.Why
+			f.forcedVerdict, f.forcedWhy, f.forcedSeatStop = r.Verdict, r.Why, r.SeatStop
 		}
 		if forcedPassSeeds[r.Seed] != "" {
 			f.passExits[r.Seed] = forcedExit{verdict: r.Verdict, why: r.Why}
@@ -1440,26 +1442,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// deliberate drive per sweep rather than by the pool (see closeGap); when it declines, the
 		// census above reports a missing enum value and says nothing about why, which reads as the
 		// vocabulary having outgrown the fuzz rather than as a driver that did not fire.
-		// AND THE FORCED-UNVERIFIED DRIVE, for the same reason. `outcome --as UNVERIFIED` is
-		// reachable about once in sixty by the draw, so the sweep pins it to unverifiedSeed and
-		// the census above is the only thing that notices when that run does not deliver — as a
-		// line naming the WORD, which reads as the vocabulary having outgrown the fuzz and sends
-		// the next reader to the schema. It is a DRIVER that declined.
-		//
-		// MEASURED (#870, #847): with `moot` in closeGap's random pool the forced run ended
-		// CEILING or VERIFIED on 2 of 2 sweeps; with the pool restored it ended UNVERIFIED on 5
-		// of 5, always exactly once, which is the forced seed and not a draw. The drive is not
-		// chronically flaky — it breaks when something else perturbs the run, and every enum
-		// value added to a pool is such a perturbation. This says so in one line when it happens.
-		//
-		// It asks the VERDICT rather than the census because the two answer different questions:
-		// the census says the word was never written by anything, this says the run that exists
-		// to write it went somewhere else, and names where.
-		if f.forcedVerdict != "UNVERIFIED" {
-			t.Errorf("the forced-UNVERIFIED run on seed %d ended %q, not UNVERIFIED — the drive that makes "+
-				"`outcome --as UNVERIFIED` a fact rather than a 1-in-60 draw did not deliver, and the enum census "+
+		// AND THE FORCED-UNVERIFIED DRIVE, for the same reason: the census reports a missing WORD, which
+		// sends the next reader to the schema, where it is a DRIVER that declined. unverifiedSeed's run
+		// is stopped by blue's failed sittings in a row (runner.blueFails: debate.js seatStop), a
+		// deterministic exit; the gate holds the PATH, not only the word, because debate.js writes
+		// UNVERIFIED on four arms (readStop, no progress, seatStop, nobody ready), and a run that
+		// reached the word on another arm is not the run this seed exists for.
+		if f.forcedVerdict != "UNVERIFIED" || f.forcedSeatStop != "blue-respond" {
+			t.Errorf("the forced-UNVERIFIED run on seed %d ended %q with seat_stop %q, not UNVERIFIED on blue-respond's failed "+
+				"sittings in a row — the drive that makes `outcome --as UNVERIFIED` a fact did not deliver, and the enum census "+
 				"reports that as a missing WORD rather than as this declining DRIVER.%s",
-				unverifiedSeed, f.forcedVerdict, forcedWhyClause(f.forcedWhy))
+				unverifiedSeed, f.forcedVerdict, f.forcedSeatStop, forcedWhyClause(f.forcedWhy))
 		}
 		// AND THE FORCED-PASS DRIVES, for the same reason: the run that exists to write the word went
 		// somewhere else, and this names where. A position seed's run is one of them: its bench's

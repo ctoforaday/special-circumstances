@@ -134,14 +134,23 @@ func chairPlan(t *testing.T, r *runner) record.Plan {
 	return plan
 }
 
-// blueFailsForcedErr is the run's error where blueFailsSeed's run did not end on blue's failed-sitting
+// blueFails is whether every blue-respond sitting of the run ends without its envelope: blueFailsSeed's
+// run, and unverifiedSeed's, whose UNVERIFIED exit is this stop. One predicate drives both, so the two
+// runs cannot drift onto different failure shapes.
+func (r *runner) blueFails() bool { return r.forceBlueFails || r.forceUnverified }
+
+// blueFailsForcedErr is the run's error where a blueFails run did not end on blue's failed-sitting
 // bound: every blue sitting in it ends without its envelope, so the engine stops the debate UNVERIFIED
 // at the third, naming blue (debate.js seatStop), and nothing else may end the run first. result is the
 // settled debate's return. runOne asks it holding r.mu, as it asks the other forced runs' errors, so
 // it reads the runner's counts without taking the lock.
 func (r *runner) blueFailsForcedErr(result map[string]any) string {
-	if !r.forceBlueFails {
+	if !r.blueFails() {
 		return ""
+	}
+	seed := int64(blueFailsSeed)
+	if r.forceUnverified {
+		seed = unverifiedSeed
 	}
 	sat := r.blueSittings
 	term, _ := result["termination"].(map[string]any)
@@ -149,7 +158,7 @@ func (r *runner) blueFailsForcedErr(result map[string]any) string {
 	failures, _ := stop["failures"].(int64)
 	if verdict, _ := result["verdict"].(string); verdict != "UNVERIFIED" || stop["seat"] != "blue-respond" || failures != noProgressEpochs {
 		return fmt.Sprintf("forced blue failures: seed %d's run ended %v with termination %v after %d blue sitting(s), want UNVERIFIED on blue-respond's %d failed sittings in a row",
-			blueFailsSeed, result["verdict"], term, sat, noProgressEpochs)
+			seed, result["verdict"], term, sat, noProgressEpochs)
 	}
 	return ""
 }
@@ -177,6 +186,9 @@ func TestBlueFailsForcedErrReadsTheSeatStop(t *testing.T) {
 	}
 	if (&runner{}).blueFailsForcedErr(map[string]any{}) != "" {
 		t.Error("an unforced run is held to blue's stop")
+	}
+	if (&runner{forceUnverified: true}).blueFailsForcedErr(stopped("red-chair", noProgressEpochs, "UNVERIFIED")) == "" {
+		t.Error("the forced-UNVERIFIED run is not held to blue's stop")
 	}
 }
 
