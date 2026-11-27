@@ -24,7 +24,8 @@ import (
 //   - SOUND belongs to the ANCHOR: does the program and its result support what THAT sentence says.
 //     It is read off the anchor's standing checks (anchorchecks.go), so a standing `unsound` from
 //     one lens stays visible beside another lens's `sound` until the anchor is answered — by its own
-//     seat's later verdict, or by an edit that reopens the sentence.
+//     seat's later verdict, or by a rewrite that reopens the sentence — or leaves the report, by a
+//     retire or with its sentence in a cut, which clears it.
 //
 // An anchor is VERIFIED when its own comparison reproduced AND its own sentence is judged sound.
 
@@ -189,7 +190,7 @@ func computationVerdictOf(id, sha string, s *anchorStanding, reruns map[string]*
 	if s == nil {
 		return v
 	}
-	// A RETIRED ANCHOR KEEPS THE VERDICTS IT LEFT WITH. Nothing is owed on a sentence the report no
+	// AN ANCHOR OUT OF THE REPORT, BY A RETIRE OR A CUT, KEEPS THE VERDICTS IT LEFT WITH. Nothing is owed on a sentence the report no
 	// longer carries, which is what `stands` answers for the work list; what its sentence was judged
 	// to be is still the record's, and its row read at its id (EvidenceAt) shows it. No document does:
 	// evidence.md and the evidence table's lists hold the live anchors.

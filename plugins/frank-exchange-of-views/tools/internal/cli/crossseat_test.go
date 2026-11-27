@@ -180,25 +180,6 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	}
 }
 
-// Blue retires a claim; the claim leaves ONLY through this verb. The changelog lists each
-// retirement with why the claim went and what replaced it, so a retire that loses its reason or
-// its successor is a removal the reader cannot account for.
-func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "the API returns 200 on a malformed body",
-		"--reason", "refuted at the leaf — it returns 400, verified against the handler",
-		"--new", "the API returns 400 on a malformed body"); err != nil {
-		t.Fatalf("blue retire: %v", err)
-	}
-	ev := lastBody(t, runDir, &recordpb.Retire{})
-	for _, want := range []string{"claim", "reason", "superseded_by"} {
-		if !setFields(ev)[want] {
-			t.Errorf("the retirement lost %s (%v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev)
-		}
-	}
-}
-
 // Two lenses write CONCURRENTLY into their own shards and the merge must read both. This
 // is the append-only design's central physical claim; if shard merging were lossy, the
 // board would silently under-count findings in exactly the runs that worked hardest.

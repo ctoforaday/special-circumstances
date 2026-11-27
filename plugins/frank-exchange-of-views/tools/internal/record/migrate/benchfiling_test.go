@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -33,7 +32,7 @@ func TestNoMigratedDocketMotionIsFiledByTheBench(t *testing.T) {
 	}
 	var sources []source
 	for _, tb := range archiveTarballs(t) {
-		name := filepath.Base(tb)
+		name := tb
 		res, run := migrateArchive(t, name)
 		sources = append(sources, source{name, res, run})
 	}

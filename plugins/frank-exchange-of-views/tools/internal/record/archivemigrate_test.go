@@ -15,12 +15,18 @@ import (
 // The tests in package record that read an archived run read it MIGRATED: an archive's event
 // tables are its creating binary's, and migrate is the one thing that brings a record forward.
 // Package record cannot import migrate, which imports it; this package can, and hands the
-// migration to them before any test runs, with each act the manifest lists in lost_acts.
+// migration to them before any test runs, with each act the manifest lists in lost_acts, and fails
+// a migration the manifest lists a refusal for.
 func init() {
 	*record.ArchiveMigrator = func(src, dst string) ([]record.LostAct, error) {
 		m, err := migrate.Migrate(src, dst, migrate.Entries(), migrate.Options{})
 		if err != nil {
 			return nil, err
+		}
+		// A REFUSED ACT IS A MIGRATION THAT FAILED, not a record to test against: every act after it
+		// that cites it cascades, and the test would read a record migrate does not write.
+		if len(m.Refusals) > 0 {
+			return nil, fmt.Errorf("%d act(s) refused migrating %s; the first: %+v", len(m.Refusals), src, m.Refusals[0])
 		}
 		return lostActs(src, m)
 	}

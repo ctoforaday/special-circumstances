@@ -56,3 +56,24 @@ func TestProseRendersReadsAWovenCitationAsItsNote(t *testing.T) {
 		})
 	}
 }
+
+// A RETIRE WRITES NO PROSE FOR THE READER TO FIND: its claim is the tool's stamp of the sentence the
+// anchor stood on, which stays, and a later edit may rewrite it (editHistory renders that edit). CI run
+// 45967095843 (seed 4): blue retired an anchor off "The cost is climbing sharply across the whole
+// sampled corpus.", a drawn edit later swapped "climbing sharply" back to "rising over time", and the
+// prose gate read the retire's stamp as prose the report had lost. That a retire keeps its sentence is
+// held at the retire's own event (retiresKeepSentences).
+func TestProseRendersAsksNoRetireForItsStampedSentence(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, reportdoc.FileReport), []byte("The cost is rising over time across the whole sampled corpus.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := recordtest.Event(t, "blue-respond", &recordpb.Retire{
+		Claim:   proto.String("The cost is climbing sharply across the whole sampled corpus."),
+		Reason:  proto.String("fuzz: the anchor cannot stand on its sentence"),
+		Anchors: []string{"K-00000001"},
+	})
+	if m := proseRenders(t, record.Family{Events: []*record.Event{e}}, dir); m != "" {
+		t.Error(m)
+	}
+}

@@ -97,8 +97,8 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 }
 
 // LiveCitationExists is CitationExists for a reference that needs the citation in the report:
-// `compute --cites` names the method a computation applies, and a retired citation is in no
-// document (requireLiveCitation).
+// `compute --cites` names the method a computation applies, and a citation out of the report — a
+// retire took it, or a cut took its sentence — is in no document (requireLiveCitation).
 func LiveCitationExists(advice string) func(runDir, flag, label string) error {
 	return func(runDir, flag, label string) error {
 		db, err := recordOfDir(runDir)
@@ -268,55 +268,58 @@ func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 
 // requireLiveCitation is requireCitation of a citation that is still in the report. A computation
 // names the method it applies by its citation, and evidence.md prints that citation beside it: a
-// retired one is in no document, so the computation would point at a citation the report no longer
-// holds. Asked of the writing transaction, as the retire's L6 refusal (requireCitationUncited) is,
-// so a `compute --cites C` and a `retire --anchor C` racing each other cannot both land.
+// citation out of the report is in no document, so the computation would point at a citation the
+// report no longer holds. Asked of the writing transaction, as L6's refusal of a retire or a cut
+// (requireCitationUncited) is, so a `compute --cites C` and the act taking C racing each other cannot
+// both land.
 func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error {
 	if err := requireCitation(q, label, flag, advice); err != nil || label == "" {
 		return err
 	}
-	r, retired, err := anchorRetiredAt(q, label)
-	if err != nil || !retired {
+	r, removed, err := anchorRemovedAt(q, label)
+	if err != nil || !removed {
 		return err
 	}
-	return fmt.Errorf("%s=%s names a retired citation — %s — so it is in no document, and a computation citing it would apply a method the report no longer cites. "+
+	return fmt.Errorf("%s=%s names a citation that is out of the report — %s — so it is in no document, and a computation citing it would apply a method the report no longer cites. "+
 		"Cite the method again with `cite` and name that citation", flag, label, r.Said())
 }
 
-// requireAboutAnchorLive refuses a mint or a finding about an anchor that is retired (ruling Retired
-// mint): a retired anchor is in no document, so nothing an act about it asks for can be done to it,
-// and a defect still in its sentence is a defect of that sentence. act names the act refused: "gap"
-// or "finding". Asked of the writing transaction (judgeAct), so the act and the retire racing it
-// cannot both land.
+// requireAboutAnchorLive refuses a mint or a finding about an anchor out of the report (ruling Retired
+// mint) — a retire took it, or a cut took its sentence: it is in no document, so nothing an act about
+// it asks for can be done to it. A defect still in a retired anchor's sentence is a defect of that
+// sentence; a cut took the sentence too. act names the act refused: "gap" or "finding". Asked of the
+// writing transaction (judgeAct), so the act and the removal racing it cannot both land.
 func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, act string) error {
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	r, retired, err := anchorRetiredAt(q, ref)
-	if err != nil || !retired {
+	r, removed, err := anchorRemovedAt(q, ref)
+	if err != nil || !removed {
 		return err
 	}
-	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no %s about it can be answered. "+
-		"A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said(), act, act)
+	advice := fmt.Sprintf("A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", act)
+	if r.By == RemovedByEdit {
+		advice = fmt.Sprintf("Its sentence left with it: a defect the cut left elsewhere in the report is a %s about the sentence that holds it — file it with --quote on that sentence", act)
+	}
+	return fmt.Errorf("--about names %s %s, which is out of the report — %s — so it is in no document and no %s about it can be answered. %s", EvidenceNoun(ref), ref, r.Said(), act, advice)
 }
 
-// requireCitationUncited refuses a retire that takes a citation a live computation names as its
-// method (Computation.cites) — ruling L6: evidence.md would print the computation applying a method
-// the report no longer cites. A computation the same retire takes is not live (ruling Same-act L6),
-// so one claim retire may take a citation and the computations citing it together. It is asked of
-// every id the retire takes — `retire --anchor` and a claim retire alike — inside the writing
-// transaction, so the retire and a `compute --cites` racing it cannot both land. The tool refuses
-// and never cascades.
-func requireCitationUncited(q recordsql.Querier, taken []string) error {
+// requireCitationUncited refuses a retire or a cut that takes a citation a live computation names as
+// its method (Computation.cites) — ruling L6: evidence.md would print the computation applying a method
+// the report no longer cites. A computation the same act takes is not live (ruling Same-act L6), so one
+// cut may take a citation and the computations citing it together. It is asked of every id a retire or
+// a cut takes — act names which, "retire" or "cut" — inside the writing transaction, so the act and a
+// `compute --cites` racing it cannot both land. The tool refuses and never cascades.
+func requireCitationUncited(q recordsql.Querier, taken []string, act string) error {
 	for _, id := range taken {
 		if anchor.Kind(id) != "citation" {
 			continue
 		}
-		// Live is what the evidence_anchor view says: no retire names it. Asked by index on both
-		// sides (computation_cites, retire_anchors_value), never by materialising every anchor.
+		// Live is what the evidence_anchor view says: no act took it out (anchor_removal, a retire or a
+		// cut). Asked by index on both sides, never by materialising every anchor.
 		rows, err := q.Query(`SELECT DISTINCT c."computation_id" FROM "computation" c
 		  WHERE c."cites" = ? AND c."computation_id" IS NOT NULL
-		    AND NOT EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = c."computation_id")
+		    AND NOT EXISTS (SELECT 1 FROM "anchor_removal" ar WHERE ar."anchor_id" = c."computation_id")
 		  ORDER BY c."computation_id"`, id)
 		if err != nil {
 			return fmt.Errorf("asking the record which computations cite %s: %w", id, err)
@@ -337,9 +340,15 @@ func requireCitationUncited(q recordsql.Querier, taken []string) error {
 			return err
 		}
 		if len(live) > 0 {
-			return fmt.Errorf("citation %s is the method a computation still in the report applies: %s. Retired, the citation would be in no document while that computation names it, so nothing is recorded. "+
-				"Retire each such computation first, by its own anchor, or `compute` it again citing another source; or take each with the citation in one claim retire",
-				id, strings.Join(live, ", "))
+			ks := strings.Join(live, ", ")
+			// A retire takes one anchor, so the same-act route is the cut's alone.
+			route := fmt.Sprintf(", or take %s in the same cut; then cut again", ks)
+			if act == "retire" {
+				route = fmt.Sprintf(", or cut its sentence; then retire %s again", id)
+			}
+			return fmt.Errorf("citation %s is the method computation %s, still in the report, applies. Taken out, the citation would be in no document while that computation names it, so nothing is recorded. "+
+				"Retire %s by its own anchor first, computing it again citing another source if the report still needs it%s",
+				id, ks, ks, route)
 		}
 	}
 	return nil
@@ -391,6 +400,28 @@ func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 		return false, err
 	}
 	return !open, nil
+}
+
+// RequireMarkerOfNoOpenGap refuses a retire of an OPEN gap's own marker (F14, ruled by gblock
+// 2026-11-20), naming the gap: the retire keeps the sentence, so the gap would stand on no marker while
+// it is owed. A cut of the sentence takes the marker and is the gap's raiser's turn; once the gap is
+// closed, its marker may be retired off the sentence.
+func RequireMarkerOfNoOpenGap(q recordsql.Querier, taken []string) error {
+	for _, id := range taken {
+		if anchor.Kind(id) != "gap" {
+			continue
+		}
+		var open bool
+		found, err := queryRowAt(q, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
+		if err != nil {
+			return err
+		}
+		if found && open {
+			return fmt.Errorf("%s is the marker of gap %s, which is open, so it is not retired: an open gap stands on its marker. "+
+				"Carry it, or cut its sentence with `edit`, which hands the gap to its lens", anchor.Token(id), id)
+		}
+	}
+	return nil
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap. A gap a supersession closed is

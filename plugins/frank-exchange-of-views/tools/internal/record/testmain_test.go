@@ -52,8 +52,9 @@ var censusExcluded = map[string]string{
 	`SELECT NEW."value" UNION SELECT "gap_id" FROM "mint" WHERE "event_id" = NEW."event_id"`:                                              "a gap-state marker trigger's body, over NEW",
 	`SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = NEW."motion_id"`: "a gap-state marker trigger's body, over NEW",
 	`SELECT NEW."value"`: "a gap-state marker trigger's body, over NEW",
+	`SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL UNION …`:                                                                            "a gap-state marker trigger's body, over NEW",
 	`SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL UNION … UNION SELECT "gap_id" FROM "demand_lineage" WHERE "from_gap" = NEW."value"`: "a gap-state marker trigger's body, over NEW",
-	`SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL UNION …`: "a gap-state marker trigger's body, over NEW",
+	`SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL UNION …`:                                                                                                                         "a gap-state marker trigger's body, over NEW",
 }
 
 // unindexed is each walk of a growing table that no index can serve, keyed by its shapes.golden

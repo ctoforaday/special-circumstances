@@ -194,8 +194,9 @@ func evidenceDoc(run record.Run, computations []record.Computation, backs map[st
 			// The METHOD is cited and the INSTANCE is computed: naming the citation here is
 			// what makes the pair legible as one argument rather than two artifacts. It is named by
 			// its C-… id and never by a [^N]: a footnote number belongs to the one document that
-			// carries it, and this document defines no citation footnote. It is never a retired
-			// citation: retiring one a live computation applies is refused.
+			// carries it, and this document defines no citation footnote. It is never a citation
+			// out of the report: retiring one a live computation applies is refused, and so is an edit
+			// that cuts its sentence.
 			fmt.Fprintf(&b, "- **applies the method cited at**: %s\n", p.Cites)
 		}
 		b.WriteString("\n")

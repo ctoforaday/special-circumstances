@@ -5421,11 +5421,13 @@ type BlueEdit struct {
 	// --quote mint meets the guard, a found source's claim_contradicts_source included (F4 (a)), and
 	// a later edit that rewords the applied sentence ends it (F12, record/estoppel.go).
 	AppliedVerbatim *bool `protobuf:"varint,6,opt,name=applied_verbatim,json=appliedVerbatim,proto3,oneof" json:"applied_verbatim,omitempty"`
-	// reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
-	// computations whose referent moved under them.
+	// reopened are the anchors whose SENTENCE this edit rewrote and that still stand — of every kind,
+	// citations, computations, findings and gap markers, whose referent moved under them. An anchor a cut took is in
+	// removed_anchors, never here: it left the report with its sentence.
 	//
 	// THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
-	// lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.
+	// lost unrecorded: a rewrite that drops one is refused, droppedMarker backstops the whole edit,
+	// and a cut records each anchor it takes in removed_anchors — measured.
 	// But an anchor that SURVIVES onto rewritten text is a citation backing a sentence nobody read,
 	// and nothing said so. Measured: blue cited "The sky is blue and the grass is green", rewrote it
 	// to "The sky is green and the grass is on fire", and the citation followed the inversion.
@@ -5438,10 +5440,8 @@ type BlueEdit struct {
 	// referent needs looking at again. A verification of a reopened anchor is stale rather than
 	// wrong, which is a different fact and gets a different word.
 	//
-	// AN ANCHOR THE EDIT LEAVES BARE IS LISTED: its sentence is gone, which changes its referent as
-	// surely as a rewrite. Only a gap or finding anchor can be left bare — an edit that bares an
-	// evidence anchor is refused — so its readers take it as the gap's sentence changing: estoppel
-	// ends the gap's prescription, the gap's acts count the edit, and the change lists it.
+	// An anchor whose sentence a CUT took is not here: it left the report, and removed_anchors lists
+	// it. reopened lists only anchors that still stand.
 	Reopened []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
 	// ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
 	//
@@ -5480,8 +5480,22 @@ type BlueEdit struct {
 	// alone; `reopened` is computed from the two runs, sentence by sentence.
 	OldParagraphs *string `protobuf:"bytes,10,opt,name=old_paragraphs,json=oldParagraphs,proto3,oneof" json:"old_paragraphs,omitempty"`
 	NewParagraphs *string `protobuf:"bytes,11,opt,name=new_paragraphs,json=newParagraphs,proto3,oneof" json:"new_paragraphs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// removed_anchors are the anchors a PURE CUT took out of the report with their sentences, in the
+	// order replay removes them — computed by the edit, never typed by a seat (ruling F17 (a)).
+	//
+	// A pure cut is an edit whose replacement for one or more whole sentences holds nothing of them:
+	// the empty string, or only whitespace and terminators. Every other edit is a rewrite, which
+	// carries every anchor of its span. An anchor "can't just be floating on nothing" (gblock,
+	// 2026-11-20), so the cut takes the anchors of the sentences it cuts — the ones at their end
+	// included, whether or not the quote carries them — and the edit's reason is the reason they left.
+	//
+	// REPLAY APPLIES THE LIST AND NEVER RE-DECIDES IT. The splice never removes a token: one inside the
+	// located span that the replacement does not carry is kept at the end of the replacement, and the
+	// report_op view's `remove` rows then take each listed token once, after the splice, in this order.
+	// A token listed here is never in reopened.
+	RemovedAnchors []string `protobuf:"bytes,12,rep,name=removed_anchors,json=removedAnchors,proto3" json:"removed_anchors,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BlueEdit) Reset() {
@@ -5591,46 +5605,30 @@ func (x *BlueEdit) GetNewParagraphs() string {
 	return ""
 }
 
-// Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
+func (x *BlueEdit) GetRemovedAnchors() []string {
+	if x != nil {
+		return x.RemovedAnchors
+	}
+	return nil
+}
+
+// Retire takes one anchor out of the report; its sentence stays. The anchor leaves ONLY with its
+// reason recorded.
 type Retire struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Claim        *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
-	Reason       *string                `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	SupersededBy *string                `protobuf:"bytes,3,opt,name=superseded_by,json=supersededBy,proto3,oneof" json:"superseded_by,omitempty"`
-	RemovalBasis *string                `protobuf:"bytes,4,opt,name=removal_basis,json=removalBasis,proto3,oneof" json:"removal_basis,omitempty"`
-	// anchors are the anchor ids that EXIT THE REPORT WITH THIS CLAIM — computed by the verb, never
-	// typed by a seat.
-	//
-	// An edit may carry an anchor but never drop one, so a claim whose sentence is edited away
-	// leaves its anchor BARE: the anchor alone in its segment, backing no prose. Before this field
-	// nothing could take that anchor out, so it stood forever — a `[^N]` orphan with a live
-	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
-	// counter still counted, which let a retire count a claim that had never left the count.
-	//
-	// Filled with the anchors that stood on the retired claim in the edit that took it out — the
-	// claim being the whole of that edit's old span or a run of its whole sentences, across the anchor
-	// layer, modulo surrounding whitespace, emphasis and trailing punctuation (a fragment names
-	// nothing): each that is present AND bare in the report at the write, and each the seat names
-	// that the edit carried onto surviving prose and no later edit put back into prose. An anchor of
-	// every kind leaves alike. Each named evidence anchor is one counted claim
-	// leaving the report. Replay removes each named anchor at
-	// this event's position (the report_op view's `remove` rows). A record written before this field
-	// carries none, and replays exactly as it did.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// claim is the sentence the anchor stood on, as the report held it at the write, which stays word
+	// for word — stamped by the verb (bluedoc.SentenceAround), never typed by a seat.
+	Claim  *string `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
+	Reason *string `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// anchors is the one anchor id this retire takes out of the report, computed by the verb from
+	// `--anchor`, never typed by a seat. Replay removes it at this event's position (the report_op
+	// view's `remove` rows).
 	Anchors []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
-	// claim_kept is a retire of an EVIDENCE ANCHOR, not of its claim: the anchor leaves the report
-	// and its sentence stays word for word, standing on whatever else backs it — another evidence anchor, or
-	// nothing, when it is prose a lens audits like any other. The verb sets it and fills claim with the
-	// sentence as the report holds it at the write, never typed by a seat. Its readers: replay (the
-	// anchor's `remove` row leaves the sentence), the report's list of retirements, which names the
-	// anchor retired and the sentence kept rather than listing a claim that never left, and the
-	// anchor ledger, where the anchor is retired and owes nothing.
-	ClaimKept *bool `protobuf:"varint,6,opt,name=claim_kept,json=claimKept,proto3,oneof" json:"claim_kept,omitempty"`
-	// answers is the gap a retire of an evidence anchor responds to — BlueEdit.answers's key on the
-	// other act that changes the report's text, checked against the board at the write the same way. An anchor blue
-	// retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
-	// blue's answers (`show changes --id`, the lens's answered list) reads it
-	// here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
-	// carries the gap it answers.
+	// answers is the gap a retire responds to — the key BlueEdit.answers carries too, checked against
+	// the board at the write the same way: a retire changes the report's anchors where an edit changes
+	// its text, and either may answer a gap. An anchor blue retires because a gap asked for it is blue's
+	// answer to that gap, and a reader joining the gap to blue's answers (`show changes --id`, the
+	// lens's answered list) reads it here. Empty for a retire answering no gap.
 	Answers       *string `protobuf:"bytes,7,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5680,32 +5678,11 @@ func (x *Retire) GetReason() string {
 	return ""
 }
 
-func (x *Retire) GetSupersededBy() string {
-	if x != nil && x.SupersededBy != nil {
-		return *x.SupersededBy
-	}
-	return ""
-}
-
-func (x *Retire) GetRemovalBasis() string {
-	if x != nil && x.RemovalBasis != nil {
-		return *x.RemovalBasis
-	}
-	return ""
-}
-
 func (x *Retire) GetAnchors() []string {
 	if x != nil {
 		return x.Anchors
 	}
 	return nil
-}
-
-func (x *Retire) GetClaimKept() bool {
-	if x != nil && x.ClaimKept != nil {
-		return *x.ClaimKept
-	}
-	return false
 }
 
 func (x *Retire) GetAnswers() string {
@@ -8300,7 +8277,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"ReportPart\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x82\x04\n" +
+	"\x05_text\"\xab\x04\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
@@ -8314,7 +8291,8 @@ const file_record_proto_rawDesc = "" +
 	"exact_span\x18\t \x01(\bH\aR\texactSpan\x88\x01\x01\x12*\n" +
 	"\x0eold_paragraphs\x18\n" +
 	" \x01(\tH\bR\roldParagraphs\x88\x01\x01\x12*\n" +
-	"\x0enew_paragraphs\x18\v \x01(\tH\tR\rnewParagraphs\x88\x01\x01B\v\n" +
+	"\x0enew_paragraphs\x18\v \x01(\tH\tR\rnewParagraphs\x88\x01\x01\x12'\n" +
+	"\x0fremoved_anchors\x18\f \x03(\tR\x0eremovedAnchorsB\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +
@@ -8325,23 +8303,16 @@ const file_record_proto_rawDesc = "" +
 	"\t_acceptedB\r\n" +
 	"\v_exact_spanB\x11\n" +
 	"\x0f_old_paragraphsB\x11\n" +
-	"\x0f_new_paragraphs\"\x9a\x04\n" +
-	"\x06Retire\x12|\n" +
-	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
-	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
-	"\rsuperseded_by\x18\x03 \x01(\tH\x02R\fsupersededBy\x88\x01\x01\x12(\n" +
-	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01\x12\x18\n" +
-	"\aanchors\x18\x05 \x03(\tR\aanchors\x12\"\n" +
-	"\n" +
-	"claim_kept\x18\x06 \x01(\bH\x04R\tclaimKept\x88\x01\x01\x12\x1d\n" +
-	"\aanswers\x18\a \x01(\tH\x05R\aanswers\x88\x01\x01B\b\n" +
+	"\x0f_new_paragraphs\"\xb7\x02\n" +
+	"\x06Retire\x12\x19\n" +
+	"\x05claim\x18\x01 \x01(\tH\x00R\x05claim\x88\x01\x01\x12\xa5\x01\n" +
+	"\x06reason\x18\x02 \x01(\tB\x87\x01\x82\xb5\x18\x82\x01\b\x01\x1a~unreadable, unsound, superseded by a better source, out of scope — an anchor leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12\x18\n" +
+	"\aanchors\x18\x05 \x03(\tR\aanchors\x12\x1d\n" +
+	"\aanswers\x18\a \x01(\tH\x02R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_claimB\t\n" +
-	"\a_reasonB\x10\n" +
-	"\x0e_superseded_byB\x10\n" +
-	"\x0e_removal_basisB\r\n" +
-	"\v_claim_keptB\n" +
+	"\a_reasonB\n" +
 	"\n" +
-	"\b_answers\"\x91\x03\n" +
+	"\b_answersJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\a\"\x91\x03\n" +
 	"\x03Log\x12)\n" +
 	"\x04text\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\x04text\x88\x01\x01\x12\xf6\x01\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.feov.record.v1.LogTypeB\xc3\x01\x82\xb5\x18\xbe\x01\b\x01\x1a\xb9\x01the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one runH\x01R\x04type\x88\x01\x01\x126\n" +
@@ -8534,7 +8505,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\x99*\n" +
+	"\b_holding*\x9e*\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8557,8 +8528,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13EVENT_TYPE_POSITION\x10\x17\x1aA\x8a\xb5\x18=the chair's argument to the bench on what is about no one gap\x12\xa0\x01\n" +
 	"\x16EVENT_TYPE_COMPUTATION\x10\x18\x1a\x83\x01\x8a\xb5\x18\x7fa program blue ran twice on a bundle, with the bundle's hash, its exit and its basis — the answer a computation check demands\x12P\n" +
 	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12\x84\x01\n" +
-	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aj\x8a\xb5\x18fred checking a recorded computation against its bundle's re-run, and whether what it computes is sound\x12b\n" +
-	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aK\x8a\xb5\x18Ga claim retired from the report, with the reason and what supersedes it\x12n\n" +
+	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aj\x8a\xb5\x18fred checking a recorded computation against its bundle's re-run, and whether what it computes is sound\x12g\n" +
+	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aP\x8a\xb5\x18Lan anchor blue took out of the report, its sentence staying, with the reason\x12n\n" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12L\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1a4\x8a\xb5\x180the chair's PASS, checked against the open board\x12x\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1aa\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\x12\xcd\x01\n" +
@@ -8648,15 +8619,15 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x9c\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x81\x04\x8a\xb5\x18\xf8\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xfb\x12\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xa1\x13\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xaf\x03\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x91\x03\x8a\xb5\x18\x8c\x03you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xd3\x02\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\xa9\x02\x8a\xb5\x18\xa4\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xa3\x02\n" +
 	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\x89\x02\x8a\xb5\x18\x84\x02it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xc7\x02\n" +
 	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\xaa\x02\x8a\xb5\x18\xa1\x02you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again\x80\xb6\x18\x01\x12\x9f\x04\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x83\x04\x8a\xb5\x18\xfa\x03you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap\x80\xb6\x18\x01\x12\xaf\x03\n" +
-	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\x8e\x03\x8a\xb5\x18\x89\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x83\x04\x8a\xb5\x18\xfa\x03you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap\x80\xb6\x18\x01\x12\xd5\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xb4\x03\x8a\xb5\x18\xaf\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire the citation, cite a source a lens can read, or cut the sentence it backs*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
 	"\x17BRIDGE_KIND_UNSPECIFIED\x10\x00\x12\xa3\x01\n" +

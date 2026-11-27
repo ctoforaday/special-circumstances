@@ -1,7 +1,6 @@
 package migrate_test
 
 import (
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -17,14 +16,10 @@ import (
 // with no gap fails; and an archive set holding no bench row at all fails too, because the translation
 // would then be tested by nothing.
 func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	bench := 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		res, dst := migrateArchive(t, name)
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d refusal(s); the first: %+v", name, len(res.Refusals), res.Refusals[0])
@@ -68,14 +63,10 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // an archive set in which no plan carries one. A plan stored at EventSchema 78 or later prints
 // `passed` itself, and migrates byte for byte.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	rows, carried, identical, verdicts, fails := 0, 0, 0, 0, 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		res, dst := migrateArchive(t, name)
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d refusal(s); the first: %+v", name, len(res.Refusals), res.Refusals[0])

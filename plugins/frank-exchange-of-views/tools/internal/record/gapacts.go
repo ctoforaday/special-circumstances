@@ -24,9 +24,9 @@ import (
 //     computation placed as its answer;
 //   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
 //     answer, a changed fate (fateActsOf) on the inquiry it is anchored on or that the section it is
-//     anchored on prints, a closing, and a REACHING RETIRE — a retire taking out the anchor the gap is
-//     about, whatever gap the retire named
-//     (WindowIndex.Reaches). Without it a retire that meets the gap's demand leaves the lens's turn
+//     anchored on prints, a closing, and a REACHING REMOVAL — a retire or a pure cut taking out the
+//     anchor the gap is about, whatever gap the act named
+//     (WindowIndex.Reaches). Without it a removal that meets the gap's demand leaves the lens's turn
 //     never coming, and the plan readies blue alone on a gap only its lens can close;
 //   - the lens whose check it is: a check (`verify` or `reproduce`) of an anchor placed as its answer.
 //     A reading reaches a gap only through its citation's answer, never through the gap that carries
@@ -34,7 +34,7 @@ import (
 //   - either: a docket or grade motion on it.
 //
 // Each is validated at its write against the gap the record holds, or read off the record's rows
-// (a reaching retire), so a gap named here is one the record names, never one recovered from prose.
+// (a reaching removal), so a gap named here is one the record names, never one recovered from prose.
 // A changed fate's gaps are read off the mints' anchors and the section that prints the fate
 // (reportheading), the one assembly composes it under.
 type gapAct struct {
@@ -43,7 +43,7 @@ type gapAct struct {
 }
 
 // gapActsOf is every act on each gap, in record order. ids are evs's places; win is the whole-record
-// index the reaching retires are read off.
+// index the reaching removals are read off.
 func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 	out := map[string][]gapAct{}
 	answering := map[string]string{} // an evidence anchor → the gap it was placed as the answer to
@@ -64,7 +64,12 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 				on = []string{b.GetAboutRef()}
 			}
 		case *recordpb.BlueEdit:
+			// A PURE CUT REACHES what a retire of the same anchors would (WindowIndex.Reaches): the
+			// gaps about an anchor it took out, never the gap whose own marker left with it.
 			on = []string{b.GetAnswers()}
+			for _, r := range win.Reaches(e) {
+				on = append(on, r.gap)
+			}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
 			for _, r := range win.Reaches(e) {
@@ -239,6 +244,11 @@ func lensReadAt(turns []gapAct, lens string, minted, floor, upto int64) int64 {
 //     the `reopened` that `edited_since` lists. It is the lens's turn and NOT blue's answer. On
 //     universe-m37 blue's fix to G-584d152f landed under another gap's name, the lens never read it,
 //     and the bench found a gap that was not at impasse.
+//   - AN EDIT THAT CUT THE GAP'S MARKER, whatever gap it answers (ruled by gblock 2026-11-26, F21): the
+//     `removed_anchors` a pure cut records. The cut is the raiser's turn, never a close: the gap stays
+//     open, reading gone, until its minting lens closes it moot, keeps it with a regrade, or the
+//     exchange limits docket it. `reopened` lists an anchor whose sentence changed and still stands;
+//     the removal is its own recorded list, read beside it.
 //   - THE OPENING OF A CLOSED SITTING OF THE LENS ENGAGED ON THE GAP, whether or not it acted: silence
 //     is a turn taken, so a null turn does not leave the turn standing for the next epoch. Its opening
 //     and not its end, so an act of blue's inside the window still counts as unread. A sitting the
@@ -251,7 +261,7 @@ func lensTurnActsOf(evs []*Event, ids []int64, acts map[string][]gapAct, sitting
 	}
 	for i, e := range evs {
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && b.GetOld() != b.GetNew() {
-			for _, g := range b.GetReopened() {
+			for _, g := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
 				out[g] = append(out[g], gapAct{seat: e.GetSeatId(), at: ids[i]})
 			}
 		}

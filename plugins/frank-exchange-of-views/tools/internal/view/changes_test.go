@@ -164,3 +164,28 @@ func TestDeltaCountsRunesNotBytes(t *testing.T) {
 		t.Errorf("delta = %q, want -2 chars", got)
 	}
 }
+
+// A RETIRED FINDING ANCHOR IS NAMED WITH ITS AREA. A retire takes an anchor of any kind off its kept
+// sentence, a finding's included, and the changes view names the finding as every text view does:
+// its id and its lens's area.
+func TestChangesNamesARetiredFindingWithItsArea(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:f1", &recordpb.Finding{
+			Id:   proto.String("F-0000aaa1"),
+			Text: proto.String("the claim outruns its evidence"),
+		}),
+	})
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "blue-respond", "blue-respond:register:1", &recordpb.Register{}),
+		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{
+			Claim:   proto.String("Seven is prime."),
+			Anchors: []string{"F-0000aaa1"},
+			Reason:  proto.String("the finding is answered elsewhere"),
+		}),
+	})
+	out := md(t, runDir, "changes")
+	if !strings.Contains(out, "F-0000aaa1 (logic), its sentence kept") {
+		t.Errorf("the changes view does not name the retired finding with its area:\n%s", out)
+	}
+}

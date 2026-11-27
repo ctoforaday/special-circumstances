@@ -93,7 +93,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_COMPUTATION", Means: "a program blue ran twice on a bundle, with the bundle's hash, its exit and its basis — the answer a computation check demands"},
 	{Name: "EVENT_TYPE_REGRADE", Means: "a gap's grade changed, with the basis for the change"},
 	{Name: "EVENT_TYPE_REPRODUCE", Means: "red checking a recorded computation against its bundle's re-run, and whether what it computes is sound"},
-	{Name: "EVENT_TYPE_RETIRE", Means: "a claim retired from the report, with the reason and what supersedes it"},
+	{Name: "EVENT_TYPE_RETIRE", Means: "an anchor blue took out of the report, its sentence staying, with the reason"},
 	{Name: "EVENT_TYPE_SPOT_CHECK", Means: "red re-checking a sample of prior work, or stating that it checked none and why"},
 	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's PASS, checked against the open board"},
 	{Name: "EVENT_TYPE_VERIFY", Means: "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"},
@@ -202,7 +202,7 @@ var annotationsSourceOutcome = [...]ValueAnnotations{
 	{Name: "SOURCE_OUTCOME_WEAK", Means: "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it"},
 	{Name: "SOURCE_OUTCOME_REFUTES", Means: "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again", FindsAgainst: DeclaredBool{Declared: true, Value: true}},
 	{Name: "SOURCE_OUTCOME_ABSENT", Means: "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap", FindsAgainst: DeclaredBool{Declared: true, Value: true}},
-	{Name: "SOURCE_OUTCOME_UNREACHABLE", Means: "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read"},
+	{Name: "SOURCE_OUTCOME_UNREACHABLE", Means: "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire the citation, cite a source a lens can read, or cut the sentence it backs"},
 }
 
 var annotationsBridgeKind = [...]ValueAnnotations{

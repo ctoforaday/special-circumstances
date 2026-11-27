@@ -96,10 +96,11 @@ func ReportSourceAt(q Querier) (ReportSource, error) {
 }
 
 // ReportOpsBetween is the report_op rows of the events after event id `after` and at or before
-// `upto`, in replay order. The second key orders the one case where an event yields several rows — a
-// retire naming more than one anchor — so replay is deterministic rather than whatever SQLite returns.
+// `upto`, in replay order. The second key orders the rows of one event: an edit's splice (ord 0) before
+// the removes its removed_anchors lists, in their list order, so replay is deterministic rather than
+// whatever SQLite returns.
 func ReportOpsBetween(q Querier, after, upto int64) ([]reportproj.ReportOp, error) {
-	rows, err := q.Query(`SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "a"`, after, upto)
+	rows, err := q.Query(`SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "ord"`, after, upto)
 	if err != nil {
 		return nil, fmt.Errorf("reading the report ops: %w", err)
 	}

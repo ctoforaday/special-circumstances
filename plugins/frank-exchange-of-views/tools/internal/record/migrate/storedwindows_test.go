@@ -32,14 +32,10 @@ ORDER BY e."id"`
 // the same sitting_id back and counts. Every row of every migrated run must agree — and some run must
 // reach a second sitting and a chair epoch, or the agreement is between zeros.
 func TestTheStoredWindowsAreTheRankedOnesOnEveryArchivedRun(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	var maxSitting, maxEpoch int64
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			_, runDir := migrate.MigratedArchive(t, name)
 			db, err := sql.Open("sqlite", "file:"+filepath.Join(runDir, "records", "record.db")+"?mode=ro")

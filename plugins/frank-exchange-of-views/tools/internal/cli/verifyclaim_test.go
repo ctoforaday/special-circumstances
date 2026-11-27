@@ -138,19 +138,13 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 			t.Errorf("the refusal left %d verification(s) on the record", got-before)
 		}
 	}
-	// THE BARE CITATION IS AN ARCHIVED ONE. `blue edit` refuses to leave a citation bare, so the
-	// edit that did is appended to the record as a run from before that refusal holds it.
-	t.Run("bare", func(t *testing.T) {
+	t.Run("cut", func(t *testing.T) {
 		runDir, anchor := citedClause(t)
-		tok := "<!--cite:" + anchor + "-->"
-		if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, &recordpb.BlueEdit{
-			Old:  proto.String("The data shows the sky is blue" + tok + " and the grass is green."),
-			New:  proto.String(tok),
-			Text: proto.String("the sentence cannot stand"),
-		}); err != nil {
-			t.Fatalf("the edit that left the citation bare: %v", err)
+		if _, err := cut(t, runDir, "The data shows the sky is blue<!--cite:"+anchor+"--> and the grass is green."); err != nil {
+			t.Fatalf("the cut of the cited sentence: %v", err)
 		}
-		refused(t, runDir, anchor, "citation "+anchor, "stands bare", "nothing to check", "retire")
+		refused(t, runDir, anchor, "citation "+anchor+" is out of the report", "blue's edit at event", "cut its sentence",
+			`reason: "the claim cannot stand"`, "in no document")
 	})
 	t.Run("retired", func(t *testing.T) {
 		runDir, anchor := citedClause(t)
@@ -158,7 +152,7 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 			"--anchor", anchor, "--reason", "refuted"); err != nil {
 			t.Fatalf("retire: %v", err)
 		}
-		refused(t, runDir, anchor, "citation "+anchor+" is retired", "at event", `reason: "refuted"`, "sentence", "kept", "in no document")
+		refused(t, runDir, anchor, "citation "+anchor+" is out of the report", "blue retired it at event", `reason: "refuted"`, "sentence", "kept", "in no document")
 		// Nor does the lens's work list offer the verification the tool refuses.
 		out, err := run(t, "show", "--run", runDir, "--seat-id", lensSeat)
 		if err != nil || strings.Contains(out, "citation "+anchor+" is on the record and nobody has verified it") {

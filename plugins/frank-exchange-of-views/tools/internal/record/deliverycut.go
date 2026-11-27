@@ -7,7 +7,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -342,13 +341,19 @@ func gapsPassages(q recordsql.Querier, report string, gaps []string) ([]Delivery
 	return out, nil
 }
 
-// latestReopeningSQL is the stamped paragraphs before the latest edit whose reopened lists gap ?1.
-const latestReopeningSQL = `SELECT COALESCE(b."old_paragraphs", '') FROM "blue_edit_reopened" r JOIN "blue_edit" b ON b."event_id" = r."event_id"
-  WHERE r."value" = ?1 ORDER BY r."event_id" DESC LIMIT 1`
+// latestReopeningSQL is the stamped paragraphs before the latest edit whose reopened lists gap ?1,
+// or whose removed_anchors does: a pure cut of the gap's marker, whose old paragraphs are the gap's
+// passage once its text is gone.
+const latestReopeningSQL = `SELECT COALESCE(b."old_paragraphs", '') FROM (
+    SELECT r."event_id" FROM "blue_edit_reopened" r WHERE r."value" = ?1
+    UNION ALL
+    SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?1
+  ) w JOIN "blue_edit" b ON b."event_id" = w."event_id"
+  ORDER BY w."event_id" DESC LIMIT 1`
 
 // gapPassages is the passage of each gap the statement names: the gap's section as it stands
-// (PassageAround); for a gap whose anchor is gone or bare, the paragraph that held it before the
-// latest edit that reopened it; with neither, its recorded location.
+// (PassageAround); for a gap whose anchor is gone, the paragraph that held it before the
+// latest edit that reopened it or cut it; with neither, its recorded location.
 func gapPassages(q recordsql.Querier, report, stmt, arg string) ([]DeliveryPiece, error) {
 	rows, err := q.Query(stmt, arg)
 	if err != nil {
@@ -365,14 +370,10 @@ func gapPassages(q recordsql.Querier, report, stmt, arg string) ([]DeliveryPiece
 		gaps = append(gaps, g)
 	}
 	rows.Close()
-	bare := map[string]bool{}
-	for _, id := range claimcount.BareAnchorIDs(report) {
-		bare[id] = true
-	}
 	var out []DeliveryPiece
 	for _, g := range gaps {
 		tok := anchor.Token(g.id)
-		if at := strings.Index(report, tok); at >= 0 && !bare[g.id] {
+		if at := strings.Index(report, tok); at >= 0 {
 			out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id, Text: PassageAround(report, at)})
 			continue
 		}
@@ -380,13 +381,13 @@ func gapPassages(q recordsql.Querier, report, stmt, arg string) ([]DeliveryPiece
 		if err := q.QueryRow(latestReopeningSQL, g.id).Scan(&before); err == nil && before != "" {
 			for _, b := range anchor.Blocks(before) {
 				if p := before[b.Start:b.End]; strings.Contains(p, tok) {
-					out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", AS IT STOOD BEFORE THE CHANGE THAT REMOVED ITS TEXT", Text: p})
+					out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", AS IT STOOD BEFORE THE LATEST EDIT THAT CHANGED OR CUT ITS SENTENCE", Text: p})
 					break
 				}
 			}
 			continue
 		}
-		out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", ITS TEXT GONE FROM THE REPORT; ITS RECORDED LOCATION", Text: g.location})
+		out = append(out, DeliveryPiece{Label: "THE PASSAGE OF GAP " + g.id + ", ITS MARKER NOT IN THE REPORT; ITS RECORDED LOCATION", Text: g.location})
 	}
 	return out, nil
 }

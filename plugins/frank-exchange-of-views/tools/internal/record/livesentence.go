@@ -1,21 +1,18 @@
 package record
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // A CHECK NEEDS A LIVE SENTENCE. A check of an evidence anchor — `verify` of a citation, `reproduce`
 // of a computation — is a judgement of the sentence the anchor backs, so an anchor with no such
-// sentence has nothing to judge: its token is not in the report (blue retired it, or it never
-// placed), or it stands bare (the sentence it backed was cut). One predicate answers it for every
-// kind, and the work list asks the same one for why no check can reach an anchor (unverifiableIn).
+// sentence has nothing to judge: its token is not in the report — blue retired it, a cut took it with
+// its sentence, or it never placed. One predicate answers it for every kind, and the work list asks the same one for why no check can reach an anchor (unverifiableIn).
 
 // sentenceGone is why an evidence anchor has no live sentence in a rendered report, or sentenceLive.
 type sentenceGone int
@@ -24,21 +21,12 @@ const (
 	sentenceLive sentenceGone = iota
 	// sentenceAbsent: the anchor's token is not in the report.
 	sentenceAbsent
-	// sentenceBare: the token stands with no prose before it in its sentence.
-	sentenceBare
 )
 
 // liveSentenceIn is the sentence holding id's token in report, read the way an edit reads it to
-// reopen the anchor (bluedoc.SentenceAround), or why there is none. bare is the report's bare
-// anchors (claimcount.BareAnchorIDs), which a caller asking of many anchors computes once.
-//
-// ONE BARE RULE: an anchor BareAnchorIDs lists stands bare, asked before the sentence is read, so
-// bareness is the bare list's alone, whatever block — a fence, a heading — holds the token's first
-// occurrence.
-func liveSentenceIn(report string, bare []string, id string) (string, sentenceGone) {
-	if slices.Contains(bare, id) {
-		return "", sentenceBare
-	}
+// reopen the anchor (bluedoc.SentenceAround), or why there is none. No writer leaves an anchor bare —
+// a cut takes the anchors of the sentences it cuts — so a token in the report stands on a sentence.
+func liveSentenceIn(report string, id string) (string, sentenceGone) {
 	sentence, ok := bluedoc.SentenceAround(report, anchor.Token(id))
 	if !ok {
 		return "", sentenceAbsent
@@ -47,32 +35,27 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 }
 
 // SentencesIn is the live sentence of each of ids in report (liveSentenceIn), keyed by id, read once
-// for all of them, with why an id has none: bare holds each of ids whose token stands bare in report
-// (liveSentenceIn's sentenceBare), so an id in neither map is absent from it. One bare rule for every
-// reader that tells the two apart.
-func SentencesIn(report string, ids []string) (live map[string]string, bare map[string]bool) {
-	live, bare = map[string]string{}, map[string]bool{}
-	bareIDs := claimcount.BareAnchorIDs(report)
+// for all of them; an id not in the map is absent from the report.
+func SentencesIn(report string, ids []string) (live map[string]string) {
+	live = map[string]string{}
 	for _, id := range ids {
-		switch sentence, gone := liveSentenceIn(report, bareIDs, id); gone {
-		case sentenceLive:
+		if sentence, gone := liveSentenceIn(report, id); gone == sentenceLive {
 			live[id] = sentence
-		case sentenceBare:
-			bare[id] = true
 		}
 	}
-	return live, bare
+	return live
 }
 
 // LiveSentence is the sentence evidence anchor id backs in the report as it renders now — the claim
 // a check of it records — or the refusal of a check of an anchor with none, naming the anchor by its
-// kind's noun (recordsql.EvidenceTables). A retired anchor's refusal names its retire: the event,
-// its reason, and whether the sentence was kept.
+// kind's noun (recordsql.EvidenceTables). The refusal of an anchor out of the report names the act
+// that took it (AnchorRemoval.Said): a retire, its sentence kept, or the cut that took its sentence,
+// with the event and its reason.
 //
 // THE CLAIM IS THE SENTENCE THE SEAT JUDGED, read before the write; the check lands only on that
 // sentence (CheckOfSentence).
 func LiveSentence(run Run, id string) (string, error) {
-	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) }, beforeCheck())
+	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRemoval, bool, error) { return AnchorRemovedAt(run, id) }, beforeCheck())
 }
 
 // CheckOfSentence is the guard a check of evidence anchor id, which judged claim (LiveSentence), lands
@@ -84,7 +67,7 @@ func LiveSentence(run Run, id string) (string, error) {
 // it cannot both land.
 func CheckOfSentence(id, claim string) Guard {
 	return Check(func(l *Landing) error {
-		_, err := liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) }, inLanding(claim))
+		_, err := liveSentence(id, l.Report, func() (AnchorRemoval, bool, error) { return anchorRemovedAt(l.w.q, id) }, inLanding(claim))
 		return err
 	})
 }
@@ -99,10 +82,10 @@ type sentenceRead struct {
 func beforeCheck() sentenceRead            { return sentenceRead{} }
 func inLanding(judged string) sentenceRead { return sentenceRead{landing: true, judged: judged} }
 
-// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's. In
+// liveSentence is LiveSentence over a report and a removal lookup: the run's now, or a landing's. In
 // the landing the sentence must be the one the check judged, and the refusals say the report changed
 // while the check was made.
-func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error), read sentenceRead) (string, error) {
+func liveSentence(id string, render func() (string, error), removedAt func() (AnchorRemoval, bool, error), read sentenceRead) (string, error) {
 	row, ok := recordsql.EvidenceTableOf(anchor.Kind(id))
 	if !ok {
 		return "", feov.Errorf(feov.Validation, "%s is not an evidence anchor — a check reads the sentence a citation or a computation backs", id)
@@ -118,15 +101,15 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	if read.landing {
 		while = "while this check was made, "
 	}
-	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
+	sentence, gone := liveSentenceIn(report, id)
 	switch gone {
 	case sentenceAbsent:
-		r, found, err := retiredAt()
+		r, found, err := removedAt()
 		if err != nil {
 			return "", err
 		}
 		if found {
-			return "", retiredRefusal(while, row.Noun, id, r)
+			return "", removedRefusal(while, row.Noun, id, r)
 		}
 		if read.landing {
 			return "", feov.Errorf(feov.Conflict, "while this check was made, %s %s's anchor left the report, so the report holds no sentence for it and nothing is recorded. "+
@@ -134,9 +117,6 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 		}
 		return "", feov.Errorf(feov.Conflict, "%s %s's anchor is not in the report — the anchor never placed — so the report holds no sentence for it and there is nothing to check. "+
 			"Check the %ss whose anchors the report carries", row.Noun, id, row.Noun)
-	case sentenceBare:
-		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to check. "+
-			"The anchor leaves with blue's retire of its claim", while, row.Noun, id)
 	}
 	if read.landing && !bluedoc.SameSentence(sentence, read.judged) {
 		return "", feov.Errorf(feov.Conflict, "while this check was made, the sentence holding %s %s's anchor changed: the report now holds %s, not %s, the sentence this check read. "+
@@ -145,9 +125,9 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	return sentence, nil
 }
 
-// retiredRefusal refuses a check of evidence anchor id, retired by r; while opens it.
-func retiredRefusal(while, noun, id string, r AnchorRetire) error {
-	return feov.Errorf(feov.Conflict, "%s%s %s is retired — %s — so it is in no document and the report holds no sentence for it to check. "+
+// removedRefusal refuses a check of evidence anchor id, taken out of the report by r; while opens it.
+func removedRefusal(while, noun, id string, r AnchorRemoval) error {
+	return feov.Errorf(feov.Conflict, "%s%s %s is out of the report — %s — so it is in no document and the report holds no sentence for it to check. "+
 		"Check the %ss whose anchors the report carries", while, noun, id, r.Said(), noun)
 }
 
@@ -163,7 +143,8 @@ func EvidenceNoun(id string) string {
 // quoted is s in double quotes, flattened to one line.
 func quoted(s string) string { return `"` + strings.Join(strings.Fields(s), " ") + `"` }
 
-// reasonOf states a retire's recorded reason, or that it recorded none.
+// reasonOf states the recorded reason of the act that took an anchor out of the report — a retire,
+// or the edit whose cut took its sentence — or that it recorded none.
 func reasonOf(reason string) string {
 	if strings.TrimSpace(reason) == "" {
 		return "no reason recorded"

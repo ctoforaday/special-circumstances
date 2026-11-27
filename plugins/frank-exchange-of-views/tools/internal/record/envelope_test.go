@@ -210,7 +210,7 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 			t.Errorf("contested in prose, blue's envelope is admitted: %q", r)
 		}
 	})
-	t.Run("a retire this sitting that took its sentence out admits it; the sentence gone without one does not", func(t *testing.T) {
+	t.Run("a cut that took its marker out meets its demand and admits it; the sentence gone without one does not", func(t *testing.T) {
 		gone := func(b *stage) {
 			sev := recordpb.Grade_GRADE_LOW
 			b.add(evLens, &recordpb.Mint{GapId: proto.String("G9"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
@@ -221,17 +221,12 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 		gone(run)
 		bare := run.register("red-chair").dispatch(3, blueSeatID, "G9").register(blueSeatID)
 		if r := refusalOf(t, bare.seed(), blueSeatID); !strings.Contains(r, "gap G9 was minted --check-kind computation") {
-			t.Fatalf("its sentence gone with no retire, blue's envelope is admitted: %q", r)
+			t.Fatalf("its sentence gone with no cut, blue's envelope is admitted: %q", r)
 		}
-		other := computation(t, "G1", func(b *stage) {
-			b.add(blueSeatID, &recordpb.Retire{Claim: proto.String("another sentence"), Reason: proto.String("cut")})
-		})
-		if r := refusalOf(t, other, blueSeatID); !strings.Contains(r, "gap G1 was minted --check-kind computation") {
-			t.Errorf("a retire that left the gap's sentence standing admits blue's envelope: %q", r)
-		}
-		retired := bare.more().add(blueSeatID, &recordpb.Retire{Claim: proto.String("a sentence the report no longer holds"), Reason: proto.String("cut")}).seed()
-		if r := refusalOf(t, retired, blueSeatID); r != "" {
-			t.Errorf("retired this sitting, blue's envelope is refused: %q", r)
+		cut := bare.more().add(blueSeatID, &recordpb.BlueEdit{Old: proto.String("a sentence the report no longer holds."), New: proto.String(""), EditKey: proto.String("E-cut"),
+			RemovedAnchors: []string{"G9"}}).seed()
+		if r := refusalOf(t, cut, blueSeatID); r != "" {
+			t.Errorf("its marker cut, blue's envelope is refused: %q", r)
 		}
 	})
 	t.Run("a motion blue files on it this sitting admits it, and the item stays listed", func(t *testing.T) {
@@ -300,9 +295,8 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			t.Errorf("the unread citation is not listed: %+v", open)
 		}
 	})
-	t.Run("a citation no verify can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+	t.Run("a citation no verify can reach — not in the report, or on no rendered sentence — is listed and does not hold it", func(t *testing.T) {
 		for name, report := range map[string]string{
-			"bare":       "# report\n\nThe claim stands before. " + anchor.Token("C-00000001") + " Next.\n",
 			"absent":     "# report\n\nThe claim stands before.\n",
 			"unrendered": "# report\n\nThe claim stands " + anchor.Token("C-00000001") + ".\n",
 		} {
@@ -317,9 +311,8 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	})
 	// THE SAME PREDICATE FOR A COMPUTATION: an unchecked computation the report holds no sentence for
 	// is the computation lens's item that no `reproduce` can clear, not a duty that holds its sitting.
-	t.Run("a computation no reproduce can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+	t.Run("a computation no reproduce can reach — not in the report — is listed and does not hold it", func(t *testing.T) {
 		for name, report := range map[string]string{
-			"bare":   "# report\n\nThe claim stands before. " + anchor.Token("K-00000001") + " Next.\n",
 			"absent": "# report\n\nThe claim stands before.\n",
 		} {
 			run := newStage(t).cast(computationSeat, "red-chair", blueSeatID, "judge").

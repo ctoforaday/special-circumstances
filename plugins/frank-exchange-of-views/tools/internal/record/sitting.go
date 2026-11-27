@@ -304,14 +304,16 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// it carries into the next epoch.
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
-		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt; a motion
-		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
-		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
+		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt;
+		// or a motion blue files on the gap, which puts the demand before its ruler. A cut that takes
+		// the gap's marker out meets the demand (gap_refresh's met arm 4), so the gap is no longer
+		// awaiting evidence and never reaches this item. Prose does not: an edit arguing the demand is
+		// wrong leaves it owed.
 		var engaged []string
 		if e := engagedOf(evs, win, gaps, seatID); e != nil {
 			engaged = e.GapIDs
 		}
-		moved, retired := answeredByActThisSitting(evs, win, seatID)
+		moved := movedThisSitting(evs, win, seatID)
 		for _, g := range gaps {
 			if !g.AwaitingEvidence {
 				continue
@@ -325,8 +327,6 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — this sitting is not engaged on it")
 			case moved[id]:
 				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until the demand is met")
-			case retired && g.LocationState == LocationGone:
-				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your retire this sitting took its sentence out, and the lens's close stays refused until the demand is met")
 			default:
 				add(ItemAwaitingEvidence, gap, "gap "+id+what)
 			}
@@ -366,8 +366,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
 		// the synthesizer are party to no dispute and owe none.
 		//
-		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
-		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
+		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared when
+		// the anchor leaves the report — by blue's retire of it, or with its sentence by a cut — or by
+		// the fresh check blue's rewrite of the sentence leaves it owed.
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found, reads.parts) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
@@ -447,10 +448,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
-		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
-		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
-		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
-		// until the bench rules, as every other item on a docketed gap is held.
+		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS HAVE ALL LEFT THE REPORT — retired, or cut with their
+		// sentences (ruling Closures are history): news, never a blocker — the closure stands, and the
+		// item says what a mint in answer would be. It reads the undocketed gaps: a docket motion
+		// standing unruled on the gap holds it off the list until the bench rules, as every other item
+		// on a docketed gap is held.
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID)...)
 		// THE COMPOSED SOURCES THE VOICE LENS HAS NOT HAD (composedsource.go): not blocking, as the audit
 		// is not — finding nothing in them is a legitimate audit — and listed until it sits through a
@@ -510,7 +512,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 			// AN EVIDENCE ANCHOR NO CHECK CAN REACH is not its to clear either: `verify` and
 			// `reproduce` refuse an anchor the report holds no sentence for (LiveSentence), and blue's
-			// retire of its claim, or a report that renders again, is what moves it. Asked of every
+			// retire of the anchor or cut of its sentence, or a report that renders again, is what
+			// moves it. Asked of every
 			// unchecked anchor, a citation and a computation alike: the gate reads no kind.
 			if b.Kind == BlockerUnchecked && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
@@ -737,10 +740,10 @@ func benchRegisteredSince(evs []*Event, win WindowIndex, d dispatchRow) bool {
 	return false
 }
 
-// answeredByActThisSitting is the gaps the seat filed a motion on in its current sitting (a docket
-// or grade motion names its gap), and whether it recorded a retire there.
-func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved map[string]bool, retired bool) {
-	moved = map[string]bool{}
+// movedThisSitting is the gaps the seat filed a motion on in its current sitting (a docket or grade
+// motion names its gap).
+func movedThisSitting(evs []*Event, win WindowIndex, seatID string) map[string]bool {
+	moved := map[string]bool{}
 	for _, e := range thisSitting(evs, win, seatID) {
 		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
@@ -749,11 +752,8 @@ func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (mov
 				}
 			}
 		}
-		if _, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			retired = true
-		}
 	}
-	return moved, retired
+	return moved
 }
 
 // logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the

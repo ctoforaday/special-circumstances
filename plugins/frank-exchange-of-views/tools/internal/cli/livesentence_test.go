@@ -5,14 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A COMPUTATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, as a citation is (verifyclaim_test): one
 // predicate, record.LiveSentence, refuses both check verbs, and names the anchor by its kind's noun.
-// A bare computation is an edit's leftover; a retired one names its retire — event, reason, and
-// whether its sentence was kept. The refusal records nothing.
+// A computation out of the report names the act that took it — a cut of its sentence (event and reason)
+// or a retire (event, reason, and the sentence kept). The refusal records nothing.
 func TestAReproduceOfAComputationWithNoSentenceIsRefused(t *testing.T) {
 	const sentence = "Alpha holds."
 	refused := func(t *testing.T, runDir, id string, wants ...string) {
@@ -38,20 +37,24 @@ func TestAReproduceOfAComputationWithNoSentenceIsRefused(t *testing.T) {
 		registerBlue(t, runDir)
 		return runDir, computeSentence(t, runDir, sentence)
 	}
-	t.Run("bare", func(t *testing.T) {
+	t.Run("cut", func(t *testing.T) {
 		runDir, id := setup(t)
-		gutToAnchor(t, runDir, sentence, anchor.Token(id))
-		refused(t, runDir, id, "computation "+id, "stands bare", "nothing to check")
+		if _, err := cut(t, runDir, sentence); err != nil {
+			t.Fatalf("the cut of %q: %v", sentence, err)
+		}
+		refused(t, runDir, id, "computation "+id+" is out of the report", "blue's edit at event", "cut its sentence",
+			`reason: "the claim cannot stand"`, "in no document")
 	})
 	t.Run("retired", func(t *testing.T) {
 		runDir, id := setup(t)
-		gutToAnchor(t, runDir, sentence, anchor.Token(id))
-		retireClaim(t, runDir, sentence)
-		ev := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
-		if ev != 1 {
+		if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id, "--reason", "refuted"); err != nil {
+			t.Fatalf("retire --anchor %s: %v", id, err)
+		}
+		if ev := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); ev != 1 {
 			t.Fatalf("want one retire on the record, got %d", ev)
 		}
-		refused(t, runDir, id, "computation "+id+" is retired", "at event", `reason: "refuted"`, "with its claim", "in no document")
+		refused(t, runDir, id, "computation "+id+" is out of the report", "blue retired it at event", `reason: "refuted"`,
+			`its sentence "`+sentence+`" kept`, "in no document")
 	})
 	t.Run("live, admitted", func(t *testing.T) {
 		runDir, id := setup(t)

@@ -87,11 +87,12 @@ func PlanSplice(report, old, new string) (next, applied string, exact bool, err 
 	}
 	if applied, err = bluedoc.AnchorsTransitUnchanged(report[start:end], new); err != nil {
 		// AN ANCHOR AT THE SPAN'S EDGE, TYPED INTO THE REPLACEMENT. The quote left it out, so it is
-		// outside the span and stays where it stands; the flat "introduces" reads as a prohibition
+		// outside the span, and a rewrite leaves it where it stands (a cut of the whole sentence would
+		// take it); the flat "introduces" reads as a prohibition
 		// to a seat that copied an anchor it can see against the sentence it is rewriting.
 		var typed *bluedoc.ErrAnchorIntroduced
 		if run, _ := bluedoc.AbuttingRun(report, end); errors.As(err, &typed) && strings.Contains(run, anchor.Token(typed.ID)) {
-			err = fmt.Errorf("your replacement carries %s, and your quote stops just before it: that anchor stands at the edge of the span, outside it, and the edit leaves it exactly where it is — after your replacement, before the sentence's terminator. "+
+			err = fmt.Errorf("your replacement carries %s, and your quote stops just before it: that anchor stands at the edge of the span, outside it, and a rewrite leaves it exactly where it is — after your replacement, before the sentence's terminator. "+
 				"Leave it out of the replacement. To put it somewhere else in the new text, quote it as `show report` prints it and write it where it goes", anchor.Token(typed.ID))
 		}
 		return "", "", false, err

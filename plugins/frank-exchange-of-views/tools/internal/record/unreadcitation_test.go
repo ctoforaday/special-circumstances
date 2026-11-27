@@ -147,7 +147,7 @@ func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 	// Blue retires the citation and keeps its sentence (the verb's guard is cli/blue's; the record
 	// layer is under test here).
 	run = unreadBoard(t).add(evLens, aboutAnchor("G-1", "C-1")).
-		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("unreadable"), Anchors: []string{"C-1"}, ClaimKept: proto.Bool(true)}).seed()
+		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("unreadable"), Anchors: []string{"C-1"}}).seed()
 	lens = Identity{Run: run, SeatID: evLens}
 	if got := failedOf(t, run); len(got) != 0 {
 		t.Fatalf("failed checks after blue retired C-1 = %+v, want none", got)

@@ -161,8 +161,8 @@ type GapJSON struct {
 	// its subject stands in the report, by a live answer of its kind or its own check of the anchor
 	// it is about made again since the mint and holding; and once that subject has left the report.
 	EvidenceAnswered bool `json:"evidence_answered"`
-	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
-	// retire that left none of them live, while no closing act other than a carry follows it; null
+	// AnswersRetiredEvent is, on a closed gap whose answers have all left the report, the event of the
+	// retire or pure cut that left none of them live, while no closing act other than a carry follows it; null
 	// on every other gap, never omitted. The closure stands; its lens is told.
 	AnswersRetiredEvent *int64 `json:"answers_retired_event"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
@@ -856,14 +856,15 @@ type WorkGapJSON struct {
 	Backing []GapBackingJSON `json:"backing"`
 	// EditedSince is every edit that changed this gap's sentence SINCE THE READER'S LAST EPOCH: the
 	// edits whose recorded `reopened` names the gap — the sentence holding its anchor, read whole, so
-	// a fragment edit inside it is listed. A gap whose text blue rewrote is the commonest thing red
-	// re-audits.
+	// a fragment edit inside it is listed — and the pure cuts whose `removed_anchors` names it. A gap
+	// whose text blue rewrote is the commonest thing red re-audits.
 	//
 	// IT IS NEVER OMITTED. An empty list on a `marked` gap is the answer "blue has not changed this
-	// sentence", the commonest state a lens dispatched to verify a repair finds. An edit that cuts
-	// the sentence down to the bare anchor is not listed, because there is no sentence left to
-	// re-read; the gap reads `gone`: the gap's anchor is not in the report — blue cut its sentence;
-	// that is not silence — judge the report as it stands. `changes` names the edit that cut it.
+	// sentence", the commonest state a lens dispatched to verify a repair finds. A pure cut takes the
+	// gap's anchor with its sentence and is listed; the gap reads `gone`: the gap's anchor is not in
+	// the report — blue cut its sentence; that is not silence — judge the report as it stands. A gap
+	// reads `gone` too where a retire took its marker after its close, or a migrated mint never
+	// placed.
 	EditedSince []GapEdit `json:"edited_since"`
 	// ProblemSynopsis is the first synopsisLimit runes, kept because a chair scanning many open
 	// gaps reads it as a list. Problem is the WHOLE statement, because the originator re-auditing
@@ -1052,7 +1053,8 @@ type WorkGapState struct {
 	// holding its anchor as the report holds it, whose Backs anchors are its backing.
 	LocationState, sentence string
 	AboutKind, AboutRef     string
-	// Edits are the edits whose recorded `reopened` names the gap, in record order.
+	// Edits are the edits whose recorded `reopened` or `removed_anchors` names the gap, in record
+	// order.
 	Edits                                 []GapEdit
 	Open, AwaitingEvidence, ClosedByBench bool
 	// AnswersRetiredEvent is the view's `answers_retired_event` (GapJSON.AnswersRetiredEvent), 0
@@ -1456,33 +1458,25 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 }
 
 // unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
-// anchor's sentence — the report does not render, its anchor is not in it, or it stands bare — the
-// predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
-// list's one render (reportRender), and finds the bare anchors on the first question, and only then:
-// most work lists ask none.
+// anchor's sentence — the report does not render, or its anchor is not in it — the predicate
+// `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the list's one
+// render (reportRender) on the first question, and only then: most work lists ask none.
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
 		asked     bool
 		report    string
 		renderErr error
-		bare      []string
 	)
 	return func(id string) string {
 		if !asked {
 			asked = true
 			report, renderErr = r.report.get()
-			if renderErr == nil {
-				bare = claimcount.BareAnchorIDs(report)
-			}
 		}
 		if renderErr != nil {
 			return "the report does not render (" + renderErr.Error() + ")"
 		}
-		switch _, gone := liveSentenceIn(report, bare, id); gone {
-		case sentenceAbsent:
+		if _, gone := liveSentenceIn(report, id); gone == sentenceAbsent {
 			return "its anchor is not in the report"
-		case sentenceBare:
-			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
 		}
 		return ""
 	}
@@ -2203,12 +2197,20 @@ type GapEdit struct {
 	New string `json:"new"`
 }
 
-// reopeningEditsAt is every standing edit, as the change view orders them, keyed by each anchor id
-// its recorded `reopened` names.
+// reopeningEditsAt is every standing edit, in event order, keyed by each anchor id its recorded
+// `reopened` names, and by each its `removed_anchors` names: a pure cut took that anchor's sentence.
+// Only an edit names either list, so the rows are read off blue_edit and its event directly — each a
+// rowid lookup from the anchor list — rather than joined through the change view's union with
+// retires, whose join on the list's event id SQLite answers with an index built per read.
 func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	out := map[string][]GapEdit{}
-	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
-	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."event_id"`)
+	rows, err := q.Query(`SELECT w."value", e."epoch", COALESCE(e."seat_id", ''), COALESCE(b."old", ''), COALESCE(b."new", '')
+	  FROM (
+	    SELECT "event_id", "value" FROM "blue_edit_reopened"
+	    UNION ALL
+	    SELECT "event_id", "value" FROM "blue_edit_removed_anchors"
+	  ) w JOIN "blue_edit" b ON b."event_id" = w."event_id"
+	  JOIN "events" e ON e."id" = w."event_id" ORDER BY w."event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking which edits changed a gap's sentence: %w", err)
 	}
@@ -2244,15 +2246,16 @@ const (
 	LocationUnrendered = "unrendered"
 )
 
-// GoneTeaching is what a `gone` gap asks of its reader, word for word wherever it is taught: it names
-// both causes and asserts neither.
+// GoneTeaching is what a `gone` open gap asks of its reader, word for word wherever it is taught: an
+// open gap's own marker leaves the report only with its sentence, by a cut, since a retire of it is
+// refused while the gap is open.
 const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands"
 
 // LocationStates names each location state and what it asks of a reader; the work, board and
 // evidence help pages render it.
-const LocationStates = "Each quote gap carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `" +
-	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
-	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
+const LocationStates = "Each quote gap, and each source and computation row of `show evidence`, carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the anchor in the report as it stands, and `passage` its section; `" +
+	LocationGone + "` — on an open gap, " + GoneTeaching + "; on a closed gap or an evidence row, the anchor is not in the report; either way `location` is the text as recorded; `" +
+	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as recorded. A gap about something that is not report text carries none"
 
 // locateGap fills a quote gap's location state, location, passage and sentence from where its anchor
 // stands in report (locateAnchor). Location comes in as minted and stays so unless marked.
@@ -2276,16 +2279,15 @@ func locateGap(l *locatedReport, g *WorkGapState) {
 // locateAnchor is where anchor id stands in l's report, as the board reads a quote gap's location:
 // `marked` at prose — location is the sentence holding the token, tokens stripped, raw that
 // sentence as the report holds it and passage its section; `gone` where the token is not in the
-// report or stands bare (as the edit guard reads bare), retired or never placed — location is
-// stored, the text as recorded; `unrendered` where the report did not render (l.err), likewise.
+// report — a cut took it with its sentence, a retire took it, or a migrated mint never placed — or
+// stands bare (as the edit guard reads bare) — location is stored, the text as recorded; `unrendered` where the report did not render (l.err), likewise.
 // THE ONE LOCATING FUNCTION (D13, #1727): the board's quote gaps and the evidence view's source and
 // computation rows read it, so a gap and the citation on its sentence cannot locate differently.
 func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, passage string) {
 	if l.err != nil {
 		return LocationUnrendered, stored, "", ""
 	}
-	bare, sentences := l.spans()
-	sp, ok := gapSentenceIn(l.text, sentences, bare, id)
+	sp, ok := gapSentenceIn(l.text, l.spans(), id)
 	if !ok {
 		return LocationGone, stored, "", ""
 	}
@@ -2294,14 +2296,14 @@ func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, pa
 }
 
 // gapSentenceIn is the bounds of the sentence holding gap id's anchor in report, whose sentences
-// are spans and whose bare anchors are bare: the sentence the board shows as a quote gap's
-// location. ok is false where the anchor is not in report, stands bare, or sits in no sentence —
-// the board's `gone`. It is the one reading of "the sentence a gap is on": the board marks a gap
+// are spans: the sentence the board shows as a quote gap's location. ok is false where the anchor is
+// not in report or sits in no sentence — the board's `gone`. No writer leaves an anchor on no words
+// (edit, ingest and mint refuse it), so a token in the report is on a sentence. It is the one reading of "the sentence a gap is on": the board marks a gap
 // with it, and a mint is refused on it (requireOneGapPerClassAndSubject).
-func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]int, bool) {
+func gapSentenceIn(report string, spans [][2]int, id string) ([2]int, bool) {
 	tok := anchor.Token(id)
 	at := strings.Index(report, tok)
-	if at < 0 || slices.Contains(bare, id) {
+	if at < 0 {
 		return [2]int{}, false
 	}
 	for _, sp := range spans {
@@ -2313,14 +2315,12 @@ func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]
 }
 
 // locatedReport is one render of the report with what locateGap reads of it besides the text: the
-// anchors standing bare and the sentence spans. Both are a pass over the whole report and neither
-// depends on the gap, so they are read once per render, on the first gap that needs them, rather
-// than once per gap.
+// sentence spans. They are a pass over the whole report and do not depend on the gap, so they are
+// read once per render, on the first gap that needs them, rather than once per gap.
 type locatedReport struct {
 	text      string
 	err       error
 	read      bool
-	bare      []string
 	sentences [][2]int
 }
 
@@ -2328,9 +2328,9 @@ func newLocatedReport(text string, err error) *locatedReport {
 	return &locatedReport{text: text, err: err}
 }
 
-func (l *locatedReport) spans() ([]string, [][2]int) {
+func (l *locatedReport) spans() [][2]int {
 	if !l.read {
-		l.bare, l.sentences, l.read = claimcount.BareAnchorIDs(l.text), anchor.Sentences(l.text), true
+		l.sentences, l.read = anchor.Sentences(l.text), true
 	}
-	return l.bare, l.sentences
+	return l.sentences
 }

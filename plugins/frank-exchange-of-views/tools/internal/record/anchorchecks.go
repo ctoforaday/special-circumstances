@@ -4,7 +4,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THIS ANCHOR'S STANDING CHECK, REOPENED BY AN EDIT — one reader for every check of a sentence.
+// THIS ANCHOR'S STANDING CHECK, REOPENED BY A REWRITE — one reader for every check of a sentence.
 //
 // A citation and a computation are each anchored to one sentence of the report, and red checks each by
 // a verb that names that anchor: `verify` reads the cited source against the sentence, `reproduce`
@@ -30,16 +30,17 @@ import (
 //     from a sitting already open when it landed may be of the sentence its seat read before the
 //     edit, and the record cannot tell which; a check in no sitting says nothing about when it was
 //     read;
-//   - the anchor is not retired — the sentence left the report with its claim;
+//   - the anchor is in the report — not retired off its sentence, and not cut with it;
 //   - it is its SEAT'S LATEST such check of the anchor. A seat's own later verdict replaces its
 //     earlier one; ANOTHER seat's never does. That is the rule the computation ruling states (a standing
 //     unsound on an anchor stays visible), and it is why a reader takes the standing set rather
 //     than the latest check.
 //
-// An edit answers every check of the anchor at once: they are of a sentence the report no longer
-// carries, so none stands, and the anchor is REOPENED — unchecked again, owed a fresh check from a
-// sitting opened after the edit. Blue cannot dissolve red's verdict by rewording: the unchecked anchor
-// is owed, and holds a PASS (passBlockersOf).
+// A rewrite of its sentence answers every check of the anchor at once: they are of a sentence the
+// report does not carry, so none stands, and the anchor is REOPENED — unchecked again, owed a fresh
+// check from a sitting opened after the rewrite. Blue cannot dissolve red's verdict by rewording: the
+// unchecked anchor is owed, and holds a PASS (passBlockersOf). A cut takes the anchor out with its
+// checks: a failed one clears, and nothing is owed of it.
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
 // `reproduce` naming a computation.
@@ -76,9 +77,10 @@ type anchorStanding struct {
 	// Neither moves the report head, so dispatch readies the owner off it.
 	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has, or once
-	// it is retired.
+	// the anchor is out of the report — retired, or cut with its sentence.
 	edit int64
-	// retired is whether a retire has named the anchor: the first retire takes it out for good.
+	// retired is whether an act took the anchor out — a retire, or a pure cut's removed_anchors: the
+	// first takes it out for good.
 	retired bool
 	checks  []anchorCheck
 }
@@ -254,14 +256,20 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		}
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
-		// A RETIRE IS FIRST AND PERMANENT, the one definition every reader shares (the evidence_anchor
-		// view's MIN retire, AnchorRetiredAt, L6's NOT EXISTS): a retire takes the anchor out of the
-		// report, an edit invents no anchor, so no edit reopens it and no later retire names it again.
+		// A REMOVAL IS FIRST AND PERMANENT, the one definition every reader shares (the evidence_anchor
+		// view's MIN anchor_removal, AnchorRemovedAt, L6's NOT EXISTS): a retire or a pure cut takes
+		// the anchor out of the report, an edit invents no anchor, so no edit reopens it and no later
+		// act names it again.
 		// The fold says so rather than letting a later act it cannot see on the record move it.
 		case *recordpb.BlueEdit:
 			for _, a := range b.GetReopened() {
 				if s := l.byAnchor[a]; s != nil && !s.retired {
 					s.edit = w.ID
+				}
+			}
+			for _, a := range b.GetRemovedAnchors() {
+				if s := l.byAnchor[a]; s != nil && !s.retired {
+					s.edit, s.retired = 0, true
 				}
 			}
 		case *recordpb.Retire:
@@ -329,8 +337,8 @@ func StandingChecks(evs []*Event, win WindowIndex) []StandingCheck {
 	return out
 }
 
-// RetiredAnchors is every evidence anchor the ledger holds retired: a retire has named it, so it is in
-// no document. win supplies each event's events.id and sitting.
+// RetiredAnchors is every evidence anchor the ledger holds out of the report: a retire or a pure cut
+// took it out, so it is in no document. win supplies each event's events.id and sitting.
 func RetiredAnchors(evs []*Event, win WindowIndex) map[string]bool {
 	out := map[string]bool{}
 	for _, s := range anchorChecksOf(evs, win).order {

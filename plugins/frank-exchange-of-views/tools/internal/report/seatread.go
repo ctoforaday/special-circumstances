@@ -20,14 +20,15 @@ import (
 // each seat read past `<!--fx:…-->` tokens by hand.
 //
 // That would have broken editing. `blue edit` compares the anchors in --old against --new and
-// REFUSES any edit that drops, duplicates or invents one: an anchor is born only from `lens
-// finding` or `blue cite` and removed only by the tool. A seat that read a resolved rendering
-// would not know an anchor lived inside the span it is about to replace, would omit it from
-// --new, and would have the edit refused — a wasted epoch, on a document it had every reason to
+// REFUSES a rewrite that drops, duplicates or invents one, and a cut of a whole sentence takes its
+// anchors and records them: an anchor is born only from `lens finding` or `blue cite` and removed
+// only by the tool. A seat that read a resolved rendering
+// would not know an anchor lived inside the span it is about to replace, would omit it from a
+// rewrite's --new, and would have the edit refused — a wasted epoch, on a document it had every reason to
 // think it had read correctly.
 //
 // So the anchors stay. They are not noise to be cleaned up before blue sees them; they are the
-// part blue is responsible for carrying across an edit. Assembly resolves them at the END,
+// part blue is responsible for carrying across a rewrite. Assembly resolves them at the END,
 // once, for a reader who will never edit again.
 func BlueReportForReading(run record.Run) ([]byte, error) {
 	// The report is the record projection now (#709): there is no file. RenderRun is loud

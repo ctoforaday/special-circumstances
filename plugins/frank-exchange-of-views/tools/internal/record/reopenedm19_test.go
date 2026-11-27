@@ -21,7 +21,7 @@ import (
 // with two citations and a computation whose sentences blue rewrote after their last check.
 const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 
-// m19Reopened is what m19 owes at its chair's verdict (event 504), as events.id.
+// m19Reopened is what m19 owes at its chair's verdict (event 502), as events.id.
 //
 // THE IDS ARE LITERALS, DERIVED BY SQL OUTSIDE THE FOLD — the last `blue_edit_reopened` row naming
 // each anchor, and the last verify or reproduce of it before that — so a wrong fold cannot agree
@@ -29,9 +29,9 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 // events in order; a migration that renumbers them re-derives the three pairs from the migrated
 // record and updates this table in the same commit. The anchors do not move.
 var m19Reopened = []unchecked{
-	{anchor: "C-706fda63", edit: 415, lastCheck: 180},
-	{anchor: "C-4dae2507", edit: 389, lastCheck: 348},
-	{anchor: "K-cd9f4c5a", computation: true, sha: "078d75b87b5cf2c5319d398a8d1c736ff5ecfbc1780abed8a448b0057ede9a70", edit: 389, lastCheck: 347},
+	{anchor: "C-706fda63", edit: 414, lastCheck: 180},
+	{anchor: "C-4dae2507", edit: 388, lastCheck: 347},
+	{anchor: "K-cd9f4c5a", computation: true, sha: "078d75b87b5cf2c5319d398a8d1c736ff5ecfbc1780abed8a448b0057ede9a70", edit: 388, lastCheck: 346},
 }
 
 // owesClause is whether a lens's reason holds the fold's clause on an unretired lens that owes
@@ -159,21 +159,21 @@ func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 }
 
 // M19 PASSED OVER THREE CHECKS OF SENTENCES IT NO LONGER CARRIED. Its evidence lens found against
-// C-706fda63 (event 112); blue rewrote the sentence to answer it (edit 415); no seat read the new
-// sentence against the source, and the chair's PASS at 504 was admitted. Under this rule the plans
+// C-706fda63 (event 112); blue rewrote the sentence to answer it (edit 414); no seat read the new
+// sentence against the source, and the chair's PASS at 502 was admitted. Under this rule the plans
 // that followed the edits ready each anchor's owner — the evidence lens for the citations, the
 // computation lens for the computation — and the PASS is refused naming all three.
 func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	whole, lost := archivedRun(t, m19Archive)
-	if len(whole) != 512 || whole[503].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
-		t.Fatalf("the archive holds %d events and its event 504 is a %s, want 512 and the chair's verdict", len(whole), whole[503].GetType())
+	if len(whole) != 510 || whole[501].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
+		t.Fatalf("the archive holds %d events and its event 502 is a %s, want 510 and the chair's verdict", len(whole), whole[503].GetType())
 	}
 	fact := func(r unchecked) string {
 		return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", r.anchor, r.edit, r.lastCheck)
 	}
 
 	// The record before the chair's verdict.
-	run := m19At(t, whole, 503)
+	run := m19At(t, whole, 501)
 	// WHAT THE MIGRATION AND THE DELIVERY MODEL ADD, derived rather than listed. Each close the
 	// migration lost (its manifest's lost_acts) leaves its gap open, so its material_gap holds the
 	// PASS, and a settled inquiry such a gap is about is held through that row, not its own
@@ -181,13 +181,13 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	// §III.3): the archive's lenses hold fewer than two report reads each, so each owes it.
 	lostClose := map[string]bool{}
 	for _, a := range lost {
-		if a.Word == "close" && a.TS < whole[503].GetTs() {
+		if a.Word == "close" && a.TS < whole[501].GetTs() {
 			lostClose[a.Gap] = true
 		}
 	}
 	heldByLostClose := map[string]bool{}
 	sat, reads := map[string]bool{}, map[string]int{}
-	for _, e := range whole[:503] {
+	for _, e := range whole[:501] {
 		if m := e.GetMint(); m != nil && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY && lostClose[m.GetGapId()] {
 			heldByLostClose[m.GetAboutRef()] = true
 		}
@@ -280,7 +280,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
-		t.Fatal("the gate admits the PASS m19's chair recorded at event 504")
+		t.Fatal("the gate admits the PASS m19's chair recorded at event 502")
 	}
 	plan, err := PlanDispatch(run)
 	if err != nil {
@@ -313,23 +313,23 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	for _, r := range standingOf(t, run) {
 		rows = append(rows, unchecked{anchor: r.Anchor, edit: r.Edit, lastCheck: r.LastCheck})
 	}
-	if want := []unchecked{{anchor: "C-706fda63", edit: 415, lastCheck: 180}, {anchor: "C-4dae2507", edit: 389, lastCheck: 348}, {anchor: "K-cd9f4c5a", edit: 389, lastCheck: 347}}; !slices.Equal(rows, want) {
+	if want := []unchecked{{anchor: "C-706fda63", edit: 414, lastCheck: 180}, {anchor: "C-4dae2507", edit: 388, lastCheck: 347}, {anchor: "K-cd9f4c5a", edit: 388, lastCheck: 346}}; !slices.Equal(rows, want) {
 		t.Errorf("show evidence reopened = %+v\nwant %+v", rows, want)
 	}
-	// A computation reopened and retired in one blue sitting (edits 448 and 451, retire 452) owes nothing.
+	// A computation reopened and retired in one blue sitting (edits 446 and 449, retire 450) owes nothing.
 	if at, err := EvidenceAt(run, "K-c1c0989f"); err != nil || at.Computation == nil || at.Unchecked != nil {
 		t.Errorf("show evidence --anchor K-c1c0989f: reopened = %+v (%v), want the computation with no reopened row", at.Unchecked, err)
 	}
 
-	// The two plans that followed the edits: the chair's dispatches at events 396 and 422 readied
+	// The two plans that followed the edits: the chair's dispatches at events 395 and 420 readied
 	// architecture, voice and blue, then architecture alone. Each now readies the evidence lens for
 	// the citations and the computation lens for the computation.
 	for _, c := range []struct {
 		before int
 		owed   []string
 	}{
-		{396, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
-		{422, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
+		{395, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
+		{420, []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}},
 	} {
 		plan, err := PlanDispatch(m19At(t, whole, c.before-1))
 		if err != nil {

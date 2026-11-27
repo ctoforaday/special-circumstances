@@ -3,6 +3,7 @@ package migrate
 import (
 	"crypto/sha256"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -88,12 +89,15 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 	if motionArms != 10 {
 		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 10 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "40 44 70" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 40 44 70", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "41 44 68" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 41 44 68", got)
 	}
 }
 
-// archivedRuns are the run tarballs in run-archive/, by file name.
+// archivedRuns are the run tarballs committed under run-archive/, each as its path under it, so the
+// archives in bundle-store/ are read with the rest: one census of the committed set for every caller.
+// A walk that finds no tarball under any subdirectory fails, so a return to a one-level glob turns it
+// red.
 func archivedRuns(t *testing.T) []string {
 	t.Helper()
 	dir, err := os.Getwd()
@@ -101,16 +105,42 @@ func archivedRuns(t *testing.T) []string {
 		t.Fatal(err)
 	}
 	for ; filepath.Dir(dir) != dir; dir = filepath.Dir(dir) {
-		if tarballs, _ := filepath.Glob(filepath.Join(dir, "run-archive", "*.tar.gz")); len(tarballs) > 0 {
-			for i := range tarballs {
-				tarballs[i] = filepath.Base(tarballs[i])
-			}
-			return tarballs
+		root := filepath.Join(dir, "run-archive")
+		if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
+			continue
 		}
+		var tarballs []string
+		nested := false
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".tar.gz") {
+				return err
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			nested = nested || strings.Contains(rel, "/")
+			tarballs = append(tarballs, rel)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(tarballs) == 0 {
+			continue
+		}
+		if !nested {
+			t.Fatalf("the walk of %s found no tarball under a subdirectory: the archives in bundle-store/ are part of the committed set", root)
+		}
+		return tarballs
 	}
 	t.Skip("run-archive/ not found above this checkout")
 	return nil
 }
+
+// ArchivedRuns is archivedRuns for the package's external tests.
+func ArchivedRuns(t *testing.T) []string { t.Helper(); return archivedRuns(t) }
 
 // archivedSource opens an extracted archived run the way Migrate does.
 func archivedSource(t *testing.T, runDir string) Source {
@@ -200,7 +230,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		kept := []proto.Message{
 			&recordpb.Computation{Argv: []string{"python3", "quartile Q1"}},
 			&recordpb.Cite{Title: proto.String("G2 summit")},
-			&recordpb.Retire{SupersededBy: proto.String("Q2 earnings")},
+			&recordpb.Retire{},
 			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), MintKey: proto.String("G2")},
 		}
 		for _, b := range kept {

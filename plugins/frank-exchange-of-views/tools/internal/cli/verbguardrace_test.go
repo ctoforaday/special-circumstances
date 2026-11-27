@@ -116,27 +116,50 @@ func TestAnEditIsPlannedOnTheReportItLandsOn(t *testing.T) {
 	}
 }
 
-// V7: A RETIRE IS CHECKED ON THE REPORT IT LANDS ON. Another blue seat's edit writes the retired claim
-// back into the report at that moment; checked against the report before it, the retire explains the
-// removal of a claim the report holds.
+// V7: A RETIRE IS CHECKED ON THE REPORT IT LANDS ON. The retire reads the sentence its anchor stands
+// on, which stays word for word, and records it. Another blue seat's write commits at that moment: a
+// rewrite of the sentence, carrying the anchor, and the retire records the sentence the report holds
+// when it lands; a cut of the sentence, taking the anchor, and the retire is refused — checked against
+// the report before it, the retire takes an anchor the report no longer holds.
 func TestARetireIsCheckedOnTheReportItLandsOn(t *testing.T) {
-	runDir := raceRun(t)
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E", "--quote", "The year opened badly. "+raceSentence+".",
-		"--new", "The year opened badly.", "--reason", "the rise is not sourced"); err != nil {
-		t.Fatal(err)
-	}
-	back := blueEditBy(t, "blue-lane-1", "race:edit", "Volume recovered later", raceSentence+". Volume recovered later")
-	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{back}, func() error {
-		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", raceSentence, "--reason", "no source gives the rise")
-		return err
+	t.Run("a rewrite carrying the anchor", func(t *testing.T) {
+		runDir := raceRun(t)
+		f := lensFinding(t, runDir, lensSeat, "F1", "--quote", raceSentence)
+		tok := anchor.Token(f)
+		back := blueEditBy(t, "blue-lane-1", "race:edit", "Costs rose sharply across", "Costs rose across")
+		err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{back}, func() error {
+			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the finding no longer applies")
+			return err
+		})
+		md := renders(t, runDir)
+		if err != nil {
+			t.Fatalf("a retire of an anchor whose sentence another edit rewrote at that moment = %v\n%s", err, md)
+		}
+		if got, want := lastBody(t, runDir, &recordpb.Retire{}).GetClaim(), "Costs rose across the first quarter."; got != want {
+			t.Errorf("the retire recorded the sentence %q, want the one the report held when it landed, %q", got, want)
+		}
+		if strings.Contains(md, tok) || !strings.Contains(md, "Costs rose across the first quarter.") {
+			t.Errorf("the retire did not take %s off the rewritten sentence:\n%s", tok, md)
+		}
 	})
-	md := renders(t, runDir)
-	if err == nil || !strings.Contains(err.Error(), "still in the report") {
-		t.Fatalf("a retire of a claim another edit wrote back at that moment = %v\n%s", err, md)
-	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
-		t.Errorf("the refused retire recorded %d retire(s)", n)
-	}
+	t.Run("a cut taking the anchor", func(t *testing.T) {
+		runDir := raceRun(t)
+		f := lensFinding(t, runDir, lensSeat, "F1", "--quote", raceSentence)
+		tok := anchor.Token(f)
+		gone := recordtest.At(t, "blue-lane-1", "race:cut", &recordpb.BlueEdit{Old: proto.String(" " + raceSentence + tok + "."), New: proto.String(""),
+			RemovedAnchors: []string{f}, Text: proto.String("the rise is not sourced")})
+		err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{gone}, func() error {
+			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the finding no longer applies")
+			return err
+		})
+		md := renders(t, runDir)
+		if err == nil || !strings.Contains(err.Error(), "the report holds no") || !strings.Contains(err.Error(), f) {
+			t.Fatalf("a retire of an anchor another edit cut at that moment = %v\n%s", err, md)
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
+			t.Errorf("the refused retire recorded %d retire(s)", n)
+		}
+	})
 }
 
 // V3: ESTOPPEL IS ASKED OF THE RECORD THE MINT LANDS ON. Blue accepts the lens's prescription at the

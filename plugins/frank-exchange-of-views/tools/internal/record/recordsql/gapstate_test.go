@@ -11,74 +11,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// gapStateSnapshot is every gap_state row, in mint order, one string each.
-func gapStateSnapshot(t *testing.T, q interface {
-	Query(string, ...any) (*sql.Rows, error)
-}) []string {
-	t.Helper()
-	rows, err := q.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	cols, _ := rows.Columns()
-	var out []string
-	for rows.Next() {
-		v := make([]any, len(cols))
-		p := make([]any, len(cols))
-		for i := range v {
-			p[i] = &v[i]
-		}
-		if err := rows.Scan(p...); err != nil {
-			t.Fatal(err)
-		}
-		out = append(out, fmt.Sprint(v))
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	return out
-}
-
-// gapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
-// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
-// they agree row for row and nothing is left named or unflushed, else what differs. The refresh
-// asked of every gap is the rules with no marker in the way, so a gap a marker failed to name stands
-// out as the row the full refresh moves.
+// gapStateRefreshDiff is GapStateRefreshDiff of db, the test failing where it cannot be asked.
 func gapStateRefreshDiff(t *testing.T, db *sql.DB) string {
 	t.Helper()
-	tx, err := db.Begin()
+	d, err := GapStateRefreshDiff(db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	var out []string
-	var pending int
-	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
-		t.Fatal(err)
-	}
-	if pending != 0 {
-		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
-	}
-	stored := gapStateSnapshot(t, tx)
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
-	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
-		t.Fatal(err)
-	}
-	refreshed := gapStateSnapshot(t, tx)
-	for i := 0; i < max(len(stored), len(refreshed)); i++ {
-		var s, f string
-		if i < len(stored) {
-			s = stored[i]
-		}
-		if i < len(refreshed) {
-			f = refreshed[i]
-		}
-		if s != f {
-			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
-		}
-	}
-	return strings.Join(out, "\n")
+	return d
 }
 
 // gapStateHolds is each of a step's truths that does not hold, or "" when all do.
@@ -145,7 +85,7 @@ func gapIs(gap, cond string) string {
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose int64
+	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose, sCut int64
 	at := func(v *int64) string { return fmt.Sprint(*v) }
 	none := func() []string { return nil }
 	return []gapStep{
@@ -240,21 +180,37 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
 			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
 		}},
-		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a retire takes its
-		// own marker out of the report with the claim it marks.
+		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a pure cut takes
+		// its own marker out of the report with the claim it marks.
 		{func() { r.mintQuote("Y", comp) }, func() []string { return []string{gapIs("Y", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
-		{func() { r.retire("Y") }, func() []string {
+		{func() { r.cut("Y") }, func() []string {
 			return []string{gapIs("Y", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
-		// And an heir's, once a retire after its mint takes out the marker of the --quote ancestor whose
-		// demand it carries.
+		// And an heir's, once a pure cut after its mint takes out the marker of the --quote ancestor whose
+		// demand it carries, with the claim it marks.
 		{func() { r.mintQuote("W", src) }, none},
 		{func() { r.mintQuote("X", src, "W") }, func() []string {
 			return []string{gapIs("X", `"open" AND "awaiting_evidence" AND NOT "evidence_answered"`)}
 		}},
-		{func() { r.retire("W") }, func() []string {
+		{func() { r.cut("W") }, func() []string {
 			return []string{gapIs("W", `"evidence_answered"`), gapIs("X", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
+		// An anchor-only retire of a closed ancestor's marker off its standing sentence meets no heir:
+		// the claim stands, so the demand it carries is unmet.
+		{func() { r.mintQuote("W2", src) }, none},
+		{func() { r.mintQuote("X2", src, "W2") }, none},
+		{func() { r.retire("W2") }, func() []string {
+			return []string{gapIs("X2", `"open" AND "awaiting_evidence" AND NOT "evidence_answered"`)}
+		}},
+		// A pure cut of the anchor a gap is about meets its demand, as a retire of it does.
+		{func() { r.cite("C3", "") }, none},
+		{func() { r.mintOf("Z", src, "C3") }, func() []string { return []string{gapIs("Z", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
+		{func() { r.cut("C3") }, func() []string { return []string{gapIs("Z", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
+		// A pure cut of a closed gap's answer anchor is its answers_retired_event.
+		{func() { r.mintOf("S", src, "") }, none},
+		{func() { r.cite("C4", "S") }, none},
+		{func() { r.close("S", "") }, func() []string { return []string{gapIs("S", `NOT "open" AND "answers_retired_event" IS NULL`)} }},
+		{func() { sCut = r.cut("C4") }, func() []string { return []string{gapIs("S", `"answers_retired_event" = `+at(&sCut))} }},
 	}
 }
 
@@ -293,8 +249,10 @@ func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 // triggers, is the refresh asked of every gap at once: the minter's re-read of its gap's anchor, an
 // upheld position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
 // a failing recheck, a carry close after the answers retire, a supersession of a closed gap, an older
-// docket standing again under a remand, a bench closure red's later close overrules, and a --quote
-// gap's demand met by the retire of its own marker, or of its ancestor's marker after the heir's mint.
+// docket standing again under a remand, a bench closure red's later close overrules, a --quote gap's
+// demand met by the pure cut of its own marker, or of its ancestor's marker after the heir's mint, and
+// unmet by an anchor-only retire of that marker, and the pure cut of an about-anchor and of a closed
+// gap's answer.
 func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	r := newDemandRecord(t)
 	for i, step := range gapStateSteps(r) {
@@ -308,7 +266,8 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	}
 	// THE FIRST CLOSING ACT, of each arm: A's by the mint superseding it, R's by red's first close
 	// (two closes follow it), D's by the bench (red's close follows it), the rest open.
-	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open", "Y": "open", "W": "mint", "X": "open"}
+	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open", "Y": "open", "W": "mint", "X": "open",
+		"W2": "mint", "X2": "open", "Z": "open", "S": "close"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -324,7 +283,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 12 {
+	if len(markers) != 13 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {

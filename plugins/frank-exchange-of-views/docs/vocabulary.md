@@ -45,6 +45,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [current item](#current-item) | lens, chair, blue, bench, operator |
 | [reading](#reading) | lens, chair, blue, lane, bench, operator |
 | [retire](#retire) | lens, chair, blue, lane, bench, operator |
+| [pure cut](#pure-cut) | lens, chair, blue, lane, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
 | [report read](#report-read) | lens, chair, bench, operator |
@@ -370,7 +371,7 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
+An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -478,7 +479,17 @@ A reading is a lens's recorded account of what one source did for one sentence o
 
 ## retire
 
-To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
+To retire an anchor is to take it out of the report with the retire verb, on the record, its sentence staying word for word; a retired anchor is in no document, and a claim leaves with its sentence, by a pure cut, never by a retire.
+
+**Delivered to:** lens, chair, blue, lane, bench, operator
+
+**Collisions:**
+
+- **retired (a lens)** — a lens retires from dispatch, which is a state of the seat; an anchor is retired from the report, on the record, and its sentence stays
+
+## pure cut
+
+A pure cut is an edit whose replacement for one or more whole sentences holds nothing of them — empty, or only whitespace and terminators; it takes every anchor of those sentences, the ones at their end included, and records each with the edit's reason, while every other edit is a rewrite, which carries every anchor of its span.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -487,11 +498,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
 | claims withdrawn | GATED | `claims? withdrawn` |  |  |
-| withdraw (retire) | REGISTRY-ONLY |  |  |  |
-
-**Collisions:**
-
-- **retired (a lens)** — a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record
+| withdraw (pure cut) | REGISTRY-ONLY |  |  |  |
 
 ## lens retirement
 
@@ -623,14 +630,14 @@ A question part is one part of the question the run was asked — split out by b
 
 ## reopened
 
-A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+A citation or computation is reopened when a rewrite changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the rewrite clears it, and a PASS waits until one does; a pure cut reopens nothing, since the anchors it takes leave the report with their checks.
 
 **Delivered to:** lens, chair, blue, lane, operator
 
 **Collisions:**
 
 - **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation
-- **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened
+- **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor whose sentence the edit changed and that still stands, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened. An anchor a cut took is in the edit's `removed_anchors`, never its `reopened`
 
 ## unchecked
 
@@ -666,5 +673,4 @@ A gap is superseded when its own lens mints a successor naming it with `--supers
 
 - **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it
 - **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
-- **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
 - **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

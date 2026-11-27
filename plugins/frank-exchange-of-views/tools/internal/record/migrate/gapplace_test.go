@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -257,14 +256,14 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		{"(d) a cut to empty", func(s *shapeSource) {
 			s.mint("G1", "Volume fell.")
 			s.edit("Volume fell.", "", false)
-		}, "Costs rose sharply in Q1. <!--gap:G1-->", "bare"},
+		}, "Costs rose sharply in Q1.", "bare"},
 		{"(e) the cut idiom, then its retire", func(s *shapeSource) {
 			s.finding("f-0000aaa1", "Water is wet.")
 			s.mint("G1", "Water is wet.")
 			s.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-				Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
-		}, "- <!--gap:G1-->", "bare"},
+				Anchors: []string{"f-0000aaa1"}})
+		}, "- Fire is hot.", "bare"},
 		{"(g) the fallback passes over a heading to the first prose sentence", func(s *shapeSource) {
 			s.mint("G1", "Costs rose sharply in Q1.")
 			s.edit("Costs rose sharply in Q1. Volume fell.", "## Costs\n\nCosts climbed in Q1. Volume fell.", false)
@@ -293,14 +292,30 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			if c.shape == "unplaced" && (strings.Contains(md, anchor.Token(m.IDs["G1"])) || !slices.Contains(m.GapAnchors.NeverPlaced, m.IDs["G1"])) {
 				t.Errorf("a gap no prose sentence carries stands in the render or goes unnamed: %+v\n%s", m.GapAnchors, md)
 			}
+			// A CUT TAKES WHAT IT LEAVES ON NO WORDS (translations 2 and 4): the gap's marker the
+			// pure cut bared, and in (e) the finding anchor its claim retire took, which folds into it.
+			var cut []string
+			for _, e := range got {
+				cut = append(cut, e.GetRemovedAnchors()...)
+			}
+			switch c.name[:3] {
+			case "(d)":
+				if !slices.Equal(cut, []string{m.IDs["G1"]}) {
+					t.Errorf("the cut lists %v, want its gap's marker", cut)
+				}
+			case "(e)":
+				if !slices.Equal(cut, []string{m.IDs["f-0000aaa1"], m.IDs["G1"]}) {
+					t.Errorf("the cut lists %v, want the finding its retire took, then its gap's marker", cut)
+				}
+			}
 			if strings.HasPrefix(c.name, "(e)") {
-				// The gap anchor stands bare beside the husk the retire kept, and taken out as a
-				// retire would, it leaves the render of the same stream without the mint.
+				// The cut takes the gap's marker with the finding, and the render matches the same
+				// stream's without the mint.
 				without := newShapeSource(t, base)
 				without.finding("f-0000aaa1", "Water is wet.")
 				without.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
 				without.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-					Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
+					Anchors: []string{"f-0000aaa1"}})
 				_, plain, _, _ := without.migrated()
 				if skeleton(md) != skeleton(plain) {
 					t.Errorf("the skeleton moved:\n with the gap %q\n without      %q", md, plain)
@@ -350,14 +365,14 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		var lines []string
 		total := map[string]int{}
 		for _, tb := range archiveTarballs(t) {
-			m, _ := migrateArchive(t, filepath.Base(tb))
+			m, _ := migrateArchive(t, tb)
 			var shapes []string
 			for k, n := range m.GapAnchors.Shapes {
 				shapes = append(shapes, fmt.Sprintf("%s=%d", k, n))
 				total[k] += n
 			}
 			sort.Strings(shapes)
-			line := strings.TrimSuffix(filepath.Base(tb), ".tar.gz") + " " + strings.Join(shapes, " ")
+			line := strings.TrimSuffix(tb, ".tar.gz") + " " + strings.Join(shapes, " ")
 			if len(m.GapAnchors.NeverPlaced) > 0 {
 				line += " never-placed=" + strings.Join(m.GapAnchors.NeverPlaced, ",")
 			}
@@ -371,4 +386,22 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		}
 		goldentest.Assert(t, "archived_gap_rewrites", strings.Join(lines, "\n")+"\n")
 	})
+}
+
+// A MIGRATED REPORT HOLDING A TOKEN ON NO WORDS IS REFUSED. No live write leaves one, and the fold
+// takes or re-seats every one an archived cut or rewrite left; a rewrite that put a citation's token
+// at the head of its replacement, no retire following, leaves it bare, and migrate refuses the record
+// naming it rather than writing a report no live writer could.
+func TestAMigratedReportHoldingABareTokenIsRefused(t *testing.T) {
+	const base = "# H\n\nCosts rose sharply in Q1. Volume fell.\n"
+	s := newShapeSource(t, base)
+	s.cite("C-0000aaa1", "Volume fell.")
+	s.edit("Volume fell<!--cite:C-0000aaa1-->.", "<!--cite:C-0000aaa1--> Volume held.", false)
+	m, err := migrate.Migrate(s.dir, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{})
+	if err == nil || m == nil {
+		t.Fatalf("migrate wrote a report holding a bare token: %v", err)
+	}
+	if len(m.Refusals) != 1 || m.Refusals[0].Word != "report" || !strings.Contains(m.Refusals[0].Err, "C-0000aaa1 on no words") {
+		t.Errorf("the refusals are %+v, want the report's, naming the bare citation", m.Refusals)
+	}
 }

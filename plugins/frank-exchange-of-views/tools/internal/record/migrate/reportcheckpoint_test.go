@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
@@ -17,14 +18,10 @@ import (
 // stands now, read as every reader reads it — from the newest checkpoint and the ops after it. The
 // whole replay is this test's own: no reader replays from the empty text.
 func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	runs, checkpoints := 0, 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			_, dst := migrateArchive(t, name)
 			ops, err := record.ReportProjection(dst)

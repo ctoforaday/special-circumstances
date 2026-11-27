@@ -50,6 +50,13 @@
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
 
+== view anchor_removal
+  COMPOUND QUERY
+    LEFT-MOST SUBQUERY
+      SCAN ra
+    UNION ALL
+      SCAN er
+
 == view area_change
   MATERIALIZE bound
     CO-ROUTINE lens
@@ -106,11 +113,19 @@
     LEFT-MOST SUBQUERY
       SCAN x
       CORRELATED SCALAR SUBQUERY
-        SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+        MERGE (UNION ALL)
+          LEFT
+            SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+          RIGHT
+            SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
     UNION ALL
       SCAN x
       CORRELATED SCALAR SUBQUERY
-        SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+        MERGE (UNION ALL)
+          LEFT
+            SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+          RIGHT
+            SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
 
 == view gap
   SCAN s
@@ -176,11 +191,23 @@
               SEARCH d USING AUTOMATIC COVERING INDEX (gap_id=?)
               USE TEMP B-TREE FOR GROUP BY
               CORRELATED SCALAR SUBQUERY
-                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                MERGE (UNION ALL)
+                  LEFT
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  RIGHT
+                    SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
               CORRELATED SCALAR SUBQUERY
-                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                MERGE (UNION ALL)
+                  LEFT
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  RIGHT
+                    SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
               CORRELATED SCALAR SUBQUERY
-                SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                MERGE (UNION ALL)
+                  LEFT
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  RIGHT
+                    SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
             SCAN answered
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
@@ -196,9 +223,17 @@
                 BLOOM FILTER ON r (anchor=?)
                 SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
                 CORRELATED SCALAR SUBQUERY
-                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  MERGE (UNION ALL)
+                    LEFT
+                      SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                    RIGHT
+                      SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
                 CORRELATED SCALAR SUBQUERY
-                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  MERGE (UNION ALL)
+                    LEFT
+                      SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                    RIGHT
+                      SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
                 CORRELATED SCALAR SUBQUERY
                   MATERIALIZE checks
                     COMPOUND QUERY
@@ -221,9 +256,17 @@
                 BLOOM FILTER ON r (anchor=?)
                 SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
                 CORRELATED SCALAR SUBQUERY
-                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  MERGE (UNION ALL)
+                    LEFT
+                      SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                    RIGHT
+                      SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
                 CORRELATED SCALAR SUBQUERY
-                  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                  MERGE (UNION ALL)
+                    LEFT
+                      SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                    RIGHT
+                      SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
                 CORRELATED SCALAR SUBQUERY
                   BLOOM FILTER ON h (anchor=? AND seat=?)
                   SEARCH h USING AUTOMATIC COVERING INDEX (anchor=? AND seat=?)
@@ -232,7 +275,7 @@
       RIGHT
         SCAN d
         SEARCH l USING PRIMARY KEY (gap_id=?)
-        SEARCH ra EXISTS USING COVERING INDEX retire_anchors_value (value=?)
+        SEARCH er EXISTS USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
         USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE latest_remand
     CO-ROUTINE (subquery)
@@ -394,7 +437,11 @@
       UNION ALL
         SCAN a
       UNION ALL
-        SCAN ra USING COVERING INDEX retire_anchors_value
+        COMPOUND QUERY
+          LEFT-MOST SUBQUERY
+            SCAN ra
+          UNION ALL
+            SCAN er
   SCAN report_op
 
 == view seat_metrics
@@ -538,6 +585,10 @@
 
 == stmt a9ba0f4ba26d
 -- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 2ceff7eb4ddf
+-- INSERT INTO "blue_edit_removed_anchors" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 5496d2cf1194
@@ -1613,32 +1664,8 @@
 -- INSERT INTO "retire" ("event_id", "claim", "reason") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt bbebef83fac4
--- INSERT INTO "retire" ("event_id", "claim", "reason", "claim_kept") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt d1db8f2e890e
--- INSERT INTO "retire" ("event_id", "claim", "reason", "claim_kept", "answers") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 88186f04bd3b
--- INSERT INTO "retire" ("event_id", "claim", "reason", "removal_basis", "claim_kept") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 25ece2097c8f
--- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 4b540c256338
--- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by", "claim_kept", "answers") VALUES (?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 0441b511f7ee
--- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by", "removal_basis") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt a3a7b9421665
--- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by", "removal_basis", "answers") VALUES (?, ?, ?, ?, ?, ?)
+== stmt 7804838acc56
+-- INSERT INTO "retire" ("event_id", "claim", "reason", "answers") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 40d14e51a87e
@@ -1769,6 +1796,10 @@
 -- INSERT INTO events (id, seat_id, ts, type, key, sitting_id, sitting, epoch) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 597caf4404fc
+-- INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint"
+  SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1
+
 == stmt d783de34fa49
 -- INSERT OR IGNORE INTO "seat_turn" ("agent_id","turn_idx","ts_ms","model","input_tokens","output_tokens","cache_read","cache_creation","is_thinking","is_tool") VALUES (?,?,?,?,?,?,?,?,?,?)
   (no plan rows: the statement reads no table)
@@ -1895,8 +1926,19 @@
 -- SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1
   SEARCH schema_epoch USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 8a98e29fded4
--- SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "a"
+== stmt fa7cb1eacffa
+-- SELECT "event_id", "anchor_id", "by" FROM "anchor_removal" ORDER BY "event_id", "ord"
+  CO-ROUTINE anchor_removal
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SCAN ra
+      UNION ALL
+        SCAN er
+  SCAN anchor_removal
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 789dd46d8445
+-- SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "ord"
   CO-ROUTINE report_op
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
@@ -1908,7 +1950,11 @@
       UNION ALL
         SEARCH a USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
       UNION ALL
-        SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>? AND event_id<?)
+        COMPOUND QUERY
+          LEFT-MOST SUBQUERY
+            SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>? AND event_id<?)
+          UNION ALL
+            SEARCH er USING INDEX sqlite_autoindex_blue_edit_removed_anchors_1 (event_id>? AND event_id<?)
   SCAN report_op
   USE TEMP B-TREE FOR ORDER BY
 
@@ -1994,10 +2040,6 @@
 == stmt e714aa88c407
 -- SELECT "event_id", "value" FROM "mint_supersedes" ORDER BY "event_id", "ord"
   SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
-
-== stmt 1b9d404875bf
--- SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"
-  SCAN retire_anchors USING INDEX sqlite_autoindex_retire_anchors_1
 
 == stmt 996d263b6b6a
 -- SELECT "event_id", COALESCE("new", '') FROM "blue_edit" WHERE "answers" = ? AND "event_id" > ? ORDER BY "event_id" DESC
@@ -2094,10 +2136,6 @@
 == stmt 8cd2b0c1928d
 -- SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?
   SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-
-== stmt e66d4195fc02
--- SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"
-  SCAN blue_edit
 
 == stmt a2cf5c4411fe
 -- SELECT "open" FROM "gap" WHERE "gap_id" = ?
@@ -2253,6 +2291,14 @@
       SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
       REUSE SUBQUERY
 
+== stmt 4c1c781b794f
+-- SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")
+  SCAN CONSTANT ROW
+  SCALAR SUBQUERY
+    SCAN gap_dirty
+  SCALAR SUBQUERY
+    SCAN gap_flush
+
 == stmt 751199db797c
 -- SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")
   SCAN CONSTANT ROW
@@ -2260,6 +2306,10 @@
     SCAN verify USING COVERING INDEX verify_anchor
   SCALAR SUBQUERY
     SCAN cite USING COVERING INDEX cite_label
+
+== stmt 4f73a746cfd2
+-- SELECT * FROM "gap_state" ORDER BY "minted_event"
+  SCAN gap_state
 
 == stmt ce992acb9962
 -- SELECT 1 FROM "evidence_anchor" WHERE "anchor_id" = ? LIMIT 1
@@ -2367,10 +2417,17 @@
       SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 718506cedfcd
--- SELECT COALESCE(b."old_paragraphs", '') FROM "blue_edit_reopened" r JOIN "blue_edit" b ON b."event_id" = r."event_id" WHERE r."value" = ?1 ORDER BY r."event_id" DESC LIMIT 1
-  SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=?)
+== stmt 41905745eae6
+-- SELECT COALESCE(b."old_paragraphs", '') FROM ( SELECT r."event_id" FROM "blue_edit_reopened" r WHERE r."value" = ?1 UNION ALL SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?1 ) w JOIN "blue_edit" b ON b."event_id" = w."event_id" ORDER BY w."event_id" DESC LIMIT 1
+  CO-ROUTINE w
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=?)
+      UNION ALL
+        SEARCH x USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
+  SCAN w
   SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
 
 == stmt c0c1c3532a69
 -- SELECT COALESCE(c."coverage", ''), COUNT(*) FROM (SELECT a0."part_id" AS "part_id" FROM "question_part" a0 WHERE COALESCE(a0."part_id", '') != '' AND a0."supersedes_coverage" IS NULL AND a0."event_id" <= ?1 GROUP BY a0."part_id") p LEFT JOIN "question_part" c ON c."event_id" = (SELECT MAX(x."event_id") FROM "question_part" x WHERE x."part_id" = p."part_id" AND x."supersedes_coverage" IS NOT NULL AND x."event_id" <= ?1) GROUP BY COALESCE(c."coverage", '')
@@ -2426,11 +2483,15 @@
   BLOOM FILTER ON b (seat_id=?)
   SEARCH b USING AUTOMATIC PARTIAL COVERING INDEX (seat_id=?)
 
-== stmt ad77e0228e94
--- SELECT DISTINCT c."computation_id" FROM "computation" c WHERE c."cites" = ? AND c."computation_id" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = c."computation_id") ORDER BY c."computation_id"
+== stmt db408ba2f1ca
+-- SELECT DISTINCT c."computation_id" FROM "computation" c WHERE c."cites" = ? AND c."computation_id" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "anchor_removal" ar WHERE ar."anchor_id" = c."computation_id") ORDER BY c."computation_id"
   SEARCH c USING INDEX computation_cites (cites=?)
   CORRELATED SCALAR SUBQUERY
-    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+      UNION ALL
+        SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
   USE TEMP B-TREE FOR DISTINCT
 
 == stmt 5c99c3b8890b
@@ -2467,12 +2528,22 @@
         UNION ALL
           SCAN a
         UNION ALL
-          SCAN ra USING COVERING INDEX retire_anchors_value
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN ra USING COVERING INDEX sqlite_autoindex_retire_anchors_1
+            UNION ALL
+              SCAN er USING COVERING INDEX sqlite_autoindex_blue_edit_removed_anchors_1
     SCAN report_op
 
-== stmt 79b5c358b090
--- SELECT MIN(r."event_id") FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1
-  SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=? AND event_id>?)
+== stmt 92c4a783d016
+-- SELECT MIN("event_id") FROM ( SELECT r."event_id" FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1 UNION ALL SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?2 AND x."event_id" > ?1)
+  CO-ROUTINE (subquery)
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=? AND event_id>?)
+      UNION ALL
+        SEARCH x USING COVERING INDEX blue_edit_removed_anchors_value (value=? AND event_id>?)
+  SEARCH (subquery)
 
 == stmt 85c0a2e22afc
 -- SELECT a."event_id" FROM "envelope_admitted" a WHERE a."agent_id" = ? AND a."event_id" > COALESCE((SELECT MAX(o."event_id") FROM "sitting_open" o WHERE o."agent_id" = ?), 0) LIMIT 1
@@ -2495,6 +2566,18 @@
     SEARCH x USING COVERING INDEX motion_rule_motion (motion_id=?)
   SEARCH rd USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH fre USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+
+== stmt abee6ef13dd7
+-- SELECT ar."event_id", ar."by", COALESCE(r."reason", b."text"), r."claim" FROM "anchor_removal" ar LEFT JOIN "retire" r ON ar."by" = 'retire' AND r."event_id" = ar."event_id" LEFT JOIN "blue_edit" b ON ar."by" = 'edit' AND b."event_id" = ar."event_id" WHERE ar."anchor_id" = ? ORDER BY ar."event_id" LIMIT 1
+  MERGE (UNION ALL)
+    LEFT
+      SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      SEARCH b USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    RIGHT
+      SEARCH er USING COVERING INDEX blue_edit_removed_anchors_value (value=?)
+      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      SEARCH b USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt 26cf55c79a30
 -- SELECT b."event_id" FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id" WHERE e."seat_id" = ? AND b."edit_key" = ? ORDER BY b."event_id" LIMIT 1
@@ -2520,7 +2603,11 @@
         UNION ALL
           SCAN a
         UNION ALL
-          SCAN ra USING COVERING INDEX retire_anchors_value
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN ra USING COVERING INDEX sqlite_autoindex_retire_anchors_1
+            UNION ALL
+              SCAN er USING COVERING INDEX sqlite_autoindex_blue_edit_removed_anchors_1
     SCAN report_op
 
 == stmt afa645bd4d7a
@@ -2551,7 +2638,11 @@
       UNION ALL
         SEARCH a USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
-        SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id=?)
+        COMPOUND QUERY
+          LEFT-MOST SUBQUERY
+            SEARCH ra USING COVERING INDEX sqlite_autoindex_retire_anchors_1 (event_id=?)
+          UNION ALL
+            SEARCH er USING COVERING INDEX sqlite_autoindex_blue_edit_removed_anchors_1 (event_id=?)
   SCAN report_op
 
 == stmt 7cd304afe38a
@@ -2751,6 +2842,10 @@
   SEARCH p USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   USE TEMP B-TREE FOR ORDER BY
 
+== stmt 6a13b379b3f0
+-- SELECT l."event_id", l."value" FROM "blue_edit_removed_anchors" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_blue_edit_removed_anchors_1 (event_id>?)
+
 == stmt 007024a15384
 -- SELECT l."event_id", l."value" FROM "blue_edit_reopened" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_blue_edit_reopened_1 (event_id>?)
@@ -2915,31 +3010,10 @@
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt d25a76648285
--- SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id" WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1
-  SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
-
 == stmt 2457b51271d8
 -- SELECT r."head" FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ?1 AND e."sitting_id" = ?2 ORDER BY r."event_id" DESC LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
-
-== stmt 68044d32f65b
--- SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new" FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."event_id"
-  CO-ROUTINE x
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SCAN b
-      UNION ALL
-        SCAN ra USING COVERING INDEX retire_anchors_value
-        SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN r USING COVERING INDEX blue_edit_reopened_value
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON x (event_id=?)
-  SEARCH x USING AUTOMATIC COVERING INDEX (event_id=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 3f497e535846
@@ -2958,8 +3032,8 @@
 -- SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha", t."claim" FROM "reproduce" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt ee4e096ffde2
--- SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?
+== stmt bb6b61f7259f
+-- SELECT t."event_id", t."claim", t."reason", t."answers" FROM "retire" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 038e7569d922
@@ -3113,3 +3187,16 @@
   SEARCH v USING INDEX sqlite_autoindex_cast_seat_ids_1 (event_id=?)
   SCALAR SUBQUERY
     SEARCH cast
+
+== stmt 3bef65db54ec
+-- SELECT w."value", e."epoch", COALESCE(e."seat_id", ''), COALESCE(b."old", ''), COALESCE(b."new", '') FROM ( SELECT "event_id", "value" FROM "blue_edit_reopened" UNION ALL SELECT "event_id", "value" FROM "blue_edit_removed_anchors" ) w JOIN "blue_edit" b ON b."event_id" = w."event_id" JOIN "events" e ON e."id" = w."event_id" ORDER BY w."event_id"
+  CO-ROUTINE w
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SCAN blue_edit_reopened USING COVERING INDEX blue_edit_reopened_value
+      UNION ALL
+        SCAN blue_edit_removed_anchors USING COVERING INDEX blue_edit_removed_anchors_value
+  SCAN w
+  SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY

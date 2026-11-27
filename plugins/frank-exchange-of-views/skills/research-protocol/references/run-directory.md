@@ -27,7 +27,7 @@ research/<date>_<slug>/
 ├── inquiries.md       # each inquiry's fate, the path it took, each step's reason, and the check that stands on it
 ├── evidence.md        # the computations, with program, output and sha256; the citations, with every reading of each
 ├── run.md             # the log, the record's invariant check, and cost
-├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks, every edit and its reason
+├── CHANGELOG.md       # this report's own provenance: superseded asks, every edit and its reason
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/

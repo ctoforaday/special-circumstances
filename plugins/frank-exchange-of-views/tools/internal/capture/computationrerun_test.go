@@ -235,7 +235,7 @@ func TestComputationRerunSamplesLiveComputationsOnly(t *testing.T) {
 	}
 	recordtest.Seed(t, run, recordtest.At(t, "blue-respond", "blue-respond:retire:#2",
 		&recordpb.Retire{Claim: proto.String("a holds"), Reason: proto.String("the claim cannot stand"), Anchors: []string{"K-00000001"}}))
-	if got := ComputationRerunAudit(runtest.Open(t, run), 5); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "every computation this run recorded is retired") {
+	if got := ComputationRerunAudit(runtest.Open(t, run), 5); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "every computation this run recorded has left the report") {
 		t.Errorf("every computation retired: want a SKIP that says so, got %s (%s)", got.Verdict, got.Detail)
 	}
 }

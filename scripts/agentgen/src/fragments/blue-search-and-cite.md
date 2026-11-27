@@ -3,36 +3,39 @@
 - **An anchor is part of the text you edit, and it belongs to the sentence that holds its claim.**
   The report as the tool renders it prints every anchor, of every kind — `<!--fx:…-->`,
   `<!--cite:…-->`, `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
-  one way: the tool places an anchor at the end of its quote, an edit carries it, the tool puts back
-  one whose sentence the edit kept word for word, an edit that drops or types one is refused, and
-  retiring its claim is the one way it leaves — except evidence, a citation or a computation, which
-  never stands bare: an edit that would leave one with no prose before it in its sentence is refused,
-  whether your quote holds it or not, and evidence leaves by a retire naming it alone, which keeps its
-  sentence word for word. That retire is how a cited or computed sentence goes — retire its citations
-  and computations, then edit the sentence out — and how a citation no lens can read gives way to one
-  it can: cite the readable source, then retire the dead one. A citation a computation in the report
-  names as its method stays while that computation does: retire or recompute the computation first.
-  A retired anchor is in no document, and no lens checks it or mints a gap about it. Retiring an
-  anchor placed as an open gap's answer takes that answer away; with no other standing, the gap is
-  owed again. A finding
-  or gap anchor your quote leaves out stays where it stands, and an edit that would leave it bare
-  there is refused: to take its claim out, carry it in both the quote and the replacement, then
-  retire the claim. One your quote carries goes into the replacement after the sentence that now holds its
-  claim — never after the last sentence by default. When you split a sentence, each anchor goes
-  with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
-  read what each one marks on the record before you place it. The record lists each anchor
-  whose sentence an edit changed. A citation or computation among them is REOPENED — the reference
-  stands, its referent moved, so its check is stale rather than refuted. Its owning lens owes
-  the new check and is readied for it — the evidence lens for a citation, the computation lens
-  for a computation. A check by any lens from a sitting opened after the edit clears it, and a PASS
-  waits until one does.
+  one way: the tool places an anchor at the end of its quote, a rewrite carries it, the tool puts
+  back one whose sentence the rewrite kept word for word, a rewrite that drops or types one is
+  refused, and no anchor ever stands bare — an edit that would leave one with no words before it in
+  its sentence is refused, whether your quote holds it or not. An anchor leaves the report two ways.
+  A CUT of whole sentences — a replacement that holds nothing of them — takes their anchors with
+  them, those at their end included whether or not your quote carries them, and the record lists
+  each with your reason. A retire naming one anchor takes it off a sentence that stays word for word:
+  that is how a citation no lens can read gives way to one it can — cite the readable source, then
+  retire the dead one. An open gap's own marker is not retired; a cut of its sentence hands the gap
+  to its lens. A citation a computation in the report names as its method stays while that
+  computation does: retire the computation by its own anchor first, computing it again citing
+  another source if the report still needs it, or take it in the same cut. An anchor out of the
+  report is in no document, and no lens checks it or mints a gap about it. Taking an anchor placed
+  as an open gap's answer out of the report, by a retire or a cut, takes that answer away; with no
+  other standing, the gap is owed again. In a rewrite, a finding or gap anchor your quote leaves out
+  stays where it stands, and one your quote carries goes into the replacement after the sentence
+  that now holds its claim — never after the last sentence by default. When you split a sentence,
+  each anchor goes with its claim: a run of anchors at a sentence's end does not say which part
+  each one marks, so read what each one marks on the record before you place it. The record lists
+  each anchor whose sentence a rewrite changed. A citation or computation among them is REOPENED —
+  the reference stands, its referent moved, so its check is stale rather than refuted. Its owning
+  lens owes the new check and is readied for it — the evidence lens for a citation, the computation
+  lens for a computation. A check by any lens from a sitting opened after the rewrite clears it, and
+  a PASS waits until one does. A cut lists the anchors it takes as removed, none of them as
+  reopened: each leaves the report with its check, and nothing is owed of it.
 - **A CHECK THAT FAILED HOLDS THE PASS, AND THE ANCHOR IS YOURS TO FIX OR RETIRE.** While a lens's
   judgement that a computation does not establish its sentence stands, or while no reading of a
   citation has read the work it cites, no PASS can be recorded, and you are readied for it — no
   bench ruling clears it. Fix a
   computation with an edit that makes the sentence say what the program shows, which reopens it for a
   fresh judgement, or by retiring the old computation as the answer to the gap and computing again on
-  the kept sentence as that gap's answer, or retire the claim. Fix a citation no reading could read by
+  the kept sentence as that gap's answer, or cut the sentence whole, which takes the computation
+  with it. Fix a citation no reading could read by
   citing a source a lens can read and retiring the dead citation, or by retiring the citation and
   letting the sentence stand on what else backs it, or by editing the sentence. The gap that carries
   the check states the defect and its fix. A source a lens read against a sentence and found to say otherwise than

@@ -19,10 +19,12 @@ import (
 )
 
 // ONE ANCHOR LIFECYCLE, EVERY EVIDENCE KIND (V1a′.1, the verbs' arms). The same script runs for a
-// citation and a computation through the CLI: placed as a gap's answer; an edit leaving it bare is
-// refused, naming `retire --anchor`; a gap about it is admitted while it stands; `retire --anchor`
-// alone takes it out and keeps its sentence word for word, the result naming it by its kind; its
-// check and a gap about it are then refused, each naming the retire, and nothing is recorded.
+// citation and a computation through the CLI: placed as a gap's answer; a rewrite leaving it bare is
+// refused, naming the two routes (keep words on the sentence, or cut it whole); a gap about it is
+// admitted while it stands; `retire --anchor` alone takes it out and keeps its sentence word for word,
+// the result naming it by its kind, and — changing no text — renders in no CHANGELOG section; its
+// check and a gap about it are then refused, each naming the retire, and nothing is recorded. (The
+// pure cut that takes it with its sentence is TestAPureCutTakesItsAnchors'.)
 func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 	const sentence, words = "The sky is blue.", "The sky is blue"
 	for _, kind := range []string{"citation", "computation"} {
@@ -61,21 +63,19 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				shows = "https://sky/1"
 			}
 
-			// AN EDIT LEAVING IT BARE IS REFUSED, carried or not, naming the anchor by its kind and the retire.
-			before := readReport(t, runDir)
-			for _, cut := range [][2]string{{words, ""}, {words + tok + ".", tok}} {
-				_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", cut[0], "--new", cut[1], "--reason", "the claim cannot stand", "--answers", gap)
-				if err == nil {
-					t.Fatalf("an edit leaving %s %s bare was recorded (--quote %q)", kind, id, cut[0])
-				}
-				for _, w := range []string{kind + " " + id + " standing bare", "`retire --anchor <its id> --answers " + gap + "`", "Nothing is recorded"} {
-					if !strings.Contains(err.Error(), w) {
-						t.Errorf("the refusal does not say %q:\n%v", w, err)
-					}
+			// A REWRITE LEAVING IT BARE IS REFUSED, naming the anchor and the two routes.
+			before, edits := readReport(t, runDir), countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words+tok+".", "--new", tok, "--reason", "the claim cannot stand", "--answers", gap)
+			if err == nil {
+				t.Fatalf("an edit leaving %s %s bare was recorded", kind, id)
+			}
+			for _, w := range []string{tok + " standing bare", "keep words on", "cut it whole", "Nothing is recorded"} {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("the refusal does not say %q:\n%v", w, err)
 				}
 			}
-			if after := readReport(t, runDir); after != before {
-				t.Fatalf("a refused edit changed the report:\n%s", after)
+			if after := readReport(t, runDir); after != before || countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != edits {
+				t.Fatalf("a refused edit changed the report or the record:\n%s", after)
 			}
 
 			// A GAP ABOUT IT IS ADMITTED WHILE IT STANDS.
@@ -99,8 +99,8 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				t.Fatalf("retire --anchor %s alone: %v", id, err)
 			}
 			ev := lastBody(t, runDir, &recordpb.Retire{})
-			if !ev.GetClaimKept() || !slices.Equal(ev.GetAnchors(), []string{id}) || ev.GetClaim() != sentence || ev.GetAnswers() != gap {
-				t.Errorf("the retire recorded claim %q kept=%v anchors %v answers %q, want %q kept, [%s], %s", ev.GetClaim(), ev.GetClaimKept(), ev.GetAnchors(), ev.GetAnswers(), sentence, id, gap)
+			if !slices.Equal(ev.GetAnchors(), []string{id}) || ev.GetClaim() != sentence || ev.GetAnswers() != gap {
+				t.Errorf("the retire recorded claim %q anchors %v answers %q, want %q, [%s], %s", ev.GetClaim(), ev.GetAnchors(), ev.GetAnswers(), sentence, id, gap)
 			}
 			if !strings.Contains(out, "retired "+kind+" "+id) {
 				t.Errorf("the retire's result does not name the %s by its kind:\n%s", kind, out)
@@ -117,8 +117,10 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 					t.Errorf("%s still holds the retired %s %s:\n%s", file, kind, id, set[file])
 				}
 			}
-			if cl := set[report.FileChangelog]; !strings.Contains(cl, "a "+kind+" it stood on was retired from it, answering **"+gap+"**") {
-				t.Errorf("CHANGELOG does not name the retire by its kind:\n%s", cl)
+			// An anchor-only retire changes no text, so it renders in no CHANGELOG section (lead call
+			// 11-26): anchors belong to the work lists, text to the changes set.
+			if cl := set[report.FileChangelog]; strings.Contains(cl, id) || strings.Contains(cl, "was retired from it") {
+				t.Errorf("CHANGELOG renders the anchor-only retire of %s %s:\n%s", kind, id, cl)
 			}
 			if rows, counts := evidenceRows(t, runDir); rows[id] || counts != 0 {
 				t.Errorf("show evidence still lists or counts the retired %s %s (%d anchor(s) counted)", kind, id, counts)
@@ -136,7 +138,7 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			if kind == "computation" {
 				check = []string{"reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", id, "--as", "sound", "--reason", "re-ran it"}
 			}
-			if _, err := run(t, check...); err == nil || !strings.Contains(err.Error(), kind+" "+id+" is retired") || !strings.Contains(err.Error(), `reason: "it does not hold"`) {
+			if _, err := run(t, check...); err == nil || !strings.Contains(err.Error(), kind+" "+id+" is out of the report — blue retired it at event") || !strings.Contains(err.Error(), `reason: "it does not hold"`) {
 				t.Errorf("a check of the retired %s = %v, want refused naming its retire", kind, err)
 			}
 
@@ -146,7 +148,7 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			if err == nil {
 				t.Fatalf("a gap about a retired %s was recorded", kind)
 			}
-			for _, w := range []string{kind + " " + id + ", which is retired", "blue retired it at event", `reason: "it does not hold"`, "its sentence \"" + sentence + "\" kept", "no gap about it", "file it with --quote"} {
+			for _, w := range []string{kind + " " + id + ", which is out of the report", "blue retired it at event", `reason: "it does not hold"`, "its sentence \"" + sentence + "\" kept", "no gap about it", "file it with --quote"} {
 				if !strings.Contains(err.Error(), w) {
 					t.Errorf("the refusal does not say %q:\n%v", w, err)
 				}
@@ -162,7 +164,7 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			if err == nil {
 				t.Fatalf("a finding about a retired %s was recorded", kind)
 			}
-			for _, w := range []string{kind + " " + id + ", which is retired", "blue retired it at event", "no finding about it", "file it with --quote"} {
+			for _, w := range []string{kind + " " + id + ", which is out of the report", "blue retired it at event", "no finding about it", "file it with --quote"} {
 				if !strings.Contains(err.Error(), w) {
 					t.Errorf("the finding's refusal does not say %q:\n%v", w, err)
 				}
@@ -176,7 +178,7 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			if err == nil {
 				t.Fatalf("show report --anchor %s read a retired %s", id, kind)
 			}
-			for _, w := range []string{"a retired " + kind, "blue retired it at event", "its sentence \"" + sentence + "\" kept", "read that sentence with --quote"} {
+			for _, w := range []string{"anchor " + id + " is not in the report because blue retired it", "blue retired it at event", "its sentence \"" + sentence + "\" kept", "read that sentence with --quote"} {
 				if !strings.Contains(err.Error(), w) {
 					t.Errorf("show report --anchor's refusal does not say %q:\n%v", w, err)
 				}
@@ -297,16 +299,16 @@ func TestACitationAComputationAppliesStaysWhileTheComputationDoes(t *testing.T) 
 	}
 
 	// --CITES A RETIRED CITATION IS REFUSED.
-	if _, err := compute("The grass is green.", "green.js", "P3"); err == nil || !strings.Contains(err.Error(), "retired citation") {
+	if _, err := compute("The grass is green.", "green.js", "P3"); err == nil || !strings.Contains(err.Error(), "names a citation that is out of the report — blue retired it at event") {
 		t.Errorf("compute --cites a retired citation = %v, want refused", err)
 	}
 }
 
-// A CLAIM RETIRE IS HELD TO L6, AND ONE ACT MAY TAKE BOTH (ruling Same-act L6). Blue's edit cuts the
-// sentence a citation and the computation applying it stood on, carrying both onto the sentence that
-// stays; a claim retire taking the citation alone is refused, naming the computation, and one taking
-// both is admitted.
-func TestAClaimRetireTakesACitationWithTheComputationsApplyingIt(t *testing.T) {
+// L6 HOLDS THE RETIRE, AND ONE CUT MAY TAKE BOTH (ruling Same-act L6; TestACutIsHeldToL6 case 4 by the
+// verbs). A citation and the computation applying it stand on one sentence: a retire taking the
+// citation alone is refused, naming the computation, and nothing is recorded; the pure cut of the
+// sentence takes both in one act, recording both in its removed_anchors.
+func TestACutTakesACitationWithTheComputationsApplyingIt(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1")
 	c := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	s := script(t, runDir, "sky.js", "console.log('blue');")
@@ -319,22 +321,21 @@ func TestAClaimRetireTakesACitationWithTheComputationsApplyingIt(t *testing.T) {
 	if !strings.Contains(run1, anchor.Token(c)) || !strings.Contains(run1, anchor.Token(k)) {
 		t.Fatalf("the citation and the computation do not stand at the sentence's end: %q\n%s", run1, readReport(t, runDir))
 	}
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue"+run1+". The grass is green",
-		"--new", "The grass is green"+run1, "--reason", "the sky claim cannot stand"); err != nil {
-		t.Fatalf("the cut carrying both anchors onto the sentence that stays: %v", err)
+	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", c, "--reason", "refuted"); err == nil || !strings.Contains(err.Error(), k) {
+		t.Errorf("a retire taking %s while %s applies it = %v, want refused naming it", c, k, err)
 	}
-	retire := func(anchors string) error {
-		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue.", "--anchor", anchors, "--reason", "refuted")
-		return err
+	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires {
+		t.Errorf("the refused retire recorded %d retire(s)", n-retires)
 	}
-	if err := retire(c); err == nil || !strings.Contains(err.Error(), k) {
-		t.Errorf("a claim retire taking %s while %s applies it = %v, want refused naming it", c, k, err)
+	if _, err := cut(t, runDir, "The sky is blue"+run1+"."); err != nil {
+		t.Fatalf("a cut taking the citation and the computation applying it: %v", err)
 	}
-	if err := retire(c + "," + k); err != nil {
-		t.Fatalf("a claim retire taking the citation and the computation applying it: %v", err)
+	if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); !slices.Contains(ev.GetRemovedAnchors(), c) || !slices.Contains(ev.GetRemovedAnchors(), k) {
+		t.Errorf("the cut took %v, want both %s and %s", ev.GetRemovedAnchors(), c, k)
 	}
-	if ev := lastBody(t, runDir, &recordpb.Retire{}); !slices.Contains(ev.GetAnchors(), c) || !slices.Contains(ev.GetAnchors(), k) {
-		t.Errorf("the retire took %v, want both %s and %s", ev.GetAnchors(), c, k)
+	if rep := readReport(t, runDir); strings.Contains(rep, anchor.Token(c)) || strings.Contains(rep, anchor.Token(k)) || strings.Contains(rep, "The sky is blue") {
+		t.Errorf("the cut left the sentence or an anchor:\n%s", rep)
 	}
 }
 
@@ -360,7 +361,7 @@ func TestARetireRacingAnActOnItsAnchorRefusesTheAct(t *testing.T) {
 			registerLensOnce(t, runDir)
 			c := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 			retired := recordtest.At(t, "blue-lane-1", "race:retire", &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("unreadable"),
-				Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(record.RemovalAsserted)})
+				Anchors: []string{c}})
 			s := script(t, runDir, "wet.js", "console.log('wet');")
 			err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{retired}, func() error {
 				var err error

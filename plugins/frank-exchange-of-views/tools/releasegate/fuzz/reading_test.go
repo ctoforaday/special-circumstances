@@ -10,7 +10,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -137,7 +136,8 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless, fresh 
 		outcome = "refutes"
 	}
 	// --page names a page image, and no citation this sweep writes has pages, so a verify carrying one
-	// is refused: the flag and its refusal, driven.
+	// is refused: the flag and its refusal, driven. This coin is one drive of it; the sweep's guarantee
+	// is pagelessPageRefused, which draws nothing.
 	paged := r.coin(10)
 	c := axes(outcome, r.do("verify", seatID)).set("--anchor", anchorID).bare("--json")
 	if paged {
@@ -189,7 +189,7 @@ func (r *runner) retiredUnderTheDraw(anchorID, out string) bool {
 	if !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, anchorID+" is retired") {
 		return false
 	}
-	_, retired, err := record.AnchorRetiredAt(r.run(), anchorID)
+	_, retired, err := record.AnchorRemovedAt(r.run(), anchorID)
 	return err == nil && retired
 }
 
@@ -455,7 +455,7 @@ func setArg(args []string, flag, val string) {
 func gapTally(res *outcome, board record.Family, run record.Run) {
 	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
 	report, rerr := record.RenderRun(run)
-	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+	spans := anchor.Sentences(report)
 	perClassSentence := map[string][]*record.Gap{}
 	var keys []string
 	for _, g := range board.Gaps {
@@ -477,12 +477,11 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 			res.openByFoundBy["none"]++
 		}
 		// ONE GAP PER CLASS IN ONE SENTENCE, read off the report: the sentence the gap's token stands
-		// in, as the rule reads it (record's gapSentenceIn) — the whole token inside one sentence span,
-		// and an anchor standing bare in none.
+		// in, as the rule reads it (record's gapSentenceIn) — the whole token inside one sentence span.
 		if rerr != nil {
 			continue
 		}
-		if i, ok := sentenceIndexOf(report, spans, bare, g.ID); ok {
+		if i, ok := sentenceIndexOf(report, spans, g.ID); ok {
 			k := recordpb.Word(g.Mint.GetClass()) + "@" + strconv.Itoa(i)
 			if perClassSentence[k] == nil {
 				keys = append(keys, k)
@@ -517,12 +516,11 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 }
 
 // sentenceIndexOf is the index in spans of the sentence gap id's token stands in, as the one-gap rule
-// reads it (record's gapSentenceIn): the whole token inside the span, and an anchor standing bare in
-// no sentence.
-func sentenceIndexOf(report string, spans [][2]int, bare []string, id string) (int, bool) {
+// reads it (record's gapSentenceIn): the whole token inside the span.
+func sentenceIndexOf(report string, spans [][2]int, id string) (int, bool) {
 	tok := anchor.Token(id)
 	at := strings.Index(report, tok)
-	if at < 0 || slices.Contains(bare, id) {
+	if at < 0 {
 		return 0, false
 	}
 	for i, sp := range spans {

@@ -26,15 +26,11 @@ import (
 // the method to, and its row prints none. The golden line per archive counts both: `carried` is the
 // inquiries whose method arrived on their fates, `dropped` the proposal-only ones whose method went.
 func TestTheProposalsMethodMovesToItsFates(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	var lines []string
 	carriedAll := 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		src := recordtest.RequireArchive(t, name)
 		printed, fated := archivedInquiryMethods(t, src)
 

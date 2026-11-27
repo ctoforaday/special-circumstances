@@ -39,7 +39,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -84,7 +84,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -255,7 +255,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed

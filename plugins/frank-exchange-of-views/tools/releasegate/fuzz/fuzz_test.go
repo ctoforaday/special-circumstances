@@ -335,6 +335,11 @@ type runner struct {
 	// back one layer down and buy nothing but a slower version of the old behaviour.
 	mu          sync.Mutex
 	bin, runDir string
+	// anchorOracle is the per-act oracles' replay of the report, behind a lock of its own
+	// (anchororacle_test.go).
+	anchorOracle anchorReplay
+	// drawnCuts numbers blue's drawn pure cuts of a cited sentence (drawnCitedCut).
+	drawnCuts int
 	// writer is the feov-sitting-write binary the hooks hand a sitting's harness-observed facts to:
 	// its envelope's admission at PostToolUse and its close at SubagentStop (dispatchReturns).
 	writer string
@@ -467,19 +472,29 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
-	// bareEvidenceRefused counts the edits the tool REFUSED for leaving an evidence anchor bare, its
-	// quote leaving the anchor out or carrying it (cutBaringEvidence). The sweep gates it at zero, and
-	// bareEvidenceSeed's run fails without one. bareEvidenceAdmittedErr is the first such edit the tool
-	// recorded, or refused without naming the anchor and its retire; it fails the run.
-	bareEvidenceRefused     int
-	bareEvidenceAdmittedErr string
-	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave a citation
-	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one.
+	// pureCutsRemoved counts the pure cuts of an evidenced sentence whose removed_anchors hold its
+	// anchors and whose report holds none of them after; proseDropRefused counts the rewrites of it the
+	// tool REFUSED for dropping an anchor, or for leaving one on no words (cutEvidencedClaim). The sweep
+	// gates each at zero, and evidencedCutSeed's run fails without them. evidencedCutErr is the first
+	// such rewrite the tool recorded, refused without naming the anchor, or a cut that did not take its
+	// anchors; it fails the run.
+	pureCutsRemoved, proseDropRefused int
+	evidencedCutErr                   string
+	// anchorRetiresKept counts blue's drawn retires that took one anchor off a sentence that stayed word
+	// for word; openMarkerRetiresRefused counts its drawn retires of an open gap's own marker, refused
+	// naming the gap (F14). The sweep gates each at zero.
+	anchorRetiresKept, openMarkerRetiresRefused int
+	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave an anchor
+	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one of
+	// each kind (mintBareKinds).
 	// mintBareAdmittedErr is the first such mint the tool recorded, or refused without saying so; it
 	// fails the run. mintBareOther is the first other refusal the drive met, which a run that never
 	// counts one names.
 	mintBareRefused                    int
 	mintBareAdmittedErr, mintBareOther string
+	// mintBareKinds is the anchor kinds whose bare prescription the tool refused; mintBareSeed's run
+	// fails without every kind (anchor.Kinds).
+	mintBareKinds map[string]bool
 	// sourceSearches counts the source searches whose hits round-tripped through `cite --source-span`
 	// (sourceSearchCited). The sweep gates it at zero. sourceSearchErr is the first search that was
 	// refused, found nothing, or printed a hit whose source_span is not the span cite took; it fails
@@ -573,6 +588,9 @@ type runner struct {
 	bridgeAdmittedErr            string
 	// quoteDrives counts the lens drives that reached sourceQuoteRefused, which fires on every seventh.
 	quoteDrives int
+	// pagelessPageDriven is whether the citation owner's `verify --page` on a citation with no pages
+	// has been refused in this run (pagelessPageRefused).
+	pagelessPageDriven bool
 	// repeatsRefused counts the second acts the tool refused in a sitting that holds one — a
 	// position, a closing on a gap — each naming the act that answers the first. The sweep gates
 	// it at zero.
@@ -859,8 +877,8 @@ type runner struct {
 	composedGap, composedInquiry                  string
 	composedAnswered                              bool
 	composedHanded, composedGaps, composedAnswers int
-	// forceBareEvidence drives cutBaringEvidence on bareEvidenceSeed's run, once.
-	forceBareEvidence, bareEvidenceDriven bool
+	// forceEvidencedCut drives cutEvidencedClaim on evidencedCutSeed's run, once.
+	forceEvidencedCut, evidencedCutDriven bool
 	// forceMintBare drives citeForBareMint and then mintBaringCitation on mintBareSeed's run;
 	// mintBareCited is whether blue's half has fired, and mintBareDriving holds the lens's half to one
 	// sitting at a time.
@@ -2395,6 +2413,8 @@ func (r *runner) execCall(agent string, owed bool, args ...string) (string, erro
 	if seat != "" {
 		r.handNext(seat, agent)
 	}
+	// THE ANCHOR ORACLES JUDGE THE RECORD AFTER EVERY ACT IT ADMITTED (anchororacle_test.go).
+	r.anchorOracles()
 	if r.forceOwedComputation && seat == computationOwner {
 		r.countOwnerAct(args)
 	}
@@ -3134,22 +3154,74 @@ func (r *runner) someCitation() string {
 	if !ok {
 		return ""
 	}
-	// A RETIRED CITATION IS NOT IN THE REPORT, and verify refuses it by design (it holds no sentence
-	// to read the source against); the reading drive expects its verify admitted, so it skips those.
-	// A FORCED CHAIN'S CITATION IS THE CHAIN'S (forcedChainCitation).
+	live := r.liveCitations(b)
+	if len(live) == 0 {
+		return ""
+	}
+	return live[r.rng.Intn(len(live))]
+}
+
+// liveCitations is the citations on board b a lens may verify, in the record's order: none retired —
+// a retired citation is not in the report, and verify refuses it by design (it holds no sentence to
+// read the source against) — and none a forced chain's (forcedChainCitation). It draws nothing.
+func (r *runner) liveCitations(b record.Family) []string {
 	var live []string
 	for _, src := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if r.forcedChainCitation(src.Anchor) {
 			continue
 		}
-		if _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
+		if _, retired, err := record.AnchorRemovedAt(r.run(), src.Anchor); err == nil && !retired {
 			live = append(live, src.Anchor)
 		}
 	}
-	if len(live) == 0 {
-		return ""
+	return live
+}
+
+// pagelessPageRefused drives the citation owner's `verify --page` on a citation with no pages, once a
+// run, and holds the tool to refusing it as a validation: --page names a page image, and no citation
+// this sweep writes has pages.
+//
+// IT IS FORCED AND DRAWS NOTHING. readCitation's one-in-ten --page sits behind drawsReading,
+// citationToVerify, a 70% coin and firstThisSitting, and an ordinary change to the drive's draws left
+// `lens verify --page` unpassed across a whole 40-run sweep. This arm needs only an evidence-lens
+// sitting while a live citation stands — every run's lens sittings reach it with no coin — and takes
+// the record's first live citation, so it moves no later draw of the run. It is retried each sitting
+// until the refusal lands, so a citation retired between the board read and the verify costs a sitting,
+// not the run's drive.
+func (r *runner) pagelessPageRefused(seatID string) {
+	if seatID != citationOwner {
+		return
 	}
-	return live[r.rng.Intn(len(live))]
+	r.mu.Lock()
+	done := r.pagelessPageDriven
+	r.mu.Unlock()
+	if done {
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	live := r.liveCitations(b)
+	if len(live) == 0 {
+		return
+	}
+	anchorID := live[0]
+	out, err := r.do("verify", seatID).set("--anchor", anchorID).set("--as", "supports").
+		set("--confidence", "high").set("--reason", "fuzz: the page image of a citation with no pages").
+		set("--page", "1").bare("--json").result()
+	switch env, enveloped := refusalEnvelopeIn(out); {
+	case err == nil:
+		r.noteActErr("verify --page on a source with no pages was admitted: " + firstLine(out))
+	case r.retiredUnderTheDraw(anchorID, out):
+		// BLUE RETIRED THE CITATION BETWEEN THE BOARD READ AND THE VERIFY: the next sitting tries again.
+	case !enveloped || env.Code != string(feov.Validation):
+		r.noteActErr("verify --page on a source with no pages refused without a validation envelope: " + firstLine(out))
+	default:
+		r.mu.Lock()
+		r.pagelessPageDriven = true
+		r.mu.Unlock()
+	}
 }
 
 // citationToVerify is the citation seatID's reading drive verifies, or "" where it verifies none: the
@@ -3275,7 +3347,7 @@ func (r *runner) forcedChainComputation(anchor string) bool {
 // at a later sitting: the reading-debt chain's (chainCitation), and readingRemovalSeed's five until its
 // lens's driven sitting (driveRemovalMints). The drawn drives leave such a citation alone — no drawn
 // reading or `--cites` takes it (someCitation, citationToVerify), no drawn gap names it (aboutAnchor),
-// no drawn retire names it (anchorsLeftFor), and its owed check reads it `supports`, never
+// no drawn retire names it (drawnRetireAnchor), and its owed check reads it `supports`, never
 // `unreachable` — since each of those can end with blue retiring it or a gap standing about it, and
 // the chain's act on it is then refused or finds no sentence to read. CI runs 42987990503 and
 // 42986903879 (seed 25): the anchor arm found its citation retired before the lens's driven sitting.
@@ -3461,17 +3533,18 @@ func (r *runner) citeAbsentSpan(seatID string) {
 	r.citeSpanRefused(seatID, out, err)
 }
 
-// cutBaringEvidence is the forced drive of bareEvidenceSeed's run, one evidenced claim out of the
-// report as a seat takes it: blue adds a sentence and computes it; a cut whose quote stops before the
-// computation's anchor, and a cut carrying it, would each leave it bare, and each is refused and
-// changes nothing; the computation's retire alone takes the anchor out and keeps the sentence; and an
-// edit then cuts the sentence as prose. The report ends as it stood. It draws nothing from the run's
-// RNG.
-func (r *runner) cutBaringEvidence(seatID string) {
+// cutEvidencedClaim is the forced drive of evidencedCutSeed's run, one evidenced claim out of the
+// report as a seat takes it: blue adds a sentence and computes it. A rewrite of the sentence that drops
+// the computation's anchor, and one that leaves it on no words, are each refused naming it and change
+// nothing (proseDropRefused); a pure cut of the whole sentence lands, records the anchor in its
+// removed_anchors, and leaves no token of it in the report (pureCutsRemoved). No computation outside the
+// cut applies anything the cut takes, so L6 has nothing to refuse (cutCitingFirst is the drawn twin).
+// It draws nothing from the run's RNG.
+func (r *runner) cutEvidencedClaim(seatID string) {
 	r.mu.Lock()
-	due := r.forceBareEvidence && !r.bareEvidenceDriven && seatID == "blue-respond"
+	due := r.forceEvidencedCut && !r.evidencedCutDriven && seatID == "blue-respond"
 	if due {
-		r.bareEvidenceDriven = true
+		r.evidencedCutDriven = true
 	}
 	r.mu.Unlock()
 	if !due {
@@ -3480,50 +3553,65 @@ func (r *runner) cutBaringEvidence(seatID string) {
 	const open, claim = "Whether the trend outlasts the sample", "Whether the forced claim stands"
 	r.do("edit", seatID).set("--quote", open).set("--new", open+". "+claim).
 		set("--reason", "fuzz: a claim added to be taken out").admit()
-	dir, argv, err := r.writeBundle("fuzz-bare-evidence.js", "console.log('fuzz: the claim that leaves');")
+	dir, argv, err := r.writeBundle("fuzz-evidenced-cut.js", "console.log('fuzz: the claim that leaves');")
 	if err != nil {
 		return
 	}
 	if _, ok := r.do("compute", seatID).set("--quote", claim).set("--dir", dir).
-		set("--reason", "fuzz: the anchor the cut would leave bare").runs(argv).admit(); !ok {
+		set("--reason", "fuzz: the anchor that leaves with its sentence").runs(argv).admit(); !ok {
 		return
 	}
 	k := lastComputationOn(r.run(), claim)
-	before, err := record.RenderRun(r.run())
-	if err != nil {
-		r.noteActErr("the report could not be rendered for bareEvidenceSeed's cut: " + err.Error())
-		return
-	}
-	run := abuttingRun(before, claim)
-	for _, cut := range []*cmd{
-		r.do("edit", seatID).set("--quote", claim).set("--new", ""),
-		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run),
-	} {
-		out, err := cut.set("--reason", "fuzz: the claim cannot stand").result()
-		after, _ := record.RenderRun(r.run())
+	fail := func(why string) {
 		r.mu.Lock()
-		switch {
-		case err == nil || after != before:
-			if r.bareEvidenceAdmittedErr == "" {
-				r.bareEvidenceAdmittedErr = seatID + " left a computation's anchor bare and the edit was recorded: " + firstLine(out)
-			}
-		case k == "" || !strings.Contains(out, "computation "+k+" standing bare") || !strings.Contains(out, "retire --anchor"):
-			if r.bareEvidenceAdmittedErr == "" {
-				r.bareEvidenceAdmittedErr = seatID + "'s cut baring computation " + k + " was refused without naming it and its retire: " + firstLine(out)
-			}
-		default:
-			r.bareEvidenceRefused++
+		if r.evidencedCutErr == "" {
+			r.evidencedCutErr = why
 		}
 		r.mu.Unlock()
 	}
-	if k == "" {
+	before, err := record.RenderRun(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered for evidencedCutSeed's cut: " + err.Error())
 		return
 	}
-	if _, ok := r.do("retire", seatID).set("--anchor", k).set("--reason", "fuzz: the computation leaves its sentence").admit(); !ok {
+	run := abuttingRun(before, claim)
+	if k == "" || !strings.Contains(run, anchor.Token(k)) {
+		fail(seatID + "'s computation of the forced claim does not stand at its end: " + run)
 		return
 	}
-	r.do("edit", seatID).set("--quote", open+". "+claim).set("--new", open).
-		set("--reason", "fuzz: the claim cannot stand").admit()
+	for _, drop := range []*cmd{
+		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", "Whether the forced claim holds."),
+		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run),
+	} {
+		out, err := drop.set("--reason", "fuzz: the claim is reworded").result()
+		after, _ := record.RenderRun(r.run())
+		switch {
+		case err == nil || after != before:
+			fail(seatID + " dropped computation " + k + "'s anchor from its sentence, or left it on no words, and the edit was recorded: " + firstLine(out))
+		case !strings.Contains(out, k):
+			fail(seatID + "'s rewrite dropping computation " + k + " was refused without naming it: " + firstLine(out))
+		default:
+			r.mu.Lock()
+			r.proseDropRefused++
+			r.mu.Unlock()
+		}
+	}
+	if _, ok := r.do("edit", seatID).set("--quote", claim+run+".").set("--new", "").
+		set("--reason", "fuzz: the claim cannot stand").admit(); !ok {
+		return
+	}
+	after, err := record.RenderRun(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered after evidencedCutSeed's cut: " + err.Error())
+		return
+	}
+	if rm, found, err := record.AnchorRemovedAt(r.run(), k); err != nil || !found || rm.By != record.RemovedByEdit || strings.Contains(after, anchor.Token(k)) {
+		fail(fmt.Sprintf("%s's pure cut of the forced claim did not take computation %s: anchor_removal %+v (found %v, %v)", seatID, k, rm, found, err))
+		return
+	}
+	r.mu.Lock()
+	r.pureCutsRemoved++
+	r.mu.Unlock()
 }
 
 // computationsCiting are the computations still in the report that name citation as their method
@@ -3539,7 +3627,7 @@ func computationsCiting(run record.Run, citation string) []string {
 		if !ok || c.GetCites() != citation || slices.Contains(out, c.GetComputationId()) {
 			continue
 		}
-		if _, retired, err := record.AnchorRetiredAt(run, c.GetComputationId()); err == nil && !retired {
+		if _, retired, err := record.AnchorRemovedAt(run, c.GetComputationId()); err == nil && !retired {
 			out = append(out, c.GetComputationId())
 		}
 	}
@@ -3578,6 +3666,122 @@ func (r *runner) retireCitingFirst(seatID, citation string) bool {
 	return true
 }
 
+// cutCitingFirst is blue's pure cut of the whole sentences quote reads off the report as it stands,
+// answering gap where it is set: the cut's twin of retireCitingFirst (L6). While a computation outside
+// the cut applies a citation the cut takes, the cut is refused naming each such computation and its
+// sentences stay; blue then retires each by its anchor, and the same cut lands. A computation the cut
+// takes with the citation is no bar (ruling Same-act L6). It returns the anchors the cut recorded as
+// removed, or why it did not land; a refused cut that was recorded, or one refused without naming a
+// computation that applies the citation, fails the run.
+//
+// THE QUOTE IS READ AGAIN BEFORE EACH CUT: seats sit concurrently, and a lens's marker can land on the
+// sentence between the refused cut and the one that lands.
+func (r *runner) cutCitingFirst(seatID string, quoteOf func() (string, string), gap string) (removed []string, why string) {
+	quote, why := quoteOf()
+	if quote == "" {
+		return nil, why
+	}
+	var citing []string
+	for _, c := range anchor.IDs(quote) {
+		if anchor.Kind(c) != "citation" {
+			continue
+		}
+		for _, k := range computationsCiting(r.run(), c) {
+			if !strings.Contains(quote, anchor.Token(k)) && !slices.Contains(citing, k) {
+				citing = append(citing, k)
+			}
+		}
+	}
+	cut := func(quote string) *cmd {
+		c := r.do("edit", seatID).set("--quote", quote).set("--new", "").set("--reason", "fuzz: the claim cannot stand")
+		if gap != "" {
+			c.set("--answers", gap)
+		}
+		return c
+	}
+	if len(citing) > 0 {
+		out, err := cut(quote).result()
+		if err == nil {
+			why := "blue's pure cut of " + quote + " took a citation computation " + citing[0] + " applies, and the cut was recorded"
+			r.noteActErr(why)
+			return nil, why
+		}
+		for _, k := range citing {
+			if !strings.Contains(out, k) {
+				why := "blue's pure cut of " + quote + " was refused without naming computation " + k + ", which applies a citation it takes: " + firstLine(out)
+				r.noteActErr(why)
+				return nil, why
+			}
+		}
+		r.countLifecycle(func(c *lifecycleCounts) { c.citedCutsRefused++ })
+		for _, k := range citing {
+			if !r.lifecycleRetire(seatID, k, "") {
+				return nil, "blue's retire of " + k + ", the computation applying a citation the cut takes, was refused"
+			}
+		}
+		if quote, why = quoteOf(); quote == "" {
+			return nil, why
+		}
+	}
+	if out, ok := cut(quote).admit(); !ok {
+		return nil, "blue's pure cut of " + quote + " was refused: " + firstLine(out)
+	}
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return nil, "the record could not be read after the cut: " + err.Error()
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); ok {
+			return be.GetRemovedAnchors(), ""
+		}
+	}
+	return nil, "the record holds no edit after blue's cut of " + quote
+}
+
+// drawnCitedCut is blue's drawn pure cut of a cited sentence (citedCut), the citation applied by a
+// computation on another sentence one time in two. OWEDCOMPUTATIONSEED'S BLUE PROVES ONLY computeOwed's
+// (execCall refuses any other computation there), so its cut is never of an applied citation.
+func (r *runner) drawnCitedCut(seatID string) {
+	r.citedCut(seatID, !r.forceOwedComputation && r.coin(50))
+}
+
+// citedCut is a pure cut of a cited sentence, through cutCitingFirst: blue adds two sentences of its
+// own after sourceDemandOpen and cites the first; where applied, it computes on the second applying
+// that citation, so the cut of the first is refused naming the computation, which blue retires before
+// the cut lands. The sentences are the draw's own, numbered, so no other drive quotes them and no
+// seeded sentence another drive rests on is cut. The cut takes the citation (removed_anchors).
+func (r *runner) citedCut(seatID string, applied bool) {
+	r.mu.Lock()
+	r.drawnCuts++
+	n := r.drawnCuts
+	r.mu.Unlock()
+	claim, other := fmt.Sprintf("The drawn cut claim %d holds", n), fmt.Sprintf("The drawn method claim %d holds", n)
+	if _, ok := r.do("edit", seatID).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+claim+". "+other).
+		set("--reason", "fuzz: two claims added, the first to be cut").admit(); !ok {
+		return
+	}
+	cite := r.lifecycleCite(seatID, claim, fmt.Sprintf("/drawn-cut-%d", n), "")
+	if cite == "" {
+		r.noteActErr("blue's citation of " + claim + " was refused")
+		return
+	}
+	if applied {
+		if k := r.lifecycleCompute(seatID, other, fmt.Sprintf("fuzz-drawn-method-%d.js", n), "", cite); k == "" {
+			r.noteActErr("blue's computation on " + other + " applying " + cite + " was refused")
+			return
+		}
+	}
+	// A LENS'S MARKER MAY LAND ON THE SENTENCE MEANWHILE (seats sit concurrently), and the cut takes it
+	// too: the drive asks only that the citation left with its sentence.
+	removed, why := r.lifecycleCut(seatID, claim, "")
+	switch {
+	case why != "":
+		r.noteActErr(why)
+	case !slices.Contains(removed, cite):
+		r.noteActErr(fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, which do not hold %s", claim, removed, cite))
+	}
+}
+
 // lastComputationOn is the computation last placed on claim, read off the record, or "".
 func lastComputationOn(run record.Run, claim string) string {
 	b, err := record.FamilyOf(run)
@@ -3592,12 +3796,13 @@ func lastComputationOn(run record.Run, claim string) string {
 	return ""
 }
 
-// mintBareClaim is the sentence mintBareSeed's run adds and cites, for a lens to prescribe away.
-const mintBareClaim = "Whether the cited claim stands"
+// mintBareClaim is the sentence mintBareSeed's run adds for an anchor of kind, for a lens to prescribe
+// away: one sentence per kind (anchor.Kinds), each carrying that kind's anchor alone.
+func mintBareClaim(kind string) string { return "Whether the " + kind + " anchor's claim stands" }
 
 // citeForBareMint is blue's half of mintBareSeed's forced run: blue-respond's first sitting adds a
-// sentence and cites it, so a lens can prescribe a fix that would leave the citation bare
-// (mintBaringCitation). It draws nothing from the run's RNG.
+// sentence per anchor kind and places blue's own kinds on theirs, a citation and a computation; the
+// lens's half places the finding and the gap (mintBaringCitation). It draws nothing from the run's RNG.
 func (r *runner) citeForBareMint(seatID string) {
 	r.mu.Lock()
 	due := r.forceMintBare && !r.mintBareCited && seatID == "blue-respond"
@@ -3609,21 +3814,31 @@ func (r *runner) citeForBareMint(seatID string) {
 		return
 	}
 	const open = "Whether the trend outlasts the sample"
-	if _, ok := r.do("edit", seatID).set("--quote", open).set("--new", open+". "+mintBareClaim).
-		set("--reason", "fuzz: a claim added to be cited").admit(); !ok {
+	var claims []string
+	for _, kind := range anchor.Kinds() {
+		claims = append(claims, mintBareClaim(kind))
+	}
+	if _, ok := r.do("edit", seatID).set("--quote", open).set("--new", open+". "+strings.Join(claims, ". ")).
+		set("--reason", "fuzz: claims added to carry an anchor each").admit(); !ok {
 		return
 	}
-	r.do("cite", seatID).set("--quote", mintBareClaim).set("--url", sourceURL("/blue-shared")).
+	r.do("cite", seatID).set("--quote", mintBareClaim("citation")).set("--url", sourceURL("/blue-shared")).
 		set("--title", sourceTitle).set("--source-span", sourceBody("/blue-shared")).admit()
+	if dir, argv, err := r.writeBundle("fuzz-bare-mint.js", "console.log('fuzz: the computation a fix would leave bare');"); err == nil {
+		r.do("compute", seatID).set("--quote", mintBareClaim("computation")).set("--dir", dir).
+			set("--reason", "fuzz: the computation a fix would leave bare").runs(argv).admit()
+	}
 }
 
-// mintBaringCitation is the lens's half of mintBareSeed's forced run: a lens sitting after blue cited
-// mintBareClaim prescribes the citation's token alone as the sentence's replacement, which blue's
-// accept would refuse for leaving the citation bare, and the mint must refuse it with the report
-// unchanged. A mint refused for anything else leaves the drive to the next lens sitting. It draws nothing from the run's RNG.
+// mintBaringCitation is the lens's half of mintBareSeed's forced run, over every anchor kind: a lens
+// sitting after blue's half places the kinds a lens places (a finding, and a gap of a class the
+// prescription does not mint), then on each kind's sentence prescribes that anchor's token alone as the
+// sentence's replacement. Blue's accept would leave the token on no words, so the mint must refuse it
+// naming the token, with the report unchanged (mintBareKinds, one per kind). A mint refused for anything
+// else leaves the kind to the next lens sitting. It draws nothing from the run's RNG.
 func (r *runner) mintBaringCitation(seatID string) {
 	r.mu.Lock()
-	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && r.mintBareRefused == 0 && r.mintBareAdmittedErr == ""
+	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && len(r.mintBareKinds) < len(anchor.Kinds()) && r.mintBareAdmittedErr == ""
 	if due {
 		r.mintBareDriving = true
 	}
@@ -3636,34 +3851,88 @@ func (r *runner) mintBaringCitation(seatID string) {
 		r.mintBareDriving = false
 		r.mu.Unlock()
 	}()
+	for _, kind := range anchor.Kinds() {
+		r.mu.Lock()
+		done := r.mintBareKinds[kind]
+		r.mu.Unlock()
+		if !done {
+			r.mintBaringKind(seatID, kind)
+		}
+	}
+}
+
+// mintBareAnchor is the anchor of kind standing at the end of its mintBareClaim sentence, or "".
+func mintBareAnchor(md, kind string) string {
+	for _, id := range anchor.IDs(abuttingRun(md, mintBareClaim(kind))) {
+		if anchor.Kind(id) == kind {
+			return id
+		}
+	}
+	return ""
+}
+
+// mintBaringKind is mintBaringCitation's drive of one kind: the lens places a finding or a gap where
+// the sentence holds none, then prescribes the kind's token alone.
+func (r *runner) mintBaringKind(seatID, kind string) {
+	claim := mintBareClaim(kind)
 	before, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
 		return
 	}
-	cite := ""
-	for _, id := range anchor.IDs(abuttingRun(before, mintBareClaim)) {
-		if anchor.Kind(id) == "citation" {
-			cite = id
+	id := mintBareAnchor(before, kind)
+	if id == "" {
+		switch kind {
+		case "finding":
+			r.do("finding", seatID).set("--quote", claim).set("--severity", "low").set("--likelihood", "low").
+				set("--impact", "low").set("--reason", "fuzz: the finding a fix would leave bare").admit()
+		case "gap":
+			// THE LENS KEEPS ITS GAP AS ITS OWN (noteMint), and closes it once its prescription is refused.
+			if g, why := r.lifecycleMint(seatID, "document", claim, "", "low", "--class", mintPoolClasses[1]); g == "" {
+				r.mu.Lock()
+				if r.mintBareOther == "" {
+					r.mintBareOther = seatID + " (gap): " + why
+				}
+				r.mu.Unlock()
+				return
+			}
+		default:
+			return // blue's half has not placed it
+		}
+		if before, err = record.RenderRun(r.run()); err != nil {
+			r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
+			return
+		}
+		if id = mintBareAnchor(before, kind); id == "" {
+			return
 		}
 	}
-	if cite == "" {
-		return // blue's cite has not landed on the sentence
-	}
-	out, err := r.do("mint", seatID).set("--quote", mintBareClaim).set("--new", anchor.Token(cite)+".").
+	out, err := r.do("mint", seatID).set("--quote", claim).set("--new", anchor.Token(id)+".").
 		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
-		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the citation bare").result()
+		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the "+kind+" anchor bare").result()
 	after, _ := record.RenderRun(r.run())
+	refused := false
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	switch {
 	case err == nil || after != before:
-		r.mintBareAdmittedErr = seatID + " minted a prescription leaving citation " + cite + " bare: " + firstLine(out)
-	case strings.Contains(out, "--new would leave citation "+cite+" standing bare"):
+		r.mintBareAdmittedErr = seatID + " minted a prescription leaving " + kind + " anchor " + id + " bare: " + firstLine(out)
+	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(id)) && strings.Contains(out, "standing bare"):
+		refused = true
 		r.mintBareRefused++
+		if r.mintBareKinds == nil {
+			r.mintBareKinds = map[string]bool{}
+		}
+		r.mintBareKinds[kind] = true
 	case r.mintBareOther == "":
-		r.mintBareOther = seatID + ": " + firstLine(out)
+		r.mintBareOther = seatID + " (" + kind + "): " + firstLine(out)
+	}
+	r.mu.Unlock()
+	// THE LENS CLOSES THE GAP IT PLACED once its prescription is refused. A close another seat's
+	// concurrent change refuses leaves the gap the lens's own (noteMint), for its later sittings.
+	if refused && kind == "gap" {
+		_, closed := r.lifecycleClose(seatID, id)
+		noteEither([]string{"close"}, "the bare-prescription seed's gap, closed in its minting sitting", closed)
 	}
 }
 
@@ -5685,7 +5954,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.forcedReadingRemoval(seatID)
 		// BLUE'S REMEDIES OF THE READING DEBTS STANDING: a citation retired, an uncited sentence cited.
 		r.remedyReadingDebts(seatID)
-		r.cutBaringEvidence(seatID)
+		r.cutEvidencedClaim(seatID)
 		r.citeForBareMint(seatID)
 		r.forcedLifecycle(seatID)
 		r.forcedStaleness(seatID)
@@ -5880,41 +6149,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			pv.admit()
 		})
-		r.maybe(30, func() {
-			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
-			// string that was never in the report — 45 times a sweep. A phantom retire is not
-			// merely uninformative: the changelog lists every retirement as a claim that left the
-			// report, so retiring something that was never there tells the reader of a removal
-			// the report never had.
-			//
-			// A real retirement names text a recorded edit took out, which is what makes the
-			// removal something the record can SHOW rather than something a seat says.
-			if claim := r.recentlyEditedOut(); claim != "" {
-				rt := r.do("retire", seatID).set("--quote", claim).set("--reason", "fuzz: the claim went with the edit").
-					on(50, "--new", "fuzz replacement claim")
-				// A MARKER THE CUT LEFT INSIDE A SENTENCE is named, so --anchor runs through its
-				// validation — accepted when the edit left that marker alone, refused otherwise.
-				id, left := r.anchorsLeftFor(claim)
-				switch {
-				case id == "" || !r.coin(60):
-					rt.admit()
-				case left && len(computationsCiting(r.run(), id)) == 0:
-					rt.set("--anchor", id).admit()
-				default:
-					// A MARKER DRAWN FROM THE WHOLE REPORT is admitted where it stands bare where the
-					// claim was and refused elsewhere, which is the draw's call; a refused one is
-					// followed by the same retire without it, which is admitted. So is a citation the
-					// cut left that a computation still applies: the retire taking it is refused (L6).
-					bare := append([]string(nil), rt.args...)
-					if _, err := rt.set("--anchor", id).result(); err != nil {
-						r.admit(bare...)
-						noteEither([]string{"retire"}, "a marker drawn from the whole report", false)
-					} else {
-						noteEither([]string{"retire"}, "a marker drawn from the whole report", true)
-					}
-				}
-			}
-		})
+		r.maybe(30, func() { r.retireDrawnAnchor(seatID) })
+		// BLUE'S DRAWN PURE CUT OF A CITED SENTENCE goes through cutCitingFirst (L6).
+		r.maybe(10, func() { r.drawnCitedCut(seatID) })
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
@@ -6562,6 +6799,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
+				r.pagelessPageRefused(seatID)
 				// A LENS RUNS OUT OF SOURCES TO READ, as it runs out of defects (drawsReading): past its
 				// stock of drawn readings a sitting reads only what it owes, so it can be barren and retire.
 				if r.drawsReading(seatID) {
@@ -6799,9 +7037,9 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
-	// bareEvidenceRefused is the edits the tool refused for leaving an evidence anchor bare
-	// (runner.bareEvidenceRefused).
-	bareEvidenceRefused int
+	// pureCutsRemoved, proseDropRefused, anchorRetiresKept and openMarkerRetiresRefused are the
+	// runner's counts of the same names.
+	pureCutsRemoved, proseDropRefused, anchorRetiresKept, openMarkerRetiresRefused int
 	// mintBareRefused is the mints the tool refused for a prescription that would leave a citation
 	// bare (runner.mintBareRefused).
 	mintBareRefused int
@@ -7027,6 +7265,9 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// THE ACT FIRST: an act answered otherwise than expected is the cause of whatever the run did
 	// next, so it leads the failure and what followed from it trails.
 	defer func() {
+		// THE ANCHOR ORACLES JUDGE THE RECORD AS THE DEBATE LEFT IT: the engine's own writes after a
+		// seat's last act reach no execCall.
+		r.anchorOracles()
 		r.mu.Lock()
 		act := r.actErr
 		r.mu.Unlock()
@@ -7365,12 +7606,13 @@ const unsoundComputationName = "fuzz-unsound-computation.js"
 // in a hundred draw a bogus span, so a run of fifteen draws three about one time in eight, and a
 // sweep where no run does reads ZERO.
 
-// bareEvidenceSeed is the seed whose run is FORCED to cut an evidenced claim, leaving its computation's
-// anchor bare (forceBareEvidence). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
+// evidencedCutSeed is the seed whose run is FORCED to take an evidenced claim out of the report
+// (forceEvidencedCut): rewrites that drop its computation's anchor, refused, and the pure cut that takes
+// it. No drawn edit cuts a whole evidenced sentence or drops an anchor from one, so neither has another
 // reach. It is none of the other forced seeds.
 
-// mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
-// (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
+// mintBareSeed is the seed whose run is FORCED to mint, for each anchor kind, a prescription that would
+// leave an anchor of it bare (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
 // it, so none leaves an anchor bare, and the refusal has no other reach. It is none of the forced
 // seeds before it.
 
@@ -7424,7 +7666,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceReadingDebt = seed == readingDebtSeed
 	r.forceReadingRemoval = seed == readingRemovalSeed
-	r.forceBareEvidence = seed == bareEvidenceSeed
+	r.forceEvidencedCut = seed == evidencedCutSeed
 	r.forceFateTurn = seed == fateTurnSeed
 	r.forceBlueFails = seed == blueFailsSeed
 	r.forceMintBare = seed == mintBareSeed
@@ -7529,8 +7771,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "source span: " + r.spanAdmittedErr
 		return res
 	}
-	if r.bareEvidenceAdmittedErr != "" {
-		res.err = "bare evidence anchor: " + r.bareEvidenceAdmittedErr
+	if r.evidencedCutErr != "" {
+		res.err = "evidenced cut: " + r.evidencedCutErr
 		return res
 	}
 	if r.mintBareAdmittedErr != "" {
@@ -8090,30 +8332,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 
-	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
-	// `asserted` retire means either the fake regressed to phantom retirements or the
-	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
-	// scorecard's additive-integrity detector, so it must not pass unnoticed here either. A
-	// citation retired from a sentence that stays (claim_kept) removes no claim, so it carries no
-	// removal basis, and one that names a basis says a claim left that did not.
-	{
-		for _, e := range board.Events {
-			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
-			if ok && r.GetClaimKept() {
-				if r.GetRemovalBasis() != "" {
-					res.err = "a citation retired from a sentence that stays recorded removal_basis=" + r.GetRemovalBasis() + " — its claim did not leave the report"
-					return res
-				}
-				continue
-			}
-			if ok && r.GetRemovalBasis() != record.RemovalVerified {
-				res.err = "a retire recorded removal_basis=" + r.GetRemovalBasis() +
-					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
-				return res
-			}
-		}
-	}
-
 	// AN ASSERTED VERDICT IS EITHER UNVERIFIED OR A BROKEN DERIVATION, and this is the tripwire
 	// that keeps the second from hiding behind the first.
 	//
@@ -8249,6 +8467,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if msg != "" && res.err == "" {
 			res.err = msg
 		}
+		// EVERY RETIRE KEPT ITS SENTENCE, held at the retire's own event (retiresKeepSentences).
+		if _, msg := retiresKeepSentences(oracleRun, fam); msg != "" && res.err == "" {
+			res.err = msg
+		}
 		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps).
 		stamps, msg := checkSpotCheckStamps(fam)
 		res.spotChecksNamed, res.spotChecksStamped, res.spotChecksWithChanges = stamps.named, stamps.stamped, stamps.withChanges
@@ -8285,7 +8507,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
-	res.bareEvidenceRefused = r.bareEvidenceRefused
+	res.pureCutsRemoved, res.proseDropRefused = r.pureCutsRemoved, r.proseDropRefused
+	res.anchorRetiresKept, res.openMarkerRetiresRefused = r.anchorRetiresKept, r.openMarkerRetiresRefused
 	res.mintBareRefused = r.mintBareRefused
 	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
@@ -8358,9 +8581,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err += "; no blue sitting reached the cite"
 		}
 	}
-	if r.forceBareEvidence && r.bareEvidenceRefused == 0 && res.err == "" {
-		res.err = "forced bare evidence anchor: no edit leaving a computation's anchor bare was refused"
-		if !r.bareEvidenceDriven {
+	if r.forceEvidencedCut && (r.pureCutsRemoved == 0 || r.proseDropRefused == 0) && res.err == "" {
+		res.err = fmt.Sprintf("forced evidenced cut: %d pure cut(s) took the claim's anchors and %d rewrite(s) dropping one were refused, want both", r.pureCutsRemoved, r.proseDropRefused)
+		if !r.evidencedCutDriven {
 			res.err += "; blue-respond never sat"
 		}
 	}
@@ -8376,8 +8599,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.stalenessStage == stalenessDriven {
 		res.stalenessAnchor = r.stalenessAnchor
 	}
-	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {
-		res.err = "forced bare prescription: no mint prescribing a citation bare was refused"
+	if r.forceMintBare && len(r.mintBareKinds) < len(anchor.Kinds()) && res.err == "" {
+		res.err = fmt.Sprintf("forced bare prescription: the mints prescribing an anchor bare were refused for kinds %v of %v", slices.Sorted(maps.Keys(r.mintBareKinds)), anchor.Kinds())
 		switch {
 		case !r.mintBareCited:
 			res.err += "; blue-respond never sat"
@@ -8748,8 +8971,6 @@ var dialecticProseKey = map[string]string{
 	"inquiry": "question",
 
 	// The lens's below-the-bar work and the fate the chair gave it.
-	// Substance leaving the report, on the record, with its reason.
-	"retire": "claim",
 	// Run-level voices.
 	"halt": "opinion", "certify": "statement", "declare": "holding",
 	// The log: what a seat told the operator. It renders in run.md, beside the seats that sat
@@ -8768,6 +8989,7 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
+	"retire":      "an anchor taken off a sentence that stays: an anchor change goes to the work lists, never a section of the set (RULINGS.md 11-20, ruling 1; plans/constitution-gaps.md §III.10c), and its claim is the tool's stamp of that sentence, which the report carries until an edit rewrites it and editHistory renders the edit — that the retire kept its sentence is held at its own event (retiresKeepSentences)",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
@@ -8823,8 +9045,6 @@ var basisFields = []struct{ evType, key, value, want string }{
 	{"outcome", "verdict_basis", "asserted", "asserted by the bench"},
 	{"mint", "fix_basis", "verified", "with the text in front of it"},
 	{"mint", "fix_basis", "proposed", "nothing checked this demand"},
-	{"retire", "removal_basis", "verified", "the record shows it leaving"},
-	{"retire", "removal_basis", "asserted", "nothing on the record shows it was ever present"},
 	// A computation's basis was already rendered before this gate existed (evidence.md prints it
 	// with an explanation of reproducible vs variant). It is here so the coverage is stated rather
 	// than assumed — the one that was fine is the easiest to break unnoticed.
@@ -8933,7 +9153,7 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		}
 		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
 		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
-		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
+		// anchor a prescription carried is not prose — and, where the
 		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
 		// space, and as a reader reads them (asRead). A token the weave turns into a note is read as
 		// the note reference it ships as (wovenAsNotes, shipsWoven).
@@ -9336,7 +9556,7 @@ func someReportAnchor(run record.Run) string {
 	}
 	for _, e := range b.Events {
 		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
-			if _, retired, err := record.AnchorRetiredAt(run, a.GetId()); err != nil || retired {
+			if _, retired, err := record.AnchorRemovedAt(run, a.GetId()); err != nil || retired {
 				continue
 			}
 			return a.GetId()
@@ -9377,73 +9597,116 @@ func mintedGapIDs(run record.Run) []string {
 // is part of what is tested: if required_fix stopped surviving a mint, every seat would
 // silently revert to coin-flip behaviour and the oracle would catch it.
 
-// recentlyEditedOut returns text a recorded edit removed and which is absent from the report
-// now — a claim whose retirement the record can evidence.
-func (r *runner) recentlyEditedOut() string {
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
-		return ""
+// retireDrawnAnchor is blue's drawn retire: one anchor drawn from the report, of any kind, taken off a
+// sentence that stays word for word. A retire takes one anchor and no text; a claim leaves only by a cut.
+// An open gap's own marker is refused naming the gap (F14, openMarkerRetiresRefused). A citation a live
+// computation applies goes after those computations (L6, retireCitingFirst). Any other lands, and the
+// report after it is the report before it less that one token (anchorRetiresKept).
+func (r *runner) retireDrawnAnchor(seatID string) {
+	if id := r.drawnRetireAnchor(); id != "" {
+		r.retireOneAnchor(seatID, id)
 	}
-	cur, err := record.RenderRun(r.run())
-	if err != nil {
-		return ""
-	}
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		e := b.Events[i]
-		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok {
-			continue
-		}
-		old := be.GetOld()
-		if old != "" && !strings.Contains(string(cur), old) {
-			return old
-		}
-	}
-	return ""
 }
 
-// anchorsLeftFor names a marker for a retire's --anchor: one the edit that took claim out left in
-// its place, when it still stands; else any marker the report holds, so the flag is driven through
-// its validation on every retire the sweep makes — accepted or refused, never unpassed.
-//
-// left says which: true for a marker the edit left, false for one drawn from the whole report.
-func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
-		return "", false
+// retireOneAnchor is retireDrawnAnchor's retire of id.
+func (r *runner) retireOneAnchor(seatID, id string) {
+	reason := "fuzz: the anchor cannot stand on its sentence"
+	if anchor.Kind(id) == "gap" && slices.Contains(r.openGaps(), id) {
+		out, err := r.do("retire", seatID).set("--anchor", id).set("--reason", reason).result()
+		if err == nil || !strings.Contains(out, id) {
+			r.noteActErr("blue's retire of open gap " + id + "'s own marker was not refused naming it (F14): " + firstLine(out))
+			return
+		}
+		r.mu.Lock()
+		r.openMarkerRetiresRefused++
+		r.mu.Unlock()
+		return
 	}
+	if strings.HasPrefix(id, anchorPrefix["citation"]) && !r.retireCitingFirst(seatID, id) {
+		return
+	}
+	before, err := record.RenderRun(r.run())
+	if err != nil {
+		return
+	}
+	if _, ok := r.do("retire", seatID).set("--anchor", id).set("--reason", reason).admit(); !ok {
+		return
+	}
+	after, err := record.RenderRun(r.run())
+	if err != nil {
+		return
+	}
+	if want := strings.Replace(before, anchor.Token(id), "", 1); after != want {
+		r.noteActErr("blue's retire of " + id + " changed the report beyond taking its token off its sentence")
+		return
+	}
+	r.mu.Lock()
+	r.anchorRetiresKept++
+	r.mu.Unlock()
+}
+
+// drawnRetireAnchor names the anchor blue's drawn retire takes: any the report holds, so --anchor is
+// driven through its validation on every retire the sweep makes.
+//
+// THE ESTOPPEL SEED KEEPS ITS APPLIED GAPS' TOKENS. A retire naming a gap's token takes it out of the
+// report for good, and a gap with no token is never reopened: it estops to the run's end while blue's
+// later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds no applied
+// text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs drive the
+// retire of a gap token; this one holds its precondition. NO FORCED ARM'S ANCHOR IS EVER THE DRAWN
+// RETIRE'S (forcedArmAnchor).
+func (r *runner) drawnRetireAnchor() string {
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
-		return "", false
-	}
-	// THE ESTOPPEL SEED KEEPS ITS APPLIED GAPS' TOKENS. A retire naming a gap's token takes it out of
-	// the report for good, and a gap with no token is never reopened: it estops to the run's end while
-	// blue's later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds
-	// no applied text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs
-	// drive the retire of a gap token; this one holds its precondition.
-	// A FORCED CHAIN'S CITATION IS NEVER THE DRAWN RETIRE'S (forcedChainCitation).
-	keeps := func(id string) bool { return !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedChainCitation(id) }
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
-		if !ok || be.GetOld() != claim {
-			continue
-		}
-		for _, id := range anchor.IDs(be.GetNew()) {
-			if strings.Contains(string(cur), anchor.Token(id)) && keeps(id) {
-				return id, true
-			}
-		}
+		return ""
 	}
 	var ids []string
 	for _, id := range anchor.IDs(string(cur)) {
-		if keeps(id) {
+		if !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedArmAnchor(cur, id) {
 			ids = append(ids, id)
 		}
 	}
-	if len(ids) > 0 {
-		return ids[r.rng.Intn(len(ids))], false
+	if len(ids) == 0 {
+		return ""
 	}
-	return "", false
+	return ids[r.rng.Intn(len(ids))]
+}
+
+// forcedArmAnchor is whether id, an anchor of report cur, is one a forced arm placed and acts on, or
+// needs standing, at a later sitting or at the run's end. NO DRAWN RETIRE TAKES ONE: it would leave
+// the arm nothing to act on — a seam with nothing to forge, a chain with no computation to judge, a
+// screen with no unsound computation to fail. Each arm and what it holds:
+//   - a forced chain's citation (forcedChainCitation) and computation (forcedChainComputation);
+//   - the staleness arm's computation, whose judgement the seam forges standing at the run's end
+//     (stalenessAnchor; CI run 45967095843, seed 21);
+//   - owedComputationSeed's computations, every one of the run's (computeOwed), owed until its owner sits;
+//   - the limit seed's unsound computation and refuted citation, which the run must end on (screenAtLimit);
+//   - mintBareSeed's anchors at the end of their sentences, which the lens's prescription then bares
+//     (mintBaringKind).
+func (r *runner) forcedArmAnchor(cur, id string) bool {
+	if r.forcedChainCitation(id) || r.forcedChainComputation(id) {
+		return true
+	}
+	r.mu.Lock()
+	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, []string{}
+	if r.forceScreenUnsound {
+		limit = append(limit, r.screenUnsoundComputation, r.limitDebtCite)
+	}
+	mintBare := r.forceMintBare
+	r.mu.Unlock()
+	switch {
+	case id == staleness, slices.Contains(limit, id):
+		return true
+	case owed && anchor.Kind(id) == "computation":
+		return true
+	}
+	if mintBare {
+		for _, kind := range anchor.Kinds() {
+			if mintBareAnchor(cur, kind) == id {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // settlingFates are the fates that settle an inquiry: an approach that ran and answered it, one

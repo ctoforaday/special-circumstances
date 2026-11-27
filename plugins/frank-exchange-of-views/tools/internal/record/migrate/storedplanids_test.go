@@ -278,7 +278,9 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 			delete(notLost, w)
 		}
 	}
-	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8}; !maps.Equal(notLost, want) {
+	// m28's 12 claim retires write none: the 11 that carry no anchor are lost acts, and 510's tokens
+	// are in the cuts that bared them, so it is no lost act (epoch 82).
+	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8, "retire": 1}; !maps.Equal(notLost, want) {
 		t.Errorf("m28's events that write none, less its lost acts %v: %v, want %v", migrate.LostByWord(res), notLost, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

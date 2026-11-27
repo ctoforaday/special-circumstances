@@ -12,6 +12,8 @@ A LANE'S, ONCE, BEFORE THE REPORT CHANGES. Only a lane of this run's cast record
 
 IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with `log` as a defect — a tooling failure no edit can fix, with no diff for you to apply.
 
+NO ANCHOR IN A PART. A part is prose: the tool places every anchor, after the part is recorded, and a part holding an anchor token of any kind is refused with nothing recorded. The file stands for you to take the token out.
+
 THE REPORT'S OWN SECTIONS ONLY. A part holds research sections under headings of its own. These are the synthesizer's to write, and a part that carries one is refused with nothing recorded: {{.PartSurfaces}}. The file stands for you to take that line and what stands under it out.
 
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {{.RefusedHeadings}}. A part that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is recorded: the file stands for you to fix. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does; and it lists every section assembly composes. {{.SubjectHeadingsNote}}

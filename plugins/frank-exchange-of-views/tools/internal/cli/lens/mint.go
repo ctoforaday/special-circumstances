@@ -442,10 +442,10 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 			"or %s; "+
 			"or leave --new off and state the fix as prose in --fix", at.subject, why, carry)
 	}
-	// The accept refuses a fix that leaves an anchor bare where no act could take it out
+	// The accept refuses a rewrite that leaves an anchor of any kind on a sentence with no words
 	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
-	if evidence, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(evidence)+len(leftOut) > 0 {
-		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, evidence, leftOut))
+	if bared := blue.BaredAnchors(placed, a.Planned); len(bared) > 0 {
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, bared))
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
@@ -461,40 +461,20 @@ func fixWhat(at gapPlace) string {
 	return "the quote"
 }
 
-// mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
-// evidence anchors, and the tokens of the other anchors --new does not carry. A reading's gap stands
-// on the sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal
-// offers no carry through a quote.
-func mintBaredRefusal(at gapPlace, evidence, leftOut []string) string {
-	var refusals []string
-	if len(evidence) > 0 {
-		what, it, its := blue.EvidenceNamed(evidence)
-		refusals = append(refusals, fmt.Sprintf(
-			"--new would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against, and blue's accept would refuse it. NOTHING IS RECORDED. "+
-				"Keep the sentence in --new; or, where the sentence is to go, leave --new off and state the fix as prose in --fix",
-			what, it, its, it))
+// mintBaredRefusal is the refusal of a prescription whose --new would leave these anchor tokens on a
+// sentence with no words. A prescription is a rewrite — the accept's replacement always carries the
+// gap's token — and an edit takes an anchor out only by cutting its whole sentence, so it names the two ways a fix
+// stands: words before every anchor, or the fix stated as prose. A reading's gap stands on the sentence
+// the tool reads by its citation's token, which the seat cannot widen.
+func mintBaredRefusal(at gapPlace, bared []string) string {
+	what, it, its := "anchor "+bared[0], "it", "its"
+	if len(bared) > 1 {
+		what, it, its = "anchors "+strings.Join(bared, ", "), "them", "their"
 	}
-	if len(leftOut) > 0 {
-		toks := strings.Join(leftOut, "")
-		what, it, its := "anchor "+leftOut[0], "it", "its"
-		if len(leftOut) > 1 {
-			what, it, its = "anchors "+strings.Join(leftOut, ", "), "them", "their"
-		}
-		if at.of != "" {
-			refusals = append(refusals, fmt.Sprintf(
-				"--new would leave %s standing bare — no prose before %s in %s sentence — and %s leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
-					"Keep a sentence before %s in --new; or leave --new off and state the fix as prose in --fix",
-				what, it, its, at.subject, it, it, it))
-		} else {
-			// The carry is the lens's own: a token written into --new beside the one the report keeps past
-			// the span would be a second copy, so --quote reaches it and --new writes it.
-			refusals = append(refusals, fmt.Sprintf(
-				"--new would leave %s standing bare — no prose before %s in %s sentence — and --quote leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
-					"Keep a sentence before %s in --new; or carry %s: end --quote with %s as `show report` prints it, and write %s into --new; or leave --new off and state the fix as prose in --fix",
-				what, it, its, it, it, it, it, toks, toks))
-		}
-	}
-	return strings.Join(refusals, " ")
+	return fmt.Sprintf(
+		"--new would leave %s standing bare — no prose before %s in %s sentence — and an anchor marks a sentence, so blue's accept would refuse it: an edit takes an anchor out only by cutting its whole sentence, and a fix is a rewrite. NOTHING IS RECORDED. "+
+			"Keep words before %s in --new, on %s; or leave --new off and state the fix as prose in --fix",
+		what, it, its, it, at.subject)
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

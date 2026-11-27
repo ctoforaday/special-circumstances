@@ -37,15 +37,11 @@ ORDER BY a."event_id"`
 // migrated run must agree on all four axes — and some regrade must carry forward an axis it did not
 // name, or the agreement never exercised the overlay, only the copy of the axes a regrade names.
 func TestTheStoredRegradeResultsAreTheOverlaidOnesOnEveryArchivedRun(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	axes := [4]string{"severity", "likelihood", "impact", "complexity_cost"}
 	var regrades, carried int
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			_, runDir := migrate.MigratedArchive(t, name)
 			db, err := sql.Open("sqlite", "file:"+filepath.Join(runDir, "records", "record.db")+"?mode=ro")

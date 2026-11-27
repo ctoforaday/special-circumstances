@@ -58,7 +58,7 @@ func TestARetireIsFirstAndPermanentForEveryReader(t *testing.T) {
 		if err := db.QueryRow(`SELECT COALESCE("retired_event", 0) FROM "evidence_anchor" WHERE "anchor_id" = ?`, a).Scan(&view); err != nil || view != first[a] {
 			t.Errorf("evidence_anchor's retire of %s = %d (%v), want %d", a, view, err, first[a])
 		}
-		if r, found, err := AnchorRetiredAt(run, a); err != nil || !found || r.Event != first[a] {
+		if r, found, err := AnchorRemovedAt(run, a); err != nil || !found || r.Event != first[a] {
 			t.Errorf("AnchorRetiredAt(%s) = %+v, %v, %v, want event %d", a, r, found, err, first[a])
 		}
 	}

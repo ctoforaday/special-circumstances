@@ -196,7 +196,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		{File: FileRun, Nav: "Run", Title: "the run",
 			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: body[FileRun].String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
-			Blurb: "the provenance of this report: every claim blue retired from it, every ask a later certification superseded, and every edit blue made to it, with blue's reason and the span it replaced", Body: body[FileChangelog].String()},
+			Blurb: "the provenance of this report: every ask a later certification superseded, and every edit blue made to it, with blue's reason and the span it replaced", Body: body[FileChangelog].String()},
 	}
 
 	// THE EVIDENCE LAYER IS RESOLVED WITHIN EACH DOCUMENT.
@@ -235,11 +235,11 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		}
 	}
 	// A COMPUTATION IS EVIDENCE FOR THE SENTENCE IT IS ANCHORED TO, AND ONLY WHILE THAT ANCHOR STANDS.
-	// One whose anchor left the set — retired, with its claim or alone off a sentence that stays — is
-	// numbered, footnoted and shown nowhere: its retire is in CHANGELOG. A retire takes the token out
-	// of the report and an edit never drops one, so the computations the set anchors are the live
-	// ones. Shown under the reason it was recorded with, a retired computation shipped as evidence for
-	// a claim the report no longer makes (#1663 smoke, G-7dcf6270: "gives eight" beside a report that
+	// One whose anchor left the set, by a retire off a sentence that stays or a cut of its sentence,
+	// is numbered, footnoted and shown nowhere. A retire or a cut takes the token out of the report,
+	// and no other edit drops one, so the computations the set anchors are the live ones. Shown under
+	// the reason it was recorded with, a computation out of the report shipped as evidence for a claim
+	// the report no longer makes (#1663 smoke, G-7dcf6270: "gives eight" beside a report that
 	// says seven).
 	computations = slices.DeleteFunc(computations, func(c record.Computation) bool { return !anchored[c.Label] })
 	for i := range docs {
@@ -265,7 +265,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	for _, s := range ev.Sources {
 		labels = append(labels, s.Anchor)
 	}
-	backs, _ := record.SentencesIn(blue, labels)
+	backs := record.SentencesIn(blue, labels)
 	for i := range docs {
 		if docs[i].File == FileEvidence {
 			computationSec, citeSec := evidenceDoc(run, computations, backs, checks), citationsSection(ev, backs)
@@ -294,9 +294,8 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // text keeps none. Code is what both tiers read as code (bothTierCode), the reading the note escape takes:
 // a token one tier reads as prose would ship there as prose.
 //
-// A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
-// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ." in
-// universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker at
+// A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A line of seat-typed text that is
+// tokens and a terminator, stripped, prints "- ." (universe-m19's verified report printed one). The line that goes is that husk (anchor.Husk): a list marker at
 // most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that
 // held a token is content — a table's delimiter row, a row of marks, a rule — and ships without the
 // token; a line of code keeps its token, so the strip leaves it no husk.

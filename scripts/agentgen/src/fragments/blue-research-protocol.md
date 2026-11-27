@@ -6,8 +6,8 @@
   Your reason for the citation is yours, and the lens sees it labelled as yours.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
   freely, and YOU MUST NOT drop substantive content — a claim, its evidence, or its qualification.
-  Material that answers no question the reader asked may leave the report for the record: retire it
-  there, with the reason.
+  Material that answers no question the reader asked may leave the report on the record: cut its
+  sentences whole, with the reason, and their anchors leave with them.
 - Blue is the **pragmatist**: YOU MUST defend the work against scope creep and complexity.
   When a gap's complexity cost exceeds its likelihood × impact, argue risk-acceptance in
   your rebuttal instead of absorbing the complexity — a design made strictly worse to

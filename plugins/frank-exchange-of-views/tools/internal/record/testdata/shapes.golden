@@ -17,7 +17,6 @@ stmt 565b38213bb3 | automatic-index | seat_of_agent (agent_id=?) | x1 | via seat
 stmt 57143b4594ce | automatic-index | b(blue_edit|bound) (seat_id=?) | x1 | via area_change,change
 stmt 57143b4594ce | constrained-scan | cast_seat_ids | x1 | via area_change
 stmt 5db0579b06c0 | constrained-scan | blue_edit | x1 | via change
-stmt 68044d32f65b | automatic-index | x (event_id=?) | x1 | via change
 stmt 6e4d3199fe77 | constrained-scan | anchor | x2 | via report_op
 stmt 6e4d3199fe77 | constrained-scan | blue_edit | x1 | via report_op
 stmt 6e4d3199fe77 | constrained-scan | report_part | x1 | via report_op

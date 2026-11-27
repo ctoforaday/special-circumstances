@@ -248,7 +248,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
 	raises := map[string]bool{}            // the ids of the archived raises written as no event
 	lost := lostGaps{}                     // each gap a lost act took with it (lostacts.go)
-	for _, old := range evs {
+	for at, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
 		if old.Word == correctionWord || replaces[old.Key] {
@@ -555,8 +555,34 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				continue
 			}
+			place.at = at
 			anchorAfter, err := place.step(body)
-			if err != nil {
+			var loss placedLoss
+			switch {
+			case errors.Is(err, errNoEvent), errors.As(err, &loss):
+				// AN ACT THE RECORD HOLDS NO EVENT FOR (retirefold.go): a claim retire folded into its cuts
+				// is no act; a claim retire carrying no anchor or taking an open gap's marker, and an edit
+				// the fold leaves nothing to do, are lost acts. A pin that named it names the last event
+				// written before it — for an edit, the last report head: a pin names the report its party
+				// audited, and a lost edit changed nothing the migrated report holds, so that report is
+				// the one the head before it stands at.
+				if loss.err != nil {
+					res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: loss.Error()})
+					res.AcceptedLosses[old.Word] = loss.why
+				}
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if _, edit := body.(*recordpb.BlueEdit); edit {
+						if last, err = record.ReportHeadAt(batch.Querier()); err != nil {
+							return nil, fmt.Errorf("reading the report head before source event %d: %w", old.ID, err)
+						}
+					} else if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
+				continue
+			case err != nil:
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
@@ -654,6 +680,11 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// the same failure and each was recorded above as a refusal; none of it may stand.
 	if err := batch.Err(); err != nil {
 		return nil, err
+	}
+	if text, err := record.RenderAt(batch.Querier()); err == nil {
+		if err := bareAtEnd(text); err != nil {
+			res.Refusals = append(res.Refusals, migration.Refusal{Word: "report", Err: err.Error()})
+		}
 	}
 	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
 	res.ClassTranslations = classTranslations(classMints)

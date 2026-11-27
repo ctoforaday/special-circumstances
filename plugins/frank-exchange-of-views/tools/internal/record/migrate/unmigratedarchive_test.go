@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -37,14 +38,10 @@ func statedEpoch(t *testing.T, runDir string) (epoch int, ok bool) {
 // as this binary's shape, and this is the census that none of an older shape gets through — beside
 // TestEveryArchivedRunMigrates, which is the other half of the same promise.
 func TestEveryArchivedRunBehindThisBinaryIsRefusedUnmigrated(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	refused := 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			runDir := recordtest.RequireArchive(t, name)
 			epoch, stated := statedEpoch(t, runDir)

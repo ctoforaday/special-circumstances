@@ -40,7 +40,8 @@ type gapActs map[string][]struct {
 
 // actsOnGaps reads every act on a gap off evs, and each gap's mint position. carried is each
 // citation's gaps that carry a reading of it (carryingOf): with the gap an anchor is about, what a
-// retire of the anchor reaches.
+// retire of the anchor, or a cut that took it, reaches. A cut also reaches the gap whose own marker it
+// took: the raiser's turn (F21).
 //
 // A SUCCESSOR CARRYING ITS ANCESTOR'S DEMAND IS REACHED THROUGH THE ANCESTOR'S ANCHORS (ruled by gblock
 // 2026-11-05: a gap that awaits a live answer passes its demand to its successor). The first mint
@@ -122,23 +123,29 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 		if b, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP {
 			add(seat, i, b.GetAboutRef())
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
-			add(seat, i, b.GetAnswers())
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			if b.GetClaimKept() {
-				add(seat, i, b.GetAnswers())
-			}
-			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not.
-			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
-			for _, a := range b.GetAnchors() {
-				for _, g := range slices.Concat(about[a], carried[a], heirs[a]) {
+		// A REMOVAL REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not;
+		// a cut also reaches the gap whose own marker it took (F21, the raiser's turn).
+		reaches := func(answers string, anchors []string, ownMarker bool) {
+			add(seat, i, answers)
+			reached := map[string]bool{answers: true}
+			for _, a := range anchors {
+				gs := slices.Concat(about[a], carried[a], heirs[a])
+				if _, gap := minted[a]; gap && ownMarker {
+					gs = append(gs, a)
+				}
+				for _, g := range gs {
 					if !reached[g] {
 						reached[g] = true
 						add(seat, i, g)
 					}
 				}
 			}
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+			reaches(b.GetAnswers(), b.GetRemovedAnchors(), true)
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			reaches(b.GetAnswers(), b.GetAnchors(), false)
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
 			answering[b.GetComputationId()] = b.GetAnswers()

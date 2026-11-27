@@ -44,10 +44,12 @@ func loadKeyCensus(t *testing.T) []string {
 // unexplained absence is indistinguishable from one nobody noticed, which is the whole defect
 // class this migration exists to remove.
 var notFields = map[string]string{
-	"access_date": "RETIRED at epoch 73 from Cite and Verify: a source's accessed date is when its copy was fetched, Cite.fetched_at, stamped from the fetch index; the cite's own clock reading and the seat's typed date are not carried, and migrate drops both",
-	"row":         "RETIRED at epoch 65 with blue's repair receipt, the one body that carried it: a repair's record is its edit, which names the gap it answers; migrate translates a receipt to no event",
-	"reproduced":  "REPLACED at epoch 28 by Reproduce.rerun: a bool read false both where the script printed something else and where nothing re-ran it; migrate's reproduce entry translates true to reproduced and false to differs",
-	"round":       "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events.epoch is the chair-sitting count at the row, events.sitting the seat's own; a migrated record carries neither and every reader derives them",
+	"access_date":   "RETIRED at epoch 73 from Cite and Verify: a source's accessed date is when its copy was fetched, Cite.fetched_at, stamped from the fetch index; the cite's own clock reading and the seat's typed date are not carried, and migrate drops both",
+	"row":           "RETIRED at epoch 65 with blue's repair receipt, the one body that carried it: a repair's record is its edit, which names the gap it answers; migrate translates a receipt to no event",
+	"reproduced":    "REPLACED at epoch 28 by Reproduce.rerun: a bool read false both where the script printed something else and where nothing re-ran it; migrate's reproduce entry translates true to reproduced and false to differs",
+	"removal_basis": "RETIRED at epoch 82 from Retire, with the claim retire: a retire takes anchors and nothing else, and the claim a cut withdrew is the cut, whose removed_anchors list what it took; migrate folds each claim retire into its cut or keeps it as an anchor-only retire, and drops the field",
+	"superseded_by": "RETIRED at epoch 82 from Retire, with the claim retire: a claim's successor sentence was the claim retire's to name, and a cut records only the anchors it took; migrate drops the field",
+	"round":         "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events.epoch is the chair-sitting count at the row, events.sitting the seat's own; a migrated record carries neither and every reader derives them",
 	// LEGACY VOCABULARY — read only by the retired-type arms §II.6 deletes in PR3.
 	"as":       "the legacy landing key for a ruling; available.go:196 reads it beside `verdict` as a pre-collapse fallback. MotionRule.ruling replaces it",
 	"evidence": "the legacy `dispute` prose key, read only at view.go:519 and assemble.go:885 — both legacy arms. Motion.basis replaces it",

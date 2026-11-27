@@ -104,7 +104,7 @@ func MergedEvents(run Run) (Merged, error) {
 		return Merged{}, err
 	}
 	at := windowIndexOf(evs, ws)
-	if at.reach, err = reachingRetiresOf(db); err != nil {
+	if at.reach, err = reachingRemovalsOf(db); err != nil {
 		return Merged{}, err
 	}
 	if err := at.readViews(db); err != nil {

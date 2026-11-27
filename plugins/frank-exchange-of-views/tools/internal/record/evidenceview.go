@@ -75,8 +75,8 @@ type EvidenceSourceJSON struct {
 	CopyCapturedAt string `json:"copy_captured_at,omitempty"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for — in
 	// the report as it stands where LocationState is `marked`, located by the token as the board
-	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor bare,
-	// retired or absent) or `unrendered`.
+	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor retired,
+	// cut with its sentence, or absent) or `unrendered`.
 	//
 	// It is also the ONLY copy of that sentence. A cite carried it twice — `claim` re-quoted
 	// what `location` already held to place the anchor — and Cite reserves field 8 to keep the
@@ -227,7 +227,8 @@ type EvidenceReproductionJSON struct {
 	Soundness string `json:"soundness"`
 	// Standing is whether this verdict still stands on the anchor, by the anchor ledger's one rule
 	// (anchorStanding.stands): it is its seat's latest judgement of the anchor, its sitting opened after
-	// the latest edit naming the anchor reopened, and the computation is not retired.
+	// the latest edit naming the anchor reopened, and the computation is in the report — no retire or
+	// cut has taken it out.
 	Standing bool `json:"standing"`
 	// Claim is the sentence this judgement was of, as the tool read it off the report before the write
 	// (Reproduce.claim), as a verification's `claim` is; "" on a reproduce migrated from a record
@@ -282,8 +283,8 @@ type EvidenceVerificationJSON struct {
 	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
 	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
 	// nor replaces one), it is its seat's latest reading of the citation that read, its sitting opened
-	// after the latest edit naming the anchor reopened, and the citation is not retired. Omitted on a
-	// reading under `independent`, which is of no citation and has nothing to stand on.
+	// after the latest edit naming the anchor reopened, and the citation is in the report — no retire or
+	// cut has taken it out. Omitted on a reading under `independent`, which is of no citation and has nothing to stand on.
 	Standing *bool `json:"standing,omitempty"`
 }
 
@@ -306,16 +307,17 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 
 // EvidenceJSON is the whole evidence layer of the report.
 //
-// A RETIRED ANCHOR IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources and
-// Computations hold the live anchors, as evidence.md does, so the table and the document a reader
-// gets agree on what backs the report. A retired anchor is read at its id (EvidenceAt), which says it
-// is retired and by which retire; every retire itself is listed in Retires.
+// AN ANCHOR OUT OF THE REPORT IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources
+// and Computations hold the live anchors, as evidence.md does, so the table and the document a reader
+// gets agree on what backs the report. An anchor out of the report is read at its id (EvidenceAt),
+// which names the act that took it out, a retire or a cut; every retire itself is listed in Retires,
+// and a cut is its edit's.
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
-	// Retired is each retired anchor's row, with the retire that took it out, in the order the record
-	// placed the anchors. It is not in the projection: EvidenceAt reads it to answer a lookup of a
-	// retired id, and the assembly screen to count what it screened.
+	// Retired is the row of each anchor out of the report, with the retire or cut that took it out, in
+	// the order the record placed the anchors. It is not in the projection: EvidenceAt reads it to
+	// answer a lookup of a removed id, and the assembly screen to count what it screened.
 	Retired []EvidenceRetiredRow `json:"-"`
 	// Independent is red's readings of a source against a sentence that carries no citation of it
 	// — one red found, or one blue cites elsewhere — which therefore have no anchor. A separate array rather than anchorless rows mixed into the
@@ -328,9 +330,8 @@ type EvidenceJSON struct {
 	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
 	// check removes the row. It holds a PASS (passBlockersOf).
 	Unchecked []EvidenceUncheckedJSON `json:"unchecked"`
-	// Retires is every retire on the record, in record order: a claim that left the report, and a
-	// citation or computation taken off a sentence that stays (`claim_kept`). It is the changelog's
-	// "Claims retired", read as the record holds it. NOT omitempty: `[]` is "blue retired nothing".
+	// Retires is every retire on the record, in record order: an anchor taken off a sentence that
+	// stays. NOT omitempty: `[]` is "blue retired nothing".
 	Retires []EvidenceRetireJSON `json:"retires"`
 	Counts  struct {
 		Sources      int `json:"sources"`
@@ -346,38 +347,36 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
-// EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the claim as it stood and why
-// it went, what superseded it, whether the sentence stays with only its evidence taken off it, the
-// anchors it took out, and how far the record shows the claim leaving (`removal_basis`: verified,
-// asserted, or "" on a retire whose sentence stays).
+// EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the sentence the anchor stood on,
+// which stays, why it went, and the anchors it took out.
 type EvidenceRetireJSON struct {
-	Event        int64    `json:"event"`
-	SeatID       string   `json:"seat_id"`
-	Epoch        int      `json:"epoch"`
-	Claim        string   `json:"claim"`
-	Reason       string   `json:"reason"`
-	SupersededBy string   `json:"superseded_by"`
-	ClaimKept    bool     `json:"claim_kept"`
-	Anchors      []string `json:"anchors"`
-	RemovalBasis string   `json:"removal_basis"`
+	Event   int64    `json:"event"`
+	SeatID  string   `json:"seat_id"`
+	Epoch   int      `json:"epoch"`
+	Claim   string   `json:"claim"`
+	Reason  string   `json:"reason"`
+	Anchors []string `json:"anchors"`
 }
 
-// EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
-// recorded reason.
+// EvidenceRetiredJSON is the act that took an anchor out of the report, a retire or a cut: its
+// events.id, the act (By), and its recorded reason.
 type EvidenceRetiredJSON struct {
-	Event  int64  `json:"event"`
+	Event int64 `json:"event"`
+	// By is the act that took the anchor out: "retire", which keeps its sentence, or "edit", a pure
+	// cut that took the sentence with it (anchor_removal's by).
+	By     string `json:"by"`
 	Reason string `json:"reason"`
 }
 
-// EvidenceRetiredRow is one retired anchor: its row as the live lists would hold it — Source set for
-// a citation, Computation for a computation — and the retire.
+// EvidenceRetiredRow is one anchor out of the report: its row as the live lists would hold it —
+// Source set for a citation, Computation for a computation — and the retire or cut that took it out.
 type EvidenceRetiredRow struct {
 	Source      *EvidenceSourceJSON
 	Computation *EvidenceComputationJSON
 	Retired     EvidenceRetiredJSON
 }
 
-// Anchor is the retired anchor's id.
+// Anchor is the id of the anchor out of the report.
 func (r EvidenceRetiredRow) Anchor() string {
 	if r.Computation != nil {
 		return r.Computation.Anchor
@@ -410,8 +409,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
 			w := win.Of(e)
 			out.Retires = append(out.Retires, EvidenceRetireJSON{Event: w.ID, SeatID: e.GetSeatId(), Epoch: w.Epoch,
-				Claim: r.GetClaim(), Reason: r.GetReason(), SupersededBy: r.GetSupersededBy(), ClaimKept: r.GetClaimKept(),
-				Anchors: append([]string{}, r.GetAnchors()...), RemovalBasis: r.GetRemovalBasis()})
+				Claim: r.GetClaim(), Reason: r.GetReason(), Anchors: append([]string{}, r.GetAnchors()...)})
 		}
 	}
 	for _, u := range uncheckedAnchors(evs, win) {
@@ -480,15 +478,21 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 	// sentence's verdicts by anchor, and each bundle's bases.
 	reruns, acts := standingRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
-	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
-	// retired anchor back.
+	// THE ACT THAT HOLDS EACH REMOVED ANCHOR OUT is its first (anchorChecksOf), a retire or a pure cut:
+	// nothing brings a removed anchor back.
 	retiredBy := map[string]EvidenceRetiredJSON{}
 	for _, e := range evs {
-		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			for _, a := range r.GetAnchors() {
-				if _, first := retiredBy[a]; !first {
-					retiredBy[a] = EvidenceRetiredJSON{Event: win.Of(e).ID, Reason: r.GetReason()}
-				}
+		var took []string
+		var by EvidenceRetiredJSON
+		switch b := mustBody(e).(type) {
+		case *recordpb.Retire:
+			took, by = b.GetAnchors(), EvidenceRetiredJSON{Event: win.Of(e).ID, By: RemovedByRetire, Reason: b.GetReason()}
+		case *recordpb.BlueEdit:
+			took, by = b.GetRemovedAnchors(), EvidenceRetiredJSON{Event: win.Of(e).ID, By: RemovedByEdit, Reason: b.GetText()}
+		}
+		for _, a := range took {
+			if _, first := retiredBy[a]; !first {
+				retiredBy[a] = by
 			}
 		}
 	}
@@ -616,8 +620,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 }
 
 // evidenceView is the evidence read from the record: the sources, computations and their checks,
-// and the edits that change an anchor's sentence with the retires that take one out of the report
-// (unchecked).
+// and the edits that change an anchor's sentence, with the retires and cuts that take one out of the
+// report (unchecked).
 var evidenceView = declareNarrowedView("evidence", func(q recordsql.Querier, evs []*Event, win WindowIndex) (EvidenceJSON, error) {
 	// ONE RENDER PER READ, through the checkpointed path, shared by every row's location.
 	report, err := RenderAt(q)
@@ -650,8 +654,8 @@ type EvidenceAtJSON struct {
 	// PASS refusal sends a seat here for an unchecked anchor, and this is where it reads which edit
 	// and which check.
 	Unchecked *EvidenceUncheckedJSON `json:"unchecked,omitempty"`
-	// Retired is the retire that took the anchor out of the report, absent on a live anchor. A retired
-	// anchor is in no document and in none of the table's lists or counts; read at its id it is still
+	// Retired is the retire or cut that took the anchor out of the report, named by `by`, absent on a
+	// live anchor. An anchor out of the report is in no document and in none of the table's lists or counts; read at its id it is still
 	// its row, so a lens can read what left and why.
 	Retired *EvidenceRetiredJSON `json:"retired,omitempty"`
 }
