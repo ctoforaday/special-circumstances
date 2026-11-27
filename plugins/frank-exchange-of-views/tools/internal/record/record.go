@@ -991,7 +991,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a computation can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// That the citation is still live is the act's to answer (judgeAct): an archived computation
@@ -1012,7 +1012,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -1386,7 +1386,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetAnswers() != "" && !b.GetClaimKept() {
 			return fmt.Errorf("--answers names the gap an evidence-anchor retire answers — a retire naming one citation or computation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
 		}
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 	case *recordpb.Cast:
@@ -1562,7 +1562,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Cite:
 		// THE GAP A CITATION ANSWERS RESOLVES, as a computation's does: a dangling --answers is refused
 		// here rather than accepted and dropped at replay.
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool

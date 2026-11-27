@@ -76,6 +76,17 @@ func requireQuestionPartAnswers(q recordsql.Querier, seatID string, b *recordpb.
 	return feov.Errorf(feov.Validation, "--answers names %s, which is about %s — %s; it changes nothing %s is about", g, subjectWords(kind, ref), what, g)
 }
 
+// requireAnswersAuthor is an edit's, an evidence-anchor retire's, a citation's or a computation's
+// `answers` (validate): a gap on the record whose author is seatID — the bench's application in its
+// ruling's transaction aside. Which gaps' subjects such an act changes is not asked here.
+func requireAnswersAuthor(q recordsql.Querier, seatID, g string) error {
+	if g == "" {
+		return nil
+	}
+	_, _, err := answeredSubject(q, seatID, g)
+	return err
+}
+
 // answeredSubject is gap g's subject, read off its mint, once g is on the record and seatID is its
 // author (authorOf) — the bench's application in its ruling's transaction aside.
 func answeredSubject(q recordsql.Querier, seatID, g string) (recordpb.AboutKind, string, error) {
