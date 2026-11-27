@@ -4505,7 +4505,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
        10. restore `edit.go:275`'s carried-may-stand-bare arm;
        11. let the splice take a located token `new` does not carry;
        12. drop each `BlueEdit` arm the fold table adds (`countsat`, `answersretired`, `evidenceview:484`, `impasse`,
-           `gapacts`, `anchorchecks`) and `Reaches`' widened type filter, one per run. `answeredByActThisSitting`
+           `gapacts`, `anchorchecks`) and `Reaches`' widened type filter, one per run; the `impasse` arm turns
+           `TestAReachingCutMovesTheGapItReaches` red (a cut answering no gap takes the computation G1 is about, and
+           the lens's audit after it ends an exchange that stalled). `answeredByActThisSitting`
            has no such arm to drop: its re-keyed cut arm was unreachable (a cut of G's own marker meets `met`'s arm
            4, so G is never awaiting evidence) and is deleted (lead call 11-26, RULINGS.md);
        13. drop `judgeAct`'s `BlueEdit` call of `requireCitationUncited` (`TestACutIsHeldToL6` case 1 lands);
