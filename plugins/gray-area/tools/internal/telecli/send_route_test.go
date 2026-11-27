@@ -526,15 +526,17 @@ func TestSendRateLimitWaitIsCapped(t *testing.T) {
 	}
 }
 
-// THE CONVERSATION TAKEN DURING THE WAIT ENDS THE SEND: the probe before the retry finds a holder.
+// THE CONVERSATION TAKEN DURING THE WAIT ENDS THE SEND: the probe before the retry runs after the
+// wait, the window in which a holder can appear, and finds one.
 func TestSendRateLimitedReprobes(t *testing.T) {
 	w := newSendWorld(t)
 	a1, h1 := rateLimited(t, 1, "")
 	_, hd := w.rateLimitWorld(t, a1)
-	calls := 0
+	var events []string
+	w.env.Sleep = func(time.Duration) { events = append(events, "sleep") }
 	w.env.ConversationBusy = func(_, _ string, excludePID int) peer.Holder {
-		calls++
-		if calls == 3 { // discovery, the probe before request 1, then the one before the retry
+		events = append(events, fmt.Sprintf("probe(%d)", excludePID))
+		if len(events) == 4 { // discovery, the probe before request 1, the wait, then the retry's probe
 			return dbHolder(9999)
 		}
 		return peer.Holder{}
@@ -544,13 +546,101 @@ func TestSendRateLimitedReprobes(t *testing.T) {
 	if h1.Load() != 1 || hd.Load() != 0 {
 		t.Errorf("requests %d to S1 and %d to the daemon, want 1 and 0", h1.Load(), hd.Load())
 	}
+	if want := fmt.Sprintf("[probe(0) probe(%d) sleep probe(%d)]", serverS1.PID, serverS1.PID); fmt.Sprint(events) != want {
+		t.Errorf("events %v, want %s", events, want)
+	}
+}
+
+// A SERVER THAT ANSWERED KEEPS THE SEND. S1 answers 429 and is gone by the retry; the message
+// queues, and the daemon is never tried.
+func TestSendRateLimitedThenUnreachedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		http.Error(rw, "rate limited", http.StatusTooManyRequests)
+	}))
+	t.Cleanup(srv.Close)
+	a1 := strings.TrimPrefix(srv.URL, "http://")
+	_, hd := w.rateLimitWorld(t, a1)
+	w.env.Sleep = func(time.Duration) { srv.Close() }
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, "the language server recorded at "+a1+" cannot be reached")
+	if hits.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests %d to S1 and %d to the daemon, want 1 and 0", hits.Load(), hd.Load())
+	}
+}
+
+// THE HOLDER'S 429s QUEUE TOO, and never pass the message to another server.
+func TestSendHolderRateLimitedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	ax, hx := rateLimited(t, 99, "")
+	_, hd := w.rateLimitWorld(t, ax)
+	w.holders(map[int]peer.Holder{0: dbHolder(serverS1.PID)})
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, fmt.Sprintf("the language server recorded at %s answered 429 (rate limited) 3 times", ax))
+	if hx.Load() != 3 || hd.Load() != 0 {
+		t.Errorf("requests %d to the holder and %d to the daemon, want 3 and 0", hx.Load(), hd.Load())
+	}
+}
+
+// csrfRefusal stands in a language server whose CSRF check refuses every request, in agy 1.5.18's
+// measured shape, and counts the requests.
+func csrfRefusal(t *testing.T) (string, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		rw.WriteHeader(http.StatusUnauthorized)
+		io.WriteString(rw, `{"code":"unauthenticated","message":"unauthenticated: invalid CSRF token"}`)
+	}))
+	t.Cleanup(srv.Close)
+	return strings.TrimPrefix(srv.URL, "http://"), &hits
+}
+
+// THE DAEMON'S REFUSAL QUEUES: it is the only target, and its CSRF check refuses.
+func TestSendDaemonRefusedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	ad, hd := csrfRefusal(t)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(newDaemon)
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, "the language server recorded at "+ad+" refused the message before acting on it, HTTP 401")
+	if hd.Load() != 1 {
+		t.Errorf("the daemon got %d requests, want 1", hd.Load())
+	}
+}
+
+// deliver's client follows no redirect: a server that read the message and redirects to a port
+// nobody listens on leaves the delivery UNKNOWN, and the daemon is never tried.
+func TestSendFollowsNoRedirect(t *testing.T) {
+	w := newSendWorld(t)
+	closed := unreachable(t)
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		http.Redirect(rw, r, "http://"+closed+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(srv.Close)
+	a1 := strings.TrimPrefix(srv.URL, "http://")
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	wantUnknown(t, w, "the language server recorded at "+a1+" answered HTTP 307")
+	if hits.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests %d to S1 and %d to the daemon, want 1 and 0", hits.Load(), hd.Load())
+	}
 }
 
 // A REFUSAL BEFORE HANDLING DID NOT DELIVER: the message queues, naming it, and no other server is
 // tried.
 func TestSendRefusedQueues(t *testing.T) {
 	w := newSendWorld(t)
-	a1, h1 := countingServer(t, http.StatusUnauthorized)
+	a1, h1 := csrfRefusal(t)
 	ad, hd := countingServer(t, http.StatusOK)
 	w.linkAs(t, agyPeer, a1, serverS1, frozen)
 	w.linkAs(t, agySelf, ad, newDaemon, frozen)

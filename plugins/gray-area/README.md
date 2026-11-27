@@ -65,15 +65,17 @@ or, when nobody does, the running server it linked to last, then (for conversati
 `~/.gemini/antigravity-cli`) the current remote-control daemon's server. Before each attempt it
 checks that no other process holds the conversation, and it names the route it took
 (`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). It moves on to the
-daemon only when the first server could not be reached at all. A server that refused the request before
-handling it (401, 404 or 405, measured to come only then) did not get it, and the message queues;
-one that answers 429 is asked again, up to three times, before the message queues. A server that was sent the message and did
-not confirm it (no answer, a dropped connection, any other error status) may have it, so `send`
-tries no other server, queues nothing, and exits non-zero saying the delivery is unknown. The
-holder check sees only `send`'s own pid namespace, so from a container sharing Antigravity's data
-with the host a holder on the host is invisible. Failing
-live delivery otherwise (and
-always off Linux, where second-writer safety cannot be verified) it queues to the on-disk mailbox,
+daemon only when its first request could not reach the first server at all. A refusal before any
+handling, in the shapes measured on agy 1.5.18 (a 401 from the CSRF check, a 404 or 405 with no
+Connect error), did not deliver, and the message queues; a server that answers 429 gets up to 3
+requests in all before the message queues. A server that was sent the message and did not confirm
+it (no answer, a dropped connection, any other status or body) may have it, so `send` tries no
+other server, queues nothing, and exits non-zero saying the delivery is unknown. The holder check
+sees only `send`'s own pid namespace and this host's locks: from a container sharing
+Antigravity's data with the host, a holder on the host is invisible, and so is a lock taken on
+another host through a FUSE client of a distributed filesystem; either way `send` can create a
+second writer. Failing live delivery otherwise (and always off Linux, where second-writer safety
+cannot be verified) it queues to the on-disk mailbox,
 read at the conversation's next turn, and prints the cause, when the daemon started and when the
 conversation last recorded a step; `telepathy agents` lists every conversation with mail its client
 has not read. The server's token exists only in an Antigravity agent's shell, so `telepathy link`

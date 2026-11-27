@@ -234,6 +234,34 @@ func TestLinkRequestNeverAsksWithoutAPidDomain(t *testing.T) {
 	}
 }
 
+// THE PID-LESS GUARD NEEDS BOTH HALVES. It holds back the ask only when the hook finds no server
+// process of its own AND the record naming none is this conversation's: a hook that knows its
+// server, or a pid-less record of another conversation, still asks.
+func TestLinkRequestPidlessGuardNeedsBothHalves(t *testing.T) {
+	req := hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(0))))
+	unknown := liveAs(catalogue.Unknown)
+	noHost := func() peer.ServerIdentity { return peer.ServerIdentity{} }
+	host := func() peer.ServerIdentity { return peer.ServerIdentity{PID: 7777, StartTime: 1} }
+
+	mine := t.TempDir()
+	recordServer(t, mine, "localhost:3", peer.ServerIdentity{})
+	if got := linkRequestWithHost(req, mine, "/bin/telepathy", noHost, unknown); got != "" {
+		t.Errorf("no host pid, this conversation's record pid-less: linkRequest = %q, want no ask", got)
+	}
+	if got := linkRequestWithHost(req, mine, "/bin/telepathy", host, unknown); got == "" {
+		t.Error("the hook knows its server, yet a pid-less record held back the ask")
+	}
+
+	other := t.TempDir()
+	env := map[string]string{peer.EnvConversation: "another-conversation", peer.EnvAddress: "localhost:4", peer.EnvToken: "tok"}
+	if _, _, err := peer.RegisterWith(other, func(k string) string { return env[k] }, noHost, time.Unix(0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if got := linkRequestWithHost(req, other, "/bin/telepathy", noHost, unknown); got == "" {
+		t.Error("another conversation's pid-less record held back this conversation's ask")
+	}
+}
+
 func TestLinkRequestWordings(t *testing.T) {
 	if firstLinkWhy != "Other agents cannot yet wake this conversation with `telepathy send`." {
 		t.Errorf("the first-link opening changed: %q", firstLinkWhy)

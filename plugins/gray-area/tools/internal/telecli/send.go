@@ -74,13 +74,14 @@ daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds i
 that server delivers. Before every attempt send checks again that no process but
 that server holds the conversation, because two writers corrupt it; any other
 holder, or a holder it cannot inspect, queues the message and is named. Send moves
-on from a server only when it could not be reached at all. A server that refused the
-request before handling it — a 401, 404 or 405, which Antigravity was measured to
-answer only then — did not get it, and the message queues. A server that answers 429
-(rate limited) declined without acting: send asks it again after the wait it names
-(at most 5 seconds), checking the holder again first, and after its third 429 queues
-the message — never through another server. A server that was sent the message and
-did not confirm it — no answer, a dropped connection, any other status — may have
+on from a server only when its first request could not reach it at all. A refusal
+before any handling, in the shapes measured on agy 1.5.18 (a 401 from the CSRF check,
+a 404 or 405 that carries no Connect error), did not deliver, and the message queues.
+A server that answers 429 (rate limited) declined without acting: send makes up to 3
+requests to it in all, waiting what it names (at most 5 seconds) and checking the
+holder again before each retry, then queues the message; a retry that cannot reach it
+queues too — never another server. A server that was sent the message and did not
+confirm it — no answer, a dropped connection, any other status or body — may have
 it: send then tries no other server, queues nothing, says the delivery is UNKNOWN
 and exits non-zero, because a second copy could arrive. A record is
 used only while its server process is running; a record whose process cannot be
@@ -94,12 +95,13 @@ conversation with messages still waiting.
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, an UNKNOWN delivery does not say whether it arrived, and the
 Claude Code socket does not report a hold or a drop. The holder check sees only the
-processes of send's own pid namespace: a process outside it that has the
-conversation open is invisible, so a container that shares Antigravity's data with
-the host can create a second writer. A Claude Code session that is
-not running has no inbox and is refused; telepathy agents shows which are. On native
-Windows a Claude Code inbox takes posts only from its own session, so sending to one
-is refused there.`,
+processes of send's own pid namespace and the locks of this host. A process outside
+the namespace that has the conversation open is invisible, and so is a lock taken on
+another host through a FUSE client of a distributed filesystem: from a container
+that shares Antigravity's data with the host, or over such a filesystem, send can
+create a second writer. A Claude Code session that is not running has no inbox and
+is refused; telepathy agents shows which are. On native Windows a Claude Code inbox
+takes posts only from its own session, so sending to one is refused there.`,
 		Example: `  telepathy send 8a3d5199 "PR #1730 conflicts with mine; rebase after it merges"
   git diff --stat | telepathy send f13f9d4f -`,
 		Args: cobra.ExactArgs(2),
@@ -385,8 +387,8 @@ func (r *agyRouter) attempt(target peer.Server) (d peer.Delivery, ok, stop bool)
 	return r.send(target)
 }
 
-// rateLimitAttempts is how many times send asks one server that answers 429 (rate limited), and
-// rateLimitWaitCap bounds the wait its Retry-After may ask for between them.
+// rateLimitAttempts is how many requests in all send makes to one server that answers 429 (rate
+// limited), and rateLimitWaitCap bounds the wait its Retry-After may ask for between them.
 const (
 	rateLimitAttempts = 3
 	rateLimitWaitCap  = 5 * time.Second
@@ -394,13 +396,14 @@ const (
 )
 
 // send delivers through target, whose probe found nobody else holding the conversation. A target
-// that could not be reached leaves the message undelivered, with that as the cause, and the send
-// may go on. A target that refused the request before handling it (peer.RefusedError) did not
-// get the message, which queues; no other server is tried. A target that answers 429 declined
-// without acting: send asks it again, up to
-// rateLimitAttempts times, probing before each request as before the first, and then queues — never
-// another server, which the conversation could reach twice. Any other failure leaves its arrival
-// unknown and stops the send.
+// that could not be reached on the first request leaves the message undelivered, with that as the
+// cause, and the send may go on. A target that refused the request before handling it
+// (peer.IsRefusal, measured on agy 1.5.18) did not get the message, which queues; no other server
+// is tried. A target that answers 429 declined without acting: send makes up to rateLimitAttempts
+// requests to it in all, waiting and then probing before each retry as before the first, and then
+// queues. Once a target has answered, the send stays with it — a retry that cannot reach it queues
+// too — so the conversation is never handed to a second server. Any other failure leaves its
+// arrival unknown and stops the send.
 func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
 	for attempt := 1; ; attempt++ {
 		d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
@@ -412,7 +415,7 @@ func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
 			return d, true, false
 		case errors.As(err, &unreached):
 			r.queue("%v", err)
-			return peer.Delivery{}, false, false
+			return peer.Delivery{}, false, attempt > 1
 		case errors.As(err, &refused):
 			r.queue("%v", err)
 			return peer.Delivery{}, false, true

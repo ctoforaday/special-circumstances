@@ -65,12 +65,13 @@ telepathy link                   from an Antigravity shell: make this conversati
   conversation (`presence/<id>.lock`, or `conversations/<id>.db` open): a recorded, running server
   that holds it delivers; with no holder, the running server it linked to last delivers, and the
   daemon only when that server could not be reached at all; any other holder queues the message
-  and is named. A server that refused the request before handling it (401, 404, 405) did not get
-  it, and the message queues; one that answers 429 is asked again, up to three times, and then the
-  message queues. The holder check sees only `send`'s own pid namespace: from a container that shares
-  Antigravity's data with the host, a holder on the host is invisible and `send` can create a
-  second writer. Every verb deletes the records of
-  servers that are gone. When Gray
+  and is named. A refusal before any handling, in the shapes measured on agy 1.5.18 (a 401 from
+  the CSRF check, a 404 or 405 with no Connect error), did not deliver, and the message queues; a
+  server that answers 429 gets up to 3 requests in all, and then the message queues. The holder
+  check sees only `send`'s own pid namespace and this host's locks: from a container that shares
+  Antigravity's data with the host, a holder on the host is invisible, and so is a lock taken on
+  another host through a FUSE client of a distributed filesystem; either way `send` can create a
+  second writer. Every verb deletes the records of servers that are gone. When Gray
   Area's hook asks you to run `telepathy link`, run it: that one command is what lets other agents
   wake conversations on this server. When no daemon-hosted conversation has linked since a restart,
   `send` queues to the mailbox and says so.

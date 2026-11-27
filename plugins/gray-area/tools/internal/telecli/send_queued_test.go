@@ -1,7 +1,6 @@
 package telecli
 
 import (
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -91,7 +90,7 @@ func TestSendQueuedCauseGoldens(t *testing.T) {
 			w.holders(map[int]peer.Holder{newDaemon.PID: dbHolder(serverS1.PID)})
 		}},
 		{"refused", func(t *testing.T, w *sendWorld, names map[string]string) {
-			addr, _ := countingServer(t, http.StatusUnauthorized)
+			addr, _ := csrfRefusal(t)
 			names[addr] = "<S1-ADDR>"
 			w.linkAs(t, agyPeer, addr, serverS1, frozen)
 		}},
