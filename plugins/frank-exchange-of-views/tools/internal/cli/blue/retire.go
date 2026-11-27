@@ -61,6 +61,11 @@ func newRetire() *cobra.Command {
 // (bluedoc.SentenceAround, as `verify` reads it). An open gap's own marker is refused (F14), and a
 // citation a live computation applies is refused in the write (ruling L6).
 func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.Result, error) {
+	// A BLANK --anchor NAMES NOTHING: the list flag reads "" as the empty list, and a retire of no
+	// anchor is the omitted flag, answered as one (universe-m29: a blank value answered as a named one).
+	if len(named) == 0 {
+		return nil, feov.Errorf(feov.MissingField, "requires --anchor: the one anchor to take off its sentence, which stays word for word — a retire naming no anchor takes nothing out")
+	}
 	if len(named) != 1 {
 		return nil, feov.Errorf(feov.Validation, "--anchor retires one anchor and keeps its sentence, and this names %d: %s. Retire each in its own retire, or cut the sentence they stand on with `edit`", len(named), strings.Join(named, ", "))
 	}
