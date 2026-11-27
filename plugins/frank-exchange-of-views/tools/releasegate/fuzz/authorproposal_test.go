@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -22,7 +23,7 @@ import (
 // gap or by taking the proposal the docketing holds, the author by accepting the raiser's statement
 // (`edit --accept G`, `retire --accept G`). The sweep gates each act (motion:blue:<act>,
 // accept:proposal:<act>, concession:<party>:<act>) but the retire, whose statement only a closing on an
-// anchor gap makes: `retire --accept` is held by the flag gate.
+// anchor gap makes: `retire --accept` is held by the flag gate, which retireAcceptRefused feeds.
 
 // authorProposalTurn rotates the author's act across the sweep's runs in one process — close, regrade
 // — so both are driven whichever runs reach the drive.
@@ -220,6 +221,7 @@ func (r *runner) endedUnruled(ds []*record.Docketing, act string) {
 // `retire --accept G` while its anchor is still in the report. Never on an IGNORE scenario's gap, whose
 // oracle holds blue to no act answering it. One per sitting.
 func (r *runner) concedeByAccept(seatID string) {
+	r.retireAcceptRefused(seatID)
 	if r.docketsAreTheBenchs() {
 		return
 	}
@@ -568,4 +570,33 @@ func (r *runner) sittingOwesNothing(t *testing.T, seatID string) {
 		t.Errorf("%s's sitting owes after its act: %q (%v)", seatID, refusal, err)
 	}
 	r.dispatchReturns(seatID, false)
+}
+
+// retireAcceptDriven is whether this process has driven the refused `retire --accept` below.
+var retireAcceptDriven atomic.Bool
+
+// retireAcceptRefused is blue's `retire --accept G` on an open gap whose raiser states no retire, once per
+// process: the record refuses it as a conflict naming the road the statement takes (`edit --accept`).
+// A raiser's stated retire is rare — only a closing on an anchor gap makes one — so this is the drive
+// that passes the flag on every sweep part; concedeByAccept takes a stated one where it stands.
+func (r *runner) retireAcceptRefused(seatID string) {
+	for _, id := range r.openGaps() {
+		st, found, err := record.StatementOf(r.run(), id)
+		if err != nil || !found || st.Retire {
+			continue
+		}
+		if !retireAcceptDriven.CompareAndSwap(false, true) {
+			return
+		}
+		out, err := r.exec("--json", "retire", "--seat-id", seatID, "--accept", id,
+			"--reason", "fuzz: blue takes a retire "+id+"'s raiser never stated")
+		env, ok := refusalEnvelopeIn(out)
+		switch {
+		case err == nil:
+			r.noteActErr("blue's retire --accept " + id + ", whose raiser states no retire, was admitted: " + firstLine(out))
+		case !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "`edit --accept "+id+"`"):
+			r.noteActErr("blue's retire --accept " + id + ", whose raiser states no retire, was refused without naming `edit --accept`: " + firstLine(out))
+		}
+		return
+	}
 }

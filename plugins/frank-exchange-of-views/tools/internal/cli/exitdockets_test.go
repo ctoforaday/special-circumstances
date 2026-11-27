@@ -17,8 +17,8 @@ func proposalActs(gap string) map[string][]string {
 // T-B25: THE EXIT DOCKETS A STANDING PROPOSAL (L29). A proposal standing at the final sitting, and one an
 // engine stop ends before any plan follows it, are each docketed by the bench's terminal or assemble
 // register, answered for a side of the docketing's pair, and the outcome lands. A proposal filed after
-// a final-epoch plan — of each act, by the chair, a lens or blue — is refused naming the plan, and
-// records nothing. Fails if a filing the record knows no plan follows lands, or the exit's proposal has
+// a final-epoch plan — of each act, by a lens or blue — is refused naming the plan, and records
+// nothing (the chair files no proposal: only a gap's author does, T-B39). Fails if a filing the record knows no plan follows lands, or the exit's proposal has
 // no answer that lands.
 func TestTheExitDocketsAStandingProposal(t *testing.T) {
 	t.Run("standing at the final sitting: the terminal register dockets it", func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestTheExitDocketsAStandingProposal(t *testing.T) {
 
 	// A FILING AFTER A FINAL-EPOCH PLAN. The board: G1 has had its exchange, and the chair's fourth
 	// sitting is the run's last under a limit of 4.
-	for _, filer := range []string{"red-chair", otherLens, "blue-respond"} {
+	for _, filer := range []string{otherLens, "blue-respond"} {
 		for act, args := range proposalActs(boardGap) {
 			t.Run("after the final plan: "+act+" by "+filer, func(t *testing.T) {
 				runDir := newRun(t)
@@ -80,13 +80,14 @@ func TestTheExitDocketsAStandingProposal(t *testing.T) {
 			})
 		}
 	}
-	// THE CONTROL: one epoch earlier the chair's close lands.
-	t.Run("before the final plan: the chair's close lands", func(t *testing.T) {
+	// THE CONTROL: two epochs earlier — the last that admits blue's filing, the next holding it out —
+	// blue's close lands.
+	t.Run("before the final plan: blue's close lands", func(t *testing.T) {
 		runDir := newRun(t)
 		impasseBoard(t, runDir, 3, 1)
-		writeTerms(t, runDir, 3, 5)
-		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.FinalSitting {
-			t.Fatalf("plan = %+v, want a sitting before the final one", plan)
+		writeTerms(t, runDir, 3, 6)
+		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.FinalSitting || plan.Epoch != 4 {
+			t.Fatalf("plan = %+v, want epoch 4 of 6, a sitting before the final one", plan)
 		}
 		proposeClose(t, runDir, blueSeat, boardGap, "not_a_defect", "not a defect")
 	})

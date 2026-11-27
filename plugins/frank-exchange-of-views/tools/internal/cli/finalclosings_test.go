@@ -28,8 +28,10 @@ func closingParties(t *testing.T, plan record.Plan) []string {
 // ready the gap's assignee and blue for their closings before the terminal bench: the plan's parties
 // are exactly those, and the plan says the limit is reached. In that sitting each closing lands and
 // every other act of a party is refused naming the final sitting; the terminal bench rules the
-// docketing. In the epoch that holds blue out, a docketing readies blue for its closing alone; its
-// closing lands and its other acts are refused naming the held-out epoch.
+// docketing. A proposal its raiser left untaken in its window, where the raiser argued its closing, is
+// docketed by the final plan, which readies blue alone for the closing it still owes. In the epoch that
+// holds blue out, a docketing readies blue for its closing alone; its closing lands and its other acts
+// are refused naming the held-out epoch.
 func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 	const lens = "red-lens-evidence"
 	final := []string{"epoch limit of 5", "this is the final sitting", "Nothing was recorded"}
@@ -101,18 +103,31 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 		terminalBench(t, runDir)
 	})
 
-	t.Run("a proposal standing at the final sitting", func(t *testing.T) {
+	t.Run("a proposal the final plan dockets", func(t *testing.T) {
 		runDir := newRun(t)
 		stageRetiredLens(t, runDir, true)
-		setEpochLimit(t, runDir, 5)
-		m := proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
+		setEpochLimit(t, runDir, 6)
+		m := proposeBeforeTheLimit(t, runDir)
+		// THE WINDOW, at epoch 5: the raiser sits, argues its closing and leaves the proposal untaken;
+		// blue, held out there, does not sit.
 		asSeat(t, runDir, "red-chair", "register")
-		plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
-		if seats := closingParties(t, plan); !plan.FinalSitting || !slices.Equal(seats, []string{lens, "blue-respond"}) {
-			t.Fatalf("plan = %+v, want the final sitting readying exactly the proposal's two closings", plan)
+		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.Epoch != 5 || plan.FinalSitting || len(plan.Parties) != 2 {
+			t.Fatalf("plan = %+v, want epoch 5 of 6 readying %s's window", plan, m)
 		}
 		asSeat(t, runDir, lens, "register")
-		argue(t, runDir)
+		asSeat(t, runDir, lens, "closing", "--id", limitGap, "--reason", "red's position in its window")
+		asSeat(t, runDir, "red-chair", "register")
+		plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
+		if d := lastDocketing(t, runDir, limitGap); d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL || d.GetMotionId() != m {
+			t.Fatalf("the final plan's docketing = %+v, want PROPOSAL holding %s", d, m)
+		}
+		if seats := closingParties(t, plan); !plan.FinalSitting || !plan.EpochLimitReached || !slices.Equal(seats, []string{"blue-respond"}) {
+			t.Fatalf("plan = %+v, want the final sitting at the limit readying blue alone for the closing it owes", plan)
+		}
+		asSeat(t, runDir, "blue-respond", "register")
+		actRefusedOnRecord(t, runDir, "blue's edit", "blue-respond", []string{"epoch limit of 6", "this is the final sitting", "Nothing was recorded"},
+			"edit", "--quote", "# report", "--new", "# the report", "--answers", limitGap, "--reason", "late")
+		asSeat(t, runDir, "blue-respond", "closing", "--id", limitGap, "--reason", "blue's position at the final sitting")
 		asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
 		ruleProposalDocketing(t, runDir, m)
 	})
