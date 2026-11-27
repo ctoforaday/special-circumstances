@@ -167,20 +167,6 @@ func (d drive) propose(what, seatID string, act ...string) string {
 	return filedMotionID(d.t, out)
 }
 
-// landed files an act the write path must admit, once more where the first call met a gap that
-// moved under the seat's sitting.
-func (d drive) landed(what, seatID string, args ...string) string {
-	d.t.Helper()
-	out, err := d.do(seatID, args...)
-	if err == nil {
-		return out
-	}
-	if !errors.As(err, new(*record.StaleError)) {
-		d.t.Fatalf("%s: refused: %v", what, err)
-	}
-	return d.admitted(what, seatID, args...)
-}
-
 // docketMotion proposes G1's close as repaired.
 func (d drive) docketMotion(what, seatID string) string {
 	d.t.Helper()

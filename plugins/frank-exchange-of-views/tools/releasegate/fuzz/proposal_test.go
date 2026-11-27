@@ -23,20 +23,6 @@ func proposeCloseArgs(seatID, gapID, class, reason string) []string {
 		"--verified-against", "fuzz: the gap as it stands", "--reason", reason}
 }
 
-// actOf is the act motionID proposes, read off the record: "" for a motion that proposes none, with
-// the closing word a proposed close carries and the gap the motion stands on.
-func (r *runner) actOf(motionID string) (act, closeClass, gapID string) {
-	p, found, err := record.DocketProposalOf(r.run(), motionID)
-	if err != nil || !found {
-		return "", "", ""
-	}
-	act = record.ActWord(p.Motion)
-	if c := p.Motion.GetClose(); c != nil {
-		return act, recordpb.Word(c.GetClosureClass()), p.GapID
-	}
-	return act, "", p.GapID
-}
-
 // docketings is every docketing on the record, in the order written, with the ruling that answers each
 // and the close that ended each unruled.
 func (r *runner) docketings() []*record.Docketing {
