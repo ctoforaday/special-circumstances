@@ -664,7 +664,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'AN OPEN INQUIRY HOLDS THE PASS', 'owes a fate that settles it', 'checked by the logic lens against its latest fate', 're-opens that check', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'AN OPEN INQUIRY HOLDS THE PASS', 'owes a fate that settles it', 'checked by the logic lens against its latest fate', 're-opens that check', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'through an edit on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS BEFORE YOU SUBMIT THEM', 'the gap\'s lens re-audits the repair',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -806,7 +806,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // line under each and a gap for lacking them.
   assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
     'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
-  assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
+  assert.ok(/reorganize freely/i.test(synth) && /through an edit on the record/.test(synth))
   // THE SYNTHESIZER WORKS ON THE LANES' PARTS THROUGH ITS ACTS. The lanes record their parts; the
   // synthesizer reads the report they make and changes it on the record, so it is told of no draft
   // directory, no file to write and nothing to freeze, and records no part of its own.

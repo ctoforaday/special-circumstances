@@ -472,8 +472,8 @@ var errBunched = feov.Errorf(feov.Validation, "the replacement carries a run of 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
 // with `new`.
 //
-// The three LEGALITY checks — present-and-unique, no word split, and anchors transit
-// unchanged — live in internal/bluedoc, because `lens mint` now has to answer the same
+// The three LEGALITY checks — present-and-unique, no word split, and anchors transit a rewrite
+// unchanged, no marker dropped that the cut's list does not name — live in internal/bluedoc, because `lens mint` now has to answer the same
 // question about a concrete proposed fix before red may attach one. What stays here is the
 // part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
 // IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this

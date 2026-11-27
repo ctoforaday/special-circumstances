@@ -2249,9 +2249,9 @@ const GoneTeaching = "the gap's anchor is not in the report — blue cut its sen
 
 // LocationStates names each location state and what it asks of a reader; the work, board and
 // evidence help pages render it.
-const LocationStates = "Each quote gap carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `" +
-	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
-	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
+const LocationStates = "Each quote gap, and each source and computation row of `show evidence`, carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the anchor in the report as it stands, and `passage` its section; `" +
+	LocationGone + "` — on an open gap, " + GoneTeaching + "; on a closed gap or an evidence row, the anchor is not in the report; either way `location` is the text as recorded; `" +
+	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as recorded. A gap about something that is not report text carries none"
 
 // locateGap fills a quote gap's location state, location, passage and sentence from where its anchor
 // stands in report (locateAnchor). Location comes in as minted and stays so unless marked.

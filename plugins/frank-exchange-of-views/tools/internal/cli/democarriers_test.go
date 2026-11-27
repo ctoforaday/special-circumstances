@@ -239,7 +239,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 		}},
 		{"mint --help", page(lensSeat, "mint"), []string{
 			"if the defect it closed is still in the report, that is a new gap — mint it naming that gap as the one it supersedes",
-			"A gap about a retired citation or computation is refused, naming its retire",
+			"A gap about a citation or computation out of the report is refused, naming the act that took it out",
 		}},
 		{"cite --help", page(blueSeat, "cite"), []string{
 			"Name the gap it answers, and the citation is placed as that gap's answer",

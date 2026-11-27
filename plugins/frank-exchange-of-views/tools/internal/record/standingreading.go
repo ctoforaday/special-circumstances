@@ -646,7 +646,7 @@ func rewordedTo(m editAt) (reworded string, removed bool, err error) {
 	for _, sp := range anchor.Sentences(after) {
 		inside := sp[0] < start && start < sp[1]
 		if (start == end && inside) || (start < end && sp[0] < end && start < sp[1]) {
-			// A run of tokens the edit left bare is no sentence: its words are gone.
+			// A run of tokens with no words is no sentence: its words are gone.
 			if w := anchortext.Visible(after[sp[0]:sp[1]]); w != "" && !carried[w] {
 				left = append(left, w)
 			}
