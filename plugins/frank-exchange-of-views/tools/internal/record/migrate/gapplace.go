@@ -42,6 +42,7 @@ type placer struct {
 	retiresOf map[string][]retireAt // each token's archived retires, in stream order
 	removed   map[string]bool       // each token a cut took, out of the report from that cut on
 	moved     [][2]string           // each run translation 6 moved, and what it became
+	stops     []string              // each moved run whose splice took the stray full stop after it, until an edit asks for it (strayStop)
 }
 
 // newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
@@ -169,8 +170,16 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		}
 	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
+	if at := start; len(p.stops) > 0 {
+		if !ok {
+			at = -1
+		}
+		if p.strayStop(text, at, b.GetOld(), b.GetNew()) {
+			return placedLoss{fmt.Errorf("this edit takes out the stray full stop after a run the fold re-seated, and the re-seat's splice already took it: its quote rewritten as the run moved (%q) finds nothing to take", b.GetOld()), editLoss}
+		}
+	}
 	if !ok && cutQuoted {
-		return placedLoss{fmt.Errorf("this edit quoted a token a cut took, and its quote rewritten without it (%q) does not locate in the report it lands on", b.GetOld()), rewrittenLoss}
+		return placedLoss{fmt.Errorf("this edit quoted a token a cut took, and its quote rewritten without it (%q) does not locate in the report it lands on", b.GetOld()), editLoss}
 	}
 	// Before any gap is placed an edit that does not locate is the render's to refuse, loudly and
 	// naming any refusal before it (replayInOrder): the placer neither stamps nor judges it.
@@ -193,6 +202,7 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		nw, unplaced = p.carry(text[start:end], b.GetNew())
 		b.New = proto.String(nw)
 	}
+	moves := len(p.moved)
 	nw, taken := p.bares(text, start, end, b, unplaced)
 	b.New = proto.String(nw)
 	if len(taken) > 0 {
@@ -202,6 +212,15 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		}
 	}
 	after := reportproj.ApplySplice(text, start, end, b.GetNew())
+	// A RE-SEATED RUN'S STRAY STOP: where the stop the run's sentence left after it follows the run
+	// as re-seated, the splice's tidy takes the doubled stop, and an archived edit that took it out
+	// later finds it gone (strayStop).
+	for _, m := range p.moved[moves:] {
+		stray := m[1] + m[1][len(m[1])-1:]
+		if strings.Contains(text[:start]+nw+text[end:], stray) && !strings.Contains(after, stray) {
+			p.stops = append(p.stops, m[1])
+		}
+	}
 	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 80): the replay holds the report
 	// before the edit and after it, which nothing after migration can rebuild without replaying
 	// again, so the archived edit is given what a live edit stamps at its write — and its reopened

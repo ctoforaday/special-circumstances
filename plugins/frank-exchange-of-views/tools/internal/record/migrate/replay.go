@@ -561,16 +561,22 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			switch {
 			case errors.Is(err, errNoEvent), errors.As(err, &loss):
 				// AN ACT THE RECORD HOLDS NO EVENT FOR (retirefold.go): a claim retire folded into its cuts
-				// or carrying no anchor is no act; a claim retire taking an open gap's marker, and an edit
-				// whose rewritten quote no longer locates, are lost acts. A pin that named it names the last
-				// event written before it.
+				// is no act; a claim retire carrying no anchor or taking an open gap's marker, and an edit
+				// the fold leaves nothing to do, are lost acts. A pin that named it names the last event
+				// written before it — for an edit, the last report head: a pin names the report its party
+				// audited, and a lost edit changed nothing the migrated report holds, so that report is
+				// the one the head before it stands at.
 				if loss.err != nil {
 					res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: loss.Error()})
 					res.AcceptedLosses[old.Word] = loss.why
 				}
 				if _, seen := newID[old.ID]; !seen {
 					var last int64
-					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+					if _, edit := body.(*recordpb.BlueEdit); edit {
+						if last, err = record.ReportHeadAt(batch.Querier()); err != nil {
+							return nil, fmt.Errorf("reading the report head before source event %d: %w", old.ID, err)
+						}
+					} else if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
 						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
 					}
 					newID[old.ID] = last

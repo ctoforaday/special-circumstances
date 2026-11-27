@@ -42,13 +42,14 @@ type retireAt struct {
 	claim   bool
 }
 
-// errNoEvent is the placer's answer for a claim retire written as no event: it carried no anchor, or
-// every token it took is in the removed_anchors of the cut that bared it.
+// errNoEvent is the placer's answer for a claim retire written as no event because every token it took
+// is in the removed_anchors of the cut that bared it: its effect lives in the cut, so it is no lost act.
 var errNoEvent = errors.New("written as no event")
 
 // placedLoss is an archived act the placer writes as no event and lists in lost_acts: a claim retire
-// that takes an open gap's own marker (F14), or an edit that quoted a token a cut took and no longer
-// locates once its quote is rewritten without it. why is the accepted loss.
+// that carries no anchor or takes an open gap's own marker (F14), an edit that quoted a token a cut
+// took and no longer locates once its quote is rewritten without it, or an edit that takes out a
+// stray full stop a re-seat already took (strayStop). why is the accepted loss.
 type placedLoss struct {
 	err error
 	why string
@@ -56,12 +57,17 @@ type placedLoss struct {
 
 func (l placedLoss) Error() string { return l.err.Error() }
 
-// rewrittenLoss is the accepted loss of a later edit that quoted a token a cut took and no longer
-// locates once its quote is rewritten without it.
-const rewrittenLoss = "an archived edit that quoted a token a cut took is rewritten without it, since the token is out of the report from its cut on; one that no longer locates there is written as no event, each listed in lost_acts"
+// editLoss is the accepted loss of an archived edit the translations leave nothing to do: a later
+// edit that quoted a token a cut took and no longer locates once its quote is rewritten without it,
+// and an edit that took out the stray full stop a re-seated run left behind, which the re-seat's
+// splice already took (landed, it would take the re-seated sentence's own). One reason per word: the
+// manifest states each word's accepted loss once, and each act's own reason is on its lost_acts entry.
+const editLoss = "an archived edit the fold leaves nothing to do is written as no event, each listed in lost_acts: a later edit that quoted a token a cut took is rewritten without it, since the token is out of the report from its cut on, and one that no longer locates there is lost; an edit that took out the stray full stop a re-seated run left behind finds it already gone, since the re-seat's splice took it, and is lost rather than take the re-seated sentence's own"
 
-// f14Loss is the accepted loss of an archived claim retire that takes an open gap's marker.
-const f14Loss = "an archived claim retire whose sentence stayed takes anchors off a kept sentence, and one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker); it is written as no event, each listed in lost_acts, and every anchor it took stays on its sentence"
+// retireLoss is the accepted loss of an archived claim retire the record holds no act for: one that
+// carried no anchor (a retire now takes anchors and nothing else, and a claim leaves by its cut), and
+// one that takes an open gap's own marker (F14). One reason per word, as editLoss.
+const retireLoss = "an archived claim retire that carried no anchor takes nothing a retire now takes, since a claim leaves the report by its cut; one whose sentence stayed takes anchors off a kept sentence, and one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker), every anchor it took staying on its sentence; each is written as no event and listed in lost_acts"
 
 // retiresAhead reads every archived retire in stream order, its anchors in the migrated spelling.
 func retiresAhead(evs []OldEvent, migrated map[string]string) (map[int]retireAt, map[string][]retireAt) {
@@ -264,13 +270,15 @@ func (p *placer) retire(b *recordpb.Retire) error {
 		}
 	}
 	switch {
+	case len(b.GetAnchors()) == 0:
+		return placedLoss{errors.New("this claim retire carries no anchor, and a retire takes anchors and nothing else; the claim it named left the report by its cut"), retireLoss}
 	case len(kept) == 0:
 		return errNoEvent
 	case len(folded) > 0:
 		return fmt.Errorf("this claim retire takes %s, which a cut took, and %s, which stand on a kept sentence: no archived retire mixes the two, and a retire takes only what the report holds", strings.Join(folded, ", "), strings.Join(kept, ", "))
 	}
 	if err := record.RequireMarkerOfNoOpenGap(p.q, kept); err != nil {
-		return placedLoss{err, f14Loss}
+		return placedLoss{err, retireLoss}
 	}
 	return nil
 }
@@ -282,4 +290,35 @@ func bareAtEnd(text string) error {
 		return fmt.Errorf("the migrated report still holds %s on no words — a token no cut took, no retire took and no re-seat moved; no live write leaves one, so the record is refused", strings.Join(bare, ", "))
 	}
 	return nil
+}
+
+// strayStop says whether an archived edit, its old and new rewritten to the report it lands on, does
+// only what a re-seat's splice already did: it takes out one full stop, the stray one a re-seated run
+// left behind. A rewrite left "x.<A>\n\n<B>." — the sentence's stop before its tokens, a stray one
+// after them — and a later edit took the stray one out. Re-seated, the run reads "x<A><B>." and the
+// splice took the stray stop (p.stops), so that edit finds nothing to take: its quote, the run
+// rewritten as moved, no longer locates, or, where it quoted only the stop, locates on the re-seated
+// sentence's own. Each stray stop answers one edit. start is where old locates in text, or -1.
+func (p *placer) strayStop(text string, start int, old, new string) bool {
+	if len(old) != len(new)+1 {
+		return false
+	}
+	i := 0
+	for i < len(new) && old[i] == new[i] {
+		i++
+	}
+	if old[i+1:] != new[i:] || strings.IndexByte(terminators, old[i]) < 0 {
+		return false
+	}
+	before := old[:i]
+	if start >= 0 {
+		before = text[:start] + before
+	}
+	for k, to := range p.stops {
+		if strings.HasSuffix(before, to) || strings.HasSuffix(before+old[i:i+1], to) {
+			p.stops = slices.Delete(p.stops, k, k+1)
+			return true
+		}
+	}
+	return false
 }

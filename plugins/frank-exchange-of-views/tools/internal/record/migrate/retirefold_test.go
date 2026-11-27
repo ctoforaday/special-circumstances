@@ -121,11 +121,34 @@ func (m migratedArchive) gap(id string) (record.GapJSON, bool) {
 }
 
 // A CLAIM RETIRE FOLDS INTO ITS CUT. Every archived claim retire is classified from the source
-// against the migrated record: one carrying no anchor is written as no event; one every token of
+// against the migrated record: one carrying no anchor is a lost act, listed in lost_acts (R19: every
+// dropped act is in the manifest's lost_acts); one every token of
 // which is in the removed_anchors of the edit that bared it is folded, and written as no event; one
 // taking anchors off a kept sentence is the anchor-only retire it was in effect; and one taking an
 // open gap's own marker is a lost act (F14). The split is the plan's, archive by archive, and the gaps
 // whose marker a fold took keep the fates their replayed acts give them.
+// anchorlessBy is each archive's anchorless claim retires, each listed in its lost_acts: 97 in all.
+var anchorlessBy = map[string]int{
+	"2026-09-02_quadratic-formula.tar.gz":            1,
+	"2026-09-10_is-91-prime-b3.tar.gz":               1,
+	"2026-09-11_is-91-prime-b9.tar.gz":               2,
+	"2026-10-09_is-91-prime-wave-a.tar.gz":           6,
+	"2026-10-10_is-91-prime-m19.tar.gz":              2,
+	"2026-10-12_is-91-prime-wave-b.tar.gz":           6,
+	"2026-10-13_is-91-prime-m23.tar.gz":              1,
+	"2026-10-17_is-91-prime-m26.tar.gz":              12,
+	"2026-10-17_is-91-prime-m27.tar.gz":              2,
+	"2026-10-18_is-91-prime-m28.tar.gz":              11,
+	"2026-10-18_is-91-prime-m29.tar.gz":              11,
+	"2026-10-24_is-91-prime-m32.tar.gz":              3,
+	"2026-10-27_is-91-prime-m35.tar.gz":              13,
+	"2026-10-30_mersenne-31-prime-sum.tar.gz":        3,
+	"2026-11-04_eiffel-tower-height.tar.gz":          14,
+	"2026-11-11_eiffel-tower-height.tar.gz":          1,
+	"2026-11-12_is-91-prime-1838.tar.gz":             5,
+	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": 3,
+}
+
 func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 	want := map[string]map[string]int{ // archive -> kind -> claim retires
 		waveARun:    {"folded": 1},
@@ -139,7 +162,7 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 		m37Run:      {"folded": 1, "anchor-only": 1},
 		run1883:     {"folded": 1},
 	}
-	total := map[string]int{}
+	total, anchorless := map[string]int{}, map[string]int{}
 	for _, name := range archivedRuns(t) {
 		m := readMigrated(t, name)
 		folded := map[string]bool{}
@@ -181,13 +204,21 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 				t.Errorf("%s: claim retire %d (%v) is neither folded, kept as an anchor-only retire, nor lost", name, ev.ID, anchors)
 				continue
 			}
-			if kind != "F14" && lost {
+			switch listed := kind == "F14" || kind == "anchorless"; {
+			case listed && !lost:
+				t.Errorf("%s: claim retire %d is %s and not listed in lost_acts", name, ev.ID, kind)
+			case !listed && lost:
 				t.Errorf("%s: claim retire %d is %s and also listed in lost_acts", name, ev.ID, kind)
 			}
 			total[kind]++
 			if kind != "anchorless" {
 				got[kind]++
+			} else {
+				anchorless[name]++
 			}
+		}
+		if n := LostByWord(m.res)["retire"]; n != anchorless[name]+got["F14"] {
+			t.Errorf("%s: %d retires in lost_acts, want its %d anchorless and %d F14", name, n, anchorless[name], got["F14"])
 		}
 		if fmt.Sprint(got) != fmt.Sprint(want[name]) && (len(got) > 0 || len(want[name]) > 0) {
 			t.Errorf("%s: anchored claim retires %v, want %v", name, got, want[name])
@@ -198,6 +229,9 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 	}
 	if w := map[string]int{"anchorless": 97, "folded": 6, "anchor-only": 10, "F14": 1}; fmt.Sprint(total) != fmt.Sprint(w) {
 		t.Errorf("the claim retires classify as %v, want %v", total, w)
+	}
+	if fmt.Sprint(anchorless) != fmt.Sprint(anchorlessBy) {
+		t.Errorf("anchorless claim retires in lost_acts, by archive: %v, want %v", anchorless, anchorlessBy)
 	}
 
 	// F18's six gaps keep the fates they migrated with before the fold: no Close is written, an open
@@ -361,5 +395,34 @@ func TestARewriteKeepsItsTokenInItsSentence(t *testing.T) {
 	}
 	if c := m.cuts(); len(c) > 0 {
 		t.Errorf("m26: removed_anchors %v; translation 6 removes nothing", c)
+	}
+	// AN EDIT TAKING A STOP THE RE-SEAT TOOK IS A LOST ACT (lead call 11-27). Each run m26 re-seated
+	// was followed by the stray full stop its sentence had left after the run, and the re-seat's
+	// splice took it. Source edits 219 and 222 each took one of those stops out: 219's quote, run
+	// rewritten as moved, no longer locates, and 222's would land on the re-seated sentence's own
+	// full stop. Both are written as no event and listed in lost_acts; no other archive loses an edit.
+	for _, name := range archivedRuns(t) {
+		res, _ := MigratedArchive(t, name)
+		var got []int64
+		for _, a := range res.LostActs {
+			if a.Word == "blue_edit" {
+				got = append(got, a.OldID)
+			}
+		}
+		var want []int64
+		if name == m26Run {
+			want = []int64{219, 222}
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: edits in lost_acts %v, want %v", name, got, want)
+		}
+	}
+	for _, end := range []string{
+		"This is a limit on the claim, not a finding that no such source exists" + tok("G-59e61f8c", "F-3f45c83d", "F-df9c936c", "F-f9de927e", "F-bcff91e4", "F-e1a7c8a3") + ".\n\n## Open questions",
+		"does not prove that none exists" + tok("G-0f2d72fd", "F-dc74b9c1", "F-e17d48bd") + ".\n",
+	} {
+		if strings.Count(m.md, end) != 1 {
+			t.Errorf("m26: the report does not hold %q once, its sentence ending on one full stop", end)
+		}
 	}
 }
