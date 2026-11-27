@@ -1,6 +1,6 @@
 # Messages reach an Antigravity conversation: route selection and queue visibility
 
-> STATUS: implemented 2026-11-27 in #1951. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-startup-wake.md`) makes a queued message wake its conversation at daemon startup. This plan gates the next gray-area release.
+> STATUS: implemented 2026-11-27 in #1951. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-sidecar.md`) replaces this plan's server registry with one gray-area sidecar that delivers every message and notices queued mail at its start. This plan gates the next gray-area release.
 
 ## I. Summary & Goals
 
@@ -228,7 +228,7 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
 - **Every record drops once, at upgrade** (stated residue).
   - No record on the box has a `shape` field (KNOWN, 42 of 42 on 11-26). The first verb the new binary runs therefore deletes every record, including those of running servers.
   - Until each conversation's next turn, when the hook asks it to link, sends to it queue with the cause stated.
-  - The no-compatibility rule forbids keeping a reader for the old shape. Plan 2's anchor re-links the daemon at the next restart.
+  - The no-compatibility rule forbids keeping a reader for the old shape. Plan 2 (`plans/agy-sidecar.md`) deletes the registry.
   - The release note tells the human this happens once.
 - **Install skew** (stated residue):
   - Until both installs update, the old binary cannot read shape-2 records and writes its own shape, and the new one prunes those.
