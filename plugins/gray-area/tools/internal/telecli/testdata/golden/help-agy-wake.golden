@@ -1,0 +1,33 @@
+Starts a turn, through Antigravity's remote-control daemon, in every conversation
+under the CLI daemon root (~/.gemini/antigravity-cli) whose mailbox holds a message
+from an agent or a shell that its client has not read; the turn reads the mailbox
+first. The drop-in telepathy agy-provision writes runs it after each daemon start,
+so a message queued while the daemon was down, or while nothing woke its
+conversation, is read once the daemon is back. A hand run — by the human, or by an
+agent with the human's agreement — spends a turn in each conversation it wakes.
+
+It reads the daemon's token, waits up to 45 seconds for the daemon and its HTTP
+port, then sends each such conversation the wake message telepathy send uses,
+unless another process holds it (that holder's next turn reads the mailbox). It
+does not wake for agy's own notices, for earlier wake messages, or for a message
+whose file is missing or does not parse: none of those is mail an agent is owed.
+The whole run ends within 60 seconds, each request within 5, because systemd stops
+the daemon when a start command outlives the start timeout; a conversation not
+reached by then is named. It prints one line per conversation to stderr (the
+daemon's journal) and exits 0 whatever it found, so it never fails the daemon's
+start.
+
+WHAT IT CANNOT TELL YOU. That a woken turn ran: a wake answered 200 says only that
+the daemon took it. It keeps no record between runs, so every daemon start wakes
+every conversation still holding unread mail, however old.
+
+Usage:
+  telepathy agy-wake [flags]
+
+Flags:
+  -h, --help   help for agy-wake
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

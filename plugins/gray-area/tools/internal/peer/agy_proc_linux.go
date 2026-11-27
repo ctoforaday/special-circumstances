@@ -17,39 +17,13 @@ import (
 	"time"
 )
 
-const daemonUnit = "antigravity-cli-daemon.service"
-
-// HostServer walks the current process's ancestor chain in /proc to identify the Antigravity
-// language-server process hosting this shell or hook.
-func HostServer() ServerIdentity {
-	pid := os.Getppid()
-	for depth := 0; depth < 32 && pid > 1; depth++ {
-		ppid, comm, start, err := readProcStat(pid)
-		if err != nil {
-			break
-		}
-		if isAgyProcess(pid, comm) {
-			return ServerIdentity{
-				PID:       pid,
-				StartTime: start,
-				Daemon:    isDaemonCmdline(pid),
-			}
-		}
-		if ppid == pid {
-			break
-		}
-		pid = ppid
-	}
-	return ServerIdentity{}
-}
-
 // CurrentDaemon returns the identity (MainPID and start time) of the running Antigravity
 // remote-control daemon, if one is active. It queries systemd first, then falls back to scanning
 // /proc for an `agy remote-control serve` process.
 func CurrentDaemon() (ServerIdentity, bool) {
 	if pid, ok := systemdDaemonPID(); ok {
 		if _, _, start, err := readProcStat(pid); err == nil && start > 0 {
-			return ServerIdentity{PID: pid, StartTime: start, Daemon: true}, true
+			return ServerIdentity{PID: pid, StartTime: start}, true
 		}
 	}
 	entries, err := os.ReadDir("/proc")
@@ -68,7 +42,7 @@ func CurrentDaemon() (ServerIdentity, bool) {
 			continue
 		}
 		if _, _, start, err := readProcStat(pid); err == nil && start > 0 {
-			return ServerIdentity{PID: pid, StartTime: start, Daemon: true}, true
+			return ServerIdentity{PID: pid, StartTime: start}, true
 		}
 	}
 	return ServerIdentity{}, false
@@ -76,19 +50,11 @@ func CurrentDaemon() (ServerIdentity, bool) {
 
 // ProcessStartTime returns the kernel start time (clock ticks since boot) of pid from /proc/<pid>/stat.
 func ProcessStartTime(pid int) (int64, bool) {
-	start, err := procStartTime(pid)
-	return start, err == nil && start > 0
-}
-
-// procStartTime is pid's start time in clock ticks since boot. Its error wraps fs.ErrNotExist only
-// when there is no such process; any other failure to read it is a different error, so a caller
-// can tell a process that is gone from one it could not look at.
-func procStartTime(pid int) (int64, error) {
 	if pid <= 0 {
-		return 0, fmt.Errorf("pid %d is not a process id", pid)
+		return 0, false
 	}
 	_, _, start, err := readProcStat(pid)
-	return start, err
+	return start, err == nil && start > 0
 }
 
 // otherDBHolder finds a live process (regardless of comm) other than excludePID that holds
@@ -285,7 +251,7 @@ func lockHolders(locks, ino string) ([]int, error) {
 func systemdDaemonPID() (int, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "systemctl", "--user", "show", "-p", "MainPID", "--value", daemonUnit).Output()
+	out, err := exec.CommandContext(ctx, "systemctl", "--user", "show", "-p", "MainPID", "--value", DaemonUnit).Output()
 	if err != nil {
 		return 0, false
 	}
@@ -323,19 +289,6 @@ func readProcStat(pid int) (ppid int, comm string, startTime int64, err error) {
 		return 0, "", 0, malformed
 	}
 	return ppid, comm, startTime, nil
-}
-
-func isAgyProcess(pid int, comm string) bool {
-	if strings.Contains(comm, "agy") || strings.Contains(comm, "antigravity") {
-		return true
-	}
-	raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
-	if err != nil || len(raw) == 0 {
-		return false
-	}
-	arg0, _, _ := bytes.Cut(raw, []byte{0})
-	base := filepath.Base(string(arg0))
-	return base == "agy" || strings.Contains(base, "antigravity")
 }
 
 func isDaemonCmdline(pid int) bool {

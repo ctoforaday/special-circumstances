@@ -1,0 +1,39 @@
+Lets telepathy send wake Antigravity conversations on this box's remote-control
+daemon. It writes files OUTSIDE any repository, rotates the daemon's token, and
+takes effect only when the daemon restarts, which ends every turn running on it, so
+it runs when the human runs it, or when an agent runs it with the human's agreement.
+No hook and no other verb runs it.
+
+On Linux it:
+
+  1. writes a new random token to $XDG_CONFIG_HOME/gray-area/antigravity-daemon.env
+     (else ~/.config; directory 0700, file 0600), one line
+     ANTIGRAVITY_SERVER_CSRF_TOKEN=<token>. Antigravity's language server adopts
+     that variable as its token; no hook, MCP server or agent shell receives it.
+     A running daemon keeps its old token, so wakes fail until it restarts;
+  2. writes the systemd drop-in
+     $XDG_CONFIG_HOME/systemd/user/antigravity-cli-daemon.service.d/telepathy.conf,
+     which gives the daemon that file as its environment and runs
+     ~/.gemini/config/plugins/gray-area/bin/telepathy agy-wake (agy's own install,
+     whose path does not change between releases) after each start;
+  3. prints the restart the human runs. It runs no systemctl itself.
+
+It warns when agy's install of telepathy is missing or does not know agy-wake: the
+drop-in then runs nothing useful until a release carrying agy-wake is installed
+there. The token is never printed.
+
+WHAT IT CANNOT TELL YOU. Whether the daemon has restarted since: until it has, every
+wake is refused and the message stays queued, saying so. The first start after the
+restart wakes every daemon conversation with mail waiting, however old;
+telepathy agents lists them beforehand.
+
+Usage:
+  telepathy agy-provision [flags]
+
+Flags:
+  -h, --help   help for agy-provision
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

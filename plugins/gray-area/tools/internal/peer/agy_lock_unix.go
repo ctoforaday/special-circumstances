@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -50,5 +49,3 @@ func ConversationBusy(agyRoot, conversation string, excludePID int) Holder {
 	}
 	return otherDBHolder(agyRoot, conversation, excludePID)
 }
-
-func renameRecord(src, dst string) error { return os.Rename(src, dst) }

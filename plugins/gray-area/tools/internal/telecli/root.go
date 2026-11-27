@@ -14,10 +14,12 @@
 package telecli
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -49,24 +51,30 @@ type Env struct {
 	// its platform. A NIL Boot reads as "not measurable", never a panic, and it is called only after
 	// the store opened, so an Env built without it keeps every verb's behaviour.
 	Boot func() (int64, bool)
-	// RuntimeDir is $XDG_RUNTIME_DIR, where Antigravity server records live; empty means none
-	// are kept. DaemonRoot is the Antigravity CLI root (~/.gemini/antigravity-cli) that the
-	// remote-control daemon serves; route 2 (daemon wake) is restricted to conversations under it.
-	// Getenv reads the calling process's environment. HostServer, CurrentDaemon,
-	// ConversationBusy and RecordLiveness probe local Antigravity server, lock and process state.
-	// GOOS is the platform live delivery is judged for (runtime.GOOS when empty). SendTimeout bounds
-	// one request to a language server (15 seconds when zero). Sleep waits between requests to a
-	// server that asked for a wait (time.Sleep when nil). All are injected so tests can stand
-	// in an Antigravity shell, daemon or platform without being one.
-	RuntimeDir       string
+	// DaemonRoot is the Antigravity CLI root (~/.gemini/antigravity-cli) that the remote-control
+	// daemon serves; a wake goes only to conversations under it. TokenFile is the daemon's token
+	// (peer.DaemonTokenFile under the configuration directory), DropInDir the daemon unit's
+	// systemd drop-in directory, and AgyTelepathy agy's own install of this binary, which the
+	// drop-in runs at each daemon start. Getenv reads the calling process's environment.
+	// CurrentDaemon, ConversationBusy and DaemonAddress probe the local daemon, the conversation's
+	// holders and the daemon's port. RunProgram runs a program and reports its error (agy-provision
+	// asks AgyTelepathy whether it knows agy-wake). GOOS is the platform a wake is judged for
+	// (runtime.GOOS when empty). SendTimeout bounds one request to a language server (5 seconds
+	// when zero); WakeBound bounds a whole agy-wake run (60 seconds when zero); Sleep waits between
+	// polls (time.Sleep when nil). All are injected so tests can stand in a daemon or platform
+	// without being one.
 	DaemonRoot       string
+	TokenFile        string
+	DropInDir        string
+	AgyTelepathy     string
 	Getenv           func(string) string
-	HostServer       func() peer.ServerIdentity
 	CurrentDaemon    func() (peer.ServerIdentity, bool)
 	ConversationBusy func(agyRoot, conversation string, excludePID int) peer.Holder
-	RecordLiveness   func(peer.Server) catalogue.Liveness
+	DaemonAddress    func(client *http.Client, pid int) (string, error)
+	RunProgram       func(path string, args ...string) error
 	GOOS             string
 	SendTimeout      time.Duration
+	WakeBound        time.Duration
 	Sleep            func(time.Duration)
 }
 
@@ -75,12 +83,11 @@ func Defaults() Env {
 	e := Env{
 		Now:              time.Now,
 		Boot:             catalogue.BootTime,
-		RuntimeDir:       os.Getenv("XDG_RUNTIME_DIR"),
 		Getenv:           os.Getenv,
-		HostServer:       peer.HostServer,
 		CurrentDaemon:    peer.CurrentDaemon,
 		ConversationBusy: peer.ConversationBusy,
-		RecordLiveness:   peer.RecordLiveness,
+		DaemonAddress:    peer.DaemonAddress,
+		RunProgram:       runProgram,
 		GOOS:             runtime.GOOS,
 	}
 	if dir, err := catalogue.DefaultDir(); err == nil {
@@ -90,18 +97,34 @@ func Defaults() Env {
 		e.ProjectsDir = filepath.Join(home, ".claude", "projects")
 		e.SessionsDir = filepath.Join(home, ".claude", "sessions")
 		e.DaemonRoot = filepath.Join(home, ".gemini", "antigravity-cli")
+		e.AgyTelepathy = filepath.Join(home, ".gemini", "config", "plugins", "gray-area", "bin", "telepathy")
+	}
+	if dir := configDir(); dir != "" {
+		e.TokenFile = peer.DaemonTokenFile(dir)
+		e.DropInDir = filepath.Join(dir, "systemd", "user", peer.DaemonUnit+".d")
 	}
 	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
 	e.AnnotationsDirs = peer.DefaultAntigravityAnnotationsDirs()
 	return e
 }
 
-// recordLiveness is the liveness every server record is judged by.
-func (e *Env) recordLiveness() func(peer.Server) catalogue.Liveness {
-	if e.RecordLiveness != nil {
-		return e.RecordLiveness
+// configDir is $XDG_CONFIG_HOME when it is an absolute path, else the platform's configuration
+// directory, else "".
+func configDir() string {
+	if d := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(d) {
+		return d
 	}
-	return peer.RecordLiveness
+	if d, err := os.UserConfigDir(); err == nil {
+		return d
+	}
+	return ""
+}
+
+// runProgram runs path with args, bounded to 10 seconds, with no input and its output discarded.
+func runProgram(path string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, path, args...).Run()
 }
 
 func (e *Env) goos() string {
@@ -115,7 +138,14 @@ func (e *Env) sendTimeout() time.Duration {
 	if e.SendTimeout > 0 {
 		return e.SendTimeout
 	}
-	return 15 * time.Second
+	return 5 * time.Second
+}
+
+func (e *Env) wakeBound() time.Duration {
+	if e.WakeBound > 0 {
+		return e.WakeBound
+	}
+	return 60 * time.Second
 }
 
 func (e *Env) sleep(d time.Duration) {
@@ -124,13 +154,6 @@ func (e *Env) sleep(d time.Duration) {
 		return
 	}
 	time.Sleep(d)
-}
-
-// pruneServers deletes the server records whose server is gone, saying so on w when it cannot.
-func (e *Env) pruneServers(w io.Writer) {
-	if _, err := peer.Prune(e.RuntimeDir, e.recordLiveness()); err != nil {
-		fmt.Fprintf(w, "telepathy: server records not pruned: %v\n", err)
-	}
 }
 
 // agyTitle reads the Antigravity conversation's current title at display time from its .pbtxt
@@ -204,23 +227,6 @@ func NewRoot(env Env) *cobra.Command {
 		// dump the full usage block over the answer.
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		// AN ANTIGRAVITY SHELL IS THE ONLY PLACE ITS SERVER'S TOKEN EXISTS, so every verb run from
-		// one records that conversation's server for telepathy send (peer.Register says why).
-		// Every verb, from any shell, then deletes the records of servers that are gone.
-		// A failure of either costs the caller nothing but a line: the verb still runs.
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			// link records the server itself and reports what it found; recording first here would
-			// make it report every link as already made. It prunes after recording, as here.
-			if cmd.Name() == "link" {
-				return
-			}
-			if env.Getenv != nil {
-				if _, _, err := peer.RegisterWith(env.RuntimeDir, env.Getenv, env.hostServer(), env.Now()); err != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "telepathy: this conversation's server was not recorded, so telepathy send cannot wake it: %v\n", err)
-				}
-			}
-			env.pruneServers(cmd.ErrOrStderr())
-		},
 	}
 	root.SetVersionTemplate("{{.Version}}\n")
 
@@ -258,7 +264,8 @@ func NewRoot(env Env) *cobra.Command {
 		newSQLCmd(&env),
 		newBackfillCmd(&env),
 		newSendCmd(&env),
-		newLinkCmd(&env),
+		newAgyProvisionCmd(&env),
+		newAgyWakeCmd(&env),
 	)
 	return root
 }

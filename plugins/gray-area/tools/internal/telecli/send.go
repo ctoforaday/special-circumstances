@@ -42,63 +42,44 @@ titles are never accepted as targets).
 
 WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
 
-  claude-socket              a running Claude Code session's inbox socket. The
-                             session's inbound controls then decide: by default the
-                             text reaches it between tool calls, or starts a turn if it
-                             is idle; a session that bypasses permission prompts HOLDS
-                             it for its human's approval; crossSessionInbound "refuse"
-                             drops it unseen.
-  antigravity-daemon         the current remote-control daemon's language server,
-                             through its record. It delivers the text, loading the
-                             conversation if it has to, and wakes it if idle.
-  antigravity-server-own     a language server whose record lists the conversation: of
-                             those still running, the one it linked to last. It
-                             delivers the text and wakes the conversation if idle.
-  antigravity-server-holder  the language server that has the conversation open,
-                             through a record that does not list it. It delivers the
-                             text and wakes the conversation if idle.
-  antigravity-mailbox        the conversation's on-disk mailbox. The text is QUEUED: it
-                             is read at the conversation's next turn, and nothing wakes
-                             it. Printed with it: why it was not delivered live, when
-                             the daemon started, and when the conversation last
-                             recorded a step — the two times that bound the wait.
+  claude-socket        a running Claude Code session's inbox socket. The session's
+                       inbound controls then decide: by default the text reaches it
+                       between tool calls, or starts a turn if it is idle; a session
+                       that bypasses permission prompts HOLDS it for its human's
+                       approval; crossSessionInbound "refuse" drops it unseen.
+  antigravity-mailbox  the conversation's on-disk mailbox, ALWAYS, for every
+                       Antigravity message. The text is QUEUED: the conversation reads
+                       it at the start of its next turn, whatever starts that turn.
 
-Live delivery to an Antigravity conversation runs on Linux only; on other platforms
-second-writer safety cannot be verified, so send always queues to the mailbox. On
-Linux, send first finds who holds the conversation: its presence/<id>.lock, or its
-conversations/<id>.db open in any process. When nobody does, it tries the running
-server whose record lists the conversation and that it linked to last, then the
-current remote-control daemon's record — written by any daemon-hosted conversation
-that linked since the daemon started — which adopts conversations under the CLI
-daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds it,
-that server delivers. Before every attempt send checks again that no process but
-that server holds the conversation, because two writers corrupt it; any other
-holder, or a holder it cannot inspect, queues the message and is named. Send moves
-on from a server only when its first request could not reach it at all. A refusal
-before any handling, in the shapes measured on agy 1.5.18 (a 401 from the CSRF check,
-a 404 or 405 that carries no Connect error), did not deliver, and the message queues.
-A server that answers 429 (rate limited) declined without acting: send makes up to 3
-requests to it in all, waiting what it names (at most 5 seconds) and checking the
-holder again before each retry, then queues the message; a retry that cannot reach it
-queues too — never another server. A server that was sent the message and did not
-confirm it — no answer, a dropped connection, any other status or body — may have
-it: send then tries no other server, queues nothing, says the delivery is UNKNOWN
-and exits non-zero, because a second copy could arrive. A record is
-used only while its server process is running; a record whose process cannot be
-judged (another pid namespace, a host with no machine id) is never used. The
-server's token reaches nothing but an agent's shell commands, so when no
-daemon-hosted conversation has linked since a restart (a standalone interactive agy
-does not restore the daemon route), send queues to the mailbox and says so.
-telepathy link --help says where the record lives; telepathy agents lists every
-conversation with messages still waiting.
+A QUEUED message is then WOKEN when it can be: send asks Antigravity's remote-control
+daemon to start the conversation's turn now, with a fixed wake message ("You have
+queued messages.") that asks for nothing; the turn it starts reads the mailbox
+first. The text itself never travels live, so it cannot arrive twice. Printed under
+QUEUED: "woken" and the daemon's address, or "not woken" and why, with when the
+daemon started and when the conversation last recorded a step.
+
+A wake needs, in this order: Linux; a conversation under the CLI daemon root
+(~/.gemini/antigravity-cli); the daemon's token in
+$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env, which the human provisions with
+telepathy agy-provision (it is read before any network contact); a running daemon;
+its HTTP port, read from /proc; and no process but the daemon holding the
+conversation — its presence/<id>.lock, or its conversations/<id>.db open. A
+conversation another process holds gets no wake, because a language server sent a
+message for a conversation another holds adopts it and the two then write it at
+once; that holder's next turn reads the mailbox. A wake that fails leaves the message
+queued and says why. A conversation hosted anywhere but the daemon (a standalone
+agy, a TUI, the IDE) is read at its own next turn. At each daemon start the
+provisioned daemon runs telepathy agy-wake, which wakes every conversation with mail
+waiting; telepathy agents lists every conversation with messages still waiting.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
-acted on the message, an UNKNOWN delivery does not say whether it arrived, and the
+acted on the message, a wake that answered 200 does not say the turn ran, and the
 Claude Code socket does not report a hold or a drop. The holder check sees only the
-processes of send's own pid namespace and the locks of this host. A process outside
+processes of send's own pid namespace and the locks of this host, and not a server
+that has resumed the conversation without yet opening its database. A process outside
 the namespace that has the conversation open is invisible, and so is a lock taken on
 another host through a FUSE client of a distributed filesystem: from a container
-that shares Antigravity's data with the host, or over such a filesystem, send can
+that shares Antigravity's data with the host, or over such a filesystem, a wake can
 create a second writer. A Claude Code session that is not running has no inbox and
 is refused; telepathy agents shows which are. On native Windows a Claude Code inbox
 takes posts only from its own session, so sending to one is refused there.`,
@@ -126,28 +107,27 @@ takes posts only from its own session, so sending to one is refused there.`,
 			if title == "" {
 				title = "Message from " + from
 			}
-			d, bounds, err := deliver(env, target, body, title)
+			d, err := deliver(env, target, body, title)
 			if err != nil {
 				return fmt.Errorf("%s session %s: %w", target.harness, target.id, err)
 			}
 			out := cmd.OutOrStdout()
-			agyTitleSuffix := ""
-			if target.harness == "antigravity" {
-				if t := env.agyTitle(target.id); t != "" {
-					agyTitleSuffix = fmt.Sprintf(" (%q)", t)
-				}
-			}
-			switch d.Route {
-			case peer.RouteClaudeSocket:
+			if d.Route == peer.RouteClaudeSocket {
 				fmt.Fprintf(out, "delivered to claude session %s over its inbox socket %s\n", target.id, d.Via)
-			case peer.RouteAgyDaemon, peer.RouteAgyOwnRecord, peer.RouteAgyHolderRecord:
-				fmt.Fprintf(out, "delivered to antigravity conversation %s%s via %s, the language server at %s; it wakes if idle\n", target.id, agyTitleSuffix, d.Route, d.Via)
-			case peer.RouteAgyMailbox:
-				fmt.Fprintf(out, "QUEUED for antigravity conversation %s%s in its mailbox (%s); it is read at the conversation's next turn and nothing wakes it\n", target.id, agyTitleSuffix, d.Via)
-				fmt.Fprintf(out, "  not delivered live: %s\n", d.NotWoken)
-				for _, line := range bounds {
-					fmt.Fprintf(out, "  %s\n", line)
-				}
+				return nil
+			}
+			agyTitleSuffix := ""
+			if t := env.agyTitle(target.id); t != "" {
+				agyTitleSuffix = fmt.Sprintf(" (%q)", t)
+			}
+			fmt.Fprintf(out, "QUEUED for antigravity conversation %s%s in its mailbox (%s); it is read at the start of the conversation's next turn\n", target.id, agyTitleSuffix, d.Via)
+			if d.wokenVia != "" {
+				fmt.Fprintf(out, "  woken: the daemon's language server at %s was sent a wake, which starts that turn now\n", d.wokenVia)
+				return nil
+			}
+			fmt.Fprintf(out, "  not woken: %s\n", d.notWoken)
+			for _, line := range d.bounds {
+				fmt.Fprintf(out, "  %s\n", line)
 			}
 			return nil
 		},
@@ -214,13 +194,6 @@ func resolvePeer(env *Env, prefix string) (candidate, error) {
 	return candidate{}, usagef("%q names %d sessions — give more of the id:\n  %s", prefix, len(found), strings.Join(names, "\n  "))
 }
 
-func (e *Env) hostServer() func() peer.ServerIdentity {
-	if e.HostServer != nil {
-		return e.HostServer
-	}
-	return peer.HostServer
-}
-
 func (e *Env) currentDaemon() (peer.ServerIdentity, bool) {
 	if e.CurrentDaemon != nil {
 		return e.CurrentDaemon()
@@ -233,6 +206,13 @@ func (e *Env) conversationBusy(agyRoot, conversation string, excludePID int) pee
 		return e.ConversationBusy(agyRoot, conversation, excludePID)
 	}
 	return peer.ConversationBusy(agyRoot, conversation, excludePID)
+}
+
+func (e *Env) daemonAddress(client *http.Client, pid int) (string, error) {
+	if e.DaemonAddress != nil {
+		return e.DaemonAddress(client, pid)
+	}
+	return peer.DaemonAddress(client, pid)
 }
 
 func sameCanonicalPath(a, b string) bool {
@@ -250,294 +230,141 @@ func sameCanonicalPath(a, b string) bool {
 	return ca == cb
 }
 
-// restoreHint is what brings the daemon route back, said wherever its absence is the cause.
-const restoreHint = "opening a daemon-hosted Antigravity conversation restores the live route (a standalone interactive agy does not)"
+// sent is what a send did: the delivery, and for an Antigravity message whether a wake went with it.
+type sent struct {
+	peer.Delivery
+	// wokenVia is the daemon address a wake went to; empty when none went.
+	wokenVia string
+	// notWoken says why no wake went; bounds are the lines bounding the wait then.
+	notWoken string
+	bounds   []string
+}
 
-// deliver sends body to c by the route c's harness and state allow. For a message it QUEUED to an
-// Antigravity mailbox it also returns the lines that bound the wait: when the daemon started, and
-// when the conversation last recorded a step.
-func deliver(env *Env, c candidate, body, title string) (peer.Delivery, []string, error) {
+// deliver sends body to c by the one route c's harness has. An Antigravity message always goes to
+// the conversation's mailbox; a wake follows when the daemon may start the conversation's turn.
+func deliver(env *Env, c candidate, body, title string) (sent, error) {
 	if c.harness == "claude" {
 		d, err := peer.SendClaude(c.socket, body)
-		return d, nil, err
+		return sent{Delivery: d}, err
 	}
 	m := peer.AgyMessage{Recipient: c.id, Sender: senderID(env), Title: title, Content: body}
-	daemonID, hasDaemon := env.currentDaemon()
-	if env.goos() != "linux" {
-		hasDaemon = false
-	}
-	r := &agyRouter{env: env, c: c, m: m, daemonID: daemonID, hasDaemon: hasDaemon,
-		agyRoot: filepath.Dir(filepath.Dir(c.dir)), live: env.recordLiveness(),
-		client: peer.NewAgyClient(env.sendTimeout())}
-	if hasDaemon {
-		r.daemonKey = peer.ServerKey(daemonID.PID, daemonID.StartTime, "")
-	}
-	d, ok := r.route()
-	if ok {
-		return d, nil, nil
-	}
-	if r.unknown != nil {
-		// A second server, or the mailbox, could deliver the message twice: once through the server
-		// that may already have it, and once more.
-		return peer.Delivery{}, nil, fmt.Errorf("delivery UNKNOWN: %v — the message may have arrived, so no other server was tried and nothing was queued; check the conversation before sending it again", r.unknown)
-	}
-	q, err := peer.EnqueueAgy(c.dir, m, env.Now())
-	q.NotWoken = r.cause
-	return q, []string{r.daemonLine(), lastStepLine(c.dir)}, err
-}
-
-// agyRouter chooses the one server, if any, that may deliver to an Antigravity conversation, and
-// otherwise holds the sentence saying why none may (peer's package doc states the model).
-type agyRouter struct {
-	env       *Env
-	c         candidate
-	m         peer.AgyMessage
-	agyRoot   string
-	live      func(peer.Server) catalogue.Liveness
-	client    *http.Client
-	servers   []peer.Server
-	daemonID  peer.ServerIdentity
-	hasDaemon bool
-	daemonKey string
-	// cause is why the message was not delivered live: the reason the last target tried stopped.
-	cause string
-	// unknown is the failure of a server that was sent the message and did not confirm it, which
-	// ends the send with its arrival unknown.
-	unknown error
-}
-
-func (r *agyRouter) queue(format string, a ...any) (peer.Delivery, bool) {
-	r.cause = fmt.Sprintf(format, a...)
-	return peer.Delivery{}, false
-}
-
-func (r *agyRouter) route() (peer.Delivery, bool) {
-	if r.env.RuntimeDir == "" {
-		return r.queue("no runtime directory ($XDG_RUNTIME_DIR is unset), so no server is ever recorded")
-	}
-	if r.env.goos() != "linux" {
-		return r.queue("live delivery to an Antigravity conversation runs on Linux only")
-	}
-	servers, err := peer.ListServers(r.env.RuntimeDir)
+	d, err := peer.EnqueueAgy(c.dir, m, env.Now())
 	if err != nil {
-		return r.queue("the server records cannot be read: %v", err)
+		return sent{}, err
 	}
-	r.servers = servers
-
-	// ONE DISCOVERY, EXCLUDING NOBODY: who holds the conversation decides which server may reach it.
-	h := r.env.conversationBusy(r.agyRoot, r.c.id, 0)
-	if h.Kind == peer.HolderNone {
-		return r.toUnheld()
-	}
-	if x := r.liveRecordOf(h.PID); x != nil {
-		return r.throughHolder(*x, h.PID)
-	}
-	return r.queue("%s", r.heldBy(h))
-}
-
-// toUnheld tries, while nobody holds the conversation, the Live record it linked to last and then
-// the current daemon's. A target that now finds the conversation held stops the send: the holder
-// is the only server that may reach it, and it is reported rather than bypassed. So does a target
-// that was sent the message and did not confirm it; only one that could not be reached at all
-// passes the message on to the next.
-func (r *agyRouter) toUnheld() (peer.Delivery, bool) {
-	own := peer.NewestLiveListing(r.servers, r.c.id, r.live)
-	if own != nil {
-		d, ok, stop := r.attempt(*own)
-		if ok || stop {
-			return d, ok
-		}
-		if own.Key == r.daemonKey {
-			return d, false // the daemon's record was the one tried
+	out := sent{Delivery: d}
+	agyRoot := filepath.Dir(filepath.Dir(c.dir))
+	dm, why := env.daemonForWake(agyRoot)
+	if why == "" {
+		var addr string
+		if addr, why = dm.wake(agyRoot, c.id); why == "" {
+			out.wokenVia = addr
+			return out, nil
 		}
 	}
-	daemon, why := r.daemonTarget()
-	if daemon == nil {
-		r.cause = why
-		return peer.Delivery{}, false
-	}
-	d, ok, _ := r.attempt(*daemon)
-	return d, ok
+	out.notWoken = why
+	out.bounds = []string{dm.daemonLine(), lastStepLine(c.dir)}
+	return out, nil
 }
 
-// throughHolder delivers through X, the Live record of the server holding the conversation, once a
-// probe excluding X's pid finds nobody else. It never falls back to another server: X has the
-// conversation open.
-func (r *agyRouter) throughHolder(x peer.Server, pid int) (peer.Delivery, bool) {
-	g := r.env.conversationBusy(r.agyRoot, r.c.id, pid)
+// wakeDaemon is the daemon a wake goes through: its process, its token and its client.
+type wakeDaemon struct {
+	env *Env
+	id  peer.ServerIdentity
+	// looked says the daemon was looked for; found that it runs.
+	looked, found bool
+	token         string
+	client        *http.Client
+}
+
+// daemonForWake checks, in order, everything a wake needs before any holder check, and says why
+// none can go. The token file is read before any network contact, so an environment without one
+// never probes a daemon.
+func (e *Env) daemonForWake(agyRoot string) (wakeDaemon, string) {
+	w := wakeDaemon{env: e, client: peer.NewAgyClient(e.sendTimeout())}
+	if e.goos() != "linux" {
+		return w, "a wake is sent on Linux only"
+	}
+	if !sameCanonicalPath(agyRoot, e.DaemonRoot) {
+		return w, fmt.Sprintf("conversation root %s is not the CLI daemon root (%s), so the daemon cannot wake it", agyRoot, e.DaemonRoot)
+	}
+	tok, why := e.daemonToken()
+	if why != "" {
+		return w, why
+	}
+	w.token = tok
+	w.id, w.found = e.currentDaemon()
+	w.looked = true
+	if !w.found {
+		return w, "no daemon is running"
+	}
+	return w, ""
+}
+
+// daemonToken reads the daemon's token, or says why it cannot be used. Neither carries the token.
+func (e *Env) daemonToken() (string, string) {
+	if e.TokenFile == "" {
+		return "", "no configuration directory, so no daemon token file"
+	}
+	tok, err := peer.ReadDaemonToken(e.TokenFile)
 	switch {
-	case g.Kind == peer.HolderNone:
-		d, ok, _ := r.send(x)
-		return d, ok
-	case g.Kind == peer.HolderUninspectable:
-		return r.queue("%s", uninspectable(g))
-	}
-	return r.queue("held by the language server recorded at %s and also by pid %d", x.Address, g.PID)
-}
-
-// attempt sends through target once a probe excluding only target's pid finds nobody holding the
-// conversation. stop reports that the send ends here: the probe found a holder, or target may have
-// the message.
-func (r *agyRouter) attempt(target peer.Server) (d peer.Delivery, ok, stop bool) {
-	g := r.env.conversationBusy(r.agyRoot, r.c.id, target.PID)
-	if g.Kind != peer.HolderNone {
-		r.queue("%s", r.heldBy(g))
-		return peer.Delivery{}, false, true
-	}
-	return r.send(target)
-}
-
-// rateLimitAttempts is how many requests in all send makes to one server that answers 429 (rate
-// limited), and rateLimitWaitCap bounds the wait its Retry-After may ask for between them.
-const (
-	rateLimitAttempts = 3
-	rateLimitWaitCap  = 5 * time.Second
-	rateLimitWait     = time.Second // when the server names no wait
-)
-
-// send delivers through target, whose probe found nobody else holding the conversation. A target
-// that could not be reached on the first request leaves the message undelivered, with that as the
-// cause, and the send may go on. A target that refused the request before handling it
-// (peer.IsRefusal, measured on agy 1.5.18) did not get the message, which queues; no other server
-// is tried. A target that answers 429 declined without acting: send makes up to rateLimitAttempts
-// requests to it in all, waiting and then probing before each retry as before the first, and then
-// queues. Once a target has answered, the send stays with it — a retry that cannot reach it queues
-// too — so the conversation is never handed to a second server. Any other failure leaves its
-// arrival unknown and stops the send.
-func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
-	for attempt := 1; ; attempt++ {
-		d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
-		var unreached *peer.UnreachedError
-		var limited *peer.RateLimitedError
-		var refused *peer.RefusedError
-		switch {
-		case err == nil:
-			return d, true, false
-		case errors.As(err, &unreached):
-			r.queue("%v", err)
-			return peer.Delivery{}, false, attempt > 1
-		case errors.As(err, &refused):
-			r.queue("%v", err)
-			return peer.Delivery{}, false, true
-		case errors.As(err, &limited) && attempt == rateLimitAttempts:
-			r.queue("the language server recorded at %s answered 429 (rate limited) %d times", target.Address, attempt)
-			return peer.Delivery{}, false, true
-		case errors.As(err, &limited):
-			wait := limited.RetryAfter
-			if wait <= 0 {
-				wait = rateLimitWait
-			}
-			r.env.sleep(min(wait, rateLimitWaitCap))
-			// The retry opens a new connection: one the server closed during the wait would fail it
-			// after the request was written, and a request that never reached a server would read
-			// as one that may have arrived.
-			r.client.CloseIdleConnections()
-			if g := r.env.conversationBusy(r.agyRoot, r.c.id, target.PID); g.Kind != peer.HolderNone {
-				r.queue("%s", r.heldBy(g))
-				return peer.Delivery{}, false, true
-			}
-			continue
-		}
-		r.unknown = err
-		return peer.Delivery{}, false, true
-	}
-}
-
-// daemonTarget is the current daemon's record when it may adopt the conversation, or nil and why not.
-func (r *agyRouter) daemonTarget() (*peer.Server, string) {
-	if !r.hasDaemon {
-		return nil, "no daemon is running — " + restoreHint
-	}
-	if !sameCanonicalPath(r.agyRoot, r.env.DaemonRoot) {
-		return nil, fmt.Sprintf("conversation root %s is not the CLI daemon root (%s), so the daemon cannot adopt it", r.agyRoot, r.env.DaemonRoot)
-	}
-	rec, why := r.daemonRecord()
-	return rec, why
-}
-
-// daemonRecord is the current daemon's Live record, or nil and the sentence saying why there is none.
-func (r *agyRouter) daemonRecord() (*peer.Server, string) {
-	rec, err := peer.LookupDaemonServer(r.env.RuntimeDir, r.daemonID)
-	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return "", fmt.Sprintf("no daemon token file at %s: the human provisions one with telepathy agy-provision and restarts the daemon, which ends every turn running on it", e.TokenFile)
 	case err != nil:
-		return nil, fmt.Sprintf("the daemon's server record cannot be read: %v", err)
-	case rec == nil:
-		return nil, fmt.Sprintf("the daemon (%s) has not been linked since it started — %s", r.daemonStarted(), restoreHint)
+		return "", fmt.Sprintf("the daemon token file is not used: %v", err)
 	}
-	if l := r.live(*rec); l != catalogue.Live {
-		return nil, fmt.Sprintf("the daemon's server record reads %s, and only a record whose server is running is used", l)
-	}
-	return rec, ""
+	return tok, ""
 }
 
-// heldBy is the sentence for a conversation g holds that no send may reach.
-func (r *agyRouter) heldBy(g peer.Holder) string {
-	switch {
-	case g.Kind == peer.HolderUninspectable:
-		return uninspectable(g)
-	case r.liveRecordOf(g.PID) != nil:
-		return fmt.Sprintf("held by the language server recorded at %s (pid %d)", r.liveRecordOf(g.PID).Address, g.PID)
-	case r.hasDaemon && g.PID == r.daemonID.PID:
-		_, why := r.daemonRecord()
-		if why == "" {
-			why = fmt.Sprintf("held by the daemon (pid %d)", g.PID)
-		}
-		return why
+// wake sends the wake message for conversation through the daemon once nothing but the daemon is
+// found holding it, and returns the address it went to, or why it did not go.
+func (w wakeDaemon) wake(agyRoot, conversation string) (string, string) {
+	addr, err := w.env.daemonAddress(w.client, w.id.PID)
+	if err != nil {
+		return "", fmt.Sprintf("the daemon's HTTP port cannot be told: %v", err)
 	}
-	return fmt.Sprintf("held by another process, pid %d; sending live would create a second writer", g.PID)
+	return addr, w.wakeAt(addr, agyRoot, conversation)
 }
 
-func uninspectable(g peer.Holder) string {
-	return "cannot inspect whether another process holds the conversation: " + g.Detail
-}
-
-// liveRecordOf is the Live record of the server running as pid, or nil. Only a Live record's pid is
-// ever excluded from a probe, so a pid from another namespace never stands in for a local process.
-func (r *agyRouter) liveRecordOf(pid int) *peer.Server {
-	if pid <= 0 {
-		return nil
+// wakeAt sends the wake message for conversation to the daemon at addr, or says why it did not.
+// The holder check runs last, just before the request, to keep the window in which a process can
+// open the conversation unseen as short as it can be.
+func (w wakeDaemon) wakeAt(addr, agyRoot, conversation string) string {
+	switch h := w.env.conversationBusy(agyRoot, conversation, w.id.PID); h.Kind {
+	case peer.HolderNone:
+	case peer.HolderUninspectable:
+		return "cannot inspect whether another process holds the conversation: " + h.Detail
+	default:
+		return fmt.Sprintf("held by pid %d, not the daemon, whose next turn reads the mailbox; a wake through the daemon would make a second writer", h.PID)
 	}
-	for i := range r.servers {
-		if r.servers[i].PID == pid && r.live(r.servers[i]) == catalogue.Live {
-			return &r.servers[i]
-		}
+	if err := peer.SendWake(w.client, addr, w.token, conversation); err != nil {
+		return fmt.Sprintf("the wake failed: %v", err)
 	}
-	return nil
-}
-
-// routeFor names the kind of record s is for this conversation.
-func (r *agyRouter) routeFor(s peer.Server) peer.Route {
-	switch {
-	case r.daemonKey != "" && s.Key == r.daemonKey:
-		return peer.RouteAgyDaemon
-	case s.Lists(r.c.id):
-		return peer.RouteAgyOwnRecord
-	}
-	return peer.RouteAgyHolderRecord
+	return ""
 }
 
 // daemonStarted is "started <T>", or "start not measured" when the boot or the start is unknown.
-func (r *agyRouter) daemonStarted() string {
-	if r.daemonID.StartTime <= 0 || r.env.Boot == nil {
+func (e *Env) daemonStarted(id peer.ServerIdentity) string {
+	if id.StartTime <= 0 || e.Boot == nil {
 		return "start not measured"
 	}
-	boot, ok := r.env.Boot()
+	boot, ok := e.Boot()
 	if !ok {
 		return "start not measured"
 	}
-	return "started " + utc(peer.StartTimeAt(boot, r.daemonID.StartTime).Unix())
+	return "started " + utc(peer.StartTimeAt(boot, id.StartTime).Unix())
 }
 
-// daemonLine bounds a queued message's wait from below: nothing woke the conversation since then.
-// Off Linux the daemon is never looked for, so its absence is not a measurement.
-func (r *agyRouter) daemonLine() string {
-	if r.env.goos() != "linux" {
+// daemonLine bounds a queued message's wait: when the daemon last started. When the daemon was
+// never looked for (an earlier check ended the wake), its absence is not a measurement.
+func (w wakeDaemon) daemonLine() string {
+	switch {
+	case !w.looked:
 		return "daemon start not measured"
-	}
-	if !r.hasDaemon {
+	case !w.found:
 		return "no daemon is running"
 	}
-	if s := r.daemonStarted(); s != "start not measured" {
+	if s := w.env.daemonStarted(w.id); s != "start not measured" {
 		return "daemon " + s
 	}
 	return "daemon start not measured"

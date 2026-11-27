@@ -1,0 +1,4 @@
+QUEUED for antigravity conversation a9e00000-0000-4000-8000-000000000002 in its mailbox (<BRAIN>/a9e00000-0000-4000-8000-000000000002/.system_generated/messages/<MESSAGE-ID>.json); it is read at the start of the conversation's next turn
+  not woken: no daemon token file at <CONFIG>/gray-area/antigravity-daemon.env: the human provisions one with telepathy agy-provision and restarts the daemon, which ends every turn running on it
+  daemon start not measured
+  last step recorded at 2026-09-09 11:52:30 UTC

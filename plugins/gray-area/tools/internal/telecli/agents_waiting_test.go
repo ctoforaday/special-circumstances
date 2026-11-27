@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	waitA = "aaaa1111-0000-4000-8000-00000000000a" // idle, two messages and a notice
+	waitA = "aaaa1111-0000-4000-8000-00000000000a" // idle, two messages, a notice and an older wake
 	waitB = "bbbb2222-0000-4000-8000-00000000000b" // a message, a missing file, a torn file
 	waitC = "cccc3333-0000-4000-8000-00000000000c" // agy's own notices only
 	waitD = "dddd4444-0000-4000-8000-00000000000d" // everything read
+	waitE = "eeee5555-0000-4000-8000-00000000000e" // telepathy's wake messages only
 )
 
 // queueMessage writes one mailbox message to conv as the client lays it out; a "" body leaves the
@@ -46,6 +47,8 @@ func waitingBrain(t *testing.T) string {
 	queueMessage(t, brain, waitA, "a1", mailboxJSON("caller-1", "2026-09-09T09:00:00Z"))
 	queueMessage(t, brain, waitA, "a2", mailboxJSON("telepathy", "2026-09-08T22:15:00.123Z"))
 	queueMessage(t, brain, waitA, "a3", mailboxJSON("system", "2026-09-01T00:00:00Z"))
+	queueMessage(t, brain, waitA, "a4", mailboxJSON("telepathy-wake", "2026-09-01T00:00:00Z"))
+	queueMessage(t, brain, waitE, "e1", mailboxJSON("telepathy-wake", "2026-09-09T10:00:00Z"))
 	queueMessage(t, brain, waitB, "b1", mailboxJSON("e1e1e1e1-0000-4000-8000-000000000001", "2026-09-09T11:00:00Z"))
 	queueMessage(t, brain, waitB, "b2", "")
 	queueMessage(t, brain, waitB, "b3", "{torn")
@@ -79,14 +82,17 @@ func TestAgentsWaitingListsIdleConversations(t *testing.T) {
 	out, _, _ := h.run(t, "agents")
 	rows := map[string]string{}
 	for _, line := range strings.Split(out, "\n") {
-		for _, id := range []string{waitA, waitB, waitC, waitD} {
+		for _, id := range []string{waitA, waitB, waitC, waitD, waitE} {
 			if strings.HasPrefix(line, id[:8]+" ") {
 				rows[id] = line
 			}
 		}
 	}
-	if !strings.Contains(rows[waitA], "1 yours, 1 from a shell, +1 agy notice") || !strings.Contains(rows[waitA], "2026-09-08 22:15:00 UTC") {
-		t.Errorf("A's row = %q, want two waiting, the shell's the oldest, one yours", rows[waitA])
+	if !strings.Contains(rows[waitA], "      2  ") || !strings.Contains(rows[waitA], "1 yours, 1 from a shell, +1 agy notice, +1 wake") || !strings.Contains(rows[waitA], "2026-09-08 22:15:00 UTC") {
+		t.Errorf("A's row = %q, want two waiting, the shell's the oldest (not the older wake), one yours, a wake apart", rows[waitA])
+	}
+	if !strings.Contains(rows[waitE], "      0  ") || !strings.Contains(rows[waitE], "+1 wake") {
+		t.Errorf("E's row = %q, want a row for a wake alone, counting no message", rows[waitE])
 	}
 	if !strings.Contains(rows[waitC], "+2 agy notices") {
 		t.Errorf("C's row = %q, want a row for agy's notices alone", rows[waitC])
