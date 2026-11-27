@@ -283,13 +283,13 @@ credentials for either, so it skips them; a run here is the check.
 | Test | Module | What it holds |
 |---|---|---|
 | `TestLiveAntigravityEventContract` | `shared/hookcore` | agy's SessionStart fires once per new conversation and not on resume; PreInvocation fires every model step, `invocationNum` from 0 each turn; an injected ephemeral message is acted on; hooks never receive the language server's address or token, the agent's shell does |
-| `TestLiveAntigravity{ChosenTokenIsHonoured,SendWakesIdle,SendHeldElsewhere,WakeOnlyRealMail}` | `plugins/gray-area/tools` (`./cmd/telepathy`) | a language server started with `ANTIGRAVITY_SERVER_CSRF_TOKEN` takes that token and refuses another; `send` queues a message and its wake makes an idle conversation answer it; a conversation another server holds gets no wake and no second holder; `agy-wake` wakes only for real mail |
+| `TestLiveAntigravityMailboxWake` (`ChosenTokenIsHonoured`, `SendWakesIdle`, `SendHeldElsewhere`, `WakeOnlyRealMail`) | `plugins/gray-area/tools` (`./cmd/telepathy`) | a language server started with `ANTIGRAVITY_SERVER_CSRF_TOKEN` takes that token and refuses another; `send` queues a message and its wake makes an idle conversation answer it; a conversation another server holds gets no wake and no second holder; `agy-wake` wakes only for real mail |
 | `TestLiveAntigravityContract`, `TestLiveClaudeContract`, `TestLiveShipped*` | `shared/hookcore` | the PreToolUse block and rewrite and the shipped plugins under each client |
 
 ```sh
 unset $(env | grep -o '^FEOV_[A-Z_]*')
 HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveShippedAntigravity|TestLiveAntigravity' .
-HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravity ./cmd/telepathy
+HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityMailboxWake ./cmd/telepathy
 ```
 
 Each live test runs in a throwaway home created with `shared/testhome.NewLiveHome` and
