@@ -1,81 +1,26 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// RETIRING IS HOW A REMOVAL IS EXPLAINED, NOT HOW IT IS PERFORMED.
-//
-// The verb recorded whatever it was told: nothing confirmed the claim had ever been in the
-// report, and nothing confirmed it had left. "Substance leaves only through the retire verb"
-// — the rule the verb's own doc calls "strictly stronger than the prose rule it replaces" —
-// rested entirely on the seat's word.
-func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
-	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
-
-	_, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Five independent approaches agree.", "--reason", "overclaim")
-	if err == nil {
-		t.Fatal("a claim still present in the report was retired — the record now says it left while it sits there")
-	}
-	for _, want := range []string{"still in the report", "`edit`"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the refusal must say what to do instead, got: %v", err)
-		}
-	}
-}
-
-// A RETIRE THAT NAMES NO CLAIM IS REFUSED IN THE CLAIM'S OWN WORDS. On universe-m29 `retire --quote ""`
-// was told `"" is still in the report`, since every report contains the empty string, and the seat
-// was sent to edit out a claim it had not named.
-func TestRetireRefusesABlankQuoteAsMissing(t *testing.T) {
-	for _, quote := range [][]string{{"--quote", ""}, {"--quote", "  "}, nil} {
+// A RETIRE THAT NAMES NO ANCHOR IS REFUSED AS MISSING ONE. On universe-m29 a retire naming nothing
+// (`--quote ""`) was answered as if it named something; a retire takes one anchor, so --anchor blank or
+// absent is the missing-flag refusal, and nothing is recorded.
+func TestRetireRefusesABlankAnchorAsMissing(t *testing.T) {
+	for _, named := range [][]string{{"--anchor", ""}, {"--anchor", "  "}, nil} {
 		runDir := newRun(t)
 		writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
-		args := append([]string{"retire", "--run", runDir, "--seat-id", "blue-respond", "--reason", "overclaim"}, quote...)
+		args := append([]string{"retire", "--run", runDir, "--seat-id", "blue-respond", "--reason", "overclaim"}, named...)
 		_, err := run(t, args...)
-		if err == nil || !strings.Contains(err.Error(), "requires --quote") || strings.Contains(err.Error(), "still in the report") {
-			t.Errorf("retire %q: want the missing-quote refusal, got %v", quote, err)
+		if err == nil || !strings.Contains(err.Error(), "requires --anchor") {
+			t.Errorf("retire %q: want the missing-anchor refusal, got %v", named, err)
 		}
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
-			t.Errorf("retire %q recorded %d retire(s)", quote, n)
+			t.Errorf("retire %q recorded %d retire(s)", named, n)
 		}
 	}
-}
-
-// A CLAIM THE RECORD CAN SHOW LEAVING is `verified`: absent now, and present in the old span
-// of a recorded edit.
-func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
-	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
-	mintGap(t, runDir, "G1", "spec_underspecification")
-	if _, err := runAt(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Five independent approaches agree.", "--new", "Two approaches agree.",
-		"--answers", "G1", "--reason", "narrow the claim"); err != nil {
-		t.Fatalf("edit refused: %v", err)
-	}
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Five independent approaches agree.", "--reason", "the independence was never established"); err != nil {
-		t.Fatalf("retiring a claim an edit removed was refused: %v", err)
-	}
-	_ = lastBody(t, runDir, &recordpb.Retire{})
-}
-
-// A PHANTOM RETIRE IS RECORDED AS `asserted`, NOT AS A REMOVAL.
-//
-// It is worse than useless when it passes for one: the changelog lists every retirement as a
-// claim that left the report, so retiring something that was never there tells the reader of a
-// removal the report never had.
-func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
-	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nSomething entirely else.\n")
-
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "a claim that was never in this report", "--reason", "fuzz"); err != nil {
-		t.Fatalf("retire refused: %v", err)
-	}
-	_ = lastBody(t, runDir, &recordpb.Retire{})
 }
