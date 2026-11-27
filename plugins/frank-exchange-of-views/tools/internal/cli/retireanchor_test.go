@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
@@ -47,38 +46,7 @@ func citeSentence(t *testing.T, runDir, sentence, url string) string {
 	return m[1]
 }
 
-// gutToAnchor records an edit of an anchored sentence down to its bare anchor, as an archived record
-// holds one: `edit` refuses it for an evidence anchor (TestAnEditBaringEvidenceIsRefused), so an
-// evidence anchor reaches a claim retire bare only from such a record or the synthesizer's round-0
-// write, and the test writes the edit's event as that record carries it.
-func gutToAnchor(t *testing.T, runDir, sentence, tok string) {
-	t.Helper()
-	recordEdit(t, runDir, strings.TrimRight(sentence, ".")+tok+".", tok)
-	if !slices.Contains(claimcount.BareAnchorIDs(readReport(t, runDir)), anchor.IDs(tok)[0]) {
-		t.Fatalf("the recorded edit did not leave %s bare:\n%s", tok, readReport(t, runDir))
-	}
-}
-
-// recordEdit writes blue's edit of old to new as an archived record holds it, past `edit`'s guards.
-func recordEdit(t *testing.T, runDir, old, new string) {
-	t.Helper()
-	cut := &recordpb.BlueEdit{Old: proto.String(old), New: proto.String(new), Text: proto.String("the claim cannot stand")}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, cut); err != nil {
-		t.Fatalf("record the edit of %q: %v", old, err)
-	}
-}
-
-func retireClaim(t *testing.T, runDir, claim string) *recordpb.Retire {
-	t.Helper()
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", claim, "--reason", "refuted"); err != nil {
-		t.Fatalf("retire %q: %v", claim, err)
-	}
-	return lastBody(t, runDir, &recordpb.Retire{})
-}
-
-// computeSentence backs one sentence with a computation and returns its anchor id: a marker an edit may
-// leave bare, for the retire to take out with its claim.
+// computeSentence backs one sentence with a computation and returns its anchor id.
 func computeSentence(t *testing.T, runDir, sentence string) string {
 	t.Helper()
 	name := "compute-" + strings.Trim(strings.Fields(sentence)[0], ".") + ".js"
