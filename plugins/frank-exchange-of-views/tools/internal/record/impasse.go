@@ -223,6 +223,9 @@ func auditSpent(x *GapExchanges, p Params) bool {
 // sittingCloser says — by facts about THAT seat alone, so no rule enforced at another seat's write
 // path can decide what this read reports. Two rows answered by one sitting are that one sitting.
 //
+// A gap's parties are its minter and its subject's author (authorOf); a dispatch of any other seat on
+// it is no sitting of the gap's.
+//
 // A SITTING THAT DID NOT FINISH IS NO TURN (noTurnSittingsOf): a failed sitting is not among them.
 // Its seat stays engaged, and the next sitting it opens is the one that answers. The acts it recorded before it ended stay on the record, and the
 // round they fall in reads them as movement like any other.
@@ -230,6 +233,7 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	closer := sittingCloserOf(evs, ids, win, openings, when)
 	noTurn := noTurnSittingsOf(evs, win)
+	authorOf := authorsOn(evs)
 	ordinal := map[int64]int{} // an opening's place -> its stored sitting ordinal for its seat
 	for i, e := range evs {
 		if _, opens := win.Opens(e); opens {
@@ -250,7 +254,7 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 			switch {
 			case d.seat == minted[g]:
 				out[g] = append(out[g], partySitting{start: start, end: end, red: true, open: !closed})
-			case seatclass.RoleOfSeat(d.seat) == "blue":
+			case d.seat == authorOf(g):
 				out[g] = append(out[g], partySitting{start: start, end: end, open: !closed})
 			}
 		}
@@ -353,12 +357,13 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 
 	sittings := gapSittingsOf(evs, ids, win, when, minted)
 	turns := lensTurnActsOf(evs, ids, acts, sittings, minted)
+	authorOf := authorsOn(evs)
 
 	out := map[string]*GapExchanges{}
 	for g := range minted {
 		x := &GapExchanges{GapID: g}
 		out[g] = x
-		lens, moves := minted[g], movement[g]
+		lens, author, moves := minted[g], authorOf(g), movement[g]
 		audits := seatclass.RoleOfSeat(lens) == "lens"
 		movedIn := func(from, to int64) bool {
 			return slices.ContainsFunc(moves, func(m int64) bool { return m > from && m <= to })
@@ -373,7 +378,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			} else {
 				x.Stalled++
 			}
-			x.rounds = append(x.rounds, exchangeRound{start: start, end: at, moved: moved, acted: blueActed(acts[g], start, at), audited: audited})
+			x.rounds = append(x.rounds, exchangeRound{start: start, end: at, moved: moved, acted: authorActed(acts[g], author, start, at), audited: audited})
 			start = at
 		}
 		// A LENS SITTING THE RECORD CANNOT CLOSE IS UNMEASURED, so no blue sitting after it ends a
@@ -391,7 +396,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				unmeasured = unmeasured || s.red
 			case s.red:
 				unmeasured = false
-				if audits && lensTurnOn(turns[g], lens, mintedAt[g], latestBefore(rulings, s.start), s.start-1) {
+				if audits && lensTurnOn(turns[g], lens, author, mintedAt[g], latestBefore(rulings, s.start), s.start-1) {
 					end(s.end, true)
 				}
 			case unmeasured:
@@ -402,7 +407,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				start = min(start, s.start)
 				floor := latestBefore(rulings, s.end)
 				read := lensReadAt(turns[g], lens, mintedAt[g], floor, s.start)
-				if !audits || !blueActed(turns[g], read, s.end) {
+				if !audits || !authorActed(turns[g], author, read, s.end) {
 					end(s.end, false)
 				}
 			}
@@ -412,9 +417,9 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		}
 		floor := latestBefore(rulings, math.MaxInt64)
 		x.lensRead = lensReadAt(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
-		x.lensTurn = audits && lensTurnOn(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
-		x.answeredRemand = blueActed(acts[g], floor, math.MaxInt64)
-		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: blueActed(acts[g], start, math.MaxInt64), audited: true}
+		x.lensTurn = audits && lensTurnOn(turns[g], lens, author, mintedAt[g], floor, math.MaxInt64)
+		x.answeredRemand = authorActed(acts[g], author, floor, math.MaxInt64)
+		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: authorActed(acts[g], author, start, math.MaxInt64), audited: true}
 	}
 	return out
 }

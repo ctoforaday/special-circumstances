@@ -84,8 +84,9 @@ const (
 	closingMinterNoLens = "the gap's minter is no lens the cast seats, so there is no minting party"
 )
 
-// closingPartiesOf is the parties a gap's docketing owes closings from: its minter where the cast
-// seats it as a lens, and blue's responding seat. ok is false for a minter that is not one.
+// closingPartiesOf is the raiser a gap's docketing owes a closing from: its minter where the cast seats
+// it as a lens. ok is false for a minter that is not one. The other party is the subject's author
+// (authorOf).
 func closingPartiesOf(cast []string, assignee string) (lens string, ok bool) {
 	if seatclass.RoleOfSeat(assignee) == "lens" && slices.Contains(cast, assignee) {
 		return assignee, true
@@ -94,10 +95,10 @@ func closingPartiesOf(cast []string, assignee string) (lens string, ok bool) {
 }
 
 // IsClosingParty reports whether seatID is a party to the dispute on a gap its minter assignee
-// minted: the minter itself, or blue's responding seat — the seats the write path admits a closing
-// from.
-func IsClosingParty(seatID, assignee string) bool {
-	return seatID == blueRespondSeat || (seatID == assignee && seatclass.RoleOfSeat(seatID) == "lens")
+// minted, about a subject author wrote (authorOf): the minter itself, or the author — the seats the
+// write path admits a closing from.
+func IsClosingParty(seatID, assignee, author string) bool {
+	return seatID == author || (seatID == assignee && seatclass.RoleOfSeat(seatID) == "lens")
 }
 
 // ClosingDuties is one row per party per docketing on the record, in the docketings' order, read off
@@ -106,11 +107,13 @@ func ClosingDuties(evs []*Event, win WindowIndex) []ClosingDuty {
 	return closingDutiesOf(evs, win.IDs(evs), win)
 }
 
-// closingReads is what every closing duty is read against: the cast, each gap's assignee, where each
-// gap first closed, the closings filed, and the sittings each seat sat through.
+// closingReads is what every closing duty is read against: the cast, each gap's assignee and its
+// subject's author, where each gap first closed, the closings filed, and the sittings each seat sat
+// through.
 type closingReads struct {
 	cast      []string
 	assignees map[string]string
+	author    func(gap string) string
 	closedAt  map[string]int64
 	closings  []closingFiled
 	through   map[string][]int64
@@ -123,7 +126,7 @@ type closingFiled struct {
 
 // closingReadsOf reads closingReads off evs and its places ids.
 func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
-	r := closingReads{cast: castOfEvents(evs), assignees: assigneeOf(evs), closedAt: map[string]int64{}}
+	r := closingReads{cast: castOfEvents(evs), assignees: assigneeOf(evs), author: authorsOn(evs), closedAt: map[string]int64{}}
 	for i, e := range evs {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
@@ -141,7 +144,8 @@ func closingReadsOf(evs []*Event, ids []int64, win WindowIndex) closingReads {
 }
 
 // dutiesOn is the closing rows of one span on gapID — from its opening place to end (0 while it
-// stands) — for the docketing id (the gap's assignee's row where the cast seats it, then blue's).
+// stands) — for the docketing id (the gap's assignee's row where the cast seats it, then its subject's
+// author's).
 func (r closingReads) dutiesOn(gapID, docketing string, from, end int64, ruled bool) []ClosingDuty {
 	within := func(at int64) bool { return at > from && (end == 0 || at < end) }
 	row := func(party string) ClosingDuty {
@@ -170,7 +174,7 @@ func (r closingReads) dutiesOn(gapID, docketing string, from, end int64, ruled b
 		out = append(out, ClosingDuty{GapID: gapID, Docketing: docketing, Ruled: ruled, Party: r.assignees[gapID],
 			State: ClosingNotOwed, NotOwedWhy: closingMinterNoLens, filed: from, ruled: end})
 	}
-	return append(out, row(blueRespondSeat))
+	return append(out, row(r.author(gapID)))
 }
 
 // closingDutiesOf is ClosingDuties over evs and its places ids: per docketing, its span from its row —

@@ -8474,8 +8474,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION && e.GetSeatId() != "red-chair" && res.err == "" {
 			res.err = "position duty: the record holds a position by " + e.GetSeatId() + ", and the position is the chair's"
 		}
-		if c := e.GetClosing(); c != nil && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()]) && res.err == "" {
-			res.err = "closing duty: the record holds a closing on " + c.GetGapId() + " by " + e.GetSeatId() + ", party to no dispute on it"
+		if c := e.GetClosing(); c != nil && res.err == "" {
+			// THE GAP'S TWO PARTIES file its closings: its raiser, and its subject's author.
+			author, aerr := record.AuthorOfGap(oracleRun, c.GetGapId())
+			switch {
+			case aerr != nil:
+				res.err = "closing duty: the author of " + c.GetGapId() + " could not be read: " + aerr.Error()
+			case !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()], author):
+				res.err = "closing duty: the record holds a closing on " + c.GetGapId() + " by " + e.GetSeatId() + ", party to no dispute on it"
+			}
 		}
 	}
 	for _, e := range board.Events {

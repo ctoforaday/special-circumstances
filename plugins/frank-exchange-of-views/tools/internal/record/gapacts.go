@@ -172,12 +172,12 @@ func fateActsOf(evs []*Event) map[*Event][]string {
 	return out
 }
 
-// blueActed reports whether blue recorded one of acts in the places (after, upto]: whether the
-// round that spans them begins a remand's exchange, and whether the lens's turn has come
-// (lensTurnOn).
-func blueActed(acts []gapAct, after, upto int64) bool {
+// authorActed reports whether author — the gap's subject's author (authorOf) — recorded one of acts
+// in the places (after, upto]: whether the round that spans them begins a remand's exchange, and
+// whether the lens's turn has come (lensTurnOn).
+func authorActed(acts []gapAct, author string, after, upto int64) bool {
 	for _, a := range acts {
-		if a.at > after && a.at <= upto && seatclass.RoleOfSeat(a.seat) == "blue" {
+		if a.at > after && a.at <= upto && a.seat == author {
 			return true
 		}
 	}
@@ -191,12 +191,12 @@ func blueActed(acts []gapAct, after, upto int64) bool {
 // and blue in the next epoch, and seven lens sittings recorded a keep-the-grade regrade ("Blue has not
 // edited the sentence since this gap was minted") before blue sat.
 //
-// lensTurnOn reports whether the assignee's turn on a gap has come by upto: blue recorded an
-// entry of turns (lensTurnActsOf) after the place the lens last read it (lensReadAt). The plan engages
-// the assignee on the gap only when it holds, and a round whose blue sitting leaves it false ends
-// there (exchangeFold), so a gap blue never acts on still reaches impasse.
-func lensTurnOn(turns []gapAct, lens string, minted, floor, upto int64) bool {
-	return blueActed(turns, lensReadAt(turns, lens, minted, floor, upto), upto)
+// lensTurnOn reports whether the assignee's turn on a gap has come by upto: its subject's author
+// recorded an entry of turns (lensTurnActsOf) after the place the lens last read it (lensReadAt). The
+// plan engages the assignee on the gap only when it holds, and a round whose author's sitting leaves it
+// false ends there (exchangeFold), so a gap its author never acts on still reaches impasse.
+func lensTurnOn(turns []gapAct, lens, author string, minted, floor, upto int64) bool {
+	return authorActed(turns, author, lensReadAt(turns, lens, minted, floor, upto), upto)
 }
 
 // lensReadAt is the place the assignee last read a gap by upto: its latest turn there (turns),

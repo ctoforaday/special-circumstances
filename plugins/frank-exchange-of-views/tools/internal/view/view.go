@@ -543,6 +543,7 @@ func debateMD(in Input) []byte {
 	docketGapOf := record.DocketRulingGap(in.Events)
 	archive := record.ArchiveOf(in.Gaps)
 	kept := record.KeptGrades(in.Events, in.At)
+	author := record.AuthorsOn(in.Events)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
@@ -564,15 +565,15 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
-		// blue-respond (BLUE) (record/closingowed.go). The write path admits no other
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or its
+		// subject's author (BLUE, record.ClosingByAuthor) (record/closingowed.go). The write path admits no other
 		// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
 		var positions, redClosings, blueClosings []*record.Event
 		for _, l := range re {
 			switch {
 			case l.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
 				positions = append(positions, l)
-			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && record.PartyOf(l) == "blue":
+			case record.ClosingByAuthor(l, author):
 				blueClosings = append(blueClosings, l)
 			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
 				redClosings = append(redClosings, l)

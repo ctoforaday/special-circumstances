@@ -1186,6 +1186,7 @@ func debate(fam record.Family, coverage partsAt) string {
 	docketGapOf := record.DocketRulingGap(fam.Events)
 	archive := record.ArchiveOf(fam.Gaps)
 	kept := record.KeptGrades(fam.Events, fam.At)
+	author := record.AuthorsOn(fam.Events)
 
 	var parts []string
 	for _, r := range order {
@@ -1223,16 +1224,16 @@ func debate(fam record.Family, coverage partsAt) string {
 		// recordpb/required.go ("the closing argument for this gap").
 		for _, l := range re {
 			e := l
-			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
-			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
-			// record.ClosingRefusal), so each renders as the record holds it.
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or its
+			// subject's author (BLUE, record.ClosingByAuthor). The write path admits no other
+			// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				epoch = append(epoch, redHead+"\n"+ownBlock(p.GetText()))
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				side := "RED"
-				if record.PartyOf(e) == "blue" {
+				if record.ClosingByAuthor(e, author) {
 					side = "BLUE"
 				}
 				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), ownBlock(c.GetText())))

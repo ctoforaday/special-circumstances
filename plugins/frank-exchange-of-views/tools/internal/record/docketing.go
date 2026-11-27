@@ -523,7 +523,11 @@ func closingTakesText(q recordsql.Querier, gapID string) (takes bool, aboutKind 
 func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Closing) error {
 	pair := c.Location != nil || c.FixNew != nil
 	road := pair || c.GetRetire()
-	if seatclass.RoleOfSeat(seatID) == "blue" {
+	author, _, err := authorOfGap(q, c.GetGapId())
+	if err != nil {
+		return err
+	}
+	if seatID == author {
 		if road || c.GetNoText() {
 			return feov.Errorf(feov.Validation, "blue's closing states its word, never text: --quote, --new, --retire and --no-text are red's closing's road. Nothing was recorded")
 		}

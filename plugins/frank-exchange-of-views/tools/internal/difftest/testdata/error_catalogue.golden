@@ -705,7 +705,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── a lens that did not mint the gap files a closing on it
 exit 2
-feov-record: closing: a closing is the argument of a party to the gap's dispute — red-lens-evidence, which minted GAP001, and blue-respond — and red-lens-logic is party to none; nothing was recorded. An argument about no one gap is the chair's position
+feov-record: closing: a closing is the argument of a party to the gap's dispute — red-lens-evidence, which minted GAP001, and blue-respond, its subject's author — and red-lens-logic is party to none; nothing was recorded. An argument about no one gap is the chair's position
 
 ── repeat target: blue's closing on GAP001
 exit 0

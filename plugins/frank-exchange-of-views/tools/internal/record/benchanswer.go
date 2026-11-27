@@ -195,7 +195,7 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 	}
 	// EACH PARTY'S STATEMENT IS ITS CLOSING FOR THIS DOCKETING: filed after its span opened — its row,
 	// or the held proposal's filing (L30) — and before its ruling.
-	assignee := assigneeOf(evs)[d.GapID]
+	assignee, author := assigneeOf(evs)[d.GapID], authorsOn(evs)(d.GapID)
 	restoreTo := len(evs)
 	for i, e := range evs {
 		if ids[i] <= from || (d.ruled != 0 && ids[i] >= d.ruled) {
@@ -211,7 +211,7 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 				if p.Road == nil && seatclass.RoleOfSeat(assignee) == "lens" {
 					p.Road = b
 				}
-			case blueRespondSeat:
+			case author:
 				if b.ClosureClass != nil && p.BlueWord == nil && d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE {
 					p.BlueWord = b.ClosureClass
 				}

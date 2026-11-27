@@ -972,8 +972,10 @@ type WorkGapState struct {
 	route         gapRoute
 	unruledDocket bool
 	docketed      bool
-	// lensDue and blueDue are whether the route engages the gap's assignee and blue on it
-	// (partiesOnRoute); lensTurn and lensRead are GapExchanges', which the lens's items read.
+	// lensDue and blueDue are whether the route engages the gap's assignee and its subject's author
+	// (author, authorOf) on it (partiesOnRoute); lensTurn and lensRead are GapExchanges', which the
+	// lens's items read.
+	author                     string
 	lensDue, blueDue, lensTurn bool
 	lensRead                   int64
 	latestRemandOwed           bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
@@ -1193,6 +1195,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		open[g.ID] = g.Open
 	}
 	moved := gradeMovementOf(r.evs, ids, r.win, open)
+	authorOf := authorsOn(r.evs)
 	for i := range out {
 		g := &out[i]
 		if !g.Open {
@@ -1204,6 +1207,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		}
 		g.route = routeOf(g.Material, g.docketed, g.unruledDocket, moved.docketed(g.ID), x)
 		g.remand = stageOnRoute(g.route, x.Remand)
+		g.author = authorOf(g.ID)
 		g.lensDue, g.blueDue = partiesOnRoute(g.route, x)
 		g.lensTurn, g.lensRead = x.lensTurn, x.lensRead
 		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
@@ -1313,7 +1317,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// answers by taking it; under a docketing it is the raiser's concession
 				// (requireRaiserActOnGap).
 				YoursToClose: reader != "" && g.Assignee == reader && (g.docketed || !g.unruledDocket),
-				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
+				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader != "" && reader == g.author && g.blueDue),
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
 				Material:        g.Material,
@@ -1845,6 +1849,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 
 	docketGapOf := DocketRulingGap(evs)
 	kept := KeptGrades(evs, win)
+	author := authorsOn(evs)
 
 	for _, r := range epochOrder {
 		re := byEpoch[r]
@@ -1866,15 +1871,15 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
-		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or
-		// blue-respond (BLUE) (closingowed.go). The write path admits no other (PositionRefusal,
-		// ClosingRefusal), so each renders as the record holds it.
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or its
+		// subject's author (BLUE, authorOf) (closingowed.go). The write path admits no other
+		// (PositionRefusal, ClosingRefusal), so each renders as the record holds it.
 		var positions, redClosings, blueClosings []*Event
 		for _, e := range re {
 			switch {
 			case e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
 				positions = append(positions, e)
-			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && PartyOf(e) == "blue":
+			case ClosingByAuthor(e, author):
 				blueClosings = append(blueClosings, e)
 			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
 				redClosings = append(redClosings, e)

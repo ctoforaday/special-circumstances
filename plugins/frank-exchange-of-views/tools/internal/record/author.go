@@ -85,6 +85,17 @@ func authorsOn(evs []*Event) func(gap string) string {
 	}
 }
 
+// AuthorsOn is authorsOn for the renderers outside the record: each gap's subject's author, read off
+// evs's mints, so a closing renders on its party's side (the author's, or the raiser's).
+func AuthorsOn(evs []*Event) func(gap string) string { return authorsOn(evs) }
+
+// ClosingByAuthor reports whether e is a closing its gap's subject's author filed (authorOf), read
+// through author; the other party's closing is the raiser's.
+func ClosingByAuthor(e *Event, author func(gap string) string) bool {
+	c, ok := recordpb.BodyAs[*recordpb.Closing](e)
+	return ok && e.GetSeatId() == author(c.GetGapId())
+}
+
 // authorAccept is the gap an act's `accepted` takes the raiser's statement of — its `answers` — on
 // the bodies the author's --accept G writes; "" where the act accepts nothing.
 func authorAccept(body proto.Message) string {

@@ -1852,11 +1852,15 @@ func closingPartyRefusal(q recordsql.Querier, gapID, seatID string) error {
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
-	if !IsClosingParty(seatID, assignee) {
+	author, _, err := authorOfGap(q, gapID)
+	if err != nil {
+		return err
+	}
+	if !IsClosingParty(seatID, assignee, author) {
 		return feov.Errorf(feov.RoleViolation,
-			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
+			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s, its subject's author — and %s is party to none; nothing was recorded. "+
 				"An argument about no one gap is the chair's position",
-			assignee, gapID, blueRespondSeat, seatID)
+			assignee, gapID, author, seatID)
 	}
 	if docketed == 0 {
 		return feov.Errorf(feov.Validation,

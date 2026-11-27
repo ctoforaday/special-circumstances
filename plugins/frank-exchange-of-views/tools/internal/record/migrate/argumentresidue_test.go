@@ -130,8 +130,9 @@ func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
 					minter[m.GetGapId()] = e.GetSeatId()
 				}
 			}
+			author := record.AuthorsOn(fam.Events)
 			for _, e := range fam.Events {
-				if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()]) {
+				if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()], author(c.GetGapId())) {
 					t.Errorf("the migrated record holds %s's closing on %s, minted by %s — no party's", e.GetSeatId(), c.GetGapId(), minter[c.GetGapId()])
 				}
 				if _, ok := recordpb.BodyAs[*recordpb.Position](e); ok && record.PositionRefusal(e.GetSeatId()) != nil {

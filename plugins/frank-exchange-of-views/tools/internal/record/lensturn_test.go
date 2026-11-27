@@ -123,7 +123,7 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 			continue
 		}
 		for _, g := range p.GapIDs {
-			if !lensTurnOn(acts[g], p.SeatID, mintedAt[g], latestBefore(remandPlaces(remands[g]), ids[len(ids)-1]), ids[len(ids)-1]) {
+			if !lensTurnOn(acts[g], p.SeatID, authorsOn(evs)(g), mintedAt[g], latestBefore(remandPlaces(remands[g]), ids[len(ids)-1]), ids[len(ids)-1]) {
 				out = append(out, p.SeatID+":"+g)
 			}
 		}

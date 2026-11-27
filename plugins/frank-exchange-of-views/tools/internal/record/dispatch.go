@@ -388,6 +388,9 @@ func foldPlan(params Params, r planReads) Plan {
 	gaps := r.gaps
 	exch := exchangesOf(evs, ids, win, params, WhileRunning, r.remands)
 	stated := map[string]bool{} // the docketings and proposals a gap's reason below already names
+	// closings is what the closing duties read — each gap's subject's author among them (authorOf), the
+	// party the route readies on the gap beside its raiser.
+	closings := closingReadsOf(evs, ids, win)
 	// debate readies the parties the route engages on a gap (partiesOnRoute): the lens sits before blue
 	// in an epoch, so readied sooner it audits an answer that does not exist yet. It reports which.
 	debate := func(g openGap, route gapRoute, x *GapExchanges) (lens, blue bool) {
@@ -396,7 +399,7 @@ func foldPlan(params Params, r planReads) Plan {
 			engage(g.assignee, g.id)
 		}
 		if blue {
-			engage(blueRespondSeat, g.id)
+			engage(closings.author(g.id), g.id)
 		}
 		return lens, blue
 	}
@@ -465,10 +468,9 @@ func foldPlan(params Params, r planReads) Plan {
 		if lens, ok := closingPartiesOf(r.cast, g.assignee); ok {
 			awaited = append(awaited, lens)
 		}
-		awaited = append(awaited, blueRespondSeat)
+		awaited = append(awaited, closings.author(g.id))
 		awaitClosings(g.id, awaited, nil)
 	}
-	closings := closingReadsOf(evs, ids, win)
 	proposals := map[string]*Motion{}
 	for _, m := range motionsAt(evs, ids, win) {
 		if m != nil && m.Subject == "docket" {
