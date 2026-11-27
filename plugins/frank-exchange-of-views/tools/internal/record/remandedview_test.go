@@ -85,7 +85,6 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	// asking the seat to file it would ask the same question twice.
 	file("M4", "REPENDING")
 	carry("M4", "the first condition")
-	file("M5", "REPENDING")
 	// FRESH: nobody has docketed it. Open, but not carried.
 	//
 	// ORDER: two carries, and the motion ids are chosen so that the LEXICOGRAPHIC latest is the
@@ -95,11 +94,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	carry("M9", "the FIRST condition, which was answered and superseded")
 	file("M10", "ORDER")
 	carry("M10", "the SECOND condition, which is the live one")
+	// REPENDING's second docketing is written last: the bench rules the docket in order, so a
+	// docketing left standing holds every later one behind it.
+	file("M5", "REPENDING")
 
-	evs, err := MergedEvents(run)
-	if err != nil {
-		t.Fatal(err)
-	}
 	gaps := workGapStatesT(t, run)
 	by := map[string]WorkGapState{}
 	for _, g := range gaps {
@@ -133,11 +131,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 			t.Errorf("%s: %d remand row(s), want %d", id, got, want)
 		}
 	}
-	// ORDER's second remand (M10) is the last act on the record, so it is the last of ORDER's rows:
-	// the rows stand in the record's order, never the motion ids'.
-	ids := evs.At.IDs(evs.Events)
-	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID != ids[len(ids)-1] || rs[1].direction != "the SECOND condition, which is the live one") {
-		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, place %d, last)", rs, ids[len(ids)-1])
+	// ORDER's second remand (M10) is written after its first, so it is the last of ORDER's rows: the
+	// rows stand in the record's order, never the motion ids'.
+	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID <= rs[0].eventID || rs[1].direction != "the SECOND condition, which is the live one") {
+		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, the later, last)", rs)
 	}
 	// AND THE CONDITION IS THE LIVE ONE. This is the half an order-free predicate cannot answer,
 	// and the half a motion-id ordering gets wrong: `motion_rule.event_id` is the events primary

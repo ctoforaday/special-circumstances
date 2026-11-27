@@ -130,6 +130,9 @@ func TestAssembleEndToEnd(t *testing.T) {
 	})
 	// BLUE ARGUES THE DOCKETED GAP in its closing before the bench rules.
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
 	add("judge", &recordpb.MotionRule{
 		Opinion: proto.String("a model-check is owed before this closes"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
@@ -141,6 +144,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			Direction:  proto.String("a model-check of the two-writer interleaving"),
 		}},
 	})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
@@ -451,6 +455,9 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"),
 		Text: proto.String("the interleaving is model-checked<!--computation:K-00000001--> and G1 does not stand"),
 	})
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
 	add("judge", &recordpb.MotionRule{Opinion: proto.String("the model check settles it"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			DocketingId: proto.String("M1"),
@@ -459,6 +466,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 			Settled:   proto.String("the claim as it stood may not be re-asserted"),
 			Direction: proto.String("a model-check of the two-writer interleaving"),
 		}}})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),

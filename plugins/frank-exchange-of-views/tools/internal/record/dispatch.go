@@ -422,6 +422,10 @@ func foldPlan(params Params, r planReads) Plan {
 	//
 	// A CLOSING PARTY SITS IN EVERY EPOCH THE RUN DISPATCHES: at the final sitting, and blue in the epoch
 	// that holds it out, each sits for its closings and nothing else (L44′), so the bench waits on each.
+	//
+	// A docketing whose closings are in is ready for the bench (benchReady), and the bench is convened
+	// on the docket's ready run below, in the docket order.
+	benchReady := map[string]string{} // a ready docketing's gap → its reason
 	awaitClosings := func(gapID string, awaited, missing []string) {
 		if len(awaited) > 0 {
 			for _, p := range awaited {
@@ -430,12 +434,11 @@ func foldPlan(params Params, r planReads) Plan {
 			plan.Why = append(plan.Why, closingsAwaitedWhy(gapID, awaited))
 			return
 		}
-		engage(benchSeat, gapID)
 		why := fmt.Sprintf("%s: docketed and unruled — the bench is ready, no party's closing being awaited", gapID)
 		if len(missing) > 0 {
 			why += fmt.Sprintf("; %s sat since the docketing without filing a closing, and the bench rules on the record as it stands", strings.Join(missing, " and "))
 		}
-		plan.Why = append(plan.Why, why)
+		benchReady[gapID] = why
 	}
 	duties := map[string][]ClosingDuty{} // each gap's standing docketing's closings
 	for _, d := range standingClosingDuties(closingDutiesOf(evs, ids, win)) {
@@ -504,7 +507,7 @@ func foldPlan(params Params, r planReads) Plan {
 		docket(docketingEntry{gapID: gapID, cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, motionID: motion, basis: proposalBasis(m, gapID, assignee)},
 			fmt.Sprintf("%s: proposal %s was not accepted by its assignee %s in its window — docketed for the bench", gapID, motion, assignee))
 		if !open {
-			engage(benchSeat, gapID)
+			benchReady[gapID] = fmt.Sprintf("%s: proposal %s's docketing on a gap no longer open owes no closing — the bench is ready", gapID, motion)
 			return
 		}
 		awaited, missing := closingsOf(rows)
@@ -721,8 +724,7 @@ func foldPlan(params Params, r planReads) Plan {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open, and the bench has sat since it was written — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Detail))
 				continue
 			}
-			engage(benchSeat, b.About)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Detail))
+			benchReady[b.About] = fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Detail)
 		case b.Kind == BlockerUnruledMotion && b.motionSubject == "docket":
 			if stated[b.Subject] {
 				continue
@@ -782,6 +784,34 @@ func foldPlan(params Params, r planReads) Plan {
 				continue
 			}
 			plan.Why = append(plan.Why, failedCheckReadiness(b, blueRespondSeat, false))
+		}
+	}
+	// THE READY RUN (the docket order, §III.B4): the bench rules the run's docketings one at a time, in
+	// the order written, so the dispatch convenes it on the docket's first and each next ready, up to
+	// the first that is not — its closings awaited, or a bench that sat for it and left it unruled. A
+	// ready docketing behind that one waits for it. The docketings this plan writes join the docket's
+	// tail in the plan's order.
+	var inOrder []string
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Standing() {
+			inOrder = append(inOrder, d.GapID)
+		}
+	}
+	for _, e := range plan.ToDocket {
+		inOrder = append(inOrder, e.gapID)
+	}
+	held := ""
+	for _, g := range inOrder {
+		why, ready := benchReady[g]
+		switch {
+		case held != "" && ready:
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled, its closings in — the bench rules the docket in order, and %s is ahead of it and not ready, so it waits", g, held))
+		case held != "":
+		case ready:
+			engage(benchSeat, g)
+			plan.Why = append(plan.Why, why)
+		default:
+			held = g
 		}
 	}
 	for _, s := range order {

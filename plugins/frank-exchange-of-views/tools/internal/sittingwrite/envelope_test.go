@@ -52,8 +52,9 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	if err := WriteEnvelopeAnswer(runDir, "agent-bench", "claude", []byte(`{}`), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "docketing D1 ") || !strings.Contains(out.String(), "docketing D2 ") {
-		t.Fatalf("the writer did not print the refusal naming both docketings: %q", out.String())
+	// The bench's docket sitting is held by the docket's first (the docket order).
+	if !strings.Contains(out.String(), "docketing D1 ") {
+		t.Fatalf("the writer did not print the refusal naming the docket's first: %q", out.String())
 	}
 	var stray bytes.Buffer
 	if err := WriteEnvelopeAnswer(runDir, "agent-of-no-seat", "claude", []byte(`{}`), &stray); err != nil || stray.Len() != 0 {
@@ -70,8 +71,8 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	if len(evs) != 1 || evs[0].GetSeatId() != "judge" {
 		t.Fatalf("want the bench's one refusal entry, got %d entr(ies)", len(evs))
 	}
-	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "docketing D2 ") {
-		t.Errorf("the entry is not the tool's refusal naming the docketings: %v", l)
+	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "docketing D1 ") {
+		t.Errorf("the entry is not the tool's refusal naming the docket's first: %v", l)
 	}
 	if got := admissions(t, runDir); len(got) != 0 {
 		t.Errorf("a refused envelope was recorded as admitted: %v", got)

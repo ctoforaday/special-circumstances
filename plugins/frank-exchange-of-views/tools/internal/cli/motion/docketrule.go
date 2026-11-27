@@ -195,9 +195,10 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 
 // applyText writes the text red's (the assignee's) closing states as the bench's act, then the ruling:
 // the anchor's retire where the closing states one, else the edit blue's `edit --accept` makes of its
-// pair, planned on the report the write lands on. The freeze holds it as it holds blue's edit: where
-// another docketing's or proposal's road no longer plans on the report it leaves, it is refused naming
-// that one (blue.BenchRoadsHold).
+// pair, planned on the report the write lands on. No other statement holds it: the bench rules the
+// docket's first, and a later docketing's statement this text breaks is checked again at that
+// docketing's own ruling, where a pair that no longer plans is refused naming the ruling that broke it
+// (record.Landing.RaiserRulingSince).
 func applyText(s seat.Context, run record.Run, p record.Positions, ruling record.Act, opinion string) error {
 	if p.Road.GetRetire() {
 		// RED'S TEXT ALREADY STANDS: a retire of the anchor its road retires matches it, and the freeze
@@ -210,7 +211,7 @@ func applyText(s seat.Context, run record.Run, p record.Positions, ruling record
 			return err
 		}
 		rt := &recordpb.Retire{Reason: proto.String(opinion), Answers: proto.String(p.GapID)}
-		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef)), blue.BenchRoadsHold}}, ruling)
+		_, err := record.AppendActs(s.Identity(), record.Act{Body: rt, Guards: []record.Guard{record.Check(blue.RetireAnchor(rt, p.AboutRef))}}, ruling)
 		return err
 	}
 	// RED'S TEXT ALREADY STANDS: the report holds the pair's replacement at the gap's place, as an edit
@@ -223,8 +224,18 @@ func applyText(s seat.Context, run record.Run, p record.Positions, ruling record
 	}
 	ed := &recordpb.BlueEdit{Answers: proto.String(p.GapID), Text: proto.String(opinion)}
 	plan := record.Check(func(l *record.Landing) error {
-		return blue.AcceptPair(l, ed, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew())
+		err := blue.AcceptPair(l, ed, p.GapID, p.Road.GetLocation(), p.Road.GetFixNew())
+		if err == nil {
+			return nil
+		}
+		broke, rerr := l.RaiserRulingSince(p.ID)
+		if rerr != nil || broke == "" {
+			return err
+		}
+		return feov.Wrap(feov.Conflict, err,
+			"red's text on %s no longer applies to the report: docketing %s, ruled before this one for its raiser, applied text over the span it quotes. The bench rules the docket in order and each ruling stands on the one before, so a statement an earlier ruling broke cannot win: answer for the author, or remand where both parties sit after. Nothing was recorded",
+			p.GapID, broke)
 	})
-	_, err := record.AppendActs(s.Identity(), record.Act{Body: ed, Guards: []record.Guard{plan, blue.BenchRoadsHold}}, ruling)
+	_, err := record.AppendActs(s.Identity(), record.Act{Body: ed, Guards: []record.Guard{plan}}, ruling)
 	return err
 }

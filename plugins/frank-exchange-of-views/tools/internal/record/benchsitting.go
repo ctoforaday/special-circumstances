@@ -53,22 +53,52 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, dock
 	return gaps, docketings
 }
 
+// docketFirst is the docket's first: the standing docketing written earliest, "" where none stands.
+// THE BENCH RULES THE RUN'S DOCKETINGS ONE AT A TIME, IN THE ORDER WRITTEN (#1695 §III.B4, the docket
+// order; gblock 2026-11-26, "One run-wide queue"): each ruling sees the previous one's result, so a
+// docketing behind the first waits for it — its ruling, a party's concession, or an amend ending it —
+// and the first moves on within the sitting. The order is the rows' (docketingsAt), no field and no
+// index.
+func docketFirst(evs []*Event, ids []int64) string {
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Standing() {
+			return d.ID
+		}
+	}
+	return ""
+}
+
 // benchHeld is what the bench's CURRENT sitting is convened to rule, by the occasion that sitting's
 // register states — the bench's blocking items, and so what refuses its envelope (EnvelopeRefusal). It
 // is keyed by what a ruling names: a docketing by its docketing id, a petition or a position by its
 // motion id. Everything else the bench rules waits for the sitting convened for it, and is listed
 // without blocking: the outcome refusal (requireBenchMotionsRuled) still holds the run on it.
 //
-//   - docket: the docketing standing on each gap the sitting is convened on (docketHeld).
+//   - docket: the docket's first (docketFirst), where the sitting is convened on its gap (docketHeld).
 //   - petition: every petition filed before the sitting opened. One petition sitting hears a filing
 //     (benchOwedOf), so a petition this sitting leaves is one the bench is not convened for again. A
 //     petition filed during the sitting waits for its own.
 //   - position: every heard position filed before the sitting opened, on the same terms.
-//   - terminal and assemble: every standing docketing — the register dockets every proposal no
-//     docketing holds (L29) — and every petition and position. The run's outcome is refused while any
-//     stands.
+//   - terminal and assemble: the docket's first — the register dockets every proposal no docketing
+//     holds at the docket's tail (L29), and the sitting rules the docket in order — and every petition
+//     and position. The run's outcome is refused while any stands.
 //   - a bench that has not sat, or a sitting with no occasion, holds none.
 func benchHeld(evs []*Event, ids []int64, win WindowIndex) map[string]bool {
+	held := benchConvened(evs, ids, win)
+	first := docketFirst(evs, ids)
+	for _, b := range docketedBlockers(evs, ids) {
+		if b.Detail != first {
+			delete(held, b.Detail)
+		}
+	}
+	return held
+}
+
+// benchConvened is everything the bench's current sitting is convened on, by its occasion, before the
+// docket order holds it to the docket's first: each standing docketing on a gap a docket sitting is
+// convened on, every standing docketing at the terminal sitting and the assembly, and the motions
+// benchHeld names.
+func benchConvened(evs []*Event, ids []int64, win WindowIndex) map[string]bool {
 	held := map[string]bool{}
 	opening := win.LatestSittingOf(benchSeat)
 	if opening == 0 {

@@ -152,6 +152,9 @@ func assembleHostile(t *testing.T, h string) Shipped {
 	archived(t, runDir, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G1"),
 		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("basis " + h)})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("closing " + h)})
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
 	add("judge", &recordpb.MotionRule{Opinion: proto.String("opinion " + h),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			DocketingId: proto.String("M1"),
@@ -160,6 +163,7 @@ func assembleHostile(t *testing.T, h string) Shipped {
 			Settled:   proto.String("settled " + h),
 			Direction: proto.String("direction " + h),
 		}}})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("prose " + h),

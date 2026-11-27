@@ -595,3 +595,32 @@ func StandingOnGap(run Run, g string) (proposal, docketing string, err error) {
 	})
 	return proposal, docketing, err
 }
+
+// RaiserRulingSince is raiserRulingSinceAt asked of the record the write lands on.
+func (l *Landing) RaiserRulingSince(id string) (string, error) {
+	return raiserRulingSinceAt(l.w.q, id)
+}
+
+// raiserRulingSinceAt is the latest docketing other than id ruled for its raiser after id's row on q's
+// record — the earlier ruling in the docket order whose applied statement can have broken a statement
+// stated on id — "" for none.
+func raiserRulingSinceAt(q recordsql.Querier, id string) (string, error) {
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return "", err
+	}
+	ds := docketingsAt(evs, win.IDs(evs))
+	var at int64
+	for _, d := range ds {
+		if d.ID == id {
+			at = d.at
+		}
+	}
+	broke, latest := "", int64(0)
+	for _, d := range ds {
+		if d.ID != id && d.ruled > at && d.ruled > latest && d.Docket().GetSidedWith() == recordpb.SidedWith_SIDED_WITH_RAISER {
+			broke, latest = d.ID, d.ruled
+		}
+	}
+	return broke, nil
+}

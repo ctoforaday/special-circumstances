@@ -133,6 +133,14 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if seatclass.RoleOfSeat(seatID) != "bench" {
 			return requireRaiserActOnGap(q, b.GetGapId(), b.GetAccepts(), "regrade", b)
 		}
+	case *recordpb.Amend:
+		// THE RAISER'S AMEND meets what stands on its gap, as its regrade does (§III.B5, "Refuse all"):
+		// refused while a docketing or a proposal stands on G. Two amends land over a standing
+		// docketing: the bench's application of a ruling, and the author's accept of a statement on a
+		// gap about G (answers, accepted), which concedes that gap's docketing.
+		if seatclass.RoleOfSeat(seatID) != "bench" && !(b.GetAnswers() != "" && b.GetAccepted()) {
+			return requireRaiserActOnGap(q, b.GetGapId(), "", "amend", b)
+		}
 	case *recordpb.Motion:
 		if b.GetDocket() != nil {
 			return requireDocketFiling(w, seatID, b)

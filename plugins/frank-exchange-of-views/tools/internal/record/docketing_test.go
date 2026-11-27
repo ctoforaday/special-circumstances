@@ -247,6 +247,20 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 			r.must(evLens, &recordpb.Amend{GapId: proto.String("C7"), Problem: proto.String("y"), Basis: proto.String("b"),
 				Answers: proto.String("C8"), Accepted: proto.Bool(true)})
 		}, map[string]string{"C8": ""}},
+		// THE BENCH'S APPLICATION ENDS ITS OWN DOCKETING ONLY BY ITS RULING ROW: its act carrying the
+		// author arm's fields (answers, accepted) is written under the bench's seat, which the author arm
+		// never matches, so the docketing stands until the ruling's row, which the trigger admits only
+		// on a standing docketing.
+		{"the bench's application of the author's shape leaves its docketing standing", func() {
+			r.mint("C9")
+			r.docket("K13", "C9", impasse, "")
+			r.must(benchSeat, editAccepting("C9"))
+		}, map[string]string{"C9": "K13"}},
+		{"its ruling's row ends it", func() {
+			r.must(benchSeat, ruling("K13", "", func(d *recordpb.DocketRuling) {
+				d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_RAISER.Enum(), repaired.Enum(), proto.Bool(true)
+			}))
+		}, map[string]string{"C9": ""}},
 	} {
 		step.act()
 		stored, folded := r.standing()
@@ -257,6 +271,16 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 			if got := r.standingOf(g); got != want {
 				t.Errorf("after step %d (%s) %s stands %q, want %q", i, step.name, g, got, want)
 			}
+		}
+	}
+
+	evs, win, err := eventsAt(r.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range docketingsAt(evs, win.IDs(evs)) {
+		if d.ID == "K13" && (d.ended != 0 || d.ruled == 0) {
+			t.Errorf("K13 reads ended at %d, ruled at %d; want ended by its ruling's row alone", d.ended, d.ruled)
 		}
 	}
 

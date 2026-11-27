@@ -54,6 +54,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 			name: "a second docket ruling is refused",
 			act: func(t *testing.T, run Run) error {
 				judge := benchSits(t, run)
+				mustAppend(t, judge, benchFor("D1", "M1", forAssignee))
 				mustAppend(t, judge, docketRule("D2", "the bench rules"))
 				_, err := Append(judge, finalDocketRule())
 				return err

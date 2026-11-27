@@ -208,8 +208,8 @@ func requireExchangedOn(q recordsql.Querier, g string) error {
 }
 
 // requireBenchHeld is the bench's docket ruling admitted exactly when its current sitting is
-// convened to rule the docketing it names (benchHeld): a docket sitting the dispatch convened on the
-// docketing's gap, the terminal sitting, or the assembly. Asked of the bench's docket rulings only; the
+// convened to rule the docketing it names (benchHeld): the docket's first (docketFirst), in a docket
+// sitting the dispatch convened on its gap, the terminal sitting, or the assembly. Asked of the bench's docket rulings only; the
 // assignee's accept is its own act at its own sitting.
 func requireBenchHeld(q recordsql.Querier, seatID string, r *recordpb.MotionRule) error {
 	if r.GetDocket() == nil || seatclass.RoleOfSeat(seatID) != "bench" {
@@ -230,8 +230,14 @@ func requireBenchHeld(q recordsql.Querier, seatID string, r *recordpb.MotionRule
 	if err != nil {
 		return err
 	}
-	if benchHeld(evs, win.IDs(evs), win)[d] {
+	ids := win.IDs(evs)
+	if benchHeld(evs, ids, win)[d] {
 		return nil
+	}
+	if first := docketFirst(evs, ids); benchConvened(evs, ids, win)[d] && first != d {
+		return feov.Errorf(feov.Conflict,
+			"docketing %s is not the docket's first: the bench rules the run's docketings one at a time, in the order they were written, and %s is first. Rule %s, or leave %s for the sitting that reaches it. Nothing was recorded",
+			d, first, first, d)
 	}
 	return feov.Errorf(feov.Conflict,
 		"docketing %s is not before this sitting: the bench rules a docketing in the docket sitting the dispatch convenes for it once the closings owed on it are in, at the terminal sitting, or at the assembly. Nothing was recorded; the plan readies the bench for it",
@@ -318,10 +324,10 @@ func requireFiledByAuthor(q recordsql.Querier, seatID, g string) error {
 //     under a docketing it is the raiser's concession, ending the docketing and the proposal.
 //   - A close of a docketed gap is the raiser's concession: it lands under every cause, ending the
 //     docketing with no ruling — under grade movement the gap is fixed and the grade is moot.
-//   - A regrade of a docketed gap, keeping a grade or moving one, is refused: the docketing's question
-//     is the gap's standing, and the raiser concedes by closing.
-//   - While the author's proposal stands undocketed the raiser answers it, by taking it; its own close
-//     or regrade would change what the proposal acts on, and is refused.
+//   - A regrade of a docketed gap, keeping a grade or moving one, and an amend of its wording, are
+//     refused: the docketing's question is the gap's standing, and the raiser concedes by closing.
+//   - While the author's proposal stands undocketed the raiser answers it, by taking it; its own close,
+//     regrade or amend would change what the proposal acts on, and is refused.
 func requireRaiserActOnGap(q recordsql.Querier, gapID, accepts, act string, body proto.Message) error {
 	docketing, proposal, err := standingOnGap(q, gapID)
 	if err != nil {
@@ -335,8 +341,8 @@ func requireRaiserActOnGap(q recordsql.Querier, gapID, accepts, act string, body
 		return nil
 	case docketing != "":
 		return feov.Errorf(feov.Conflict,
-			"gap %s is docketed (%s): the bench rules on it, and you do not move its grades while it stands. You concede by closing the gap%s; otherwise your position is your closing on %s, which the bench reads before it rules. Nothing was recorded",
-			gapID, docketing, acceptClause(proposal), gapID)
+			"gap %s is docketed (%s): the bench rules on it, and you do not %s while it stands. You concede by closing the gap%s; otherwise your position is your closing on %s, which the bench reads before it rules. Nothing was recorded",
+			gapID, docketing, map[string]string{"amend": "change its wording", "regrade": "move its grades"}[act], acceptClause(proposal), gapID)
 	case proposal != "":
 		return feov.Errorf(feov.Conflict,
 			"proposal %s stands on gap %s: its author offers you that act, and you answer it by taking it — the act it proposes, accepting %s. Your own %s would change what it acts on; left untaken, it is docketed when your sitting ends. Nothing was recorded",

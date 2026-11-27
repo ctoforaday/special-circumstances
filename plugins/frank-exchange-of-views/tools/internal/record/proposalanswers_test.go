@@ -144,6 +144,10 @@ func TestOnlyTheBenchOwesAnOpinion(t *testing.T) {
 	regradeFirst := func(t *testing.T, bench Identity) {
 		mustAppend(t, bench, &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("as proposed")})
 	}
+	// d1First rules D1, the docket's first, so D2 is first when its ruling is written.
+	d1First := func(t *testing.T, bench Identity) {
+		mustAppend(t, bench, benchFor("D1", "M1", forAssignee))
+	}
 	for _, answer := range []struct {
 		name string
 		pre  func(*testing.T, Identity)
@@ -152,10 +156,10 @@ func TestOnlyTheBenchOwesAnOpinion(t *testing.T) {
 		{"for the filer on D1", regradeFirst, benchFor("D1", "M1", forFiler)},
 		{"for the assignee on D1", nil, benchFor("D1", "M1", forAssignee)},
 		{"remand of D1", nil, benchRemand("D1", "M1")},
-		{"for blue on D2", nil, ruling("D2", "", func(d *recordpb.DocketRuling) {
+		{"for blue on D2", d1First, ruling("D2", "", func(d *recordpb.DocketRuling) {
 			d.SidedWith, d.Disposition, d.Final = forBlue.Enum(), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
 		})},
-		{"remand of D2", nil, benchRemand("D2", "")},
+		{"remand of D2", d1First, benchRemand("D2", "")},
 	} {
 		write := func(t *testing.T, body *recordpb.MotionRule) error {
 			run := motionGuardRun(t)
