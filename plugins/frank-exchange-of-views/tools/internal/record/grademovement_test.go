@@ -98,8 +98,8 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 			t.Errorf("the PASS refusal does not say %q: %v", w, passErr)
 		}
 	}
-	// The plan dockets both, readies their parties for their closings — blue-respond's alone, the
-	// minter being no cast lens — and permits no PASS. The bench sits once the closings are in.
+	// The plan dockets both and permits no PASS. Grade movement owes no closing, so the bench is
+	// convened on both at once, in the order the plan dockets them.
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
@@ -110,8 +110,8 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 	if !slices.Equal(plan.Docket, []string{"G1", "G2"}) || !slices.Equal(docketGaps(plan), []string{"G1", "G2"}) {
 		t.Errorf("docket %v, to file %v, want G1 and G2 in both", plan.Docket, docketGaps(plan))
 	}
-	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != "blue-respond" || len(plan.Parties[0].GapIDs) != 0 {
-		t.Errorf("parties = %+v, want blue-respond alone, readied for its closings", plan.Parties)
+	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != benchSeat || !slices.Equal(plan.Parties[0].GapIDs, []string{"G1", "G2"}) {
+		t.Errorf("parties = %+v, want the bench alone, convened on G1 and G2", plan.Parties)
 	}
 	if got := planKindsOf(plan.Blockers); !slices.Equal(got, want) {
 		t.Errorf("plan blockers = %v, want the gate's %v", got, want)
@@ -129,7 +129,7 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 
 // DISPATCH DOCKETS THE MOVEMENT, AND THE RULING CLEARS IT. The verb writes one grade-movement
 // docketing per gap with the movement as its basis; the gate list then holds each as docketed, the
-// bench's; the bench's ruling keeps the moved grades, so no movement and no docketing holds, and the
+// bench's, owing no closing; the bench's ruling keeps the moved grades, so no movement and no docketing holds, and the
 // two gaps — graded below materiality and open, since a ruling on a grade closes nothing — hold no
 // PASS. Each state, the plan, the gate and the work list agree.
 func TestTheDispatchDocketsGradeMovementAndTheBenchsRulingClearsIt(t *testing.T) {
@@ -162,8 +162,13 @@ func TestTheDispatchDocketsGradeMovementAndTheBenchsRulingClearsIt(t *testing.T)
 	if len(docketings) != 2 {
 		t.Fatalf("docketings written on %v, want G1 and G2", docketings)
 	}
-	if got := planKindsOf(plan.Blockers); !slices.Equal(got, []string{"closing_owed:G1", "closing_owed:G2", "docketed:G1", "docketed:G2"}) {
-		t.Errorf("the relayed plan's blockers = %v, want blue's two closings and the two docketings", got)
+	// GRADE MOVEMENT OWES NO CLOSING: the bench keeps or restores on the grades alone, so the plan holds
+	// the two docketings and convenes the bench on both at once.
+	if got := planKindsOf(plan.Blockers); !slices.Equal(got, []string{"docketed:G1", "docketed:G2"}) {
+		t.Errorf("the relayed plan's blockers = %v, want the two docketings and no closing", got)
+	}
+	if p, ok := partyOf(plan, "judge"); !ok || !slices.Equal(p.GapIDs, []string{"G1", "G2"}) {
+		t.Errorf("the bench is not convened on G1 and G2 with no closing owed: %+v; why %q", plan.Parties, plan.Why)
 	}
 	bs, err := PassBlockers(run)
 	if err != nil {

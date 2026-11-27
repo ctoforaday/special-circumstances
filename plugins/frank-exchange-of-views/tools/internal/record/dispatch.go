@@ -467,11 +467,14 @@ func foldPlan(params Params, r planReads) Plan {
 	// closing is awaited and the bench is not convened.
 	toBench := func(g openGap, cause recordpb.DocketingCause, why, basis string) {
 		docket(docketingEntry{gapID: g.id, cause: cause, basis: basis}, why)
+		// GRADE MOVEMENT OWES NO CLOSING (closingDutiesOf): the bench is ready on it at once.
 		var awaited []string
-		if lens, ok := closingPartiesOf(r.cast, g.assignee); ok {
-			awaited = append(awaited, lens)
+		if cause != recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT {
+			if lens, ok := closingPartiesOf(r.cast, g.assignee); ok {
+				awaited = append(awaited, lens)
+			}
+			awaited = append(awaited, closings.author(g.id))
 		}
-		awaited = append(awaited, closings.author(g.id))
 		awaitClosings(g.id, awaited, nil)
 	}
 	proposals := map[string]*Motion{}
