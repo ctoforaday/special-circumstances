@@ -1,12 +1,12 @@
 package migrate_test
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -26,19 +26,20 @@ import (
 // the mint cap's `mintBudget`, the call limit's `maxSittingCalls` — refuses the migrated run's terms unless the channel copy drops it.
 // And the epoch the file states is the one the migrated record is written at.
 func TestEveryArchivedRunMigrates(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
-	configs := 0
+	tarballs := migrate.ArchivedRuns(t)
+	configs, parts := 0, 0
 	t.Cleanup(func() {
 		if configs == 0 && !t.Failed() {
 			t.Error("no archived run carries a run-config.json, so no migrated configuration's epoch was checked")
 		}
+		// NO MIGRATED LANE PART HOLDS A TOKEN: a part is text a lane wrote, and anchors reach the report
+		// only by the acts that place them. Counted, so the check is not passed on no part at all.
+		if parts != 36 && !t.Failed() {
+			t.Errorf("the migrated archives hold %d lane parts, want 36", parts)
+		}
 	})
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			res, run := migrateArchive(t, name)
 			if len(res.Refusals) != 0 {
@@ -68,6 +69,14 @@ func TestEveryArchivedRunMigrates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			for _, e := range merged.Events {
+				if p, ok := recordpb.BodyAs[*recordpb.ReportPart](e); ok {
+					parts++
+					if strings.Contains(p.GetText(), "<!--") {
+						t.Errorf("%s: a migrated lane part holds an anchor token or a comment: %.120q", name, p.GetText())
+					}
+				}
+			}
 			// The harness writes the cast and the sitting spans under its own id (record.HarnessSeat):
 			// it is no party, and no role is the answer for it.
 			offRoster, seated := map[string]int{}, 0
@@ -90,8 +99,5 @@ func TestEveryArchivedRunMigrates(t *testing.T) {
 				t.Errorf("%s: no migrated event is attributed to a seat, so no seat was checked", name)
 			}
 		})
-	}
-	if _, err := os.Stat(dir); err != nil {
-		t.Fatal(err)
 	}
 }

@@ -1,7 +1,6 @@
 package migrate_test
 
 import (
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 )
 
 // EVERY ARCHIVED GAP HAS A NAMED LOCATION. Migrated, every quote gap carries a location state and
@@ -20,8 +20,8 @@ import (
 func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 	var lines []string
 	for _, tb := range archiveTarballs(t) {
-		run := strings.TrimSuffix(filepath.Base(tb), ".tar.gz")
-		res, dst := migrateArchive(t, filepath.Base(tb))
+		run := strings.TrimSuffix(tb, ".tar.gz")
+		res, dst := migrateArchive(t, tb)
 		haveParts, err := record.ReportHasParts(dst)
 		if err != nil {
 			t.Fatal(err)
@@ -82,11 +82,7 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 // archiveTarballs is every archived run.
 func archiveTarballs(t *testing.T) []string {
 	t.Helper()
-	tbs, err := filepath.Glob(filepath.Join(filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz")), "*.tar.gz"))
-	if err != nil || len(tbs) == 0 {
-		t.Fatalf("no archived run found: %v", err)
-	}
-	return tbs
+	return migrate.ArchivedRuns(t)
 }
 
 // THE TWO GAPS THE REPLAY LOST, RESOLVED BY NAME. b9 G4's sentence was duplicated elsewhere and the

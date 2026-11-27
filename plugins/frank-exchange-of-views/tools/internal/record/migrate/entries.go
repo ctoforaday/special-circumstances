@@ -83,6 +83,15 @@ func Entries() Registry {
 			"distinguisher": mintCoiningDrop,
 			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
 		}, nil),
+		// A RETIRE IS ANCHOR-ONLY (EventSchema 82): it takes anchors out of the report and states its
+		// reason. The claim retire's three fields are not carried; the replay folds each claim retire
+		// into the cut that bared its tokens, or keeps it as the anchor-only retire it was in effect
+		// (retirefold.go).
+		"retire": mapped("retire", nil, drops{
+			"claim_kept":    retireClaimDrop,
+			"removal_basis": retireClaimDrop,
+			"superseded_by": retireClaimDrop,
+		}, nil),
 		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding a
 		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
@@ -387,6 +396,10 @@ const (
 )
 
 // mintCoiningDrop is why a mint's coining columns are not carried.
+// retireClaimDrop is why a claim retire's fields are not carried: a retire takes anchors, and the
+// sentence a cut took is the cut's (BlueEdit.removed_anchors).
+const retireClaimDrop = "a retire takes anchors out of the report and nothing else; the claim a cut withdrew is the cut, which records the anchors it took, and each cutting edit keeps its own reason"
+
 const mintCoiningDrop = "a class is a value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the value's own definition is"
 
 // reproduceEntry: `reproduced`, a bool, becomes `rerun` — the act re-ran the script, and it

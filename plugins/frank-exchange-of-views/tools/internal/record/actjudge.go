@@ -121,7 +121,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	case *recordpb.Retire:
 		// F14: AN OPEN GAP'S OWN MARKER IS NOT RETIRED. Its sentence stays, and the gap would stand on
 		// nothing; a cut of the sentence is the gap's raiser's turn instead. A closed gap's marker may go.
-		if err := requireMarkerOfNoOpenGap(q, b.GetAnchors()); err != nil {
+		if err := RequireMarkerOfNoOpenGap(q, b.GetAnchors()); err != nil {
 			return err
 		}
 		// L6, OF THE ANCHOR THE RETIRE TAKES, asked in the write's transaction. It is a rule of the act,

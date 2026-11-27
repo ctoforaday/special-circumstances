@@ -17,14 +17,10 @@ import (
 // lookup must name the view's latest sitting and the rank stored on it. Some run must have a seat
 // whose latest sitting a bracket opened, or the bracket half was never compared.
 func TestTheLatestSittingIsTheViewsOnEveryArchivedRun(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	byBracket, seats := 0, 0
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			_, runDir := migrate.MigratedArchive(t, name)
 			db, err := sql.Open("sqlite", "file:"+filepath.Join(runDir, "records", "record.db")+"?mode=ro")

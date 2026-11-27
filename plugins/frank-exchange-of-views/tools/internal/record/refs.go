@@ -402,11 +402,11 @@ func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 	return !open, nil
 }
 
-// requireMarkerOfNoOpenGap refuses a retire of an OPEN gap's own marker (F14, ruled by gblock
+// RequireMarkerOfNoOpenGap refuses a retire of an OPEN gap's own marker (F14, ruled by gblock
 // 2026-11-20), naming the gap: the retire keeps the sentence, so the gap would stand on no marker while
 // it is owed. A cut of the sentence takes the marker and is the gap's raiser's turn; once the gap is
 // closed, its marker may be retired off the sentence.
-func requireMarkerOfNoOpenGap(q recordsql.Querier, taken []string) error {
+func RequireMarkerOfNoOpenGap(q recordsql.Querier, taken []string) error {
 	for _, id := range taken {
 		if anchor.Kind(id) != "gap" {
 			continue

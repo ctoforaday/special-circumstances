@@ -29,7 +29,7 @@ import (
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 	sourceCloses, lostSourceCloses := map[string]int{}, map[string]int{}
 	for _, tb := range archiveTarballs(t) {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			res, dir := migrate.MigratedArchive(t, name)
 			if len(res.Refusals) != 0 {

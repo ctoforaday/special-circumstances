@@ -28,11 +28,7 @@ import (
 const proseRefsFieldsEpoch = 33
 
 func TestArchivedProseIDsBecomeFields(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	sort.Strings(tarballs)
 	gapRe := regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
 	anyRe := regexp.MustCompile(`\b` + anchor.IDPattern() + `\b`)
@@ -44,7 +40,7 @@ func TestArchivedProseIDsBecomeFields(t *testing.T) {
 	}
 	var sources []migrated
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		res, run := migrateArchive(t, name)
 		sources = append(sources, migrated{name, res, run})
 	}
@@ -179,11 +175,10 @@ func TestAStatedListIsCarriedAndProseIsNotReadAgain(t *testing.T) {
 // closure whose --verified-with names an anchor.
 func lastWithBoth(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, _ := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
+	tarballs := migrate.ArchivedRuns(t)
 	sort.Sort(sort.Reverse(sort.StringSlice(tarballs)))
 	for _, tb := range tarballs {
-		_, run := migrateArchive(t, filepath.Base(tb))
+		_, run := migrateArchive(t, tb)
 		fam, err := record.FamilyOf(run)
 		if err != nil {
 			t.Fatal(err)
@@ -198,7 +193,7 @@ func lastWithBoth(t *testing.T) string {
 			}
 		}
 		if d && c {
-			return filepath.Base(tb)
+			return tb
 		}
 	}
 	t.Fatal("no archived run holds both a declaration about a gap and a closure naming an anchor")

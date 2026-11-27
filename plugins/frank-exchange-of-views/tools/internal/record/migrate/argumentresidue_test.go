@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -75,14 +74,10 @@ var argumentResidue = map[string]struct {
 // closing the migrated record holds is a party's, and every position the chair's; and the closing
 // and position duties read as they did before the drop.
 func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	seen := map[string]bool{}
 	for _, tb := range tarballs {
-		name := strings.TrimSuffix(filepath.Base(tb), ".tar.gz")
+		name := strings.TrimSuffix(tb, ".tar.gz")
 		seen[name] = true
 		t.Run(name, func(t *testing.T) {
 			want, stated := argumentResidue[name]

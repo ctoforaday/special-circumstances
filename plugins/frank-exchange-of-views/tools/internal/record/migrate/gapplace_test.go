@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -350,14 +349,14 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		var lines []string
 		total := map[string]int{}
 		for _, tb := range archiveTarballs(t) {
-			m, _ := migrateArchive(t, filepath.Base(tb))
+			m, _ := migrateArchive(t, tb)
 			var shapes []string
 			for k, n := range m.GapAnchors.Shapes {
 				shapes = append(shapes, fmt.Sprintf("%s=%d", k, n))
 				total[k] += n
 			}
 			sort.Strings(shapes)
-			line := strings.TrimSuffix(filepath.Base(tb), ".tar.gz") + " " + strings.Join(shapes, " ")
+			line := strings.TrimSuffix(tb, ".tar.gz") + " " + strings.Join(shapes, " ")
 			if len(m.GapAnchors.NeverPlaced) > 0 {
 				line += " never-placed=" + strings.Join(m.GapAnchors.NeverPlaced, ",")
 			}

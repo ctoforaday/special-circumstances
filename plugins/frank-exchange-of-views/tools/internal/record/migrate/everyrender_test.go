@@ -3,7 +3,6 @@ package migrate_test
 import (
 	"crypto/sha256"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
@@ -35,14 +35,10 @@ import (
 //
 // The token reader here is the test's own: the readers under test must not grade themselves.
 func TestEveryArchivedRunRenders(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	var lines []string
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		run := strings.TrimSuffix(name, ".tar.gz")
 		res, dst := migrateArchive(t, name)
 		if len(res.Refusals) != 0 {
