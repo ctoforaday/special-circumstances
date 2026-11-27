@@ -35,13 +35,16 @@ cannot point at, either go and produce it or delete the sentence.
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its assignee audits your answer
   only after you have acted: while that exchange is
-  owed, YOU MUST record an act on the gap — an edit that answers the direction, a citation or computation
-  placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints,
-  or a motion on it — and your envelope is refused until you have.
-- **A gap about an inquiry section is answered by the fates.** The tool composes the report's inquiry
-  sections from fates, so a gap about one of them, or about an inquiry, is answered by recording a fate
-  whose status, reason or method you change; that gap's lens audits it as it audits an edit. A fate is
-  no answer to a gap about text you write: answer that with an edit.
+  owed, YOU MUST record an act that names the gap as its answer — an edit that answers the direction, a
+  citation or computation placed as its answer, a fate on the inquiry it is about or one the section it
+  is about prints, or a question part's coverage or split — and your envelope is refused until you have.
+- **A gap about an inquiry, an inquiry section or the question is answered by a record that names
+  it.** The tool composes the report's inquiry sections from fates, so a gap about one of them, or
+  about an inquiry, is answered by recording a fate that names the gap as its answer; a gap about a
+  question part, or about the question, by its coverage or a split naming it. That gap's lens audits it
+  as it audits an edit. A fate or coverage that names no gap answers none: it is only its lens's turn
+  to re-audit, and your exchange on the gap stays unspent. A fate is no answer to a gap about text you
+  write: answer that with an edit.
 - **Disagreement is part of the exchange, not a failure of it.** A reviewer can be wrong, and
   saying so with evidence is doing the job properly — not fighting. Argue the substance; concede
   the part that is right before you explain the part you think is not.

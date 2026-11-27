@@ -31,7 +31,9 @@ import (
 //
 // OWED BY EACH PARTY, WITH TWO EXCEPTIONS, each a state of its own (ClosingNotOwed):
 //   - the gap closed after the docketing: its raiser's concession, which ends the docketing with no
-//     ruling (requireRaiserActOnGap), so no closing is owed on it;
+//     ruling (requireRaiserActOnGap), so no closing is owed on it; and so for every other concession
+//     that ended it unruled — the raiser's accept of the proposal it holds, the author's accept of the
+//     raiser's statement;
 //   - the gap's minter is no lens the cast seats — an archived run's merge mints translate to the
 //     chair — so there is no minting party to dispatch, and blue's closing is the only one owed.
 //
@@ -81,6 +83,7 @@ type ClosingDuty struct {
 // Why a closing is not owed.
 const (
 	closingGapClosed    = "the gap closed after it was docketed, so the dispute it would argue is over"
+	closingConceded     = "a party conceded the docketing, which ended it with no ruling, so the dispute it would argue is over"
 	closingMinterNoLens = "the gap's minter is no lens the cast seats, so there is no minting party"
 )
 
@@ -159,6 +162,12 @@ func (r closingReads) dutiesOn(gapID, docketing string, from, end int64, ruled b
 		// The Close that ended the docketing unruled is the span's end, and owes nothing after it.
 		if at, closed := r.closedAt[gapID]; closed && at > from && (end == 0 || at <= end) {
 			d.State, d.NotOwedWhy = ClosingNotOwed, closingGapClosed
+			return d
+		}
+		// A SPAN ENDED WITH NO RULING by any other concession — the raiser's accept of the proposal,
+		// the author's accept of the raiser's statement — owes nothing after it either.
+		if end != 0 && !ruled {
+			d.State, d.NotOwedWhy = ClosingNotOwed, closingConceded
 			return d
 		}
 		d.State = ClosingAwaited

@@ -45,9 +45,9 @@ func EarlyLensDispatches(run Run) ([]EarlyLensDispatch, error) {
 // earlyLensDispatchesOf is EarlyLensDispatches over a read stream and the "remand" view's rows.
 func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]remandRow) []EarlyLensDispatch {
 	ids := win.IDs(evs)
-	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
+	acts, mintedAt := gapActsOf(evs, ids), mintPlaces(evs, ids)
 	minted := assigneeOf(evs)
-	turns := lensTurnActsOf(evs, ids, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
+	turns := lensTurnActsOf(evs, ids, win, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
 	authorOf := authorsOn(evs)
 	var out []EarlyLensDispatch
 	for i, e := range evs {

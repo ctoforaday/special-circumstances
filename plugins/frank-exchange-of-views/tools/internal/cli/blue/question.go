@@ -37,7 +37,11 @@ func newQuestionSplit() *cobra.Command {
 	c := seat.Records(seat.NewKeyed("split", "question-split", questionPartResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text := strings.TrimRight(seat.Str(cmd, flags.PartText), "\n")
 		id := record.NewID("question part")
-		if _, err := record.Append(s.Identity(), &recordpb.QuestionPart{PartId: proto.String(id), Text: proto.String(text)}); err != nil {
+		body := &recordpb.QuestionPart{PartId: proto.String(id), Text: proto.String(text)}
+		if g := seat.Str(cmd, flags.Answers); g != "" {
+			body.Answers = proto.String(g)
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return questionPartResult{ID: id, Text: text, VoiceTells: spanVoiceTells(text)}, nil
@@ -45,6 +49,7 @@ func newQuestionSplit() *cobra.Command {
 	seat.Supplies(c, "coverage", "a part is split out with its text alone, and has no coverage until `question cover` records one")
 	flags.Text(c, flags.PartText, "the PART of the question this names, as a reader of the SUBJECT would ask it answered — a standard, a population, a period or an alternative the question names, in the subject's terms. Where the report does not answer it, report.md prints it word for word in the sentence that says so")
 	seat.Require(c, flags.PartText)
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this split answers — a gap about the question that names no part; omit for a split that answers no gap")
 	return c
 }
 
@@ -60,6 +65,9 @@ func newQuestionCover() *cobra.Command {
 			return nil, err
 		}
 		body := &recordpb.QuestionPart{PartId: proto.String(id), SupersedesCoverage: proto.String("1"), Coverage: &cov, Reason: proto.String(why)}
+		if g := seat.Str(cmd, flags.Answers); g != "" {
+			body.Answers = proto.String(g)
+		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -69,6 +77,7 @@ func newQuestionCover() *cobra.Command {
 	seat.Require(c, flags.ID)
 	enumhelp.Flag(c, flags.As, record.MustEnum("question_part", "coverage"), "how the report covers this part")
 	seat.Require(c, flags.As)
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this coverage answers — a gap about this part; omit for a coverage that answers no gap")
 	c.Flags().Lookup(flags.Reason).Usage = "why the coverage holds — what in the report answers the part, which sources could not be obtained and what was tried, or why the part lies outside the report's answer. The logic lens judges the coverage against it; it is printed on the record's surfaces, never in report.md"
 	return seat.SaysRequired(c, flags.Reason)
 }

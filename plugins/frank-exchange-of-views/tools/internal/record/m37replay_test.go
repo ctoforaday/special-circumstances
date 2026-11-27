@@ -245,7 +245,7 @@ func TestAnEditUnderAnotherGapsNameGivesTheLensItsTurn(t *testing.T) {
 	}
 	evs, win := mustEvents(t, run)
 	ids := win.IDs(evs)
-	if authorActed(gapActsOf(evs, ids, win)["G1"], blueRespondSeat, 0, 1<<62) {
+	if authorActed(gapActsOf(evs, ids)["G1"], blueRespondSeat, 0, 1<<62) {
 		t.Errorf("the edit answered another gap, and reads as blue's act on G1")
 	}
 }
@@ -263,32 +263,45 @@ func TestAComputationOrAFateIsMovement(t *testing.T) {
 			t.Errorf("blue's computation moved G1: %+v (%v)", x["G1"], err)
 		}
 	})
-	fate := func(q string, s recordpb.InquiryStatus, reason string) *recordpb.Inquiry {
-		return &recordpb.Inquiry{InquiryId: proto.String(q), SupersedesStatus: proto.String("1"), Status: s.Enum(), Reason: proto.String(reason)}
+	fate := func(q string, s recordpb.InquiryStatus, reason, answers string) *recordpb.Inquiry {
+		f := &recordpb.Inquiry{InquiryId: proto.String(q), SupersedesStatus: proto.String("1"), Status: s.Enum(), Reason: proto.String(reason)}
+		if answers != "" {
+			f.Answers = proto.String(answers)
+		}
+		return f
 	}
 	// The inquiry stands `underway` with reason "r" before the gap is minted; blue's sitting records the
 	// fate given.
 	inquiryStage := func(t *testing.T, recorded *recordpb.Inquiry) *stage {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest()
 		st.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Question: proto.String("q"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
-		st.add("blue-respond", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r"))
+		st.add("blue-respond", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r", ""))
 		st.register("red-chair").dispatch(2, evLens).sitClosed(evLens).add(evLens, inquiryMint("G1", "Q-1")).register("red-chair")
 		st.dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-f").add("blue-respond", recorded).stop("blue-f")
 		return st.reauditOn("G1").register("red-chair")
 	}
+	// A FATE NAMING THE GAP IS THE AUTHOR'S ANSWER AND MOVES IT where it changed the inquiry; ONE NAMING
+	// NO GAP IS THE RAISER'S TURN (F-FATE, 2026-11-24): the lens's re-audit ends the round, and the round
+	// is a stall in which the author did not act (plans/findings-fold.md §III.B3, T-B45).
 	for _, c := range []struct {
 		name    string
 		fate    *recordpb.Inquiry
 		stalled int
+		acted   bool
 	}{
-		{"a fate changed", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED, "r"), 0},
-		{"a reason changed", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r, narrowed"), 0},
-		{"a fate repeated", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r"), 1},
+		{"a fate changed, naming the gap", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED, "r", "G1"), 0, true},
+		{"a reason changed, naming the gap", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r, narrowed", "G1"), 0, true},
+		{"a fate repeated, naming the gap", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r", "G1"), 1, true},
+		{"a fate changed, naming no gap", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED, "r", ""), 1, false},
+		{"a reason changed, naming no gap", fate("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r, narrowed", ""), 1, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			x, err := Exchanges(inquiryStage(t, c.fate).seed(), DefaultParams)
 			if err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != c.stalled {
-				t.Errorf("want 1 exchange, %d stalled: %+v (%v)", c.stalled, x["G1"], err)
+				t.Fatalf("want 1 exchange, %d stalled: %+v (%v)", c.stalled, x["G1"], err)
+			}
+			if got := x["G1"].rounds[0].acted; got != c.acted {
+				t.Errorf("the round's acted = %v, want %v: only a fate naming the gap is the author's act on it", got, c.acted)
 			}
 		})
 	}

@@ -14,4 +14,6 @@ The reason is required, and it is what the logic lens judges the coverage agains
 
 Recording the coverage again, the same coverage included, leaves the part's check stale: the logic lens is owed a new one.
 
-Refused: a part no `question split` recorded; a coverage the list below does not hold; an empty reason.
+A COVERAGE NAMING A GAP AS ITS ANSWER IS YOUR ANSWER TO IT: a gap about this part. The gap's assignee audits it next, and where the coverage or its reason changed the exchange counts it as movement. A coverage that changes the part's coverage or reason and names no gap is no answer to any gap: it changes what each gap about the part is about, and that is each gap's assignee's turn to re-audit it — no exchange spent, no stall reset, no remand discharged.
+
+Refused: a part no `question split` recorded; a coverage the list below does not hold; an empty reason; a named gap that is not about this part, or one whose subject's author you are not.

@@ -1536,6 +1536,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			return fmt.Errorf("a %s inquiry requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
+		if err := requireInquiryAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	// AN INQUIRY'S CHECK JUDGES IT AS IT STANDS, by its owner, with a reason (inquirycheck.go).
 	case *recordpb.InquiryCheck:
 		if err := requireInquiryCheck(w, seatID, b); err != nil {
@@ -1545,6 +1548,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	// (questionpart.go); its check judges it as it stands, by its owner.
 	case *recordpb.QuestionPart:
 		if err := requireQuestionPart(q, b); err != nil {
+			return err
+		}
+		if err := requireQuestionPartAnswers(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.QuestionPartCheck:

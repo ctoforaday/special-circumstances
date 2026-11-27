@@ -215,7 +215,8 @@ type gapNews struct {
 }
 
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
-// (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), the bench's
+// (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), a fate or question part that changed
+// what it is about naming no gap (fateActsOf), the bench's
 // remand of it. It is one reading with two
 // readers: the assignee owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
@@ -239,6 +240,14 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 		// and the retire met the gap's demand all the same.
 		if a.metAt != 0 {
 			out = append(out, gapNews{gap: g.id, at: a.metAt, item: "blue's retire of " + a.met.anchor + ", " + a.met.how(g.id)})
+		}
+		// A FATE OR QUESTION PART THAT CHANGED WHAT THE GAP IS ABOUT, naming no gap, is news of its own
+		// as a reaching retire is: the lens's turn, and no answer of blue's.
+		if a.fateTurnAt != 0 {
+			out = append(out, gapNews{gap: g.id, at: a.fateTurnAt, item: "blue's fate `" + a.fateTurn + "` on " + string(a.fateTurnOn) + ", which changed what " + g.id + " is about"})
+		}
+		if a.partTurnAt != 0 {
+			out = append(out, gapNews{gap: g.id, at: a.partTurnAt, item: "blue's question part record (" + a.partTurnWhat + "), which changed what " + g.id + " is about"})
 		}
 	}
 	// A BENCH RULING THAT LEAVES A MATERIAL GAP OPEN IS NEWS, IN ITS OWN WORD: a remand, the act of a

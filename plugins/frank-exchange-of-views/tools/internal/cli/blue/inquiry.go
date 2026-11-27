@@ -153,6 +153,9 @@ func newInquiryRecord() *cobra.Command {
 		if method != "" {
 			body.Method = proto.String(method)
 		}
+		if g := seat.Str(cmd, flags.Answers); g != "" {
+			body.Answers = proto.String(g)
+		}
 		// A fate's reason and method are composed into the same report.md row as the question, so
 		// they meet the same advisory.
 		tells := spanVoiceTells(why, method)
@@ -167,6 +170,7 @@ func newInquiryRecord() *cobra.Command {
 	// THE VALUES ARE NOT RE-LISTED HERE: enumhelp renders every value with its own meaning from the
 	// record, so the usage line's job is to say what the FIELD is for.
 	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry", "status"), "the fate of this inquiry")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this fate answers — a gap about this inquiry, or about the inquiry section that prints it before or after this record; omit for a fate that answers no gap")
 	flags.Text(c, flags.Method, "optional: the method this fate is the account of, in the SUBJECT's terms — what was actually done for an approach that ran, what would settle the question for one deferred or declined, what was tried for one abandoned. Printed on the inquiry's row beside the fate, as report text")
 	return c
 }

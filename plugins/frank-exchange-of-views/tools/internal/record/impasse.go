@@ -23,12 +23,13 @@ import (
 // not finish — failed: no envelope admitted — is NO TURN (ruled by gblock 2026-11-11, gapSittingsOf):
 // its silence judges nothing.
 //
-// Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
-// answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
-// is about), blue placed a citation or computation as its answer (ruled
-// by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
-// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
-// grade or an edit that changed nothing are acts but not movement.
+// Movement is a STATE change by a party's act on G: the gap's grade changed, an act naming G (its
+// `answers`) changed what G is about — a blue edit with old != new, an evidence-anchor retire, a
+// citation or computation placed as its answer (ruled by gblock 2026-10-31), a fate or question part
+// that changed the inquiry, section or part G is about (fateActsOf), the minter's moving regrade of
+// the gap G is about — or it closed. A change to G's subject that names no gap is G's raiser's turn
+// and no movement (lensTurnActsOf; F-FATE, 2026-11-24). A closing argument, a spot-check, a regrade
+// to the same grade or an edit that changed nothing are acts but not movement; a proposal is neither.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
 // what the record can establish; Unresolved states what it cannot, so a reader is never handed a
@@ -283,7 +284,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
 	fates := fateActsOf(evs)
-	acts := gapActsOf(evs, ids, win)
+	acts := gapActsOf(evs, ids)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -310,6 +311,11 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			// remand's exchange moving the gap and undo the one-remand limit.
 			if moved && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				movement[g] = append(movement[g], id)
+				// The minter's moving regrade naming a gap about this gap is that gap's author's answer,
+				// and it changed what the gap is about: movement there too, as an answering edit is.
+				if g2 := b.GetAnswers(); g2 != "" {
+					movement[g2] = append(movement[g2], id)
+				}
 			}
 		case *recordpb.BlueEdit:
 			// The bench's edit applies red's text in a ruling's transaction: no party's act, so no
@@ -327,28 +333,25 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.QuestionPart:
-			// A QUESTION PART BLUE RECORDED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf).
-			for _, g := range fates[e] {
+			// A QUESTION PART NAMING THE GAP MOVES IT where it changed what the gap is about (fateActsOf);
+			// one naming none is its raiser's turn and no movement (lensTurnActsOf).
+			if g := b.GetAnswers(); slices.Contains(fates[e], g) {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Inquiry:
-			// A FATE BLUE CHANGED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf): those anchored on
-			// the inquiry, which no edit can answer, and those anchored on a section that prints it,
-			// which only a fate changes. A fate repeated moves nothing.
-			for _, g := range fates[e] {
+			// A FATE NAMING THE GAP MOVES IT where it changed what the gap is about (fateActsOf): an
+			// inquiry the gap is anchored on, which no edit can answer, or a section that prints it, which
+			// only a fate changes. A fate repeated moves nothing; a fate naming no gap is each such gap's
+			// raiser's turn and no movement (lensTurnActsOf).
+			if g := b.GetAnswers(); slices.Contains(fates[e], g) {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// An evidence-anchor retire moves the report as an edit does: the anchor leaves its sentence. A
-			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
-			// whatever gap it named (WindowIndex.Reaches).
+			// An evidence-anchor retire naming the gap moves the report as an edit does: the anchor
+			// leaves its sentence. A retire that takes out the anchor a gap is about without naming it is
+			// that gap's raiser's turn and no movement (lensTurnActsOf).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
-			}
-			for _, r := range win.Reaches(e) {
-				if !slices.Contains(movement[r.gap], id) {
-					movement[r.gap] = append(movement[r.gap], id)
-				}
 			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)
@@ -356,7 +359,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	}
 
 	sittings := gapSittingsOf(evs, ids, win, when, minted)
-	turns := lensTurnActsOf(evs, ids, acts, sittings, minted)
+	turns := lensTurnActsOf(evs, ids, win, acts, sittings, minted)
 	authorOf := authorsOn(evs)
 
 	out := map[string]*GapExchanges{}

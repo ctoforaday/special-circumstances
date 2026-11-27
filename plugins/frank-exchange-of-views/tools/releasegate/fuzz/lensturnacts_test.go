@@ -29,17 +29,27 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"K-1"}}),
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-2"}}),
 	}
-	acts, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
+	acts, changes, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
 	for _, w := range []struct {
 		name, gap, seat string
 		at              int
+		change          bool // a change to what the gap is about, naming no gap: its lens's turn, no act
 	}{
-		{"a citation placed as its answer", "G1", blue, 3},
-		{"a reading of that citation", "G1", lens, 4},
-		{"a retire of the anchor it is about", "G2", blue, 5},
-		{"a retire of the anchor of a reading it carries", "G3", blue, 6},
+		{"a citation placed as its answer", "G1", blue, 3, false},
+		{"a reading of that citation", "G1", lens, 4, false},
+		{"a retire of the anchor it is about", "G2", blue, 5, true},
+		{"a retire of the anchor of a reading it carries", "G3", blue, 6, true},
 	} {
-		if !slices.ContainsFunc(acts[w.gap], func(a struct {
+		in, other := acts, changes
+		if w.change {
+			in, other = changes, acts
+		}
+		for _, a := range other[w.gap] {
+			if a.at == w.at {
+				t.Errorf("%s is read on %s in the wrong list: an act names its gap, a change names none", w.name, w.gap)
+			}
+		}
+		if !slices.ContainsFunc(in[w.gap], func(a struct {
 			seat string
 			at   int
 		}) bool {

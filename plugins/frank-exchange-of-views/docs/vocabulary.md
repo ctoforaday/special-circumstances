@@ -521,7 +521,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade or its anchored text changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade changes, an act naming the gap as its answer changes its anchored text, places a citation or computation as its answer or changes the inquiry, section or question part it is about, or it closes, which is what impasse counts; a change to what the gap is about that names no gap is its lens's turn and moves nothing; grade movement is the regrade part of that alone, weighed in mass
 
 ## docketing
 

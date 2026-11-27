@@ -66,6 +66,12 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"question", "cover"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009",
 		extra: []string{"--as", "covered", "--reason", "r"}},
+	{verb: []string{"inquiry", "record"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--id", "Q9", "--as", "abandoned", "--reason", "r"}},
+	{verb: []string{"question", "cover"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--id", "S-00000009", "--as", "covered", "--reason", "r"}},
+	{verb: []string{"question", "split"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--text", "t"}},
 	{verb: []string{"question", "check"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009"},
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
 	// which deliberately carries no checker because each of these verbs already resolves its id and the

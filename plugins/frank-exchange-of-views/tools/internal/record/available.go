@@ -231,7 +231,7 @@ func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID st
 			continue
 		}
 		if acts == nil {
-			acts = gapActsOf(evs, win.IDs(evs), win)
+			acts = gapActsOf(evs, win.IDs(evs))
 			dispatched = latestDispatchOf(evs, win, seatID)
 		}
 		switch {

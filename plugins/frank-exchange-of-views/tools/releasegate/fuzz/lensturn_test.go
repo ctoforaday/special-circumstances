@@ -37,26 +37,29 @@ type gapActs map[string][]struct {
 	at   int
 }
 
-// actsOnGaps reads every act on a gap off evs, and each gap's mint position. carried is each
-// citation's gaps that carry a reading of it (carryingOf): with the gap an anchor is about, what a
-// retire of the anchor reaches.
-func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs, minted map[string]int) {
-	acts, minted = gapActs{}, map[string]int{}
+// actsOnGaps reads every act on a gap off evs — an act naming it — and every change to what a gap is
+// about that names no gap (changes: a reaching retire, a changed fate), each its lens's turn and no act
+// of blue's on it (F-FATE, 2026-11-24), and each gap's mint position. carried is each citation's gaps
+// that carry a reading of it (carryingOf): with the gap an anchor is about, what a retire of the anchor
+// reaches.
+func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts, changes gapActs, minted map[string]int) {
+	acts, changes, minted = gapActs{}, gapActs{}, map[string]int{}
 	answering := map[string]string{}       // evidence anchor → the gap it was placed as the answer to
 	about := map[string][]string{}         // anchor → the gaps minted about it
 	anchored := map[string][]string{}      // inquiry id → the gaps minted about it
 	aboutSection := map[string][]string{}  // a section's heading key → the gaps minted about it
 	last := map[string]*recordpb.Inquiry{} // inquiry id → its previous record
-	add := func(seat string, at int, gaps ...string) {
+	addTo := func(to gapActs, seat string, at int, gaps ...string) {
 		for _, g := range gaps {
 			if g != "" {
-				acts[g] = append(acts[g], struct {
+				to[g] = append(to[g], struct {
 					seat string
 					at   int
 				}{seat, at})
 			}
 		}
 	}
+	add := func(seat string, at int, gaps ...string) { addTo(acts, seat, at, gaps...) }
 	for i, e := range evs {
 		seat := e.GetSeatId()
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
@@ -89,13 +92,14 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			if b.GetClaimKept() {
 				add(seat, i, b.GetAnswers())
 			}
-			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not.
+			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT: the one it
+			// names is its act, every other its lens's turn.
 			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
 			for _, a := range b.GetAnchors() {
 				for _, g := range slices.Concat(about[a], carried[a]) {
 					if !reached[g] {
 						reached[g] = true
-						add(seat, i, g)
+						addTo(changes, seat, i, g)
 					}
 				}
 			}
@@ -114,10 +118,13 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 		if b, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
 			add(seat, i, answering[b.GetAnchor()])
 		}
-		// A FATE BLUE CHANGED — status, reason or method against the inquiry's previous record — is an
-		// act on the gaps about what it changed (ruled by gblock 2026-11-05): those minted about the
-		// inquiry, and those minted about a section that prints it, before the change or after.
+		// A FATE BLUE CHANGED — status, reason or method against the inquiry's previous record — changes
+		// what the gaps about it are about (ruled by gblock 2026-11-05): those minted about the inquiry,
+		// and those minted about a section that prints it, before the change or after. It gives each
+		// one's lens its turn; the one it names (`answers`) it answers, changed or not (F-FATE,
+		// 2026-11-24). A proposal is no act and no turn.
 		if b, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
+			add(seat, i, b.GetAnswers())
 			was := last[b.GetInquiryId()]
 			last[b.GetInquiryId()] = b
 			if was != nil && seatclass.RoleOfSeat(seat) == "blue" &&
@@ -126,14 +133,11 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 				for _, st := range []recordpb.InquiryStatus{was.GetStatus(), b.GetStatus()} {
 					on = append(on, aboutSection[reportheading.HeadingKey(reportheading.InquirySectionOf(recordpb.Word(st)))]...)
 				}
-				add(seat, i, on...)
+				addTo(changes, seat, i, slices.DeleteFunc(on, func(g string) bool { return g == b.GetAnswers() })...)
 			}
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			add(seat, i, b.GetDocket().GetGapId())
-		}
 	}
-	return acts, minted
+	return acts, changes, minted
 }
 
 // turnsOnGaps is acts with what else ends or begins a lens's turn: blue's edit of a sentence a gap is
@@ -144,6 +148,7 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 // silence on the gap audited nothing, and the lens's turn stands.
 func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turns, sittings gapActs) {
 	turns, sittings = gapActs{}, gapActs{}
+	author := record.AuthorsOn(evs)
 	for g, as := range acts {
 		turns[g] = append(turns[g], as...)
 	}
@@ -176,8 +181,12 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
 			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], i)
 		}
+		// A CHANGE TO A GAP'S SENTENCE IS ITS AUTHOR'S TURN-GIVING CHANGE, whoever wrote it: the bench's
+		// application of a ruling included.
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && b.GetOld() != b.GetNew() {
-			add(turns, e.GetSeatId(), i, b.GetReopened()...)
+			for _, g := range b.GetReopened() {
+				add(turns, author(g), i, g)
+			}
 		}
 	}
 	firstAfter := func(xs []int, i int) (int, bool) {
@@ -264,7 +273,10 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		r.noteActErr("lens-turn oracle: the record's carrying readings could not be read after the chair's dispatch")
 		return
 	}
-	acts, minted := actsOnGaps(b.Events, carried)
+	acts, changes, minted := actsOnGaps(b.Events, carried)
+	for g, cs := range changes {
+		acts[g] = append(acts[g], cs...)
+	}
 	turnActs, sittings := turnsOnGaps(b.Events, b.At, acts)
 	remanded := remandRulings(b.Events)
 	minter := map[string]string{}

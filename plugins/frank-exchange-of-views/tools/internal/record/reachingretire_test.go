@@ -30,14 +30,15 @@ func (b *stage) blueRetiresIn(gap string, anchors ...string) *stage {
 	return b.dispatch(2, "blue-respond", gap).registerAs("blue-respond", agent).retire(anchors...).stop(agent)
 }
 
-// A REACHING RETIRE IS BLUE'S ACT ON THE GAP IT REACHES (V1a′.3 (a); ruling A reaching retire is an
-// act on the gap). Four gaps, each reached by a retire that names none: a `computation` gap about a
-// computation, a `source` gap about a citation, a `source` reading gap carried by a refuting reading
-// of a citation, and a `document` gap about a computation. Before the retire the plan readies blue
-// alone on it; after, the plan engages its lens, the lens's list holds the met-demand item and not
-// "NO edit … answers it", it owes the retire (lensOwesOf), blue's list holds nothing for it, and the
-// exchange the lens's audit ends is one the retire moved.
-func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
+// A REACHING RETIRE IS THE LENS'S TURN ON THE GAP IT REACHES, NOT BLUE'S ANSWER (plans/findings-fold.md
+// §III.B3, F-FATE 2026-11-24, T-B45). Four gaps, each reached by a retire that names none: a
+// `computation` gap about a computation, a `source` gap about a citation, a `source` reading gap
+// carried by a refuting reading of a citation, and a `document` gap about a computation. Before the
+// retire the plan readies blue alone on it; after, the plan engages its lens, the lens's list holds the
+// met-demand item, says the retire named no gap, and not "NO edit … answers it", it owes the retire
+// (lensOwesOf), blue's list holds nothing for it, and the exchange the lens's audit ends is a stall in
+// which blue did not act on the gap: a turn resets no stall.
+func TestAReachingRetireIsTheLensTurnOnTheGap(t *testing.T) {
 	for _, c := range []struct {
 		name, anchor, how string
 		demand            bool
@@ -88,7 +89,7 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 				result = "so the anchor is out of the report"
 			}
 			lens := sittingOfRunT(t, run, "lens", evLens)
-			if want := fmt.Sprintf("gap G1: blue retired %s, %s, at event %d, %s", c.anchor, c.how, retiredAt, result); !listsItem(lens, want) || listsItem(lens, "NO edit") {
+			if want := fmt.Sprintf("gap G1: blue retired %s, %s, at event %d, %s, naming no gap — a change to what the gap is about and your turn, not blue's answer", c.anchor, c.how, retiredAt, result); !listsItem(lens, want) || listsItem(lens, "NO edit") {
 				t.Errorf("the lens's list must hold %q and not \"NO edit … answers it\": %+v", want, lens.Open)
 			}
 			fam, err := MergedEvents(run)
@@ -112,10 +113,10 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 					t.Errorf("blue's row for G1 reads awaiting_evidence %v, yours_to_close %v", g.AwaitingEvidence, g.YoursToClose)
 				}
 			}
-			// THE RETIRE MOVES THE GAP, as a named one does: the lens's audit of it ends an exchange
-			// that did not stall.
-			if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 0 {
-				t.Errorf("the lens's audit after the retire ends one exchange the retire moved: %+v (%v)", x["G1"], err)
+			// THE RETIRE MOVES NOTHING: the lens's audit of it ends an exchange that stalled, in which
+			// blue did not act on the gap.
+			if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 1 || x["G1"].rounds[0].acted {
+				t.Errorf("the lens's audit after the retire ends one stalled exchange blue did not act in: %+v (%v)", x["G1"], err)
 			}
 		})
 	}

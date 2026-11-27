@@ -116,7 +116,7 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]remandRow, plan Plan) []string {
 	ids := win.IDs(evs)
 	minted := assigneeOf(evs)
-	acts, mintedAt := lensTurnActsOf(evs, ids, gapActsOf(evs, ids, win), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
+	acts, mintedAt := lensTurnActsOf(evs, ids, win, gapActsOf(evs, ids), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
 	var out []string
 	for _, p := range plan.Parties {
 		if seatclass.RoleOfSeat(p.SeatID) != "lens" {

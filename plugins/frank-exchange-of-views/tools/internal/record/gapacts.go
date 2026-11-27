@@ -17,26 +17,28 @@ import (
 // counted as the exchange, blue's item went with it, and blue never acted. The lens's act still
 // clears the lens's own item (remandItemsOf); it begins nothing.
 //
+// THE AUTHOR ANSWERS A GAP ONLY BY AN ACT THAT NAMES IT (plans/findings-fold.md §III.B3; picked
+// 2026-11-24, F-FATE "Raiser's turn"). Any other change to its subject is the raiser's turn to
+// re-audit (lensTurnActsOf): no answer, no exchange, no stall reset, no remand discharged. An inquiry
+// fate, a question part's coverage or split and a retire that takes out the anchor a gap is about
+// change that gap's subject; each answers it only where it names it (`answers`).
+//
 // The acts, by the field each names the gap in:
 //
-//   - the assignee: a regrade (one that keeps the grade included), a close, a closing, a mint
-//     superseding it, a check (a reading or a judgement) of a citation or
-//     computation placed as its answer;
-//   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
-//     answer, a changed fate (fateActsOf) on the inquiry it is anchored on or that the section it is
-//     anchored on prints, a closing, and a REACHING RETIRE — a retire taking out the anchor the gap is
-//     about, whatever gap the retire named
-//     (WindowIndex.Reaches). Without it a retire that meets the gap's demand leaves the lens's turn
-//     never coming, and the plan readies blue alone on a gap only its lens can close;
+//   - the raiser: a regrade (one that keeps the grade included), a close, a closing, a check (a
+//     reading or a judgement) of a citation or computation placed as its answer;
+//   - the author: an edit, an evidence anchor (a citation or a computation) placed as its answer, an
+//     evidence-anchor retire, an inquiry fate, a question part's coverage or split, and — on a gap
+//     about a gap — its minter's regrade of that gap, each naming the gap (`answers`), and a closing;
 //   - the lens whose check it is: a check (`verify` or `reproduce`) of an anchor placed as its answer.
 //     A reading reaches a gap only through its citation's answer, never through the gap that carries
-//     it: a reading that names its gap moves no turn;
-//   - either: a docket motion on it.
+//     it: a reading that names its gap moves no turn.
 //
-// Each is validated at its write against the gap the record holds, or read off the record's rows
-// (a reaching retire), so a gap named here is one the record names, never one recovered from prose.
-// A changed fate's gaps are read off the mints' anchors and the section that prints the fate
-// (reportheading), the one assembly composes it under.
+// A proposal (a docket motion) is no act on its gap: the raiser answers it by accepting it in its
+// window, and the dispatch readies it for that (proposalWindowWhy).
+//
+// Each is validated at its write against the gap the record holds, so a gap named here is one the
+// record names, never one recovered from prose.
 type gapAct struct {
 	seat string
 	at   int64 // the act's events.id
@@ -44,15 +46,14 @@ type gapAct struct {
 
 // gapActsOf is every act on each gap, in record order. ids are evs's places; win is the whole-record
 // index the reaching retires are read off.
-func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
+func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 	out := map[string][]gapAct{}
 	answering := map[string]string{} // an evidence anchor → the gap it was placed as the answer to
-	fates := fateActsOf(evs)
 	for i, e := range evs {
 		var on []string
 		switch b := mustBody(e).(type) {
 		case *recordpb.Regrade:
-			on = []string{b.GetGapId()}
+			on = []string{b.GetGapId(), b.GetAnswers()}
 		case *recordpb.Close:
 			on = []string{b.GetGapId()}
 		case *recordpb.Closing:
@@ -61,9 +62,6 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 			on = []string{b.GetAnswers()}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
-			for _, r := range win.Reaches(e) {
-				on = append(on, r.gap)
-			}
 		case *recordpb.Computation:
 			answering[b.GetComputationId()] = b.GetAnswers()
 			on = []string{b.GetAnswers()}
@@ -75,11 +73,9 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 		case *recordpb.Verify:
 			on = []string{answering[b.GetAnchor()]}
 		case *recordpb.Inquiry:
-			on = fates[e]
+			on = []string{b.GetAnswers()}
 		case *recordpb.QuestionPart:
-			on = fates[e]
-		case *recordpb.Motion:
-			on = []string{b.GetDocket().GetGapId()}
+			on = []string{b.GetAnswers()}
 		}
 		for k, g := range on {
 			if g != "" && !slices.Contains(on[:k], g) {
@@ -90,16 +86,15 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 	return out
 }
 
-// A FATE BLUE CHANGED IS BLUE'S ACT ON THE GAPS ABOUT WHAT IT CHANGED (ruled by gblock 2026-11-05):
-// each gap anchored on the inquiry, and each gap anchored on a section the tool composes that prints
-// the inquiry — exactly as an edit is on the gap it answers: the assignee's turn comes with it, and
-// the exchange counts it as movement. The tool composes the report's inquiry sections from fates, so
-// recording a fate again is the only act that changes them: on universe-m38 the adversary's
-// G-ca807516, about the section "Research areas", was answered twice by blue recording eight fates
-// again with new reasons and methods; its lens was never readied, and the bench ruled it with no
-// closings. The same rule read blue's two narrowed reasons on Q-b62beca0 as two stalls of G-845422d8,
-// the gap anchored on that inquiry. A fate changes nothing a gap about other text is about, so it is
-// no act there: a reworded `underway` readies no unrelated lens, and discharges no remand.
+// A FATE BLUE CHANGED CHANGES WHAT THE GAPS ABOUT IT ARE ABOUT (ruled by gblock 2026-11-05; its
+// turn rule F-FATE, 2026-11-24): each gap anchored on the inquiry, and each gap anchored on a section
+// the tool composes that prints the inquiry. The tool composes the report's inquiry sections from
+// fates, so recording a fate again is the only act that changes them. On universe-m38 the adversary's
+// G-ca807516, about the section "Research areas", saw blue record eight fates again with new reasons
+// and methods; its lens was never readied, and the bench ruled it with no closings. Such a change is
+// each of those gaps' raiser's turn (lensTurnActsOf), and the answer of the one it names (gapActsOf,
+// `answers`). A fate changes nothing a gap about other text is about: a reworded `underway` readies
+// no unrelated lens.
 //
 // CHANGED IS AGAINST THE INQUIRY'S PREVIOUS RECORD: its status, its reason or its method differs. The
 // write admits a record that repeats all three, and it answers nothing; a proposal has no record
@@ -110,8 +105,9 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 // fate that moves an inquiry changes both. A gap's section is its mint's reference, compared by the
 // key every reader of headings uses (reportheading.HeadingKey).
 //
-// fateActsOf is the gaps each of blue's changed fates is an act on: the gaps minted before it about
-// its inquiry or about a section that prints it.
+// fateActsOf is the gaps each of blue's changed fates and question parts changes the subject of: the
+// gaps minted before it about its inquiry or about a section that prints it, about the part, or
+// about the question where a part is split out.
 func fateActsOf(evs []*Event) map[*Event][]string {
 	out := map[*Event][]string{}
 	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
@@ -212,26 +208,60 @@ func lensReadAt(turns []gapAct, lens string, minted, floor, upto int64) int64 {
 	return last
 }
 
-// lensTurnActsOf is what the lens's turn on each gap reads: every act on it (acts), and two more.
+// lensTurnActsOf is what the lens's turn on each gap reads: every act on it (acts), and the changes to
+// its subject that do not name it — each the raiser's turn and NOT the author's answer (ruled by gblock
+// 2026-10-31, kept 2026-11-23 "Lens's turn, no exchange"; F-FATE 2026-11-24).
 //
-//   - AN EDIT THAT CHANGED THE GAP'S SENTENCE, whatever gap it answers (ruled by gblock 2026-10-31):
-//     the `reopened` that `edited_since` lists. It is the lens's turn and NOT blue's answer. On
-//     universe-m37 blue's fix to G-584d152f landed under another gap's name, the lens never read it,
-//     and the bench found a gap that was not at impasse.
+//   - AN EDIT THAT CHANGED THE GAP'S SENTENCE, whatever gap it answers: the `reopened` that
+//     `edited_since` lists. On universe-m37 blue's fix to G-584d152f landed under another gap's name,
+//     the lens never read it, and the bench found a gap that was not at impasse.
+//   - A CHANGED FATE OR QUESTION PART on what the gap is about (fateActsOf), but the gap it names.
+//   - A REACHING RETIRE: a retire that took out the anchor the gap is about (WindowIndex.Reaches), but
+//     the gap it names.
 //   - THE OPENING OF A CLOSED SITTING OF THE LENS ENGAGED ON THE GAP, whether or not it acted: silence
 //     is a turn taken, so a null turn does not leave the turn standing for the next epoch. Its opening
 //     and not its end, so an act of blue's inside the window still counts as unread. A sitting the
 //     record cannot close is no turn taken, and nor is one that did not finish — failed — which
 //     gapSittingsOf does not hold.
-func lensTurnActsOf(evs []*Event, ids []int64, acts map[string][]gapAct, sittings map[string][]partySitting, minted map[string]string) map[string][]gapAct {
+//
+// A change to the subject is entered under the subject's author (authorOf), whoever wrote it: the
+// bench's application of a ruling is a change of the subject, and so the raiser's turn on every other
+// gap on it, as the author's own change is.
+func lensTurnActsOf(evs []*Event, ids []int64, win WindowIndex, acts map[string][]gapAct, sittings map[string][]partySitting, minted map[string]string) map[string][]gapAct {
 	out := make(map[string][]gapAct, len(acts))
 	for g, as := range acts {
 		out[g] = slices.Clone(as)
 	}
+	author := authorsOn(evs)
+	changed := func(g string, at int64) {
+		out[g] = append(out[g], gapAct{seat: author(g), at: at})
+	}
+	fates := fateActsOf(evs)
 	for i, e := range evs {
-		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && b.GetOld() != b.GetNew() {
-			for _, g := range b.GetReopened() {
-				out[g] = append(out[g], gapAct{seat: e.GetSeatId(), at: ids[i]})
+		switch b := mustBody(e).(type) {
+		case *recordpb.BlueEdit:
+			if b.GetOld() != b.GetNew() {
+				for _, g := range b.GetReopened() {
+					changed(g, ids[i])
+				}
+			}
+		case *recordpb.Inquiry:
+			for _, g := range fates[e] {
+				if g != b.GetAnswers() {
+					changed(g, ids[i])
+				}
+			}
+		case *recordpb.QuestionPart:
+			for _, g := range fates[e] {
+				if g != b.GetAnswers() {
+					changed(g, ids[i])
+				}
+			}
+		case *recordpb.Retire:
+			for _, r := range win.Reaches(e) {
+				if r.gap != retireAnswers(e) {
+					changed(r.gap, ids[i])
+				}
 			}
 		}
 	}

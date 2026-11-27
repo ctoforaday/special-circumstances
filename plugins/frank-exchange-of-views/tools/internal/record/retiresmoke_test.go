@@ -153,7 +153,7 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		t.Fatal(err)
 	}
 	var blueActs []int64
-	for _, a := range gapActsOf(fam.Events, fam.At.IDs(fam.Events), fam.At)["G-a0c6ca1e"] {
+	for _, a := range gapActsOf(fam.Events, fam.At.IDs(fam.Events))["G-a0c6ca1e"] {
 		if a.seat == blue && a.at > int64(aA0) && a.at < int64(r1) {
 			blueActs = append(blueActs, a.at)
 		}
