@@ -140,7 +140,6 @@ var (
 		{Key: "ran", Flag: "ran"},
 	}
 	requiredRetire = []RequiredField{
-		{Key: "claim", Flag: "quote"},
 		{Key: "reason", Flag: "reason"},
 	}
 	requiredVerify = []RequiredField{

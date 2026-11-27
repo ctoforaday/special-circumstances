@@ -12,10 +12,10 @@ import (
 )
 
 // THE LENS-TURN ORACLE READS BLUE'S EVIDENCE ACTS ON A GAP (actsOnGaps): a citation placed as its
-// answer, a lens's reading of that citation, and a retire that reaches it — through the anchor the gap
-// is about, or a reading the gap carries, or one its ancestor did where it carries the ancestor's demand
-// — naming no gap. Without them the oracle fails every plan that engages a lens a reaching retire
-// readied.
+// answer, a lens's reading of that citation, and a retire or a pure cut that reaches it — through the
+// anchor the gap is about, or a reading the gap carries, or one its ancestor did where it carries the
+// ancestor's demand — naming no gap; and a cut that took the gap's own marker (F21). Without them the
+// oracle fails every plan that engages a lens a reaching retire or cut readied.
 func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 	const lens, blue = "red-lens-evidence", "blue-respond"
 	mint := func(gap string, about recordpb.AboutKind, ref string) *recordpb.Mint {
@@ -41,7 +41,11 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		recordtest.At(t, lens, "", supersedes(source(mint("G5", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")), "G4")),
 		recordtest.At(t, lens, "", source(mint("G6", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "C-6"))),
 		recordtest.At(t, lens, "", supersedes(mint("G7", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings"), "G6")),
-		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-4", "C-6"}}),
+		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-4"}}),
+		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-6"}}),
+		recordtest.At(t, lens, "", mint("G8", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "K-8")),
+		recordtest.At(t, lens, "", mint("G9", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")),
+		recordtest.At(t, blue, "", &recordpb.BlueEdit{Old: proto.String("A cut sentence."), New: proto.String(""), RemovedAnchors: []string{"K-8", "G9"}}),
 	}
 	acts, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
 	if slices.ContainsFunc(acts["G7"], func(a struct {
@@ -61,6 +65,8 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		{"a retire of the anchor it is about", "G2", blue, 5},
 		{"a retire of the anchor of a reading it carries", "G3", blue, 6},
 		{"a retire of the anchor its ancestor, whose demand it carries, is about", "G5", blue, 11},
+		{"a cut taking the anchor it is about", "G8", blue, 15},
+		{"a cut taking its own marker", "G9", blue, 15},
 	} {
 		if !slices.ContainsFunc(acts[w.gap], func(a struct {
 			seat string

@@ -48,7 +48,7 @@ func TestAnActOnARetiredAnchorIsRefusedLiveAndReplayed(t *testing.T) {
 		{"a computation citing it", blue, func() proto.Message {
 			return &recordpb.Computation{Argv: []string{"python3", "s.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0000b001"),
 				BundleSha: proto.String("sha-s"), Cites: proto.String(c)}
-		}, "names a retired citation"},
+		}, "names a citation that is out of the report"},
 	} {
 		t.Run(act.name, func(t *testing.T) {
 			if _, err := Append(act.who, act.body()); err == nil || !strings.Contains(err.Error(), act.says) || !strings.Contains(err.Error(), "blue retired it at event") {

@@ -498,7 +498,7 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	refused := []string{"Outcome", "Not answered here", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
 		"Bibliography", "The board", "The debate", "Citations", "How this run was conducted", "The verdict's basis",
-		"The question's coverage", "Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements",
+		"The question's coverage", "Log (what the run told the operator)", "Record verification", "Superseded bench statements",
 		"Edits to the report"}
 	if got := RefusedHeadings(); !slices.Equal(got, refused) {
 		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)

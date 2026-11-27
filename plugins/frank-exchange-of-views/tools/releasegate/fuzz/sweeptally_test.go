@@ -137,7 +137,10 @@ type runTally struct {
 	PositionsOverruled         int                       `json:"positions_overruled"`
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
-	BareEvidenceRefused        int                       `json:"bare_evidence_refused"`
+	PureCutsRemoved            int                       `json:"pure_cuts_removed"`
+	ProseDropRefused           int                       `json:"prose_drop_refused"`
+	AnchorRetiresKept          int                       `json:"anchor_retires_kept"`
+	OpenMarkerRetiresRefused   int                       `json:"open_marker_retires_refused"`
 	MintBareRefused            int                       `json:"mint_bare_refused"`
 	SourceSearches             int                       `json:"source_searches"`
 	CopiesRead                 map[string]map[string]int `json:"copies_read"`
@@ -243,7 +246,7 @@ func tallyOf(o outcome) runTally {
 		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused, InquiryUnseats: o.inquiryUnseats,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
-		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, BareEvidenceRefused: o.bareEvidenceRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
+		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, PureCutsRemoved: o.pureCutsRemoved, ProseDropRefused: o.proseDropRefused, AnchorRetiresKept: o.anchorRetiresKept, OpenMarkerRetiresRefused: o.openMarkerRetiresRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, LineCites: o.lineCites, BothRefused: o.bothRefused, NeitherRefused: o.neitherRefused, PastTextRefused: o.pastTextRefused, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
@@ -590,7 +593,9 @@ type sweepFold struct {
 	inquiryUnseats                                  int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
-	bareEvidenceRefused, mintBareRefused            int
+	pureCutsRemoved, proseDropRefused               int
+	anchorRetiresKept, openMarkerRetiresRefused     int
+	mintBareRefused                                 int
 	sourceSearches                                  int
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
@@ -714,7 +719,10 @@ func foldRuns(runs []runTally) sweepFold {
 		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
-		f.bareEvidenceRefused += r.BareEvidenceRefused
+		f.pureCutsRemoved += r.PureCutsRemoved
+		f.proseDropRefused += r.ProseDropRefused
+		f.anchorRetiresKept += r.AnchorRetiresKept
+		f.openMarkerRetiresRefused += r.OpenMarkerRetiresRefused
 		f.mintBareRefused += r.MintBareRefused
 		f.sourceSearches += r.SourceSearches
 		if r.Seed == absentSpanSeed {
@@ -892,7 +900,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
-	t.Logf("bare evidence anchors: %d edit(s) refused for leaving an evidence anchor bare, all seed %d's forced run", f.bareEvidenceRefused, bareEvidenceSeed)
+	t.Logf("evidenced cuts: %d pure cut(s) that took their sentence's anchors, %d rewrite(s) refused for dropping one, all seed %d's forced run", f.pureCutsRemoved, f.proseDropRefused, evidencedCutSeed)
+	t.Logf("anchor retires: %d retire(s) that took one anchor and kept its sentence word for word, %d retire(s) of an open gap's own marker refused naming it (F14)", f.anchorRetiresKept, f.openMarkerRetiresRefused)
 	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave a citation bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
 	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
@@ -1075,10 +1084,22 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", f.completed)
 		}
-		// THE BARE-EVIDENCE GATE. No drawn edit cuts a sentence down to its anchors, so the refusal of
-		// one that leaves an evidence anchor bare is reached only by the forced drive.
-		if f.bareEvidenceRefused == 0 {
-			t.Errorf("seed %d's forced run drove ZERO edits refused for leaving an evidence anchor bare across %d runs — the refusal that keeps an unchecked, orphaned anchor out of the report is unexercised (false green)", bareEvidenceSeed, f.completed)
+		// THE EVIDENCED-CUT GATES. No drawn edit cuts a whole evidenced sentence or rewrites one dropping
+		// its anchor, so the pure cut that takes the anchors and the refusal of the rewrite that drops one
+		// are reached only by the forced drive.
+		if f.pureCutsRemoved == 0 {
+			t.Errorf("seed %d's forced run drove ZERO pure cuts of an evidenced sentence that took its anchors across %d runs — the cut that takes a claim's anchors with its sentence is unexercised (false green)", evidencedCutSeed, f.completed)
+		}
+		if f.proseDropRefused == 0 {
+			t.Errorf("seed %d's forced run drove ZERO rewrites refused for dropping an evidence anchor across %d runs — the refusal that keeps a rewrite from losing an anchor is unexercised (false green)", evidencedCutSeed, f.completed)
+		}
+		// THE ANCHOR-RETIRE GATES. Blue's drawn retire takes one anchor drawn from the report: one that
+		// lands keeping its sentence word for word, and one naming an open gap's own marker, refused (F14).
+		if f.anchorRetiresKept == 0 {
+			t.Errorf("fuzz drove ZERO retires that took one anchor and kept its sentence word for word across %d runs — the anchor-only retire is unexercised (false green)", f.completed)
+		}
+		if f.openMarkerRetiresRefused == 0 {
+			t.Errorf("fuzz drove ZERO retires of an open gap's own marker refused naming it across %d runs — the refusal that keeps an open gap from losing its marker (F14) is unexercised (false green)", f.completed)
 		}
 		// THE BARE-PRESCRIPTION GATE. No drawn prescription leaves an anchor bare, so the mint's refusal
 		// of one is reached only by the forced drive.

@@ -295,9 +295,8 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			t.Errorf("the unread citation is not listed: %+v", open)
 		}
 	})
-	t.Run("a citation no verify can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+	t.Run("a citation no verify can reach — not in the report, or on no rendered sentence — is listed and does not hold it", func(t *testing.T) {
 		for name, report := range map[string]string{
-			"bare":       "# report\n\nThe claim stands before. " + anchor.Token("C-00000001") + " Next.\n",
 			"absent":     "# report\n\nThe claim stands before.\n",
 			"unrendered": "# report\n\nThe claim stands " + anchor.Token("C-00000001") + ".\n",
 		} {
@@ -312,9 +311,8 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	})
 	// THE SAME PREDICATE FOR A COMPUTATION: an unchecked computation the report holds no sentence for
 	// is the computation lens's item that no `reproduce` can clear, not a duty that holds its sitting.
-	t.Run("a computation no reproduce can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+	t.Run("a computation no reproduce can reach — not in the report — is listed and does not hold it", func(t *testing.T) {
 		for name, report := range map[string]string{
-			"bare":   "# report\n\nThe claim stands before. " + anchor.Token("K-00000001") + " Next.\n",
 			"absent": "# report\n\nThe claim stands before.\n",
 		} {
 			run := newStage(t).cast(computationSeat, "red-chair", blueSeatID, "judge").
