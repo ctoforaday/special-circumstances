@@ -170,7 +170,7 @@ func TestAgyWakeOnlyRealMail(t *testing.T) {
 	if got := w.wokenSet(); len(got) != 1 || !got[mail] {
 		t.Errorf("woken %v, want only %s\n%s", got, mail, errOut)
 	}
-	for _, line := range []string{"woke " + mail + " (1 messages waiting)", "not woken " + held + ": held by pid 4321"} {
+	for _, line := range []string{"woke " + mail + " (waiting: 1)", "not woken " + held + ": held by pid 4321"} {
 		if !strings.Contains(errOut, line) {
 			t.Errorf("stderr lacks %q:\n%s", line, errOut)
 		}

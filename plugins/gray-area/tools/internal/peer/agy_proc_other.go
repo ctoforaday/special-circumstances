@@ -4,6 +4,3 @@ package peer
 
 // CurrentDaemon reports no discoverable daemon on platforms without Linux systemd / /proc.
 func CurrentDaemon() (ServerIdentity, bool) { return ServerIdentity{}, false }
-
-// ProcessStartTime is not measurable on non-Linux platforms.
-func ProcessStartTime(int) (int64, bool) { return 0, false }

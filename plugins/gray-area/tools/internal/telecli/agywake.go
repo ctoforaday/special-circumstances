@@ -109,6 +109,6 @@ func runAgyWake(env *Env, log io.Writer) {
 			say("not woken %s: %s", c.Conversation, why)
 			continue
 		}
-		say("woke %s (%d messages waiting)", c.Conversation, c.Messages-c.Unreadable)
+		say("woke %s (waiting: %d)", c.Conversation, c.Messages-c.Unreadable)
 	}
 }

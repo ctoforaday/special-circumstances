@@ -3,6 +3,7 @@
 package peer
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -75,4 +76,31 @@ func WriteDaemonToken(path string) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// maxTokenLen bounds the token's value.
+const maxTokenLen = 256
+
+// parseDaemonToken reads the file's content: exactly one line DaemonTokenVar=<value> with at most
+// one trailing newline, the value 1–maxTokenLen bytes of [A-Za-z0-9-]. No error carries the value.
+func parseDaemonToken(b []byte) (string, error) {
+	s := string(b)
+	if n := len(s); n > 0 && s[n-1] == '\n' {
+		s = s[:n-1]
+	}
+	prefix := DaemonTokenVar + "="
+	if len(s) < len(prefix) || s[:len(prefix)] != prefix {
+		return "", fmt.Errorf("it is not one line %s=<token>", DaemonTokenVar)
+	}
+	v := s[len(prefix):]
+	if v == "" || len(v) > maxTokenLen {
+		return "", fmt.Errorf("its token is empty or longer than %d bytes", maxTokenLen)
+	}
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
+			return "", errors.New("its token holds a byte other than a letter, a digit or '-'")
+		}
+	}
+	return v, nil
 }

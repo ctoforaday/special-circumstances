@@ -289,8 +289,3 @@ func ScanMailboxes(brainDirs []string, caller string) ([]Waiting, []error) {
 	})
 	return out, errs
 }
-
-// safeName refuses an id that could name a path outside the directory it is joined to.
-func safeName(id string) bool {
-	return id != "" && id != "." && id != ".." && filepath.Base(id) == id && !bytes.ContainsAny([]byte(id), `/\`)
-}
