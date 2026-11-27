@@ -1,6 +1,7 @@
 package view
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -39,8 +40,9 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	refs := findingRefs(in.Events)
 	if sel.Gap != nil {
-		return changesForGap(sel), nil
+		return changesForGap(sel, refs), nil
 	}
 
 	out := []string{
@@ -73,7 +75,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 			answers = "answers **" + id + "**"
 		}
 		out = append(out, fmt.Sprintf("- **#%d** (event %d) `%s` %s · %s — %s",
-			n, ed.EventID, ed.Seat, answers, what(ed), ed.Reason))
+			n, ed.EventID, ed.Seat, answers, what(ed, refs), ed.Reason))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
@@ -113,7 +115,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 }
 
 // changesForGap is the comparison form: what red required, then what blue did about it.
-func changesForGap(sel record.ChangesJSON) []byte {
+func changesForGap(sel record.ChangesJSON, refs map[string]string) []byte {
 	g := sel.Gap
 	out := []string{
 		fmt.Sprintf("# blue changes answering %s — RENDERED PROJECTION", g.ID),
@@ -167,7 +169,7 @@ func changesForGap(sel record.ChangesJSON) []byte {
 	for i, e := range sel.Edits {
 		if e.Retired != "" {
 			out = append(out,
-				fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, what(e)),
+				fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, what(e, refs)),
 				"",
 				"**Blue's reason**: "+e.Reason,
 				"",
@@ -190,10 +192,10 @@ func changesForGap(sel record.ChangesJSON) []byte {
 }
 
 // what names a change: a retire by the anchor it took off a kept sentence, named by its
-// kind's noun, an edit by its size change.
-func what(e record.EditJSON) string {
+// kind's noun (a finding by its id and its lens's area, refs), an edit by its size change.
+func what(e record.EditJSON, refs map[string]string) string {
 	if e.Retired != "" {
-		return "retired " + record.EvidenceNoun(e.Retired) + " " + e.Retired + ", its sentence kept"
+		return "retired " + record.EvidenceNoun(e.Retired) + " " + cmp.Or(refs[e.Retired], e.Retired) + ", its sentence kept"
 	}
 	return delta(e.Old, e.New)
 }

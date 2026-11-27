@@ -74,11 +74,11 @@ const passOnlyEpoch = 78
 
 // THE RESIDUE IS EVERY ARCHIVED FAIL, and nothing else: each archive's migrated record holds as many
 // gates as its source held PASSes, and no stored plan prints the PASS on a record that holds none.
-// The count is stated so a change to it is read, not passed: 25 FAILs in 11 runs — 16 in the six
+// The count is stated so a change to it is read, not passed: 26 FAILs in 12 runs — 16 in the six
 // August round-era runs and quadratic-formula's 5, each a round's continue signal, and one at the
-// final sitting of each of 1565, mersenne-31 and both eiffel runs.
+// final sitting of each of 1565, mersenne-31, both eiffel runs and m37 (bundle-store/).
 func TestEveryArchivedFailIsTheResidue(t *testing.T) {
-	const residue = 25
+	const residue = 26
 	total := 0
 	for _, name := range archivedRuns(t) {
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {

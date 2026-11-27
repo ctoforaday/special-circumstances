@@ -165,10 +165,10 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 		191: -3, // three lenses engaged on gaps; the replay readies all six for the full re-read
 		312: 2,  // two no-op sittings
 		423: 1,  // two no-op sittings, less voice's turn on G-380a3523
-		455: -1, // the evidence lens, unretired
+		454: -1, // the evidence lens, unretired
+		515: -1,
 		516: -1,
-		517: -1,
-		519: -1,
+		518: -1,
 	}
 	hit := map[int]bool{}
 	for _, sp := range stored {

@@ -17,8 +17,10 @@ import (
 // EVERY ARCHIVED RUN RENDERS, and renders the bytes it rendered before. Replay re-runs placement,
 // the splice locators and the retire tidy on every read, so a change to any of them can move a
 // historical report while every unit test stays green; this pins the render of every tarball that
-// holds a base. No archived run replays a retire, so the retire tidy (reportproj.RemoveAnchorAt)
-// is pinned by its own tests and the retire verb's, not by this one.
+// holds a base, every committed archive read (bundle-store/ included). The removes of a cut's
+// removed_anchors (reportproj.RemoveAnchorAt) are pinned here on the archives whose cuts migrate fills:
+// the claim retires folded into their cuts (wave-a, m28, m32, m35, m37, 1883) and the cuts no retire
+// followed (b3, b6, b9, m19).
 //
 // One golden line per run: `<run> <rendered|no-base> <raw> <normalized> <skeleton> <markers per
 // kind>`.

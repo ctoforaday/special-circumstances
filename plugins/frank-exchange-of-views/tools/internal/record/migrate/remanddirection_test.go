@@ -113,4 +113,6 @@ var supersededRulings = map[string]int{
 	"2026-10-18_is-91-prime-m29.tar.gz":       1,
 	"2026-10-19_is-91-prime-m30.tar.gz":       1,
 	"2026-10-30_mersenne-31-prime-sum.tar.gz": 1,
+	// native ruling 744 on G-8405d5e1, which mint 359 had superseded before its docket motion
+	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": 1,
 }

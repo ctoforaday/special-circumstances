@@ -67,6 +67,10 @@ var argumentResidue = map[string]struct {
 	"2026-11-12_is-91-prime-1838":                 {0, 0, "", "not_owed=10"},
 	"2026-11-14_is-91-prime-1883":                 {0, 0, "blue:filed=1,lens:filed=1", "not_owed=9"},
 	"2026-11-10_auditing-constitutions-gap-audit": {0, 0, "", "not_owed=12"},
+	// m37's and m38's duties all stand on gaps a lost ruling names; each is stated as the migrated
+	// fold reads it, which this binary can read and their native records it cannot.
+	"bundle-store/2026-10-31_is-91-prime-m37": {0, 0, "blue:filed=3,blue:not_owed=2,lens:filed=5", "not_owed=12"},
+	"bundle-store/2026-11-04_is-91-prime-m38": {0, 0, "blue:awaited=1,blue:filed=1,lens:awaited=1,lens:filed=1", "not_owed=12"},
 }
 
 // EVERY ARCHIVED RUN'S REFUSED ARGUMENTS ARE WRITTEN AS NO EVENT, AND ONLY THEY. Per run, the

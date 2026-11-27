@@ -276,9 +276,8 @@ func ledgerMD(in Input) []byte {
 		}
 	}
 	var unminted []*record.Observation
-	findingRef := map[string]string{} // finding id -> how text names it, with its lens's area
+	findingRef := findingRefs(in.Events)
 	for _, o := range record.ObservationsOf(in.Events) {
-		findingRef[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
 		if !minted[o.Finding.GetId()] {
 			unminted = append(unminted, o)
 		}
@@ -1061,4 +1060,13 @@ func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 		w.EdgeDeltas = edgeDeltasJSON{DownMass: ed.DownMass, UpMass: ed.UpMass}
 	}
 	return w
+}
+
+// findingRefs is how text names each finding: its id and its lens's area.
+func findingRefs(evs []*record.Event) map[string]string {
+	refs := map[string]string{}
+	for _, o := range record.ObservationsOf(evs) {
+		refs[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
+	}
+	return refs
 }

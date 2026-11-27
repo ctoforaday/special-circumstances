@@ -110,8 +110,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		})
 	}
-	// Every archived such close is lost, so the arm is held on a source whose lens was delivered the
-	// report before it closed G2, a source gap no citation answers.
+	// Every such close in run-archive/ is lost, so the arm is also held on a source whose lens was
+	// delivered the report before it closed G2, a source gap no citation answers.
 	t.Run("delivered bench", func(t *testing.T) {
 		_, _, dir := migrate.MigratedDeliveredBench(t)
 		replayed := len(column(t, openMigrated(t, dir), `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
@@ -120,7 +120,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			t.Errorf("the delivered lens's close of an unanswered source gap replayed %d time(s), want once", replayed)
 		}
 	})
-	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "-m23": 1}
+	// m37's two are replayed: its lens's sittings hold their deliveries.
+	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 1, "is-91-prime-a": 1, "-b6": 1, "-m23": 1, "-m37": 2}
 	got, total := map[string]int{}, 0
 	for name := range sourceCloses {
 		n := sourceCloses[name] + lostSourceCloses[name]
@@ -131,8 +132,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		}
 	}
-	if total != 6 || fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 6)", sourceCloses, lostSourceCloses, total, want)
+	if total != 8 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 8)", sourceCloses, lostSourceCloses, total, want)
 	}
 }
 

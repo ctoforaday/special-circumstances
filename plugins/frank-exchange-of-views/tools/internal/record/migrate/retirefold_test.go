@@ -287,14 +287,15 @@ func TestNoMigratedArchiveHoldsABareAnchor(t *testing.T) {
 			t.Errorf("%s: removed_anchors %v, want %v", name, c, cutsOf[name])
 		}
 	}
-	for _, c := range []struct{ run, gap string }{
-		{b3Run, "G-19b1727b"}, {b6Run, "G-68c6ecf7"}, {b9Run, "G-8bd21b5d"},
+	// Translation 4's gaps stay open, reading gone, and no act on them is lost but the ones P3's
+	// delivery rule already lost (b3's docket ruling, b6's and b9's lens closes; source ids).
+	for _, c := range []struct {
+		run, gap string
+		lost     []int64
+	}{
+		{b3Run, "G-19b1727b", []int64{173}}, {b6Run, "G-68c6ecf7", []int64{173}}, {b9Run, "G-8bd21b5d", []int64{136}},
 	} {
-		m := readMigrated(t, c.run)
-		g, ok := m.gap(c.gap)
-		if !ok || !g.Open || g.LocationState != record.LocationGone {
-			t.Errorf("%s: %s reads %+v; want open and gone", c.run, c.gap, g)
-		}
+		assertGapFate(t, readMigrated(t, c.run), c.run, c.gap, true, "", c.lost)
 	}
 	// The F- population's tokens that no cut takes: re-seated (m26), carried by an anchor-only retire
 	// (eiffel 11-04), or standing on their kept sentence (m36).
