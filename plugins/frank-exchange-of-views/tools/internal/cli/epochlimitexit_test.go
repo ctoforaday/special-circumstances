@@ -107,15 +107,15 @@ func ruleDocket(t *testing.T, runDir, docketing, answer string) {
 	asSeat(t, runDir, "judge", benchRuleArgs(docketing, answer, "correctness")...)
 }
 
-// ruleProposalDocketing is the bench's ruling, for the filer's side, of the PROPOSAL docketing holding
+// ruleProposalDocketing is the bench's ruling, for the author's side, of the PROPOSAL docketing holding
 // the close motionID on limitGap, in the bench's sitting already open: the close lands not_a_defect.
 func ruleProposalDocketing(t *testing.T, runDir, motionID string) {
 	t.Helper()
 	if d := lastDocketing(t, runDir, limitGap); d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL || d.GetMotionId() != motionID {
 		t.Fatalf("the docketing on %s = %+v, want PROPOSAL holding %s", limitGap, d, motionID)
 	}
-	if err := benchRules(t, runDir, limitGap, record.ProposalSide(filersOfMotions(t, runDir)[motionID]), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
-		t.Fatalf("the bench's ruling for the filer: %v", err)
+	if err := benchRules(t, runDir, limitGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		t.Fatalf("the bench's ruling for the author: %v", err)
 	}
 }
 

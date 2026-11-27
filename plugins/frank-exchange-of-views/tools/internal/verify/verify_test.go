@@ -199,7 +199,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				Opinion: proto.String("the repair holds"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+					DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 					Principle:   proto.String("a claim rests on its weakest citation"),
 					Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),

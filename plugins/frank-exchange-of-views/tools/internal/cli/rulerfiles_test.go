@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,9 +47,8 @@ func TestNoGavelHolderFilesItsOwnSubject(t *testing.T) {
 				filers[role] = true
 			}
 			if len(path) == 3 && path[0] == "motion" && path[1] == subject && seat.RecordType(c) == "motion_rule" {
-				// A docket proposal's assignee answers it by accepting it — the act its filer proposed,
-				// applied, never a ruling — so `accept` is held to the assignee's surface below and
-				// `rule` to the gavel here.
+				// A docket proposal's raiser takes it by its own act carrying the motion (accepts),
+				// never a ruling, so no motion verb but `rule` writes a motion_rule.
 				if path[2] == "accept" {
 					accepts[role] = true
 					return
@@ -58,12 +56,8 @@ func TestNoGavelHolderFilesItsOwnSubject(t *testing.T) {
 				rules[role] = true
 			}
 		})
-		wantAccepts := map[string]bool{}
-		if subject == "docket" {
-			wantAccepts["lens"] = true
-		}
-		if !maps.Equal(accepts, wantAccepts) {
-			t.Errorf("%s: `accept` is on %v, want %v — the gap's assignee answers a docket proposal, nothing else", subject, accepts, wantAccepts)
+		if len(accepts) != 0 {
+			t.Errorf("%s: `accept` is on %v: a proposal is taken by its raiser's own act, never a ruling", subject, accepts)
 		}
 		if filers[ruler] {
 			t.Errorf("%s: the %s seat rules it and holds a verb that files it — a motion its own ruler filed is one no other seat can rule", subject, ruler)

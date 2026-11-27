@@ -164,12 +164,12 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 		runDir, m, d := proposalDocketed(t)
 		conveneBench(t, runDir, boardGap)
 		k := lastDocketing(t, runDir, boardGap)
-		wrong := benchRuling(k, recordpb.SidedWith_SIDED_WITH_FILER, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
+		wrong := benchRuling(k, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
 		wrong.MotionId = nil
 		if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, wrong); err == nil || !strings.Contains(err.Error(), m) {
 			t.Errorf("a ruling of %s naming no motion = %v, want refused naming its proposal %s", d, err, m)
 		}
-		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_FILER, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Errorf("the bench's ruling of %s, held in its sitting: %v", d, err)
 		}
 	})
@@ -217,7 +217,7 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 		} else if !strings.Contains(err.Error()+out, "docketing "+d) {
 			t.Errorf("the outcome's refusal does not name docketing %s: %v", d, err)
 		}
-		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Fatalf("the assembly's ruling of %s: %v", d, err)
 		}
 		asSeat(t, runDir, "judge", "outcome", "--as", "UNVERIFIED", "--reason", "stopped, with the docketing ruled")
@@ -272,7 +272,7 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 	t.Run("the gap and word of a docket ruling (DocketRulingGap): a ruling of a docketing with no proposal closes its gap", func(t *testing.T) {
 		runDir, _ := impasseDocketed(t)
 		conveneBench(t, runDir, boardGap)
-		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Fatal(err)
 		}
 		asSeat(t, runDir, "red-chair", "register")

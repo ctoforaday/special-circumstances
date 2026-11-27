@@ -203,7 +203,7 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 		{"a docketing the bench rules", func() { r.docket("K5", "G5", impasse, "") }, map[string]string{"G5": "K5"}},
 		{"its ruling ends it", func() {
 			r.must(benchSeat, ruling("K5", "", func(d *recordpb.DocketRuling) {
-				d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), notADefect.Enum(), proto.Bool(true)
+				d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), notADefect.Enum(), proto.Bool(true)
 			}))
 		}, map[string]string{"G5": ""}},
 	} {
@@ -222,9 +222,9 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 	// A RULING OF AN ENDED DOCKETING IS REFUSED, and nothing of a ruling is written for it.
 	for _, k := range []struct{ id, motion string }{{"K1", ""}, {"K3", "M3"}} {
 		err := r.add(benchSeat, ruling(k.id, k.motion, func(d *recordpb.DocketRuling) {
-			d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), notADefect.Enum(), proto.Bool(true)
+			d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), notADefect.Enum(), proto.Bool(true)
 		}))
-		if err == nil || !strings.Contains(err.Error(), "neither stands behind this ruling") {
+		if err == nil || !strings.Contains(err.Error(), "none stands behind this ruling") {
 			t.Errorf("a ruling of %s, which a close ended = %v, want refused", k.id, err)
 		}
 	}
@@ -267,12 +267,12 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 		word   string
 		closes bool
 	}{
-		{"for blue at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), "not_a_defect", true},
-		{"for red at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
+		{"for blue at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), "not_a_defect", true},
+		{"for red at impasse", impasse, side(recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
 		{"a remand at impasse", impasse, remand, "remanded", false},
 		{"grades kept", movement, grades(recordpb.MovedGrades_MOVED_GRADES_KEPT), "grades kept", false},
 		{"grades restored", movement, grades(recordpb.MovedGrades_MOVED_GRADES_RESTORED), "grades restored", false},
-		{"for red on blue's proposal", proposal, side(recordpb.SidedWith_SIDED_WITH_RED, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
+		{"for red on blue's proposal", proposal, side(recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.Disposition_DISPOSITION_REPAIRED), "repaired", true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			r := newRawRecord(t)

@@ -1113,7 +1113,7 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	}
 	return fmt.Errorf("%d docketing(s) and motion(s) the bench answers stand unruled: %s. "+
 		"The outcome is the run's last act, and a run that ends over an ask the bench never answered records a settlement that did not happen. "+
-		"You hold the gavel: read each docketing with `inquest motions` and rule it with `motion docket rule --id <docketing>` and one answer from its pair — `--for-red | --for-blue`, `--for-filer | --for-assignee` on a red seat's proposal on another red seat's gap, `--keep | --restore` at grade movement — or `--remand`; rule each petition or position with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — then record the outcome",
+		"You hold the gavel: read each docketing with `inquest motions` and rule it with `motion docket rule --id <docketing>` and one answer from its pair — `--for-raiser | --for-author`, `--keep | --restore` at grade movement — or `--remand`; rule each petition or position with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — then record the outcome",
 		len(named), strings.Join(named, ", "))
 }
 

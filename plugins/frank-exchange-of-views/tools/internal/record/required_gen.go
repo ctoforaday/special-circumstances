@@ -5,6 +5,8 @@ package record
 // requiredFieldsOf is RequiredFieldsFromSchema for each event body. See required.go.
 func requiredFieldsOf(typ string) []RequiredField {
 	switch typ {
+	case "amend":
+		return requiredAmend
 	case "certify":
 		return requiredCertify
 	case "close":
@@ -58,6 +60,10 @@ func requiredFieldsOf(typ string) []RequiredField {
 }
 
 var (
+	requiredAmend = []RequiredField{
+		{Key: "gap_id", Flag: "id"},
+		{Key: "basis", Flag: "reason"},
+	}
 	requiredCertify = []RequiredField{
 		{Key: "statement", Flag: "reason"},
 	}
@@ -111,15 +117,6 @@ var (
 		{Key: "gap_id", Flag: "id", Arm: "docket"},
 		{Key: "basis", Flag: "reason", Arm: "regrade"},
 		{Key: "gap_id", Flag: "id", Arm: "close"},
-		{Key: "gap_id", Flag: "gap-id", Arm: "supersede"},
-		{Key: "class", Flag: "class", Arm: "supersede"},
-		{Key: "problem", Flag: "problem", Arm: "supersede"},
-		{Key: "acceptance_check", Flag: "check", Arm: "supersede"},
-		{Key: "check_kind", Flag: "check-kind", Arm: "supersede"},
-		{Key: "severity", Flag: "severity", Arm: "supersede"},
-		{Key: "likelihood", Flag: "likelihood", Arm: "supersede"},
-		{Key: "impact", Flag: "impact", Arm: "supersede"},
-		{Key: "class_material", Flag: "class-material", Arm: "supersede"},
 	}
 	requiredMotionRule = []RequiredField{
 		{Key: "opinion", Flag: "reason"},

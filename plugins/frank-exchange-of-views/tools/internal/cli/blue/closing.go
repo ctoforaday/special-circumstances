@@ -12,7 +12,7 @@ import (
 )
 
 // BLUE STATES ITS WORD (#1695 §III.B14, L34). Blue's closing on a gap docketed at impasse may state the
-// closing word a for-blue ruling writes; with none stated, that ruling writes `not_a_defect` — blue's
+// closing word a for-author ruling writes; with none stated, that ruling writes `not_a_defect` — blue's
 // text stands. On a proposal blue's statement is the proposal, and at grade movement the recorded
 // grades, so the word is refused there (record's requireClosingStatement).
 

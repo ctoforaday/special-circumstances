@@ -133,56 +133,8 @@ func propose(act, says string, register func(*cobra.Command), fill func(run reco
 	return c
 }
 
-// newAccept is the gap's assignee's answer to a proposed act on its gap: the act, applied exactly as
-// filed, through the act's own write, after the ruling that says so — one transaction.
-func newAccept() *cobra.Command {
-	c := &cobra.Command{
-		Use:   "accept",
-		Short: "accept the act a docket motion proposes on your gap — the tool applies it as filed",
-		Long: "accept the act a docket motion proposes on a gap you are the assignee of — the tool applies it exactly as filed.\n\n" +
-			"ONE TRANSACTION: your answer to the motion, then the act — the regrade, the close, or the successor the proposal states, its id assigned at filing — written as your own act, through that act's own write and every check it meets. " +
-			"A refusal of the act records nothing, and the proposal stands: unaccepted in your window, it is docketed for the bench. Read the proposal on your work list before you accept: a close is attested by the anchors your sitting read. " +
-			"If you do not accept it, your closing on the gap is your argument, and the bench rules.",
-		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			run, err := s.Run()
-			if err != nil {
-				return nil, err
-			}
-			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireSubjectMatches(run, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET, id); err != nil {
-				return nil, err
-			}
-			reason, err := prose(cmd, "why you accept the act as filed")
-			if err != nil {
-				return nil, err
-			}
-			// THE ACCEPT SIDES WITH THE FILER: blue where blue filed, the filer where a red seat did.
-			p, _, err := record.DocketProposalOf(run, id)
-			if err != nil {
-				return nil, err
-			}
-			body := &recordpb.MotionRule{
-				MotionId: proto.String(id),
-				Opinion:  proto.String(reason),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: record.ProposalSide(p.Filer).Enum()}},
-			}
-			if err := applyAccepted(s, run, id, record.Act{Body: body}); err != nil {
-				return nil, err
-			}
-			return ruled{ID: id, Ruling: record.RulingWord(body)}, nil
-		}),
-	}
-	seat.Returns(c, ruled{})
-	c.Flags().Var(flags.MotionID(), flags.ID, refHelp("docket"))
-	seat.Require(c, flags.ID)
-	seat.SaysRequired(seat.Prose(c), flags.Reason)
-	seat.Records(c, "motion_rule")
-	seat.FillsArm(c, "docket")
-	return c
-}
-
 // applyAccepted writes ruling and then the act motion id proposes, through the act's own write, under
-// s's identity: the assignee's accept, or the bench's accept of a regrade. A motion that
+// s's identity: the bench's application of the author's proposal. A motion that
 // proposes no act writes the ruling alone, for the record to refuse in its own words.
 func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act) error {
 	p, ok, err := record.DocketProposalOf(run, id)

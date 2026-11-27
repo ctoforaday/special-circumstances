@@ -102,12 +102,16 @@ func TestRuledDocketMotionIsNotAHole(t *testing.T) {
 				Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("ANSWERED"),
 					Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the harm needs two failures")}},
 			}),
-			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the docket arm, so a fixture
-			// cannot pair a docket motion with a petition's verdict the way two loose strings could.
+			recordtest.Event(t, "red-chair", &recordpb.Docketing{DocketingId: proto.String("D1"), GapId: proto.String("ANSWERED"),
+				Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: proto.String("M1"), Basis: proto.String("unaccepted in its window")}),
+			// THE RULING IS THE ONEOF ARM. A side can only reach the docket arm, so a fixture cannot
+			// pair a docket motion with a petition's verdict the way two loose strings could.
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("the grade was argued and holds"),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum()}},
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("D1"),
+					SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Principle: proto.String("p"), Tension: proto.String("t"),
+					ReviewFlag: proto.String("no"), Settled: proto.String("s")}},
 			}),
 		},
 	}

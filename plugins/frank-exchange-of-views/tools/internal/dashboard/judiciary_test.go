@@ -45,7 +45,7 @@ func docketRuled(t *testing.T, docketing string, d recordpb.Disposition, princip
 		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
-		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RED.Enum()
+		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RAISER.Enum()
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		Opinion: proto.String(opinion),

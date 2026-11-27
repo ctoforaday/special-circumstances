@@ -80,7 +80,7 @@ func docketRuling(docketing string, word recordpb.Disposition) *recordpb.MotionR
 		d.Direction = proto.String("new evidence")
 	} else {
 		d.Final = proto.Bool(true)
-		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 	}
 	return &recordpb.MotionRule{Opinion: proto.String("because"), Ruling: &recordpb.MotionRule_Docket{Docket: d}}
 }
@@ -368,7 +368,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: rule}})
 	}
 	docket("D1", "G3", &recordpb.DocketRuling{
-		SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+		SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 		Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), Final: proto.Bool(true)})

@@ -119,7 +119,7 @@ func (r *demandRecord) ruleDocket(id, motion string, as recordpb.Disposition) in
 	dr := &recordpb.DocketRuling{DocketingId: proto.String(id), Disposition: as.Enum(), Principle: proto.String("correctness over economy"),
 		Tension: proto.String("the repair costs a round"), ReviewFlag: proto.String("no"),
 		Settled: proto.String("the claim as it stood"), Final: proto.Bool(true),
-		SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum()}
+		SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()}
 	if as == recordpb.Disposition_DISPOSITION_REMANDED {
 		dr.Final, dr.SidedWith, dr.Direction = nil, nil, proto.String("a reproduction on the shipped binary")
 	}
@@ -163,16 +163,50 @@ func (r *demandRecord) mintBody(gap string, kind recordpb.CheckKind, about strin
 	return m
 }
 
-// answerAct answers docket motion id's proposed act as seat, siding with side: the bench names the
-// docketing holding it and carries its opinion; the assignee's accept names none and carries none.
+// answerAct answers docket motion id's proposed act as seat, siding with side, naming the docketing
+// holding it and carrying its opinion.
 func (r *demandRecord) answerAct(seat, id, docketing string, side recordpb.SidedWith) int64 {
-	dr := &recordpb.DocketRuling{SidedWith: side.Enum()}
-	if seat == "lead-judge" {
-		dr.DocketingId = proto.String(docketing)
-		dr.Principle, dr.Tension, dr.ReviewFlag, dr.Settled = proto.String("p"), proto.String("t"), proto.String("no"), proto.String("")
-	}
+	dr := &recordpb.DocketRuling{SidedWith: side.Enum(), DocketingId: proto.String(docketing)}
+	dr.Principle, dr.Tension, dr.ReviewFlag, dr.Settled = proto.String("p"), proto.String("t"), proto.String("no"), proto.String("")
 	return r.add(seat, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String(id), Opinion: proto.String("stated"), Ruling: &recordpb.MotionRule_Docket{Docket: dr}})
+}
+
+// acceptAct is seat's regrade of gap taking docket motion id (fileDocket's proposed regrade).
+func (r *demandRecord) acceptAct(seat, gap, id string) int64 {
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{GapId: proto.String(gap),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("lower"), Accepts: proto.String(id)})
+}
+
+// editAccept is seat's edit applying the raiser's statement on gap (--accept G).
+func (r *demandRecord) editAccept(seat, gap string) int64 {
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{EditKey: proto.String(gap + "-" + seat),
+		Answers: proto.String(gap), Old: proto.String("was"), New: proto.String("is"), Accepted: proto.Bool(true)})
+}
+
+// retireAccept is blue's retire applying the raiser's stated retire on gap (--accept G).
+func (r *demandRecord) retireAccept(gap string) int64 {
+	return r.add("blue-respond", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r"),
+		Answers: proto.String(gap), Accepted: proto.Bool(true)})
+}
+
+// mintAbout is seat's mint of gap about gap about (ABOUT_KIND_GAP).
+func (r *demandRecord) mintAbout(seat, gap, about string) int64 {
+	m := r.mintBody(gap, recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String(about)
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_MINT, m)
+}
+
+// regradeAnswer is seat's regrade of gap answering the gap answers about it, with accepted.
+func (r *demandRecord) regradeAnswer(seat, gap, answers string) int64 {
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{GapId: proto.String(gap),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the gap about it holds"), Answers: proto.String(answers), Accepted: proto.Bool(true)})
+}
+
+// amendAnswer is seat's amend of gap answering the gap answers about it, with accepted.
+func (r *demandRecord) amendAnswer(seat, gap, answers string) int64 {
+	return r.add(seat, recordpb.EventType_EVENT_TYPE_AMEND, &recordpb.Amend{GapId: proto.String(gap), Problem: proto.String("answered"),
+		Basis: proto.String("the gap about it holds"), Answers: proto.String(answers), Accepted: proto.Bool(true)})
 }
 
 // upholdPosition rules position motion id upheld, remanding gaps.
@@ -317,24 +351,65 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
 			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
 		}},
-		// The assignee accepts a proposal: the accept answers the filing and closes nothing.
+		// THE RAISER ACCEPTS THE AUTHOR'S PROPOSAL by its own regrade taking the motion: the docketing
+		// holding it and the proposal end, with no ruling, and the gap stays open.
 		{func() { r.mintOf("X", doc, "") }, none},
 		{func() { r.fileDocket("M4", "X") }, func() []string { return []string{gapIs("X", `"open" AND "unruled_docket_motion" = 'M4'`)} }},
-		{func() { r.answerAct(reader, "M4", "", recordpb.SidedWith_SIDED_WITH_FILER) }, func() []string {
-			return []string{gapIs("X", `"open" AND "unruled_docket_motion" IS NULL AND "bench_close_event" IS NULL AND NOT "closed_by_bench"`)}
+		{func() { r.docket("K8", "X", proposal, "M4") }, func() []string { return []string{gapIs("X", `"standing_docketing" = 'K8'`)} }},
+		{func() { r.acceptAct(reader, "X", "M4") }, func() []string {
+			return []string{gapIs("X", `"open" AND "unruled_docket_motion" IS NULL AND "unruled_docket_filed" IS NULL AND "standing_docketing" IS NULL
+			  AND "bench_close_event" IS NULL AND NOT "closed_by_bench" AND "current_severity" = 'low'`)}
 		}},
-		// The bench sides with the filer on its docketing, closing: its ruling is the bench's close of Y.
+		// THE AUTHOR CONCEDES BY ITS ACCEPT OF THE RAISER'S STATEMENT, under its own seat: the bench's
+		// application of the same shape ends nothing; the author's edit, or retire, answering the gap
+		// with accepted ends its docketing.
+		{func() { r.mintOf("H", doc, "") }, none},
+		{func() { r.docket("K10", "H", impasse, "") }, func() []string { return []string{gapIs("H", `"standing_docketing" = 'K10'`)} }},
+		{func() { r.editAccept("lead-judge", "H") }, func() []string { return []string{gapIs("H", `"standing_docketing" = 'K10'`)} }},
+		{func() { r.editAccept("blue-respond", "H") }, func() []string {
+			return []string{gapIs("H", `"open" AND "standing_docketing" IS NULL AND "standing_docketing_at" IS NULL`)}
+		}},
+		{func() { r.mintOf("HR", doc, "") }, none},
+		{func() { r.docket("K11", "HR", impasse, "") }, func() []string { return []string{gapIs("HR", `"standing_docketing" = 'K11'`)} }},
+		{func() { r.retireAccept("HR") }, func() []string { return []string{gapIs("HR", `"open" AND "standing_docketing" IS NULL`)} }},
+		// ON A GAP ABOUT A GAP the author is that gap's minter: its regrade, or its amend, answering the
+		// gap about it with accepted ends the docketing there; the bench's regrade of the same shape
+		// does not.
+		{func() { r.mintOf("GA", doc, "") }, none},
+		{func() { r.mintAbout(other, "GB", "GA") }, none},
+		{func() { r.docket("K12", "GB", impasse, "") }, func() []string { return []string{gapIs("GB", `"standing_docketing" = 'K12'`)} }},
+		{func() { r.regradeAnswer("lead-judge", "GA", "GB") }, func() []string { return []string{gapIs("GB", `"standing_docketing" = 'K12'`)} }},
+		{func() { r.regradeAnswer(reader, "GA", "GB") }, func() []string {
+			return []string{gapIs("GB", `"open" AND "standing_docketing" IS NULL`), gapIs("GA", `"current_severity" = 'low'`)}
+		}},
+		{func() { r.mintAbout(other, "GC", "GA") }, none},
+		{func() { r.docket("K13", "GC", impasse, "") }, none},
+		{func() { r.amendAnswer(reader, "GA", "GC") }, func() []string {
+			return []string{gapIs("GC", `"open" AND "standing_docketing" IS NULL`), gapIs("GA", `"current_problem" = 'answered'`)}
+		}},
+		// AN AMEND OF THE GAP ENDS ITS DOCKETING AND PROPOSAL unruled, by any writer, but at grade
+		// movement, whose question is the grades.
+		{func() { r.mintOf("AX", doc, "") }, none},
+		{func() { r.fileDocket("M9", "AX") }, none},
+		{func() { r.docket("K14", "AX", proposal, "M9") }, func() []string { return []string{gapIs("AX", `"standing_docketing" = 'K14'`)} }},
+		{func() { r.amend("AX", "narrowed") }, func() []string {
+			return []string{gapIs("AX", `"open" AND "standing_docketing" IS NULL AND "unruled_docket_motion" IS NULL`)}
+		}},
+		{func() { r.mintOf("AG", doc, "") }, none},
+		{func() { r.docket("K15", "AG", movement, "") }, none},
+		{func() { r.amend("AG", "narrowed") }, func() []string { return []string{gapIs("AG", `"standing_docketing" = 'K15'`)} }},
+		// The bench sides with the author's proposal on its docketing, closing: its ruling is the bench's close of Y.
 		{func() { r.mintOf("Y", doc, "") }, none},
 		{func() { r.proposeClose("M5", "Y") }, none},
 		{func() { r.docket("K4", "Y", proposal, "M5") }, func() []string { return []string{gapIs("Y", `"open" AND "standing_docketing" = 'K4'`)} }},
 		{func() { yRule = r.ruleDocket("K4", "M5", recordpb.Disposition_DISPOSITION_REPAIRED) }, func() []string {
 			return []string{gapIs("Y", `NOT "open" AND "closed_by_bench" AND "bench_closed_last" AND "bench_close_event" = `+at(&yRule))}
 		}},
-		// The bench sides with the assignee: the proposed close does not apply, and the gap stands as it was.
+		// The bench sides with the raiser: the proposed close does not apply, and the gap stands as it was.
 		{func() { r.mintOf("Z", doc, "") }, none},
 		{func() { r.proposeClose("M6", "Z") }, none},
 		{func() { r.docket("K5", "Z", proposal, "M6") }, none},
-		{func() { r.answerAct("lead-judge", "M6", "K5", recordpb.SidedWith_SIDED_WITH_ASSIGNEE) }, func() []string {
+		{func() { r.answerAct("lead-judge", "M6", "K5", recordpb.SidedWith_SIDED_WITH_RAISER) }, func() []string {
 			return []string{gapIs("Z", `"open" AND NOT "closed_by_bench" AND "bench_close_event" IS NULL AND "unruled_docket_motion" IS NULL
 			  AND "standing_docketing" IS NULL`)}
 		}},
@@ -402,7 +477,8 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	// THE FIRST CLOSING ACT, of each arm: R's by red's first close (two closes follow it), D's by the
 	// bench (red's close follows it), the rest open.
 	want := map[string]string{"A": "open", "P": "open", "Q": "open", "R": "close", "D": "motion_rule", "E": "open", "U": "open",
-		"F": "close", "G": "close", "X": "open", "Y": "motion_rule", "Z": "open", "DY": "open", "AM": "open"}
+		"F": "close", "G": "close", "X": "open", "Y": "motion_rule", "Z": "open", "DY": "open", "AM": "open",
+		"H": "open", "HR": "open", "GA": "open", "GB": "open", "GC": "open", "AX": "open", "AG": "open"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -418,7 +494,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 14 {
+	if len(markers) != 15 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {
@@ -448,7 +524,7 @@ func TestADocketRulingAnswersAFilingOnTheRecord(t *testing.T) {
 		MotionId: proto.String("M9"), Opinion: proto.String("stated"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
 			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("no"), Settled: proto.String("s"), Final: proto.Bool(true)}}})
-	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "neither stands behind this ruling") {
+	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "none stands behind this ruling") {
 		t.Errorf("a docket ruling on a motion never filed = %v, want refused", err)
 	}
 
@@ -459,10 +535,42 @@ func TestADocketRulingAnswersAFilingOnTheRecord(t *testing.T) {
 	ev = event(t, 92, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		Opinion: proto.String("stated"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("K9"),
-			SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
+			SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("no"), Settled: proto.String("s"), Final: proto.Bool(true)}}})
-	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "neither stands behind this ruling") {
+	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "none stands behind this ruling") {
 		t.Errorf("a docket ruling on a docketing a close ended = %v, want refused", err)
+	}
+
+	// A docketing a party conceded, or an amend of its gap ended, takes no ruling; a grade-movement
+	// docketing an amend leaves standing does.
+	rule := func(n int32, docketing string) error {
+		_, err := Insert(r.db, event(t, n, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+			Opinion: proto.String("stated"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketing),
+				SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
+				Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("no"), Settled: proto.String("s"), Final: proto.Bool(true)}}}))
+		return err
+	}
+	r.mintOf("XA", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	r.fileDocket("M10", "XA")
+	r.docket("K20", "XA", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, "M10")
+	r.acceptAct(reader, "XA", "M10")
+	r.mintOf("XB", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	r.docket("K21", "XB", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	r.editAccept("blue-respond", "XB")
+	r.mintOf("XC", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	r.docket("K22", "XC", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	r.amend("XC", "narrowed")
+	for i, k := range []string{"K20", "K21", "K22"} {
+		if err := rule(int32(100+i), k); err == nil || !strings.Contains(err.Error(), "none stands behind this ruling") {
+			t.Errorf("a docket ruling on %s, which an act after it ended = %v, want refused", k, err)
+		}
+	}
+	r.mintOf("XD", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	r.docket("K23", "XD", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	r.editAccept("lead-judge", "XD")
+	if err := rule(110, "K23"); err != nil {
+		t.Errorf("a docket ruling on K23, which only the bench's application of its shape follows = %v, want written", err)
 	}
 
 	// A position ruling's motion has no filing; it is ruled first, and a docket filing of its id is refused.

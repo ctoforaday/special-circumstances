@@ -63,7 +63,7 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	out := map[string]string{}
 	for _, e := range evs {
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		// The bench's application of red's closing text on a for-red answer is no offer blue took.
+		// The bench's application of red's closing text on a for-raiser answer is no offer blue took.
 		if !ok || !ed.GetAppliedVerbatim() || seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
 			continue
 		}

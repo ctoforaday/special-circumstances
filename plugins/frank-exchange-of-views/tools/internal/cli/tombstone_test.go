@@ -86,7 +86,7 @@ func ruleAtImpasse(t *testing.T, runDir string, remand bool) string {
 	asSeat(t, runDir, "red-chair", "register")
 	asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 	asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-	ruling := benchRuling(d, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
+	ruling := benchRuling(d, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
 	if remand {
 		dr := ruling.GetDocket()
 		dr.SidedWith, dr.Final, dr.ReopensOn = nil, nil, nil
@@ -302,7 +302,7 @@ func lastMintAboutSection(t *testing.T, runDir string) bool {
 	return false
 }
 
-// redRoad is the text red's closing states for ruledSentence on a for-red ruling.
+// redRoad is the text red's closing states for ruledSentence on a for-raiser ruling.
 const redRoad = "The index rose by four points in the spring survey of producers, on revised weights."
 
 // quoteImpasseBoardFixing is quoteImpasseBoard with its gap's mint prescribing fix.
@@ -311,7 +311,7 @@ func quoteImpasseBoardFixing(t *testing.T, runDir, fix string) {
 	quoteImpasseBoardWith(t, runDir, func(m *recordpb.Mint) { m.FixNew = proto.String(fix) })
 }
 
-// ruleForRedAtImpasse drives quoteImpasseBoard's gap to the bench's for-red ruling through the verbs:
+// ruleForRedAtImpasse drives quoteImpasseBoard's gap to the bench's for-raiser ruling through the verbs:
 // the dispatch dockets it at impasse, blue states not_a_defect, the lens states redRoad, the dispatch
 // convenes the bench, and the bench rules for red, which applies redRoad. It returns the docketing.
 func ruleForRedAtImpasse(t *testing.T, runDir string) string {
@@ -330,22 +330,22 @@ func ruleForRedAtImpasse(t *testing.T, runDir string) string {
 	asSeat(t, runDir, "red-chair", "register")
 	asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 	asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-red", "--final"); err != nil {
-		t.Fatalf("--for-red: %v\n%s", err, out)
+	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-raiser", "--final"); err != nil {
+		t.Fatalf("--for-raiser: %v\n%s", err, out)
 	}
 	if md := renders(t, runDir); !strings.Contains(md, strings.TrimSuffix(redRoad, ".")) {
-		t.Fatalf("the for-red ruling did not apply red's text: %q", md)
+		t.Fatalf("the for-raiser ruling did not apply red's text: %q", md)
 	}
 	return d.GetDocketingId()
 }
 
 // A RULING BARS ITS GAP FOR EITHER SIDE (gblock 2026-11-22: "Estoppel applies to the judges ruling for
 // either side. If it sided with blue, red can't create double jeopardy - it lost and can't reraise that
-// gap there."), driven through the verbs: after a for-blue and after a for-red ruling at impasse, the
+// gap there."), driven through the verbs: after a for-author and after a for-raiser ruling at impasse, the
 // ruling's transaction holds G's ruling tombstone and nothing else; red's re-raising of G — a mint of
 // G's class on G's sentence, by another lens and by G's assignee, a proposal on
 // G — is refused naming the ruling; a mint of another class on the sentence lands (T-B19 (4)). The
-// bench's application of red's text is no blue accept: on a for-red ruling it places no estoppel row,
+// bench's application of red's text is no blue accept: on a for-raiser ruling it places no estoppel row,
 // whether G's mint prescribes nothing or prescribes the very text red's closing states.
 func TestARulingBarsItsGapForEitherSide(t *testing.T) {
 	const class = "spec_underspecification"

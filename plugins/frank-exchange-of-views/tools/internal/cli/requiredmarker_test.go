@@ -69,7 +69,7 @@ var oneOfAnother = map[string]string{
 	"reopens-on": "final",
 	"final":      "reopens-on",
 	"direction":  "final",
-	"remand":     "for-blue",
+	"remand":     "for-author",
 	"lens":       "ids",
 	"ids":        "lens",
 	"anchor":     "url",

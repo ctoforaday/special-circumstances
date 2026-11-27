@@ -45,7 +45,7 @@ func TestTheLockedAxesAreTheWindowsMovedAxes(t *testing.T) {
 		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: proto.String("M2"), Basis: proto.String("unaccepted")})
 	b.register("judge").add("judge", regrade(recordtest.P(recordpb.Grade_GRADE_MEDIUM), nil)).
 		add("judge", &recordpb.MotionRule{MotionId: proto.String("M2"), Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			DocketingId: proto.String("D2"), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+			DocketingId: proto.String("D2"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}})
 	b.seed()
 
@@ -124,7 +124,7 @@ func TestARulingsLockEndsWithItsTombstone(t *testing.T) {
 	b.register("red-chair").add("red-chair", &recordpb.Docketing{DocketingId: proto.String("D3"), GapId: proto.String("G1"),
 		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse")})
 	b.register("judge").add("judge", &recordpb.MotionRule{Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-		DocketingId: proto.String("D3"), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
+		DocketingId: proto.String("D3"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 		Final: proto.Bool(true), Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}}).
 		add("judge", stone("D3", false))
 	b.seed()

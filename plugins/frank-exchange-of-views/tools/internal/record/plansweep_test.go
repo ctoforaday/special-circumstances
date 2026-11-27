@@ -67,7 +67,7 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 		NoText: proto.Bool(true)})
 	if _, err := Append(convene(t, run, "G1"), &recordpb.MotionRule{MotionId: proto.String("M2"), Opinion: proto.String("ruled"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("K1"),
-			SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_MOOT.Enum(), Final: proto.Bool(true),
+			SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_MOOT.Enum(), Final: proto.Bool(true),
 			Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}}}); err != nil {
 		t.Fatal(err)
 	}

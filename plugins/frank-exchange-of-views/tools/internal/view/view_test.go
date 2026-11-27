@@ -607,7 +607,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
 			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),

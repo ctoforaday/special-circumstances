@@ -185,10 +185,6 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		c.AddCommand(newRule(name, ruler, ruleFlags))
 	case subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 		c.AddCommand(newDocketFile())
-		// A LENS IS A GAP'S ASSIGNEE, and accepts the act a docket motion proposes on its own gap.
-		if actingRole == "lens" {
-			c.AddCommand(newAccept())
-		}
 	case fileFlags != nil:
 		c.AddCommand(newFile(actingRole, name, fileFlags))
 	}

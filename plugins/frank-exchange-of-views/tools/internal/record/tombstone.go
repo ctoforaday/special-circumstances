@@ -214,7 +214,7 @@ func rulingPlacement(q recordsql.Querier, seatID string, body proto.Message) ([]
 }
 
 // verbatimPlacement is the gap whose prescription blue applied verbatim, where its mint carries one.
-// The bench's application of red's closing text on a for-red (for-assignee) answer places none,
+// The bench's application of red's closing text on a for-raiser answer places none,
 // whatever the gap's mint prescribed: the bar on what the bench decided is the ruling's own tombstone,
 // for either side (gblock 2026-11-22: "Estoppel applies to the judges ruling for either side").
 func verbatimPlacement(q recordsql.Querier, seatID string, body proto.Message) ([]owedTombstone, error) {

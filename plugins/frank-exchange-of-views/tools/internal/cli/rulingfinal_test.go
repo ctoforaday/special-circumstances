@@ -121,13 +121,13 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 	// regrade lands; blue proposes severity again, the window ends, R2 writes the new grade and re-locks
 	// it; the assignee's regrade is refused naming R2 while R2's tombstone stands, no grade-movement
 	// docketing follows, and after blue's next reword it lands. Run with R2 for red too.
-	for _, r2 := range []string{"for-blue", "for-red"} {
+	for _, r2 := range []string{"for-author", "for-raiser"} {
 		t.Run("R1 then R2 "+r2, func(t *testing.T) {
 			runDir := newRun(t)
 			quoteBoardBelowImpasse(t, runDir)
 			blueProposes(t, runDir, "regrade", "--severity", "low", "--reason", "the harm needs two failures")
 			d1 := docketsUnaccepted(t, runDir, "red-lens-evidence", boardGap).GetDocketingId()
-			benchAnswers(t, runDir, d1, "for-blue")
+			benchAnswers(t, runDir, d1, "for-author")
 			if g := gapOf(t, runDir, boardGap); recordpb.Word(g.Severity) != "low" || !g.Open {
 				t.Fatalf("after R1 the gap is open %v at severity %v, want open at low", g.Open, g.Severity)
 			}
@@ -146,7 +146,7 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 			blueProposes(t, runDir, "regrade", "--severity", "low", "--reason", "the harm needs two failures, again")
 			d2 := docketsUnaccepted(t, runDir, "red-lens-evidence", boardGap).GetDocketingId()
 			benchAnswers(t, runDir, d2, r2)
-			want := map[string]string{"for-blue": "low", "for-red": "medium"}[r2]
+			want := map[string]string{"for-author": "low", "for-raiser": "medium"}[r2]
 			if g := gapOf(t, runDir, boardGap); recordpb.Word(g.Severity) != want {
 				t.Fatalf("after R2 %s the severity = %v, want %s", r2, g.Severity, want)
 			}
@@ -195,8 +195,8 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 		})
 	}
 
-	// Audit p8's trace: blue proposes close W, red's closing missing — --for-red refused naming the
-	// missing text; with red's text, --for-red closes G repaired, and no later plan dockets G.
+	// Audit p8's trace: blue proposes close W, red's closing missing — --for-raiser refused naming the
+	// missing text; with red's text, --for-raiser closes G repaired, and no later plan dockets G.
 	t.Run("audit p8: blue's close, for red", func(t *testing.T) {
 		runDir := newRun(t)
 		quoteBoardBelowImpasse(t, runDir)
@@ -205,14 +205,14 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 		asSeat(t, runDir, "red-chair", "register")
 		asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 		asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-		out, err := answerDocketing(t, runDir, d, "for-red", "--final")
-		heldRefusal(t, "--for-red with red's closing missing", out, err, "filed no closing")
+		out, err := answerDocketing(t, runDir, d, "for-raiser", "--final")
+		heldRefusal(t, "--for-raiser with red's closing missing", out, err, "filed no closing")
 		asSeat(t, runDir, "red-lens-evidence", "register")
 		asSeat(t, runDir, "red-lens-evidence", "closing", "--id", boardGap, "--reason", "the sentence still misleads",
 			"--quote", ruledSentence, "--new", redRoad)
-		benchAnswers(t, runDir, d, "for-red", "--final")
+		benchAnswers(t, runDir, d, "for-raiser", "--final")
 		r := lastRuling(t, runDir)
-		if r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_RED || r.GetDisposition() != recordpb.Disposition_DISPOSITION_REPAIRED || gapOf(t, runDir, boardGap).Open {
+		if r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_RAISER || r.GetDisposition() != recordpb.Disposition_DISPOSITION_REPAIRED || gapOf(t, runDir, boardGap).Open {
 			t.Fatalf("the ruling = %v %v, want for red, repaired, G closed", r.GetSidedWith(), r.GetDisposition())
 		}
 		before, _ := docketingsOn(t, runDir, boardGap)
@@ -233,9 +233,9 @@ func TestARulingProtectsTheGapItLeavesStanding(t *testing.T) {
 		quoteBoardBelowImpasse(t, runDir)
 		blueProposes(t, runDir, "regrade", "--severity", "low", "--reason", "the harm needs two failures")
 		d := docketsUnaccepted(t, runDir, "red-lens-evidence", boardGap).GetDocketingId()
-		benchAnswers(t, runDir, d, "for-red")
+		benchAnswers(t, runDir, d, "for-raiser")
 		if !gapOf(t, runDir, boardGap).Open || standingRuling(t, runDir, boardGap) != d {
-			t.Fatalf("after the for-red ruling the gap is open %v under %q, want open under %s", gapOf(t, runDir, boardGap).Open, standingRuling(t, runDir, boardGap), d)
+			t.Fatalf("after the for-raiser ruling the gap is open %v under %q, want open under %s", gapOf(t, runDir, boardGap).Open, standingRuling(t, runDir, boardGap), d)
 		}
 		actRefusedNaming(t, runDir, "the chair's own regrade proposal on G", "red-chair", []string{"docketing " + d, "tombstone"},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--impact", "low", "--reason", "the chair's view")
@@ -297,8 +297,8 @@ func ruledForBlueAtImpasse(t *testing.T, runDir, gap string, noText bool) string
 	asSeat(t, runDir, "red-chair", "register")
 	asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 	asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-blue", "--final"); err != nil {
-		t.Fatalf("--for-blue: %v\n%s", err, out)
+	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-author", "--final"); err != nil {
+		t.Fatalf("--for-author: %v\n%s", err, out)
 	}
 	return d.GetDocketingId()
 }

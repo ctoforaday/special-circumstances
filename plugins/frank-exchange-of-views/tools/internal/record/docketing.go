@@ -55,11 +55,10 @@ func (d *Docketing) Word() string {
 	return rulingWord(d.Ruling)
 }
 
-// appliesProposal reports whether the ruling sided with the proposal the docketing holds: blue's, or
-// the filing red seat's — the side whose statement is the proposal's act.
+// appliesProposal reports whether the ruling sided with the proposal the docketing holds: the
+// author's, whose statement is the proposal's act.
 func (d *Docketing) appliesProposal() bool {
-	s := d.Docket().GetSidedWith()
-	return d.MotionID != "" && (s == recordpb.SidedWith_SIDED_WITH_BLUE || s == recordpb.SidedWith_SIDED_WITH_FILER)
+	return d.MotionID != "" && d.Docket().GetSidedWith() == recordpb.SidedWith_SIDED_WITH_AUTHOR
 }
 
 // movesGap reports whether the ruling's transaction moved its gap: a closing word or a remand, the
@@ -79,16 +78,79 @@ func (d *Docketing) Docket() *recordpb.DocketRuling { return d.Ruling.GetDocket(
 // DocketingsOf is docketingsAt over the events themselves, places by stream position.
 func DocketingsOf(evs []*Event) []*Docketing { return docketingsAt(evs, nil) }
 
+// concession is what one act ends with no ruling (recordsql.concededSQL's twin): the docketing and
+// the proposal standing on gap, ended by the gap's non-carry close, the author's act answering it with
+// accepted, or an amend of it (which ends no grade-movement docketing); and the docketing holding
+// motion, which the raiser's act takes (accepts).
+type concession struct {
+	gap, motion string
+	amend       bool
+}
+
+// concessions reads each act's concession off the stream, in order: f is called with the act's place
+// in evs and what it ends. The author of a gap's subject is read from the mints before it (authorOf's
+// twin: a gap about a gap is that gap's minter's; every other subject blue's responding seat's).
+func concessions(evs []*Event, f func(i int, c concession)) {
+	type subject struct{ kind, ref string }
+	about, minter := map[string]subject{}, map[string]string{}
+	authorSeat := func(gap string) string {
+		if a := about[gap]; a.kind == "gap" {
+			return minter[a.ref]
+		}
+		return blueRespondSeat
+	}
+	authorAccept := func(e *Event, answers string, accepted bool) bool {
+		return accepted && answers != "" && e.GetSeatId() == authorSeat(answers)
+	}
+	for i, e := range evs {
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch b := body.(type) {
+		case *recordpb.Mint:
+			about[b.GetGapId()] = subject{recordpb.Word(b.GetAboutKind()), b.GetAboutRef()}
+			minter[b.GetGapId()] = e.GetSeatId()
+		case *recordpb.Close:
+			if b.GetCarriedFrom() == "" {
+				f(i, concession{gap: b.GetGapId()})
+			}
+		case *recordpb.Regrade:
+			if b.GetAccepts() != "" {
+				f(i, concession{motion: b.GetAccepts()})
+			}
+			if authorAccept(e, b.GetAnswers(), b.GetAccepted()) {
+				f(i, concession{gap: b.GetAnswers()})
+			}
+		case *recordpb.Amend:
+			f(i, concession{gap: b.GetGapId(), amend: true})
+			if authorAccept(e, b.GetAnswers(), b.GetAccepted()) {
+				f(i, concession{gap: b.GetAnswers()})
+			}
+		case *recordpb.BlueEdit:
+			if authorAccept(e, b.GetAnswers(), b.GetAccepted()) {
+				f(i, concession{gap: b.GetAnswers()})
+			}
+		case *recordpb.Retire:
+			if authorAccept(e, b.GetAnswers(), b.GetAccepted()) {
+				f(i, concession{gap: b.GetAnswers()})
+			}
+		}
+	}
+}
+
 // docketingsAt is every docketing on the stream, in the order written, with the bench's ruling naming
-// each and the Close that ended each unruled. seq is evs's places (events.id), aligned with it; nil
+// each and the act that ended each unruled. seq is evs's places (events.id), aligned with it; nil
 // places by stream position. A ruling names its docketing by id (one per docketing: the column is
-// UNIQUE), so the first is the one that stands. A Close ends a docketing when it is no carry (L42: a
-// carry restates an earlier epoch's closure and answers nothing) and is written after the docketing's
-// row: a docketing on a gap closed before it (F8) stands.
+// UNIQUE), so the first is the one that stands. An act ends a docketing when it is written after the
+// docketing's row (concessions): a Close when it is no carry (L42: a carry restates an earlier
+// epoch's closure and answers nothing), so a docketing on a gap closed before it (F8) stands; a
+// party's concession; an amend of its gap, but at grade movement, whose question is the grades.
 func docketingsAt(evs []*Event, seq []int64) []*Docketing {
 	byID := map[string]*Docketing{}
 	var order []*Docketing
 	byGap := map[string][]*Docketing{}
+	byMotion := map[string][]*Docketing{}
 	place := func(i int) int64 {
 		if seq != nil {
 			return seq[i]
@@ -110,22 +172,29 @@ func docketingsAt(evs []*Event, seq []int64) []*Docketing {
 			byID[d.ID] = d
 			order = append(order, d)
 			byGap[d.GapID] = append(byGap[d.GapID], d)
+			if d.MotionID != "" {
+				byMotion[d.MotionID] = append(byMotion[d.MotionID], d)
+			}
 		case *recordpb.MotionRule:
 			id := b.GetDocket().GetDocketingId()
 			if d := byID[id]; d != nil && d.Ruling == nil {
 				d.Ruling, d.RulingSeat, d.ruled = b, e.GetSeatId(), place(i)
 			}
-		case *recordpb.Close:
-			if b.GetCarriedFrom() != "" {
-				continue
-			}
-			for _, d := range byGap[b.GetGapId()] {
-				if d.Ruling == nil && d.ended == 0 {
-					d.ended = place(i)
+		}
+	}
+	concessions(evs, func(i int, c concession) {
+		at := place(i)
+		end := func(ds []*Docketing) {
+			for _, d := range ds {
+				if (d.Ruling == nil || d.ruled > at) && d.ended == 0 && d.at < at &&
+					!(c.amend && d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT) {
+					d.ended = at
 				}
 			}
 		}
-	}
+		end(byGap[c.gap])
+		end(byMotion[c.motion])
+	})
 	return order
 }
 
@@ -152,17 +221,16 @@ func proposalStates(evs []*Event, ids []int64, win WindowIndex) (held, ended map
 			held[d.MotionID] = true
 		}
 	}
-	closes := map[string][]int64{}
-	for i, e := range evs {
-		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && c.GetCarriedFrom() == "" {
-			closes[c.GetGapId()] = append(closes[c.GetGapId()], ids[i])
-		}
-	}
+	byGap, byMotion := map[string][]int64{}, map[string][]int64{}
+	concessions(evs, func(i int, c concession) {
+		byGap[c.gap] = append(byGap[c.gap], ids[i])
+		byMotion[c.motion] = append(byMotion[c.motion], ids[i])
+	})
 	for _, m := range motionsAt(evs, ids, win) {
 		if m == nil || m.Subject != "docket" {
 			continue
 		}
-		for _, at := range closes[m.GapID] {
+		for _, at := range append(byGap[m.GapID], byMotion[m.ID]...) {
 			if at > m.filed {
 				ended[m.ID] = true
 			}
@@ -300,34 +368,23 @@ func requireDocketingShape(q recordsql.Querier, d *recordpb.Docketing) error {
 	return nil
 }
 
-// ProposalSide is proposalSide, for the verb writing the assignee's accept.
-func ProposalSide(filer string) recordpb.SidedWith { return proposalSide(filer) }
-
-// proposalSide is the side whose position a proposal is: blue's where blue filed it, the filer's where
-// a red seat (a lens or the chair) filed it on another red seat's gap.
-func proposalSide(filer string) recordpb.SidedWith {
-	if seatclass.RoleOfSeat(filer) == "blue" {
-		return recordpb.SidedWith_SIDED_WITH_BLUE
-	}
-	return recordpb.SidedWith_SIDED_WITH_FILER
+// proposalSide is the side whose position a proposal is: the author's, the one party that files on a
+// gap.
+func proposalSide(string) recordpb.SidedWith {
+	return recordpb.SidedWith_SIDED_WITH_AUTHOR
 }
 
-// docketingPair is the two sides a docketing's ruling may side with: red's and blue's at impasse and
-// on blue's proposal; the filer's and the assignee's on a red seat's proposal on another red seat's gap;
-// none at grade movement, whose answer is a grade answer.
+// docketingPair is the two sides a docketing's ruling may side with: the raiser's and the author's at
+// impasse and on a proposal; none at grade movement, whose answer is a grade answer.
 func docketingPair(q recordsql.Querier, k docketingRow) ([2]recordpb.SidedWith, error) {
-	red, blue := recordpb.SidedWith_SIDED_WITH_RED, recordpb.SidedWith_SIDED_WITH_BLUE
+	pair := [2]recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.SidedWith_SIDED_WITH_AUTHOR}
 	if k.Cause != recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL {
-		return [2]recordpb.SidedWith{red, blue}, nil
+		return pair, nil
 	}
-	p, found, err := docketProposalAt(q, k.MotionID)
-	if err != nil || !found {
+	if _, found, err := docketProposalAt(q, k.MotionID); err != nil || !found {
 		return [2]recordpb.SidedWith{}, err
 	}
-	if proposalSide(p.Filer) == blue {
-		return [2]recordpb.SidedWith{red, blue}, nil
-	}
-	return [2]recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_FILER, recordpb.SidedWith_SIDED_WITH_ASSIGNEE}, nil
+	return pair, nil
 }
 
 // requireDocketAnswer is a docket ruling against what it answers (validate): who may write it, and
@@ -492,12 +549,12 @@ func closingTakesText(q recordsql.Querier, gapID string) (takes bool, aboutKind 
 
 // requireClosingStatement is validate's arm for what a closing states (§III.B14): red's text, blue's
 // word, each on its own side's closing and nowhere else. Blue's closing carries no road, and states a
-// word only at an impasse docketing — one of the five words a for-blue answer writes. Red's closing
+// word only at an impasse docketing — one of the five words a for-author answer writes. Red's closing
 // carries no word; where its docketing's question takes text (closingTakesText) it carries exactly one
 // of a road — the pair, or the anchor's retire on a gap about a citation or computation — and
 // no_text, so an omitted road is never recorded as a statement of none; elsewhere it carries none.
 // Whether the pair plans on the report, and whether a standing estoppel row refuses it, is the closing
-// verb's and the for-red answer's to ask.
+// verb's and the for-raiser answer's to ask.
 func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Closing) error {
 	pair := c.Location != nil || c.FixNew != nil
 	road := pair || c.GetRetire()

@@ -103,8 +103,8 @@ func TestBluesRetireThatIsRedsTextLandsAndTheBenchAppliesNothingMore(t *testing.
 		t.Fatalf("blue's retire of the citation red's text retires: %v %s", err, out)
 	}
 	conveneBench(t, runDir, gap)
-	if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
-		t.Fatalf("--for-red with red's text already done: %v %s", err, out)
+	if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+		t.Fatalf("--for-raiser with red's text already done: %v %s", err, out)
 	}
 	if body := lastBody(t, runDir, &recordpb.Retire{}); len(body.GetAnchors()) != 1 || body.GetAnchors()[0] != cite {
 		t.Errorf("the last retire on the record is %+v, want blue's of %s alone", body, cite)
@@ -146,8 +146,8 @@ func TestBluesEditThatIsRedsReplacementLandsAndTheBenchAppliesNothingMore(t *tes
 	}
 	before := edits()
 	conveneBench(t, runDir, gap)
-	if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
-		t.Fatalf("--for-red with red's text already done: %v %s", err, out)
+	if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+		t.Fatalf("--for-raiser with red's text already done: %v %s", err, out)
 	}
 	if after := edits(); after != before {
 		t.Errorf("the answer for red wrote %d edit(s) over red's text already standing, want none", after-before)

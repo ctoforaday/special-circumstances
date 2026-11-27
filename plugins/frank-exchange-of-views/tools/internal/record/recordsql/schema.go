@@ -230,6 +230,15 @@ CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 -- A gap's latest amend, whose stored result wording the write path overlays the next amend on
 -- (recordsql.stampAmendResult) and the refresh reads as the current wording.
 CREATE INDEX "amend_gap" ON "amend" ("gap_id", "event_id");
+-- A party's concession of a docketing or a proposal on a gap (gap_refresh's standing docketing and
+-- proposal, and the ruling's trigger): the raiser's act taking the author's motion (accepts), and the
+-- author's act answering the gap (answers), on each body that carries one.
+CREATE INDEX "regrade_accepts" ON "regrade" ("accepts");
+CREATE INDEX "close_accepts" ON "close" ("accepts");
+CREATE INDEX "regrade_answers" ON "regrade" ("answers", "event_id");
+CREATE INDEX "amend_answers" ON "amend" ("answers", "event_id");
+CREATE INDEX "blue_edit_answers" ON "blue_edit" ("answers", "event_id");
+CREATE INDEX "retire_answers" ON "retire" ("answers", "event_id");
 -- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");

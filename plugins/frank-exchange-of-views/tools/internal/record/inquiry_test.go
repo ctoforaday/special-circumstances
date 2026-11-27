@@ -443,3 +443,12 @@ func TestOutOfScopeIsAboutAnInquiry(t *testing.T) {
 		t.Errorf("out_of_scope's material default = %s, want always: the mint is the judgement", recordpb.Word(got))
 	}
 }
+
+// A GAP ABOUT A GAP IS REFUSED AT THE WRITE: the kind is the record's word for it, and no write mints one.
+func TestAGapAboutAGapIsRefusedAtTheWrite(t *testing.T) {
+	m := corrMint("G2")
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("G-00000001")
+	if err := requireMintSubject(m); err == nil || !strings.Contains(err.Error(), "--about-kind gap is refused") {
+		t.Errorf("a gap about a gap = %v, want refused", err)
+	}
+}

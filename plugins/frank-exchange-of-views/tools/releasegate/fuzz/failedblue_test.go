@@ -391,7 +391,7 @@ func TestTheAssemblyDocketsAStandingProposal(t *testing.T) {
 	}
 	rule := &recordpb.MotionRule{MotionId: proto.String(motionID), Opinion: proto.String("fuzz: the filer's position stands"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(d.GetDocketingId()),
-			SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), Final: proto.Bool(true),
+			SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), Final: proto.Bool(true),
 			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}}
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: "judge"}, rule); err != nil {
 		t.Fatalf("the bench's ruling of %s for the filer's side: %v", d.GetDocketingId(), err)
@@ -400,6 +400,6 @@ func TestTheAssemblyDocketsAStandingProposal(t *testing.T) {
 		t.Fatalf("bench outcome after the assembly's ruling: %s", r.actErr)
 	}
 	t.Run("red's side at the assembly", func(t *testing.T) {
-		t.Skip("S3: red's side is refused naming the missing red closing text — needs red's closing text and the for-red comparison")
+		t.Skip("S3: red's side is refused naming the missing red closing text — needs red's closing text and the for-raiser comparison")
 	})
 }

@@ -99,16 +99,30 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 			Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}})); err != nil {
 		t.Fatal(err)
 	}
-	// TWO rulings — the state the write guard refuses, seeded by raw insert. A side reads as its word:
-	// the first, for the assignee, is "for assignee".
-	for i, side := range []recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_ASSIGNEE, recordpb.SidedWith_SIDED_WITH_FILER} {
-		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+	// TWO rulings, each of a docketing holding M-1, and then the raiser's accept of it — the state the
+	// write guard refuses, seeded by raw insert. A side reads as its word: the first, for the raiser,
+	// is "for raiser".
+	for i, k := range []string{"K-1", "K-2"} {
+		if _, err := Insert(db, event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_DOCKETING, &recordpb.Docketing{
+			DocketingId: proto.String(k), GapId: proto.String("G1"), Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(),
+			MotionId: proto.String("M-1"), Basis: proto.String("unaccepted in its window")})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, side := range []recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.SidedWith_SIDED_WITH_AUTHOR} {
+		ev := event(t, int32(4+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"),
-			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: side.Enum()}}})
+			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String([]string{"K-1", "K-2"}[i]), SidedWith: side.Enum(),
+				Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("no"), Settled: proto.String("s")}}})
 		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if _, err := Insert(db, event(t, 6, recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{GapId: proto.String("G1"),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("taken late"), Accepts: proto.String("M-1")})); err != nil {
+		t.Fatal(err)
 	}
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM "motion_answers" WHERE "motion_id" = 'M-1'`).Scan(&n); err != nil {
@@ -122,7 +136,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		Scan(&ruling, &by); err != nil {
 		t.Fatal(err)
 	}
-	if ruling != "for assignee" || by != "judge" {
+	if ruling != "for raiser" || by != "judge" {
 		t.Errorf("(ruling, ruled_by) = (%q, %q), want the FIRST ruling — the second does not overturn it", ruling, by)
 	}
 }

@@ -490,7 +490,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 			}
 			// THE BENCH SIDES WITH A STATED POSITION, AND NOTHING ELSE (EventSchema 80, docketing.go): a
-			// ruling of a docketing a Close ended first, a regrade of the bench's own, and a spot-check of
+			// ruling of a docketing a Close or an Amend ended first, a regrade of the bench's own, and a spot-check of
 			// a gap a dropped bench act left open, and an inquiry check such a gap alone holds wanting, are
 			// written as no event, each stated.
 			if ended, err := endedRuling(batch.Querier(), body); err != nil {

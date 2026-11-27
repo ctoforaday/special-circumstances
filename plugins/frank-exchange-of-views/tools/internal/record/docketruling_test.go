@@ -232,7 +232,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 		o := docketRule("D1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Direction, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
-		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 		if _, err := Append(benchSits(t, run), o); err != nil {
 			t.Errorf("a final not_a_defect ruling was refused: %v", err)
 		}
@@ -242,7 +242,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 		o := docketRule("D1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
-		d.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 		_, err := Append(benchSits(t, run), o)
 		if err == nil || !strings.Contains(err.Error(), "--direction is the research a remand's one more exchange owes") {
 			t.Errorf("a not_a_defect ruling stating a direction was not refused for it: %v", err)

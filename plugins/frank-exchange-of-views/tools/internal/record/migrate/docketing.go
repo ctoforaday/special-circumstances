@@ -23,10 +23,11 @@ import (
 //     chair's by hand, a minter's own, blue's — and its ruling are written as no event (O2); the closings
 //     argued on them answer no docketing and are refusedArgument's.
 //   - Translation 4. The bench writes no word or grade of its own; it sides with a party's stated
-//     position. An archived ruling's closing word becomes a for-blue answer with blue stating none —
-//     {sided_with: BLUE, disposition: not_a_defect}: the archive holds no red text and no blue word, so
-//     blue's text standing is the only stated position. A remand stays a remand. A ruling of a docketing
-//     a Close of its gap ended first, and every regrade the bench wrote, are written as no event.
+//     position. An archived ruling's closing word becomes a for-author answer with blue stating none —
+//     {sided_with: AUTHOR, disposition: not_a_defect}: the archive holds no red text and no blue word,
+//     so blue's text standing is the only stated position. A remand stays a remand. A ruling of a
+//     docketing a Close or an Amend of its gap ended first, and every regrade the bench wrote, are
+//     written as no event.
 //
 // A bench opinion is written as no event: the engine convened the bench there and no party stated a
 // position, so its gap reads as the opinion found it. A dispatch's docket on a gap a later mint
@@ -153,7 +154,7 @@ func (d archivedDockets) translate(bodies []proto.Message) (out []proto.Message,
 			r.DocketingId = proto.String(id)
 			m.MotionId = nil
 			if r.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED {
-				r.SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+				r.SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 				r.Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
 			}
 		}
@@ -174,8 +175,9 @@ func docketingCause(q recordsql.Querier, k *recordpb.Docketing) error {
 }
 
 // endedRuling reports whether body is a ruling of a docketing that does not stand where it is
-// written: a Close of its gap ended it first (L42), which the trigger
-// motion_rule_docket_answers_a_filing refuses.
+// written, which the trigger motion_rule_docket_answers_a_filing refuses: a Close of its gap ended it
+// first (L42), or an Amend of its gap did — Translation 7's amend of a supersede link written after
+// the docketing's row ends it unruled, as the live amend does.
 func endedRuling(q recordsql.Querier, body proto.Message) (bool, error) {
 	r, ok := body.(*recordpb.MotionRule)
 	if !ok || r.GetDocket().GetDocketingId() == "" {

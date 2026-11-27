@@ -63,7 +63,7 @@ func docketed(t *testing.T, seat string, docketingID, gapID string) *recordpb.Ev
 func benchRule(t *testing.T, seat string, docketingID string, d recordpb.Disposition) *recordpb.Event {
 	t.Helper()
 	dr := &recordpb.DocketRuling{
-		DocketingId: proto.String(docketingID), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+		DocketingId: proto.String(docketingID), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 		Disposition: d.Enum(),
 		Principle:   proto.String("correctness first"), Tension: proto.String("economy"),
 		ReviewFlag: proto.String("none: the acceptance check settles it"),

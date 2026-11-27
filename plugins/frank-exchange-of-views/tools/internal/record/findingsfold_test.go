@@ -42,10 +42,6 @@ func TestTheRecordHoldsNoFinding(t *testing.T) {
 	if et.Values().ByNumber(11) != nil || !et.ReservedNames().Has("EVENT_TYPE_FINDING") || !et.ReservedRanges().Has(11) {
 		t.Error("EVENT_TYPE_FINDING (11) is not reserved")
 	}
-	ak := recordpb.AboutKind(0).Descriptor()
-	if ak.Values().ByNumber(3) != nil || !ak.ReservedNames().Has("ABOUT_KIND_GAP") || !ak.ReservedRanges().Has(3) {
-		t.Error("ABOUT_KIND_GAP (3) is not reserved")
-	}
 	mint := (&recordpb.Mint{}).ProtoReflect().Descriptor()
 	reserved("Mint field", mint.ReservedNames(), mint.ReservedRanges(), "found_by", 21)
 	ev := (&recordpb.Event{}).ProtoReflect().Descriptor()

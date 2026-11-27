@@ -228,7 +228,7 @@ func requireRemandWithinLimit(w writeView, seatID, gapID, what string) error {
 	}
 	return feov.Errorf(feov.Conflict,
 		"%s is about gap %s, which the bench already remanded at impasse (event %d) — "+RemandLimitRule+". "+
-			"Nothing was recorded; answer with a side of the docketing's pair (`--for-red | --for-blue`, or `--for-filer | --for-assignee` on a red seat's proposal)",
+			"Nothing was recorded; answer with a side of the docketing's pair (`--for-raiser | --for-author`)",
 		what, gapID, at)
 }
 

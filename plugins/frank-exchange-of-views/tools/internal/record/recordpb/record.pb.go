@@ -1314,6 +1314,7 @@ const (
 	AboutKind_ABOUT_KIND_INQUIRY     AboutKind = 2
 	AboutKind_ABOUT_KIND_QUESTION    AboutKind = 6
 	AboutKind_ABOUT_KIND_ANCHOR      AboutKind = 5
+	AboutKind_ABOUT_KIND_GAP         AboutKind = 3
 )
 
 // Enum value maps for AboutKind.
@@ -1324,6 +1325,7 @@ var (
 		2: "ABOUT_KIND_INQUIRY",
 		6: "ABOUT_KIND_QUESTION",
 		5: "ABOUT_KIND_ANCHOR",
+		3: "ABOUT_KIND_GAP",
 	}
 	AboutKind_value = map[string]int32{
 		"ABOUT_KIND_UNSPECIFIED": 0,
@@ -1331,6 +1333,7 @@ var (
 		"ABOUT_KIND_INQUIRY":     2,
 		"ABOUT_KIND_QUESTION":    6,
 		"ABOUT_KIND_ANCHOR":      5,
+		"ABOUT_KIND_GAP":         3,
 	}
 )
 
@@ -1941,33 +1944,27 @@ func (PetitionClass) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{26}
 }
 
-// SidedWith is the position whose statement a ruling applied, as the answer named it. `side` is red
-// or blue; two of these values are neither, so the field is the plan's own "sides with".
+// SidedWith is the party whose statement a bench ruling applied, as the answer named it: a gap's two
+// parties are its raiser, the lens that minted it, and the author of the subject it stands on.
 type SidedWith int32
 
 const (
 	SidedWith_SIDED_WITH_UNSPECIFIED SidedWith = 0
-	SidedWith_SIDED_WITH_RED         SidedWith = 1
-	SidedWith_SIDED_WITH_BLUE        SidedWith = 2
-	SidedWith_SIDED_WITH_FILER       SidedWith = 3
-	SidedWith_SIDED_WITH_ASSIGNEE    SidedWith = 4
+	SidedWith_SIDED_WITH_RAISER      SidedWith = 1
+	SidedWith_SIDED_WITH_AUTHOR      SidedWith = 2
 )
 
 // Enum value maps for SidedWith.
 var (
 	SidedWith_name = map[int32]string{
 		0: "SIDED_WITH_UNSPECIFIED",
-		1: "SIDED_WITH_RED",
-		2: "SIDED_WITH_BLUE",
-		3: "SIDED_WITH_FILER",
-		4: "SIDED_WITH_ASSIGNEE",
+		1: "SIDED_WITH_RAISER",
+		2: "SIDED_WITH_AUTHOR",
 	}
 	SidedWith_value = map[string]int32{
 		"SIDED_WITH_UNSPECIFIED": 0,
-		"SIDED_WITH_RED":         1,
-		"SIDED_WITH_BLUE":        2,
-		"SIDED_WITH_FILER":       3,
-		"SIDED_WITH_ASSIGNEE":    4,
+		"SIDED_WITH_RAISER":      1,
+		"SIDED_WITH_AUTHOR":      2,
 	}
 )
 
@@ -3737,7 +3734,11 @@ type Close struct {
 	// attestation audit joins each to the other tool calls of the closer's sitting: a closure naming an
 	// anchor it never read is the dishonesty that audit exists to find. Empty is "verified with no
 	// anchor", and the audit then reads anchor_target's prose.
-	Anchors       []string `protobuf:"bytes,9,rep,name=anchors,proto3" json:"anchors,omitempty"`
+	Anchors []string `protobuf:"bytes,9,rep,name=anchors,proto3" json:"anchors,omitempty"`
+	// accepts is the author's docket motion whose proposed close this close is: the raiser taking the
+	// proposal by its own act, the motion's stored act applied (--accept). It answers the motion, and
+	// the docketing that holds it ends with no ruling.
+	Accepts       *string `protobuf:"bytes,10,opt,name=accepts,proto3,oneof" json:"accepts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3828,6 +3829,13 @@ func (x *Close) GetAnchors() []string {
 	return nil
 }
 
+func (x *Close) GetAccepts() string {
+	if x != nil && x.Accepts != nil {
+		return *x.Accepts
+	}
+	return ""
+}
+
 // Closing is the closing argument on a docket-bound gap, read by the bench.
 type Closing struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3835,7 +3843,7 @@ type Closing struct {
 	Text  *string                `protobuf:"bytes,2,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// RED'S TEXT, ITS STATEMENT AT A DOCKETING whose question takes text: one road — the pair, or the
 	// anchor's retire — or none with no_text, where every road red can state is refused. The pair is
-	// planned as `blue edit --accept` would apply it on the report as it stands, and a for-red answer
+	// planned as `blue edit --accept` would apply it on the report as it stands, and a for-raiser answer
 	// applies it as the bench's edit. Blue's closing carries no road.
 	//
 	// location is the span of the report as it stands, ending at the gap's marker (the mint's sense).
@@ -3844,16 +3852,26 @@ type Closing struct {
 	FixNew *string `protobuf:"bytes,4,opt,name=fix_new,json=fixNew,proto3,oneof" json:"fix_new,omitempty"`
 	// retire is, on a gap about a citation or a computation, that anchor's retire.
 	Retire *bool `protobuf:"varint,5,opt,name=retire,proto3,oneof" json:"retire,omitempty"`
-	// BLUE'S WORD, ITS STATEMENT AT AN IMPASSE DOCKETING: the closing word a for-blue answer writes;
+	// BLUE'S WORD, ITS STATEMENT AT AN IMPASSE DOCKETING: the closing word a for-author answer writes;
 	// where blue states none, `not_a_defect` — blue's text stands. The word a close records (Close's
 	// own field and flag), admitted on blue's closing on an impasse docketing only.
 	ClosureClass *Disposition `protobuf:"varint,6,opt,name=closure_class,json=closureClass,proto3,enum=feov.record.v1.Disposition,oneof" json:"closure_class,omitempty"`
 	// RED STATES NO TEXT ON THIS DOCKETING. Recorded only when TRUE: on a red closing whose docketing's
 	// question takes text, exactly one of a road and this is set, so an omitted road is never read as a
 	// statement of none.
-	NoText        *bool `protobuf:"varint,7,opt,name=no_text,json=noText,proto3,oneof" json:"no_text,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NoText *bool `protobuf:"varint,7,opt,name=no_text,json=noText,proto3,oneof" json:"no_text,omitempty"`
+	// THE RAISER'S STATEMENT ON A GAP ABOUT A GAP: what the gap it is about should become — its
+	// wording (Amend's fields, in the mint's sense), its grades (Regrade's), or both. A for-raiser
+	// answer applies it as the bench's Amend and Regrade of that gap.
+	Problem         *string `protobuf:"bytes,8,opt,name=problem,proto3,oneof" json:"problem,omitempty"`
+	RequiredFix     *string `protobuf:"bytes,9,opt,name=required_fix,json=requiredFix,proto3,oneof" json:"required_fix,omitempty"`
+	AcceptanceCheck *string `protobuf:"bytes,10,opt,name=acceptance_check,json=acceptanceCheck,proto3,oneof" json:"acceptance_check,omitempty"`
+	Severity        *Grade  `protobuf:"varint,11,opt,name=severity,proto3,enum=feov.record.v1.Grade,oneof" json:"severity,omitempty"`
+	Likelihood      *Grade  `protobuf:"varint,12,opt,name=likelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"likelihood,omitempty"`
+	Impact          *Grade  `protobuf:"varint,13,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
+	ComplexityCost  *Grade  `protobuf:"varint,14,opt,name=complexity_cost,json=complexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"complexity_cost,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Closing) Reset() {
@@ -3935,6 +3953,55 @@ func (x *Closing) GetNoText() bool {
 	return false
 }
 
+func (x *Closing) GetProblem() string {
+	if x != nil && x.Problem != nil {
+		return *x.Problem
+	}
+	return ""
+}
+
+func (x *Closing) GetRequiredFix() string {
+	if x != nil && x.RequiredFix != nil {
+		return *x.RequiredFix
+	}
+	return ""
+}
+
+func (x *Closing) GetAcceptanceCheck() string {
+	if x != nil && x.AcceptanceCheck != nil {
+		return *x.AcceptanceCheck
+	}
+	return ""
+}
+
+func (x *Closing) GetSeverity() Grade {
+	if x != nil && x.Severity != nil {
+		return *x.Severity
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Closing) GetLikelihood() Grade {
+	if x != nil && x.Likelihood != nil {
+		return *x.Likelihood
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Closing) GetImpact() Grade {
+	if x != nil && x.Impact != nil {
+		return *x.Impact
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Closing) GetComplexityCost() Grade {
+	if x != nil && x.ComplexityCost != nil {
+		return *x.ComplexityCost
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
 // one on a finished gap changes a number nobody reads.
 type Regrade struct {
@@ -3955,8 +4022,17 @@ type Regrade struct {
 	ResultLikelihood     *Grade `protobuf:"varint,8,opt,name=result_likelihood,json=resultLikelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"result_likelihood,omitempty"`
 	ResultImpact         *Grade `protobuf:"varint,9,opt,name=result_impact,json=resultImpact,proto3,enum=feov.record.v1.Grade,oneof" json:"result_impact,omitempty"`
 	ResultComplexityCost *Grade `protobuf:"varint,10,opt,name=result_complexity_cost,json=resultComplexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"result_complexity_cost,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// accepts is the author's docket motion whose proposed regrade this regrade is: the raiser taking
+	// the proposal by its own act, the motion's stored grades applied (--accept). It answers the motion,
+	// and the docketing that holds it ends with no ruling.
+	Accepts *string `protobuf:"bytes,11,opt,name=accepts,proto3,oneof" json:"accepts,omitempty"`
+	// answers is the open gap about this gap that the regrade answers (BlueEdit.answers' sense): set on
+	// the minter's regrade of its own gap, or the bench's application in a gap-on-gap ruling.
+	Answers *string `protobuf:"bytes,12,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	// accepted is the author's concession of the docketing standing on `answers`, set by --accept.
+	Accepted      *bool `protobuf:"varint,13,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Regrade) Reset() {
@@ -4057,6 +4133,27 @@ func (x *Regrade) GetResultComplexityCost() Grade {
 		return *x.ResultComplexityCost
 	}
 	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Regrade) GetAccepts() string {
+	if x != nil && x.Accepts != nil {
+		return *x.Accepts
+	}
+	return ""
+}
+
+func (x *Regrade) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
+	}
+	return ""
+}
+
+func (x *Regrade) GetAccepted() bool {
+	if x != nil && x.Accepted != nil {
+		return *x.Accepted
+	}
+	return false
 }
 
 // Amend restates a gap's wording, with its reason: its minter's change to the demand on its open gap.
@@ -5238,7 +5335,10 @@ type QuestionPart struct {
 	SupersedesCoverage *string `protobuf:"bytes,4,opt,name=supersedes_coverage,json=supersedesCoverage,proto3,oneof" json:"supersedes_coverage,omitempty"`
 	// reason is why the coverage holds, required on every record of coverage: the logic lens judges
 	// the coverage against it.
-	Reason        *string `protobuf:"bytes,5,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	Reason *string `protobuf:"bytes,5,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// answers is the gap a coverage or split responds to (BlueEdit.answers' sense): the author's answer
+	// to it. A coverage or split naming none is the gap's raiser's turn.
+	Answers       *string `protobuf:"bytes,6,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5304,6 +5404,13 @@ func (x *QuestionPart) GetSupersedesCoverage() string {
 func (x *QuestionPart) GetReason() string {
 	if x != nil && x.Reason != nil {
 		return *x.Reason
+	}
+	return ""
+}
+
+func (x *QuestionPart) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
 	}
 	return ""
 }
@@ -5379,7 +5486,10 @@ type Inquiry struct {
 	SupersedesStatus *string `protobuf:"bytes,6,opt,name=supersedes_status,json=supersedesStatus,proto3,oneof" json:"supersedes_status,omitempty"`
 	// A declined, deferred or abandoned inquiry requires a reason: the road not taken is worthless
 	// without why, and a deferral with none is indistinguishable from forgetting.
-	Reason        *string `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	Reason *string `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// answers is the gap a record of a fate responds to (BlueEdit.answers' sense): the author's answer
+	// to it. A fate naming none is the gap's raiser's turn.
+	Answers       *string `protobuf:"bytes,8,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5459,6 +5569,13 @@ func (x *Inquiry) GetSupersedesStatus() string {
 func (x *Inquiry) GetReason() string {
 	if x != nil && x.Reason != nil {
 		return *x.Reason
+	}
+	return ""
+}
+
+func (x *Inquiry) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
 	}
 	return ""
 }
@@ -5737,7 +5854,10 @@ type Retire struct {
 	// blue's answers (`show changes --id`, the lens's answered list) reads it
 	// here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
 	// carries the gap it answers.
-	Answers       *string `protobuf:"bytes,7,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	Answers *string `protobuf:"bytes,7,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	// accepted is a retire the tool applied from the raiser's stated retire (--accept): the author's
+	// concession of the docketing standing on `answers`, as BlueEdit.accepted is an edit's.
+	Accepted      *bool `protobuf:"varint,8,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5819,6 +5939,13 @@ func (x *Retire) GetAnswers() string {
 		return *x.Answers
 	}
 	return ""
+}
+
+func (x *Retire) GetAccepted() bool {
+	if x != nil && x.Accepted != nil {
+		return *x.Accepted
+	}
+	return false
 }
 
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
@@ -6223,9 +6350,9 @@ type DocketRuling struct {
 	// assignee's accept answers a proposal, not a docketing. One ruling per docketing, refused at the
 	// column as well as at the write.
 	DocketingId *string `protobuf:"bytes,10,opt,name=docketing_id,json=docketingId,proto3,oneof" json:"docketing_id,omitempty"`
-	// THE SIDE WHOSE STATEMENT THIS RULING APPLIED, as the answer named it: set on every ruling but a
-	// remand and a grade-movement answer. Every other body in the ruling's transaction is that side's
-	// statement. "Did the held proposal's act apply" reads BLUE or FILER on a ruling naming a motion.
+	// THE PARTY WHOSE STATEMENT THIS RULING APPLIED, as the answer named it: set on every bench ruling
+	// but a remand and a grade-movement answer. Every other body in the ruling's transaction is that
+	// party's statement. "Did the held proposal's act apply" reads AUTHOR on a ruling naming a motion.
 	SidedWith *SidedWith `protobuf:"varint,11,opt,name=sided_with,json=sidedWith,proto3,enum=feov.record.v1.SidedWith,oneof" json:"sided_with,omitempty"`
 	// WHAT THE RULING DID WITH THE WINDOW'S MOVED GRADES, set exactly on a grade-movement docketing's
 	// ruling: kept, or restored to the recorded prior grades by a bench regrade the tool writes.
@@ -8233,7 +8360,7 @@ const file_record_proto_rawDesc = "" +
 	"\f_mint_reasonB\x11\n" +
 	"\x0f_class_materialJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\v\x10\fJ\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cR\tclass_newR\n" +
 	"definitionR\bneighborR\rdistinguisherR\afix_oldR\bfound_byR\n" +
-	"supersedes\"\xce\a\n" +
+	"supersedes\"\x91\b\n" +
 	"\x05Close\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xd4\x01\n" +
 	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionB\x8c\x01\x82\xb5\x18\x87\x01\x1a}a red close asserts a repair; `remanded` sends the gap back to the debate instead of closing it and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
@@ -8244,7 +8371,9 @@ const file_record_proto_rawDesc = "" +
 	"\ranchor_target\x18\x05 \x01(\tH\x04R\fanchorTarget\x88\x01\x01\x12&\n" +
 	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x12\x9c\x01\n" +
 	"\x05prose\x18\b \x01(\tB\x80\x01\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it\xc0\xb5\x18\x01H\x06R\x05prose\x88\x01\x01\x12\x18\n" +
-	"\aanchors\x18\t \x03(\tR\aanchors:\xb6\x01\x92\xb5\x18\xb1\x01\n" +
+	"\aanchors\x18\t \x03(\tR\aanchors\x125\n" +
+	"\aaccepts\x18\n" +
+	" \x01(\tB\x16\x82\xb5\x18\x12\"\x10motion.motion_idH\aR\aaccepts\x88\x01\x01:\xb6\x01\x92\xb5\x18\xb1\x01\n" +
 	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the epoch it restates already argued itB\t\n" +
 	"\a_gap_idB\x10\n" +
 	"\x0e_closure_classB\x0e\n" +
@@ -8252,15 +8381,28 @@ const file_record_proto_rawDesc = "" +
 	"\f_anchor_toolB\x10\n" +
 	"\x0e_anchor_targetB\x0f\n" +
 	"\r_carried_fromB\b\n" +
-	"\x06_proseJ\x04\b\a\x10\bR\tsuccessor\"\xf1\x04\n" +
+	"\x06_proseB\n" +
+	"\n" +
+	"\b_acceptsJ\x04\b\a\x10\bR\tsuccessor\"\xd6\b\n" +
 	"\aClosing\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x7f\n" +
 	"\x04text\x18\x02 \x01(\tBf\x82\xb5\x18^\b\x01\x12\x06reason\x1aRthe closing argument for this gap — the report renders it under the gap's docket\xc0\xb5\x18\x01H\x01R\x04text\x88\x01\x01\x120\n" +
 	"\blocation\x18\x03 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x02R\blocation\x88\x01\x01\x12'\n" +
 	"\afix_new\x18\x04 \x01(\tB\t\x82\xb5\x18\x05\x12\x03newH\x03R\x06fixNew\x88\x01\x01\x12)\n" +
-	"\x06retire\x18\x05 \x01(\bB\f\x82\xb5\x18\b\x12\x06retireH\x04R\x06retire\x88\x01\x01\x12\xac\x01\n" +
-	"\rclosure_class\x18\x06 \x01(\x0e2\x1b.feov.record.v1.DispositionBe\x82\xb5\x18a\x12\x02as\x1aSblue's statement at an impasse docketing: the closing word a for-blue answer writes2\x06closesH\x05R\fclosureClass\x88\x01\x01\x12+\n" +
-	"\ano_text\x18\a \x01(\bB\r\x82\xb5\x18\t\x12\ano-textH\x06R\x06noText\x88\x01\x01B\t\n" +
+	"\x06retire\x18\x05 \x01(\bB\f\x82\xb5\x18\b\x12\x06retireH\x04R\x06retire\x88\x01\x01\x12\xae\x01\n" +
+	"\rclosure_class\x18\x06 \x01(\x0e2\x1b.feov.record.v1.DispositionBg\x82\xb5\x18c\x12\x02as\x1aUblue's statement at an impasse docketing: the closing word a for-author answer writes2\x06closesH\x05R\fclosureClass\x88\x01\x01\x12+\n" +
+	"\ano_text\x18\a \x01(\bB\r\x82\xb5\x18\t\x12\ano-textH\x06R\x06noText\x88\x01\x01\x12#\n" +
+	"\aproblem\x18\b \x01(\tB\x04\xc0\xb5\x18\x01H\aR\aproblem\x88\x01\x01\x12,\n" +
+	"\frequired_fix\x18\t \x01(\tB\x04\xc0\xb5\x18\x01H\bR\vrequiredFix\x88\x01\x01\x124\n" +
+	"\x10acceptance_check\x18\n" +
+	" \x01(\tB\x04\xc0\xb5\x18\x01H\tR\x0facceptanceCheck\x88\x01\x01\x126\n" +
+	"\bseverity\x18\v \x01(\x0e2\x15.feov.record.v1.GradeH\n" +
+	"R\bseverity\x88\x01\x01\x12:\n" +
+	"\n" +
+	"likelihood\x18\f \x01(\x0e2\x15.feov.record.v1.GradeH\vR\n" +
+	"likelihood\x88\x01\x01\x122\n" +
+	"\x06impact\x18\r \x01(\x0e2\x15.feov.record.v1.GradeH\fR\x06impact\x88\x01\x01\x12C\n" +
+	"\x0fcomplexity_cost\x18\x0e \x01(\x0e2\x15.feov.record.v1.GradeH\rR\x0ecomplexityCost\x88\x01\x01B\t\n" +
 	"\a_gap_idB\a\n" +
 	"\x05_textB\v\n" +
 	"\t_locationB\n" +
@@ -8269,7 +8411,15 @@ const file_record_proto_rawDesc = "" +
 	"\a_retireB\x10\n" +
 	"\x0e_closure_classB\n" +
 	"\n" +
-	"\b_no_text\"\xc8\x06\n" +
+	"\b_no_textB\n" +
+	"\n" +
+	"\b_problemB\x0f\n" +
+	"\r_required_fixB\x13\n" +
+	"\x11_acceptance_checkB\v\n" +
+	"\t_severityB\r\n" +
+	"\v_likelihoodB\t\n" +
+	"\a_impactB\x12\n" +
+	"\x10_complexity_cost\"\xf7\a\n" +
 	"\aRegrade\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x126\n" +
 	"\bseverity\x18\x02 \x01(\x0e2\x15.feov.record.v1.GradeH\x01R\bseverity\x88\x01\x01\x12:\n" +
@@ -8283,7 +8433,11 @@ const file_record_proto_rawDesc = "" +
 	"\x11result_likelihood\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\aR\x10resultLikelihood\x88\x01\x01\x12?\n" +
 	"\rresult_impact\x18\t \x01(\x0e2\x15.feov.record.v1.GradeH\bR\fresultImpact\x88\x01\x01\x12P\n" +
 	"\x16result_complexity_cost\x18\n" +
-	" \x01(\x0e2\x15.feov.record.v1.GradeH\tR\x14resultComplexityCost\x88\x01\x01B\t\n" +
+	" \x01(\x0e2\x15.feov.record.v1.GradeH\tR\x14resultComplexityCost\x88\x01\x01\x125\n" +
+	"\aaccepts\x18\v \x01(\tB\x16\x82\xb5\x18\x12\"\x10motion.motion_idH\n" +
+	"R\aaccepts\x88\x01\x01\x120\n" +
+	"\aanswers\x18\f \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\vR\aanswers\x88\x01\x01\x12\x1f\n" +
+	"\baccepted\x18\r \x01(\bH\fR\baccepted\x88\x01\x01B\t\n" +
 	"\a_gap_idB\v\n" +
 	"\t_severityB\r\n" +
 	"\v_likelihoodB\t\n" +
@@ -8293,7 +8447,12 @@ const file_record_proto_rawDesc = "" +
 	"\x10_result_severityB\x14\n" +
 	"\x12_result_likelihoodB\x10\n" +
 	"\x0e_result_impactB\x19\n" +
-	"\x17_result_complexity_cost\"\xd8\t\n" +
+	"\x17_result_complexity_costB\n" +
+	"\n" +
+	"\b_acceptsB\n" +
+	"\n" +
+	"\b_answersB\v\n" +
+	"\t_accepted\"\xd8\t\n" +
 	"\x05Amend\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this amends\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x120\n" +
 	"\aproblem\x18\x02 \x01(\tB\x11\x82\xb5\x18\t\x12\aproblem\xc0\xb5\x18\x01H\x01R\aproblem\x88\x01\x01\x12>\n" +
@@ -8510,23 +8669,26 @@ const file_record_proto_rawDesc = "" +
 	"inquiry_id\x18\x01 \x01(\tBI\x82\xb5\x18E\b\x01\x12\x02id\x1a=the inquiry this judges — a check of nothing judges nothingH\x00R\tinquiryId\x88\x01\x01\x12\xac\x01\n" +
 	"\x06reason\x18\x02 \x01(\tB\x8e\x01\x82\xb5\x18\x85\x01\b\x01\x1a\x80\x01why the inquiry's latest fate stands as the report's account of it — a check that says nothing is the silence it exists to end\xc0\xb5\x18\x01H\x01R\x06reason\x88\x01\x01B\r\n" +
 	"\v_inquiry_idB\t\n" +
-	"\a_reason\"\xd4\x03\n" +
+	"\a_reason\"\xff\x03\n" +
 	"\fQuestionPart\x12\x1c\n" +
 	"\apart_id\x18\x01 \x01(\tH\x00R\x06partId\x88\x01\x01\x12\x7f\n" +
 	"\x04text\x18\x02 \x01(\tBf\x82\xb5\x18^\x12\x04text\x1aVthe part of the question this names — a part with no text is no part of any question\xc0\xb5\x18\x01H\x01R\x04text\x88\x01\x01\x12\x86\x01\n" +
 	"\bcoverage\x18\x03 \x01(\x0e2\x1c.feov.record.v1.PartCoverageBG\x82\xb5\x18C\x12\x02as\x1a=how the report covers this part; the derived outcome reads itH\x02R\bcoverage\x88\x01\x01\x124\n" +
 	"\x13supersedes_coverage\x18\x04 \x01(\tH\x03R\x12supersedesCoverage\x88\x01\x01\x12!\n" +
-	"\x06reason\x18\x05 \x01(\tB\x04\xc0\xb5\x18\x01H\x04R\x06reason\x88\x01\x01B\n" +
+	"\x06reason\x18\x05 \x01(\tB\x04\xc0\xb5\x18\x01H\x04R\x06reason\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\x06 \x01(\tH\x05R\aanswers\x88\x01\x01B\n" +
 	"\n" +
 	"\b_part_idB\a\n" +
 	"\x05_textB\v\n" +
 	"\t_coverageB\x16\n" +
 	"\x14_supersedes_coverageB\t\n" +
-	"\a_reason\"\x8e\x01\n" +
+	"\a_reasonB\n" +
+	"\n" +
+	"\b_answers\"\x8e\x01\n" +
 	"\x11QuestionPartCheck\x12m\n" +
 	"\apart_id\x18\x01 \x01(\tBO\x82\xb5\x18K\b\x01\x12\x02id\x1aCthe question part this judges — a check of nothing judges nothingH\x00R\x06partId\x88\x01\x01B\n" +
 	"\n" +
-	"\b_part_id\"\xc0\x04\n" +
+	"\b_part_id\"\xeb\x04\n" +
 	"\aInquiry\x12\"\n" +
 	"\n" +
 	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01\x12\x87\x01\n" +
@@ -8537,14 +8699,17 @@ const file_record_proto_rawDesc = "" +
 	"\x06method\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x06method\x88\x01\x01\x12\x81\x01\n" +
 	"\x06status\x18\x05 \x01(\x0e2\x1d.feov.record.v1.InquiryStatusBE\x82\xb5\x18A\b\x01\x12\x02as\x1a9the inquiry's fate; the inquiries projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
 	"\x11supersedes_status\x18\x06 \x01(\tH\x05R\x10supersedesStatus\x88\x01\x01\x12!\n" +
-	"\x06reason\x18\a \x01(\tB\x04\xc0\xb5\x18\x01H\x06R\x06reason\x88\x01\x01B\r\n" +
+	"\x06reason\x18\a \x01(\tB\x04\xc0\xb5\x18\x01H\x06R\x06reason\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\b \x01(\tH\aR\aanswers\x88\x01\x01B\r\n" +
 	"\v_inquiry_idB\v\n" +
 	"\t_questionB\r\n" +
 	"\v_hypothesisB\t\n" +
 	"\a_methodB\t\n" +
 	"\a_statusB\x14\n" +
 	"\x12_supersedes_statusB\t\n" +
-	"\a_reason\".\n" +
+	"\a_reasonB\n" +
+	"\n" +
+	"\b_answers\".\n" +
 	"\n" +
 	"ReportPart\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
@@ -8573,7 +8738,7 @@ const file_record_proto_rawDesc = "" +
 	"\t_acceptedB\r\n" +
 	"\v_exact_spanB\x11\n" +
 	"\x0f_old_paragraphsB\x11\n" +
-	"\x0f_new_paragraphs\"\x9a\x04\n" +
+	"\x0f_new_paragraphs\"\xc8\x04\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
@@ -8582,14 +8747,16 @@ const file_record_proto_rawDesc = "" +
 	"\aanchors\x18\x05 \x03(\tR\aanchors\x12\"\n" +
 	"\n" +
 	"claim_kept\x18\x06 \x01(\bH\x04R\tclaimKept\x88\x01\x01\x12\x1d\n" +
-	"\aanswers\x18\a \x01(\tH\x05R\aanswers\x88\x01\x01B\b\n" +
+	"\aanswers\x18\a \x01(\tH\x05R\aanswers\x88\x01\x01\x12\x1f\n" +
+	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01B\b\n" +
 	"\x06_claimB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_superseded_byB\x10\n" +
 	"\x0e_removal_basisB\r\n" +
 	"\v_claim_keptB\n" +
 	"\n" +
-	"\b_answers\"\x91\x03\n" +
+	"\b_answersB\v\n" +
+	"\t_accepted\"\x91\x03\n" +
 	"\x03Log\x12)\n" +
 	"\x04text\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\x04text\x88\x01\x01\x12\xf6\x01\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.feov.record.v1.LogTypeB\xc3\x01\x82\xb5\x18\xbe\x01\b\x01\x1a\xb9\x01the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one runH\x01R\x04type\x88\x01\x01\x126\n" +
@@ -8807,7 +8974,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\x98/\n" +
+	"\b_holding*\x890\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8815,9 +8982,9 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_INQUIRY\x10\x03\x1aI\x8a\xb5\x18Ean inquiry: its question, its hypothesis and each fate recorded on it\x12m\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aS\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\x12j\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aR\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\x12\x93\x01\n" +
-	"\x0fEVENT_TYPE_CITE\x10\x06\x1a~\x8a\xb5\x18za source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable\x12i\n" +
-	"\x10EVENT_TYPE_CLOSE\x10\b\x1aS\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\x12t\n" +
-	"\x12EVENT_TYPE_CLOSING\x10\t\x1a\\\x8a\xb5\x18Xa party's argument to the bench on one docketed gap — its assignee's or blue-respond's\x12a\n" +
+	"\x0fEVENT_TYPE_CITE\x10\x06\x1a~\x8a\xb5\x18za source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable\x12x\n" +
+	"\x10EVENT_TYPE_CLOSE\x10\b\x1ab\x8a\xb5\x18^a gap's raiser closing it on a verified repair — the raiser's half of the closing vocabulary\x12\xb5\x01\n" +
+	"\x12EVENT_TYPE_CLOSING\x10\t\x1a\x9c\x01\x8a\xb5\x18\x97\x01a party's argument to the bench on one docketed gap — its raiser's or its subject's author's — with the statement of what the subject should become\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aI\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\x12\xcb\x01\n" +
 	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb6\x01\x8a\xb5\x18\xb1\x01an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry\x12d\n" +
@@ -8845,9 +9012,9 @@ const file_record_proto_rawDesc = "" +
 	"\x1cEVENT_TYPE_ENVELOPE_ADMITTED\x10,\x1a\x9b\x02\x8a\xb5\x18\x96\x02the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed\x12\xd4\x01\n" +
 	"\x18EVENT_TYPE_INQUIRY_CHECK\x10-\x1a\xb5\x01\x8a\xb5\x18\xb0\x01the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands\x12\xca\x01\n" +
 	"\x18EVENT_TYPE_QUESTION_PART\x10.\x1a\xab\x01\x8a\xb5\x18\xa6\x01a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason\x12\xbf\x01\n" +
-	"\x1eEVENT_TYPE_QUESTION_PART_CHECK\x10/\x1a\x9a\x01\x8a\xb5\x18\x95\x01the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands\x12\x89\x02\n" +
-	"\x14EVENT_TYPE_TOMBSTONE\x100\x1a\xee\x01\x8a\xb5\x18\xe9\x01the tool marking a gap's text final — a bench ruling but a remand on it, or blue's verbatim application of its prescription — or ending that mark when a later act rewords the text; written in the act's own transaction, by no verb\x12\xca\x01\n" +
-	"\x14EVENT_TYPE_DOCKETING\x101\x1a\xaf\x01\x8a\xb5\x18\xaa\x01the tool putting a gap before the bench — at impasse, for the board's grade movement, or for a proposal its assignee did not accept; written by the dispatch, by no verb\x12\xe3\x01\n" +
+	"\x1eEVENT_TYPE_QUESTION_PART_CHECK\x10/\x1a\x9a\x01\x8a\xb5\x18\x95\x01the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands\x12\xa0\x02\n" +
+	"\x14EVENT_TYPE_TOMBSTONE\x100\x1a\x85\x02\x8a\xb5\x18\x80\x02the tool marking a gap's text final — a bench ruling but a remand on it, or the author's verbatim application of the raiser's stated text — or ending that mark at the subject's next change by its author; written in the act's own transaction, by no verb\x12\xd3\x01\n" +
+	"\x14EVENT_TYPE_DOCKETING\x101\x1a\xb8\x01\x8a\xb5\x18\xb3\x01the tool putting a gap before the bench — at impasse, for the board's grade movement, or for the author's proposal its raiser did not accept; written by the dispatch, by no verb\x12\xe3\x01\n" +
 	"\x10EVENT_TYPE_AMEND\x102\x1a\xcc\x01\x8a\xb5\x18\xc7\x01a gap's minter restating its wording — problem, required fix, acceptance check or prescription — on its open gap, with the reason; the gap keeps its id, and each amend is a version in its history\"\x04\b\v\x10\v\"\x04\b\x0f\x10\x0f\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b \x10 \"\x04\b'\x10'\"\x04\b*\x10*\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15\"\x04\b&\x10&*\x12EVENT_TYPE_FINDING*\x17EVENT_TYPE_MANIFEST_ROW*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x19EVENT_TYPE_INQUIRY_REVIEW*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x18EVENT_TYPE_SITTING_LIMIT*\x9e\x06\n" +
 	"\x05Grade\x12\"\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
@@ -8913,14 +9080,14 @@ const file_record_proto_rawDesc = "" +
 	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03\x12\xed\x02\n" +
 	"\x16GAP_CLASS_OUT_OF_SCOPE\x10\x1f\x1a\xd0\x02\x8a\xb5\x18\xb5\x01an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's researchص\x18\x01\xe2\xb5\x18\x11invalid_inference\xea\xb5\x18ydoes the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?\x12\x86\x04\n" +
 	"\x1cGAP_CLASS_COVERAGE_MISSTATED\x10!\x1a\xe3\x03\x8a\xb5\x18\xb0\x02the report's coverage of the question is misstated on the record: a question part's coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at allص\x18\x01\xe2\xb5\x18\fout_of_scope\xea\xb5\x18\x95\x01is the defect in what the record states of the question the run was asked — its parts and their coverage — or in an inquiry the research took up?\x12\x88\x03\n" +
-	"\"GAP_CLASS_CLAIM_CONTRADICTS_SOURCE\x10 \x1a\xdf\x02\x8a\xb5\x18\xea\x01a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quoteص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18Fdoes the source say otherwise than the sentence, or not say it at all?*\xa2\v\n" +
+	"\"GAP_CLASS_CLAIM_CONTRADICTS_SOURCE\x10 \x1a\xdf\x02\x8a\xb5\x18\xea\x01a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quoteص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18Fdoes the source say otherwise than the sentence, or not say it at all?*\xc7\v\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
-	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\x8c\x01\n" +
-	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1an\x8a\xb5\x18fblue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
+	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\x92\x01\n" +
+	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1at\x8a\xb5\x18lthe author argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x98\x04\n" +
-	"\x14DISPOSITION_REMANDED\x10\a\x1a\xfd\x03\x8a\xb5\x18\xf4\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its assignee once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xb7\x04\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1a\x9c\x04\x8a\xb5\x18\x93\x04NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies the author of its subject on it, owing the research direction the ruling states, and its raiser once the author has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when the author records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*$DISPOSITION_REPAIRED_WITH_REGRESSION*\x18DISPOSITION_AMENDS_PRIOR*\xfb\x12\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xaf\x03\n" +
@@ -8964,26 +9131,28 @@ const file_record_proto_rawDesc = "" +
 	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xea\x01\n" +
 	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\xcc\x01\x8a\xb5\x18\xc7\x01left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it\x12\xc7\x02\n" +
 	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xa9\x02\x8a\xb5\x18\xa4\x02you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
-	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xe9\x04\n" +
+	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xf9\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12\x89\x01\n" +
-	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\xab\x01\n" +
-	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x8f\x01\x8a\xb5\x18\x81\x01a party's proposed act on a gap: its assignee may accept it at its next sitting, else the bench answers it on the gap's docketing\xa2\xb5\x18\x05bench\x12\xc3\x01\n" +
+	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\xbb\x01\n" +
+	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x9f\x01\x8a\xb5\x18\x91\x01the author's proposed act on a gap: its raiser may accept it by its own act at its next sitting, else the bench answers it on the gap's docketing\xa2\xb5\x18\x05bench\x12\xc3\x01\n" +
 	"\x17MOTION_SUBJECT_POSITION\x10\x05\x1a\xa5\x01\x8a\xb5\x18\x97\x01a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing\xa2\xb5\x18\x05bench\"\x04\b\x01\x10\x01\"\x04\b\x03\x10\x03*\x14MOTION_SUBJECT_GRADE*\x16MOTION_SUBJECT_INQUIRY*\xf5\x02\n" +
 	"\x0ePetitionRuling\x12\x1f\n" +
 	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
 	"\x17PETITION_RULING_GRANTED\x10\x01\x1ar\x8a\xb5\x18nthe objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow\x12\xaf\x01\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xa5\x06\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xb3\x06\n" +
 	"\x0ePositionRuling\x12\x1f\n" +
-	"\x1bPOSITION_RULING_UNSPECIFIED\x10\x00\x12\xaa\x03\n" +
-	"\x16POSITION_RULING_UPHELD\x10\x01\x1a\x8d\x03\x8a\xb5\x18\x88\x03the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its assignee after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work\x12\xc4\x02\n" +
-	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xa4\x02\x8a\xb5\x18\x9f\x02the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld*\xf0\b\n" +
+	"\x1bPOSITION_RULING_UNSPECIFIED\x10\x00\x12\xb8\x03\n" +
+	"\x16POSITION_RULING_UPHELD\x10\x01\x1a\x9b\x03\x8a\xb5\x18\x96\x03the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by its subject's author's act on it and audited by its raiser after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work\x12\xc4\x02\n" +
+	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xa4\x02\x8a\xb5\x18\x9f\x02the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld*\x85\n" +
+	"\n" +
 	"\tAboutKind\x12\x1a\n" +
-	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xac\x02\n" +
+	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xd2\x01\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\xb9\x01\x8a\xb5\x18\xb4\x01a report section, by its heading, for something MISSING from it — the anchor a quote cannot provide, because the text you object to is not there; the gap's token ends the heading\x12\xac\x02\n" +
 	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x93\x02\x8a\xb5\x18\x8e\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor\x12\x8e\x02\n" +
 	"\x13ABOUT_KIND_QUESTION\x10\x06\x1a\xf4\x01\x8a\xb5\x18\xef\x01the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated\x12\xa0\x02\n" +
-	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x88\x02\x8a\xb5\x18\x83\x02a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x0eABOUT_KIND_GAP*\x18ABOUT_KIND_CONTRADICTION*\xb3\x04\n" +
+	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x88\x02\x8a\xb5\x18\x83\x02a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence\x12\x83\x01\n" +
+	"\x0eABOUT_KIND_GAP\x10\x03\x1ao\x8a\xb5\x18kanother lens's open gap, by its id: a defect in its printed wording or its grades, which its minter answers\"\x04\b\x04\x10\x04*\x18ABOUT_KIND_CONTRADICTION*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x1bSOURCE_TEXT_ORIGIN_EMBEDDED\x10\x01\x1aU\x8a\xb5\x18Qthe retrieved bytes carry the text: markup, plain text, or a PDF's own text layer\x12\xb1\x01\n" +
@@ -9022,15 +9191,15 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xd5\v\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xec\v\n" +
 	"\aLogType\x12\x18\n" +
 	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xb3\x01\n" +
 	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\x9d\x01\x8a\xb5\x18\x94\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT)\xb0\xb5\x18\x01\x12\xcf\x01\n" +
 	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12'\n" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xb1\x03\n" +
-	"\x10LOG_TYPE_FAILURE\x10\a\x1a\x9a\x03\x8a\xb5\x18\x91\x03a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x85\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xed\x01\x8a\xb5\x18\xe4\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xe8\x02\n" +
+	"\x10LOG_TYPE_FAILURE\x10\a\x1a\x9a\x03\x8a\xb5\x18\x91\x03a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x9c\x02\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\x84\x02\x8a\xb5\x18\xfb\x01the TOOL refused a mint because the defect lives in text the author applied verbatim from the prescribing lens's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xe8\x02\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12A\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a#\x8a\xb5\x18\x1fhow bad the defect is in itself\x12p\n" +
@@ -9042,13 +9211,11 @@ const file_record_proto_rawDesc = "" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aW\x8a\xb5\x18Sproceeding would require asserting what you believe false, or burying a real defect\x12J\n" +
 	"\x15PETITION_CLASS_SAFETY\x10\x02\x1a/\x8a\xb5\x18+proceeding would create or conceal a hazard\x12p\n" +
 	"\x16PETITION_CLASS_ETHICAL\x10\x05\x1aT\x8a\xb5\x18Pproceeding would require acting against the interests of someone the run affects\x12j\n" +
-	"\x1dPETITION_CLASS_CONSTITUTIONAL\x10\x06\x1aG\x8a\xb5\x18Cthe instruction itself conflicts with the rules the run is bound by\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x16PETITION_CLASS_PROCESS*\x14PETITION_CLASS_SCOPE*\x99\x04\n" +
+	"\x1dPETITION_CLASS_CONSTITUTIONAL\x10\x06\x1aG\x8a\xb5\x18Cthe instruction itself conflicts with the rules the run is bound by\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x16PETITION_CLASS_PROCESS*\x14PETITION_CLASS_SCOPE*\xff\x02\n" +
 	"\tSidedWith\x12\x1a\n" +
-	"\x16SIDED_WITH_UNSPECIFIED\x10\x00\x12t\n" +
-	"\x0eSIDED_WITH_RED\x10\x01\x1a`\x8a\xb5\x18\\red's position: the text red's closing states, applied as the bench's edit of the gap's text\x12t\n" +
-	"\x0fSIDED_WITH_BLUE\x10\x02\x1a_\x8a\xb5\x18[blue's position: its text as it stands, with its closing's word, or the proposal blue filed\x12i\n" +
-	"\x10SIDED_WITH_FILER\x10\x03\x1aS\x8a\xb5\x18Othe filing red seat's position: the proposal it filed on another red seat's gap\x12\x98\x01\n" +
-	"\x13SIDED_WITH_ASSIGNEE\x10\x04\x1a\x7f\x8a\xb5\x18{the gap's assignee's position against another red seat's proposal: the text its closing states, applied as the bench's edit*\xf5\x01\n" +
+	"\x16SIDED_WITH_UNSPECIFIED\x10\x00\x12\xa3\x01\n" +
+	"\x11SIDED_WITH_RAISER\x10\x01\x1a\x8b\x01\x8a\xb5\x18\x86\x01the raiser's position: the statement its closing states, applied by the bench as the act that makes the subject what the raiser stated\x12}\n" +
+	"\x11SIDED_WITH_AUTHOR\x10\x02\x1af\x8a\xb5\x18bthe author's position: its subject as it stands, with its closing's word, or the proposal it filed\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x10SIDED_WITH_FILER*\x13SIDED_WITH_ASSIGNEE*\xf5\x01\n" +
 	"\vMovedGrades\x12\x1c\n" +
 	"\x18MOVED_GRADES_UNSPECIFIED\x10\x00\x12:\n" +
 	"\x11MOVED_GRADES_KEPT\x10\x01\x1a#\x8a\xb5\x18\x1fthe window's moved grades stand\x12\x8b\x01\n" +
@@ -9064,16 +9231,16 @@ const file_record_proto_rawDesc = "" +
 	"\x11OCCASION_PETITION\x10\x02\x1a\xda\x01\x8a\xb5\x18\xd5\x01hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close's record_read reports a petition unheard: in the turn that filed it, at no epoch\x12\x9f\x01\n" +
 	"\x11OCCASION_TERMINAL\x10\x03\x1a\x87\x01\x8a\xb5\x18\x82\x01the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here\x12^\n" +
 	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run\x12\xde\x02\n" +
-	"\x11OCCASION_POSITION\x10\x05\x1a\xc6\x02\x8a\xb5\x18\xc1\x02hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch*\xc5\x02\n" +
+	"\x11OCCASION_POSITION\x10\x05\x1a\xc6\x02\x8a\xb5\x18\xc1\x02hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch*\xc6\x02\n" +
 	"\x0eDocketingCause\x12\x1f\n" +
 	"\x1bDOCKETING_CAUSE_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x17DOCKETING_CAUSE_IMPASSE\x10\x01\x1a9\x8a\xb5\x185the gap's exchanges reached k stalled or k-max in all\x12Z\n" +
-	"\x1eDOCKETING_CAUSE_GRADE_MOVEMENT\x10\x02\x1a6\x8a\xb5\x182the open gaps' grade movement passed its threshold\x12^\n" +
-	"\x18DOCKETING_CAUSE_PROPOSAL\x10\x03\x1a@\x8a\xb5\x18<a party's proposal its assignee did not accept in its window*\x8c\x02\n" +
+	"\x1eDOCKETING_CAUSE_GRADE_MOVEMENT\x10\x02\x1a6\x8a\xb5\x182the open gaps' grade movement passed its threshold\x12_\n" +
+	"\x18DOCKETING_CAUSE_PROPOSAL\x10\x03\x1aA\x8a\xb5\x18=the author's proposal its raiser did not accept in its window*\xa9\x02\n" +
 	"\rTombstoneKind\x12\x1e\n" +
-	"\x1aTOMBSTONE_KIND_UNSPECIFIED\x10\x00\x12\\\n" +
-	"\x15TOMBSTONE_KIND_RULING\x10\x01\x1aA\x8a\xb5\x18=a bench ruling but a remand is final for the ruled gap's text\x12}\n" +
-	"\x17TOMBSTONE_KIND_ESTOPPEL\x10\x02\x1a`\x8a\xb5\x18\\blue applied the gap's prescription verbatim, so red may not re-raise the text it prescribed:I\n" +
+	"\x1aTOMBSTONE_KIND_UNSPECIFIED\x10\x00\x12_\n" +
+	"\x15TOMBSTONE_KIND_RULING\x10\x01\x1aD\x8a\xb5\x18@a bench ruling but a remand is final for the ruled gap's subject\x12\x96\x01\n" +
+	"\x17TOMBSTONE_KIND_ESTOPPEL\x10\x02\x1ay\x8a\xb5\x18uthe author applied the raiser's stated text verbatim, so the prescribing lens may not re-raise the text it prescribed:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +
 	"\x05prose\x12\x1d.google.protobuf.FieldOptions\x18؆\x03 \x01(\bR\x05prose\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:I\n" +
@@ -9246,70 +9413,74 @@ var file_record_proto_depIdxs = []int32{
 	4,   // 52: feov.record.v1.Mint.class_material:type_name -> feov.record.v1.ClassMaterial
 	6,   // 53: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
 	6,   // 54: feov.record.v1.Closing.closure_class:type_name -> feov.record.v1.Disposition
-	1,   // 55: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	1,   // 56: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 57: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	1,   // 58: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	1,   // 59: feov.record.v1.Regrade.result_severity:type_name -> feov.record.v1.Grade
-	1,   // 60: feov.record.v1.Regrade.result_likelihood:type_name -> feov.record.v1.Grade
-	1,   // 61: feov.record.v1.Regrade.result_impact:type_name -> feov.record.v1.Grade
-	1,   // 62: feov.record.v1.Regrade.result_complexity_cost:type_name -> feov.record.v1.Grade
-	18,  // 63: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
-	19,  // 64: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
-	20,  // 65: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	21,  // 66: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	7,   // 67: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	9,   // 68: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	20,  // 69: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	8,   // 70: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
-	21,  // 71: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	22,  // 72: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
-	10,  // 73: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	11,  // 74: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	12,  // 75: feov.record.v1.QuestionPart.coverage:type_name -> feov.record.v1.PartCoverage
-	13,  // 76: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	24,  // 77: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	23,  // 78: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	60,  // 79: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 80: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	63,  // 81: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
-	43,  // 82: feov.record.v1.Motion.regrade:type_name -> feov.record.v1.Regrade
-	41,  // 83: feov.record.v1.Motion.close:type_name -> feov.record.v1.Close
-	26,  // 84: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	6,   // 85: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	27,  // 86: feov.record.v1.DocketRuling.sided_with:type_name -> feov.record.v1.SidedWith
-	28,  // 87: feov.record.v1.DocketRuling.moved_grades:type_name -> feov.record.v1.MovedGrades
-	16,  // 88: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
-	15,  // 89: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	62,  // 90: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	64,  // 91: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
-	29,  // 92: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	30,  // 93: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	31,  // 94: feov.record.v1.Docketing.cause:type_name -> feov.record.v1.DocketingCause
-	32,  // 95: feov.record.v1.Tombstone.kind:type_name -> feov.record.v1.TombstoneKind
-	2,   // 96: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	5,   // 97: feov.record.v1.Position.class:type_name -> feov.record.v1.GapClass
-	83,  // 98: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	83,  // 99: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	84,  // 100: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	84,  // 101: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	84,  // 102: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	84,  // 103: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	84,  // 104: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	84,  // 105: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	84,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	84,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	84,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	84,  // 109: feov.record.v1.finds_against:extendee -> google.protobuf.EnumValueOptions
-	85,  // 110: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	34,  // 111: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	4,   // 112: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	33,  // 113: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	114, // [114:114] is the sub-list for method output_type
-	114, // [114:114] is the sub-list for method input_type
-	111, // [111:114] is the sub-list for extension type_name
-	98,  // [98:111] is the sub-list for extension extendee
-	0,   // [0:98] is the sub-list for field type_name
+	1,   // 55: feov.record.v1.Closing.severity:type_name -> feov.record.v1.Grade
+	1,   // 56: feov.record.v1.Closing.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 57: feov.record.v1.Closing.impact:type_name -> feov.record.v1.Grade
+	1,   // 58: feov.record.v1.Closing.complexity_cost:type_name -> feov.record.v1.Grade
+	1,   // 59: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	1,   // 60: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 61: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	1,   // 62: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	1,   // 63: feov.record.v1.Regrade.result_severity:type_name -> feov.record.v1.Grade
+	1,   // 64: feov.record.v1.Regrade.result_likelihood:type_name -> feov.record.v1.Grade
+	1,   // 65: feov.record.v1.Regrade.result_impact:type_name -> feov.record.v1.Grade
+	1,   // 66: feov.record.v1.Regrade.result_complexity_cost:type_name -> feov.record.v1.Grade
+	18,  // 67: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
+	19,  // 68: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
+	20,  // 69: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	21,  // 70: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	7,   // 71: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	9,   // 72: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	20,  // 73: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	8,   // 74: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
+	21,  // 75: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	22,  // 76: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
+	10,  // 77: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	11,  // 78: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	12,  // 79: feov.record.v1.QuestionPart.coverage:type_name -> feov.record.v1.PartCoverage
+	13,  // 80: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	24,  // 81: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	23,  // 82: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	60,  // 83: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	61,  // 84: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	63,  // 85: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
+	43,  // 86: feov.record.v1.Motion.regrade:type_name -> feov.record.v1.Regrade
+	41,  // 87: feov.record.v1.Motion.close:type_name -> feov.record.v1.Close
+	26,  // 88: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	6,   // 89: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	27,  // 90: feov.record.v1.DocketRuling.sided_with:type_name -> feov.record.v1.SidedWith
+	28,  // 91: feov.record.v1.DocketRuling.moved_grades:type_name -> feov.record.v1.MovedGrades
+	16,  // 92: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
+	15,  // 93: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	62,  // 94: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	64,  // 95: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
+	29,  // 96: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	30,  // 97: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	31,  // 98: feov.record.v1.Docketing.cause:type_name -> feov.record.v1.DocketingCause
+	32,  // 99: feov.record.v1.Tombstone.kind:type_name -> feov.record.v1.TombstoneKind
+	2,   // 100: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	5,   // 101: feov.record.v1.Position.class:type_name -> feov.record.v1.GapClass
+	83,  // 102: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	83,  // 103: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	84,  // 104: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	84,  // 105: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	84,  // 106: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	84,  // 107: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	84,  // 108: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	84,  // 109: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	84,  // 110: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	84,  // 111: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	84,  // 112: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	84,  // 113: feov.record.v1.finds_against:extendee -> google.protobuf.EnumValueOptions
+	85,  // 114: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	34,  // 115: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	4,   // 116: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	33,  // 117: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	118, // [118:118] is the sub-list for method output_type
+	118, // [118:118] is the sub-list for method input_type
+	115, // [115:118] is the sub-list for extension type_name
+	102, // [102:115] is the sub-list for extension extendee
+	0,   // [0:102] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

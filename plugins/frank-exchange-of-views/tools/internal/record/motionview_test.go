@@ -73,7 +73,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	b, _ = FamilyOf(mustRun(t, runDir))
 	j = motionsJSONOf(b.Events, b.At)
 	m = j.Motions[0]
-	if !m.Ruled || m.Ruling != "for red" || m.Opinion == "" {
+	if !m.Ruled || m.Ruling != "for raiser" || m.Opinion == "" {
 		t.Fatalf("ruling not projected: %+v", m)
 	}
 	if m.Basis != basis {

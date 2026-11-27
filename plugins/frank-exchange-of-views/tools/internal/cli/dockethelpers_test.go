@@ -127,10 +127,10 @@ func benchRuleArgs(docketing, answer, principle string) []string {
 
 // benchDisposes is the whole act: the gap's exchange, the chair's proposal of a close with the
 // disposition as (a remand is ruled on a not_a_defect proposal), its docketing, the bench convened on
-// it, and its ruling — for the chair's side, which applies the close it proposes, or a remand.
+// it, and its ruling — for the proposal's side, which applies the close it proposes, or a remand.
 func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 	t.Helper()
-	class, answer := as, "for-filer"
+	class, answer := as, "for-author"
 	if as == "remanded" {
 		class, answer = "not_a_defect", "remand"
 	}

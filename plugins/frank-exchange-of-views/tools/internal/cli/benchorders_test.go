@@ -22,7 +22,7 @@ func TestTheBenchSetsAGradeTheLensMayNotMove(t *testing.T) {
 		t.Fatalf("the docketing holds %q, want the proposal %s", d.GetMotionId(), motion)
 	}
 	conveneBench(t, runDir, g)
-	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-blue"); err != nil {
+	if out, err := answerDocketing(t, runDir, d.GetDocketingId(), "for-author"); err != nil {
 		t.Fatalf("the bench's ruling for blue's regrade proposal: %v\n%s", err, out)
 	}
 	if got := lastBody(t, runDir, &recordpb.Regrade{}); got.GetSeverity() != recordpb.Grade_GRADE_LOW {

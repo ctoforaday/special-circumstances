@@ -13,7 +13,7 @@ import (
 
 // A PROPOSAL PROPOSES ONE ACT on its gap — a regrade, a close or a supersede — and its assignee accepts
 // it in its window, or the dispatch dockets it. THE BENCH ANSWERS A DOCKETING, never a motion: it names
-// a side of the docketing's pair — `--for-red | --for-blue`, `--for-filer | --for-assignee` on a red
+// a side of the docketing's pair — `--for-raiser | --for-author`, `--for-filer | --for-assignee` on a red
 // seat's proposal on another red seat's gap, `--keep | --restore` at grade movement — or remands, and
 // the tool applies that side's statement. A side wins only by what it stated (record.Positions.Stated).
 
@@ -181,7 +181,7 @@ func (r *runner) refuseUnstated(id string, side recordpb.SidedWith, common []str
 }
 
 // benchRules admits the bench's answer args. An answer for the side whose text the tool applies —
-// --for-red, or --for-assignee against a lens's proposal — is refused by the freeze where that text
+// --for-raiser, or --for-assignee against a lens's proposal — is refused by the freeze where that text
 // would leave another gap's standing statement no longer applying (L45: every statement standing on a
 // gap holds until its ruling), a conflict naming the docketing or proposal that holds it; the bench
 // then answers for the other side of the pair, as the refusal directs, and the refusal is counted
@@ -198,12 +198,12 @@ func (r *runner) benchRules(args []string) bool {
 		// The refusal is read off the envelope, and off the error where no envelope decodes.
 		unwritable := ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, successorUnwritable) ||
 			!ok && strings.Contains(out+err.Error(), successorUnwritable)
-		if (a != "--for-blue" && a != "--for-filer") || !unwritable {
+		if (a != "--for-author" && a != "--for-filer") || !unwritable {
 			continue
 		}
 		noteEither(args, "the bench's answer writing a successor another seat's act left unwritable", false)
 		swapped := slices.Clone(args)
-		swapped[i] = map[string]string{"--for-blue": "--for-red", "--for-filer": "--for-assignee"}[a]
+		swapped[i] = map[string]string{"--for-author": "--for-raiser", "--for-filer": "--for-assignee"}[a]
 		if _, err := r.exec(withJSON(swapped)...); err == nil {
 			return true
 		}
@@ -213,8 +213,8 @@ func (r *runner) benchRules(args []string) bool {
 	at, other := -1, ""
 	for i, a := range args {
 		switch a {
-		case "--for-red":
-			at, other = i, "--for-blue"
+		case "--for-raiser":
+			at, other = i, "--for-author"
 		case "--for-assignee":
 			at, other = i, "--for-filer"
 		}

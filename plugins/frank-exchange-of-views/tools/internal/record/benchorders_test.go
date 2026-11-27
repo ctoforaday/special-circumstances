@@ -144,7 +144,7 @@ func benchRuledSeverity(t *testing.T) *closureStage {
 	s.bench = convene(t, s.run, "G1")
 	mustAppend(t, s.bench, regradeOf("G1", sev, low))
 	mustAppend(t, s.bench, ruling(s.docketing, "M1", func(d *recordpb.DocketRuling) {
-		d.SidedWith = recordpb.SidedWith_SIDED_WITH_FILER.Enum()
+		d.SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 	}))
 	return s
 }

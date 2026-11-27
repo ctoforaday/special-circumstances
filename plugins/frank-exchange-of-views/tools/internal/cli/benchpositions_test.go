@@ -103,11 +103,11 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 			t.Fatalf("red's closing with a planned pair: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, gap)
-		if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
-			t.Fatalf("--for-red: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser: %v\n%s", err, out)
 		}
 		r := lastRuling(t, runDir)
-		if r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_RED || r.GetDisposition() != recordpb.Disposition_DISPOSITION_REPAIRED {
+		if r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_RAISER || r.GetDisposition() != recordpb.Disposition_DISPOSITION_REPAIRED {
 			t.Errorf("the ruling = %v %v, want for red, repaired", r.GetSidedWith(), r.GetDisposition())
 		}
 		edits := benchActs(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
@@ -133,14 +133,14 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 			}
 			before := readReport(t, runDir)
 			conveneBench(t, runDir, gap)
-			if out, err := answerDocketing(t, runDir, d, "for-blue", "--final"); err != nil {
-				t.Fatalf("--for-blue: %v\n%s", err, out)
+			if out, err := answerDocketing(t, runDir, d, "for-author", "--final"); err != nil {
+				t.Fatalf("--for-author: %v\n%s", err, out)
 			}
 			want := word
 			if want == "" {
 				want = "not_a_defect"
 			}
-			if r := lastRuling(t, runDir); r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_BLUE || recordpb.Word(r.GetDisposition()) != want {
+			if r := lastRuling(t, runDir); r.GetSidedWith() != recordpb.SidedWith_SIDED_WITH_AUTHOR || recordpb.Word(r.GetDisposition()) != want {
 				t.Errorf("the ruling = %v %v, want for blue, %s", r.GetSidedWith(), r.GetDisposition(), want)
 			}
 			if readReport(t, runDir) != before {
@@ -155,12 +155,12 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 	t.Run("impasse, neither side filed: for red refused naming the missing text, for blue lands not_a_defect", func(t *testing.T) {
 		runDir, gap, d := positionsRun(t)
 		conveneBench(t, runDir, gap)
-		out, err := answerDocketing(t, runDir, d, "for-red", "--final")
+		out, err := answerDocketing(t, runDir, d, "for-raiser", "--final")
 		if err == nil || !strings.Contains(err.Error()+out, "filed no closing") {
-			t.Fatalf("--for-red with no red closing: %v\n%s", err, out)
+			t.Fatalf("--for-raiser with no red closing: %v\n%s", err, out)
 		}
-		if out, err := answerDocketing(t, runDir, d, "for-blue", "--final"); err != nil {
-			t.Fatalf("--for-blue: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-author", "--final"); err != nil {
+			t.Fatalf("--for-author: %v\n%s", err, out)
 		}
 		if r := lastRuling(t, runDir); r.GetDisposition() != recordpb.Disposition_DISPOSITION_NOT_A_DEFECT {
 			t.Errorf("the ruling's word = %v, want not_a_defect", r.GetDisposition())
@@ -170,9 +170,9 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 	t.Run("impasse: a flag outside the pair, two answers, and no answer are refused naming the pair", func(t *testing.T) {
 		runDir, gap, d := positionsRun(t)
 		conveneBench(t, runDir, gap)
-		for _, args := range [][]string{{"for-filer"}, {"keep"}, {"for-red", "--for-blue"}} {
+		for _, args := range [][]string{{"for-filer"}, {"keep"}, {"for-raiser", "--for-author"}} {
 			out, err := answerDocketing(t, runDir, d, args[0], append(args[1:], "--final")...)
-			if err == nil || !strings.Contains(err.Error()+out, "--for-red | --for-blue") {
+			if err == nil || !strings.Contains(err.Error()+out, "--for-raiser | --for-author") {
 				t.Errorf("%v: %v\n%s", args, err, out)
 			}
 		}
@@ -196,7 +196,7 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 	})
 
 	t.Run("blue's close proposal: for blue writes its word, for red applies red's text", func(t *testing.T) {
-		for _, side := range []string{"for-blue", "for-red"} {
+		for _, side := range []string{"for-author", "for-raiser"} {
 			runDir := acceptRun(t)
 			gap, err := mintQuote(t, runDir, "G", acceptS+".")
 			if err != nil {
@@ -213,18 +213,18 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 				t.Fatalf("%s: %v\n%s", side, err, out)
 			}
 			r := lastRuling(t, runDir)
-			want := map[string]recordpb.Disposition{"for-blue": recordpb.Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE, "for-red": recordpb.Disposition_DISPOSITION_REPAIRED}[side]
+			want := map[string]recordpb.Disposition{"for-author": recordpb.Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE, "for-raiser": recordpb.Disposition_DISPOSITION_REPAIRED}[side]
 			if r.GetDisposition() != want {
 				t.Errorf("%s: the word = %v, want %v", side, r.GetDisposition(), want)
 			}
-			if n := len(benchActs(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)); (side == "for-red") != (n == 1) {
+			if n := len(benchActs(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)); (side == "for-raiser") != (n == 1) {
 				t.Errorf("%s: the bench wrote %d edits", side, n)
 			}
 		}
 	})
 
 	t.Run("blue's regrade proposal: for blue writes the stored grades, for red none; both lock the axis", func(t *testing.T) {
-		for _, side := range []string{"for-blue", "for-red"} {
+		for _, side := range []string{"for-author", "for-raiser"} {
 			runDir := acceptRun(t)
 			gap, err := mintQuote(t, runDir, "G", acceptS+".")
 			if err != nil {
@@ -240,11 +240,11 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 			if out, err := answerDocketing(t, runDir, d, side); err != nil {
 				t.Fatalf("%s: %v\n%s", side, err, out)
 			}
-			want := map[string]string{"for-blue": "low", "for-red": "medium"}[side]
+			want := map[string]string{"for-author": "low", "for-raiser": "medium"}[side]
 			if g := gapOf(t, runDir, gap); g == nil || !g.Open || recordpb.Word(g.Severity) != want {
 				t.Errorf("%s: the gap = %+v, want open at severity %s", side, g, want)
 			}
-			if n := len(benchActs(t, runDir, recordpb.EventType_EVENT_TYPE_REGRADE)); (side == "for-blue") != (n == 1) {
+			if n := len(benchActs(t, runDir, recordpb.EventType_EVENT_TYPE_REGRADE)); (side == "for-author") != (n == 1) {
 				t.Errorf("%s: the bench wrote %d regrades", side, n)
 			}
 			out, err := lensRegrade(t, runDir, gap, "severity", "high")
@@ -267,7 +267,7 @@ func TestTheBenchHasNoGradeOfItsOwn(t *testing.T) {
 		&recordpb.Regrade{GapId: proto.String(gap), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("raw")}); err != nil {
 		t.Fatalf("the raw bench regrade: %v", err)
 	}
-	out, err := answerDocketing(t, runDir, d, "for-blue", "--final")
+	out, err := answerDocketing(t, runDir, d, "for-author", "--final")
 	if err == nil || !strings.Contains(err.Error()+out, "no grade of its own") {
 		t.Fatalf("a ruling after a bench regrade it applies none of: %v\n%s", err, out)
 	}
@@ -312,11 +312,11 @@ func TestEachSideStatesItsPositionAtTheDocketing(t *testing.T) {
 			t.Fatalf("--no-text: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, gap)
-		if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err == nil || !strings.Contains(err.Error()+out, "--no-text") {
-			t.Errorf("--for-red after --no-text: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err == nil || !strings.Contains(err.Error()+out, "--no-text") {
+			t.Errorf("--for-raiser after --no-text: %v\n%s", err, out)
 		}
-		if out, err := answerDocketing(t, runDir, d, "for-blue", "--final"); err != nil {
-			t.Errorf("--for-blue after --no-text: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-author", "--final"); err != nil {
+			t.Errorf("--for-author after --no-text: %v\n%s", err, out)
 		}
 	})
 }
@@ -375,7 +375,7 @@ func TestRestoringIsTheFirstFromAgainstTheLastToThroughRestore(t *testing.T) {
 	})
 	t.Run("keep: no grade written, the moved axis locked; a side and a remand refused", func(t *testing.T) {
 		runDir, gap, d := moved(t, [2]string{"severity", "certain"}, [2]string{"severity", "low"})
-		for _, refused := range []string{"for-red", "for-blue", "remand"} {
+		for _, refused := range []string{"for-raiser", "for-author", "remand"} {
 			if out, err := answerDocketing(t, runDir, d, refused, "--direction", "x"); err == nil {
 				t.Errorf("--%s at grade movement landed: %s", refused, out)
 			}
@@ -430,7 +430,7 @@ func TestALensProposalIsRuledForTheFilerOrTheAssignee(t *testing.T) {
 			}
 			d := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(t, runDir, gap)
-			for _, refused := range []string{"for-red", "for-blue"} {
+			for _, refused := range []string{"for-raiser", "for-author"} {
 				if out, err := answerDocketing(t, runDir, d, refused, "--final"); err == nil || !strings.Contains(err.Error()+out, "--for-filer | --for-assignee") {
 					t.Errorf("--%s on a lens's proposal: %v\n%s", refused, err, out)
 				}

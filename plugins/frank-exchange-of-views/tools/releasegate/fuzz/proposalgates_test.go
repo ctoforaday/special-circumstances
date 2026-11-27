@@ -228,7 +228,7 @@ func TestEveryProposalGateKeyIsOneItsCountersWrite(t *testing.T) {
 		causes[recordpb.Word(c)] = true
 	}
 	answers := map[string]bool{"remand": true}
-	for _, s := range []recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_RED, recordpb.SidedWith_SIDED_WITH_BLUE} {
+	for _, s := range []recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.SidedWith_SIDED_WITH_AUTHOR} {
 		answers[recordpb.Word(s)] = true
 	}
 	for _, m := range []recordpb.MovedGrades{recordpb.MovedGrades_MOVED_GRADES_KEPT, recordpb.MovedGrades_MOVED_GRADES_RESTORED} {

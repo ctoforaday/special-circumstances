@@ -58,14 +58,14 @@ func TestRedsTextIsAppliedWhenTheBenchSidesWithRed(t *testing.T) {
 			t.Errorf("an edit elsewhere, leaving red's pair planning, was refused: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, gap)
-		if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
-			t.Errorf("--for-red after the freeze held red's text: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+			t.Errorf("--for-raiser after the freeze held red's text: %v\n%s", err, out)
 		}
 	})
 
 	// THE PAIR IS LOCATED BY THE GAP'S MARKER (blue.PlanAccept takes the span ending at it byte for byte
 	// where its words stand twice), so a copy of red's quote elsewhere leaves the pair planning: the edit
-	// lands, and the for-red answer replaces the span at the marker, not the copy.
+	// lands, and the for-raiser answer replaces the span at the marker, not the copy.
 	t.Run("the freeze: an edit elsewhere copying red's quote leaves the pair planning, and for red applies it at the marker", func(t *testing.T) {
 		runDir, gap, d := positionsRun(t)
 		if out, err := redStates(t, runDir, gap); err != nil {
@@ -75,8 +75,8 @@ func TestRedsTextIsAppliedWhenTheBenchSidesWithRed(t *testing.T) {
 			t.Fatalf("an edit copying red's quote elsewhere: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, gap)
-		if out, err := answerDocketing(t, runDir, d, "for-red", "--final"); err != nil {
-			t.Fatalf("--for-red: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser: %v\n%s", err, out)
 		}
 		if rep := readReport(t, runDir); strings.Count(rep, acceptS) != 1 || !strings.Contains(rep, acceptN) {
 			t.Errorf("for red did not replace exactly the span at the gap's marker:\n%s", rep)
@@ -114,17 +114,17 @@ func TestRedsTextIsAppliedWhenTheBenchSidesWithRed(t *testing.T) {
 		_ = docketing
 	})
 
-	t.Run("estoppel at the ruling: a prescription applied after red's closing refuses --for-red, naming it; --for-blue lands", func(t *testing.T) {
+	t.Run("estoppel at the ruling: a prescription applied after red's closing refuses --for-raiser, naming it; --for-author lands", func(t *testing.T) {
 		runDir, gap, d := positionsRun(t)
 		if out, err := redStates(t, runDir, gap); err != nil {
 			t.Fatalf("red's closing: %v\n%s", err, out)
 		}
 		p := estoppelOver(t, runDir)
 		conveneBench(t, runDir, gap)
-		out, err := answerDocketing(t, runDir, d, "for-red", "--final")
-		heldRefusal(t, "--for-red over an estopped road", out, err, p)
-		if out, err := answerDocketing(t, runDir, d, "for-blue", "--final"); err != nil {
-			t.Errorf("--for-blue: %v\n%s", err, out)
+		out, err := answerDocketing(t, runDir, d, "for-raiser", "--final")
+		heldRefusal(t, "--for-raiser over an estopped road", out, err, p)
+		if out, err := answerDocketing(t, runDir, d, "for-author", "--final"); err != nil {
+			t.Errorf("--for-author: %v\n%s", err, out)
 		}
 	})
 }
@@ -169,7 +169,7 @@ func TestNoProposalOutlivesARulingOfItsGap(t *testing.T) {
 }
 
 // THE BENCH'S APPLIED TEXT IS HELD BY THE FREEZE AS BLUE'S EDIT IS (L45): two gaps on one sentence,
-// each docketed at impasse with red's road over it. The bench's for-red answer on one applies its road
+// each docketed at impasse with red's road over it. The bench's for-raiser answer on one applies its road
 // in the ruling's transaction; where that leaves the other's road no longer planning, the answer is
 // refused naming the other docketing — every statement standing on a gap holds until its ruling, so
 // the bench answers the other side, or rules the other docketing first. An answer that leaves the
@@ -200,16 +200,16 @@ func TestTheBenchsAppliedTextHoldsEveryOtherStandingRoad(t *testing.T) {
 			t.Fatalf("red's closing on H: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, g, h)
-		out, err := answerDocketing(t, runDir, dg, "for-red", "--final")
-		heldRefusal(t, "--for-red on G over H's road", out, err, dh, h)
+		out, err := answerDocketing(t, runDir, dg, "for-raiser", "--final")
+		heldRefusal(t, "--for-raiser on G over H's road", out, err, dh, h)
 		if rep := readReport(t, runDir); !strings.Contains(rep, acceptS) {
 			t.Errorf("the refused answer moved the report:\n%s", rep)
 		}
-		if out, err := answerDocketing(t, runDir, dg, "for-blue", "--final"); err != nil {
-			t.Fatalf("--for-blue on G: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, dg, "for-author", "--final"); err != nil {
+			t.Fatalf("--for-author on G: %v\n%s", err, out)
 		}
-		if out, err := answerDocketing(t, runDir, dh, "for-red", "--final"); err != nil {
-			t.Fatalf("--for-red on H, its road held: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, dh, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser on H, its road held: %v\n%s", err, out)
 		}
 		if rep := readReport(t, runDir); !strings.Contains(rep, strings.TrimSuffix(steep, ".")) {
 			t.Errorf("for red on H did not apply H's road:\n%s", rep)
@@ -226,8 +226,8 @@ func TestTheBenchsAppliedTextHoldsEveryOtherStandingRoad(t *testing.T) {
 			t.Fatalf("red's closing on H: %v\n%s", err, out)
 		}
 		conveneBench(t, runDir, g, h)
-		if out, err := answerDocketing(t, runDir, dg, "for-red", "--final"); err != nil {
-			t.Fatalf("--for-red on G, H's road untouched: %v\n%s", err, out)
+		if out, err := answerDocketing(t, runDir, dg, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser on G, H's road untouched: %v\n%s", err, out)
 		}
 		_ = dh
 	})

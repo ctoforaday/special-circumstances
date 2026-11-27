@@ -301,15 +301,10 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	}
 	file(0, "M1", "G1")
 	file(1, "M2", "G2")
-	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			SidedWith: recordpb.SidedWith_SIDED_WITH_FILER.Enum(),
-		}},
-		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
-		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
-		// this fixture wrote through the SQL path, which had no such rule until the annotation.
-		Opinion: proto.String("the gap is not a defect"),
+	// M1 IS ANSWERED BY ITS GAP'S RAISER taking it: its own regrade carrying accepts.
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{
+		GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the proposal holds"),
+		Accepts: proto.String("M1"),
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -367,10 +362,12 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
-			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+			docketProposal(t, db, 2, "K1", "G1", "M1")
+			_, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("stated"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String("K1"),
 					Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 					Principle:   proto.String("correctness over economy"),
 					Tension:     proto.String("the repair costs a round"),
@@ -400,7 +397,7 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 // own check), a closing word stating neither --reopens-on nor --final, and a side with a direction.
 func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
 	notADefect := recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
-	blue := recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+	blue := recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 	kept := recordpb.MovedGrades_MOVED_GRADES_KEPT.Enum()
 	for _, c := range []struct {
 		name        string
@@ -431,11 +428,13 @@ func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
-			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+			docketProposal(t, db, 2, "K1", "G1", "M1")
+			_, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("stated"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					SidedWith: c.side, MovedGrades: c.moved, Disposition: c.disposition,
+					DocketingId: proto.String("K1"),
+					SidedWith:   c.side, MovedGrades: c.moved, Disposition: c.disposition,
 					ReopensOn: c.reopensOn, Final: c.final, Direction: c.direction,
 				}},
 			}))
@@ -514,7 +513,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 			dr := &recordpb.DocketRuling{
 				DocketingId: proto.String("K1"),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: c.as.Enum(),
 				Principle:   proto.String("correctness over economy"),
 				Tension:     proto.String("the repair costs a round"),
@@ -801,5 +800,15 @@ func TestTheRecordRefusesAnUnclassifiedMintWithoutAReason(t *testing.T) {
 	}
 	if err := mint(1, "G2", proto.String("nearest is spec_underspecification; this term is defined twice")); err != nil {
 		t.Fatalf("an unclassified mint with a reason was refused: %v", err)
+	}
+}
+
+// docketProposal writes docketing id on gap, holding proposal motion: a ruling names it.
+func docketProposal(t *testing.T, db *sql.DB, seq int32, id, gap, motion string) {
+	t.Helper()
+	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_DOCKETING, &recordpb.Docketing{
+		DocketingId: proto.String(id), GapId: proto.String(gap), Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(),
+		MotionId: proto.String(motion), Basis: proto.String("unaccepted in its window")})); err != nil {
+		t.Fatal(err)
 	}
 }

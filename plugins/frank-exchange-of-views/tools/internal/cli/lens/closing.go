@@ -18,13 +18,13 @@ import (
 // gap about a citation or a computation, that anchor's retire — or --no-text where every road it can
 // state is refused. The pair is planned as blue's `edit --accept` applies it (blue.PlanAccept), on the
 // report the closing lands on, so a pair the accept would refuse is refused here and nothing is
-// recorded; a for-red ruling applies it as the bench's edit. Which questions take text is the write's
+// recorded; a for-raiser ruling applies it as the bench's edit. Which questions take text is the write's
 // to say (record's requireClosingStatement).
 
 // closingRed is the assignee's closing on its docketed gap.
 func closingRed() *cobra.Command {
 	return seat.Closing("closing-red", func(c *cobra.Command) {
-		flags.Text(c, flags.Quote, "red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-red ruling replaces. With --new")
+		flags.Text(c, flags.Quote, "red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-raiser ruling replaces. With --new")
 		flags.Text(c, flags.New, "red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with red. With --quote")
 		c.Flags().Bool(flags.Retire, false, "red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with red")
 		c.Flags().Bool(flags.NoText, false, "red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with blue or remands")
@@ -42,7 +42,7 @@ func closingRed() *cobra.Command {
 		if on, _ := cmd.Flags().GetBool(flags.NoText); on {
 			body.NoText = proto.Bool(true)
 		}
-		// THE ROAD IS PLANNED ON THE REPORT THE CLOSING LANDS ON, as the for-red ruling will plan it.
+		// THE ROAD IS PLANNED ON THE REPORT THE CLOSING LANDS ON, as the for-raiser ruling will plan it.
 		var guards []record.Guard
 		switch {
 		case body.Location != nil && body.FixNew != nil:

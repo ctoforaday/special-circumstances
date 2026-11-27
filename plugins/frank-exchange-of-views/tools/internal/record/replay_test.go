@@ -408,7 +408,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 			Opinion: proto.String("the ruling's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				DocketingId: proto.String("D1"),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("x"),
 				Tension:     proto.String("x"),
@@ -793,7 +793,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 			Opinion: proto.String("the repair holds at the leaf"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				DocketingId: proto.String("D1"),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("a claim rests on its weakest citation"),
 				Tension:     proto.String("correctness vs economy"),

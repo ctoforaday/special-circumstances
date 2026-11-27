@@ -111,13 +111,11 @@ const (
 	// statement the tool applies — red's or blue's, or lens against lens the filer's or the
 	// assignee's — the grade answer at grade movement, or a remand. No flag of the bench's chooses a
 	// word or a grade.
-	ForRed      = "for-red"
-	ForBlue     = "for-blue"
-	ForFiler    = "for-filer"
-	ForAssignee = "for-assignee"
-	Keep        = "keep"
-	Restore     = "restore"
-	Remand      = "remand"
+	ForRaiser = "for-raiser"
+	ForAuthor = "for-author"
+	Keep      = "keep"
+	Restore   = "restore"
+	Remand    = "remand"
 
 	// Red's closing states its text as a road: --quote with --new, or the anchor's --retire; NoText says
 	// it states none, where every road it can state is refused.
@@ -342,7 +340,7 @@ func All() []string {
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Lens,
-		ForRed, ForBlue, ForFiler, ForAssignee, Keep, Restore, Remand, Retire, NoText,
+		ForRaiser, ForAuthor, Keep, Restore, Remand, Retire, NoText,
 		Method,
 		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,

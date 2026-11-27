@@ -50,7 +50,7 @@ func docketRuling(t *testing.T, docketing string, d recordpb.Disposition, opinio
 		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
-		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RED.Enum()
+		r.SidedWith = recordpb.SidedWith_SIDED_WITH_RAISER.Enum()
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		Opinion: proto.String(opinion),
@@ -151,7 +151,7 @@ func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			Opinion: proto.String("heard"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("a claim about a tool call is checked against the tool call"),
 				Tension:     proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), Final: proto.Bool(true),

@@ -39,7 +39,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"motion docket file --id", "no mint event created", append([]string{"motion", "docket", "file", "close", "--seat-id", "red-chair",
 			"--id", "G99", "--reason", "escalating a gap nobody minted"}, closeFlags("not_a_defect")...)},
 		{"motion docket rule --id", "no docketing", []string{"motion", "docket", "rule", "--seat-id", "judge",
-			"--id", "D9", "--for-blue", "--principle", "p", "--tension", "t",
+			"--id", "D9", "--for-author", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},

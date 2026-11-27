@@ -17,8 +17,7 @@ import (
 // closing it owes there: red's (G's assignee's) closing its replacement text, blue's closing its word.
 // A held proposal is its filer's statement; G's grades are the statement against a regrade proposal;
 // G's recorded closure the statement against a supersede of a closed G. The bench writes no word, grade
-// or text of its own: its answer names a side — `--for-red | --for-blue`, `--for-filer |
-// --for-assignee` lens against lens — or `--keep | --restore` at grade movement, or remands; the tool
+// or text of its own: its answer names a side — `--for-raiser | --for-author` — or `--keep | --restore` at grade movement, or remands; the tool
 // writes the side's statement in the ruling's transaction, before the ruling, and validate holds the
 // transaction to exactly those bytes (requireBenchAnswerApplied). A side wins only by what it stated:
 // siding with the side whose statement is text, where its closing states none, is refused.
@@ -30,7 +29,7 @@ type Positions struct {
 	// Pair is the two sides a ruling may side with; zero at grade movement, whose answer is a grade
 	// answer.
 	Pair [2]recordpb.SidedWith
-	// FilerSide is the side the held proposal is (blue's, or the filing red seat's); zero with none.
+	// FilerSide is the side the held proposal is, its author's; zero with none.
 	FilerSide recordpb.SidedWith
 	// Act is the held proposal's stored act (Regrade, Close or Mint); nil with none.
 	Act proto.Message
@@ -101,8 +100,8 @@ func article(w string) string {
 	return "a"
 }
 
-// PairWords is the docketing's answers in the flags' words: `--for-red | --for-blue`, `--for-filer |
-// --for-assignee`, or `--keep | --restore` at grade movement.
+// PairWords is the docketing's answers in the flags' words: `--for-raiser | --for-author`, or
+// `--keep | --restore` at grade movement.
 func (p Positions) PairWords() string {
 	if p.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT {
 		return "--keep | --restore"
@@ -169,11 +168,9 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 			}
 		}
 	}
-	red, blue := recordpb.SidedWith_SIDED_WITH_RED, recordpb.SidedWith_SIDED_WITH_BLUE
+	red, blue := recordpb.SidedWith_SIDED_WITH_RAISER, recordpb.SidedWith_SIDED_WITH_AUTHOR
 	switch {
 	case d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT:
-	case p.FilerSide == recordpb.SidedWith_SIDED_WITH_FILER:
-		p.Pair = [2]recordpb.SidedWith{recordpb.SidedWith_SIDED_WITH_FILER, recordpb.SidedWith_SIDED_WITH_ASSIGNEE}
 	default:
 		p.Pair = [2]recordpb.SidedWith{red, blue}
 	}
@@ -187,9 +184,6 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 		}
 		if textual {
 			p.TextSide = red
-			if p.Pair[0] == recordpb.SidedWith_SIDED_WITH_FILER {
-				p.TextSide = recordpb.SidedWith_SIDED_WITH_ASSIGNEE
-			}
 		}
 	}
 	// EACH PARTY'S STATEMENT IS ITS CLOSING FOR THIS DOCKETING: filed after its span opened — its row,
@@ -258,7 +252,7 @@ func (p Positions) AnswerWord(side recordpb.SidedWith) *recordpb.Disposition {
 		return nil
 	case side == p.TextSide:
 		return recordpb.Disposition_DISPOSITION_REPAIRED.Enum()
-	case side == recordpb.SidedWith_SIDED_WITH_BLUE && p.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE:
+	case side == recordpb.SidedWith_SIDED_WITH_AUTHOR && p.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE:
 		if p.BlueWord != nil {
 			return p.BlueWord.Enum()
 		}
@@ -330,7 +324,7 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 	return nil
 }
 
-// requireRoadApplied is the for-red (for-assignee) answer's check that the bench's act is red's road:
+// requireRoadApplied is the for-raiser answer's check that the bench's act is red's road:
 // the anchor's retire where the road is a retire, else the edit blue's `edit --accept` makes of the
 // pair, its span the one record.ProposalOver plans on the report as it stood before the edit. Where
 // red's text already stands — the anchor retired, or the report holding the pair's replacement at the

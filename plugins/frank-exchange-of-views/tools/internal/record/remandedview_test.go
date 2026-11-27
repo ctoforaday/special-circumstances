@@ -60,7 +60,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{
 			Opinion: proto.String("settled"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketingOf[motionID]),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("cost against certainty"),

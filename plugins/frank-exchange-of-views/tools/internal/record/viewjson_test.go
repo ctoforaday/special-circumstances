@@ -50,7 +50,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				DocketingId: proto.String("D1"),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),
@@ -252,7 +252,7 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				DocketingId: proto.String("D1"),
-				SidedWith:   recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),

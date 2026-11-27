@@ -97,7 +97,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: str("M1"), Basis: str("blue's proposal its assignee did not accept")}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"), Opinion: str("the bench's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				DocketingId: str("D1"), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+				DocketingId: str("D1"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("A-0000000b"), Opinion: str("the objection does not hold"),
@@ -433,7 +433,7 @@ func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
 func benchClosing(id string) *recordpb.MotionRule {
 	return &recordpb.MotionRule{Opinion: proto.String("because"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			DocketingId: proto.String(id), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum(),
+			DocketingId: proto.String(id), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 			Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			Principle:   proto.String("correctness first"), Tension: proto.String("speed against certainty"),
 			ReviewFlag: proto.String("no"), Settled: proto.String("settled"), Final: proto.Bool(true),

@@ -377,15 +377,15 @@ CREATE VIEW "demand_reach" AS
 --
 -- The state's columns, as gap_refresh answers each:
 --   close_event, bench_close_event  the last close, and the last closing docket ruling. A gap can be
---                       closed more than once — red re-adjudicates across epochs, the bench rules
+--                       closed more than once — its raiser re-adjudicates across epochs, the bench rules
 --                       many times — and the LAST of each arm is the word that stands. A reader takes
 --                       a closing act's word, epoch and seat from the event the id names.
 --   closed_by_bench     the arm of the FIRST closing act. A docket motion filed while its gap is open
---                       stands unruled after the assignee closes the gap, and the bench rules it to
+--                       stands unruled after its raiser closes the gap, and the bench rules it to
 --                       clear the PASS: in universe-m25 the lenses closed G-e205e589 and G-a810bbab
 --                       (ev440, ev460) before the bench ruled their k-max dockets (ev488, ev489), and
 --                       read by its later act the run holds four lens closures counted as the bench's.
---   bench_closed_last   whose word stands: a bench ruling after red's close overrules red's word, and
+--   bench_closed_last   whose word stands: a bench ruling after the raiser's close overrules its word, and
 --                       the closure's epoch is that act's.
 --   minted_by           the seat that wrote the gap's mint — who owes its closing, hears proposals on
 --                       it first and may regrade or close it.
@@ -478,10 +478,11 @@ SELECT
   (SELECT count(*) FROM "events")   AS "events"
 FROM "gap_state";
 
--- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
--- ruling is the one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
--- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because a position motion has no filing row (the chair's position IS the
+-- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked: a ruling, or the
+-- raiser's own act taking a docket motion (accepts on a regrade or a close). The FIRST answer is the
+-- one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so
+-- a row inserted past the write cannot multiply anybody's join. Keyed on the id alone rather than
+-- joined to 'motion', because a position motion has no filing row (the chair's position IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
@@ -493,16 +494,21 @@ SELECT
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   -- A RULING READS AS ITS WORD: the closing word where one is set, else the side it sided with or
-  -- what it did with the moved grades (docketWordSQL).
-  ` + docketWordSQL(`rd`) + `                             AS "docket",
-  COALESCE(fr."petition", ` + docketWordSQL(`rd`) + `)   AS "ruling",
+  -- what it did with the moved grades (docketWordSQL); an accept reads 'accepted'.
+  CASE WHEN fr."event_id" IS NULL THEN 'accepted' ELSE ` + docketWordSQL(`rd`) + ` END AS "docket",
+  CASE WHEN fr."event_id" IS NULL THEN 'accepted' ELSE COALESCE(fr."petition", ` + docketWordSQL(`rd`) + `) END AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
-FROM (SELECT DISTINCT "motion_id" FROM "motion_rule" WHERE "motion_id" IS NOT NULL) ids
-LEFT JOIN "motion_rule" fr ON fr."event_id" =
-  (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+FROM (SELECT ai."motion_id" AS "motion_id",
+             (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ai."motion_id") AS "ruled",
+             (SELECT MIN(a."event_id") FROM (SELECT x."event_id" FROM "regrade" x WHERE x."accepts" = ai."motion_id"
+                                             UNION ALL SELECT x."event_id" FROM "close" x WHERE x."accepts" = ai."motion_id") a) AS "accepted"
+      FROM (SELECT "motion_id" FROM "motion_rule" WHERE "motion_id" IS NOT NULL
+            UNION SELECT "accepts" FROM "regrade" WHERE "accepts" IS NOT NULL
+            UNION SELECT "accepts" FROM "close" WHERE "accepts" IS NOT NULL) ai) ids
+LEFT JOIN "motion_rule" fr ON fr."event_id" = ids."ruled" AND (ids."accepted" IS NULL OR ids."ruled" < ids."accepted")
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
-LEFT JOIN "events" fre ON fre."id" = fr."event_id";
+LEFT JOIN "events" fre ON fre."id" = COALESCE(fr."event_id", ids."accepted");
 
 -- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and its latest
 -- check. The proposal row carries the substance; the LATEST inquiry event carries the status; the

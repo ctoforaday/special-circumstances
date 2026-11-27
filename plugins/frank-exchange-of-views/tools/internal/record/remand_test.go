@@ -407,7 +407,7 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 func closingRuling(docketing string) *recordpb.MotionRule {
 	return &recordpb.MotionRule{
 		Opinion: proto.String("the exchange settled nothing the record can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			DocketingId: proto.String(docketing), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+			DocketingId: proto.String(docketing), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}
 }

@@ -198,7 +198,7 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 // T-B31. AN ARCHIVED BENCH WORD TAKES ITS SIDE (EventSchema 80, §III.B14 Translation 4). Each
 // docketing's cause is the live rule's, printed beside the archived basis's impasse: every one is
 // impasse but m29 G-6f6f47fb, whose lens's regrade (ev 540) moved it past the grade-movement threshold
-// (ruled 2026-11-22: the live cause stands). A kept closing word is a for-blue answer with blue stating
+// (ruled 2026-11-22: the live cause stands). A kept closing word is a for-author answer with blue stating
 // none; a remand stays a remand with neither side nor grades; no ruling sets moved_grades; no bench
 // Regrade is on any migrated record; a docketing a Close ended reads closed by its assignee; m35
 // G-650ee728 stands unruled at the run's end, and so does m29 G-6f6f47fb: its raiser's close (ev 561)
@@ -207,13 +207,13 @@ func TestAnArchivedDocketBecomesADocketing(t *testing.T) {
 func TestAnArchivedBenchWordTakesItsSide(t *testing.T) {
 	type kept struct{ gap, answer string }
 	wantKept := map[string][]kept{
-		"2026-10-18_is-91-prime-m28.tar.gz":              {{"G-1e4a7bb0", "blue not_a_defect"}, {"G-3a2c77c1", "blue not_a_defect"}},
-		"2026-10-24_is-91-prime-m32.tar.gz":              {{"G-fbdd91f9", "blue not_a_defect"}},
-		"2026-10-27_is-91-prime-m35.tar.gz":              {{"G-91f0c8e6", "remanded"}, {"G-1f1ae21f", "blue not_a_defect"}},
-		"2026-11-04_eiffel-tower-height.tar.gz":          {{"G-72aab1f2", "remanded"}, {"G-42584956", "blue not_a_defect"}},
+		"2026-10-18_is-91-prime-m28.tar.gz":              {{"G-1e4a7bb0", "author not_a_defect"}, {"G-3a2c77c1", "author not_a_defect"}},
+		"2026-10-24_is-91-prime-m32.tar.gz":              {{"G-fbdd91f9", "author not_a_defect"}},
+		"2026-10-27_is-91-prime-m35.tar.gz":              {{"G-91f0c8e6", "remanded"}, {"G-1f1ae21f", "author not_a_defect"}},
+		"2026-11-04_eiffel-tower-height.tar.gz":          {{"G-72aab1f2", "remanded"}, {"G-42584956", "author not_a_defect"}},
 		"2026-11-11_eiffel-tower-height.tar.gz":          {{"G-6e7c400f", "remanded"}},
 		"bundle-store/2026-10-31_is-91-prime-m37.tar.gz": {{"G-deced912", "remanded"}},
-		"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {{"G-845422d8", "remanded"}, {"G-ca807516", "blue not_a_defect"}},
+		"bundle-store/2026-11-04_is-91-prime-m38.tar.gz": {{"G-845422d8", "remanded"}, {"G-ca807516", "author not_a_defect"}},
 	}
 	for _, name := range docketCensus(t) {
 		_, ks, _, evs := docketingsOfMigrated(t, name)

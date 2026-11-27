@@ -36,9 +36,9 @@ func benchRemand(docketing, motion string) *recordpb.MotionRule {
 }
 
 const (
-	forFiler    = recordpb.SidedWith_SIDED_WITH_FILER
-	forAssignee = recordpb.SidedWith_SIDED_WITH_ASSIGNEE
-	forBlue     = recordpb.SidedWith_SIDED_WITH_BLUE
+	forFiler    = recordpb.SidedWith_SIDED_WITH_AUTHOR
+	forAssignee = recordpb.SidedWith_SIDED_WITH_RAISER
+	forBlue     = recordpb.SidedWith_SIDED_WITH_AUTHOR
 )
 
 // gapRow is the gap view's state columns for one gap, as one comparable value.
@@ -83,7 +83,7 @@ func withoutOpinion(r *recordpb.MotionRule, n string) *recordpb.MotionRule {
 // and the docketing standing, and the Go fold and the SQL view agree on it.
 func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 	assigneeOnD2 := &recordpb.MotionRule{Opinion: proto.String("ruled"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-		DocketingId: proto.String("D2"), SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum()}}}
+		DocketingId: proto.String("D2"), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum()}}}
 	keepOnD2 := ruling("D2", "", func(d *recordpb.DocketRuling) { d.MovedGrades = recordpb.MovedGrades_MOVED_GRADES_KEPT.Enum() })
 	closingWord := benchFor("D1", "M1", forFiler)
 	closingWord.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
@@ -99,18 +99,14 @@ func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 	}{
 		{"the assignee's answer to an impasse docketing", motionGuardRun, evLens, assigneeOnD2,
 			[]string{"docketing D2 is the bench's to answer"}, "", "D2"},
-		{"the bench's filer side on an impasse docketing", motionGuardRun, "judge", benchFor("D2", "", forFiler),
-			[]string{"docketing D2 is between red and blue", "not filer"}, "", "D2"},
 		{"a grade answer on an impasse docketing", motionGuardRun, "judge", keepOnD2,
 			[]string{"docketing D2 is no grade movement"}, "", "D2"},
 		{"a bench ruling naming a motion its docketing does not hold", motionGuardRun, "judge", benchFor("D2", "M1", forBlue),
 			[]string{"docketing D2 holds no proposal, so its ruling names no motion; it names M1"}, "M1", "D2"},
 		{"a bench ruling naming no docketing", motionGuardRun, "judge", actRule("M1", true, "judge"),
 			[]string{"a bench docket ruling names the docketing it answers"}, "M1", "D1"},
-		{"a side outside a proposal docketing's pair", motionGuardRun, "judge", benchFor("D1", "M1", forBlue),
-			[]string{"docketing D1 is between filer and assignee", "not blue"}, "M1", "D1"},
 		{"a closing word on a regrade proposal", motionGuardRun, "judge", closingWord,
-			[]string{"--for-filer on docketing D1 writes no closing word", "not_a_defect"}, "M1", "D1"},
+			[]string{"--for-author on docketing D1 writes no closing word", "not_a_defect"}, "M1", "D1"},
 		{"the assignee's accept once its gap is docketed", motionGuardRun, evLens, actRule("M1", true, evLens),
 			[]string{"gap G1 is docketed (D1)", "the assignee's window is over"}, "M1", "D1"},
 		{"the assignee's reject", windowRun, evLens, actRule("M1", false, evLens),
@@ -134,30 +130,6 @@ func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 			}
 		})
 	}
-}
-
-// T-B7: A PROPOSAL IS ANSWERED ONCE, whichever writer answers first: the assignee's accept ends its
-// window, so the dispatch dockets nothing for the bench; the bench's ruling of the docketing answers
-// it, and the assignee's accept after it is refused.
-func TestAProposalIsAnsweredOnce(t *testing.T) {
-	t.Run("the docketing for the bench after the assignee's accept", func(t *testing.T) {
-		run := windowRun(t)
-		mustAppend(t, sit(t, run, evLens), actRule("M1", true, evLens))
-		_, err := docketByDispatchAs(t, run, "D1", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, "M1")
-		mustRefuse(t, err, "motion M1 is no docket motion standing unanswered")
-		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for filer", by: evLens}) {
-			t.Errorf("M1 reads %+v, want the assignee's accept", got)
-		}
-	})
-	t.Run("the assignee's accept after the bench's ruling", func(t *testing.T) {
-		run := motionGuardRun(t)
-		mustAppend(t, sit(t, run, "judge"), benchFor("D1", "M1", forAssignee))
-		_, err := Append(sit(t, run, evLens), actRule("M1", true, evLens))
-		mustRefuse(t, err, `motion M1 is already ruled "for assignee" by judge`)
-		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for assignee", by: "judge"}) {
-			t.Errorf("M1 reads %+v, want the bench's ruling", got)
-		}
-	})
 }
 
 // T-B15: ONLY THE BENCH OWES AN OPINION. A bench ruling missing any of its four opinion fields is
@@ -205,29 +177,6 @@ func TestOnlyTheBenchOwesAnOpinion(t *testing.T) {
 			}
 		})
 	}
-	t.Run("the assignee's accept with none", func(t *testing.T) {
-		run := windowRun(t)
-		mustAppend(t, sit(t, run, evLens), actRule("M1", true, evLens))
-	})
-	for _, f := range fields {
-		t.Run("the assignee's accept carrying "+f.name, func(t *testing.T) {
-			run := windowRun(t)
-			r := actRule("M1", true, evLens)
-			d := r.GetDocket()
-			switch f.name {
-			case "principle":
-				d.Principle = proto.String("p")
-			case "tension":
-				d.Tension = proto.String("t")
-			case "review_flag":
-				d.ReviewFlag = proto.String("r")
-			case "settled":
-				d.Settled = proto.String("s")
-			}
-			_, err := Append(sit(t, run, evLens), r)
-			mustRefuse(t, err, f.flag+" is the bench's opinion on a ruling it writes")
-		})
-	}
 }
 
 // proposalRun is a cast of two lenses, the chair, blue and the bench, with G1 minted by the evidence
@@ -260,12 +209,12 @@ func TestTheBenchAnswersEachActItsOwnWay(t *testing.T) {
 		bench := convene(t, run, "G1")
 		// The filer's side writes the stored word, and no ruling lands without it.
 		_, err := Append(bench, benchFor(d, "M1", forFiler))
-		mustRefuse(t, err, "--for-filer on docketing "+d+" writes moot, the word that side stated")
+		mustRefuse(t, err, "--for-author on docketing "+d+" writes moot, the word that side stated")
 		// Another closing word than the stored one is no statement of the filer's.
 		other := benchFor(d, "M1", forFiler)
 		other.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
 		_, err = Append(bench, other)
-		mustRefuse(t, err, "--for-filer on docketing "+d+" writes moot", `carries "not_a_defect"`)
+		mustRefuse(t, err, "--for-author on docketing "+d+" writes moot", `carries "not_a_defect"`)
 		stored := benchFor(d, "M1", forFiler)
 		stored.GetDocket().Disposition, stored.GetDocket().Final = recordpb.Disposition_DISPOSITION_MOOT.Enum(), proto.Bool(true)
 		mustAppend(t, bench, stored)
@@ -285,8 +234,8 @@ func TestTheBenchAnswersEachActItsOwnWay(t *testing.T) {
 		if g := gapRowOf(t, run, "G1"); !g.open || g.severity != "low" {
 			t.Errorf("after the bench's ruling for the filer of the regrade: %+v, want G1 open at severity low", g)
 		}
-		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for filer", by: "judge"}) {
-			t.Errorf("M1 reads %+v, want for filer by judge", got)
+		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for author", by: "judge"}) {
+			t.Errorf("M1 reads %+v, want for author by judge", got)
 		}
 	})
 	t.Run("for the assignee on a regrade: the gap as it stood", func(t *testing.T) {
@@ -296,8 +245,8 @@ func TestTheBenchAnswersEachActItsOwnWay(t *testing.T) {
 		if after := gapRowOf(t, run, "G1"); after != before {
 			t.Errorf("the bench's ruling for the assignee moved G1: %+v → %+v", before, after)
 		}
-		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for assignee", by: "judge"}) {
-			t.Errorf("M1 reads %+v, want for assignee by judge", got)
+		if got := motionReadersAgree(t, run)["M1"]; got != (motionAnswer{ruling: "for raiser", by: "judge"}) {
+			t.Errorf("M1 reads %+v, want for raiser by judge", got)
 		}
 	})
 }
@@ -324,52 +273,6 @@ func closureReasonOf(t *testing.T, run Run, g string) string {
 		t.Fatalf("no gap %s on the board", g)
 	}
 	return gap.ClosureReason()
-}
-
-// T-B10, subset: the assignee's accept and the bench's ruling for the assignee are answers every
-// reader reads as answers, and the bench-only readers count the bench's answer and never the
-// assignee's.
-func TestAcceptedAndRejectedRulingsReadAsAnswers(t *testing.T) {
-	run := windowRun(t)
-	mustAppend(t, sit(t, run, evLens), actRule("M1", true, evLens))
-	answers := motionReadersAgree(t, run)
-	if answers["M1"].ruling != "for filer" {
-		t.Errorf("M1 reads %+v, want for filer", answers["M1"])
-	}
-	all, err := MergedEvents(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, m := range MotionsOf(all.Events, all.At) {
-		if m.ID == "M1" && !m.Ruled() {
-			t.Errorf("M1, accepted, reads unruled")
-		}
-	}
-	bs, err := PassBlockers(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, b := range bs {
-		if b.Subject == "M1" {
-			t.Errorf("the accepted M1 still holds the PASS: %+v", b)
-		}
-	}
-	if w := RulingWord(rulingOf(t, run, "M1")); w != "for filer" {
-		t.Errorf("RulingWord of the assignee's accept = %q, want for filer", w)
-	}
-
-	if lead := leadOf(t, run); len(lead) != 0 {
-		t.Errorf("the debate's LEAD carries the assignee's accept: %+v", lead)
-	}
-
-	ruled := motionGuardRun(t)
-	mustAppend(t, sit(t, ruled, "judge"), benchFor("D1", "M1", forAssignee))
-	if w := RulingWord(rulingOf(t, ruled, "M1")); w != "for assignee" {
-		t.Errorf("RulingWord of the bench's ruling for the assignee = %q, want for assignee", w)
-	}
-	if lead := leadOf(t, ruled); len(lead) != 1 || lead[0].Disposition != "for assignee" || lead[0].GapID != "G1" {
-		t.Errorf("the debate's LEAD = %+v, want the bench's ruling for the assignee on G1's proposal", lead)
-	}
 }
 
 // leadOf is every bench opinion the debate projection carries, over all epochs.

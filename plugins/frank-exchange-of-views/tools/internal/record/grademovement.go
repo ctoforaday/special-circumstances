@@ -82,7 +82,7 @@ func gradeMovementOf(evs []*Event, ids []int64, win WindowIndex, open map[string
 	// (L41), and a standing docketing is pending: its ruling rules on the movement.
 	//
 	// PER AXIS, A RULED GRADE IS NOT RESTORED OVER (L41′): the window on an axis also restarts after the
-	// latest bench Regrade naming it — a for-blue answer to a regrade proposal, or a restore — and after
+	// latest bench Regrade naming it — a for-author answer to a regrade proposal, or a restore — and after
 	// the latest bench ruling of a regrade proposal naming it, either side, since that ruling decided the
 	// axis's grade. Never at another ruling, and never at the assignee's accept: a party regrade the
 	// accept applies is movement (#1646).

@@ -52,9 +52,9 @@ func TestTheExitDocketsAStandingProposal(t *testing.T) {
 			t.Fatalf("the assemble register wrote %+v, want PROPOSAL holding %s", d, m)
 		}
 		t.Run("red's side, with no red closing", func(t *testing.T) {
-			t.Skip("S3: red's side is refused naming the missing red closing text — needs red's closing text and the for-red comparison")
+			t.Skip("S3: red's side is refused naming the missing red closing text — needs red's closing text and the for-raiser comparison")
 		})
-		if err := benchRules(t, runDir, limitGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, limitGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Fatalf("the filer's side at the assembly: %v", err)
 		}
 		asSeat(t, runDir, "judge", "outcome", "--as", "UNVERIFIED", "--reason", "the engine stopped with the bench's ruling on the record")

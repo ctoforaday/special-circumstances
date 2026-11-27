@@ -21,7 +21,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	finalDocketRule := func() *recordpb.MotionRule {
 		r := docketRule("D2", "the bench rules again")
 		r.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
-		r.GetDocket().SidedWith = recordpb.SidedWith_SIDED_WITH_BLUE.Enum()
+		r.GetDocket().SidedWith = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
 		r.GetDocket().Direction = nil
 		r.GetDocket().Final = proto.Bool(true)
 		return r
@@ -47,8 +47,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				return err
 			},
 			// The ruler is told the act that answers its ruling.
-			wants:  []string{`motion M1 is already ruled "for assignee" by judge`, "a declaration, which moves no gap"},
-			motion: "M1", ruling: "for assignee",
+			wants:  []string{`motion M1 is already ruled "for raiser" by judge`, "a declaration, which moves no gap"},
+			motion: "M1", ruling: "for raiser",
 		},
 		{
 			name: "a second docket ruling is refused",
@@ -220,7 +220,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	fileProposal(t, run, regradeMotion("M4", "G2", "likelihood is overstated"))
 
 	motions := motionReadersAgree(t, run)
-	if got, want := motions["M1"], (motionAnswer{ruling: "for assignee", by: "judge"}); got != want {
+	if got, want := motions["M1"], (motionAnswer{ruling: "for raiser", by: "judge"}); got != want {
 		t.Errorf("motion M1 reads %+v; the ruling that stands is %+v", got, want)
 	}
 	if got, ok := motions["M4"]; ok {
@@ -287,7 +287,7 @@ func heldBy(r *recordpb.MotionRule, docketing string) *recordpb.MotionRule {
 
 // forRed is r siding with red: the bench's answer against blue's proposal.
 func forRed(r *recordpb.MotionRule) *recordpb.MotionRule {
-	r.GetDocket().SidedWith = recordpb.SidedWith_SIDED_WITH_RED.Enum()
+	r.GetDocket().SidedWith = recordpb.SidedWith_SIDED_WITH_RAISER.Enum()
 	return r
 }
 
@@ -304,9 +304,9 @@ func regradeMotion(id, gap, basis string) *recordpb.Motion {
 // (requireBenchOpinion). B2's shape: the bench's answer on a docketing names it (DocketRuling.docketing_id),
 // which these callers are re-keyed to with the dispatch's docketings.
 func actRule(id string, accepted bool, seat string) *recordpb.MotionRule {
-	side := recordpb.SidedWith_SIDED_WITH_ASSIGNEE
+	side := recordpb.SidedWith_SIDED_WITH_RAISER
 	if accepted {
-		side = recordpb.SidedWith_SIDED_WITH_FILER
+		side = recordpb.SidedWith_SIDED_WITH_AUTHOR
 	}
 	d := &recordpb.DocketRuling{SidedWith: side.Enum()}
 	if seat == "judge" {

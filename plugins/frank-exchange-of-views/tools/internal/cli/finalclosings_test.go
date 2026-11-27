@@ -54,10 +54,10 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 	terminalBench := func(t *testing.T, runDir string) {
 		t.Helper()
 		asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
-		t.Run("--for-red applies red's text; with red's closing not filed it is refused", func(t *testing.T) {
-			t.Skip("S3: needs `motion docket rule --for-red` and red's closing text (the for-red comparison)")
+		t.Run("--for-raiser applies red's text; with red's closing not filed it is refused", func(t *testing.T) {
+			t.Skip("S3: needs `motion docket rule --for-raiser` and red's closing text (the for-raiser comparison)")
 		})
-		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Fatalf("the terminal bench's ruling for blue: %v", err)
 		}
 	}

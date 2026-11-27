@@ -92,7 +92,7 @@ func TestADocketedGapTakesNoProposalAtEveryKMax(t *testing.T) {
 				t.Fatalf("plan after both closings = %+v, want the bench readied on %s", bench, boardGap)
 			}
 			asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-			if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE); err != nil {
+			if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE); err != nil {
 				t.Fatalf("the bench's ruling of %s, for blue: %v", id, err)
 			}
 			rule := lastDocketRuling(t, runDir)
@@ -135,7 +135,7 @@ func TestADocketedGapTakesNoProposalAtEveryKMax(t *testing.T) {
 		asSeat(t, runDir, "red-chair", "register")
 		asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 		asSeat(t, runDir, "judge", "register", "--occasion", "docket")
-		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_BLUE, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+		if err := benchRules(t, runDir, boardGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
 			t.Fatalf("the bench's ruling of %s: %v", d.GetDocketingId(), err)
 		}
 		if rule := lastDocketRuling(t, runDir); rule.GetMotionId() != m || rule.GetDocket().GetDocketingId() != d.GetDocketingId() {

@@ -98,7 +98,7 @@ func TestTheBoardShowsHowEachGapClosed(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G-00000003"),
 			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse on G-00000003")}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{Opinion: proto.String("the repair answers the check"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_BLUE.Enum(),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the bound stands as computed"), ReopensOn: proto.String("a counterexample below the bound")}}}),
 	)

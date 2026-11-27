@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // partBRuns is every archive Part B's translations read: run-archive/'s runs and the two bundle-store
@@ -275,4 +276,63 @@ func TestArchivedRunsCarryTheirTombstones(t *testing.T) {
 	if total != 48 {
 		t.Errorf("%d tombstone rows over the archives, want 48: 37 estoppel placements, 5 ends, 6 rulings", total)
 	}
+}
+
+// T-B13 (sides). NO ARCHIVE HOLDS AN ACCEPT AS A RULING (§III.B8, Sides). Every migrated docket ruling
+// is the bench's, names the docketing it answers, and sides with the author or with no one (a remand);
+// no migrated act takes a motion (accepts) or concedes a docketing (accepted) — the raiser's and the
+// author's accepts never ran in an archived run. Counted over every archive, so a zero is loud.
+func TestNoArchiveHoldsAnAcceptAsARuling(t *testing.T) {
+	rulings, sided := 0, 0
+	for _, name := range partBRuns(t) {
+		_, dir := MigratedArchive(t, name)
+		run, err := record.OpenRun(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fam, err := record.FamilyOf(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, e := range fam.Events {
+			body, ok := recordpb.Body(e)
+			if !ok {
+				continue
+			}
+			switch b := body.(type) {
+			case *recordpb.MotionRule:
+				d := b.GetDocket()
+				if d == nil {
+					continue
+				}
+				rulings++
+				if d.GetDocketingId() == "" || seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+					t.Errorf("%s event %d: a docket ruling by %s naming docketing %q: every docket ruling is the bench's, of a docketing", name, i, e.GetSeatId(), d.GetDocketingId())
+				}
+				switch d.GetSidedWith() {
+				case recordpb.SidedWith_SIDED_WITH_AUTHOR:
+					sided++
+				case recordpb.SidedWith_SIDED_WITH_UNSPECIFIED:
+				default:
+					t.Errorf("%s event %d: a docket ruling sided %s; archived rulings side with the author", name, i, recordpb.Word(d.GetSidedWith()))
+				}
+			case *recordpb.Regrade:
+				if b.GetAccepts() != "" || b.GetAccepted() || b.GetAnswers() != "" {
+					t.Errorf("%s event %d: a regrade carrying an accept or an answer: %v", name, i, b)
+				}
+			case *recordpb.Close:
+				if b.GetAccepts() != "" {
+					t.Errorf("%s event %d: a close taking motion %s", name, i, b.GetAccepts())
+				}
+			case *recordpb.Retire:
+				if b.GetAccepted() {
+					t.Errorf("%s event %d: a retire carrying accepted", name, i)
+				}
+			}
+		}
+	}
+	if rulings == 0 || sided == 0 {
+		t.Fatalf("%d docket rulings, %d sided with the author, over the archives: the assertion read nothing", rulings, sided)
+	}
+	t.Logf("%d docket rulings, %d sided with the author", rulings, sided)
 }

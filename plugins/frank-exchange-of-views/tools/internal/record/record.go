@@ -1903,6 +1903,10 @@ func requireMintSubject(m *recordpb.Mint) error {
 	switch {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
+	// A GAP ABOUT A GAP IS REFUSED at every write: no write records its parties' acts on it — its
+	// author's answer, the raiser's statement of the wording and grades, the lock.
+	case m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP:
+		return feov.Errorf(feov.Validation, "--about-kind gap is refused: a defect in a gap's own wording or grades is its minter's to answer, and no write here mints a gap on another lens's gap")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
 		return feov.Errorf(feov.MissingField, "a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, the question or one of its question parts, or a citation or computation whose check failed")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's

@@ -567,7 +567,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
-			Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_RED.Enum()}},
+			Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum()}},
 		}),
 	}})
 

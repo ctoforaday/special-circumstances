@@ -47,7 +47,7 @@ func tombstoneDrive() []struct {
 	}
 	forBlue := func(id string) step {
 		return step{benchSeat, ruling(id, "", func(d *recordpb.DocketRuling) {
-			d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_BLUE.Enum(), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
+			d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
 		})}
 	}
 	remand := func(id string) step {

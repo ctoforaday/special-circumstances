@@ -87,24 +87,17 @@ CREATE TRIGGER "gap_flush_refresh" AFTER INSERT ON "gap_flush" BEGIN
   DELETE FROM "gap_flush";
 END;
 
--- A DOCKET RULING ANSWERS A STANDING DOCKETING OR A DOCKET FILING ON THE RECORD. A bench ruling names
--- the docketing it answers (docketing_id), which stands: on the record, and no non-carry close of its
--- gap written after it. The assignee's accept names no docketing, and answers the docket filing its
--- motion id names. A ruling with neither behind it would change a gap only once a later row named it,
+-- A DOCKET RULING ANSWERS A STANDING DOCKETING. Every docket ruling is the bench's and names the
+-- docketing it answers (docketing_id), which stands: on the record, and no act written after it ends
+-- it (concededSQL). A ruling with none behind it would change a gap only once a later row named it,
 -- retroactively, and is refused for every writer.
 CREATE TRIGGER "motion_rule_docket_answers_a_filing" BEFORE INSERT ON "motion_rule_docket"
-WHEN CASE WHEN NEW."docketing_id" IS NOT NULL THEN NOT EXISTS (
+WHEN NEW."docketing_id" IS NULL OR NOT EXISTS (
   SELECT 1 FROM "docketing" dk
   WHERE dk."docketing_id" = NEW."docketing_id"
-    AND NOT EXISTS (SELECT 1 FROM "close" c
-                    WHERE c."gap_id" = dk."gap_id" AND c."event_id" > dk."event_id" AND c."carried_from" IS NULL))
-  ELSE NOT EXISTS (
-  SELECT 1 FROM "motion_rule" mr
-  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
-  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-  WHERE mr."event_id" = NEW."event_id") END
+    AND NOT ` + concededSQL(`dk."gap_id"`, `dk."event_id"`, `dk."motion_id"`, `dk."cause" <> 'grade_movement'`, authorSeatSQL(`dk."gap_id"`)) + `)
 BEGIN
-  SELECT RAISE(ABORT, 'a docket ruling answers a standing docketing or a docket motion already filed on the record: neither stands behind this ruling');
+  SELECT RAISE(ABORT, 'a docket ruling answers a standing docketing: none stands behind this ruling — no docketing on the record has this id, or a party conceded it, or a close or an amend of its gap ended it');
 END;
 -- AND A FILING COMES BEFORE ITS RULING: a docket filing whose motion id a ruling already answers is refused.
 CREATE TRIGGER "motion_docket_precedes_its_ruling" BEFORE INSERT ON "motion_docket"
@@ -116,6 +109,45 @@ BEGIN
   SELECT RAISE(ABORT, 'a docket motion is filed before it is ruled on: a ruling already answers this motion id');
 END;
 ` + gapMarkerTriggersSQL()
+
+// reportAuthorSeat is the seat that authors every report subject: blue's responding seat, which
+// record.authorOf returns for a subject in the report.
+const reportAuthorSeat = "blue-respond"
+
+// authorSeatSQL is the seat of the author of the subject gap stands on (an SQL expression naming a
+// gap id): on a gap about a gap, that gap's minter; else blue's responding seat. record.authorOf's
+// twin.
+func authorSeatSQL(gap string) string {
+	return `(SELECT CASE WHEN am."about_kind" = 'gap'
+         THEN (SELECT ae."seat_id" FROM "mint" ag JOIN "events" ae ON ae."id" = ag."event_id" WHERE ag."gap_id" = am."about_ref")
+         ELSE '` + reportAuthorSeat + `' END
+       FROM "mint" am WHERE am."gap_id" = ` + gap + `)`
+}
+
+// authorAcceptTables is every body an author's --accept of the raiser's statement writes, carrying
+// answers and accepted.
+var authorAcceptTables = []string{"blue_edit", "retire", "regrade", "amend"}
+
+// concededSQL is whether an act written after event `after` ends the docketing or proposal standing
+// on gap with no ruling (each an SQL expression): the gap's non-carry close; the raiser's act taking
+// motion (accepts), where one is held; the author's act answering the gap with accepted, under
+// authorSeat (authorSeatSQL of the gap), so the bench's application never matches; and, where
+// amendEnds holds, an amend of the gap, by any writer — a change to the demand the parties stated
+// against.
+func concededSQL(gap, after, motion, amendEnds, authorSeat string) string {
+	var b strings.Builder
+	b.WriteString(`(EXISTS (SELECT 1 FROM "close" c
+                    WHERE c."gap_id" = ` + gap + ` AND c."event_id" > ` + after + ` AND c."carried_from" IS NULL)
+    OR EXISTS (SELECT 1 FROM "regrade" ra WHERE ra."accepts" = ` + motion + ` AND ra."event_id" > ` + after + `)
+    OR (` + amendEnds + ` AND EXISTS (SELECT 1 FROM "amend" an WHERE an."gap_id" = ` + gap + ` AND an."event_id" > ` + after + `))`)
+	for _, t := range authorAcceptTables {
+		fmt.Fprintf(&b, `
+    OR EXISTS (SELECT 1 FROM "%[1]s" x JOIN "events" xe ON xe."id" = x."event_id"
+               WHERE x."answers" = %[2]s AND x."event_id" > %[3]s AND x."accepted" AND xe."seat_id" = %[4]s)`, t, gap, after, authorSeat)
+	}
+	b.WriteString(`)`)
+	return b.String()
+}
 
 // gapMarker is one body table whose rows can change a gap's state, and the gaps a new row can change:
 // an SQL SELECT of gap ids over NEW.
@@ -129,20 +161,35 @@ func reachingSQL(anchor string) string {
 	return `SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = ` + anchor
 }
 
+// acceptsGapSQL is the gap of the docket motion a new row takes (NEW."accepts"), none where it takes
+// none.
+const acceptsGapSQL = `SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+      WHERE mo."motion_id" = NEW."accepts"`
+
+// answersGapSQL is the gap a new row answers (NEW."answers"), none where it answers none.
+const answersGapSQL = `SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL`
+
 // gapMarkers is every body table whose insert can change a gap's state, and the gaps it touches.
 //
-// A motion ruling's docket arm (motion_rule_docket) is one for the docketing it answers: it is
-// written in the same append as its motion_rule row, whose marker names the gap of the motion it
-// names, and a bench ruling of a docketing holding no proposal names no motion. The flush runs once,
-// after both.
+// A motion ruling's docket arm (motion_rule_docket) names the docketing it answers, every docket
+// ruling being the bench's: its marker names the docketing's gap, whose proposal the ruling answers
+// where the docketing holds one. A petition's ruling changes no gap, and a position's names its gaps
+// in motion_rule_position_gap_ids.
 func gapMarkers() []gapMarker {
 	m := []gapMarker{
 		// The gap minted.
 		{"mint", `SELECT NEW."gap_id"`},
-		{"close", `SELECT NEW."gap_id"`},
-		{"regrade", `SELECT NEW."gap_id"`},
-		// An amend restates the gap's wording.
-		{"amend", `SELECT NEW."gap_id"`},
+		// A close closes its gap; one taking a motion (accepts) answers that motion's gap's proposal.
+		{"close", `SELECT NEW."gap_id" UNION ` + acceptsGapSQL},
+		// A regrade moves its gap's grades; one taking a motion answers that motion's gap's proposal, and
+		// one answering a gap about its gap may end the docketing standing on that gap.
+		{"regrade", `SELECT NEW."gap_id" UNION ` + acceptsGapSQL + ` UNION ` + answersGapSQL},
+		// An amend restates the gap's wording, ending the docketing and proposal standing on it, and may
+		// answer a gap about it.
+		{"amend", `SELECT NEW."gap_id" UNION ` + answersGapSQL},
+		// The author's edit or retire answering a gap may concede the docketing standing on it.
+		{"blue_edit", answersGapSQL},
+		{"retire", answersGapSQL},
 		// A docket filing stands unruled on its gap.
 		{"motion_docket", `SELECT NEW."gap_id"`},
 		// A docketing stands on its gap.
@@ -150,9 +197,6 @@ func gapMarkers() []gapMarker {
 		// A bench ruling answers its docketing: the gap's standing docketing, and a closing or remanding
 		// disposition.
 		{"motion_rule_docket", `SELECT dk."gap_id" FROM "docketing" dk WHERE dk."docketing_id" = NEW."docketing_id"`},
-		// A ruling answers its motion's filing: the gap's unruled docket, and a closing or remanding disposition.
-		{"motion_rule", `SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-      WHERE mo."motion_id" = NEW."motion_id"`},
 		// An upheld position remands every gap it lists.
 		{"motion_rule_position_gap_ids", `SELECT NEW."value"`},
 		// A retire takes the anchor out: the gaps it answers, the gaps whose demand reaches it, and, for
@@ -199,13 +243,13 @@ func GapRefreshViewDDL() string {
 -- recordsql.GapStateDDL says why the state is stored.
 CREATE VIEW "gap_refresh" AS
 WITH "d" AS MATERIALIZED (
-  SELECT m."gap_id" AS "gap_id", m."event_id" AS "minted", m."check_kind" AS "check_kind", m."class_material" AS "class_material"
+  SELECT m."gap_id" AS "gap_id", m."event_id" AS "minted", m."check_kind" AS "check_kind", m."class_material" AS "class_material",
+    ` + authorSeatSQL(`m."gap_id"`) + ` AS "author_seat"
   FROM "gap_dirty" g CROSS JOIN "mint" m ON m."gap_id" = g."gap_id"
 ),
 "bench" AS MATERIALIZED (
   -- THE BENCH'S CLOSING RULINGS on each gap: a ruling of a docketing on the gap whose disposition
-  -- closes. The gap rides the docketing, not the ruling; every bench ruling names its docketing, and
-  -- the assignee's accept names none.
+  -- closes. The gap rides the docketing, not the ruling; every docket ruling names its docketing.
   SELECT dk."gap_id" AS "gap_id", rd."event_id" AS "event_id"
   FROM "d"
   CROSS JOIN "docketing" dk ON dk."gap_id" = "d"."gap_id"
@@ -223,21 +267,20 @@ WITH "d" AS MATERIALIZED (
     (SELECT max(c."event_id") FROM "close" c WHERE c."gap_id" = "d"."gap_id" AND c."carried_from" IS NULL) AS "close_judged",
     (SELECT max(b."event_id") FROM "bench" b WHERE b."gap_id" = "d"."gap_id")                          AS "bench_event",
     (SELECT min(b."event_id") FROM "bench" b WHERE b."gap_id" = "d"."gap_id")                          AS "first_bench",
-    -- THE PROPOSAL STANDING: the newest docket filing on the gap that no ruling names and no
-    -- non-carry close of the gap written after it ends. Asked per motion, never as a count (#1201).
+    -- THE PROPOSAL STANDING: the newest docket filing on the gap that no ruling names and no act
+    -- written after it ends (concededSQL). Asked per motion, never as a count (#1201).
     (SELECT max(md."event_id") FROM "motion_docket" md JOIN "motion" mo ON mo."event_id" = md."event_id"
       WHERE md."gap_id" = "d"."gap_id"
         AND NOT EXISTS (SELECT 1 FROM "motion_rule" mr WHERE mr."motion_id" = mo."motion_id")
-        AND NOT EXISTS (SELECT 1 FROM "close" c
-                        WHERE c."gap_id" = md."gap_id" AND c."event_id" > md."event_id" AND c."carried_from" IS NULL)) AS "filed",
-    -- THE DOCKETING STANDING: the newest docketing on the gap that no ruling names and no non-carry
-    -- close of the gap written after it ends — a carry restates an earlier epoch's closure and answers
-    -- no docketing (record.docketingsAt states the same rule).
+        AND NOT ` + concededSQL(`md."gap_id"`, `md."event_id"`, `mo."motion_id"`, `1`, `"d"."author_seat"`) + `) AS "filed",
+    -- THE DOCKETING STANDING: the newest docketing on the gap that no ruling names and no act written
+    -- after it ends — a party's concession, the gap's non-carry close, or an amend of the gap but at
+    -- grade movement, whose question is the grades and not the demand. A carry restates an earlier
+    -- epoch's closure and answers no docketing (record.docketingsAt states the same rule).
     (SELECT max(dk."event_id") FROM "docketing" dk
       WHERE dk."gap_id" = "d"."gap_id"
         AND NOT EXISTS (SELECT 1 FROM "motion_rule_docket" rd WHERE rd."docketing_id" = dk."docketing_id")
-        AND NOT EXISTS (SELECT 1 FROM "close" c
-                        WHERE c."gap_id" = dk."gap_id" AND c."event_id" > dk."event_id" AND c."carried_from" IS NULL)) AS "docketed"
+        AND NOT ` + concededSQL(`dk."gap_id"`, `dk."event_id"`, `dk."motion_id"`, `dk."cause" <> 'grade_movement'`, `"d"."author_seat"`) + `) AS "docketed"
   FROM "d"
 ),
 "k" AS MATERIALIZED (

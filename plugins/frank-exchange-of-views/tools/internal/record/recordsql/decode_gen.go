@@ -476,7 +476,10 @@ func (t *motionTable) load(q Querier, after int64) error {
 			var c7 sql.NullString
 			var c8 sql.NullString
 			var c9 sql.NullString
-			if err := scanRows(q, "motion_regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost" FROM "motion_regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9}, func() {
+			var c10 sql.NullString
+			var c11 sql.NullString
+			var c12 sql.NullInt64
+			if err := scanRows(q, "motion_regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost", t."accepts", t."answers", t."accepted" FROM "motion_regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12}, func() {
 				m := &recordpb.Regrade{}
 				if c0.Valid {
 					m.GapId = ref(c0.String)
@@ -540,6 +543,15 @@ func (t *motionTable) load(q Querier, after int64) error {
 						m.ResultComplexityCost = ref(v)
 					}
 				}
+				if c10.Valid {
+					m.Accepts = ref(c10.String)
+				}
+				if c11.Valid {
+					m.Answers = ref(c11.String)
+				}
+				if c12.Valid {
+					m.Accepted = ref(c12.Int64 != 0)
+				}
 				t.actRegrade[id] = m
 			}); err != nil {
 				return err
@@ -558,7 +570,8 @@ func (t *motionTable) load(q Querier, after int64) error {
 			var c4 sql.NullString
 			var c5 sql.NullString
 			var c6 sql.NullString
-			if err := scanRows(q, "motion_close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose" FROM "motion_close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
+			var c7 sql.NullString
+			if err := scanRows(q, "motion_close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose", t."accepts" FROM "motion_close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 				m := &recordpb.Close{}
 				if c0.Valid {
 					m.GapId = ref(c0.String)
@@ -584,6 +597,9 @@ func (t *motionTable) load(q Querier, after int64) error {
 				}
 				if c6.Valid {
 					m.Prose = ref(c6.String)
+				}
+				if c7.Valid {
+					m.Accepts = ref(c7.String)
 				}
 				t.actClose[id] = m
 			}); err != nil {
@@ -1016,7 +1032,8 @@ func (t *closeTable) load(q Querier, after int64) error {
 		var c4 sql.NullString
 		var c5 sql.NullString
 		var c6 sql.NullString
-		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose" FROM "close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
+		var c7 sql.NullString
+		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."prose", t."accepts" FROM "close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 			m := &recordpb.Close{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1042,6 +1059,9 @@ func (t *closeTable) load(q Querier, after int64) error {
 			}
 			if c6.Valid {
 				m.Prose = ref(c6.String)
+			}
+			if c7.Valid {
+				m.Accepts = ref(c7.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -1089,7 +1109,14 @@ func (t *closingTable) load(q Querier, after int64) error {
 		var c4 sql.NullInt64
 		var c5 sql.NullString
 		var c6 sql.NullInt64
-		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text", t."location", t."fix_new", t."retire", t."closure_class", t."no_text" FROM "closing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
+		var c7 sql.NullString
+		var c8 sql.NullString
+		var c9 sql.NullString
+		var c10 sql.NullString
+		var c11 sql.NullString
+		var c12 sql.NullString
+		var c13 sql.NullString
+		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text", t."location", t."fix_new", t."retire", t."closure_class", t."no_text", t."problem", t."required_fix", t."acceptance_check", t."severity", t."likelihood", t."impact", t."complexity_cost" FROM "closing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13}, func() {
 			m := &recordpb.Closing{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1115,6 +1142,43 @@ func (t *closingTable) load(q Querier, after int64) error {
 			}
 			if c6.Valid {
 				m.NoText = ref(c6.Int64 != 0)
+			}
+			if c7.Valid {
+				m.Problem = ref(c7.String)
+			}
+			if c8.Valid {
+				m.RequiredFix = ref(c8.String)
+			}
+			if c9.Valid {
+				m.AcceptanceCheck = ref(c9.String)
+			}
+			if c10.Valid {
+				if v, err := wordOf[recordpb.Grade]("closing.severity", c10.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Severity = ref(v)
+				}
+			}
+			if c11.Valid {
+				if v, err := wordOf[recordpb.Grade]("closing.likelihood", c11.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Likelihood = ref(v)
+				}
+			}
+			if c12.Valid {
+				if v, err := wordOf[recordpb.Grade]("closing.impact", c12.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Impact = ref(v)
+				}
+			}
+			if c13.Valid {
+				if v, err := wordOf[recordpb.Grade]("closing.complexity_cost", c13.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ComplexityCost = ref(v)
+				}
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -1156,7 +1220,10 @@ func (t *regradeTable) load(q Querier, after int64) error {
 		var c7 sql.NullString
 		var c8 sql.NullString
 		var c9 sql.NullString
-		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost" FROM "regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9}, func() {
+		var c10 sql.NullString
+		var c11 sql.NullString
+		var c12 sql.NullInt64
+		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost", t."accepts", t."answers", t."accepted" FROM "regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12}, func() {
 			m := &recordpb.Regrade{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1219,6 +1286,15 @@ func (t *regradeTable) load(q Querier, after int64) error {
 				} else {
 					m.ResultComplexityCost = ref(v)
 				}
+			}
+			if c10.Valid {
+				m.Accepts = ref(c10.String)
+			}
+			if c11.Valid {
+				m.Answers = ref(c11.String)
+			}
+			if c12.Valid {
+				m.Accepted = ref(c12.Int64 != 0)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -1811,7 +1887,8 @@ func (t *inquiryTable) load(q Querier, after int64) error {
 		var c4 sql.NullString
 		var c5 sql.NullString
 		var c6 sql.NullString
-		if err := scanRows(q, "inquiry", `SELECT t."event_id", t."inquiry_id", t."question", t."hypothesis", t."method", t."status", t."supersedes_status", t."reason" FROM "inquiry" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
+		var c7 sql.NullString
+		if err := scanRows(q, "inquiry", `SELECT t."event_id", t."inquiry_id", t."question", t."hypothesis", t."method", t."status", t."supersedes_status", t."reason", t."answers" FROM "inquiry" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 			m := &recordpb.Inquiry{}
 			if c0.Valid {
 				m.InquiryId = ref(c0.String)
@@ -1837,6 +1914,9 @@ func (t *inquiryTable) load(q Querier, after int64) error {
 			}
 			if c6.Valid {
 				m.Reason = ref(c6.String)
+			}
+			if c7.Valid {
+				m.Answers = ref(c7.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -1955,7 +2035,8 @@ func (t *retireTable) load(q Querier, after int64) error {
 		var c3 sql.NullString
 		var c4 sql.NullInt64
 		var c5 sql.NullString
-		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		var c6 sql.NullInt64
+		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers", t."accepted" FROM "retire" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
 			m := &recordpb.Retire{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1974,6 +2055,9 @@ func (t *retireTable) load(q Querier, after int64) error {
 			}
 			if c5.Valid {
 				m.Answers = ref(c5.String)
+			}
+			if c6.Valid {
+				m.Accepted = ref(c6.Int64 != 0)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -2471,7 +2555,8 @@ func (t *questionPartTable) load(q Querier, after int64) error {
 		var c2 sql.NullString
 		var c3 sql.NullString
 		var c4 sql.NullString
-		if err := scanRows(q, "question_part", `SELECT t."event_id", t."part_id", t."text", t."coverage", t."supersedes_coverage", t."reason" FROM "question_part" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4}, func() {
+		var c5 sql.NullString
+		if err := scanRows(q, "question_part", `SELECT t."event_id", t."part_id", t."text", t."coverage", t."supersedes_coverage", t."reason", t."answers" FROM "question_part" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
 			m := &recordpb.QuestionPart{}
 			if c0.Valid {
 				m.PartId = ref(c0.String)
@@ -2491,6 +2576,9 @@ func (t *questionPartTable) load(q Querier, after int64) error {
 			}
 			if c4.Valid {
 				m.Reason = ref(c4.String)
+			}
+			if c5.Valid {
+				m.Answers = ref(c5.String)
 			}
 			t.rows[id] = m
 		}); err != nil {

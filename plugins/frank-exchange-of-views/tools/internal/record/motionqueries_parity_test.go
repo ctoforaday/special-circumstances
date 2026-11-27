@@ -73,7 +73,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
 	err = RequireUnruledMotion(db, "M1", "")
-	if err == nil || !strings.Contains(err.Error(), `ruled "for red" by judge`) {
+	if err == nil || !strings.Contains(err.Error(), `ruled "for raiser" by judge`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 }
