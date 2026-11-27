@@ -3,6 +3,7 @@ package telecli
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -58,6 +59,9 @@ func runAgyWake(env *Env, log io.Writer) {
 	deadline := start.Add(env.wakeBound())
 	say := func(format string, a ...any) { fmt.Fprintf(log, "telepathy agy-wake: "+format+"\n", a...) }
 	left := func() time.Duration { return deadline.Sub(env.Now()) }
+	// A request's timeout is the time left, at most SendTimeout, and never zero, which an
+	// http.Client reads as no timeout at all.
+	client := func() *http.Client { return peer.NewAgyClient(max(min(env.sendTimeout(), left()), time.Millisecond)) }
 	if env.goos() != "linux" {
 		say("not run: a wake is sent on Linux only")
 		return
@@ -76,7 +80,7 @@ func runAgyWake(env *Env, log io.Writer) {
 	var lastErr string
 	waitUntil := start.Add(min(portWait, env.wakeBound()))
 	for {
-		w.client = peer.NewAgyClient(min(env.sendTimeout(), max(left(), 0)))
+		w.client = client()
 		if w.id, w.found = env.currentDaemon(); !w.found {
 			lastErr = "no daemon is running"
 		} else if a, err := env.daemonAddress(w.client, w.id.PID); err != nil {
@@ -104,7 +108,7 @@ func runAgyWake(env *Env, log io.Writer) {
 			say("not woken %s: the %s bound ran out", c.Conversation, env.wakeBound())
 			continue
 		}
-		w.client = peer.NewAgyClient(min(env.sendTimeout(), left()))
+		w.client = client()
 		if why := w.wakeAt(addr, root, c.Conversation); why != "" {
 			say("not woken %s: %s", c.Conversation, why)
 			continue
