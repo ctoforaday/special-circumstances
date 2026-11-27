@@ -156,7 +156,7 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
     - For `PresenceLock`, `PID` is the lock holder's pid, read from `/proc/locks`; `flockHeldOnlyBy` already parses that file and drops the pid.
     - Only `Uninspectable` has `PID == 0`, and no output ever prints "pid 0".
     - Holders are read from `/proc/locks` and the database's open files; the probe never takes agy's presence lock.
-    - The probe fails closed: it returns `Uninspectable` when `/proc/locks` names a locker that has exited, and when it names no holder while the lock is on a network filesystem (NFS, SMB, Ceph, AFS, 9P, GFS2, OCFS2, Lustre, Coda, GPFS). FUSE is a stated blind spot. Stated limit: the probe sees only the processes of telepathy's own pid namespace, so a holder outside it is invisible, and a container that shares Antigravity's data with the host can create a second writer (the human's ruling of 2026-11-27, "Drop it, state limit").
+    - The probe fails closed: it returns `Uninspectable` when `/proc/locks` names a locker that has exited, and when it names no holder while the lock is on a network filesystem (NFS, SMB, Ceph, AFS, 9P, GFS2, OCFS2, Lustre, Coda, GPFS). FUSE is a stated blind spot. Stated limit: the probe sees only the processes of telepathy's own pid namespace, so a holder outside it is invisible, and a container that shares Antigravity's data with the host, or a lock taken on another host through a FUSE client of a distributed filesystem, can create a second writer (the human's ruling of 2026-11-27, "Drop it, state limit").
   - **Discovery.** Send probes once, excluding nothing: `H := ConversationBusy(root, id, 0)`.
   - **When `H.Kind == None`** (no process holds the conversation), the targets are tried in order:
     1. the `Live` record listing the conversation with the greatest `linked_at` (A3);
@@ -166,8 +166,8 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
     - Send moves to target 2 only after a dial failure on target 1: the request never arrived. It re-probes first. The client bounds the dial at 2 s (a dial that never completes is a dial failure), uses no proxy, and follows no redirect.
     - If target 1 now holds the conversation, send queues, and the daemon is never called.
     - Two kinds of non-200 end the send without UNKNOWN; neither tries another server:
-      - a 401, 404 or 405 is a refusal before acting (measured live on agy 1.5.18: 401 from the CSRF check, 404 and 405 from routing; `TestLiveAntigravitySendAgentMessageRefusals`), and the message queues with "the language server recorded at <addr> refused the message before acting on it, HTTP <n>: <body>";
-      - a 429 is asked again on the same server, up to 3 requests, waiting its Retry-After (1 s when absent, at most 5 s) and re-probing before each, then queues with "the language server recorded at <addr> answered 429 (rate limited) 3 times" (the human's ruling of 2026-11-27).
+      - a refusal before any handling, in the shapes measured on agy 1.5.18 (`TestLiveAntigravitySendAgentMessageRefusals`): a 401 whose body is the CSRF interceptor's Connect error (code `unauthenticated`, message starting `unauthenticated: missing CSRF token` or `unauthenticated: invalid CSRF token`), or a 404 or 405 whose body is not a Connect error. Any other shape of those statuses is UNKNOWN, so a reworded or handler-level error never queues a message that may have arrived. A refusal queues with "the language server recorded at <addr> refused the message before acting on it, HTTP <n>: <body>";
+      - a 429 is asked again on the same server, up to 3 requests, waiting its Retry-After (1 s when absent, at most 5 s) and re-probing after each wait, then queues with "the language server recorded at <addr> answered 429 (rate limited) 3 times" (the human's ruling of 2026-11-27). Each retry opens a new connection, and a retry that cannot reach the server queues: once a target has answered, the send stays with it.
     - Every other failure from a target (a timeout, a reset, a redirect, any other status, 400 included) ends the send. No other server is tried and nothing is queued, because the message may have arrived; a second server would adopt the conversation target 1 is about to run. Send prints "delivery UNKNOWN: <cause> — the message may have arrived, so no other server was tried and nothing was queued; check the conversation before sending it again" and exits non-zero (the human's ruling of 2026-11-26, "Report unknown"). A 400 stays UNKNOWN because agy answers it both for an undecodable body and for a method's own validation.
     - The cause printed is the one that stopped the last target tried.
   - **When `H.PID` belongs to a record X whose `RecordLiveness` is `Live`** (any record, daemon or not):
@@ -224,6 +224,7 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
   - `scripts/universe.sh` `universe_env` exports `XDG_RUNTIME_DIR="$WORKDIR/run"` (mode 0700) for **both** harnesses, before the agy-only branch. The host-token renewal subshell (`universe.sh:379`) sets the host's runtime directory explicitly, as `renewHostAgyToken` (`liveauth.go:294-312`) requires.
   - §V check 2 runs every mutation with `XDG_RUNTIME_DIR` set to a scratch registry seeded from a copy, so a mutation that removes A6 deletes nothing of the human's.
   - A host-listing comparison after the suite is not built: it would detect only after the files are gone, and it reddens on another session's legitimate prune. The structural test is the pin.
+- **A future record shape is deleted by this binary** (stated residue): prune deletes any record whose `shape` is not 2, so a shape-3 record written by a later release is deleted by any shape-2 binary on every verb until both installs update. The release note says so.
 - **Every record drops once, at upgrade** (stated residue).
   - No record on the box has a `shape` field (KNOWN, 42 of 42 on 11-26). The first verb the new binary runs therefore deletes every record, including those of running servers.
   - Until each conversation's next turn, when the hook asks it to link, sends to it queue with the cause stated.
@@ -280,11 +281,13 @@ SKILL.md :29, :45, :193 also point a sender at `telepathy agents`' waiting secti
   - `TestSendErrorStatusIsUnknown`: target 1 answers 500; expect UNKNOWN (golden `send-unknown`).
   - `TestSendDialFailureFallsBack`: target 1 cannot be dialled; expect delivery through the daemon.
   - `TestSendAgyServerSaysWhetherTheMessageCanHaveArrived`: only a dial-stage error is unreached; a reset after the request (OpError `read`), a redirect, no answer and an error status are not.
-  - `TestSendAgyServerDialTimeoutIsUnreached`, `TestSendAgyServerRefusedStatuses`, `TestSendAgyServerRateLimited`, `TestRetryAfter`.
+  - `TestSendAgyServerDialTimeoutIsUnreached`, `TestSendAgyServerRefusedShapes` (4 confirming, 9 disconfirming shapes), `TestSendAgyServerRateLimited`, `TestRetryAfter`.
+  - `TestSendRateLimitedThenUnreachedQueues`, `TestSendRateLimitRetryOnANewConnection`, `TestSendHolderRateLimitedQueues`, `TestSendDaemonRefusedQueues`, `TestSendFollowsNoRedirect`.
+  - `TestLinkRequestPidlessGuardNeedsBothHalves`.
   - `TestSendDaemonErrorStatusIsUnknown`, `TestSendDaemonTimeoutAfterFallbackIsUnknown`.
   - `TestSendRateLimitedThenDelivers`, `TestSendRateLimitedQueues`, `TestSendRateLimitWaitIsCapped`, `TestSendRateLimitedReprobes`, `TestSendRefusedQueues`.
   - `TestFailedRegisterLeavesNoMarker`.
-  - Live: `TestLiveAntigravitySendAgentMessageRefusals` — each refusal (no token, wrong token, unknown method, wrong HTTP method) leaves the target transcript unchanged, and the same request made valid answers 200 and arrives.
+  - Live: `TestLiveAntigravitySendAgentMessageRefusals` — each refusal (no token, wrong token, unknown method, wrong HTTP method) leaves the target transcript unchanged, and the same request made valid answers 200 and arrives; `peer.IsRefusal` agrees with every measured row.
   - `TestConversationBusyFindsTheDBOpen` and `TestConversationBusyChecksTheDBPastTheExcludedLockHolder`: the database-open check, without stubs.
   - `TestLookupSkipsEndedNewerRecord`.
   - `TestLinkedAtRefreshesOnRelink`.
@@ -371,8 +374,8 @@ Before any test: `unset $(env | grep -o '^FEOV_[A-Z_]*')`.
      - the database-open holder check;
      - the probe's fail-closed rules;
      - the 2 s lock bound;
-     - A2 refusal statuses queue;
-     - A2 429 same-server retry;
+     - A2 refusal keyed on status and body;
+     - A2 429 same-server retry, each on a new connection, after the wait's re-probe; a retry's dial failure queues;
      - the dial bound and no-redirect client;
      - A2 Live-only exclusion;
      - A2 re-probe before each send;
