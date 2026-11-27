@@ -20,7 +20,8 @@ shell links as a side effect, and Gray Area's Antigravity hook asks for a link o
 the first step of any turn while neither its server nor the conversation has a
 running server's record. A record whose server cannot be judged running (no
 Antigravity process above the shell, or a host with no machine id) is never used
-by send, and link says so; the hook does not ask on such a host.
+by send, and link says so; the hook does not ask on a host with no machine id, nor
+while neither it nor the record finds an Antigravity process.
 
 A Claude Code session needs no link: its inbox socket is advertised for it.
 

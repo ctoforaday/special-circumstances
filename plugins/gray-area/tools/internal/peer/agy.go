@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -203,9 +204,6 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 		RegisteredAt:  now.Unix(),
 		Conversations: []LinkedConversation{linked},
 	}
-	if err := markLinked(runtimeDir, conv); err != nil {
-		return Server{}, NotAnAntigravityShell, err
-	}
 	got := Recorded
 	if prev, err := LookupServerByKey(runtimeDir, key); err == nil && prev != nil &&
 		prev.Address == addr && prev.Token == tok {
@@ -243,6 +241,11 @@ func RegisterWith(runtimeDir string, getenv func(string) string, host func() Ser
 		return Server{}, NotAnAntigravityShell, err
 	}
 	if err := renameRecord(tmp.Name(), filepath.Join(dir, key+".json")); err != nil {
+		return Server{}, NotAnAntigravityShell, err
+	}
+	// The marker follows the record it testifies to, so a write that failed leaves no marker for a
+	// conversation that never linked.
+	if err := markLinked(runtimeDir, conv); err != nil {
 		return Server{}, NotAnAntigravityShell, err
 	}
 	return s, got, nil
@@ -459,6 +462,26 @@ type AgyMessage struct {
 	Content   string
 }
 
+// agyDialTimeout bounds opening the connection, below any whole-request bound, so a server whose
+// port never answers fails as a dial (UnreachedError) rather than as the request's timeout, which
+// replaces the dial's error and could follow a sent request.
+const agyDialTimeout = 2 * time.Second
+
+// NewAgyClient is the client SendAgyServer is meant to be given: one request bounded by timeout, a
+// dial bounded by agyDialTimeout, no proxy (a language server listens on loopback), and no
+// redirect followed — a redirect comes from a server that read the message, and a failure at its
+// target would otherwise read as one that never reached the first.
+func NewAgyClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			Proxy:       nil,
+			DialContext: (&net.Dialer{Timeout: agyDialTimeout}).DialContext,
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+}
+
 // SendAgyServer delivers m through the language server s, reporting route as the route it took. It
 // wakes an idle conversation and loads an unloaded one from disk and starts a turn.
 func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (Delivery, error) {
@@ -485,6 +508,9 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (De
 	}
 	defer resp.Body.Close()
 	msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return Delivery{}, &RateLimitedError{Address: s.Address, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
+	}
 	if resp.StatusCode != http.StatusOK {
 		return Delivery{}, fmt.Errorf("the language server recorded at %s answered HTTP %d: %s", s.Address, resp.StatusCode, bytes.TrimSpace(msg))
 	}
@@ -504,6 +530,36 @@ func (e *UnreachedError) Error() string {
 }
 
 func (e *UnreachedError) Unwrap() error { return e.Err }
+
+// RateLimitedError is a SendAgyServer failure in which the server answered 429: it declined the
+// request without acting on it. RetryAfter is the wait its Retry-After header asks for, zero when it
+// names none.
+type RateLimitedError struct {
+	Address    string
+	RetryAfter time.Duration
+}
+
+func (e *RateLimitedError) Error() string {
+	return fmt.Sprintf("the language server recorded at %s answered 429 (rate limited)", e.Address)
+}
+
+// retryAfter reads a Retry-After header, in seconds or as an HTTP date, as a wait from now; zero
+// when it is absent, unreadable or already past.
+func retryAfter(h string, now time.Time) time.Duration {
+	if h == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(strings.TrimSpace(h)); err == nil {
+		if secs < 0 {
+			return 0
+		}
+		return time.Duration(secs) * time.Second
+	}
+	if at, err := http.ParseTime(h); err == nil && at.After(now) {
+		return at.Sub(now)
+	}
+	return 0
+}
 
 // agyMailboxMessage is the file Antigravity's own send_message writes into a recipient's mailbox.
 type agyMailboxMessage struct {

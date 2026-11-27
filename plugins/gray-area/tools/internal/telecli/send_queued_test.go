@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
@@ -87,6 +88,12 @@ func TestSendQueuedCauseGoldens(t *testing.T) {
 			w.linkAs(t, agyPeer, addr, serverS1, frozen)
 			w.linkAs(t, agySelf, "localhost:7000", newDaemon, frozen)
 			w.holders(map[int]peer.Holder{newDaemon.PID: dbHolder(serverS1.PID)})
+		}},
+		{"rate-limited", func(t *testing.T, w *sendWorld, names map[string]string) {
+			addr, _ := rateLimited(t, 99, "")
+			names[addr] = "<S1-ADDR>"
+			w.linkAs(t, agyPeer, addr, serverS1, frozen)
+			w.env.Sleep = func(time.Duration) {}
 		}},
 		{"two-holders", func(t *testing.T, w *sendWorld, _ map[string]string) {
 			w.linkAs(t, agyPeer, "localhost:7001", serverS1, frozen)

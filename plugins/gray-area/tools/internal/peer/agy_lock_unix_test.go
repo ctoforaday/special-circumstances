@@ -94,3 +94,19 @@ func TestConversationBusyNeverOpensThePresenceLock(t *testing.T) {
 		t.Errorf("an unheld lock file this process may not open: ConversationBusy = %+v, want none", h)
 	}
 }
+
+// A RECORD THAT WAS NOT WRITTEN LEAVES NO MARKER: the marker says the conversation linked, and a
+// failed link did not. Here the record's path is a directory, so its rename fails.
+func TestFailedRegisterLeavesNoMarker(t *testing.T) {
+	rt := t.TempDir()
+	key := ServerKey(100, 5000, "")
+	if err := os.MkdirAll(filepath.Join(RegistryDir(rt), key+".json", "occupied"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok"), hostID(100, 5000, false), at); err == nil {
+		t.Fatal("RegisterWith over a directory succeeded; the fixture no longer fails the write")
+	}
+	if HasLinked(rt, "conv-1") {
+		t.Error("a link whose record was never written left the linked marker")
+	}
+}

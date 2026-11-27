@@ -55,7 +55,8 @@ type Env struct {
 	// Getenv reads the calling process's environment. HostServer, CurrentDaemon,
 	// ConversationBusy and RecordLiveness probe local Antigravity server, lock and process state.
 	// GOOS is the platform live delivery is judged for (runtime.GOOS when empty). SendTimeout bounds
-	// one request to a language server (15 seconds when zero). All are injected so tests can stand
+	// one request to a language server (15 seconds when zero). Sleep waits between requests to a
+	// server that asked for a wait (time.Sleep when nil). All are injected so tests can stand
 	// in an Antigravity shell, daemon or platform without being one.
 	RuntimeDir       string
 	DaemonRoot       string
@@ -66,6 +67,7 @@ type Env struct {
 	RecordLiveness   func(peer.Server) catalogue.Liveness
 	GOOS             string
 	SendTimeout      time.Duration
+	Sleep            func(time.Duration)
 }
 
 // Defaults resolves the environment a real invocation runs in.
@@ -114,6 +116,14 @@ func (e *Env) sendTimeout() time.Duration {
 		return e.SendTimeout
 	}
 	return 15 * time.Second
+}
+
+func (e *Env) sleep(d time.Duration) {
+	if e.Sleep != nil {
+		e.Sleep(d)
+		return
+	}
+	time.Sleep(d)
 }
 
 // pruneServers deletes the server records whose server is gone, saying so on w when it cannot.

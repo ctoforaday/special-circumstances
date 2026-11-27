@@ -2,6 +2,7 @@ package telecli
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -412,6 +413,136 @@ func TestSendHolderErrorStatusIsUnknown(t *testing.T) {
 	wantUnknown(t, w, "the language server recorded at "+ax+" answered HTTP 500")
 	if hd.Load() != 0 {
 		t.Errorf("the daemon got %d requests while X held the conversation", hd.Load())
+	}
+}
+
+// THE DAEMON'S ERROR IS UNKNOWN TOO. With no record of its own, the conversation's only target is the
+// daemon, which answers 500: no mailbox file, a non-zero exit.
+func TestSendDaemonErrorStatusIsUnknown(t *testing.T) {
+	w := newSendWorld(t)
+	ad, hd := countingServer(t, http.StatusInternalServerError)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(newDaemon)
+	wantUnknown(t, w, "the language server recorded at "+ad+" answered HTTP 500")
+	if hd.Load() != 1 {
+		t.Errorf("the daemon got %d requests, want 1", hd.Load())
+	}
+}
+
+// AFTER A FALLBACK, THE DAEMON'S SILENCE IS UNKNOWN. Target 1 cannot be reached, so the daemon is
+// tried; it takes the request and never answers.
+func TestSendDaemonTimeoutAfterFallbackIsUnknown(t *testing.T) {
+	w := newSendWorld(t)
+	w.env.SendTimeout = 200 * time.Millisecond
+	a1 := unreachable(t)
+	ad, hd := hangingServer(t)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	wantUnknown(t, w, "the language server recorded at "+ad+" was sent the message and did not confirm it")
+	if hd.Load() != 1 {
+		t.Errorf("the daemon got %d requests, want 1", hd.Load())
+	}
+}
+
+// rateLimited stands in a language server that answers 429 to its first n requests, with the given
+// Retry-After header when it is not empty, and 200 after; it counts the requests.
+func rateLimited(t *testing.T, n int32, retryAfter string) (string, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		if hits.Add(1) <= n {
+			if retryAfter != "" {
+				rw.Header().Set("Retry-After", retryAfter)
+			}
+			http.Error(rw, "rate limited", http.StatusTooManyRequests)
+			return
+		}
+		rw.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+	return strings.TrimPrefix(srv.URL, "http://"), &hits
+}
+
+// rateLimitWorld links agyPeer to S1 at a1 with a running daemon at another server, and records
+// the waits send takes.
+func (w *sendWorld) rateLimitWorld(t *testing.T, a1 string) (*[]time.Duration, *atomic.Int32) {
+	t.Helper()
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	var waits []time.Duration
+	w.env.Sleep = func(d time.Duration) { waits = append(waits, d) }
+	return &waits, hd
+}
+
+// A 429 DECLINED WITHOUT ACTING: the same server is asked again after the wait it named, and
+// delivers; the probe runs again before the second request.
+func TestSendRateLimitedThenDelivers(t *testing.T) {
+	w := newSendWorld(t)
+	a1, h1 := rateLimited(t, 1, "2")
+	waits, hd := w.rateLimitWorld(t, a1)
+	probes := w.holders(nil)
+	out := w.sendFromClaude(t)
+	if !strings.Contains(out, "via antigravity-server-own, the language server at "+a1) || h1.Load() != 2 || hd.Load() != 0 {
+		t.Errorf("stdout = %q, requests %d to S1 and %d to the daemon; want delivery by S1 on its second request", out, h1.Load(), hd.Load())
+	}
+	if fmt.Sprint(*waits) != "[2s]" {
+		t.Errorf("waits %v, want [2s]", *waits)
+	}
+	if fmt.Sprint(*probes) != fmt.Sprint([]int{0, serverS1.PID, serverS1.PID}) {
+		t.Errorf("probes %v, want discovery, then S1's before each request", *probes)
+	}
+}
+
+// RATE LIMITED EVERY TIME: after rateLimitAttempts requests the message queues, naming the 429s,
+// and no other server is tried. With no Retry-After the wait is a second.
+func TestSendRateLimitedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	a1, h1 := rateLimited(t, 99, "")
+	waits, hd := w.rateLimitWorld(t, a1)
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, fmt.Sprintf("the language server recorded at %s answered 429 (rate limited) 3 times", a1))
+	if h1.Load() != 3 || hd.Load() != 0 {
+		t.Errorf("requests %d to S1 and %d to the daemon, want 3 and 0", h1.Load(), hd.Load())
+	}
+	if fmt.Sprint(*waits) != "[1s 1s]" {
+		t.Errorf("waits %v, want [1s 1s]", *waits)
+	}
+}
+
+// A LONG Retry-After IS CAPPED.
+func TestSendRateLimitWaitIsCapped(t *testing.T) {
+	w := newSendWorld(t)
+	a1, _ := rateLimited(t, 1, "120")
+	waits, _ := w.rateLimitWorld(t, a1)
+	w.sendFromClaude(t)
+	if fmt.Sprint(*waits) != "[5s]" {
+		t.Errorf("waits %v, want [5s]", *waits)
+	}
+}
+
+// THE CONVERSATION TAKEN DURING THE WAIT ENDS THE SEND: the probe before the retry finds a holder.
+func TestSendRateLimitedReprobes(t *testing.T) {
+	w := newSendWorld(t)
+	a1, h1 := rateLimited(t, 1, "")
+	_, hd := w.rateLimitWorld(t, a1)
+	calls := 0
+	w.env.ConversationBusy = func(_, _ string, excludePID int) peer.Holder {
+		calls++
+		if calls == 3 { // discovery, the probe before request 1, then the one before the retry
+			return dbHolder(9999)
+		}
+		return peer.Holder{}
+	}
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, "held by another process, pid 9999")
+	if h1.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests %d to S1 and %d to the daemon, want 1 and 0", h1.Load(), hd.Load())
 	}
 }
 

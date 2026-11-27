@@ -74,10 +74,13 @@ daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds i
 that server delivers. Before every attempt send checks again that no process but
 that server holds the conversation, because two writers corrupt it; any other
 holder, or a holder it cannot inspect, queues the message and is named. Send moves
-on from a server only when it could not be reached at all. A server that was sent the
-message and did not confirm it — no answer, a dropped connection, an error status —
-may have it: send then tries no other server, queues nothing, says the delivery is
-UNKNOWN and exits non-zero, because a second copy could arrive. A record is
+on from a server only when it could not be reached at all. A server that answers 429
+(rate limited) declined without acting: send asks it again after the wait it names
+(at most 5 seconds), checking the holder again first, and after its third 429 queues
+the message — never through another server. A server that was sent the message and
+did not confirm it — no answer, a dropped connection, any other status — may have
+it: send then tries no other server, queues nothing, says the delivery is UNKNOWN
+and exits non-zero, because a second copy could arrive. A record is
 used only while its server process is running; a record whose process cannot be
 judged (another pid namespace, a host with no machine id) is never used. The
 server's token reaches nothing but an agent's shell commands, so when no
@@ -88,7 +91,10 @@ conversation with messages still waiting.
 
 WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
 acted on the message, an UNKNOWN delivery does not say whether it arrived, and the
-Claude Code socket does not report a hold or a drop. A Claude Code session that is
+Claude Code socket does not report a hold or a drop. The holder check sees only the
+processes of send's own pid namespace: a process outside it that has the
+conversation open is invisible, so a container that shares Antigravity's data with
+the host can create a second writer. A Claude Code session that is
 not running has no inbox and is refused; telepathy agents shows which are. On native
 Windows a Claude Code inbox takes posts only from its own session, so sending to one
 is refused there.`,
@@ -258,7 +264,7 @@ func deliver(env *Env, c candidate, body, title string) (peer.Delivery, []string
 	}
 	r := &agyRouter{env: env, c: c, m: m, daemonID: daemonID, hasDaemon: hasDaemon,
 		agyRoot: filepath.Dir(filepath.Dir(c.dir)), live: env.recordLiveness(),
-		client: &http.Client{Timeout: env.sendTimeout()}}
+		client: peer.NewAgyClient(env.sendTimeout())}
 	if hasDaemon {
 		r.daemonKey = peer.ServerKey(daemonID.PID, daemonID.StartTime, "")
 	}
@@ -377,21 +383,49 @@ func (r *agyRouter) attempt(target peer.Server) (d peer.Delivery, ok, stop bool)
 	return r.send(target)
 }
 
-// send delivers through target. A target that could not be reached leaves the message
-// undelivered, with that as the cause; any other failure leaves its arrival unknown and stops the
-// send.
+// rateLimitAttempts is how many times send asks one server that answers 429 (rate limited), and
+// rateLimitWaitCap bounds the wait its Retry-After may ask for between them.
+const (
+	rateLimitAttempts = 3
+	rateLimitWaitCap  = 5 * time.Second
+	rateLimitWait     = time.Second // when the server names no wait
+)
+
+// send delivers through target, whose probe found nobody else holding the conversation. A target
+// that could not be reached leaves the message undelivered, with that as the cause, and the send
+// may go on. A target that answers 429 declined without acting: send asks it again, up to
+// rateLimitAttempts times, probing before each request as before the first, and then queues — never
+// another server, which the conversation could reach twice. Any other failure leaves its arrival
+// unknown and stops the send.
 func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
-	d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
-	var unreached *peer.UnreachedError
-	switch {
-	case err == nil:
-		return d, true, false
-	case errors.As(err, &unreached):
-		r.queue("%v", err)
-		return peer.Delivery{}, false, false
+	for attempt := 1; ; attempt++ {
+		d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
+		var unreached *peer.UnreachedError
+		var limited *peer.RateLimitedError
+		switch {
+		case err == nil:
+			return d, true, false
+		case errors.As(err, &unreached):
+			r.queue("%v", err)
+			return peer.Delivery{}, false, false
+		case errors.As(err, &limited) && attempt == rateLimitAttempts:
+			r.queue("the language server recorded at %s answered 429 (rate limited) %d times", target.Address, attempt)
+			return peer.Delivery{}, false, true
+		case errors.As(err, &limited):
+			wait := limited.RetryAfter
+			if wait <= 0 {
+				wait = rateLimitWait
+			}
+			r.env.sleep(min(wait, rateLimitWaitCap))
+			if g := r.env.conversationBusy(r.agyRoot, r.c.id, target.PID); g.Kind != peer.HolderNone {
+				r.queue("%s", r.heldBy(g))
+				return peer.Delivery{}, false, true
+			}
+			continue
+		}
+		r.unknown = err
+		return peer.Delivery{}, false, true
 	}
-	r.unknown = err
-	return peer.Delivery{}, false, true
 }
 
 // daemonTarget is the current daemon's record when it may adopt the conversation, or nil and why not.

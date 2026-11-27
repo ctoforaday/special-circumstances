@@ -336,23 +336,94 @@ func TestSendAgyServerSaysWhetherTheMessageCanHaveArrived(t *testing.T) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
 	defer fail.Close()
+	// A server that read the message and redirects to a port nobody listens on: followed, the
+	// redirect would fail as a dial, and a message the first server has would read as never sent.
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		http.Redirect(w, r, "http://"+closed+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	defer redirect.Close()
+	reset := resetAfterRequest(t)
 
 	// The refused case gets a long bound: a refused loopback connection can take a second to fail
 	// on Windows, and a deadline reached while dialling is not the refusal under test.
-	short, long := &http.Client{Timeout: 200 * time.Millisecond}, &http.Client{Timeout: 30 * time.Second}
+	short, long := NewAgyClient(200*time.Millisecond), NewAgyClient(30*time.Second)
 	for _, tc := range []struct {
 		name, addr string
 		client     *http.Client
 		unreached  bool
+		op         string // the *net.OpError's Op the failure must carry, when it is one
 	}{
-		{"refused", closed, long, true},
-		{"no answer", strings.TrimPrefix(hang.URL, "http://"), short, false},
-		{"error status", strings.TrimPrefix(fail.URL, "http://"), short, false},
+		{"refused", closed, long, true, "dial"},
+		{"no answer", strings.TrimPrefix(hang.URL, "http://"), short, false, ""},
+		{"error status", strings.TrimPrefix(fail.URL, "http://"), short, false, ""},
+		{"reset after the request", reset, long, false, "read"},
+		{"redirect", strings.TrimPrefix(redirect.URL, "http://"), long, false, ""},
 	} {
 		_, err := SendAgyServer(tc.client, Server{Address: tc.addr, Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
 		var u *UnreachedError
 		if err == nil || errors.As(err, &u) != tc.unreached {
 			t.Errorf("%s: err = %v, want unreached=%v", tc.name, err, tc.unreached)
+		}
+		var op *net.OpError
+		if tc.op != "" && (!errors.As(err, &op) || op.Op != tc.op) {
+			t.Errorf("%s: err = %v, want a %q *net.OpError: the case no longer exercises the shape it names", tc.name, err, tc.op)
+		}
+	}
+}
+
+// resetAfterRequest stands in a server that reads a whole request and then resets the connection,
+// and returns its address.
+func resetAfterRequest(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			if req, err := http.ReadRequest(bufio.NewReader(c)); err == nil {
+				_, _ = io.Copy(io.Discard, req.Body)
+			}
+			_ = c.(*net.TCPConn).SetLinger(0)
+			c.Close()
+		}
+	}()
+	return ln.Addr().String()
+}
+
+// A 429 DECLINED THE REQUEST: it is its own error, carrying the wait the server asked for.
+func TestSendAgyServerRateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "2")
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	_, err := SendAgyServer(NewAgyClient(5*time.Second), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+	var rl *RateLimitedError
+	if !errors.As(err, &rl) || rl.RetryAfter != 2*time.Second {
+		t.Errorf("err = %#v, want a RateLimitedError asking for 2s", err)
+	}
+}
+
+func TestRetryAfter(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	for h, want := range map[string]time.Duration{
+		"":                              0,
+		"3":                             3 * time.Second,
+		" 7 ":                           7 * time.Second,
+		"-1":                            0,
+		"soon":                          0,
+		"Fri, 27 Nov 2026 12:00:04 GMT": 4 * time.Second,
+		"Fri, 27 Nov 2026 11:59:00 GMT": 0,
+	} {
+		if got := retryAfter(h, now); got != want {
+			t.Errorf("retryAfter(%q) = %s, want %s", h, got, want)
 		}
 	}
 }
