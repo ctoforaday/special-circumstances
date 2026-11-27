@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -49,6 +50,23 @@ func (r *runner) standingDocketings(gapID string) []*record.Docketing {
 		}
 	}
 	return out
+}
+
+// endedUnruledSincePlan reports whether the latest docketing on gapID stood when the latest chair plan
+// was read and has since ended with no ruling: a party's concession or an amend of the gap ended it
+// (record.Docketing: neither standing nor ruled). One that ended before the plan is one the plan should
+// not have convened the bench on.
+func (r *runner) endedUnruledSincePlan(gapID string) bool {
+	var last *record.Docketing
+	for _, d := range r.docketings() {
+		if d.GapID == gapID {
+			last = d
+		}
+	}
+	r.mu.Lock()
+	stood := last != nil && r.standingAtPlan[last.ID]
+	r.mu.Unlock()
+	return stood && !last.Standing() && !last.Ruled()
 }
 
 // standingOn is the ids of what holds gapID for the bench: each docketing standing on it, and each
@@ -150,6 +168,42 @@ func (r *runner) docketAnswer(id, want string, extra []string) (answer []string,
 	return answer, false, unstated
 }
 
+// sitsAfterRuling is the drive's read of who sits after a bench ruling in the sitting it holds now
+// (record.lensSitsAfter, record.partiesSitAfter): no lens at the terminal sitting or the assembly, nor
+// where the next epoch is the run's final one; and the gap's author — blue, for every gap the drive
+// mints — not where the next epoch holds it to its closings.
+func (r *runner) sitsAfterRuling() (lens, parties bool) {
+	r.mu.Lock()
+	occasion, epoch, limit := r.benchOccasion, r.planEpoch, r.planLimit
+	r.mu.Unlock()
+	lens = occasion != "terminal" && occasion != "assemble" && !closingsOnlyAt(epoch+1, limit, "lens")
+	return lens, lens && !closingsOnlyAt(epoch+1, limit, "blue")
+}
+
+// remandWithNoPartiesAfterRefused drives the bench's remand of each docketing in ds where the gap's
+// parties do not both sit after the ruling, and holds the tool to refusing it as a conflict that names
+// the gap and says a remand's exchange cannot be had (remand_no_parties_after_refused).
+func (r *runner) remandWithNoPartiesAfterRefused(seatID, gapID string, ds []*record.Docketing) {
+	for _, d := range ds {
+		if d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT {
+			continue
+		}
+		out, err := r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", d.ID,
+			"--remand", "--direction", "fuzz: a remand no plan follows",
+			"--principle", "correctness", "--tension", "cost", "--review-flag", "none: driven to be refused",
+			"--settled", settledByFuzzBench, "--reason", "fuzz: a remand where the parties do not sit after", "--json")
+		env, ok := refusalEnvelopeIn(out)
+		switch {
+		case err == nil:
+			r.noteActErr(fmt.Sprintf("the bench's remand of docketing %s on gap %s, where its parties do not both sit after the ruling, was admitted: %s", d.ID, gapID, firstLine(out)))
+		case !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, gapID) || !strings.Contains(env.Error, "a remand grants one more exchange"):
+			r.noteActErr(fmt.Sprintf("the bench's remand of docketing %s on gap %s, where its parties do not both sit after the ruling, was refused without naming why: %s", d.ID, gapID, firstLine(out)))
+		default:
+			r.countGate("remand_no_parties_after_refused")
+		}
+	}
+}
+
 // refuseUnstated is the bench answering docketing id for side, which stated nothing, with the rest of
 // its ruling in common: the record refuses it naming the missing statement, and the sweep counts the
 // refusal by the docketing's cause and the side (unstated_side_refused).
@@ -168,11 +222,10 @@ func (r *runner) refuseUnstated(id string, side recordpb.SidedWith, common []str
 }
 
 // benchRules admits the bench's answer args. An answer for the side whose text the tool applies —
-// --for-raiser — is refused by the freeze where that text
-// would leave another gap's standing statement no longer applying (L45: every statement standing on a
-// gap holds until its ruling), a conflict naming the docketing or proposal that holds it; the bench
-// then answers for the other side of the pair, as the refusal directs, and the refusal is counted
-// (bench_road_held_refused). It reports whether an answer was admitted.
+// --for-raiser — is refused where an earlier ruling's applied text broke the statement, a conflict
+// naming that ruling (bench_ruling_broke_refused), and where no lens sits after the ruling to audit
+// the text (bench_no_lens_after_refused); the bench then answers for the other side of the pair, as
+// the refusal directs. It reports whether an answer was admitted.
 func (r *runner) benchRules(args []string) bool {
 	out, err := r.exec(withJSON(args)...)
 	if err == nil {
@@ -191,8 +244,14 @@ func (r *runner) benchRules(args []string) bool {
 		return false
 	}
 	switch {
-	case env.Code == string(feov.Conflict) && strings.Contains(env.Error, "holds until its ruling"):
-		r.countGate("bench_road_held_refused")
+	case env.Code == string(feov.Conflict) && strings.Contains(env.Error, "a statement an earlier ruling broke cannot win"):
+		r.countGate("bench_ruling_broke_refused")
+	case env.Code == string(feov.Conflict) && strings.Contains(env.Error, "no lens sits after this ruling"):
+		if lens, _ := r.sitsAfterRuling(); lens {
+			r.noteActErr("the bench's --for-raiser was refused for want of a lens after the ruling, where the drive reads one sitting after it: " + firstLine(env.Error))
+			return false
+		}
+		r.countGate("bench_no_lens_after_refused")
 	case env.Code == string(feov.Validation) || env.Code == string(feov.Conflict):
 		// RED'S TEXT THE RECORD WILL NOT APPLY AS IT STANDS — a retire of a citation a computation still
 		// applies, say — is refused like any act of that text: the bench answers the other side.

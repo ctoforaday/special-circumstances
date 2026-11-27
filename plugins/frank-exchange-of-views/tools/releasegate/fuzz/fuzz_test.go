@@ -790,6 +790,12 @@ type runner struct {
 	// material (severityGrade), and its first-epoch lenses each mint, so the PASS is held by
 	// construction rather than by the grade draw.
 	forceUnverified bool
+	// benchOccasion is the occasion of the bench's sitting the drive holds now: who sits after its
+	// ruling depends on it (sitsAfterRuling).
+	benchOccasion string
+	// standingAtPlan is the ids of the docketings standing when the latest chair plan was read: a
+	// docketing a party's concession ended after it is one the bench was rightly convened on.
+	standingAtPlan map[string]bool
 	// forceEstoppel drives the ORDERED PAIR the estoppel guard needs — red prescribes concrete
 	// text, blue applies it verbatim, red then mints against that same text — on one dedicated
 	// seed, instead of hoping the sweep draws it.
@@ -6009,8 +6015,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.screenBeforeHeldOut()
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
+		standing := map[string]bool{}
+		for _, d := range r.standingDocketings("") {
+			standing[d.ID] = true
+		}
 		r.mu.Lock()
 		r.planEpoch, r.planLimit = planEpochs(plan)
+		r.standingAtPlan = standing
 		r.mu.Unlock()
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
@@ -6241,6 +6252,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.mu.Lock()
+		r.benchOccasion = debatejs.OccasionOf(prompt)
+		r.mu.Unlock()
 		// THE BOARD'S OPEN GAPS, for a declaration to name: the bench is engaged on no gap of its
 		// own here, so this list is the only one that gives a fuzz holding a gap to write about.
 		r.extras("bench", seatID, r.openGaps())
@@ -6285,7 +6299,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// is refused, the bench reaches for one and is refused naming the dispositions that close
 			// the gap, and it rules one of them.
 			atLimit := !closed && r.scenarioOf(id) != dirDisputeLost && r.remandPastLimit(seatID, id)
-			if atLimit {
+			// Where the gap's parties do not both sit after the ruling, that refusal comes first, and
+			// benchDisposes drives it.
+			if _, parties := r.sitsAfterRuling(); atLimit && parties {
 				r.remandPastLimitRefused(seatID, id)
 			}
 			if !closed && !atLimit && r.scenarioOf(id) != dirDisputeLost {
@@ -10445,7 +10461,9 @@ const settledByFuzzBench = "the proposition this ruling bars"
 // benchDisposes is the bench answering each docketing standing on gapID, for the outcome want: the
 // dispatch writes the docketing — at impasse, at grade movement, or holding a proposal — and convenes the bench on it, and the bench answers it (docketAnswer). A
 // gap the bench sits on with no docketing standing is open only where the dispatch convened it on
-// nothing; a close of the gap ends its docketing unruled. It reports whether a remand landed.
+// nothing, or where an act after the plan that convened it ended its docketing unruled (§III.B5): a party's concession
+// in the same epoch — the raiser's close or `--accept M`, the author's `--accept G` — or an amend of
+// the gap. It reports whether a remand landed.
 func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (remanded bool) {
 	// THE BENCH FILES NO DOCKET MOTION: reaching for one on the gap it is about to rule is refused.
 	if r.coin(25) {
@@ -10454,8 +10472,14 @@ func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (rem
 			"--reason", "fuzz: the bench docketing "+gapID+" to itself")
 	}
 	ds := r.standingDocketings(gapID)
-	if len(ds) == 0 && r.openOnRecord(gapID) {
-		r.noteActErr("the bench sat on open gap " + gapID + " with no docketing standing on it to answer")
+	if len(ds) == 0 && r.openOnRecord(gapID) && !r.endedUnruledSincePlan(gapID) {
+		r.noteActErr("the bench sat on open gap " + gapID + " with no docketing standing on it to answer, and none a concession ended since the plan convened it")
+	}
+	// A REMAND IS OPEN ONLY WHERE BOTH OF THE GAP'S PARTIES SIT AFTER THE RULING: elsewhere the bench
+	// reaches for it, the tool refuses it naming who does not sit, and the bench answers a side.
+	if _, parties := r.sitsAfterRuling(); want == "remanded" && !parties {
+		r.remandWithNoPartiesAfterRefused(seatID, gapID, ds)
+		want = "not_a_defect"
 	}
 	for _, d := range ds {
 		answer, remand, unstated := r.docketAnswer(d.ID, want, extra)
