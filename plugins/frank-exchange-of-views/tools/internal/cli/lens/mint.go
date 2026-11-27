@@ -463,7 +463,7 @@ func fixWhat(at gapPlace) string {
 
 // mintBaredRefusal is the refusal of a prescription whose --new would leave these anchor tokens on a
 // sentence with no words. A prescription is a rewrite — the accept's replacement always carries the
-// gap's token — and only a cut of a whole sentence takes an anchor out, so it names the two ways a fix
+// gap's token — and an edit takes an anchor out only by cutting its whole sentence, so it names the two ways a fix
 // stands: words before every anchor, or the fix stated as prose. A reading's gap stands on the sentence
 // the tool reads by its citation's token, which the seat cannot widen.
 func mintBaredRefusal(at gapPlace, bared []string) string {
@@ -472,7 +472,7 @@ func mintBaredRefusal(at gapPlace, bared []string) string {
 		what, it, its = "anchors "+strings.Join(bared, ", "), "them", "their"
 	}
 	return fmt.Sprintf(
-		"--new would leave %s standing bare — no prose before %s in %s sentence — and an anchor marks a sentence, so blue's accept would refuse it: only a cut of a whole sentence takes an anchor out, and a fix is a rewrite. NOTHING IS RECORDED. "+
+		"--new would leave %s standing bare — no prose before %s in %s sentence — and an anchor marks a sentence, so blue's accept would refuse it: an edit takes an anchor out only by cutting its whole sentence, and a fix is a rewrite. NOTHING IS RECORDED. "+
 			"Keep words before %s in --new, on %s; or leave --new off and state the fix as prose in --fix",
 		what, it, its, it, at.subject)
 }
