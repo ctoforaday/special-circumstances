@@ -1,6 +1,6 @@
 # Messages reach an Antigravity conversation: route selection and queue visibility
 
-> STATUS: proposed 2026-11-26; implementation in review on branch `feat/agy-route-selection`. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-startup-wake.md`) makes a queued message wake its conversation at daemon startup. This plan gates the next gray-area release.
+> STATUS: implemented 2026-11-27 in #1951. Tracks #1923. Plan 1 of 2, by the human's ruling of 2026-11-26 ("Split: A+C now, wake plan next"). Plan 2 (`plans/agy-startup-wake.md`) makes a queued message wake its conversation at daemon startup. This plan gates the next gray-area release.
 
 ## I. Summary & Goals
 
