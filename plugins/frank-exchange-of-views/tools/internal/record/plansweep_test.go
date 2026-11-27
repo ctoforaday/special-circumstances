@@ -72,9 +72,6 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 			Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}}}); err != nil {
 		t.Fatal(err)
 	}
-	if db, err := openRunForRead(run); err == nil && db != nil {
-		_ = requireRemandOfOpenGap(db, "G1", "docketing K1")
-	}
 	if _, err := Append(Identity{Run: run, SeatID: "judge"}, &recordpb.Tombstone{GapId: proto.String("G1"),
 		Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()}); err != nil {
 		t.Fatal(err)

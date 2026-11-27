@@ -190,7 +190,6 @@ type runTally struct {
 	StalenessForged            int                       `json:"staleness_forged"`
 	StalenessReported          int                       `json:"staleness_reported"`
 	RulerFilingsRefused        int                       `json:"ruler_filings_refused"`
-	ClosedRemandsRefused       int                       `json:"closed_remands_refused"`
 	TrifleRemandsRouted        int                       `json:"trifle_remands_routed"`
 	BlueRemandActs             int                       `json:"blue_remand_acts"`
 	PastLimitRemandsRefused    int                       `json:"past_limit_remands_refused"`
@@ -260,7 +259,7 @@ func tallyOf(o outcome) runTally {
 		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
 		SpotChecksNamed: o.spotChecksNamed, SpotChecksStamped: o.spotChecksStamped, SpotChecksWithChanges: o.spotChecksWithChanges,
 		StalenessForged: o.stalenessForged, StalenessReported: o.stalenessReported,
-		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
+		RulerFilingsRefused: o.rulerFilingsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
 		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
@@ -624,7 +623,7 @@ type sweepFold struct {
 	spotChecksWithChanges                           int
 	stalenessForged, stalenessReported              int
 	rulerFilingsRefused                             int
-	closedRemandsRefused, trifleRemandsRouted       int
+	trifleRemandsRouted                             int
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
 	lensTurns, lensWaits, fateTurns                 int
@@ -825,7 +824,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.stalenessForged += r.StalenessForged
 		f.stalenessReported += r.StalenessReported
 		f.rulerFilingsRefused += r.RulerFilingsRefused
-		f.closedRemandsRefused += r.ClosedRemandsRefused
 		f.trifleRemandsRouted += r.TrifleRemandsRouted
 		f.blueRemandActs += r.BlueRemandActs
 		f.pastLimitRemandsRefused += r.PastLimitRemandsRefused
@@ -1275,13 +1273,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.rulerFilingsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused ruler filings across %d runs — the bench filed no docket motion, so the refusal of a filing by its subject's ruler is unexercised (false green)", f.completed)
 		}
-		// THE REMAND GATES (gblock, 2026-10-24). A remand of a closed gap is refused naming the close,
-		// and a remand of an open gap that is not material is readied like any remand; the run oracles
-		// are silent where neither was driven.
-		t.Logf("remands: %d of a closed gap refused naming the close, %d of a gap not material readied for their exchange", f.closedRemandsRefused, f.trifleRemandsRouted)
-		if f.closedRemandsRefused == 0 {
-			t.Errorf("fuzz drove ZERO remands of a closed gap across %d runs — the refusal that names the close is unexercised (false green)", f.completed)
-		}
+		// THE REMAND GATE (gblock, 2026-10-24). A remand of an open gap that is not material is readied
+		// like any remand; the run oracles are silent where it was not driven.
+		t.Logf("remands: %d of a gap not material readied for their exchange", f.trifleRemandsRouted)
 		if f.trifleRemandsRouted == 0 {
 			t.Errorf("fuzz readied ZERO remands of a gap that is not material across %d runs — the route by which the bench's remand outranks materiality is unexercised (false green)", f.completed)
 		}

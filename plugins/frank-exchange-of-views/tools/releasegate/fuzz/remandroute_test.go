@@ -10,16 +10,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE BENCH'S REMAND, ON A GAP THAT IS NOT MATERIAL AND ON A CLOSED ONE (gblock, 2026-10-24).
+// THE BENCH'S REMAND, ON A GAP THAT IS NOT MATERIAL (gblock, 2026-10-24).
 //
 // A remand of an open gap routes its assignee and blue to one more exchange whatever its
-// materiality, and holds the PASS until that exchange has begun; a remand of a closed gap is refused,
-// naming the close, and the bench answers the docketing with a side of its pair. On universe-m33
-// both remands were stored and never acted on, and the run passed against the bench's holding.
+// materiality, and holds the PASS until that exchange has begun. On universe-m33 a remand was stored
+// and never acted on, and the run passed against the bench's holding.
 //
-// The drive reaches both: blue escalates a gap that is not material to the bench, which the
-// dispatch never dockets on its own, and the bench sitting convened on a docketing whose gap has
-// closed since reaches for a remand before it rules. The sweep gates each at zero.
+// The drive reaches it: blue escalates a gap that is not material to the bench, which the dispatch
+// never dockets on its own. The sweep gates it at zero.
 
 // escalateTrifle files blue's proposed close of an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
@@ -181,32 +179,6 @@ func (r *runner) closableNow(id string) bool {
 		return r.presented.has(id)
 	}
 	return false
-}
-
-// remandOfClosedRefused drives the bench's remand of every docketing standing on gapID, a gap that has
-// closed since — a docketing holding a proposal on a gap already closed stands — and holds the tool to
-// refusing each as a conflict that names the docketing, the gap, its closing and that nothing was
-// recorded.
-func (r *runner) remandOfClosedRefused(seatID, gapID string) {
-	for _, d := range r.remandableDocketings(gapID) {
-		out, err := r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", d.ID,
-			"--remand", "--direction", "fuzz: one more exchange on a gap that has closed",
-			"--principle", "correctness", "--tension", "cost", "--review-flag", "none: driven to be refused",
-			"--settled", settledByFuzzBench, "--reason", "fuzz: a remand of a closed gap", "--json")
-		env, ok := refusalEnvelopeIn(out)
-		switch {
-		case err == nil:
-			r.noteActErr(fmt.Sprintf("the bench's remand of docketing %s on closed gap %s was admitted: %s", d.ID, gapID, firstLine(out)))
-		case !ok || env.Code != string(feov.Conflict):
-			r.noteActErr(fmt.Sprintf("the bench's remand of docketing %s on closed gap %s was refused, and not as a conflict: %s", d.ID, gapID, firstLine(out)))
-		case !strings.Contains(env.Error, d.ID) || !strings.Contains(env.Error, gapID) || !strings.Contains(env.Error, "CLOSED") || !strings.Contains(env.Error, "closed it at event") || !strings.Contains(env.Error, "Nothing was recorded"):
-			r.noteActErr(fmt.Sprintf("the bench's remand of docketing %s on closed gap %s was refused without naming the docketing, the gap and its closing: %s", d.ID, gapID, firstLine(env.Error)))
-		default:
-			r.mu.Lock()
-			r.closedRemandsRefused++
-			r.mu.Unlock()
-		}
-	}
 }
 
 // remandableDocketings is each docketing standing on gapID whose question a remand may answer: every

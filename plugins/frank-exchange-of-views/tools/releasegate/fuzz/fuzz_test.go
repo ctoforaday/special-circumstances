@@ -631,12 +631,11 @@ type runner struct {
 	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
 	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
 	rulerFilingErr string
-	// closedRemandsRefused counts the bench's remands of a closed gap the tool refused naming the
-	// close, trifleRemanded the remanded gaps that are not material whose exchange no plan has yet
+	// trifleRemanded is the remanded gaps that are not material whose exchange no plan has yet
 	// readied, and trifleRemandsRouted those a plan readied (remandroute_test.go). The sweep gates
-	// both counts at zero.
-	closedRemandsRefused, trifleRemandsRouted int
-	trifleRemanded                            map[string]bool
+	// the count at zero.
+	trifleRemandsRouted int
+	trifleRemanded      map[string]bool
 	// blueRemandActs counts blue's acts on a remanded gap the remand's blocking item held it to
 	// (answerRemands), and pastLimitRemandsRefused the bench's remands past the limit the tool refused
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
@@ -6531,13 +6530,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
-			// A GAP CLOSED SINCE ITS DOCKETING IS NOT REMANDED: the bench reaches for the remand its
-			// scenario asks for, the tool refuses it naming the close, and the bench answers the
-			// docketing with a side, as for a lost dispute.
+			// A GAP CLOSED SINCE THE BENCH WAS ENGAGED ON IT IS NOT REMANDED: the bench answers it with
+			// a side, as for a lost dispute.
 			closed := !stillOpen[id]
-			if closed && r.scenarioOf(id) != dirDisputeLost {
-				r.remandOfClosedRefused(seatID, id)
-			}
 			// A GAP AT ITS REMAND LIMIT IS NOT REMANDED EITHER: the bench's work list says a remand of it
 			// is refused, the bench reaches for one and is refused naming the dispositions that close
 			// the gap, and it rules one of them.
@@ -7180,8 +7175,8 @@ type outcome struct {
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
-	// closedRemandsRefused and trifleRemandsRouted are runner's.
-	closedRemandsRefused, trifleRemandsRouted int
+	// trifleRemandsRouted is runner's.
+	trifleRemandsRouted int
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
@@ -8691,7 +8686,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
-	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
+	res.trifleRemandsRouted = r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.fateTurns = r.fateTurns
@@ -9523,7 +9518,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, runstatErr(o.err))
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.trifleRemandsRouted, runstatErr(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot

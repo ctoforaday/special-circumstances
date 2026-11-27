@@ -158,43 +158,12 @@ func remandsOwedOf(evs []*Event, ids []int64, win WindowIndex, remands map[strin
 	return out
 }
 
-// remandedClosedGapSQL is a gap when it is CLOSED, with the act that closed it last — the lens's
-// close or the bench's closing ruling, whichever is later — and that act's seat; no row when the gap
-// is open.
-const remandedClosedGapSQL = `SELECT e."id", e."seat_id"
-  FROM "gap" g
-  JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0))
-  WHERE g."gap_id" = ? AND NOT g."open"`
-
 // remandSubject is what a remand answers, as its refusals name it: the docketing, or the motion.
 func remandSubject(r *recordpb.MotionRule) string {
 	if id := r.GetDocket().GetDocketingId(); id != "" {
 		return "docketing " + id
 	}
 	return "motion " + r.GetMotionId()
-}
-
-// requireRemandOfOpenGap refuses a remand whose gap is closed (gblock, 2026-10-24): what names the
-// docketing (or motion) the remand answers. A gap may be closed while a docketing on it stands — a
-// proposal docketed on a gap already closed (F8) — but a remand sends the gap back for one more
-// exchange between its assignee and blue, and a closed gap has none to have: the obligation would
-// stand with no seat able to discharge it, as the remand of a run's closed gap did on universe-m33,
-// stored and never acted on while the run passed. The tool does not reopen the gap either; the refusal
-// names the close, and the bench answers with a side of the docketing's pair.
-func requireRemandOfOpenGap(q recordsql.Querier, gapID, what string) error {
-	if gapID == "" {
-		return nil
-	}
-	var seat string
-	var closed int64
-	found, err := queryRowAt(q, []any{&closed, &seat}, remandedClosedGapSQL, gapID)
-	if err != nil || !found {
-		return err
-	}
-	return feov.Errorf(feov.Conflict,
-		"%s is about gap %s, which is CLOSED — %s closed it at event %d. A remand sends a gap back for one more exchange between its assignee and blue, and a closed gap has none to have, so nobody could discharge it; the record does not reopen a gap. "+
-			"Nothing was recorded; answer with a side of the docketing's pair, on the record as it stands",
-		what, gapID, seat, closed)
 }
 
 // requireRemandWithinLimit refuses a remand that would be the gap's second at impasse (gblock,
