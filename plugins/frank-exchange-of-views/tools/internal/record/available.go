@@ -266,10 +266,10 @@ func remandItem(g WorkGapState, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
 	if blue {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the research direction the ruling states: " + g.DocketDirection +
-			". Your sitting cannot end until you record an act on " + g.ID + ": an edit answering it, a citation or computation placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints, or a motion on it. Its assignee audits your answer after you have acted" + next
+			". Your sitting cannot end until you record an act that names " + g.ID + " as its answer: an edit, a retire of an evidence anchor, a citation or computation placed as its answer, or a fate or question part record — a change that names no gap does not answer it. Its assignee audits your answer after you have acted" + next
 	}
 	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — it begins when blue records an act on " + g.ID + " against the research direction the ruling states: " + g.DocketDirection +
-		". The dispatch readies you on " + g.ID + " once blue has acted or an edit has changed its sentence, and you audit it against that direction then: your audit is what ends this exchange" + next
+		". The dispatch readies you on " + g.ID + " once blue has acted or a change to what it is about has landed, and you audit it against that direction then: your audit is what ends this exchange" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
