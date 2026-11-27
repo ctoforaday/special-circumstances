@@ -6324,6 +6324,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 
 	case debatejs.OccasionOf(prompt) == "assemble":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.mu.Lock()
+		r.benchOccasion = "assemble"
+		r.mu.Unlock()
 		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
 		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
 		// is told. The fake used to ignore that and draw from a hat, so `bench outcome --as`
