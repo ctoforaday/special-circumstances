@@ -140,11 +140,9 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"mint with a near-miss class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "report-voice", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		{"unclassified mint without a reason", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "unclassified", "--check-kind", "document", "--check", "x", "--problem", "p", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
 		{"mint with bad grade", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
-		{"mint with dangling supersedes", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
 		{"close unknown gap", []string{"close", "--id", noSuchGap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
 		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without anchor", []string{"close", "--id", "GAP001"}},
-		{"regression close without successor", []string{"close", "--id", "GAP001", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"regrade without basis", []string{"regrade", "--id", "GAP001", "--severity", "high"}},
 		// THE GAVEL REFUSAL, which is what this row has always actually pinned. Named "opinion
 		// missing fields" it ran from the CHAIR seat and froze the wrong-seat message — the same

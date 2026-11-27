@@ -51,7 +51,7 @@ exit 2
 stderr:
 feov-record: close: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
-$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: close: requires --reason

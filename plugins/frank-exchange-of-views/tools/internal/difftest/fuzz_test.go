@@ -32,9 +32,8 @@ import (
 //
 // Hand-written scenarios cannot cover this: they exercise the orderings the
 // author already thought about. A generator reaches the interleavings nobody
-// enumerated — a close before its mint, a regrade of a closed gap, a mint whose
-// --supersedes names a gap that never existed, a bench ruling on a motion
-// nobody filed.
+// enumerated — a close before its mint, a regrade of a closed gap, a close of a
+// gap that never existed, a bench ruling on a motion nobody filed.
 //
 // Sequences are valid-ISH by construction rather than valid: a refusal is as
 // interesting as an acceptance, because the error text is part of the contract a
@@ -423,9 +422,6 @@ var fuzzArms = []fuzzArm{
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}
-			if rng.Intn(3) == 0 {
-				f = append(f, "--supersedes", pick(rng, fuzzGapIDs))
-			}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--key", fmt.Sprintf("K%d", rng.Intn(3)))
 			}
@@ -439,7 +435,7 @@ var fuzzArms = []fuzzArm{
 				f = append(f, "--reason", "re-read the repaired sentence")
 			}
 			if rng.Intn(4) == 0 {
-				f = append(f, "--as", "repaired_with_regression") // no successor: the validation path
+				f = append(f, "--as", "not_a_defect")
 			} else {
 				f = append(f, "--as", "repaired")
 			}
@@ -461,7 +457,7 @@ var fuzzArms = []fuzzArm{
 			// the epochs a closure in these sequences can hold — the prologue's chair sits twice.
 			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", pick(rng, []string{"2", "3"})}
 			if rng.Intn(4) == 0 {
-				f = append(f, "--as", "repaired_with_regression")
+				f = append(f, "--as", "not_a_defect")
 			} else {
 				f = append(f, "--as", "repaired")
 			}

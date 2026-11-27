@@ -71,7 +71,7 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "mint_validation", // oracle: acceptance_check required; dangling supersedes; unknown grade
+			name: "mint_validation", // oracle: acceptance_check required; class required; unknown grade
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -79,8 +79,6 @@ func scenarios() []scenario {
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--check-kind", "document", "--check", "run it", "--problem", "no class given"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "run it",
 					"--severity", "catastrophic", "--problem", "bad grade"),
-				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "run it",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "dangling lineage"),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "grep the sites",
 					"--severity", "high", "--likelihood", "high", "--impact", "medium", "--complexity", "low", "--problem", "a real one"),
 			},
@@ -108,7 +106,7 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "close_validation_and_archive", // oracle: anchor OR carried-from; regression demands successor
+			name: "close_validation_and_archive", // oracle: anchor OR carried-from; a close states its reason
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -119,7 +117,7 @@ func scenarios() []scenario {
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", noSuchGap, "--as", "repaired", "--verified-by", "L1",
 					"--verified-with", "git show", "--verified-against", "7bc501e:x", "--reason", "checked"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired_with_regression",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired",
 					"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:x"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired",
 					"--verified-by", "L1", "--verified-with", "WebFetch", "--verified-against", "https://example.invalid/spec#s3",
@@ -187,8 +185,8 @@ func scenarios() []scenario {
 		{
 			// oracle: an act stands as filed, and a repeat the record refuses names the act that
 			// answers the first — each followed here by that act, at the time its row states. The
-			// named cases: a closure (the lens's successor of its own closed gap, naming it in
-			// --supersedes) and a position (the next sitting's).
+			// named cases: a closure (a new gap on the defect where it stands: a closed gap stays
+			// closed) and a position (the next sitting's).
 			name: "a_repeated_act_names_its_answer",
 			cast: castOf("evidence"), // the exchange a proposal waits on is the dispatch's, and a plan needs a cast
 			cmds: seq([]cmd{
@@ -212,9 +210,9 @@ func scenarios() []scenario {
 					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP002", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the leaf"),
-				// The close's answer: the gap is the lens's, so it mints the successor naming it.
+				// The close's answer: a new gap on the defect where it still stands.
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "a",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--supersedes", "GAP002", "--problem", "my closure lost a word: verified at the leaf"),
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "my closure lost a word: verified at the leaf"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
 			}),
