@@ -505,3 +505,85 @@ func TestTheSeamRefusesToForgeARemovedComputation(t *testing.T) {
 		t.Fatalf("a retired computation's judgement: staleness %v, other violations %v; want none", stale, other)
 	}
 }
+
+// NO FORCED ARM'S ANCHOR IS THE DRAWN RETIRE'S. Each forced arm below places an anchor and acts on it,
+// or needs it standing, at a later sitting or at the run's end; the drawn retire, which takes any
+// anchor the report holds by its id, would take it out first and leave the arm nothing to act on. The
+// staleness arm's is TestTheDrawnRetireLeavesTheStalenessArmsComputation's; each other arm's is a
+// subtest here, its flag set alone, over one report holding every arm's anchors and one free citation.
+func TestTheDrawnRetireLeavesEveryForcedArmsAnchor(t *testing.T) {
+	r := stagedLifecycleRunner(t)
+	const blue = "blue-respond"
+	const reopened, unsound, owed, limit, free = "The reopened claim holds", "The unsound claim holds", "The owed claim holds", "The limit claim holds", "The free claim holds"
+	mintCite, mintComp := mintBareClaim("citation"), mintBareClaim("computation")
+	added := strings.Join([]string{reopened, unsound, owed, limit, free, mintCite, mintComp}, ". ")
+	if _, ok := r.do("edit", blue).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+added).
+		set("--reason", "fuzz: the forced arms' sentences").admit(); !ok {
+		t.Fatalf("blue's edit adding the arms' sentences was refused (%s)", r.actErr)
+	}
+	bundle := func(claim, name, body string) string {
+		t.Helper()
+		dir, argv, err := r.writeBundle(name, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := r.do("compute", blue).set("--quote", claim).set("--dir", dir).set("--reason", "fuzz: the arm's computation").runs(argv).admit(); !ok {
+			t.Fatalf("blue's computation of %q was refused (%s)", claim, r.actErr)
+		}
+		return lastComputationOn(r.run(), claim)
+	}
+	cite := func(claim, path string) string {
+		t.Helper()
+		c := r.lifecycleCite(blue, claim, path, "")
+		if c == "" {
+			t.Fatalf("blue's citation of %q was refused (%s)", claim, r.actErr)
+		}
+		return c
+	}
+	kReopened := bundle(reopened, reopenedComputationName, reopenedComputationScript)
+	kUnsound := bundle(unsound, unsoundComputationName, unsoundComputationScript)
+	kOwed := bundle(owed, "fuzz-owed-computation-1.js", "console.log('fuzz: owed computation 1');")
+	kLimit := bundle(limit, "fuzz-limit-computation.js", "console.log('fuzz: the limit computation');")
+	cLimit := cite(limit, "/forced-limit")
+	cMint := cite(mintCite, "/forced-mint-bare")
+	kMint := bundle(mintComp, "fuzz-mint-bare.js", "console.log('fuzz: the mint-bare computation');")
+	cite(free, "/forced-free")
+	if r.actErr != "" {
+		t.Fatalf("placing the arms' anchors: %s", r.actErr)
+	}
+	for _, c := range []struct {
+		name     string
+		force    func(on bool)
+		reserved []string
+	}{
+		{"reopened computation", func(on bool) { r.forceReopenedComputation = on }, []string{kReopened}},
+		{"unsound computation", func(on bool) { r.forceUnsoundComputation = on }, []string{kUnsound}},
+		{"owed computation", func(on bool) { r.forceOwedComputation = on }, []string{kReopened, kUnsound, kOwed, kLimit, kMint}},
+		{"limit screen and debt", func(on bool) {
+			r.forceScreenUnsound = on
+			r.screenUnsoundComputation, r.limitDebtCite = "", ""
+			if on {
+				r.screenUnsoundComputation, r.limitDebtCite = kLimit, cLimit
+			}
+		}, []string{kLimit, cLimit}},
+		{"mint bare", func(on bool) { r.forceMintBare = on }, []string{cMint, kMint}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			c.force(true)
+			defer c.force(false)
+			drawn := 0
+			for range 200 {
+				id := r.drawnRetireAnchor()
+				if slices.Contains(c.reserved, id) {
+					t.Fatalf("the drawn retire drew %s, the forced arm's", id)
+				}
+				if id != "" {
+					drawn++
+				}
+			}
+			if drawn == 0 {
+				t.Fatal("the drawn retire drew nothing, so the test measured no draw")
+			}
+		})
+	}
+}

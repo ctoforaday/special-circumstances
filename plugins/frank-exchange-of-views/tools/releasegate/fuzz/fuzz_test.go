@@ -9596,21 +9596,16 @@ func (r *runner) retireOneAnchor(seatID, id string) {
 // report for good, and a gap with no token is never reopened: it estops to the run's end while blue's
 // later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds no applied
 // text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs drive the
-// retire of a gap token; this one holds its precondition. A FORCED CHAIN'S CITATION IS NEVER THE DRAWN
-// RETIRE'S (forcedChainCitation). NOR IS THE STALENESS ARM'S COMPUTATION (stalenessAnchor): the seam
-// forges its judgement standing at the debate's end, and a retire would take it out of the report and
-// its judgement out of standing, leaving the oracle nothing to report (CI run 45967095843, seed 21).
+// retire of a gap token; this one holds its precondition. NO FORCED ARM'S ANCHOR IS EVER THE DRAWN
+// RETIRE'S (forcedArmAnchor).
 func (r *runner) drawnRetireAnchor() string {
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return ""
 	}
-	r.mu.Lock()
-	staleness := r.stalenessAnchor
-	r.mu.Unlock()
 	var ids []string
 	for _, id := range anchor.IDs(string(cur)) {
-		if !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedChainCitation(id) && id != staleness {
+		if !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedArmAnchor(cur, id) {
 			ids = append(ids, id)
 		}
 	}
@@ -9618,6 +9613,44 @@ func (r *runner) drawnRetireAnchor() string {
 		return ""
 	}
 	return ids[r.rng.Intn(len(ids))]
+}
+
+// forcedArmAnchor is whether id, an anchor of report cur, is one a forced arm placed and acts on, or
+// needs standing, at a later sitting or at the run's end. NO DRAWN RETIRE TAKES ONE: it would leave
+// the arm nothing to act on — a seam with nothing to forge, a chain with no computation to judge, a
+// screen with no unsound computation to fail. Each arm and what it holds:
+//   - a forced chain's citation (forcedChainCitation) and computation (forcedChainComputation);
+//   - the staleness arm's computation, whose judgement the seam forges standing at the run's end
+//     (stalenessAnchor; CI run 45967095843, seed 21);
+//   - owedComputationSeed's computations, every one of the run's (computeOwed), owed until its owner sits;
+//   - the limit seed's unsound computation and refuted citation, which the run must end on (screenAtLimit);
+//   - mintBareSeed's anchors at the end of their sentences, which the lens's prescription then bares
+//     (mintBaringKind).
+func (r *runner) forcedArmAnchor(cur, id string) bool {
+	if r.forcedChainCitation(id) || r.forcedChainComputation(id) {
+		return true
+	}
+	r.mu.Lock()
+	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, []string{}
+	if r.forceScreenUnsound {
+		limit = append(limit, r.screenUnsoundComputation, r.limitDebtCite)
+	}
+	mintBare := r.forceMintBare
+	r.mu.Unlock()
+	switch {
+	case id == staleness, slices.Contains(limit, id):
+		return true
+	case owed && anchor.Kind(id) == "computation":
+		return true
+	}
+	if mintBare {
+		for _, kind := range anchor.Kinds() {
+			if mintBareAnchor(cur, kind) == id {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // settlingFates are the fates that settle an inquiry: an approach that ran and answered it, one
