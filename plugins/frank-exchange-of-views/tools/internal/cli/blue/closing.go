@@ -20,7 +20,7 @@ import (
 func closingBlue() *cobra.Command {
 	return seat.Closing("closing-blue", func(c *cobra.Command) {
 		enumhelp.Flag(c, flags.As, record.MustEnum("closing", "closure_class"),
-			"on a gap docketed at impasse: the closing word a ruling for blue writes — omit it and that ruling writes not_a_defect, your text standing. Not repaired_with_regression or amends_prior")
+			"on a gap docketed at impasse: the closing word a ruling for the author writes — omit it and that ruling writes not_a_defect, your text standing")
 	}, func(_ seat.Context, cmd *cobra.Command, body *recordpb.Closing) ([]record.Guard, error) {
 		if w := seat.Str(cmd, flags.As); w != "" {
 			d, ok := record.DispositionOf(w)

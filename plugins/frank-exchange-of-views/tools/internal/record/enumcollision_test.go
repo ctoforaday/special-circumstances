@@ -30,8 +30,8 @@ import (
 var knownEnumKeyCollisions = map[string]string{
 	"closure_class": "`close` and `closing` both list ClosureClasses, the Disposition words that " +
 		"close a gap, so the vocabularies are the SAME set by construction. They are one concept: " +
-		"the word a gap closes with — written by the lens's close, or stated by blue's closing for " +
-		"a ruling for blue to write.",
+		"the word a gap closes with — written by the lens's close, or stated by the author's closing " +
+		"for a ruling for the author to write.",
 	"class": "`mint` and `position` both read the GapClass descriptor, so the vocabularies are " +
 		"the SAME set by construction and a cross-type read has no silent miss. They are one " +
 		"concept: the kind of a defect, minted by a lens or argued by the chair where no lens can " +

@@ -180,7 +180,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return debate(a.fam, a.partsAt) }},
 	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the docketings and motions on the record, each with its ruling",
-		Path:    "The dispatch writes a docketing at impasse, at grade movement, or for a proposal its assignee did not accept, and the bench answers it with `motion docket rule`. A seat files a motion with `motion docket file regrade|close|supersede` or `motion petition file`, and the seat that hears it answers with `motion docket rule` or `motion petition rule` — or, for a docket proposal, the gap's lens accepts it with `motion docket accept`.",
+		Path:    "The dispatch writes a docketing at impasse, at grade movement, or for a proposal its assignee did not accept, and the bench answers it with `motion docket rule`. A seat files a motion with `motion docket file regrade|close` or `motion petition file`, and the bench answers it with `motion docket rule` or `motion petition rule`.",
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
 	// inquiries.md is not a section of this table: it is the rendering `show inquiries` prints
 	// (view.InquiryBody), whole, under headings that carry each fate's count.

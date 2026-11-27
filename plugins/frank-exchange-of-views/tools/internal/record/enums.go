@@ -161,14 +161,12 @@ const (
 
 // artifactByClass is the total part of the mapping. Its domain is the classes that close a gap
 // (ClosureClasses): ArtifactStateOf is asked only a closed gap's fate (EstoppedJSON, in
-// viewjson.go). `amends_prior` is absent on purpose: it inherits from the ruling it amends and
-// needs a lookup, not a table row.
+// viewjson.go).
 var artifactByClass = map[string]ArtifactState{
-	"repaired":                 ArtifactRepaired,
-	"repaired_with_regression": ArtifactDefectLive, // repaired here, and a live successor carries the remainder
-	"not_a_defect":             ArtifactNoDefect,
-	"defect_accepted":          ArtifactDefectLive,
-	"defect_owed_elsewhere":    ArtifactDefectLive,
+	"repaired":              ArtifactRepaired,
+	"not_a_defect":          ArtifactNoDefect,
+	"defect_accepted":       ArtifactDefectLive,
+	"defect_owed_elsewhere": ArtifactDefectLive,
 	// MOOT CLOSES THE GAP AND LEAVES THE MERITS UNANSWERED, which is why it is unexamined
 	// although it ends the gap. Closure and artifact state are orthogonal here and this is the
 	// class that shows it.
@@ -181,14 +179,7 @@ var artifactByClass = map[string]ArtifactState{
 }
 
 // ArtifactStateOf answers what a closure class says about the ARTIFACT.
-//
-// `amends_prior` returns ok=false: it is defined relative to an earlier ruling, so this function
-// cannot answer alone and says so rather than guessing. The caller walks the lineage — and a
-// caller that cannot must report the miss, not substitute a plausible value.
 func ArtifactStateOf(class string) (ArtifactState, bool) {
-	if class == "amends_prior" {
-		return "", false
-	}
 	if s, ok := artifactByClass[class]; ok {
 		return s, true
 	}
@@ -265,11 +256,11 @@ var EnumFields = map[string][]EnumField{
 	// vocabulary it already has. The check carries the inquiry's id and prose, nothing else.
 	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
 	// express, and live in record/motion.go.
-	// `closing`: blue's word at an impasse docketing, the closing word a ruling for blue writes. The
-	// same set as a close's (#1695 L34); the write refuses the two words no ruling carries.
+	// `closing`: the author's word at an impasse docketing, the closing word a ruling for the author
+	// writes. The same set as a close's (#1695 L34).
 	"closing": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses, Optional: true,
-		Why: "blue's statement at an impasse docketing: the closing word a ruling for blue writes, where blue's text stands as `not_a_defect` without one",
+		Why: "the author's statement at an impasse docketing: the closing word a ruling for the author writes, where the author's text stands as `not_a_defect` without one",
 	}},
 	"close": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,

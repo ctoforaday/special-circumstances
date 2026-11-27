@@ -50,9 +50,8 @@ type supersederKey struct {
 	typ     recordpb.EventType
 	subject recordpb.MotionSubject
 	keyed   protoreflect.Name
-	// role is the answering seat's role, where one act's answer differs by who took it: the bench
-	// answers its docket ruling in a declaration, and a lens's accept made the accepted act its own,
-	// which it answers with its own next act. Empty matches every role.
+	// role is the answering seat's role, where one act's answer differs by who took it: the chair's
+	// carry restates a closure it cannot answer with a gap. Empty matches every role.
 	role string
 }
 
@@ -79,17 +78,16 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}: {act: "a new record of the inquiry's fate"},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}: {act: "a new certification", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CITE}:    {act: "a new citation", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}: {act: "a successor naming the gap in --supersedes: mint it where the gap is yours, " +
-		"or propose it in a docket motion where it is not"},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSE, role: "chair"}: {act: "a supersede of the gap proposed in a docket motion"},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}:              {act: "a new closing on the gap", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}:              {act: "a new declaration", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                 {act: "a new halt", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                  {act: "a new log entry", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}: {act: "a new gap on the defect where it still stands in the report: " +
+		"a closed gap stays closed, and no mint names it"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE, role: "chair"}: {act: "a log entry: a carry restates a closure the record holds, " +
+		"which stands as its lens made it, and a defect still in the report is a new gap of the lens that finds it"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}: {act: "a new closing on the gap", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}: {act: "a new declaration", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_HALT}:    {act: "a new halt", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_LOG}:     {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
 		"the gap comes before you again only on a new docketing of it"},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket, role: "lens"}: {act: "your own next act on the gap, " +
-		"which the accept made yours: a regrade at your next sitting while the gap is open, or a successor naming it in --supersedes once it is closed"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPosition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {whole: "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"},

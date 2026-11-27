@@ -670,7 +670,7 @@
     },
     {
       "term": "assignee",
-      "definition": "An assignee is the seat whose gap it is: the lens that minted the origin of the gap's lineage, which every successor carries whoever wrote it — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.",
+      "definition": "An assignee is the seat whose gap it is: the lens that minted the gap — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.",
       "seats": [
         "lens",
         "chair",
@@ -782,6 +782,10 @@
         {
           "word": "retired (a lens)",
           "resolution": "a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record"
+        },
+        {
+          "word": "superseded_by (retire)",
+          "resolution": "a retired claim's replacement in the report; not a gap"
         }
       ]
     },
@@ -894,7 +898,7 @@
       "collisions": [
         {
           "word": "movement (an exchange's)",
-          "resolution": "an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass"
+          "resolution": "an exchange moves its gap when the gap's grade or its anchored text changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass"
         }
       ]
     },
@@ -1027,7 +1031,12 @@
         "operator"
       ],
       "bans": [],
-      "collisions": []
+      "collisions": [
+        {
+          "word": "superseded (an inquiry's record or a bench statement)",
+          "resolution": "a later record of the same thing standing in its place; not a gap's fate"
+        }
+      ]
     },
     {
       "term": "question part",
@@ -1057,7 +1066,7 @@
       "collisions": [
         {
           "word": "reopen (a gap)",
-          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation"
+          "resolution": "a ruling's `reopens_on` says what would reopen the question it decided; it is not a reopened citation or computation, and a closed gap stays closed"
         },
         {
           "word": "`reopened` (the edit's field)",
@@ -1105,42 +1114,6 @@
       ],
       "bans": [],
       "collisions": []
-    },
-    {
-      "term": "superseded",
-      "definition": "A gap is superseded when its assignee mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or proposal on it is refused naming the successor.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "stranded gap",
-          "kind": "GATED",
-          "pattern": "stranded (superseded )?(gaps?|ancestors?)"
-        }
-      ],
-      "collisions": [
-        {
-          "word": "superseded (a closed gap)",
-          "resolution": "a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, and the successor is the closed gap's assignee's, so only the mint that names the gap while it is open supersedes it"
-        },
-        {
-          "word": "`--superseded-by` (close)",
-          "resolution": "names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed"
-        },
-        {
-          "word": "superseded_by (retire)",
-          "resolution": "a retired claim's replacement in the report; not a gap"
-        },
-        {
-          "word": "superseded (an inquiry's record or a bench statement)",
-          "resolution": "a later record of the same thing standing in its place; not a gap's fate"
-        }
-      ]
     }
   ]
 }

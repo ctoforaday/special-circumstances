@@ -372,7 +372,7 @@ func schemaValue(ed protoreflect.EnumDescriptor, word string) (protoreflect.Enum
 // Measured 2026-08-22 on the sqlite-schema run: the board said open:0 while assembly-screen
 // reported a source red had found AGAINST still cited in the shipped report. Two gates, one run,
 // contradicting each other in English — because "closed" answers whether the DISPUTE ended, and
-// three of the six classes end the dispute while leaving a live defect in the artifact.
+// two of the five closing classes end the dispute while leaving a live defect in the artifact.
 func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 	for _, c := range []struct {
 		class string
@@ -382,11 +382,10 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		{"not_a_defect", ArtifactNoDefect},
 		{"defect_accepted", ArtifactDefectLive},
 		{"defect_owed_elsewhere", ArtifactDefectLive},
-		{"repaired_with_regression", ArtifactDefectLive},
 	} {
 		got, ok := ArtifactStateOf(c.class)
 		if !ok {
-			t.Errorf("%s: ArtifactStateOf reported it cannot answer, but only amends_prior may", c.class)
+			t.Errorf("%s: ArtifactStateOf reported it cannot answer", c.class)
 			continue
 		}
 		if got != c.want {
@@ -394,20 +393,13 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		}
 	}
 
-	// THE THREE THAT SHIP A LIVE DEFECT must not be readable as repaired. This is the assertion
+	// THE TWO THAT SHIP A LIVE DEFECT must not be readable as repaired. This is the assertion
 	// the board could not make before, and the one the run needed.
-	for _, class := range []string{"defect_accepted", "defect_owed_elsewhere", "repaired_with_regression"} {
+	for _, class := range []string{"defect_accepted", "defect_owed_elsewhere"} {
 		if got, _ := ArtifactStateOf(class); got == ArtifactRepaired || got == ArtifactNoDefect {
 			t.Errorf("%s reads as %s — a settled dispute is being reported as a sound artifact, "+
 				"which is how a board says open:0 while the report ships a defect red found against", class, got)
 		}
-	}
-
-	// AMENDS_PRIOR REFUSES TO ANSWER rather than guessing. It is defined relative to an earlier
-	// ruling, so a table row for it would be a fabricated value wearing a derived one's authority.
-	if _, ok := ArtifactStateOf("amends_prior"); ok {
-		t.Error("amends_prior answered from the class alone — it inherits from the ruling it amends, " +
-			"and a plausible answer here is worse than an honest refusal")
 	}
 
 	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK

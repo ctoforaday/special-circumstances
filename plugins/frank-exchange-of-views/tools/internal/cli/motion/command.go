@@ -66,7 +66,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
-		"propose the act you want on a GAP — a regrade, a close or a supersede: any seat but the bench files, the gap's assignee may accept it, else the gap is docketed and the BENCH sides with the filer or the other party, or remands it",
+		"propose the act you want on a GAP — a regrade or a close: any seat but the bench files, the gap's assignee may accept it, else the gap is docketed and the BENCH sides with the filer or the other party, or remands it",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final, flags.Direction}))
 	mount(subject(actingRole, "position",

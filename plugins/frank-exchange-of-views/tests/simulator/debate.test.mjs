@@ -631,7 +631,7 @@ test('the lens mints its own gaps, screens first, and closes as the originator',
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
-  for (const want of ['YOU MINT YOUR OWN GAPS', 'read the board first', 'then mint', 'or the catch-all with the reason none does', 'names the one gap it supersedes', "says so in the check's kind", 'THE ASSIGNEE CLOSES', 'LINEAGE IS NEVER DROPPED',
+  for (const want of ['YOU MINT YOUR OWN GAPS', 'read the board first', 'then mint', 'or the catch-all with the reason none does', 'a closed gap stays closed', "says so in the check's kind", 'THE ASSIGNEE CLOSES',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
@@ -741,7 +741,7 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const bench = firstPrompt(world, 'judge')
   assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
   for (const want of ['YOUR WORK LIST NAMES THE DOCKETINGS BEFORE YOU', 'its cause and basis say why', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'A REMAND closes nothing and is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
+    'RULING BASIS IS CONFINED TO', 'the docket ruling', 'barring as settled', 'A REMAND closes nothing and is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and grade movement takes none', 'EACH SIDE STATES WHAT IT HOLDS, AND YOU CHOOSE', 'a side that stated nothing cannot win', 'The record applies the side you choose, writing nothing of yours',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)

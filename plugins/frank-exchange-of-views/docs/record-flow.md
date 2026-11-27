@@ -53,7 +53,7 @@ flowchart TB
 - **A lens reports a defect one way: it mints a gap.** `feov-record mint` records it; the tool mints
   the gap's id, and the lens's area prints beside it wherever it is named. One open gap per class
   stands on a sentence, inquiry or citation: a second mint is refused, naming the gap that stands. A
-  lens that disputes that gap proposes the act it wants on it — a supersede, a regrade or a close —
+  lens that disputes that gap proposes the act it wants on it — a regrade or a close —
   argued in its reason; the gap's lens may accept it, else the bench rules. Agreeing with a gap is no
   act.
 - **The chair mints nothing.** It reads the board to dispatch and to decide the verdict; a gap is its

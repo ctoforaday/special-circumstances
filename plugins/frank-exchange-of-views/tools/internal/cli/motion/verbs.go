@@ -20,7 +20,7 @@ import (
 // `position` has none: the chair's position is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started. " +
-		"It is not how a gap is disputed: the act you want on a gap — its regrade, its close or its supersede — is proposed in a docket motion.",
+		"It is not how a gap is disputed: the act you want on a gap — its regrade or its close — is proposed in a docket motion.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command

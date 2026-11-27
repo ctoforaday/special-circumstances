@@ -61,7 +61,6 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
 | [reading debt](#reading-debt) | lens, chair, blue, lane, bench, operator |
-| [superseded](#superseded) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -411,7 +410,7 @@ A gap is a defect in the report that changes a conclusion or a decision a reader
 
 ## assignee
 
-An assignee is the seat whose gap it is: the lens that minted the origin of the gap's lineage, which every successor carries whoever wrote it — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
+An assignee is the seat whose gap it is: the lens that minted the gap — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -469,6 +468,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 **Collisions:**
 
 - **retired (a lens)** — a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record
+- **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
 
 ## lens retirement
 
@@ -521,7 +521,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade or its anchored text changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## docketing
 
@@ -595,6 +595,10 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
+**Collisions:**
+
+- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate
+
 ## question part
 
 A question part is one part of the question the run was asked — split out by blue in the subject's terms, recorded with its coverage: covered where the report answers it, not obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer — judged open while it has no coverage, which holds the PASS until blue records one, as a question split into no part does; wanting while an open material gap is about it; unchecked once covered with no check standing, which holds the PASS until the logic lens checks its latest coverage; and sound while that check stands, a PASS over any part not covered deriving QUALIFIED.
@@ -609,7 +613,7 @@ A citation or computation is reopened when an edit changes its sentence after a 
 
 **Collisions:**
 
-- **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation
+- **reopen (a gap)** — a ruling's `reopens_on` says what would reopen the question it decided; it is not a reopened citation or computation, and a closed gap stays closed
 - **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened
 
 ## unchecked
@@ -629,22 +633,3 @@ A failed check is a standing check of a citation or computation that failed — 
 A reading debt is a lens's standing reading that finds a source against its sentence — a citation's source that refutes the sentence or says nothing of it, or a source the lens found that refutes the sentence it was read against — with no gap of its class on the subject: the lens's unfinished promise, a PASS blocker on the chair's list with the lens named, which the lens clears by minting that gap on the reading or by reading the subject again, and which blue's edit of the cited sentence, retire of the citation, or removal of the sentence a found source was read against discharges; from the mint on the gap's grade alone holds the PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
-
-## superseded
-
-A gap is superseded when its assignee mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or proposal on it is refused naming the successor.
-
-**Delivered to:** lens, chair, blue, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| stranded gap | GATED | `stranded (superseded )?(gaps?\|ancestors?)` |  |  |
-
-**Collisions:**
-
-- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, and the successor is the closed gap's assignee's, so only the mint that names the gap while it is open supersedes it
-- **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
-- **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
-- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

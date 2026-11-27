@@ -16,7 +16,7 @@ import (
 )
 
 // A DOCKET MOTION IS A PROPOSED ACT. The filer files the regrade or close it wants on the
-// gap, with that act's own flags; the gap's assignee may accept it (`motion docket accept`), else the
+// gap, with that act's own flags; the gap's assignee may accept it, else the
 // dispatch dockets it and the bench sides with a party or remands it. So `file` under docket is a group, one verb per act, and the
 // act's flags are the ones its own verb takes.
 

@@ -25,9 +25,9 @@ import (
 func closingRed() *cobra.Command {
 	return seat.Closing("closing-red", func(c *cobra.Command) {
 		flags.Text(c, flags.Quote, "red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-raiser ruling replaces. With --new")
-		flags.Text(c, flags.New, "red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with red. With --quote")
-		c.Flags().Bool(flags.Retire, false, "red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with red")
-		c.Flags().Bool(flags.NoText, false, "red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with blue or remands")
+		flags.Text(c, flags.New, "red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with the raiser. With --quote")
+		c.Flags().Bool(flags.Retire, false, "red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with the raiser")
+		c.Flags().Bool(flags.NoText, false, "red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with the author or remands")
 	}, func(s seat.Context, cmd *cobra.Command, body *recordpb.Closing) ([]record.Guard, error) {
 		gapID := body.GetGapId()
 		if seat.Given(cmd, flags.Quote) {

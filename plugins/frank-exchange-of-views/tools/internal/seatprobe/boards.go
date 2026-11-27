@@ -836,46 +836,6 @@ The fall coincides with the cache layer's release.
 	}
 }
 
-// lensAccept is the lens sitting after blue proposed a regrade of its gap: the report discloses the
-// limitation the gap was graded for, and the proposed grade is the one the lens would set itself.
-// Accepting applies blue's act exactly as filed and answers the proposal; the bench never sits on it.
-func lensAccept() Board {
-	return Board{
-		Name: "lens-accept", Seat: "red-lens-evidence",
-		Report: `# Is the migration reversible? — research report
-
-## TL;DR
-
-The migration is reversible at rest.
-
-## Findings
-
-The migration reverses cleanly with no load on the cluster.
-
-Reversibility under load was not tested, and the report claims nothing about it.
-`,
-		Gaps: []Gap{{
-			Key: "untested", Class: "verification_scope_blindspot",
-			Location: `Reversibility under load was not tested, and the report claims nothing about it.`,
-			Problem:  "The untested case is named and its risk is not graded.",
-			Fix:      "Grade the untested case or say why it cannot be graded.",
-			Check:    "The limitation carries a stated risk.", CheckKind: "document",
-			Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
-			Baits: "motion docket accept",
-			Why: "Graded `certain` for a limitation the report discloses and claims nothing past. Blue's proposal " +
-				"sets the severity the lens would set itself; accepting it is the lens's own regrade, recorded as the " +
-				"answer to the proposal, and the gap stays the lens's.",
-		}},
-		Motions: []Motion{{
-			Subject: "docket", Filer: "blue-respond", GapID: "G1", Act: []string{"regrade", "--severity", "low"},
-			Basis: "the report discloses the untested case and claims nothing about it; `certain` grades a defect the sentence does not commit",
-		}},
-		Expect: []Expectation{
-			{Seat: "red-lens-evidence", Verb: "motion docket accept", Because: "Blue proposed the regrade of G1 this lens would make: the report discloses the untested case and claims nothing past it. Accepting applies the proposed act as filed and answers the proposal; a lens that regrades by hand leaves the proposal standing for the bench."},
-		},
-	}
-}
-
 // lensPropose is a lens sitting over another lens's gap that is graded past what the report commits:
 // the gap is not this lens's to regrade, and its road is the regrade it proposes in a docket motion.
 func lensPropose() Board {
@@ -962,7 +922,7 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensAccept(), lensPropose(), lensInquiry(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensPropose(), lensInquiry(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out
@@ -982,25 +942,18 @@ func Boards() map[string]Board {
 var NoSituation = map[string]string{
 	// A LANE SITS ONCE, BEFORE ANY BOARD EXISTS: the boards here are debate states, and a lane's
 	// sitting precedes the first of them. Each of its acts is the same verb blue's boards demand.
-	"lane inquiry propose":              laneSitsBeforeAnyBoard,
-	"lane inquiry record":               laneSitsBeforeAnyBoard,
-	"lane log":                          laneSitsBeforeAnyBoard,
-	"lane motion docket file regrade":   laneHasNoGap,
-	"lane motion docket file close":     laneHasNoGap,
-	"lane motion docket file supersede": laneHasNoGap,
-	"lane motion petition file":         laneSitsBeforeAnyBoard,
+	"lane inquiry propose":            laneSitsBeforeAnyBoard,
+	"lane inquiry record":             laneSitsBeforeAnyBoard,
+	"lane log":                        laneSitsBeforeAnyBoard,
+	"lane motion docket file regrade": laneHasNoGap,
+	"lane motion docket file close":   laneHasNoGap,
+	"lane motion petition file":       laneSitsBeforeAnyBoard,
 	"lens motion docket file close": "a lens closes its own gaps; on another lens's it proposes the regrade lens-propose stages, and a close it holds " +
 		"another lens owes is argued the same way. A board for each act of one road would bait the act, not the choice.",
-	"lens motion docket file supersede": "a lens mints its own successors; on another lens's gap the road is the proposal lens-propose stages, " +
-		"and a board for each act of one road would bait the act, not the choice.",
 	"chair motion docket file regrade": "the chair's docket filings argue a gap it cannot close: adjudicate stages its close proposal, and a regrade " +
-		"proposal is the same road with another act.",
-	"chair motion docket file supersede": "the chair's docket filings argue a gap it cannot close: adjudicate stages its close proposal, and a supersede " +
 		"proposal is the same road with another act.",
 	"blue motion docket file close": "blue disputes a gap by proposing the act it holds right; arithmetic and docket stage its regrade proposal, " +
 		"and a close proposal is the same road with another act.",
-	"blue motion docket file supersede": "blue disputes a gap by proposing the act it holds right; arithmetic and docket stage its regrade proposal, " +
-		"and a supersede proposal is the same road with another act.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
 		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
 		"record-parity audit holds the duty instead.",

@@ -25,8 +25,7 @@
 // usage line stays short.
 //
 // The section is also where facts that cannot live on a command go — which value demands which
-// other flag, most usefully. `repaired_with_regression` REQUIRES `--successor` and nothing in
-// cobra's model can say so at the flag level.
+// other flag, most usefully, which nothing in cobra's model can say at the flag level.
 package enumhelp
 
 import (

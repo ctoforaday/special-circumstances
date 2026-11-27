@@ -236,12 +236,12 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 			if f.computation {
 				return feov.Errorf(feov.Conflict,
 					"gap %s carries computation %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-						"The check clears once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it. %s; a gap that carries the defect on is minted with --supersedes naming this one, which closes it, and while nothing answers this one's `source` or `computation` demand the successor carries its check kind and the demand with it, and a retire of the anchor, or its own seat's check of it again that holds, made after the successor's mint, meets the successor's demand",
+						"The check clears once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it. %s",
 					g, f.anchor, f.owner, f.since, demandAfterClear)
 			}
 			return feov.Errorf(feov.Conflict,
 				"gap %s carries citation %s, whose source no check since its sentence last changed has read (%s's check at event %d read nothing), and the report still cites it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-					"The check clears once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source. %s; a gap that carries the defect on is minted with --supersedes naming this one, which closes it, and while nothing answers this one's `source` or `computation` demand the successor carries its check kind and the demand with it, and a retire of the anchor, or its own seat's check of it again that holds, made after the successor's mint, meets the successor's demand",
+					"The check clears once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source. %s",
 				g, f.anchor, f.owner, f.since, demandAfterClear)
 		}
 	}
