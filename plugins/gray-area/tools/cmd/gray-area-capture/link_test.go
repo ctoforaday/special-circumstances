@@ -26,10 +26,11 @@ func agyPreInvocation(n int) []byte {
 	return []byte(fmt.Sprintf(`{"conversationId":%q,"invocationNum":%d,"initialNumSteps":1,"workspacePaths":["/w"]}`, linkConv, n))
 }
 
-func recordServer(t *testing.T, runtimeDir, addr string) {
+// recordServer links linkConv on the server id at addr; a zero id records no server process.
+func recordServer(t *testing.T, runtimeDir, addr string, id peer.ServerIdentity) {
 	t.Helper()
 	env := map[string]string{peer.EnvConversation: linkConv, peer.EnvAddress: addr, peer.EnvToken: "tok"}
-	if _, _, err := peer.RegisterWith(runtimeDir, func(k string) string { return env[k] }, func() peer.ServerIdentity { return peer.ServerIdentity{} }, time.Unix(0, 0)); err != nil {
+	if _, _, err := peer.RegisterWith(runtimeDir, func(k string) string { return env[k] }, func() peer.ServerIdentity { return id }, time.Unix(0, 0)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -63,9 +64,10 @@ func TestLinkRequestAsksOnlyWhenItWouldHelp(t *testing.T) {
 	up := liveAs(catalogue.Live)
 	down := liveAs(catalogue.Ended)
 	unknown := liveAs(catalogue.Unknown)
-	linked, stale, none := t.TempDir(), t.TempDir(), t.TempDir()
-	recordServer(t, linked, "localhost:1")
-	recordServer(t, stale, "localhost:2")
+	linked, stale, none, pidless := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+	recordServer(t, linked, "localhost:1", peer.ServerIdentity{PID: 4321, StartTime: 98765})
+	recordServer(t, stale, "localhost:2", peer.ServerIdentity{PID: 4322, StartTime: 98766})
+	recordServer(t, pidless, "localhost:3", peer.ServerIdentity{})
 	claude := hookcore.Read("PreInvocation", strings.NewReader(`{"session_id":"s","hook_event_name":"UserPromptSubmit"}`))
 	agy := func(n int) hookcore.Request {
 		return hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(n))))
@@ -83,6 +85,7 @@ func TestLinkRequestAsksOnlyWhenItWouldHelp(t *testing.T) {
 		{"recorded server gone", agy(0), stale, "/bin/telepathy", down, true},
 		{"recorded server cannot be judged", agy(0), stale, "/bin/telepathy", unknown, true},
 		{"recorded server answers", agy(0), linked, "/bin/telepathy", up, false},
+		{"record names no server process", agy(0), pidless, "/bin/telepathy", unknown, false},
 		{"not the turn's first step", agy(1), none, "/bin/telepathy", up, false},
 		{"no runtime dir: linking would fail", agy(0), "", "/bin/telepathy", up, false},
 		{"no telepathy binary to name", agy(0), none, "", up, false},

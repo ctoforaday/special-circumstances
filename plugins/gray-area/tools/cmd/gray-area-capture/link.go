@@ -47,8 +47,9 @@ func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hos
 	if p.InvocationNum != 0 {
 		return ""
 	}
+	var host peer.ServerIdentity
 	if hostFn != nil {
-		host := hostFn()
+		host = hostFn()
 		if host.PID > 0 && host.StartTime > 0 {
 			if hs, err := peer.LookupServerByKey(runtimeDir, peer.ServerKey(host.PID, host.StartTime, "")); err == nil && hs != nil && liveness(*hs) == catalogue.Live {
 				return ""
@@ -56,6 +57,13 @@ func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hos
 		}
 	}
 	if s, err := peer.LookupConversationServer(runtimeDir, req.SessionID, liveness); err == nil && s != nil {
+		return ""
+	}
+	// NO SERVER PROCESS TO NAME, NONE TO ASK FOR. When this hook finds no Antigravity process above
+	// it and the conversation's record names none either, linking again writes the same record,
+	// which send cannot use (link says so): asking every turn would repeat that, in a wording that
+	// would call a running server gone.
+	if host.PID <= 0 && hasPidlessRecord(runtimeDir, req.SessionID) {
 		return ""
 	}
 	// A STALE LINK IS SAID TO BE STALE, AND ONLY A STALE ONE. Measured: a conversation whose history
@@ -69,6 +77,20 @@ func linkRequestWithHost(req hookcore.Request, runtimeDir, telepathy string, hos
 		why = staleLinkWhy
 	}
 	return why + " Before your task, run this shell command once: " + shellQuote(telepathy) + " link — it prints `linked` and needs nothing further."
+}
+
+// hasPidlessRecord reports whether a record listing conversation names no server process.
+func hasPidlessRecord(runtimeDir, conversation string) bool {
+	servers, err := peer.ListServers(runtimeDir)
+	if err != nil {
+		return false
+	}
+	for _, s := range servers {
+		if s.PID <= 0 && s.Lists(conversation) {
+			return true
+		}
+	}
+	return false
 }
 
 // The two openings of the link request: for a conversation that has never linked, and for one
