@@ -275,36 +275,6 @@ func closureReasonOf(t *testing.T, run Run, g string) string {
 	return gap.ClosureReason()
 }
 
-// leadOf is every bench opinion the debate projection carries, over all epochs.
-func leadOf(t *testing.T, run Run) []DebateOpinionJSON {
-	t.Helper()
-	f, err := FamilyOf(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out []DebateOpinionJSON
-	for _, e := range DebateJSONOfFamily(f).Epochs {
-		out = append(out, e.Lead...)
-	}
-	return out
-}
-
-// rulingOf is the MotionRule answering motion on run's record.
-func rulingOf(t *testing.T, run Run, motion string) *recordpb.MotionRule {
-	t.Helper()
-	all, err := MergedEvents(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range all.Events {
-		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetMotionId() == motion {
-			return r
-		}
-	}
-	t.Fatalf("no ruling on %s", motion)
-	return nil
-}
-
 // THE STREAM'S MINTER IS THE STORED ONE (mintersOf against the gap view's minted_by): each gap reads
 // the seat whose mint created it, on both readers.
 func TestTheStreamsMinterIsTheStoredOne(t *testing.T) {

@@ -15,13 +15,6 @@ import (
 // some later read's refusal. A guard whose read a planted fault cannot reach — the verb read the
 // same table whole before it — is held by its package's own test with the read injected.
 
-func dropTable(t *testing.T, runDir, table string) {
-	t.Helper()
-	if _, err := openRunDB(t, runDir).Exec(`DROP TABLE "` + table + `"`); err != nil {
-		t.Fatalf("drop %s: %v", table, err)
-	}
-}
-
 func wantUnreadableRefusal(t *testing.T, err error, what string) {
 	t.Helper()
 	if err == nil {

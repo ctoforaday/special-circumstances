@@ -68,5 +68,3 @@ func FirstRepeat(c *cobra.Command, args []string) *Repeat {
 	})
 	return found
 }
-
-func strconvQuote(s string) string { return fmt.Sprintf("%q", s) }

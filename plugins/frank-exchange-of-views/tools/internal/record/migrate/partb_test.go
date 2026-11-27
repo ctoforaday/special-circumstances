@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -38,15 +37,6 @@ func migratedMinters(t *testing.T, dir string) (writer map[string]string, run re
 		}
 	}
 	return writer, run
-}
-
-// migratedGapID is the id the migrated record gives an archived gap id: respelled where the
-// manifest says so, else the same.
-func migratedGapID(man *migration.Manifest, id string) string {
-	if v, ok := man.IDs[id]; ok {
-		return v
-	}
-	return id
 }
 
 // T-B11. AN ARCHIVED GRADE MOTION LEAVES NO EVENT (EventSchema 80, §III.B7). Each grade motion and each
