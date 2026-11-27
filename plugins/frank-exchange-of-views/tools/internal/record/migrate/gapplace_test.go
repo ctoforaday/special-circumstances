@@ -387,3 +387,21 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 		goldentest.Assert(t, "archived_gap_rewrites", strings.Join(lines, "\n")+"\n")
 	})
 }
+
+// A MIGRATED REPORT HOLDING A TOKEN ON NO WORDS IS REFUSED. No live write leaves one, and the fold
+// takes or re-seats every one an archived cut or rewrite left; a rewrite that put a citation's token
+// at the head of its replacement, no retire following, leaves it bare, and migrate refuses the record
+// naming it rather than writing a report no live writer could.
+func TestAMigratedReportHoldingABareTokenIsRefused(t *testing.T) {
+	const base = "# H\n\nCosts rose sharply in Q1. Volume fell.\n"
+	s := newShapeSource(t, base)
+	s.cite("C-0000aaa1", "Volume fell.")
+	s.edit("Volume fell<!--cite:C-0000aaa1-->.", "<!--cite:C-0000aaa1--> Volume held.", false)
+	m, err := migrate.Migrate(s.dir, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{})
+	if err == nil || m == nil {
+		t.Fatalf("migrate wrote a report holding a bare token: %v", err)
+	}
+	if len(m.Refusals) != 1 || m.Refusals[0].Word != "report" || !strings.Contains(m.Refusals[0].Err, "C-0000aaa1 on no words") {
+		t.Errorf("the refusals are %+v, want the report's, naming the bare citation", m.Refusals)
+	}
+}
