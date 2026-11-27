@@ -588,6 +588,9 @@ type runner struct {
 	bridgeAdmittedErr            string
 	// quoteDrives counts the lens drives that reached sourceQuoteRefused, which fires on every seventh.
 	quoteDrives int
+	// pagelessPageDriven is whether the citation owner's `verify --page` on a citation with no pages
+	// has been refused in this run (pagelessPageRefused).
+	pagelessPageDriven bool
 	// repeatsRefused counts the second acts the tool refused in a sitting that holds one — a
 	// position, a closing on a gap — each naming the act that answers the first. The sweep gates
 	// it at zero.
@@ -3151,9 +3154,17 @@ func (r *runner) someCitation() string {
 	if !ok {
 		return ""
 	}
-	// A RETIRED CITATION IS NOT IN THE REPORT, and verify refuses it by design (it holds no sentence
-	// to read the source against); the reading drive expects its verify admitted, so it skips those.
-	// A FORCED CHAIN'S CITATION IS THE CHAIN'S (forcedChainCitation).
+	live := r.liveCitations(b)
+	if len(live) == 0 {
+		return ""
+	}
+	return live[r.rng.Intn(len(live))]
+}
+
+// liveCitations is the citations on board b a lens may verify, in the record's order: none retired —
+// a retired citation is not in the report, and verify refuses it by design (it holds no sentence to
+// read the source against) — and none a forced chain's (forcedChainCitation). It draws nothing.
+func (r *runner) liveCitations(b record.Family) []string {
 	var live []string
 	for _, src := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if r.forcedChainCitation(src.Anchor) {
@@ -3163,10 +3174,54 @@ func (r *runner) someCitation() string {
 			live = append(live, src.Anchor)
 		}
 	}
-	if len(live) == 0 {
-		return ""
+	return live
+}
+
+// pagelessPageRefused drives the citation owner's `verify --page` on a citation with no pages, once a
+// run, and holds the tool to refusing it as a validation: --page names a page image, and no citation
+// this sweep writes has pages.
+//
+// IT IS FORCED AND DRAWS NOTHING. readCitation's one-in-ten --page sits behind drawsReading,
+// citationToVerify, a 70% coin and firstThisSitting, and an ordinary change to the drive's draws left
+// `lens verify --page` unpassed across a whole 40-run sweep. This arm needs only an evidence-lens
+// sitting while a live citation stands — every run's lens sittings reach it with no coin — and takes
+// the record's first live citation, so it moves no later draw of the run. It is retried each sitting
+// until the refusal lands, so a citation retired between the board read and the verify costs a sitting,
+// not the run's drive.
+func (r *runner) pagelessPageRefused(seatID string) {
+	if seatID != citationOwner {
+		return
 	}
-	return live[r.rng.Intn(len(live))]
+	r.mu.Lock()
+	done := r.pagelessPageDriven
+	r.mu.Unlock()
+	if done {
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	live := r.liveCitations(b)
+	if len(live) == 0 {
+		return
+	}
+	anchorID := live[0]
+	out, err := r.do("verify", seatID).set("--anchor", anchorID).set("--as", "supports").
+		set("--confidence", "high").set("--reason", "fuzz: the page image of a citation with no pages").
+		set("--page", "1").bare("--json").result()
+	switch env, enveloped := refusalEnvelopeIn(out); {
+	case err == nil:
+		r.noteActErr("verify --page on a source with no pages was admitted: " + firstLine(out))
+	case r.retiredUnderTheDraw(anchorID, out):
+		// BLUE RETIRED THE CITATION BETWEEN THE BOARD READ AND THE VERIFY: the next sitting tries again.
+	case !enveloped || env.Code != string(feov.Validation):
+		r.noteActErr("verify --page on a source with no pages refused without a validation envelope: " + firstLine(out))
+	default:
+		r.mu.Lock()
+		r.pagelessPageDriven = true
+		r.mu.Unlock()
+	}
 }
 
 // citationToVerify is the citation seatID's reading drive verifies, or "" where it verifies none: the
@@ -6744,6 +6799,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
+				r.pagelessPageRefused(seatID)
 				// A LENS RUNS OUT OF SOURCES TO READ, as it runs out of defects (drawsReading): past its
 				// stock of drawn readings a sitting reads only what it owes, so it can be barren and retire.
 				if r.drawsReading(seatID) {

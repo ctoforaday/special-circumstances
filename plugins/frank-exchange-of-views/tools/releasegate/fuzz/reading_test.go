@@ -136,7 +136,8 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless, fresh 
 		outcome = "refutes"
 	}
 	// --page names a page image, and no citation this sweep writes has pages, so a verify carrying one
-	// is refused: the flag and its refusal, driven.
+	// is refused: the flag and its refusal, driven. This coin is one drive of it; the sweep's guarantee
+	// is pagelessPageRefused, which draws nothing.
 	paged := r.coin(10)
 	c := axes(outcome, r.do("verify", seatID)).set("--anchor", anchorID).bare("--json")
 	if paged {
