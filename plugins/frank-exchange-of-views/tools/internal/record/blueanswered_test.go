@@ -198,9 +198,9 @@ func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 	for _, tc := range []struct {
 		name, fatedOn, answers string
 		about                  *recordpb.Mint
-		before        bool
-		want          string
-		absent        []string
+		before                 bool
+		want                   string
+		absent                 []string
 	}{
 		{"blue recorded the inquiry's fate naming the gap", "Q-1", "G1", nil, false, "has been ANSWERED by an inquiry record naming it — blue recorded the fate `deferred` on Q-1, the inquiry the gap is anchored on",
 			[]string{"NO edit, citation, computation, fate or question part naming it answers it", "NO inquiry record answers it", "naming no gap"}},
