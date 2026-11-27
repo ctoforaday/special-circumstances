@@ -106,10 +106,13 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 // motionsView is the motions read from the record. The exchange lives on the families declared
 // here; nothing else on the record decides a motion's state. A position is a motion where its
 // sitting's plan permitted the PASS and the sitting records none (heardPositionsOf), so the
-// position, the plan and the verdict are read with them.
+// position, the plan and the verdict are read with them, and so are the regrades and closes: the raiser's
+// act taking a proposal (accepts) is the proposal's answer.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_CLOSE,
 	recordpb.EventType_EVENT_TYPE_DOCKETING,
 	recordpb.EventType_EVENT_TYPE_POSITION,
 	recordpb.EventType_EVENT_TYPE_PLAN,

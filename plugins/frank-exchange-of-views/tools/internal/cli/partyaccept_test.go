@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -24,6 +25,27 @@ func partyRecord(t *testing.T, runDir string) (map[string]*record.Motion, map[st
 		ds[d.ID] = d
 	}
 	return ms, ds, all.Events
+}
+
+// motionsPageAnswer is whether the motions page a seat reads (`show motions`, record.MotionsJSONBytes)
+// shows motion m answered, and with what word.
+func motionsPageAnswer(t *testing.T, runDir, m string) (bool, string) {
+	t.Helper()
+	b, err := record.MotionsJSONBytes(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var page record.MotionsJSON
+	if err := json.Unmarshal(b, &page); err != nil {
+		t.Fatal(err)
+	}
+	for _, mj := range page.Motions {
+		if mj.ID == m {
+			return mj.Ruled, mj.Ruling
+		}
+	}
+	t.Fatalf("the motions page lists no %s", m)
+	return false, ""
 }
 
 // standingCols is gap_state's standing proposal and docketing on gap, "" for none.
@@ -69,6 +91,9 @@ func TestTheRaiserAcceptsByItsOwnAct(t *testing.T) {
 		if got := ms[m]; got == nil || got.Ruling != record.AcceptedWord || got.RulingBy != lensSeat {
 			t.Fatalf("motion %s reads %+v; want answered %q by %s", m, got, record.AcceptedWord, lensSeat)
 		}
+		if ruled, word := motionsPageAnswer(t, runDir, m); !ruled || word != record.AcceptedWord {
+			t.Errorf("the motions page reads %s ruled %v %q; want ruled %q", m, ruled, word, record.AcceptedWord)
+		}
 		var regrades, rulings int
 		for _, e := range evs {
 			if rg, ok := recordpb.BodyAs[*recordpb.Regrade](e); ok && rg.GetAccepts() == m {
@@ -111,6 +136,9 @@ func TestTheRaiserAcceptsByItsOwnAct(t *testing.T) {
 		ms, ds, _ := partyRecord(t, runDir)
 		if got := ms[m]; got == nil || got.Ruling != record.AcceptedWord {
 			t.Errorf("motion %s reads %+v; want %q", m, got, record.AcceptedWord)
+		}
+		if ruled, word := motionsPageAnswer(t, runDir, m); !ruled || word != record.AcceptedWord {
+			t.Errorf("the motions page reads %s ruled %v %q; want ruled %q", m, ruled, word, record.AcceptedWord)
 		}
 		if k := ds[d]; k == nil || k.Standing() || k.Ruled() {
 			t.Errorf("docketing %s reads %+v after the raiser's concession; want ended, unruled", d, k)

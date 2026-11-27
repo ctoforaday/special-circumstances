@@ -440,13 +440,20 @@ func proposalRun(t *testing.T, fix string, prescribe ...string) (*runner, string
 }
 
 // closedByParty reports whether gapID closed by a party's answer rather than a ruling or a repair: a
-// close on evs that takes a proposal on it (Close.accepts), or a concession that ended a docketing on
-// it unruled.
+// close on evs that takes a proposal on it (Close.accepts), or its raiser's close where a concession
+// ended a docketing on it unruled.
 func (r *runner) closedByParty(evs []*record.Event, gapID string) bool {
+	byRaiser := false
 	for _, e := range evs {
-		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && c.GetGapId() == gapID && c.GetAccepts() != "" {
-			return true
+		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && c.GetGapId() == gapID {
+			if c.GetAccepts() != "" {
+				return true
+			}
+			byRaiser = byRaiser || e.GetSeatId() == r.minterOf(gapID)
 		}
+	}
+	if !byRaiser {
+		return false
 	}
 	for _, d := range r.docketings() {
 		if d.GapID == gapID && !d.Standing() && !d.Ruled() {
