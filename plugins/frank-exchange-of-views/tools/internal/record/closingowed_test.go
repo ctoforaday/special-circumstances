@@ -301,3 +301,28 @@ func mustEvents(t *testing.T, run Run) ([]*Event, WindowIndex) {
 	}
 	return m.Events, m.At
 }
+
+// GRADE MOVEMENT OWES NO CLOSING: the bench keeps or restores the moved grades on the record's grades
+// alone, so neither party is readied for one, and the bench is convened at once.
+func TestNoClosingIsOwedOnAGradeMovementDocketing(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
+		register("red-chair").add("red-chair", &recordpb.Docketing{DocketingId: proto.String("D1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT.Enum(), Basis: proto.String("grades moved")}).seed()
+	if got := closingOwners(t, run); len(got) != 0 {
+		t.Errorf("a grade-movement docketing owes closings from %v", got)
+	}
+	duties := ClosingDuties(mustEvents(t, run))
+	if len(duties) != 2 {
+		t.Fatalf("duties = %+v, want a row per party", duties)
+	}
+	for _, d := range duties {
+		if d.State != ClosingNotOwed || d.NotOwedWhy != closingGradeMovement {
+			t.Errorf("%s: %+v, want not owed because the docketing is for grade movement", d.Party, d)
+		}
+	}
+	p, ok := partyOf(planOfT(t, run), "judge")
+	if !ok || !slices.Contains(p.GapIDs, "G1") {
+		t.Errorf("no closing is owed and the bench is not convened on G1: %+v", planOfT(t, run).Parties)
+	}
+}

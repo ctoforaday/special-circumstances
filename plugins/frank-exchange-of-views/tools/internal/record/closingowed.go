@@ -14,7 +14,7 @@ import (
 // blue's responding seat, which answers it. Once the gap is docketed — the dispatch writes a docketing
 // at impasse, for its grade movement, or for a proposal its assignee did not accept — the bench rules it
 // on the two parties' closings, the transcript and the artifacts as they stand, so each party owes one
-// closing for each docketing. The chair is party to no dispute and files none. A lens's regrade that keeps
+// closing for each docketing but grade movement, which states no party's position. The chair is party to no dispute and files none. A lens's regrade that keeps
 // its grade is its move while the dispute runs; the closing is its brief once the gap is before the
 // bench.
 //
@@ -29,7 +29,9 @@ import (
 // docketing and no proposal stands on, so one filed for an earlier docketing, before a remand, answers
 // that docketing and no later one.
 //
-// OWED BY EACH PARTY, WITH TWO EXCEPTIONS, each a state of its own (ClosingNotOwed):
+// OWED BY EACH PARTY, WITH THREE EXCEPTIONS, each a state of its own (ClosingNotOwed):
+//   - the docketing is for grade movement: the bench keeps or restores the moved grades, and no party
+//     states a position on it;
 //   - the gap closed after the docketing: its raiser's concession, which ends the docketing with no
 //     ruling (requireRaiserActOnGap), so no closing is owed on it; and so for every other concession
 //     that ended it unruled — the raiser's accept of the proposal it holds, the author's accept of the
@@ -48,8 +50,8 @@ import (
 type ClosingState string
 
 const (
-	// ClosingNotOwed: the gap closed after the docketing, or the party is a minter the cast seats as
-	// no lens. NotOwedWhy says which.
+	// ClosingNotOwed: the docketing is for grade movement, the gap closed after the docketing, or the
+	// party is a minter the cast seats as no lens. NotOwedWhy says which.
 	ClosingNotOwed ClosingState = "not_owed"
 	// ClosingFiled: the party filed a closing on the gap after the docketing and before its ruling.
 	ClosingFiled ClosingState = "filed"
@@ -82,9 +84,10 @@ type ClosingDuty struct {
 
 // Why a closing is not owed.
 const (
-	closingGapClosed    = "the gap closed after it was docketed, so the dispute it would argue is over"
-	closingConceded     = "a party conceded the docketing, which ended it with no ruling, so the dispute it would argue is over"
-	closingMinterNoLens = "the gap's minter is no lens the cast seats, so there is no minting party"
+	closingGapClosed     = "the gap closed after it was docketed, so the dispute it would argue is over"
+	closingConceded      = "a party conceded the docketing, which ended it with no ruling, so the dispute it would argue is over"
+	closingMinterNoLens  = "the gap's minter is no lens the cast seats, so there is no minting party"
+	closingGradeMovement = "the docketing is for grade movement, which states no party's position: the bench keeps or restores the moved grades"
 )
 
 // closingPartiesOf is the raiser a gap's docketing owes a closing from: its minter where the cast seats
@@ -209,7 +212,15 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 		if end == 0 {
 			end = d.ended
 		}
-		out = append(out, r.dutiesOn(d.GapID, d.ID, from, end, d.Ruled())...)
+		duties := r.dutiesOn(d.GapID, d.ID, from, end, d.Ruled())
+		// GRADE MOVEMENT STATES NO PARTY'S POSITION: the bench keeps the moved grades or restores them,
+		// on the record's grades alone, so neither party owes a closing on it.
+		if d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT {
+			for i := range duties {
+				duties[i].State, duties[i].NotOwedWhy = ClosingNotOwed, closingGradeMovement
+			}
+		}
+		out = append(out, duties...)
 	}
 	// A PROPOSAL IN ITS ASSIGNEE'S WINDOW OWES THE CLOSINGS ITS DOCKETING WILL: that docketing's span
 	// opens at the filing (L30), so the window sitting is the closing sitting. Rows of no docketing yet,
