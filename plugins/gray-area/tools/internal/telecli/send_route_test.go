@@ -571,6 +571,33 @@ func TestSendRateLimitedThenUnreachedQueues(t *testing.T) {
 	}
 }
 
+// A RETRY OPENS A NEW CONNECTION: the one the 429 came on may be closed during the wait, and a
+// request written into it would fail as one that may have arrived.
+func TestSendRateLimitRetryOnANewConnection(t *testing.T) {
+	w := newSendWorld(t)
+	var hits, conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		if hits.Add(1) == 1 {
+			http.Error(rw, "rate limited", http.StatusTooManyRequests)
+			return
+		}
+		rw.Write([]byte("{}"))
+	}))
+	srv.Config.ConnState = func(_ net.Conn, st http.ConnState) {
+		if st == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+	a1 := strings.TrimPrefix(srv.URL, "http://")
+	w.rateLimitWorld(t, a1)
+	out := w.sendFromClaude(t)
+	if !strings.Contains(out, "delivered") || hits.Load() != 2 || conns.Load() != 2 {
+		t.Errorf("stdout %q, %d requests on %d connections; want delivery by the second request on a second connection", out, hits.Load(), conns.Load())
+	}
+}
+
 // THE HOLDER'S 429s QUEUE TOO, and never pass the message to another server.
 func TestSendHolderRateLimitedQueues(t *testing.T) {
 	w := newSendWorld(t)

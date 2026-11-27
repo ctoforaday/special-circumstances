@@ -428,6 +428,10 @@ func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
 				wait = rateLimitWait
 			}
 			r.env.sleep(min(wait, rateLimitWaitCap))
+			// The retry opens a new connection: one the server closed during the wait would fail it
+			// after the request was written, and a request that never reached a server would read
+			// as one that may have arrived.
+			r.client.CloseIdleConnections()
 			if g := r.env.conversationBusy(r.agyRoot, r.c.id, target.PID); g.Kind != peer.HolderNone {
 				r.queue("%s", r.heldBy(g))
 				return peer.Delivery{}, false, true
