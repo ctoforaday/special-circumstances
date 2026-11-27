@@ -129,9 +129,6 @@ type sittingReads struct {
 	// found: the located readings (locatedReadingsAt), the reading debt's input, read on the list's
 	// snapshot.
 	found []locatedReading
-	// exchanged: whether a gap has had the one exchange a proposal on it waits for
-	// (requireExchangedOn's count, on the list's snapshot); nil reads every gap as exchanged.
-	exchanged func(gap string) bool
 	// parts: the question parts (questionPartsAt), read on the list's snapshot.
 	parts []QuestionPartRow
 	// wholeQuestion: the gaps minted about the question as a whole since its latest split
@@ -579,7 +576,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut, reads.exchanged)...)
+	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut)...)
 
 	// A SITTING FOR THE CLOSINGS ALONE HOLDS ONLY THE CLOSINGS (L44′): every act but a closing is
 	// refused there (requireClosingsOnlySitting), so an item only another act clears is not this

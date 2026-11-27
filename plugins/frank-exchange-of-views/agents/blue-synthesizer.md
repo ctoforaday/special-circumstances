@@ -209,13 +209,13 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERIFIED.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
-  - An assignee is the seat whose gap it is: the lens that minted the gap — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
+  - An assignee is the seat whose gap it is: the lens that minted the gap — it takes its author's proposal on the gap by its own act or leaves it for the bench, and owes the gap's closing.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A seat's current item is the one entry of its queue it is handed in full — report text owed to it, an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the seat's work list after an act, and the next item is handed then.
   - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
   - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
   - A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
-  - A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for a party's proposal its assignee did not accept in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
+  - A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for the author's proposal its raiser did not take in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
   - A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose prescription blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry or citation and every proposal on the gap are refused, and blue's reword of the sentence, a reword or retire of the anchor the gap is about, or the inquiry's next fate ends it; a cut ends none.
   - An estopped gap is one a standing ruling tombstone protects, which the work list names with the ruling and the act that ends it, and which no seat may re-raise while it stands.
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
@@ -280,7 +280,7 @@ REQUIRED — your THINKING for this act, not your process — why you graded, cl
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{inquiry_id,status,question,recorded,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 §10 (on 2 pages):
-A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades or close it — each with that act's own flags, the gap named by --id and your argument in --reason. Its assignee may accept it, and the act is then applied exactly as you filed it; otherwise the bench accepts it, rejects it — the gap stands as it is — or remands it. A proposal is admitted once the gap has had one exchange, one at a time on a gap, never on your own gap (take the act yourself), and never on a closed gap. It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting.
+A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades or close it — each with that act's own flags, the gap named by --id and your argument in --reason. You file it as the gap's author — the gap has two parties, the lens that raised it and its subject's author, and only the author proposes. Its raiser may take it by its own act — the lens's regrade or close accepting it — at its next sitting, and the act is then applied exactly as you filed it; otherwise the gap is docketed, and the bench sides with the raiser — the gap stands as it is — or with you, applying the act, or remands it. A proposal is admitted once the gap has had one exchange, one at a time on a gap, and never on a closed gap. It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting.
 
 A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: after that sitting only the closings owed are filed, and no assignee window or exchange follows, so no ruling on the motion can change how the run ends.
 
@@ -456,8 +456,13 @@ change the report — the only path into report.md, and how every repair lands
 
 A raw write or a shell edit of the report is denied.
 
-TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on a gap, you can
-apply that text instead of retyping it. Your argument for the change is still required.
+TAKING RED'S FIX AS IT STANDS. Where the gap's raiser states concrete replacement text — its mint's
+prescription, or the pair its closing states at a docketing — accepting G applies that text instead
+of your retyping it, and the edit answers G, so you name no gap it answers. Your argument for the change
+is still required. Under a docketing on G it is your concession: it ends the docketing and your own
+proposal on the gap with no ruling. Under grade movement it is refused — no party concedes that
+question. A closing of the raiser's that states no text withdraws what it offered, and the accept is
+then refused.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
 that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words. The estoppel lasts while your verbatim application is the latest edit of that sentence: rewording it afterwards makes the text yours, and red audits it normally; applying red's text again binds red again.
@@ -508,7 +513,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §5
 
 Flags:
-      --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text
+      --accept gap-id    take the raiser's stated text on gap G EXACTLY as recorded — its mint's prescription, or the pair its closing states: the G- id of the gap; the edit answers it, so you pass no --answers. The tool supplies --quote and --new, so you pass neither. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still required — it is your argument for accepting. Refused when the raiser states no concrete text
       --answers gap-id   the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap
       --key string       your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another --quote, --new, --answers, --accept or --reason is refused: a handle names one edit. → SHARED §6
       --new string       the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused
@@ -791,6 +796,8 @@ An anchored claim leaves in two steps, once you have retired each citation and c
 
 EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or computation and no claim takes that anchor out of the report and keeps the sentence it stood on word for word: the tool reads the sentence off the report and records it. The sentence then stands on whatever else backs it — another citation or computation, or nothing, as prose a lens audits like any other. A retired anchor is in no document, and no lens can check it or mint a gap about it. This is how a citation whose source no lens could read leaves, and how a computation judged unsound leaves a sentence that is right; it is how either is replaced: cite or compute the new evidence on the sentence, then retire the old anchor. It is also how an evidenced sentence leaves: retire its citations and computations, then edit the sentence out as you would any prose. An anchor retired because a gap asked for it names that gap, as an edit names the gap it answers: the gap's change log then lists the retire beside the fix red asked for, and the gap's lens reads it as blue's answer. A claim retire names no gap — the edit that cut the claim names the one it answers. Retiring an anchor placed as an open gap's answer takes that answer away; with no other answer standing, the gap is owed again. Retiring the answers of a gap already closed leaves its closure standing, and the gap's lens is told.
 
+TAKING THE RAISER'S STATED RETIRE. Where a gap's raiser states in its closing that the anchor the gap is about should be retired, accepting G takes it: the tool supplies the anchor and the retire answers G, so you name neither; your reason is still yours. Under a docketing on G it is your concession, ending the docketing and your own proposal on the gap with no ruling; under grade movement it is refused.
+
 A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taking a citation that a computation still in the report names as its method is refused, naming each such computation — whether the retire names the citation alone or takes it with a claim: retired, the citation would be in no document while the computation points at it. Retire or recompute each computation first, or take it with the citation in the same claim retire.
 
 Name what replaces it where something does.
@@ -806,10 +813,11 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §5
 
 Flags:
+      --accept gap-id    take the retire gap G's raiser states in its closing EXACTLY: the G- id of the gap. The tool supplies the anchor the gap is about, and the retire answers it, so you pass neither --anchor nor --answers. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still your own argument
       --anchor list      with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one evidence anchor — a citation or computation — to retire while its sentence stays in the report word for word. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire, or both in one claim retire
       --answers gap-id   with --anchor alone: the gap id this evidence-anchor retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers
       --new string       the claim that replaces it, when one does
-      --quote string     REQUIRED unless --anchor alone retires a citation or computation — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
+      --quote string     REQUIRED unless --anchor alone retires a citation or computation, or --accept takes the raiser's stated retire — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
       --reason string    → SHARED §8
 ========
 $ feov-record show --help

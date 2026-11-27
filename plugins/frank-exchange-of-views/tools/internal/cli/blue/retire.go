@@ -79,6 +79,31 @@ func newRetire() *cobra.Command {
 		// claim that left the report: one naming a claim that was never there is a removal
 		// the record asserts and the report never had.
 		claim := seat.Str(cmd, flags.Quote)
+		// THE AUTHOR TAKES THE RAISER'S STATED RETIRE (--accept G): the tool supplies the anchor the gap
+		// is about, and the retire answers the gap, accepted. Under a docketing it is blue's concession.
+		if g := seat.Str(cmd, flags.Accept); g != "" {
+			for _, f := range []string{flags.Quote, flags.New, flags.Anchor, flags.Answers} {
+				if cmd.Flags().Changed(f) {
+					return nil, feov.Errorf(feov.Validation, "--accept %s supplies the anchor its raiser states a retire of, and names the gap the retire answers — passing --%s as well would be a second source for one fact. Drop it, or drop --accept and retire by your own judgment", g, f)
+				}
+			}
+			run, err := s.Run()
+			if err != nil {
+				return nil, err
+			}
+			st, found, err := record.StatementOf(run, g)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", g)
+			}
+			if !st.Retire {
+				return nil, feov.Errorf(feov.Conflict, "--accept: gap %s's raiser states no retire of its anchor in its closing, so there is nothing for retire to take: a pair it states is taken by `edit --accept %s`", g, g)
+			}
+			body.Answers, body.Accepted = proto.String(g), proto.Bool(true)
+			return retireAnchor(s, body, []string{st.AboutRef})
+		}
 		// AN EVIDENCE ANCHOR RETIRED, ITS SENTENCE KEPT: --anchor alone names it, and the tool reads the sentence.
 		if !cmd.Flags().Changed(flags.Quote) && len(named.Value()) > 0 {
 			return retireAnchor(s, body, named.Value())
@@ -160,8 +185,9 @@ func newRetire() *cobra.Command {
 	seat.Supplies(c, "claim", "the sentence the retired evidence anchor stood on, read off the report, when --anchor alone retires a citation or computation and keeps its sentence")
 	flags.Text(c, flags.Quote, "the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show")
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
-	seat.RequiredUnless(c, flags.Quote, "unless --anchor alone retires a citation or computation")
+	seat.RequiredUnless(c, flags.Quote, "unless --anchor alone retires a citation or computation, or --accept takes the raiser's stated retire")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "with --anchor alone: the gap id this evidence-anchor retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Accept, "take the retire gap G's raiser states in its closing EXACTLY: the G- id of the gap. The tool supplies the anchor the gap is about, and the retire answers it, so you pass neither --anchor nor --answers. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still your own argument")
 	c.Flags().Var(named, flags.Anchor, "with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one evidence anchor — a citation or computation — to retire while its sentence stays in the report word for word. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire, or both in one claim retire")
 	return c
 }

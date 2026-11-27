@@ -1031,7 +1031,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	}
 	g := onlyID(t, runDir, "G")
 	exchangeOn(t, runDir, g)
-	m := proposeClose(t, runDir, "red-chair", g, "not_a_defect", "contested, and not mine to close")
+	m := proposeClose(t, runDir, blueSeat, g, "not_a_defect", "contested, and not mine to close")
 	k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 	conveneBench(t, runDir, g)
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
@@ -1158,7 +1158,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 			t.Fatal(err)
 		}
 		g := onlyID(t, runDir, "G")
-		m := docketFile(t, runDir, "red-chair", g, "contested, and not mine to close")
+		m := docketFile(t, runDir, blueSeat, g, "contested, and not mine to close")
 		k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 		conveneBench(t, runDir, g)
 		return runDir, k

@@ -225,8 +225,8 @@ func TestNoLaterDocketingOverturnsARuling(t *testing.T) {
 }
 
 // T-B19 (11): on an open G ruled for red on blue's regrade proposal, a grade-movement docketing on an
-// axis the proposal did not name lands through `dispatch next`, and the chair's own regrade proposal
-// on G is refused naming the tombstone.
+// axis the proposal did not name lands through `dispatch next`, and the author's further regrade
+// proposal on G is refused naming the tombstone.
 func TestARulingProtectsTheGapItLeavesStanding(t *testing.T) {
 	t.Run("(11) an open G ruled for red", func(t *testing.T) {
 		runDir := newRun(t)
@@ -237,7 +237,8 @@ func TestARulingProtectsTheGapItLeavesStanding(t *testing.T) {
 		if !gapOf(t, runDir, boardGap).Open || standingRuling(t, runDir, boardGap) != d {
 			t.Fatalf("after the for-raiser ruling the gap is open %v under %q, want open under %s", gapOf(t, runDir, boardGap).Open, standingRuling(t, runDir, boardGap), d)
 		}
-		actRefusedNaming(t, runDir, "the chair's own regrade proposal on G", "red-chair", []string{"docketing " + d, "tombstone"},
+		asSeat(t, runDir, blueSeat, "register") // a later sitting than its closing's
+		actRefusedNaming(t, runDir, "the author's regrade proposal on G", blueSeat, []string{"docketing " + d, "tombstone"},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--impact", "low", "--reason", "the chair's view")
 		asSeat(t, runDir, "red-lens-evidence", "register")
 		for _, g := range []string{"certain", "low"} {
@@ -319,7 +320,7 @@ func TestARulingTombstoneEndsWithItsAnchor(t *testing.T) {
 		if rows, _ := tombstoneRows(t, runDir); len(rows) != 1 || standingRuling(t, runDir, boardGap) != d {
 			t.Errorf("the citation answering G wrote rows or ended G's tombstone: %v", rows)
 		}
-		actRefusedNaming(t, runDir, "a proposal on G after the citation", otherLens, []string{"docketing " + d, "tombstone"},
+		actRefusedNaming(t, runDir, "the author's proposal on G after the citation", blueSeat, []string{"docketing " + d, "tombstone"},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 	})
 

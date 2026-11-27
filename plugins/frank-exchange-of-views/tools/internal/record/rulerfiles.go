@@ -64,16 +64,29 @@ var rulerTurnsTo = map[recordpb.MotionSubject]string{
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: "Where the run itself must stop, `halt` is yours.",
 }
 
-// filingRoles is the roles that file a motion on the subject: every role a seat sits in, less the
-// one that rules it. The operator sits in no seat and files nothing.
+// filingRoles is the roles that file a motion on the subject (FilesOn).
 func filingRoles(subj recordpb.MotionSubject) []string {
 	var out []string
 	for _, role := range seatclass.Roles() {
-		if role != OperatorRole && !HoldsGavel(role, subj) {
+		if FilesOn(role, subj) {
 			out = append(out, role)
 		}
 	}
 	return out
+}
+
+// FilesOn is whether a seat of role files a motion on the subject: every role a seat sits in, less the
+// one that rules it — and, on a docket, the roles that author a gap's subject (authorOf): blue for the
+// report, a lens for a gap about its own gap. A proposal is its gap's author's offer to the raiser,
+// and no other seat is a party to the gap. The operator sits in no seat and files nothing.
+func FilesOn(role string, subj recordpb.MotionSubject) bool {
+	if role == OperatorRole || HoldsGavel(role, subj) {
+		return false
+	}
+	if subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+		return role == "blue" || role == "lens"
+	}
+	return true
 }
 
 // Article is the indefinite article for a subject word — "a petition", "a grade".

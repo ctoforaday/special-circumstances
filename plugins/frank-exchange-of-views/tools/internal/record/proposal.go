@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -147,24 +148,19 @@ func orUngraded(w string) string {
 	return w
 }
 
-// requireDocketFiling is the act judgements of a docket filing (judgeAct): the filer is not the gap's
-// assignee (F1), no motion stands unanswered on the gap (F5), a closed gap takes none (F8) — asked of
+// requireDocketFiling is the act judgements of a docket filing (judgeAct) — the filer is the gap's
+// author, validate's (requireFiledByAuthor) — no motion stands unanswered on the gap (F5), a closed gap takes none (F8) — asked of
 // every writer, and by construction never refusing the dispatch's — and, of
 // every writer but the dispatch, one counted exchange on the gap first.
 func requireDocketFiling(w writeView, seatID string, m *recordpb.Motion) error {
 	q := w.q
 	g := m.GetDocket().GetGapId()
-	var assignee, standing string
+	var standing string
 	var open bool
-	found, err := queryRowAt(q, []any{&assignee, &open, &standing},
-		`SELECT COALESCE("minted_by", ''), "open", COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, g)
+	found, err := queryRowAt(q, []any{&open, &standing},
+		`SELECT "open", COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, g)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal
-	}
-	if assignee == seatID {
-		return feov.Errorf(feov.Validation,
-			"gap %s is yours — you are its assignee — and a proposal on it asks you to accept your own act. Take the act yourself: regrade it or close it. Nothing was recorded",
-			g)
 	}
 	if err := requireNotEstoppedOn(q, g); err != nil {
 		return err
@@ -285,4 +281,123 @@ func requireNotEstoppedOn(q recordsql.Querier, g string) error {
 		"the bench ruled gap %s %s on docketing %s (event %d); its tombstone stands, and a ruling is final for the ruled gap's text while it does: a proposal on %s relitigates it. "+
 			"%s ends it; blue's evidence belongs in the exchange before the bench rules. Nothing was recorded",
 		t.Gap, t.Word, t.Docketing, t.Event, g, capitalized(tombstoneEnds(aboutKind, aboutRef)))
+}
+
+// requireFiledByAuthor refuses a docket filing whose filer is not its gap's author (authorOf). A GAP
+// HAS TWO PARTIES, and a proposal is its author's offer to the raiser: the raiser acts on its gap
+// itself, and no other seat is a party to it. Asked of every writer, the replay included.
+func requireFiledByAuthor(q recordsql.Querier, seatID, g string) error {
+	author, found, err := authorOfGap(q, g)
+	if err != nil || !found {
+		return err // an unknown gap is requireGap's refusal
+	}
+	if seatID == author {
+		return nil
+	}
+	var raiser string
+	if _, err := queryRowAt(q, []any{&raiser},
+		`SELECT e."seat_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."gap_id" = ?`, g); err != nil {
+		return err
+	}
+	if raiser == seatID {
+		return feov.Errorf(feov.Validation,
+			"gap %s is yours — you are its raiser — and a proposal is its author's offer to you. Take the act yourself: regrade it or close it. Nothing was recorded",
+			g)
+	}
+	return feov.Errorf(feov.RoleViolation,
+		"gap %s has two parties, its raiser %s and its author %s, and only its author proposes an act on it; you are %s. A defect you see in it is its raiser's to answer, and one that stands after it closes is a new gap of yours. Nothing was recorded",
+		g, raiser, author, seatID)
+}
+
+// requireRaiserActOnGap is the raiser's own act on its gap — a close or a regrade, act names which —
+// against what stands on the gap (judgeAct). accepts is the proposal the act takes (--accept M), ""
+// for none.
+//
+//   - Taking a proposal: it is the one standing on the gap, unanswered and unended, and the act is the
+//     one it proposes, exactly (requireAcceptedAsFiled). It lands whether or not the gap is docketed:
+//     under a docketing it is the raiser's concession, ending the docketing and the proposal.
+//   - A close of a docketed gap is the raiser's concession: it lands under every cause, ending the
+//     docketing with no ruling — under grade movement the gap is fixed and the grade is moot.
+//   - A regrade of a docketed gap, keeping a grade or moving one, is refused: the docketing's question
+//     is the gap's standing, and the raiser concedes by closing.
+//   - While the author's proposal stands undocketed the raiser answers it, by taking it; its own close
+//     or regrade would change what the proposal acts on, and is refused.
+func requireRaiserActOnGap(q recordsql.Querier, gapID, accepts, act string, body proto.Message) error {
+	docketing, proposal, err := standingOnGap(q, gapID)
+	if err != nil {
+		return err
+	}
+	if accepts != "" {
+		return requireAcceptedAsFiled(q, gapID, accepts, proposal, body)
+	}
+	switch {
+	case docketing != "" && act == "close":
+		return nil
+	case docketing != "":
+		return feov.Errorf(feov.Conflict,
+			"gap %s is docketed (%s): the bench rules on it, and you do not move its grades while it stands. You concede by closing the gap%s; otherwise your position is your closing on %s, which the bench reads before it rules. Nothing was recorded",
+			gapID, docketing, acceptClause(proposal), gapID)
+	case proposal != "":
+		return feov.Errorf(feov.Conflict,
+			"proposal %s stands on gap %s: its author offers you that act, and you answer it by taking it — the act it proposes, accepting %s. Your own %s would change what it acts on; left untaken, it is docketed when your sitting ends. Nothing was recorded",
+			proposal, gapID, proposal, act)
+	}
+	return nil
+}
+
+// acceptClause names the raiser's other concession, where a proposal stands under the docketing.
+func acceptClause(proposal string) string {
+	if proposal == "" {
+		return ""
+	}
+	return fmt.Sprintf(" or by taking proposal %s (--accept %s)", proposal, proposal)
+}
+
+// requireAcceptedAsFiled refuses an act taking proposal m unless m is a docket motion on gapID, is the
+// proposal standing there (unanswered and unended), and the act is the one m proposes: its kind, and the
+// grades or the closure class it states. The verb supplies m's stored act, so a difference is a write
+// that did not come through it.
+func requireAcceptedAsFiled(q recordsql.Querier, gapID, m, standing string, body proto.Message) error {
+	p, found, err := docketProposalAt(q, m)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return feov.Errorf(feov.NotFound, "--accept %s names no docket motion on the record: a proposal's id is the M- id its filing returned. Nothing was recorded", m)
+	}
+	if p.GapID != gapID {
+		return feov.Errorf(feov.Validation, "motion %s proposes an act on gap %s, not %s. Nothing was recorded", m, p.GapID, gapID)
+	}
+	if m != standing {
+		var answer sql.NullInt64
+		if _, err := queryRowAt(q, []any{&answer}, `SELECT "ruled_seq" FROM "motion_answers" WHERE "motion_id" = ?`, m); err != nil {
+			return err
+		}
+		if answer.Valid {
+			return feov.Errorf(feov.Conflict, "motion %s is already answered (event %d): a proposal is answered once. Nothing was recorded", m, answer.Int64)
+		}
+		return feov.Errorf(feov.Conflict, "motion %s no longer stands on gap %s: an act after its filing ended it — the gap's close, or its author's accept of your statement. Nothing was recorded", m, gapID)
+	}
+	stored := StoredAct(p.Motion)
+	switch s := stored.(type) {
+	case *recordpb.Regrade:
+		b, ok := body.(*recordpb.Regrade)
+		if !ok || !sameGrades(s, b) {
+			return feov.Errorf(feov.Validation, "motion %s proposes a regrade to the grades it states; an act taking it is that regrade, exactly. Nothing was recorded", m)
+		}
+	case *recordpb.Close:
+		b, ok := body.(*recordpb.Close)
+		if !ok || b.GetClosureClass() != s.GetClosureClass() {
+			return feov.Errorf(feov.Validation, "motion %s proposes a close as %s; an act taking it is that close, exactly. Nothing was recorded", m, recordpb.Word(s.GetClosureClass()))
+		}
+	default:
+		return feov.Errorf(feov.Validation, "motion %s proposes no act: there is nothing to take. Nothing was recorded", m)
+	}
+	return nil
+}
+
+// sameGrades is whether two regrades state the same grade on every axis, none against none.
+func sameGrades(a, b *recordpb.Regrade) bool {
+	eq := func(x, y *recordpb.Grade) bool { return (x == nil) == (y == nil) && (x == nil || *x == *y) }
+	return eq(a.Severity, b.Severity) && eq(a.Likelihood, b.Likelihood) && eq(a.Impact, b.Impact) && eq(a.ComplexityCost, b.ComplexityCost)
 }

@@ -132,18 +132,18 @@ func requiredProbes() map[string]requiredProbe {
 		"--quote", "a claim that is no longer in the report.", "--reason", "r")}
 	probes["motion petition file"] = requiredProbe{seat: lensSeat, args: fixed("motion", "petition", "file",
 		"--class", "safety", "--relief", "stop", "--reason", "r")}
-	// A DOCKET PROPOSAL NAMES ITS ACT, filed by a seat that is not the gap's assignee once the gap
-	// has had its one exchange; each act's own flags are its contract.
+	// A DOCKET PROPOSAL NAMES ITS ACT, filed by the gap's author once the gap has had its one
+	// exchange; each act's own flags are its contract.
 	exchanged := func(t *testing.T, runDir string) actVars {
 		exchangeOn(t, runDir, "G1")
 		// The filer reads the gap as the exchange left it, in a sitting of its own.
-		must(t, runDir, "register", "--seat-id", "red-chair")
+		must(t, runDir, "register", "--seat-id", "blue-respond")
 		return nil
 	}
-	probes["motion docket file regrade"] = requiredProbe{seat: "red-chair", setup: exchanged,
+	probes["motion docket file regrade"] = requiredProbe{seat: "blue-respond", setup: exchanged,
 		// Two axes, so the omission of either still moves one: no grade flag is required alone.
 		args: fixed("motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low", "--reason", "r")}
-	probes["motion docket file close"] = requiredProbe{seat: "red-chair", setup: exchanged,
+	probes["motion docket file close"] = requiredProbe{seat: "blue-respond", setup: exchanged,
 		args: fixed(append([]string{"motion", "docket", "file", "close", "--id", "G1", "--reason", "r"}, closeFlags("not_a_defect")...)...)}
 	probes["fetch"] = requiredProbe{seat: lensSeat,
 		setup: func(t *testing.T, runDir string) actVars {

@@ -112,7 +112,7 @@ func TestAProposalIsRefusedWhereItCannotStand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out, err := propose(t, runDir, lensSeat, "regrade", g, "--severity", "low"); err == nil || !strings.Contains(err.Error()+out, "you are its assignee") {
+	if out, err := propose(t, runDir, lensSeat, "regrade", g, "--severity", "low"); err == nil || !strings.Contains(err.Error()+out, "you are its raiser") {
 		t.Errorf("the assignee's proposal on its own gap = %v %q, want refused naming its own act", err, out)
 	}
 	out, err := propose(t, runDir, blueSeat, "regrade", g, "--severity", "low")
@@ -120,7 +120,7 @@ func TestAProposalIsRefusedWhereItCannotStand(t *testing.T) {
 		t.Fatalf("blue's proposal after one exchange: %v", err)
 	}
 	first := filedMotionID(t, out)
-	if out, err := propose(t, runDir, "red-chair", "close", g, closeFlags("not_a_defect")...); err == nil || !strings.Contains(err.Error()+out, first+" stands unanswered") {
+	if out, err := propose(t, runDir, blueSeat, "close", g, closeFlags("not_a_defect")...); err == nil || !strings.Contains(err.Error()+out, first+" stands unanswered") {
 		t.Errorf("a second proposal while %s stands = %v %q, want refused naming it", first, err, out)
 	}
 

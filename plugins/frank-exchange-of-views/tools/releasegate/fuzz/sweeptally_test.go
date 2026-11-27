@@ -1161,16 +1161,16 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		// ABOUT_GAP_REFUSED (§III.A3, §III.A6): `mint --about-kind gap` is refused naming the proposal
 		// road. No draw types the word; aboutGapRefusedDrive does, once a run.
-		t.Logf("about-kind gap: %d mint(s) refused naming the proposal road", f.aboutGapRefused)
+		t.Logf("about-kind gap: %d mint(s) refused naming the raiser's road", f.aboutGapRefused)
 		if f.aboutGapRefused == 0 {
-			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's proposal road is unexercised (false green)", f.completed)
+			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's raiser's road is unexercised (false green)", f.completed)
 		}
 		// NON_MATERIAL_MINTS (§III.A6): a small defect is a gap minted in a by_grade class below medium.
 		t.Logf("non-material mints: %d gap(s) minted in a by_grade class below medium", f.nonMaterialMints)
 		if f.nonMaterialMints == 0 {
 			t.Errorf("fuzz minted ZERO gaps below material across %d runs — a small defect's one carrier is unexercised (false green)", f.completed)
 		}
-		// THE STALE REFUSAL'S SWEEP DRIVE: a lens's dispute of a gap another seat regraded while it sat
+		// THE STALE REFUSAL'S SWEEP DRIVE: the author's dispute of a gap its raiser regraded while blue sat
 		// (disputeMovedGap). The stale-event verb gate holds the refusal; this says how often the race
 		// was met.
 		t.Logf("moved-gap disputes: %d docket motion(s) refused as stale and landed on the retry", f.movedDisputes)
@@ -1304,9 +1304,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
 		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close
 		// was refused, and a party's list was read with a docketed gap off it.
-		t.Logf("docket order: %d lens-alone engagement(s), %d docket(s) after the lens sat, %d close(s) of a docketed gap refused, %d docketed gap(s) held off a list", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList)
+		t.Logf("docket order: %d lens-alone engagement(s), %d docket(s) after the lens sat, %d close(s) of a gap under the author's undocketed proposal refused, %d docketed gap(s) held off a list", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList)
 		if f.lensAlone == 0 || f.docketsAfterAudit == 0 || f.docketedClosesRefused == 0 || f.docketedOffList == 0 {
-			t.Errorf("fuzz drove %d lens-alone engagement(s), %d docket(s) after the lens sat, %d refused close(s) of a docketed gap and %d docketed gap(s) held off a list across %d runs — the docket order is unexercised on one side (false green)", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList, f.completed)
+			t.Errorf("fuzz drove %d lens-alone engagement(s), %d docket(s) after the lens sat, %d refused close(s) of a gap under the author's undocketed proposal and %d docketed gap(s) held off a list across %d runs — the docket order is unexercised on one side (false green)", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList, f.completed)
 		}
 		// THE BENCH HEARS AT EVERY BARRIER (gblock, 2026-10-31): after the chair, after the lenses, after
 		// blue. A chair draws a petition, and each other barrier has a seed whose party files one by

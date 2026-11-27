@@ -15,15 +15,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A DOCKET MOTION IS A PROPOSED ACT. The filer files the regrade or close it wants on the
-// gap, with that act's own flags; the gap's assignee may accept it, else the
+// A DOCKET MOTION IS A PROPOSED ACT. The gap's author files the regrade or close it wants on the
+// gap, with that act's own flags; the gap's raiser may take it by its own act (--accept M), else the
 // dispatch dockets it and the bench sides with a party or remands it. So `file` under docket is a group, one verb per act, and the
 // act's flags are the ones its own verb takes.
 
 // proposeSays is what each proposal's page says, and the docket filing group's refusal of a bare call.
 const proposeSays = "A DOCKET MOTION PROPOSES THE ACT YOU WANT ON A GAP: regrade its grades or close it — each with that act's own flags, the gap named by --id and your argument in --reason. " +
-	"Its assignee may accept it, and the act is then applied exactly as you filed it; otherwise the bench accepts it, rejects it — the gap stands as it is — or remands it. " +
-	"A proposal is admitted once the gap has had one exchange, one at a time on a gap, never on your own gap (take the act yourself), and never on a closed gap. " +
+	"You file it as the gap's author — the gap has two parties, the lens that raised it and its subject's author, and only the author proposes. " +
+	"Its raiser may take it by its own act — the lens's regrade or close accepting it — at its next sitting, and the act is then applied exactly as you filed it; otherwise the gap is docketed, and the bench sides with the raiser — the gap stands as it is — or with you, applying the act, or remands it. " +
+	"A proposal is admitted once the gap has had one exchange, one at a time on a gap, and never on a closed gap. " +
 	"It is refused on a gap you filed your closing on in this sitting, which holds one closing per gap — file it in a later sitting."
 
 // newDocketFile is the docket subject's `file`: one verb per proposed act.
@@ -95,7 +96,7 @@ func propose(act, says string, register func(*cobra.Command), fill func(run reco
 			if err != nil {
 				return nil, err
 			}
-			reason, err := prose(cmd, "your argument for the act you propose — what its assignee or the bench rules on")
+			reason, err := prose(cmd, "your argument for the act you propose — what its raiser takes or the bench rules on")
 			if err != nil {
 				return nil, err
 			}
@@ -129,14 +130,14 @@ func propose(act, says string, register func(*cobra.Command), fill func(run reco
 	register(c)
 	seat.Records(c, "motion")
 	seat.FillsArm(c, "docket")
-	seat.Supplies(c, "motion_id", "the tool assigns it on filing; a ruling or an accept names it with --id")
+	seat.Supplies(c, "motion_id", "the tool assigns it on filing; the raiser's accept names it with --accept")
 	return c
 }
 
-// applyAccepted writes ruling and then the act motion id proposes, through the act's own write, under
+// applyProposal writes ruling and then the act motion id proposes, through the act's own write, under
 // s's identity: the bench's application of the author's proposal. A motion that
 // proposes no act writes the ruling alone, for the record to refuse in its own words.
-func applyAccepted(s seat.Context, run record.Run, id string, ruling record.Act) error {
+func applyProposal(s seat.Context, run record.Run, id string, ruling record.Act) error {
 	p, ok, err := record.DocketProposalOf(run, id)
 	if err != nil {
 		return err

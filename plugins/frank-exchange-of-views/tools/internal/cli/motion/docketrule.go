@@ -183,10 +183,10 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 		return err
 	case side != 0 && side == p.TextSide && p.Stated(side):
 		return applyText(s, run, p, ruling, opinion)
-	case side != 0 && side == p.FilerSide:
+	case side != 0 && side == p.HeldSide():
 		switch p.Act.(type) {
 		case *recordpb.Regrade, *recordpb.Mint:
-			return applyAccepted(s, run, p.MotionID, ruling)
+			return applyProposal(s, run, p.MotionID, ruling)
 		}
 	}
 	_, err := record.AppendActs(s.Identity(), ruling)

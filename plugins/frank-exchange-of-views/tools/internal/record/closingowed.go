@@ -30,9 +30,8 @@ import (
 // that docketing and no later one.
 //
 // OWED BY EACH PARTY, WITH TWO EXCEPTIONS, each a state of its own (ClosingNotOwed):
-//   - the gap closed after the docketing, which an archived run's lens could do and the write now
-//     refuses (requireNoStandingDocket): the dispute is over, and the bench rules the motion on the
-//     record as it stands;
+//   - the gap closed after the docketing: its raiser's concession, which ends the docketing with no
+//     ruling (requireRaiserActOnGap), so no closing is owed on it;
 //   - the gap's minter is no lens the cast seats — an archived run's merge mints translate to the
 //     chair — so there is no minting party to dispatch, and blue's closing is the only one owed.
 //

@@ -66,7 +66,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
-		"propose the act you want on a GAP — a regrade or a close: any seat but the bench files, the gap's assignee may accept it, else the gap is docketed and the BENCH sides with the filer or the other party, or remands it",
+		"propose the act you want on a GAP — a regrade or a close: the gap's author files, its raiser may take it by its own act, else the gap is docketed and the BENCH sides with the raiser or the author, or remands it",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final, flags.Direction}))
 	mount(subject(actingRole, "position",
@@ -165,6 +165,12 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		if len(args) > 0 && args[0] == "file" && fileFlags != nil && holds {
 			return record.RefuseRulerFiling(subj, seat.DispatchedAs(cmd))
 		}
+		// A DOCKET IS FILED BY A GAP'S AUTHOR: a seat that authors no gap's subject files no proposal.
+		if len(args) > 0 && args[0] == "file" && subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET && !record.FilesOn(actingRole, subj) {
+			return feov.Errorf(feov.RoleViolation,
+				"a docket motion is a gap's author's proposal of an act on it, so `file` is not on your surface; you are %s (%s). A gap has two parties, the lens that raised it and its subject's author, and only they act on it: a gap at impasse reaches the bench by the dispatch's docketing",
+				seat.DispatchedAs(cmd), actingRole)
+		}
 		named := "names no verb"
 		if len(args) > 0 {
 			named = "has no `" + args[0] + "` verb"
@@ -184,7 +190,10 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	case holds:
 		c.AddCommand(newRule(name, ruler, ruleFlags))
 	case subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-		c.AddCommand(newDocketFile())
+		// A seat that authors no gap's subject files no proposal: the subject stays bare on its tree.
+		if record.FilesOn(actingRole, subj) {
+			c.AddCommand(newDocketFile())
+		}
 	case fileFlags != nil:
 		c.AddCommand(newFile(actingRole, name, fileFlags))
 	}

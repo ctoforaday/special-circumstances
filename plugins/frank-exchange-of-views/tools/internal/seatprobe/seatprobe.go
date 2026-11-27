@@ -99,7 +99,7 @@ func NewSurface(paths []string) Surface {
 			// subject's filing is.
 			subj, _ := record.MotionSubjectEnum(parts[1])
 			for _, r := range Roles {
-				if !record.HoldsGavel(r, subj) {
+				if record.FilesOn(r, subj) {
 					byRole[r] = append(byRole[r], p)
 				}
 			}
@@ -109,17 +109,11 @@ func NewSurface(paths []string) Surface {
 				byRole[rulerOf(subject)] = append(byRole[rulerOf(subject)], p)
 				continue
 			}
-			// THE ACCEPT IS THE ASSIGNEE'S, and a gap's assignee is a lens: the lens is the one role
-			// that mints.
-			if verb == "accept" {
-				byRole["lens"] = append(byRole["lens"], p)
-				continue
-			}
-			// THE FILING IS EVERY OTHER ROLE'S: the role that rules a subject files nothing on it,
-			// read from the same predicate the command tree mounts the two verbs on.
+			// THE FILING IS THE FILING ROLES': read from the same predicate the command tree mounts
+			// the verb on.
 			subj, _ := record.MotionSubjectEnum(subject)
 			for _, r := range Roles {
-				if !record.HoldsGavel(r, subj) {
+				if record.FilesOn(r, subj) {
 					byRole[r] = append(byRole[r], p)
 				}
 			}
@@ -415,7 +409,7 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 	// one expectation presumed a ruling the seat was free to make differently.
 	fmt.Fprintf(&b, "\n%d of %d expectations unmet. READ EACH AGAINST WHAT THE SEAT ACTUALLY DID.\n"+
 		"  · the board let the gap be satisfied WITHOUT the baited verb — a fixture bug, not a seat one\n"+
-		"  · the expectation presumed a judgement the seat could make differently (a proposal its assignee did not accept owes no act)\n"+
+		"  · the expectation presumed a judgement the seat could make differently (a proposal its raiser did not take owes no act)\n"+
 		"  · the seat had the verb, had the situation, and did not reach for it\n"+
 		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))

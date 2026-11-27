@@ -25,7 +25,7 @@ func TestTheExitDocketsAStandingProposal(t *testing.T) {
 		runDir := newRun(t)
 		stageRetiredLens(t, runDir, true)
 		setEpochLimit(t, runDir, 5)
-		m := proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+		m := proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 		asSeat(t, runDir, "red-chair", "register")
 		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); !plan.FinalSitting || !plan.EpochLimitReached {
 			t.Fatalf("plan = %+v, want the final sitting at the epoch limit", plan)
@@ -88,6 +88,6 @@ func TestTheExitDocketsAStandingProposal(t *testing.T) {
 		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.FinalSitting {
 			t.Fatalf("plan = %+v, want a sitting before the final one", plan)
 		}
-		proposeClose(t, runDir, "red-chair", boardGap, "not_a_defect", "not a defect")
+		proposeClose(t, runDir, blueSeat, boardGap, "not_a_defect", "not a defect")
 	})
 }

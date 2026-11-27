@@ -140,7 +140,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion docket file regrade proposes an act on a gap",
-			path: []string{"motion", "docket", "file", "regrade"}, seatID: "blue-lane-1",
+			path: []string{"motion", "docket", "file", "regrade"}, seatID: "blue-respond",
 			args: []string{"--id", "G3", "--severity", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
 			want: map[string]string{"gap_id": "G3", "basis": "§4 says otherwise"},

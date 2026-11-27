@@ -44,8 +44,6 @@ const (
 	ItemSuccessorOwed ItemKind = "successor_owed"
 	// ItemNotMaterial is an open gap that does not hold the PASS, on the chair's list.
 	ItemNotMaterial ItemKind = "not_material"
-	// ItemDocket is the chair's affordance to docket an open material gap.
-	ItemDocket ItemKind = "docket"
 	// ItemStaleInquiry is an inquiry no fate has revisited since it was declared.
 	ItemStaleInquiry ItemKind = "stale_inquiry"
 	// ItemKeptGrade is a gap whose lens kept its grade on re-audit, with what its check still finds
@@ -74,7 +72,7 @@ func ItemKinds() []ItemKind {
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemNews, ItemLog,
 		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
-		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
+		ItemNotMaterial, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
 }
 
 // SubjectKind is what kind of thing an item is about.

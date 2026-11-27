@@ -12,11 +12,15 @@ import (
 // (cli/lens/mint.go aboutGapRefusal).
 const aboutGapWords = "a gap is not the subject of another gap"
 
+// aboutGapRoad is the road the same refusal names: what a lens sees wrong in another lens's gap is
+// that gap's raiser's to answer.
+const aboutGapRoad = "is its raiser's to answer"
+
 // aboutGapRefusedDrive is a lens's one `mint --about-kind gap` of the run, naming an open gap: the
-// word is refused before any validate, naming the road a point about a gap takes — a proposed act on
-// it (plans/findings-fold.md §III.A3). No draw types the word, so this
-// drive is the gate's (about_gap_refused). An admission, another code, or a refusal naming no road
-// fails the run.
+// word is refused before any validate, naming the road a point about another lens's gap takes — its
+// raiser's to answer, a gap having two parties (plans/findings-fold.md §III.A3). No draw types the word,
+// so this drive is the gate's (about_gap_refused). An admission, another code, or a refusal naming no
+// road fails the run.
 func (r *runner) aboutGapRefusedDrive(seatID string) {
 	gaps := r.openGaps()
 	if len(gaps) == 0 {
@@ -45,8 +49,8 @@ func (r *runner) aboutGapRefusedDrive(seatID string) {
 		r.noteActErr("mint --about-kind gap was refused with no refusal envelope: " + firstLine(out))
 	case env.Code != string(feov.Validation):
 		r.noteActErr("mint --about-kind gap was refused with code " + env.Code + ", not validation: " + firstLine(env.Error))
-	case !strings.Contains(env.Error, aboutGapWords) || !strings.Contains(env.Error, "motion docket file"):
-		r.noteActErr("mint --about-kind gap was refused without naming the proposal road: " + firstLine(env.Error))
+	case !strings.Contains(env.Error, aboutGapWords) || !strings.Contains(env.Error, aboutGapRoad):
+		r.noteActErr("mint --about-kind gap was refused without naming the raiser's road: " + firstLine(env.Error))
 	default:
 		r.mu.Lock()
 		r.aboutGapRefused++
@@ -54,14 +58,13 @@ func (r *runner) aboutGapRefusedDrive(seatID string) {
 	}
 }
 
-// disputeMovedGap is a lens's dispute of a gap another seat regraded while the lens sat: the close it
-// proposes is filed on the gap as the lens read it when its sitting opened, so the record refuses it as
-// stale, naming the regrade, and admits it again once read (admitFresh). Lenses sit side by side, so
-// this is the race the stale refusal exists for; once per run, and never in a forced-verdict run, whose
-// bound a hand-filed docket motion would move. The gap's minter has returned from its dispatch: only it
-// closes or regrades the gap in a lens wave, so the filing races nothing but the regrade
-// it is refused for. A run whose lenses never regrade under a sibling's
-// sitting files none, which the sweep's stale-event gate counts across runs.
+// disputeMovedGap is the author's dispute of a gap its raiser regraded while the author sat: the close
+// it proposes is filed on the gap as the author read it when its sitting opened, so the record refuses
+// it as stale, naming the regrade, and admits it again once read (admitFresh). Once per run, and never
+// in a forced-verdict run, whose bound a hand-filed docket motion would move. The gap's raiser has
+// returned from its dispatch, so the filing races nothing but the regrade it is refused for. The
+// dispatch sits blue after the lenses, so a sweep run meets the race only where a raiser's sitting
+// overlaps blue's; TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops drives it.
 func (r *runner) disputeMovedGap(seatID string) {
 	if r.forcedVerdict() {
 		return
@@ -98,9 +101,11 @@ func (r *runner) disputeMovedGap(seatID string) {
 		id := rg.GetGapId()
 		r.mu.Lock()
 		minter := r.minter[id]
-		own, sitting := minter == seatID, r.unreturned[minter] > 0
+		sitting := r.unreturned[minter] > 0
 		r.mu.Unlock()
-		if open[id] && !own && !sitting && !r.closedThisSitting(seatID, id) && !r.beforeTheBench(id) && r.exchanged(id) && !ruled[id] {
+		d := r.scenarioOf(id)
+		if open[id] && minter == e.GetSeatId() && !sitting && !r.closedThisSitting(seatID, id) && !r.beforeTheBench(id) && r.exchanged(id) && !ruled[id] &&
+			d != dirDisputeWon && d != dirDisputeLost {
 			gap = id
 		}
 	}
@@ -116,11 +121,11 @@ func (r *runner) disputeMovedGap(seatID string) {
 	r.mu.Unlock()
 	before := r.readPointOf(seatID, gap)
 	if _, ok := r.admitFresh(gap, proposeCloseArgs(seatID, gap, "not_a_defect",
-		"fuzz: "+gap+" was regraded while this lens sat, and its weight is the bench's to settle")...); !ok {
+		"fuzz: "+gap+" was regraded while blue sat, and its weight is the bench's to settle")...); !ok {
 		return
 	}
 	if r.readPointOf(seatID, gap) <= before {
-		r.noteActErr("a docket motion on " + gap + ", regraded by another seat after " + seatID + "'s sitting opened, landed with no stale refusal")
+		r.noteActErr("a docket motion on " + gap + ", regraded by its raiser after " + seatID + "'s sitting opened, landed with no stale refusal")
 		return
 	}
 	r.mu.Lock()
@@ -128,33 +133,34 @@ func (r *runner) disputeMovedGap(seatID string) {
 	r.mu.Unlock()
 }
 
-// A LENS'S DISPUTE OF A GAP ITS MINTER REGRADED WHILE THE LENS SAT IS REFUSED AS STALE, AND LANDS ONCE
-// READ: the filer sits, the minter sits beside it, regrades the gap and returns, and the filer's docket
-// motion meets the stale refusal naming the regrade, then lands on the retry. Between the filer's
-// attempts the minter sits again and regrades (a sitting holds one regrade per gap) until it has
-// regraded three times, so each attempt is refused for a change the previous refusal could not show,
-// and the motion lands at the first attempt no regrade preceded. While the minter still sits, the
-// drive files nothing; once the motion lands, the filer's sitting owes nothing dischargeOwed leaves.
+// THE AUTHOR'S DISPUTE OF A GAP ITS RAISER REGRADED WHILE THE AUTHOR SAT IS REFUSED AS STALE, AND
+// LANDS ONCE READ: blue sits, the raiser sits beside it, regrades the gap and returns, and blue's docket
+// motion meets the stale refusal naming the regrade, then lands on the retry. Between blue's attempts
+// the raiser sits again and regrades (a sitting holds one regrade per gap) until it has regraded three
+// times, so each attempt is refused for a change the previous refusal could not show, and the motion
+// lands at the first attempt no regrade preceded. While the raiser still sits, the drive files nothing;
+// once the motion lands, blue's sitting owes nothing dischargeOwed leaves.
 func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
+	const author = "blue-respond"
 	r, gap := staleRun(t)
 	r.exchangeOn(t) // a proposal waits for the gap's first exchange
-	r.dispatchSits("lens", staleFiler)
-	grades := []string{"low", "medium", "high", "low"}
+	r.dispatchSits("blue", author)
+	grades := []string{"low", "medium", "high"}
 	regrade := func(i int) {
 		r.dispatchSits("lens", staleMinter)
 		r.mustExec(t, "--json", "--seat-id", staleMinter, "regrade", "--id", gap, "--severity", grades[i], "--reason", "fuzz: regrade "+grades[i])
 	}
 	regrade(0)
 	r.noteMint(staleMinter, gap)
-	r.disputeMovedGap(staleFiler)
+	r.disputeMovedGap(author)
 	if r.movedDisputed {
-		t.Fatalf("the drive filed on %s while its minter still sat", gap)
+		t.Fatalf("the drive filed on %s while its raiser still sat", gap)
 	}
 	r.dispatchReturns(staleMinter, false)
 	next := 1
 	r.betweenStaleRetries = func(seatID, gapID string) {
-		if seatID != staleFiler || gapID != gap {
-			t.Errorf("a retry of %s on %s, want %s's on %s", seatID, gapID, staleFiler, gap)
+		if seatID != author || gapID != gap {
+			t.Errorf("a retry of %s on %s, want %s's on %s", seatID, gapID, author, gap)
 		}
 		if next < 3 {
 			regrade(next)
@@ -162,34 +168,32 @@ func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
 			next++
 		}
 	}
-	r.disputeMovedGap(staleFiler)
-	r.dischargeOwed(staleFiler)
-	if refusal, err := record.EnvelopeRefusal(r.run(), staleFiler, true); err != nil || refusal != "" {
-		t.Errorf("the filer's sitting owes after its dispute landed: %q (%v)", refusal, err)
+	r.disputeMovedGap(author)
+	r.dischargeOwed(author)
+	if refusal, err := record.EnvelopeRefusal(r.run(), author, true); err != nil || refusal != "" {
+		t.Errorf("blue's sitting owes after its dispute landed: %q (%v)", refusal, err)
 	}
-	r.dispatchReturns(staleFiler, false)
+	r.dispatchReturns(author, false)
 	if r.actErr != "" {
 		t.Fatalf("the drive: %s", r.actErr)
 	}
 	if r.movedDisputes != 1 {
 		t.Fatalf("the drive landed %d dispute(s) of the moved gap, want 1", r.movedDisputes)
 	}
-	if got := r.staleRefusals(staleFiler, gap); got != 3 {
-		t.Errorf("the filer met %d stale refusal(s) on %s, want one per regrade, 3", got, gap)
+	if got := r.staleRefusals(author, gap); got != 3 {
+		t.Errorf("blue met %d stale refusal(s) on %s, want one per regrade, 3", got, gap)
 	}
-	// ONCE PER RUN: a second call files nothing.
-	r.dispatchSits("lens", staleFiler)
-	regrade(3)
-	r.dispatchReturns(staleMinter, false)
-	r.disputeMovedGap(staleFiler)
-	r.dispatchReturns(staleFiler, false)
+	// ONCE PER RUN: a second sitting's call files nothing.
+	r.dispatchSits("blue", author)
+	r.disputeMovedGap(author)
+	r.dispatchReturns(author, false)
 	if r.movedDisputes != 1 {
 		t.Errorf("a second sitting's drive landed another dispute: %d", r.movedDisputes)
 	}
 }
 
-// THE ONE `--about-kind gap` OF A RUN IS REFUSED NAMING THE PROPOSAL ROAD, and a second call drives none.
-func TestTheAboutGapDriveIsRefusedNamingTheProposalRoad(t *testing.T) {
+// THE ONE `--about-kind gap` OF A RUN IS REFUSED NAMING THE RAISER'S ROAD, and a second call drives none.
+func TestTheAboutGapDriveIsRefusedNamingTheRaisersRoad(t *testing.T) {
 	r, _ := staleRun(t)
 	r.dispatchSits("lens", staleFiler)
 	r.aboutGapRefusedDrive(staleFiler)

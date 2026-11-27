@@ -24,10 +24,14 @@ func proposeCloseArgs(seatID, gapID, class, reason string) []string {
 }
 
 // docketings is every docketing on the record, in the order written, with the ruling that answers each
-// and the close that ended each unruled.
+// and the concession that ended each unruled: the gap's close, the raiser's take of the proposal it
+// holds, or the author's accept of the raiser's statement (an edit, a retire, a regrade or an amend
+// carrying accepted), whose author the mints name.
 func (r *runner) docketings() []*record.Docketing {
 	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_DOCKETING,
-		recordpb.EventType_EVENT_TYPE_MOTION_RULE, recordpb.EventType_EVENT_TYPE_CLOSE)
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE, recordpb.EventType_EVENT_TYPE_CLOSE,
+		recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE, recordpb.EventType_EVENT_TYPE_AMEND,
+		recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_RETIRE)
 	if err != nil {
 		r.noteActErr("the record's docketings could not be read: " + err.Error())
 		return nil
@@ -35,7 +39,7 @@ func (r *runner) docketings() []*record.Docketing {
 	return record.DocketingsOf(evs)
 }
 
-// standingDocketings is each docketing standing before the bench — unruled, and ended by no close of its
+// standingDocketings is each docketing standing before the bench — unruled, and ended by no concession on its
 // gap — on gapID, or on every gap for "", in the order the record wrote them.
 func (r *runner) standingDocketings(gapID string) []*record.Docketing {
 	var out []*record.Docketing
@@ -54,7 +58,7 @@ func (r *runner) standingOn(gapID string) []string {
 	for _, d := range r.standingDocketings(gapID) {
 		ids = append(ids, d.ID)
 	}
-	return append(ids, r.unruledDocketMotions(gapID)...)
+	return append(ids, r.standingProposals(gapID)...)
 }
 
 // beforeTheBench reports whether anything holds gapID for the bench (standingOn).
@@ -106,9 +110,9 @@ func (r *runner) docketAnswer(id, want string, extra []string) (answer []string,
 		}
 		var side recordpb.SidedWith
 		switch {
-		case p.FilerSide != 0:
+		case p.HeldSide() != 0:
 			// A CLOSE IS THE FILER'S MOST OFTEN, and on a coin the other side's: red's text.
-			side = p.FilerSide
+			side = p.HeldSide()
 			_, isClose := p.Act.(*recordpb.Close)
 			if (!isClose && r.scenarioOf(p.GapID) != dirDisputeWon) || (isClose && r.coin(30)) {
 				side = other(side)

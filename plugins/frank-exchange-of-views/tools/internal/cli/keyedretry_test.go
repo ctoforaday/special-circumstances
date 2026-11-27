@@ -102,7 +102,7 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 			differ: map[string][]string{"--answers": {"--answers", "{G2}"}},
 			names:  map[string]string{"--answers": `--answers "{G1}"`},
 			restated: map[string][]string{
-				"no --accept": {"--key", "E2", "--answers", "{G1}", "--accept", "--reason", "exact"},
+				"no --accept": {"--key", "E2", "--accept", "{G1}", "--reason", "exact"},
 			}},
 	} {
 		t.Run(c.verb+" "+c.args[1], func(t *testing.T) {

@@ -15,7 +15,8 @@ import (
 
 // THE PROPOSED ACTS AND THEIR DOCKETINGS, GATED (#1695 §III.B9, §III.B13, §III.B14). Some keys are
 // counted by the drives as they run (countGate): a proposal a ruling's tombstone bars, a side that stated nothing refused, the acts a closings-only
-// sitting refuses and the closings filed there. The rest are read off the stream at the run's end
+// sitting refuses and the closings filed there, the raiser's takes of the author's proposals and each
+// party's concession of a docketing. The rest are read off the stream at the run's end
 // (docketTally): the docketings by cause, the bench's answers by cause and side, the ruling tombstones
 // by the side the ruling took. The sweep fails on any key at zero.
 
@@ -38,12 +39,13 @@ var proposalGateKeys = []struct{ key, what string }{
 	{"closings_only_refused", "acts other than a closing refused in a closings-only sitting"},
 	{"final_sitting_closings:red", "red closings filed in a closings-only sitting"},
 	{"final_sitting_closings:blue", "blue closings filed in a closings-only sitting"},
-	{"motion:blue:close", "close proposals filed by blue"},
-	{"motion:blue:regrade", "regrade proposals filed by blue"},
-	{"motion:lens:close", "close proposals filed by another lens"},
-	{"motion:lens:regrade", "regrade proposals filed by another lens"},
-	{"motion:chair:close", "close proposals filed by the chair"},
-	{"motion:chair:regrade", "regrade proposals filed by the chair"},
+	{"motion:blue:close", "close proposals filed by blue, the gaps' author"},
+	{"motion:blue:regrade", "regrade proposals filed by blue, the gaps' author"},
+	{"accept:proposal:regrade", "the author's proposed regrades the raiser took (regrade --accept)"},
+	{"accept:proposal:close", "the author's proposed closes the raiser took (close --accept)"},
+	{"accept:proposal:concession", "takes of a proposal its docketing held, the raiser's concession"},
+	{"concession:raiser:close", "the raiser's closes of a docketed gap, its concession"},
+	{"concession:author:edit", "the author's accepts of the raiser's text on a docketed gap (edit --accept), its concession"},
 }
 
 // proposalOracles is every proposalOracle key, each a defect at ANY count.
@@ -233,8 +235,11 @@ func TestEveryProposalGateKeyIsOneItsCountersWrite(t *testing.T) {
 	}
 	drives := map[string]bool{"estopped_refused:regrade": true,
 		"closing_no_text": true, "closings_only_refused": true,
-		"final_sitting_closings:red": true, "final_sitting_closings:blue": true}
-	roles := map[string]bool{"blue": true, "lens": true, "chair": true}
+		"final_sitting_closings:red": true, "final_sitting_closings:blue": true,
+		"accept:proposal:regrade": true, "accept:proposal:close": true, "accept:proposal:concession": true,
+		"concession:raiser:close": true, "concession:author:edit": true}
+	// ONLY THE AUTHOR FILES A PROPOSAL (record.requireFiledByAuthor), so blue is the one filer role.
+	roles := map[string]bool{"blue": true}
 	acts := map[string]bool{}
 	for _, a := range []*recordpb.Motion{{Act: &recordpb.Motion_Close{}}, {Act: &recordpb.Motion_Regrade{}}} {
 		acts[record.ActWord(a)] = true

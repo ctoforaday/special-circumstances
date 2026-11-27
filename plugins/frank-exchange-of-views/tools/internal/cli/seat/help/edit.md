@@ -6,8 +6,13 @@ change the report — the only path into report.md, and how every repair lands
 
 A raw write or a shell edit of the report is denied.
 
-TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on a gap, you can
-apply that text instead of retyping it. Your argument for the change is still required.
+TAKING RED'S FIX AS IT STANDS. Where the gap's raiser states concrete replacement text — its mint's
+prescription, or the pair its closing states at a docketing — accepting G applies that text instead
+of your retyping it, and the edit answers G, so you name no gap it answers. Your argument for the change
+is still required. Under a docketing on G it is your concession: it ends the docketing and your own
+proposal on the gap with no ruling. Under grade movement it is refused — no party concedes that
+question. A closing of the raiser's that states no text withdraws what it offered, and the accept is
+then refused.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
 that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words. The estoppel lasts while your verbatim application is the latest edit of that sentence: rewording it afterwards makes the text yours, and red audits it normally; applying red's text again binds red again.

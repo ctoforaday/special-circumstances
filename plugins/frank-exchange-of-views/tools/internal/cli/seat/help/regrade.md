@@ -10,6 +10,8 @@ A REGRADE THAT NAMES NO GRADE KEEPS THE GRADE, and so does one that names only t
 
 AN AXIS A RULING DECIDED IS NOT YOURS TO MOVE BACK. A bench ruling on your gap's grade — on a regrade proposal, for either side, or on the gap's grade movement, kept or restored — locks each axis it decided at the grade it leaves. While it does, your regrade that moves that axis is refused, naming the ruling — one that keeps it is yours to file. A later ruling on the axis locks it at its own grade.
 
+THE AUTHOR'S PROPOSED REGRADE IS YOURS TO TAKE, BY THIS VERB: you name the proposal, and the tool supplies the gap and the grades it states, so you pass neither; your argument is still yours. The act answers the proposal, once. While the author's proposal stands, your own regrade is refused: you answer it by taking it, or leave it to be docketed when your sitting ends. While your gap is docketed, a regrade of it — keeping a grade or moving one — is refused, naming the docketing: you concede by closing the gap, or by taking the proposal the docketing holds, which ends the docketing with no ruling.
+
 {{.StaleRule}}
 
 {{.GradeMovementRule}}.

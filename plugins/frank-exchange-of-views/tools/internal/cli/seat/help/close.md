@@ -6,7 +6,9 @@ close a gap with the verification you did THIS sitting, naming what you checked 
 
 THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
 
-A gap a docketing or a proposal stands on is refused: a docketed gap is the bench's to dispose of, a proposal is answered by accepting it, and what you found goes in your closing.
+THE AUTHOR'S PROPOSED CLOSE IS YOURS TO TAKE, BY THIS VERB: you name the proposal, and the tool supplies the gap and the close it states — its word and its verification — so you pass none of them; your argument is still yours. While the author's proposal stands undocketed, your own close is refused: you answer it by taking it, or leave it to be docketed when your sitting ends.
+
+YOUR CLOSE OF A DOCKETED GAP IS YOUR CONCESSION: it lands under every cause, grade movement included — the gap is fixed and its grade is moot — and ends the docketing and any proposal it holds with no ruling, so the bench rules nothing on it. Taking the author's proposal there concedes alike. A `source` or `computation` gap's close still needs its live answer, below.
 
 A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 

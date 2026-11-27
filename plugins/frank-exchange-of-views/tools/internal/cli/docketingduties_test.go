@@ -32,7 +32,7 @@ func proposalInWindow(t *testing.T) (runDir, motion string) {
 	t.Helper()
 	runDir = newRun(t)
 	impasseBoard(t, runDir, 2, 1)
-	motion = proposeClose(t, runDir, "red-chair", boardGap, "not_a_defect", "not a defect, and the lens will not close it")
+	motion = proposeClose(t, runDir, blueSeat, boardGap, "not_a_defect", "not a defect, and the lens will not close it")
 	asSeat(t, runDir, "red-chair", "register")
 	asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")
 	return runDir, motion
@@ -204,10 +204,15 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 		asSeat(t, runDir, "judge", "outcome", "--as", "UNVERIFIED", "--reason", "stopped, with the docketing ruled")
 	})
 
-	t.Run("the freeze: the assignee's close is refused while a docketing or a proposal stands", func(t *testing.T) {
+	t.Run("the raiser's close of a docketed gap concedes; under a proposal in its window it is refused", func(t *testing.T) {
 		runDir, d := impasseDocketed(t)
 		asSeat(t, runDir, lens, "register")
-		actRefusedOnRecord(t, runDir, "the assignee's close of a docketed gap", lens, []string{"docketing " + d}, lensCloses()...)
+		if out, err := runAt(t, append(lensCloses(), "--run", runDir, "--seat-id", lens)...); err != nil {
+			t.Fatalf("the raiser's close of %s's gap, its concession: %v %s", d, err, out)
+		}
+		if _, sd := standingCols(t, runDir, boardGap); sd != "" {
+			t.Errorf("gap_state reads docketing %q standing after the raiser's concession of %s", sd, d)
+		}
 		r2, m := proposalInWindow(t)
 		asSeat(t, r2, lens, "register")
 		actRefusedOnRecord(t, r2, "the assignee's close under a proposal", lens, []string{"proposal " + m}, lensCloses()...)
@@ -215,7 +220,7 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 
 	t.Run("a proposal's filing is refused while a docketing stands, naming it", func(t *testing.T) {
 		runDir, d := impasseDocketed(t)
-		actRefusedNaming(t, runDir, "the chair's proposal on a docketed gap", "red-chair", []string{"docketing " + d},
+		actRefusedNaming(t, runDir, "the author's proposal on a docketed gap", "blue-respond", []string{"docketing " + d},
 			append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "a second ask"}, closeFlags("not_a_defect")...)...)
 	})
 

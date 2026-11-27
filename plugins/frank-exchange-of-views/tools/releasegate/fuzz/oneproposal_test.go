@@ -52,7 +52,7 @@ func TestAGapHoldsOneProposalAndTheBenchRulesIt(t *testing.T) {
 	if _, ok := r.admit(proposeCloseArgs("blue-respond", gapID, "not_a_defect", "fuzz: "+gapID+" is the bench's to settle")...); !ok {
 		t.Fatalf("the first proposal on %s was refused: %s", gapID, r.actErr)
 	}
-	first := r.unruledDocketMotions(gapID)
+	first := r.standingProposals(gapID)
 	if len(first) != 1 {
 		t.Fatalf("the first proposal stands %d unruled docket motion(s) on %s, want one: %v", len(first), gapID, first)
 	}
@@ -60,7 +60,7 @@ func TestAGapHoldsOneProposalAndTheBenchRulesIt(t *testing.T) {
 	if r.actErr != "" {
 		t.Fatalf("the second proposal while %s stands: %s", first[0], r.actErr)
 	}
-	if got := r.unruledDocketMotions(gapID); len(got) != 1 {
+	if got := r.standingProposals(gapID); len(got) != 1 {
 		t.Fatalf("the refused proposal left %d unruled docket motion(s) on %s, want the first alone: %v", len(got), gapID, got)
 	}
 	r.dispatchReturns("blue-respond", false)

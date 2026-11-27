@@ -470,11 +470,11 @@ var fuzzArms = []fuzzArm{
 			}
 			return []string{"--ids", "GAP001,GAP002", "--reason", "re-read both closures"}
 		}},
-	// The chair proposes a gap's close; one proposal stands on a gap at a time, so GAP002's
+	// The gap's author proposes its close; one proposal stands on a gap at a time, so GAP002's
 	// MOTION001 refuses a second there and GAP001 takes the first that lands.
-	{name: "chair motion docket file close", weight: 2, again: true, seats: []string{"red-chair"}, verb: []string{"motion", "docket", "file", "close"},
+	{name: "blue motion docket file close", weight: 2, again: true, seats: []string{"blue-respond"}, verb: []string{"motion", "docket", "file", "close"},
 		flags: func(rng *rand.Rand) []string {
-			return []string{"--id", pick(rng, fuzzProposalGapIDs), "--as", "not_a_defect", "--verified-by", "red-chair",
+			return []string{"--id", pick(rng, fuzzProposalGapIDs), "--as", "not_a_defect", "--verified-by", "blue-respond",
 				"--verified-with", "the report read", "--verified-against", "report.md#S2", "--reason", "contested, and not red's to close"}
 		}},
 	// A blue seat disputes a gap's grade by proposing the regrade it holds right.

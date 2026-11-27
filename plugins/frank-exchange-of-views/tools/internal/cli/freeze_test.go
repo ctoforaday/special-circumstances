@@ -143,11 +143,11 @@ func estoppelOver(t *testing.T, runDir string) string {
 	return p
 }
 
-// T-B30: no proposal is filed on a docketed gap (L38), by any filer, of any act; after a remand one
+// T-B30: no proposal is filed on a docketed gap (L38), of any act — only the author files one (X6); after a remand one
 // lands.
 func TestNoProposalOutlivesARulingOfItsGap(t *testing.T) {
 	runDir, d := impasseDocketed(t)
-	for _, f := range []struct{ seat, act string }{{"blue-respond", "close"}, {"blue-respond", "regrade"}, {"red-chair", "close"}} {
+	for _, f := range []struct{ seat, act string }{{"blue-respond", "close"}, {"blue-respond", "regrade"}} {
 		args := []string{"motion", "docket", "file", f.act, "--id", boardGap, "--reason", "after the docketing"}
 		switch f.act {
 		case "close":

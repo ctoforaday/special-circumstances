@@ -135,7 +135,7 @@ func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 		class, answer = "not_a_defect", "remand"
 	}
 	exchangeOn(t, runDir, gapID)
-	id := proposeClose(t, runDir, "red-chair", gapID, class, "contested, and not mine to close")
+	id := proposeClose(t, runDir, blueSeat, gapID, class, "contested, and not mine to close")
 	d := docketNow(t, runDir, gapID, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, id)
 	conveneBench(t, runDir, gapID)
 	args := benchRuleArgs(d, answer, principle)

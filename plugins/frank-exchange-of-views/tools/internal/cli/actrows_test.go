@@ -214,7 +214,7 @@ func actRows() map[string]actRow {
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
 				g := handleText(t, runDir, "G1")
-				m := docketFile(t, runDir, "red-chair", g, "red cannot settle G1")
+				m := docketFile(t, runDir, blueSeat, g, "red cannot settle G1")
 				k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 				conveneBench(t, runDir, g)
 				return actVars{"k": k}

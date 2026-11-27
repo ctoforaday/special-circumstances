@@ -418,17 +418,16 @@ func placementRefusal(noun string, err error) error {
 	return anchortext.Refusal(err)
 }
 
-// aboutGapRefusal refuses `--about-kind gap`, naming the two acts a point about a gap is: a gap is
-// not the subject of another gap. A dispute of a gap is the act the seat proposes on it, which its
-// assignee may accept and the bench otherwise rules.
+// aboutGapRefusal refuses `--about-kind gap`: no write here mints a gap on another lens's gap. A gap
+// has two parties, its raiser and its subject's author, and only they act on it.
 func aboutGapRefusal(v string) error {
 	if v != "gap" {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
 		`takes no "gap": a gap is not the subject of another gap. `+
-			"If you dispute a gap — its problem, fix, check or weight — propose the act you want on it "+
-			"(`motion docket file regrade --id <gap>`, or close in place of regrade), argued in --reason; its assignee may accept it, else the bench rules. Nothing was written")
+			"A gap has two parties — the lens that raised it and its subject's author — and only they act on it: "+
+			"what you see wrong in another lens's open gap is its raiser's to answer, and a defect that stands in the report after it closes is a new gap of yours. Nothing was written")
 }
 
 // WriteMint is the mint's write. before is what the same transaction writes ahead of the mint. Its

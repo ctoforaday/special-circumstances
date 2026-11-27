@@ -109,7 +109,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		return requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice)
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
-			if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+			if err := requireRaiserActOnGap(q, b.GetGapId(), b.GetAccepts(), "close", b); err != nil {
 				return err
 			}
 			// THE LIVE-ANSWER DEMAND, ASKED OF THE RECORD THE CLOSE LANDS ON. evidence_answered can
@@ -126,6 +126,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	case *recordpb.Dispatch:
 		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
 			return requireEngageNamesEveryOwed(q, b)
+		}
+	case *recordpb.Regrade:
+		// THE RAISER'S REGRADE meets what stands on its gap; the bench's is a ruling's statement, written
+		// in the ruling's transaction under its docketing (requireRegradeWithinBenchLock).
+		if seatclass.RoleOfSeat(seatID) != "bench" {
+			return requireRaiserActOnGap(q, b.GetGapId(), b.GetAccepts(), "regrade", b)
 		}
 	case *recordpb.Motion:
 		if b.GetDocket() != nil {

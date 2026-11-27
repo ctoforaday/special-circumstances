@@ -111,7 +111,7 @@ func TestAcceptOnAPrescriptionThatChangesNothingSaysSo(t *testing.T) {
 		t.Fatalf("blue's own repair: %v", err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+		"--key", "A1", "--accept", gap, "--reason", "accepting")
 	if err == nil {
 		t.Fatal("accepted a prescription that changes nothing")
 	}
@@ -127,7 +127,7 @@ func TestAcceptAppliesAPunctuationRepairOnTheLiteralSpan(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", strayPeriod, "on their own.)")
 	registerBlue(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "red is right"); err != nil {
+		"--key", "A1", "--accept", gap, "--reason", "red is right"); err != nil {
 		t.Fatalf("accept: %v", err)
 	}
 	if got := readReport(t, runDir); strings.Contains(got, strayPeriod) {

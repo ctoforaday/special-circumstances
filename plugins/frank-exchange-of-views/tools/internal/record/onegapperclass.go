@@ -245,9 +245,9 @@ func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.
 }
 
 // oneGapRefusal names the open gap g that holds the subject, and the refused seat's road from there.
-// The road turns on whose gap g is: the seat's own gap is reweighed by regrading it; another seat's gap already carries a point that agrees with it, and a dispute of it
-// is the act the seat proposes on it, which g's assignee may accept and the bench otherwise rules.
-// While g has had no exchange, the refusal says so, since a proposal is admitted only once it has.
+// The road turns on whose gap g is: the seat's own gap is reweighed by regrading it; another seat's gap
+// already carries a point that agrees with it, and what the seat sees wrong in it is g's raiser's to
+// answer — a gap has two parties, its raiser and its subject's author, and only they act on it.
 func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subject string) error {
 	if t := g.ruling; t != nil {
 		return feov.Errorf(feov.Conflict,
@@ -261,36 +261,10 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 				"To reweigh it, regrade it (`regrade --id %s`). Nothing was written",
 			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id)
 	}
-	exchanged, err := exchangesSentence(w.q, g.id)
-	if err != nil {
-		return err
-	}
 	return feov.Errorf(feov.Conflict,
-		"gap %s, assigned to %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
+		"gap %s, raised by %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
-			"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file regrade --id %s`, or close in place of regrade), argued in --reason; %s may accept it, else the bench rules.%s Nothing was written",
-		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, exchanged)
-}
-
-// exchangesSentence is the sentence a road to a proposed act on gap id carries while id has had no
-// exchange — " " and the sentence, "" once it has had one — read in the transaction q. The count is
-// worded by GapExchanges.Counted, so a sitting the record cannot close reads as NOT MEASURED rather
-// than as a zero.
-func exchangesSentence(q recordsql.Querier, id string) (string, error) {
-	evs, win, err := eventsAt(q)
-	if err != nil {
-		return "", err
-	}
-	remands, err := remandRulingsOf(q)
-	if err != nil {
-		return "", err
-	}
-	x := exchangeFold(evs, win.IDs(evs), win, WhileRunning, remands)[id]
-	if x == nil {
-		x = &GapExchanges{GapID: id}
-	}
-	if x.Exchanges >= 1 {
-		return "", nil
-	}
-	return " Gap " + id + " stands at " + x.Counted() + ": a proposal on it is admitted once it has had one exchange.", nil
+			"What you see wrong in %s — its problem, fix, check or weight — is %s's to answer: a gap has two parties, the lens that raised it and its subject's author, and only they act on it. "+
+			"A defect that stands in the report after %s closes is a new gap of yours. Nothing was written",
+		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.assignee, g.id)
 }

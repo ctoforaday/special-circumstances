@@ -424,7 +424,7 @@ func TestALensProposalIsRuledForTheRaiserOrAsTheAuthors(t *testing.T) {
 			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-logic"); err != nil {
 				t.Fatal(err)
 			}
-			m := proposeClose(t, runDir, "red-lens-logic", gap, "moot", "the sentence no longer matters")
+			m := proposeClose(t, runDir, blueSeat, gap, "moot", "the sentence no longer matters")
 			if _, err := redStates(t, runDir, gap); err != nil {
 				t.Fatalf("the assignee's closing: %v", err)
 			}

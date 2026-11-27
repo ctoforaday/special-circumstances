@@ -95,7 +95,7 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 	}{
 		{"the bench files a docket motion", "judge", docket,
 			[]string{"a docket motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
-				"The blue, chair, lane and lens seats file one"}},
+				"The blue and lens seats file one"}},
 		{"the bench files a petition", "judge", petition,
 			[]string{"a petition motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
 				"The blue, chair, lane and lens seats file one", "`halt` is yours"}},
@@ -114,10 +114,10 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		})
 	}
 
-	t.Run("the chair files a docket motion and the bench rules it", func(t *testing.T) {
+	t.Run("the author files a docket motion and the bench rules it", func(t *testing.T) {
 		d := fresh(t)
 		g := handleText(t, d.run, "G1")
-		m := docketFile(t, d.run, "red-chair", g, "red cannot settle G1")
+		m := docketFile(t, d.run, blueSeat, g, "red cannot settle G1")
 		k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 		conveneBench(t, d.run, g)
 		d.admitted("the bench's ruling", "judge", docketRule(k)...)
@@ -128,17 +128,21 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 			m := motionID(t, d.run, append(append([]string{}, petition...), "--seat-id", filer)...)
 			d.admitted("the bench's ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
 		})
-		// G1 is the lens's gap: its assignee takes the act itself, and its proposal is refused.
+		// G1 is the lens's gap: its raiser takes the act itself, and its proposal is refused.
 		if filer == lensSeat {
 			t.Run("a docket motion on its own gap, filed by "+filer+", is refused", func(t *testing.T) {
 				d := fresh(t)
 				g := handleText(t, d.run, "G1")
 				exchangeOn(t, d.run, g)
 				out, err := runAt(t, closeProposalArgs(d.run, filer, g, "not_a_defect", "the bench should decide G1")...)
-				if err == nil || !strings.Contains(err.Error()+out, "you are its assignee") {
+				if err == nil || !strings.Contains(err.Error()+out, "you are its raiser") {
 					t.Errorf("the assignee's proposal on its own gap = %v %q, want refused naming its own act", err, out)
 				}
 			})
+			continue
+		}
+		// A docket motion is its gap's author's alone (X6): the chair files none.
+		if filer != blueSeat {
 			continue
 		}
 		t.Run("a docket motion filed by "+filer+" is ruled by the bench", func(t *testing.T) {

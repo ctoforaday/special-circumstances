@@ -109,24 +109,24 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 		},
 
 		{
-			name:  "a close while a docketing of the gap lands",
+			name:  "a regrade while a docketing of the gap lands",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
 				return []*Event{recordtest.At(t, "red-chair", "race:docketing:G2", docketing("D9", "G2"))}
 			},
-			seat: evLens, body: func() proto.Message { return repairClose("G2") },
-			want: "docketing D9 stands on it",
+			seat: evLens, body: func() proto.Message {
+				return &recordpb.Regrade{GapId: proto.String("G2"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}
+			},
+			want: "gap G2 is docketed (D9)",
 		},
 		{
-			name:  "a regrade while the bench's ruling closes the gap",
+			name:  "the raiser's concession while the bench's ruling closes the gap",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
 				return []*Event{recordtest.At(t, "judge", "race:rule:D1", benchClosing("D1"))}
 			},
-			seat: evLens, body: func() proto.Message {
-				return &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}
-			},
-			want: "a grade only decides what happens NEXT",
+			seat: evLens, body: func() proto.Message { return repairClose("G1") },
+			want: "which is already CLOSED",
 		},
 		{
 			name:  "the cast while setup's cast lands",

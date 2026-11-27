@@ -29,8 +29,6 @@ type Positions struct {
 	// Pair is the two sides a ruling may side with; zero at grade movement, whose answer is a grade
 	// answer.
 	Pair [2]recordpb.SidedWith
-	// FilerSide is the side the held proposal is, its author's; zero with none.
-	FilerSide recordpb.SidedWith
 	// Act is the held proposal's stored act (Regrade, Close or Mint); nil with none.
 	Act proto.Message
 	// GapOpen is whether G is open; AboutKind what it is about ("" for a sentence).
@@ -57,6 +55,15 @@ type Positions struct {
 	// bench is the bench's acts on G written since the docketing's row: the statement a ruling applies,
 	// written in its transaction before it.
 	bench []benchAct
+}
+
+// HeldSide is the side a held proposal is: its author's, the one party that files on a gap; zero
+// where the docketing holds none.
+func (p Positions) HeldSide() recordpb.SidedWith {
+	if p.Act == nil {
+		return 0
+	}
+	return recordpb.SidedWith_SIDED_WITH_AUTHOR
 }
 
 // benchAct is one act of the bench's on a docketed gap since its docketing.
@@ -160,7 +167,7 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 			return p, false, err
 		}
 		if found {
-			p.Act, p.FilerSide = StoredAct(dp.Motion), proposalSide(dp.Filer)
+			p.Act = StoredAct(dp.Motion)
 		}
 		for _, m := range motionsAt(evs, ids, win) {
 			if m != nil && m.ID == d.MotionID {
@@ -257,7 +264,7 @@ func (p Positions) AnswerWord(side recordpb.SidedWith) *recordpb.Disposition {
 			return p.BlueWord.Enum()
 		}
 		return recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
-	case side == p.FilerSide:
+	case side == p.HeldSide():
 		if c, ok := p.Act.(*recordpb.Close); ok {
 			return c.GetClosureClass().Enum()
 		}
@@ -298,7 +305,7 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 		wantRegrade = p.Restoring
 	case side == p.TextSide:
 		wantText = true
-	case side == p.FilerSide:
+	case side == p.HeldSide():
 		if rg, ok := p.Act.(*recordpb.Regrade); ok {
 			wantRegrade = rg
 		}

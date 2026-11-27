@@ -667,6 +667,12 @@ func markRequired(c *cobra.Command, verb string) {
 			}
 			continue
 		}
+		if cond, ok := MarkedCondition(f); ok && cond != "" {
+			// REQUIRED UNLESS ANOTHER FLAG SAYS IT (RequiredUnless): the verb marked the condition and
+			// its handler holds it — `close --accept M` names its gap through the proposal — so the
+			// parse does not refuse the flag's absence.
+			continue
+		}
 		if c.Annotations[suppliesKey+key] != "" {
 			// Required of the RECORD, supplied by the VERB. Marking it would tell a seat to
 			// type what it does not have to, and the annotation would sit beside the word
@@ -764,6 +770,20 @@ func RequiredUnless(c *cobra.Command, name, cond string) *cobra.Command {
 	}
 	f.Usage = "REQUIRED " + cond + " — " + f.Usage
 	setMarked(f, cond)
+	return c
+}
+
+// unlessFlagKey is the annotation naming the one flag whose presence lifts a RequiredUnlessGiven.
+const unlessFlagKey = "feov_required_unless_flag"
+
+// RequiredUnlessGiven is RequiredUnless where the condition is one flag, other: the marker reads
+// "REQUIRED unless --other", and the flag is owed (RefuseMissingFlags) when neither was given.
+// other may be registered after name; a verb without it is a programming error, refused at the
+// first refusal that reads it.
+func RequiredUnlessGiven(c *cobra.Command, name, other string) *cobra.Command {
+	RequiredUnless(c, name, "unless --"+other)
+	f := c.Flags().Lookup(name)
+	f.Annotations[unlessFlagKey] = []string{other}
 	return c
 }
 

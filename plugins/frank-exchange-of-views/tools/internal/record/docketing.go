@@ -88,17 +88,11 @@ type concession struct {
 }
 
 // concessions reads each act's concession off the stream, in order: f is called with the act's place
-// in evs and what it ends. The author of a gap's subject is read from the mints before it (authorOf's
-// twin: a gap about a gap is that gap's minter's; every other subject blue's responding seat's).
+// in evs and what it ends. The author of a gap's subject is authorOf's, read off the stream's mints.
 func concessions(evs []*Event, f func(i int, c concession)) {
-	type subject struct{ kind, ref string }
-	about, minter := map[string]subject{}, map[string]string{}
-	authorSeat := func(gap string) string {
-		if a := about[gap]; a.kind == "gap" {
-			return minter[a.ref]
-		}
-		return blueRespondSeat
-	}
+	// A gap is minted before any act on it, so the authors read off the whole stream are the ones in
+	// force at each act.
+	authorSeat := authorsOn(evs)
 	authorAccept := func(e *Event, answers string, accepted bool) bool {
 		return accepted && answers != "" && e.GetSeatId() == authorSeat(answers)
 	}
@@ -108,9 +102,6 @@ func concessions(evs []*Event, f func(i int, c concession)) {
 			continue
 		}
 		switch b := body.(type) {
-		case *recordpb.Mint:
-			about[b.GetGapId()] = subject{recordpb.Word(b.GetAboutKind()), b.GetAboutRef()}
-			minter[b.GetGapId()] = e.GetSeatId()
 		case *recordpb.Close:
 			if b.GetCarriedFrom() == "" {
 				f(i, concession{gap: b.GetGapId()})
@@ -372,12 +363,6 @@ func requireDocketingShape(q recordsql.Querier, d *recordpb.Docketing) error {
 	return nil
 }
 
-// proposalSide is the side whose position a proposal is: the author's, the one party that files on a
-// gap.
-func proposalSide(string) recordpb.SidedWith {
-	return recordpb.SidedWith_SIDED_WITH_AUTHOR
-}
-
 // docketingPair is the two sides a docketing's ruling may side with: the raiser's and the author's at
 // impasse and on a proposal; none at grade movement, whose answer is a grade answer.
 func docketingPair(q recordsql.Querier, k docketingRow) ([2]recordpb.SidedWith, error) {
@@ -391,11 +376,9 @@ func docketingPair(q recordsql.Querier, k docketingRow) ([2]recordpb.SidedWith, 
 	return pair, nil
 }
 
-// requireDocketAnswer is a docket ruling against what it answers (validate): who may write it, and
-// which answers fit. The bench answers a docketing, naming it, and names the proposal it holds exactly
-// where it holds one; the gap's assignee answers one proposal standing on its gap, accepting it, with
-// the filer's side, and names no docketing. Either answers with exactly one of a side, a grade answer
-// and a remand (the CHECK's rule, in words), from the docketing's pair.
+// requireDocketAnswer is a docket ruling against what it answers (validate): the bench's alone, naming
+// the docketing it answers, with exactly one of a side, a grade answer and a remand (the CHECK's rule,
+// in words), from the docketing's pair.
 func requireDocketAnswer(q recordsql.Querier, seatID string, r *recordpb.MotionRule) error {
 	d := r.GetDocket()
 	if d == nil {
@@ -417,33 +400,11 @@ func requireDocketAnswer(q recordsql.Querier, seatID string, r *recordpb.MotionR
 	if seatclass.RoleOfSeat(seatID) == "bench" {
 		return requireBenchDocketAnswer(q, r)
 	}
-	if d.DocketingId != nil {
-		return feov.Errorf(feov.RoleViolation, "docketing %s is the bench's to answer: a gap's assignee answers a proposal on its gap, and names no docketing. Nothing was recorded", d.GetDocketingId())
-	}
-	p, found, err := docketProposalAt(q, r.GetMotionId())
-	if err != nil || !found {
-		return err // the motion's reference is requireSubjectMatches's refusal
-	}
-	if p.Assignee != seatID {
-		return feov.Errorf(feov.RoleViolation,
-			"motion %s is answered by the bench, and by one other seat: its gap's assignee, accepting the act it proposes. Gap %s is %s's; you are %s. Nothing was recorded",
-			r.GetMotionId(), p.GapID, p.Assignee, seatID)
-	}
-	if want := proposalSide(p.Filer); d.GetSidedWith() != want || d.Disposition != nil {
-		return feov.Errorf(feov.Validation, "the assignee's accept of motion %s sides with its filer, %s, and states no closing word: the act it proposes is the answer. Nothing was recorded",
-			r.GetMotionId(), recordpb.Word(want))
-	}
-	// L27: THE DOCKETED GAP IS THE BENCH'S TO DISPOSE OF. Once a docketing stands on the gap the
-	// assignee's window is over, and the bench answers the proposal on it.
-	docketing, _, err := standingOnGap(q, p.GapID)
-	if err != nil {
-		return err
-	}
-	if docketing != "" {
-		return feov.Errorf(feov.Conflict, "gap %s is docketed (%s): the bench answers motion %s on that docketing, and the assignee's window is over. Nothing was recorded",
-			p.GapID, docketing, r.GetMotionId())
-	}
-	return nil
+	// A DOCKET RULING IS THE BENCH'S. The raiser takes the author's proposal by its own act — the
+	// regrade or close it proposes, carrying accepts — never by a ruling.
+	return feov.Errorf(feov.RoleViolation,
+		"a docket ruling is the bench's: the raiser of motion %s's gap takes the proposal by its own act — the regrade or close it proposes, accepting it — and a docketing is answered by the bench alone. Nothing was recorded",
+		r.GetMotionId())
 }
 
 // requireBenchDocketAnswer is the bench's docket ruling against its docketing: it names a docketing on
@@ -616,4 +577,17 @@ func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Clo
 		return roadEstoppel(fam, fam.Events, c.GetGapId(), c.GetLocation())
 	}
 	return nil
+}
+
+// StandingOnGap is gap_state's standing proposal and standing docketing on gap g in run's record (""
+// for none): the readers' twin a test holds the stream folds to.
+func StandingOnGap(run Run, g string) (proposal, docketing string, err error) {
+	err = readSnapshot(run, func(q recordsql.Querier) error {
+		if noRecord(q) {
+			return nil
+		}
+		docketing, proposal, err = standingOnGap(q, g)
+		return err
+	})
+	return proposal, docketing, err
 }

@@ -156,7 +156,7 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 	}{
 		{"a proposal the bench disposes of at the exit", true,
 			func(t *testing.T, runDir string) string {
-				return proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
 			[]string{"red-lens-evidence", "blue-respond"}, "red-lens-evidence",
 			func(t *testing.T, runDir, motionID string) {
@@ -220,7 +220,7 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 		name, filer string
 		args        []string
 	}{
-		{"a docket motion", "red-chair", append([]string{"motion", "docket", "file", "close", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}, closeFlags("not_a_defect")...)},
+		{"a docket motion", "blue-respond", append([]string{"motion", "docket", "file", "close", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}, closeFlags("not_a_defect")...)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -359,13 +359,13 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 	}{
 		{"a docketing the bench sat for and ruled nothing", true, "docket",
 			func(t *testing.T, runDir string) string {
-				return proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
 			func(*testing.T, string) {},
 			func(t *testing.T, runDir, motionID string) { ruleProposalDocketing(t, runDir, motionID) }, 5},
 		{"a docketing left while a second proposal on its gap is refused in the sitting", true, "docket",
 			func(t *testing.T, runDir string) string {
-				return proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+				return proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			},
 			func(t *testing.T, runDir string) {
 				// A DOCKETED GAP TAKES NO PROPOSAL (L38), so nothing reaches the bench's open sitting
@@ -373,7 +373,7 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 				// nothing.
 				d := lastDocketing(t, runDir, limitGap).GetDocketingId()
 				before := motionsOnRecord(t, runDir)
-				if out, err := runAt(t, closeProposalArgs(runDir, "red-chair", limitGap, "not_a_defect", "filed with the bench already sitting")...); err == nil ||
+				if out, err := runAt(t, closeProposalArgs(runDir, blueSeat, limitGap, "not_a_defect", "filed with the bench already sitting")...); err == nil ||
 					!strings.Contains(err.Error()+out, "docketing "+d+" stands on it") || !strings.Contains(err.Error()+out, "no proposal is filed on a docketed gap") {
 					t.Fatalf("a second proposal on %s while its docketing stands = %v %q, want refused naming %s", limitGap, err, out, d)
 				}
@@ -440,7 +440,7 @@ func TestABenchRulingAtAnExitBeforeTheLastEpochIsNotTheEpochLimit(t *testing.T) 
 			if tc.limit > 0 {
 				setEpochLimit(t, runDir, tc.limit)
 			}
-			motionID := proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+			motionID := proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 			argue(t, runDir)
 			windowEnds(t, runDir, "red-lens-evidence")
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.EpochLimitReached || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {

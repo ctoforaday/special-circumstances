@@ -53,8 +53,8 @@ feov-record: close: --id names gap G-00000000, which no mint event created — a
 exit 2
 feov-record: close: requires --as, --id, --reason
 
-      --as as-value     REQUIRED — HOW the gap ended — one vocabulary with every closure on the record
-      --id gap-id       REQUIRED — the gap id
+      --as as-value     REQUIRED unless --accept — HOW the gap ended — one vocabulary with every closure on the record
+      --id gap-id       REQUIRED unless --accept — the gap id
       --reason string   REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Run `feov-record close --help` for what it takes, flag by flag.
@@ -63,11 +63,11 @@ Run `feov-record close --help` for what it takes, flag by flag.
 exit 2
 feov-record: close: requires --as, --reason, --verified-against, --verified-by, --verified-with
 
-      --as as-value               REQUIRED — HOW the gap ended — one vocabulary with every closure on the record
+      --as as-value               REQUIRED unless --accept — HOW the gap ended — one vocabulary with every closure on the record
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in
-      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
-      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED unless --accept — AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED unless --accept — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED unless --accept — WITH WHAT — the tool or command that showed it
 
 Run `feov-record close --help` for what it takes, flag by flag.
 
@@ -81,11 +81,31 @@ Run `feov-record regrade --help` for what it takes, flag by flag.
 
 ── docket rule without the gavel
 exit 2
-feov-record: motion docket: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle
+feov-record: motion: This act is the bench's and the blue's and the lens's `motion docket`, and it is not on your surface: you are red-chair. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
+
+file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+
+Usage:
+  feov-record motion [flags]
+  feov-record motion [command]
+
+Available Commands:
+  petition    an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed
+
+Flags:
+  -h, --help   help for motion
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
+
+Use "feov-record motion [command] --help" for more information about a command.
 
 ── docket motion filed by the bench, which rules it
 exit 2
-feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair, lane and lens seats file one.
+feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue and lens seats file one.
 
 ── petition filed by the bench, which rules it
 exit 2
@@ -699,7 +719,7 @@ feov-record: closing: blue-respond has already recorded a closing on "GAP001" th
 
 ── a lens closing a gap a docket motion stands on
 exit 2
-feov-record: close: proposal MOTION001 stands on gap GAP001 in its assignee's window: the assignee answers it by accepting it, and otherwise the bench does once it is docketed. Nothing was recorded; what you found goes in your closing argument on GAP001
+feov-record: close: proposal MOTION001 stands on gap GAP001: its author offers you that act, and you answer it by taking it — the act it proposes, accepting MOTION001. Your own close would change what it acts on; left untaken, it is docketed when your sitting ends. Nothing was recorded
 
 ── repeat target: a gap nothing is before the bench on
 exit 0

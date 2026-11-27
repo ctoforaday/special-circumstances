@@ -105,7 +105,7 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 		runDir := newRun(t)
 		stageRetiredLens(t, runDir, true)
 		setEpochLimit(t, runDir, 5)
-		m := proposeClose(t, runDir, "red-chair", limitGap, "not_a_defect", "not converging, and the bench's to settle")
+		m := proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
 		asSeat(t, runDir, "red-chair", "register")
 		plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
 		if seats := closingParties(t, plan); !plan.FinalSitting || !slices.Equal(seats, []string{lens, "blue-respond"}) {

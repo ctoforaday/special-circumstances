@@ -410,7 +410,7 @@ A gap is a defect in the report that changes a conclusion or a decision a reader
 
 ## assignee
 
-An assignee is the seat whose gap it is: the lens that minted the gap — it accepts a proposal on the gap or leaves it for the bench, and owes the gap's closing.
+An assignee is the seat whose gap it is: the lens that minted the gap — it takes its author's proposal on the gap by its own act or leaves it for the bench, and owes the gap's closing.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -525,7 +525,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 ## docketing
 
-A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for a party's proposal its assignee did not accept in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
+A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for the author's proposal its raiser did not take in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

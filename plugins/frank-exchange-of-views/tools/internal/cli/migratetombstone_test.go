@@ -137,7 +137,7 @@ func TestAMigratedRecordWritesEachTombstoneOnce(t *testing.T) {
 			tok := "<!--gap:" + gap + "-->"
 			asSeat(t, runDir, blueSeat, "edit", "--key", "W1", "--quote", quote+tok+".", "--new", quote+", on every input tried"+tok+".", "--reason", "r")
 			asSeat(t, runDir, blueSeat, "edit", "--key", "W2", "--quote", quote+", on every input tried"+tok+".", "--new", "Five independent verification approaches agree"+tok+".", "--reason", "r")
-			asSeat(t, runDir, blueSeat, "edit", "--key", "A2", "--answers", gap, "--accept", "--reason", "red's wording after all")
+			asSeat(t, runDir, blueSeat, "edit", "--key", "A2", "--accept", gap, "--reason", "red's wording after all")
 			afterPlacing(t, runDir)
 			return runDir
 		}},

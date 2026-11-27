@@ -588,11 +588,11 @@ type runner struct {
 	oneGapRedirects     map[string]int
 	oneGapNamingFinding int
 	// aboutGapDriven is whether this run drove its one `mint --about-kind gap`, and aboutGapRefused
-	// how many the record refused naming the proposal road (aboutGapRefusedDrive). The sweep gates it at zero.
+	// how many the record refused naming the raiser's road (aboutGapRefusedDrive). The sweep gates it at zero.
 	aboutGapDriven  bool
 	aboutGapRefused int
-	// movedDisputed is whether this run drove its one dispute of a gap another seat regraded while
-	// the filing lens sat (disputeMovedGap), and movedDisputes how many met the stale refusal and
+	// movedDisputed is whether this run drove its one dispute of a gap its raiser regraded while
+	// blue sat (disputeMovedGap), and movedDisputes how many met the stale refusal and
 	// landed on the retry.
 	movedDisputed bool
 	movedDisputes int
@@ -637,7 +637,7 @@ type runner struct {
 	fateTurns int
 	// lensAlone counts the gaps a plan engaged their assignee on and not blue (the last audit before
 	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
-	// floor; docketedClosesRefused the closes of a docketed gap refused naming the motion;
+	// floor; docketedClosesRefused the raiser's closes refused naming the author's undocketed proposal;
 	// docketedOffList the docketed gaps a party's list was read and held off (remandroute_test.go,
 	// lensturn_test.go). The sweep gates each at zero.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
@@ -647,11 +647,11 @@ type runner struct {
 	// sweep gates each count at zero.
 	lockRefused      int
 	forceBenchOrders bool
-	// forceBystander is bystanderSeed's run: every lens and chair sitting that finds a gap to propose on
-	// files, and the assignee leaves those proposals to the bench (bystander_test.go).
-	forceBystander bool
-	// bystanderFiled counts this run's bystander filings, by filer role.
-	bystanderFiled map[string]int
+	// forceAuthorProposal is authorProposalSeed's run: every blue sitting that finds a gap to propose
+	// on files, and the raiser leaves those proposals to the bench (authorproposal_test.go).
+	forceAuthorProposal bool
+	// authorProposalsFiled counts this run's forced author proposals.
+	authorProposalsFiled int
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -4754,7 +4754,7 @@ func oneGapRoad(out string) (road string, namesFinding bool) {
 	switch {
 	case strings.Contains(env.Error, " is yours and is open on "):
 		road = "own"
-	case strings.Contains(env.Error, ", assigned to "):
+	case strings.Contains(env.Error, ", raised by "):
 		road = "another"
 	}
 	unquoted := outsideQuotes(env.Error)
@@ -5063,10 +5063,11 @@ func (r *runner) closeGap(chairID, id string) {
 	}
 	r.heldByCheck.remove(id)
 	closer := r.minterOf(id)
-	// A GAP BEFORE THE BENCH IS THE BENCH'S UNTIL IT RULES: a drive that reaches for its close is
-	// refused, and the gap stays open for the ruling to dispose of.
+	// A GAP BEFORE THE BENCH: under a docketing the raiser's close is its concession, on the concession
+	// rotation, and otherwise the gap stays open for the ruling; under the author's proposal undocketed
+	// the close is refused naming it (closeBeforeTheBench).
 	if r.beforeTheBench(id) {
-		r.closeDocketedRefused(closer, id)
+		r.closeBeforeTheBench(closer, id)
 		return
 	}
 	// A `SOURCE` OR `COMPUTATION` CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
@@ -5234,12 +5235,6 @@ func (r *runner) admitClose(id string, args []string) bool {
 		if r.standingCloseRefused(strings.Join(args, " "), id, out, b) {
 			noteEither(args, "a close of a gap a sibling's check landed on after the drive read it, refused naming the check", false)
 		}
-		return false
-	}
-	// A PROPOSAL A BYSTANDER FILED ON id SINCE THE READ holds the gap in its assignee's window, and the
-	// close is refused naming it: concurrent lenses propose on one another's gaps (proposeAsBystander).
-	if env, ok := refusalEnvelopeIn(out); ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, "in its assignee's window") && r.beforeTheBench(id) {
-		noteEither(args, "a close of a gap a bystander's proposal landed on after the drive read it", false)
 		return false
 	}
 	r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
@@ -6089,10 +6084,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// THE VERDICT IS THE PASS ALONE: a sitting that records none relays no verdict. Where its
 		// plan permitted the PASS and the gate refused it, the position is still owed.
 		r.chairPosition(seatID, permitted)
-		// A CHAIR WHOSE PLAN HOLDS THE PASS PROPOSES ON A GAP: one that permits it ends the debate.
-		if !permitted {
-			r.proposeAsBystander(seatID)
-		}
 		return r.chairEnvelope(seatID, false, "", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond") && strings.Contains(prompt, closingsOnlyClause),
@@ -6184,6 +6175,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.escalateTrifle(seatID)
 			r.reconsider(seatID)
 		}
+		// THE AUTHOR'S OWN ACTS ON THE LENSES' GAPS: its proposal on one (proposeAsAuthor), its dispute
+		// of one its raiser regraded while blue sat (disputeMovedGap), and its concession of a docketing
+		// by taking the raiser's text (concedeByAccept).
+		r.proposeAsAuthor(seatID)
+		r.disputeMovedGap(seatID)
+		r.concedeByAccept(seatID)
 		r.extras("blue", seatID, open)
 		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
 		r.changeFateForTurn(seatID)
@@ -6700,14 +6697,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.extras("lens", seatID, nil)
 			}
 		}
-		// THE ROADS FROM A GAP ANOTHER SEAT HOLDS: a point about it is no gap about it
-		// (aboutGapRefusedDrive), and a dispute of one regraded while this lens sat meets the stale
-		// refusal (disputeMovedGap) — before dischargeOwed, which files the closing the motion owes.
-		// A lens's acts: this tail is the frontier's and the lanes' too.
+		// A POINT ABOUT A GAP ANOTHER SEAT HOLDS is no gap about it (aboutGapRefusedDrive); the author's
+		// proposals on this lens's gaps are its to take (takeProposals) — before dischargeOwed, which
+		// files the closings the sitting owes. A lens's acts: this tail is the frontier's and the lanes'
+		// too.
 		if strings.HasPrefix(seatID, "red-lens") {
 			r.aboutGapRefusedDrive(seatID)
-			r.disputeMovedGap(seatID)
-			r.proposeAsBystander(seatID)
+			r.takeProposals(seatID)
 		}
 		r.dischargeOwed(seatID)
 		// A COMPUTATION JUDGED UNSOUND AFTER answerFailed RAN — a reopened computation re-run, one the owner was
@@ -7456,7 +7452,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceLifecycle = seed == lifecycleSeed
 	r.forceStaleness = slices.Contains(stalenessSeeds, seed)
 	r.forceBenchOrders = seed == benchOrdersSeed
-	r.forceBystander = seed == bystanderSeed
+	r.forceAuthorProposal = seed == authorProposalSeed
 	r.forceParts = seed == partsSeed
 	r.maxEpochs = runEpochLimit(seed)
 	if seed == limitSeed {
@@ -8109,10 +8105,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// AND A SPAN THE FREEZE HOLDS IS THE RECORD'S ANSWER: red's text in its closing on a docketed
 				// gap holds the sentence until its ruling, and blue's edit of it is refused naming the
 				// statement (record/freeze.go).
-				// AND A BYSTANDER'S PROPOSAL ON IT IS ITS ANSWER where it closed the gap: another lens's or the
-				// chair's proposed close, which the bench sided with, closes the gap with no edit of blue's
-				// (proposeAsBystander).
-				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) && !(!g.Open && r.bystanderProposedOn(id)) {
+				// AND A PARTY'S ANSWER CLOSED IT where the raiser took blue's proposed close (takeProposals)
+				// or conceded a docketing on it by closing (closeBeforeTheBench): the gap closes with no
+				// edit of blue's.
+				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) && !(!g.Open && r.closedByParty(board.Events, id)) {
 					r.mu.Lock()
 					why := cmp.Or(r.unanswered[id], "no refusal of blue's edit answering it was recorded")
 					r.mu.Unlock()
@@ -9837,12 +9833,13 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					// still never passed. The coverage gate is a property of the SWEEP, so the
 					// thing that guarantees both arms has to be too.
 					useAccept := applyTurn.Add(1)%2 == 0
-					edit := r.do("edit", seatID).set("--answers", id)
+					// --accept NAMES THE GAP the edit answers, so it carries no --answers beside it.
+					edit := r.do("edit", seatID)
 					if useAccept {
-						edit = edit.bare("--accept").
+						edit = edit.set("--accept", id).
 							set("--reason", "fuzz: accepting red's prescribed fix on "+id+" exactly as recorded")
 					} else {
-						edit = edit.set("--quote", fo).set("--new", fn).
+						edit = edit.set("--answers", id).set("--quote", fo).set("--new", fn).
 							set("--reason", "fuzz: applying red's proposed text verbatim")
 					}
 					if out, err := edit.result(); err != nil {
@@ -10418,30 +10415,17 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
-// unruledDocketMotions reads the motions projection for every proposal on gapID that has no ruling yet,
-// in the projection's order: a gap holds one at a time.
-func (r *runner) unruledDocketMotions(gapID string) []string {
-	// `show` renders json by default (--format); the global --json envelope is not its shape.
-	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", "judge")
-	if err != nil {
-		return nil
-	}
-	// `show --json` writes the projection's bytes directly — record.MotionsJSON, not a seat
-	// envelope — so the motions sit at the top level.
-	var page struct {
-		Motions []struct {
-			ID      string `json:"id"`
-			Subject string `json:"subject"`
-			Ruled   bool   `json:"ruled"`
-			GapID   string `json:"gap_id"`
-		} `json:"motions"`
-	}
-	if json.Unmarshal([]byte(out), &page) != nil {
+// standingProposals is every proposal on gapID that stands — unanswered, and ended by no concession —
+// as the record folds it (record.Motion.Standing), in filing order: a gap holds one at a time.
+func (r *runner) standingProposals(gapID string) []string {
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the record could not be read for the proposals standing on " + gapID)
 		return nil
 	}
 	var ids []string
-	for _, m := range page.Motions {
-		if m.Subject == "docket" && !m.Ruled && m.GapID == gapID {
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m != nil && m.Subject == "docket" && m.GapID == gapID && m.Standing() {
 			ids = append(ids, m.ID)
 		}
 	}
@@ -10672,22 +10656,23 @@ func (r *runner) docketsSinceTheLastPlan() []string {
 	if n := len(stored); n > 0 {
 		last = stored[n-1].At
 	}
-	// A PROPOSAL IS RULED BY ITS ASSIGNEE'S ACCEPT, which names it, or by the bench's answer to the
-	// docketing that holds it, which names the docketing: a docketing no longer standing ended it.
-	ruled := map[string]bool{}
-	for _, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && m.GetMotionId() != "" {
-			ruled[m.GetMotionId()] = true
+	// A PROPOSAL STANDS until its raiser takes it, a concession ends it, or the bench answers the
+	// docketing that holds it, as the record folds it (record.Motion.Standing); a docketing no longer
+	// standing ended the proposal it holds.
+	standing := map[string]bool{}
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m != nil && m.Subject == "docket" && m.Standing() {
+			standing[m.ID] = true
 		}
 	}
 	for _, d := range r.docketings() {
 		if d.MotionID != "" && !d.Standing() {
-			ruled[d.MotionID] = true
+			delete(standing, d.MotionID)
 		}
 	}
 	var out []string
 	for i, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && !ruled[m.GetMotionId()] {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && standing[m.GetMotionId()] {
 			out = append(out, m.GetMotionId())
 		}
 	}

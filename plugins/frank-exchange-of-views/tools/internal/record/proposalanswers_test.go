@@ -78,8 +78,8 @@ func withoutOpinion(r *recordpb.MotionRule, n string) *recordpb.MotionRule {
 }
 
 // T-B6, and the ruler check: an answer fits the docketing or the proposal it answers — the bench's
-// names its docketing, the proposal that docketing holds and no other, and a side of its pair; the
-// assignee's accepts a proposal in its window, siding with the filer. Each refusal leaves the motion
+// names its docketing, the proposal that docketing holds and no other, and a side of its pair; no other
+// seat writes a docket ruling — the raiser takes a proposal by its own act (T-B48). Each refusal leaves the motion
 // and the docketing standing, and the Go fold and the SQL view agree on it.
 func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 	assigneeOnD2 := &recordpb.MotionRule{Opinion: proto.String("ruled"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
@@ -97,8 +97,8 @@ func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 		// docketing is the docketing that stands unruled after the refusal, "" for none.
 		docketing string
 	}{
-		{"the assignee's answer to an impasse docketing", motionGuardRun, evLens, assigneeOnD2,
-			[]string{"docketing D2 is the bench's to answer"}, "", "D2"},
+		{"the raiser's answer to an impasse docketing", motionGuardRun, evLens, assigneeOnD2,
+			[]string{"a docket ruling is the bench's"}, "", "D2"},
 		{"a grade answer on an impasse docketing", motionGuardRun, "judge", keepOnD2,
 			[]string{"docketing D2 is no grade movement"}, "", "D2"},
 		{"a bench ruling naming a motion its docketing does not hold", motionGuardRun, "judge", benchFor("D2", "M1", forBlue),
@@ -107,12 +107,12 @@ func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 			[]string{"a bench docket ruling names the docketing it answers"}, "M1", "D1"},
 		{"a closing word on a regrade proposal", motionGuardRun, "judge", closingWord,
 			[]string{"--for-author on docketing D1 writes no closing word", "not_a_defect"}, "M1", "D1"},
-		{"the assignee's accept once its gap is docketed", motionGuardRun, evLens, actRule("M1", true, evLens),
-			[]string{"gap G1 is docketed (D1)", "the assignee's window is over"}, "M1", "D1"},
-		{"the assignee's reject", windowRun, evLens, actRule("M1", false, evLens),
-			[]string{"the assignee's accept of motion M1 sides with its filer", "the act it proposes is the answer"}, "M1", ""},
-		{"another seat's accept", windowRun, "blue-respond", actRule("M1", true, "blue-respond"),
-			[]string{"answered by the bench, and by one other seat", "Gap G1 is " + evLens + "'s; you are blue-respond"}, "M1", ""},
+		{"the raiser's ruling once its gap is docketed", motionGuardRun, evLens, actRule("M1", true, evLens),
+			[]string{"a docket ruling is the bench's", "the regrade or close it proposes"}, "M1", "D1"},
+		{"the raiser's ruling in its window", windowRun, evLens, actRule("M1", false, evLens),
+			[]string{"a docket ruling is the bench's", "the regrade or close it proposes"}, "M1", ""},
+		{"the author's ruling", windowRun, "blue-respond", actRule("M1", true, "blue-respond"),
+			[]string{"a docket ruling is the bench's"}, "M1", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run := tc.run(t)

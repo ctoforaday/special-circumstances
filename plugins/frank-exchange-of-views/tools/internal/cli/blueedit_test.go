@@ -656,7 +656,7 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	editAt("W2", reworded, "Five independent verification approaches agree"+anchors.String()+".")
 	rowsAre("(b) a second reword, nothing standing", "place", "end")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all"); err != nil {
+		"--key", "A2", "--accept", prior, "--reason", "red's wording after all"); err != nil {
 		t.Fatalf("(c) blue's re-application of red's text: %v\n%s", err, readReport(t, runDir))
 	}
 	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
@@ -670,12 +670,12 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	// stood in blue's one sitting, each under its own key.
 	edits := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all")
+		"--key", "A2", "--accept", prior, "--reason", "red's wording after all")
 	if err != nil || !strings.Contains(out, "nothing was written") {
 		t.Errorf("(d) the identical keyed retry was not answered at its key: %v\n%s", err, out)
 	}
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A2", "--answers", prior, "--accept", "--reason", "another reason"); err == nil {
+		"--key", "A2", "--accept", prior, "--reason", "another reason"); err == nil {
 		t.Error("(d) a keyed retry with another reason landed")
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
@@ -735,7 +735,7 @@ func TestAcceptAppliesTheRecordedFix(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept",
+		"--key", "A1", "--accept", gap,
 		"--reason", "red is right and its wording is the one I would have written"); err != nil {
 		t.Fatalf("accept: %v", err)
 	}
@@ -761,7 +761,7 @@ func TestAcceptStillRequiresBluesReason(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept")
+		"--key", "A1", "--accept", gap)
 	if err == nil {
 		t.Fatal("accepting with no --reason was allowed; the argument red re-audits against would be absent")
 	}
@@ -777,7 +777,7 @@ func TestAcceptRefusedWithoutFixNew(t *testing.T) {
 	gap := mintGap(t, runDir, "G0", "spec_underspecification")
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+		"--key", "A1", "--accept", gap, "--reason", "accepting")
 	if err == nil {
 		t.Fatal("accepted a gap that prescribes no text")
 	}
@@ -796,7 +796,7 @@ func TestAcceptRefusesSuppliedText(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept",
+		"--key", "A1", "--accept", gap,
 		"--quote", "Five independent verification approaches agree", "--new", "my own wording",
 		"--reason", "accepting")
 	if err == nil {
@@ -819,7 +819,7 @@ func TestAcceptRefusedWhenThePrescriptionNoLongerApplies(t *testing.T) {
 		t.Fatalf("moving the span: %v", err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+		"--key", "A1", "--accept", gap, "--reason", "accepting")
 	if err == nil {
 		t.Fatal("accepted a prescription whose span is gone")
 	}
@@ -838,7 +838,7 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 	registerBlue(t, runDir)
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-			"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting"); err != nil {
+			"--key", "A1", "--accept", gap, "--reason", "accepting"); err != nil {
 			t.Fatalf("accept attempt %d: %v", i+1, err)
 		}
 	}

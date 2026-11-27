@@ -139,7 +139,7 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 			return regradeProposalArgs(runDir, "blue-respond", gap, "low", "the defect is cosmetic")
 		}},
 		{"motion docket file", "red-chair", func(runDir, gap string) []string {
-			return regradeProposalArgs(runDir, "red-chair", gap, "low", "the lens and blue have exchanged twice and neither moved")
+			return regradeProposalArgs(runDir, blueSeat, gap, "low", "the lens and blue have exchanged twice and neither moved")
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -154,7 +154,7 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 			// assignee's own, the bench's ruling on a docketing of the gap.
 			moved := lensSeat + ": regraded " + gap
 			if c.seat == lensSeat {
-				m := proposeClose(t, runDir, "red-chair", gap, "not_a_defect", "the lens and blue have exchanged twice and neither moved")
+				m := proposeClose(t, runDir, blueSeat, gap, "not_a_defect", "the lens and blue have exchanged twice and neither moved")
 				k := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 				conveneBench(t, runDir, gap)
 				ruleDocket(t, runDir, k, "remand")
@@ -231,11 +231,11 @@ func TestConcurrentSeatsFileNoMotionAgainstAGapThatMovedUnderThem(t *testing.T) 
 				case r < 6 && !closed[gap]:
 					sev := []string{"low", "medium", "high"}[rng.Intn(3)]
 					// One regrade per gap per sitting is the record's own rule; a refused one is either.
-					if err := regrade(t, runDir, lensSeat, gap, sev); err != nil && !strings.Contains(err.Error(), "changed after your sitting opened") && !strings.Contains(err.Error(), "already recorded a regrade") {
+					if err := regrade(t, runDir, lensSeat, gap, sev); err != nil && !strings.Contains(err.Error(), "changed after your sitting opened") && !strings.Contains(err.Error(), "already recorded a regrade") && !(docketed[gap] && strings.Contains(err.Error(), "stands on gap")) {
 						t.Fatalf("regrade: %v", err)
 					}
 				case !closed[gap]:
-					f := filers[rng.Intn(len(filers))]
+					f := blueSeat // a proposal is its gap's author's (X6)
 					file := func() error {
 						_, err := run(t, closeProposalArgs(runDir, f, gap, "not_a_defect", fmt.Sprintf("step %d", step))...)
 						return err

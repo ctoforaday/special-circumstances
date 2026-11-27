@@ -59,11 +59,15 @@ type CloseResult struct {
 	GapID   string `json:"gap_id"`
 	Class   string `json:"class"`
 	Carried bool   `json:"carried,omitempty"`
+	Accepts string `json:"accepts,omitempty"`
 }
 
 func (r CloseResult) Human() string {
 	if r.Carried {
 		return "carried the closure of " + r.GapID + " (" + r.Class + ")"
+	}
+	if r.Accepts != "" {
+		return "closed " + r.GapID + " (" + r.Class + "), taking " + r.Accepts
 	}
 	return "closed " + r.GapID + " (" + r.Class + ")"
 }

@@ -76,7 +76,7 @@ func TestADocketedGapTakesNoProposalAtEveryKMax(t *testing.T) {
 			}
 			actRefusedNaming(t, runDir, "blue's proposal of a close on the docketed gap", "blue-respond", []string{"docketing " + id},
 				append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "not a defect"}, closeFlags("not_a_defect")...)...)
-			actRefusedNaming(t, runDir, "a non-assignee lens's proposal of a regrade on the docketed gap", otherLens, []string{"docketing " + id},
+			actRefusedNaming(t, runDir, "a non-party lens's proposal of a regrade on the docketed gap", otherLens, []string{"its author blue-respond"},
 				"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 			asSeat(t, runDir, "blue-respond", "closing", "--id", boardGap, "--as", "defect_owed_elsewhere", "--reason", "the report already owes this elsewhere")
 			asSeat(t, runDir, "red-lens-evidence", "closing", "--id", boardGap, "--reason", "the section still misleads")
@@ -130,7 +130,7 @@ func TestADocketedGapTakesNoProposalAtEveryKMax(t *testing.T) {
 		if ds, _ := docketingsOn(t, runDir, boardGap); len(ds) != 1 {
 			t.Fatalf("docketings = %+v, want the proposal's one", ds)
 		}
-		actRefusedNaming(t, runDir, "the chair's proposal on the docketed gap", "red-chair", []string{"docketing " + d.GetDocketingId()},
+		actRefusedNaming(t, runDir, "the author's second proposal on the docketed gap", "blue-respond", []string{"docketing " + d.GetDocketingId()},
 			append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "a second ask"}, closeFlags("not_a_defect")...)...)
 		asSeat(t, runDir, "red-chair", "register")
 		asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")

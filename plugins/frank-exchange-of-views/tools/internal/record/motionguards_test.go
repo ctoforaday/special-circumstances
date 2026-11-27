@@ -231,51 +231,107 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 }
 
-// A PROPOSAL IS ANSWERED ONCE WHEN ITS ASSIGNEE ACCEPTS AS THE DISPATCH DOCKETS IT (T-B7). The guards
-// read the record and then the write inserts; outside the writing transaction that is
-// check-then-insert. The two writes that can end a proposal's window race, each on its own connection:
-// the gap's assignee accepting it (refused while a docketing stands, L27), and the dispatch docketing it
-// for the bench (refused once the proposal is answered, L28). Exactly one lands, the other is refused in
-// its guard's own words, and the record holds either the accept or the docketing, never both.
+// A PROPOSAL IS ANSWERED ONCE WHEN ITS RAISER TAKES IT AS THE DISPATCH DOCKETS IT (T-B48). The guards
+// read the record and then the write inserts, all inside the write's transaction. The raiser's accept
+// (a regrade carrying accepts) and the dispatch's docketing of the proposal race, each on its own
+// connection. The accept always lands: before the docketing it answers the proposal and the docketing
+// is refused, naming the answer; after it, it is the raiser's concession and ends the docketing and
+// the proposal with no ruling. Either way the proposal reads answered once, alike in the Go fold and
+// the SQL view, no docketing stands, and no seat's write is told "none stands behind this ruling" — a
+// refusal the bench's ruling alone can draw.
 func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 	for round := 0; round < 5; round++ {
 		st := newStage(t).cast("red-chair", "blue-respond", evLens, "judge").ingest().register("red-chair").dispatch(2, evLens)
 		run := st.register(evLens).mint(evLens, "G1", "high").seed()
 		fileProposal(t, run, regradeMotion("M1", "G1", "severity is overstated"))
-		// The assignee sits BEFORE the race: a register is a write too, and the race under test is the
-		// answer's and the docketing's, not the sitting's.
+		// The raiser sits BEFORE the race: a register is a write too, and the race under test is the
+		// accept's and the docketing's, not the sitting's.
 		lens := sit(t, run, evLens)
-		start := make(chan struct{})
-		var acceptErr, docketErr error
-		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
-			<-start
-			_, acceptErr = Append(lens, actRule("M1", true, evLens))
-		}()
-		go func() {
-			defer wg.Done()
-			<-start
-			_, docketErr = docketByDispatchAs(t, run, "D1", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, "M1")
-		}()
-		close(start)
-		wg.Wait()
-		switch {
-		case acceptErr == nil && docketErr == nil:
-			t.Fatalf("round %d: the accept of M1 and its docketing both landed; want exactly one", round)
-		case acceptErr != nil && docketErr != nil:
-			t.Fatalf("round %d: neither landed: accept %v; docketing %v", round, acceptErr, docketErr)
-		case acceptErr != nil && !strings.Contains(acceptErr.Error(), "gap G1 is docketed (D1)"):
-			t.Errorf("round %d: the accept was refused for something other than the docketing standing: %v", round, acceptErr)
-		case docketErr != nil && !strings.Contains(docketErr.Error(), "motion M1 is no docket motion standing unanswered"):
-			t.Errorf("round %d: the docketing was refused for something other than the accept standing: %v", round, docketErr)
+		take := &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+			Basis: proto.String("the author is right"), Accepts: proto.String("M1")}
+		acceptErr, docketErr := raceWrites(
+			func() error { _, err := Append(lens, take); return err },
+			func() error {
+				_, err := docketByDispatchAs(t, run, "D1", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, "M1")
+				return err
+			})
+		if acceptErr != nil {
+			t.Fatalf("round %d: the raiser's accept of M1 was refused; it lands before and after the docketing alike: %v", round, acceptErr)
 		}
-		_, ruled := motionReadersAgree(t, run)["M1"]
-		if ruled != (acceptErr == nil) {
-			t.Errorf("round %d: M1 reads answered %v, and the accept landed %v", round, ruled, acceptErr == nil)
+		if docketErr != nil && !strings.Contains(docketErr.Error(), "motion M1 is no docket motion standing unanswered") {
+			t.Errorf("round %d: the docketing was refused for something other than the accept answering M1: %v", round, docketErr)
+		}
+		if got := motionReadersAgree(t, run)["M1"]; got.ruling != AcceptedWord || got.by != evLens {
+			t.Errorf("round %d: M1 reads answered %+v; want %q by %s", round, got, AcceptedWord, evLens)
+		}
+		all, err := MergedEvents(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range DocketingsOf(all.Events) {
+			if d.Standing() {
+				t.Errorf("round %d: docketing %s stands after the raiser's accept answered its proposal", round, d.ID)
+			}
+		}
+		if got := standingDocketingCol(t, run, "G1"); got != "" {
+			t.Errorf("round %d: gap_state reads docketing %s standing on G1 after the accept", round, got)
 		}
 	}
+}
+
+// THE RAISER'S OWN REGRADE RACING AN IMPASSE DOCKETING is told the truth when it loses: the gap is
+// docketed, naming the docketing — never that no docketing stands behind a ruling. Before the
+// docketing the regrade lands and the docketing lands after it.
+func TestARegradeRacingADocketingIsToldTheGapIsDocketed(t *testing.T) {
+	refused := 0
+	for round := 0; round < 8; round++ {
+		run := newStage(t).cast("red-chair", "blue-respond", evLens, "judge").ingest().register("red-chair").dispatch(2, evLens).
+			register(evLens).mint(evLens, "G1", "high").seed()
+		lens := sit(t, run, evLens)
+		regrade := &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("on reflection")}
+		regradeErr, docketErr := raceWrites(
+			func() error { _, err := Append(lens, regrade); return err },
+			func() error {
+				_, err := docketByDispatchAs(t, run, "D1", "G1", recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+				return err
+			})
+		if docketErr != nil {
+			t.Fatalf("round %d: the impasse docketing was refused: %v", round, docketErr)
+		}
+		if regradeErr != nil {
+			refused++
+			if !strings.Contains(regradeErr.Error(), "gap G1 is docketed (D1)") || strings.Contains(regradeErr.Error(), "none stands behind") {
+				t.Errorf("round %d: the regrade was refused without naming the docketing standing: %v", round, regradeErr)
+			}
+		}
+	}
+	t.Logf("%d of 8 rounds docketed first", refused)
+}
+
+// raceWrites runs a and b at once, each released by one start signal, and returns their errors.
+func raceWrites(a, b func() error) (errA, errB error) {
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); <-start; errA = a() }()
+	go func() { defer wg.Done(); <-start; errB = b() }()
+	close(start)
+	wg.Wait()
+	return errA, errB
+}
+
+// standingDocketingCol is gap_state's standing docketing on gap, "" for none.
+func standingDocketingCol(t *testing.T, run Run, gap string) string {
+	t.Helper()
+	db, err := openRunForRead(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d sql.NullString
+	if err := db.QueryRow(`SELECT "standing_docketing" FROM "gap_state" WHERE "gap_id" = ?`, gap).Scan(&d); err != nil {
+		t.Fatal(err)
+	}
+	return d.String
 }
 
 // heldBy is r naming docketing, the one holding the proposal it answers: the bench's ruling of a

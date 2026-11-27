@@ -228,6 +228,13 @@ func MotionID() *ShapedValue {
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
+// ProposalID refuses anything that is not a motion id, on the raiser's verbs taking the author's
+// proposal (--accept M): a gap's raiser reads its proposals off its own work list.
+func ProposalID() *ShapedValue {
+	return &ShapedValue{kind: "motion-id", re: motionShape(),
+		hint: "a proposal's id is M- and eight hex, as its filing returned it; your work list names each proposal standing on your gaps"}
+}
+
 // DocketingID refuses anything that is not a docketing id.
 func DocketingID() *ShapedValue {
 	return &ShapedValue{kind: "docketing-id", re: docketingShape(),

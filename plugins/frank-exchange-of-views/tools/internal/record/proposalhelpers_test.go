@@ -58,12 +58,13 @@ func mustDocketByDispatch(t *testing.T, run Run, gap string) string {
 	return id
 }
 
-// fileProposal files m, a proposal with its act, as the chair — a red seat proposing on a lens's gap —
-// after the one counted exchange on its gap every proposal needs (requireExchangedOn).
+// fileProposal files m, a proposal with its act, as blue's responding seat — the author of a report
+// subject, the one party that files on a gap — after the one counted exchange on its gap every
+// proposal needs (requireExchangedOn).
 func fileProposal(t *testing.T, run Run, m *recordpb.Motion) {
 	t.Helper()
 	exchangeOn(t, run, m.GetDocket().GetGapId())
-	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, m)
+	mustAppend(t, Identity{Run: run, SeatID: blueRespondSeat}, m)
 }
 
 // docketProposal writes the PROPOSAL docketing holding proposal motion on gap, as the end of its

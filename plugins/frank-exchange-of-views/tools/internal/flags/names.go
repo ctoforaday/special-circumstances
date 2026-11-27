@@ -485,7 +485,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	// is a dead flag in the making, and a section name in printed prose is a seat's note in the report.
 	DescQuoteAlone = "the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing"
 	DescQuote      = DescQuoteAlone + ". Name the section in --reason, where prose belongs"
-	DescAccept     = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"
+	DescAccept     = "take the raiser's stated text on gap G EXACTLY as recorded — its mint's prescription, or the pair its closing states: the G- id of the gap; the edit answers it, so you pass no --answers. The tool supplies --quote and --new, so you pass neither. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still required — it is your argument for accepting. Refused when the raiser states no concrete text"
 	DescKey        = "your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice"
 	DescURL        = "the source's http/https URL — fetched once and cached, so both sides read the same bytes. " + DescURLQuoting
 	// DescURLQuoting is on every flag that takes a URL. A URL carries characters the shell reads as

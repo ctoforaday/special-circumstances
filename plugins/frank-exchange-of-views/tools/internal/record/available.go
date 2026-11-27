@@ -49,7 +49,7 @@ import (
 //
 // blueOut is the run in the epoch that holds blue out (blueHeldOut, under the run's terms): the
 // chair's row for a remanded gap says what the dispatch can still do there.
-func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string, blueOut bool, exchanged func(string) bool) []Item {
+func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string, blueOut bool) []Item {
 	out := []Item{}
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
@@ -141,12 +141,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 				add(gapItem(ItemKind(BlockerRemandOwed), g.ID, remandedGapForChair(g, blueOut)))
 				continue
 			}
-			// AND ONLY WHERE A PROPOSAL WOULD LAND: one on a gap that has not had its exchange is
-			// refused (requireExchangedOn), so the row waits for it.
-			if exchanged != nil && !exchanged(g.ID) {
-				continue
-			}
-			add(gapItem(ItemDocket, g.ID, "propose the act you want on gap "+g.ID+" with a docket motion; its assignee may accept it, else the bench rules"))
 		}
 	case "lens":
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).

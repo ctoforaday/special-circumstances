@@ -1309,8 +1309,10 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
 				// from any other seat; a reader deriving this from Assignee is deriving a refusal
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false. The
-				// close is refused while a docketing or a proposal stands on the gap (requireNoStandingDocket).
-				YoursToClose: reader != "" && g.Assignee == reader && !g.unruledDocket && !g.docketed,
+				// close is refused while the author's proposal stands undocketed, which the raiser
+				// answers by taking it; under a docketing it is the raiser's concession
+				// (requireRaiserActOnGap).
+				YoursToClose: reader != "" && g.Assignee == reader && (g.docketed || !g.unruledDocket),
 				YourTurn:     (reader != "" && g.Assignee == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
@@ -1519,10 +1521,8 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	exchanges := exchangeFold(evs, win.IDs(evs), win, WhileRunning, r.remands)
 	last := win.LastEpoch(evs)
-	reads := sittingReads{unverifiable: unverifiableIn(r), frozen: frozenIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion,
-		exchanged: func(g string) bool { return exchanges[g] != nil && exchanges[g].Exchanges >= 1 }}
+	reads := sittingReads{unverifiable: unverifiableIn(r), frozen: frozenIn(r), blueOut: blueHeldOut(params, last), closingsOnly: closingsOnlyFor(params, last, role), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
 	textItems, err := reportTextItems(run, role, seatID, w.Sitting.Open)

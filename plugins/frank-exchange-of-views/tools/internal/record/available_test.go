@@ -144,139 +144,30 @@ func TestAnUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	}
 }
 
-// A `carried` RULING RE-OPENS THE FILING, AND THAT IS THE POINT OF `carried`.
-//
-// The docket affordance was keyed on "has this gap EVER been docketed", so it went silent
-// permanently at the first filing. `carried` is a deferral: the bench answers the docketing and
-// deliberately keeps the gap alive with a stated condition for revisiting it, and the gap comes
-// back as a FRESH proposal. Under the old key the surface that would prompt that filing
-// never fired again, so the one disposition the bench uses most often — 76 of 77 rulings on the
-// measured corpus — had no route back to the bench.
-//
-// THE KEY IS PENDING, NOT EVER-FILED. Every disposition except `carried` closes the gap, so an
-// OPEN gap whose docketing is RULED is exactly the deferred one. A STANDING proposal still
-// suppresses the affordance, because proposing a second act while the first is unanswered is
-// refused (one standing proposal per gap).
-func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
-	// G-carried was docketed and the bench remanded it, so it stays open; G-pending carries a proposal
-	// standing unanswered; G-fresh was never before the bench at all. Only G-pending must be silent.
-	// All three are MATERIAL: the docket is offered only on a gap that holds PASS, and this test is
-	// about which of three such gaps the offer stands on.
-	b := loadedFamilyT(t, []*Gap{
-		{ID: "G-carried", Open: true, Material: true},
-		{ID: "G-pending", Open: true, Material: true},
-		{ID: "G-fresh", Open: true, Material: true},
-	},
-		[]*Event{
-			mintsGap(t, "red-lens-logic", "G-carried"),
-			mintsGap(t, "red-lens-logic", "G-pending"),
-			recordtest.Event(t, "red-chair", docketing("D1", "G-carried")),
-			recordtest.Event(t, "judge", &recordpb.MotionRule{
-				Opinion: proto.String("not this round"),
-				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-					DocketingId: proto.String("D1"),
-					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
-					Direction:   proto.String("blue reporting what the stated direction found"),
-					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
-				}},
-			}),
-			recordtest.Event(t, "red-chair", docketMotion("M2", "G-pending")),
-		})
-	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false, nil)
-
-	for _, want := range []string{"G-carried", "G-fresh"} {
-		if !mentions(open, "gap "+want+" ") {
-			t.Errorf("%s is open and the bench is not being offered it: %v", want, hows(open))
-		}
-	}
-	if mentions(open, "gap G-pending with a docket motion") {
-		t.Error("G-pending's motion is filed and UNRULED — offering a second filing asks the bench the same question twice")
-	}
-	// AND IT IS STILL AN AFFORDANCE. A blocking version would make a seat that obeyed it FURTHER
-	// from complete, because filing adds an unruled motion.
-	for _, it := range open {
-		if strings.Contains(it.What, "with a docket motion") && it.Blocks {
-			t.Errorf("the docket affordance blocks closure: %q", it.What)
-		}
-	}
-}
-
-// A CARRIED GAP GETS DIFFERENT WORDS, AND THAT DIFFERENCE IS THE WHOLE POINT (#759).
-//
-// The vacuous version of this test is "the chair sitting is incomplete and names the gap" — which
-// passed before any of this existed, because the chair arm already blocks on every open material gap. So
-// what is asserted here is the DISTINCTION: a carried gap and a never-docketed one must not read
-// the same, the carried one must carry the bench's stated condition, and neither may add a second
-// blocking row for a gap sitting.go already blocks on.
+// A CARRIED GAP GETS ITS OWN ROW, AND A FRESH ONE NONE (#759). The chair files nothing on a gap — a
+// proposal is its author's, and the dispatch dockets a gap at impasse — so a gap nobody docketed is
+// offered to the chair by no row; the remanded one carries the bench's stated condition, in one row
+// that does not block (sitting.go's open-gap row already refuses PASS over a material gap).
 func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	gaps := []WorkGapState{
 		{ID: "CARRIED", Open: true, Material: true, Remanded: true, remand: remandOwed, route: routeRemandOwed,
 			DocketDirection: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
-	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false, nil)
-
-	find := func(id string) string {
-		t.Helper()
-		for _, it := range open {
-			if strings.Contains(it.What, "gap "+id+" ") {
-				if it.Blocks {
-					t.Errorf("%s: the docket affordance BLOCKS — sitting.go's open-gap row already "+
-						"refuses PASS over a material gap, so this would be a second blocking row for one gap", id)
-				}
-				return it.What
-			}
-		}
-		t.Fatalf("%s has no row at all: %v", id, hows(open))
-		return ""
-	}
-	carried, fresh := find("CARRIED"), find("FRESH")
-
-	// THE ANTI-VACUITY ASSERTION. Everything else here would still pass if both gaps got the
-	// generic sentence; this is the line that fails when they do.
-	if carried == fresh {
-		t.Fatalf("a carried gap and a gap nobody has docketed read identically:\n  %q", carried)
-	}
-	if !strings.Contains(carried, "REMANDED it") {
-		t.Errorf("the carried gap's row does not say the bench remanded it: %q", carried)
-	}
-	if !strings.Contains(carried, "blue reporting what the stated direction found") {
-		t.Errorf("the carried gap's row drops the bench's stated condition, which is the substance "+
-			"of the deferral: %q", carried)
-	}
-	// ONE ROW PER GAP. A second item naming the same gap is the duplicate #759 names explicitly.
-	rows := 0
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
+	var carried []Item
 	for _, it := range open {
+		if strings.Contains(it.What, "gap FRESH ") {
+			t.Errorf("the chair is offered a row on a gap nobody docketed, and files nothing on it: %q", it.What)
+		}
 		if strings.Contains(it.What, "gap CARRIED ") {
-			rows++
+			carried = append(carried, it)
 		}
 	}
-	if rows != 1 {
-		t.Errorf("the carried gap has %d rows on the work list, want exactly 1: %v", rows, hows(open))
+	if len(carried) != 1 {
+		t.Fatalf("the carried gap has %d rows on the work list, want exactly 1: %v", len(carried), hows(open))
 	}
-	// And the never-docketed gap still gets the filing instruction it always did.
-	if !strings.Contains(fresh, "with a docket motion") {
-		t.Errorf("the undocketed gap lost its filing affordance: %q", fresh)
-	}
-}
-
-// A DOCKETED GAP TAKES NO PROPOSAL (L38), so the chair is not offered one there: a docketing standing
-// with no proposal suppresses the row as a standing proposal does.
-func TestTheChairIsNotOfferedAProposalOnADocketedGap(t *testing.T) {
-	b := loadedFamilyT(t, []*Gap{
-		{ID: "G-docketed", Open: true, Material: true},
-		{ID: "G-fresh", Open: true, Material: true},
-	},
-		[]*Event{
-			mintsGap(t, "red-lens-logic", "G-docketed"),
-			mintsGap(t, "red-lens-logic", "G-fresh"),
-			recordtest.Event(t, "red-chair", docketing("D1", "G-docketed")),
-		})
-	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false, nil)
-	if mentions(open, "gap G-docketed with a docket motion") {
-		t.Error("G-docketed has a docketing standing, and no proposal is filed on a docketed gap — the chair is offered one")
-	}
-	if !mentions(open, "gap G-fresh ") {
-		t.Errorf("G-fresh is open and undocketed, and the chair is not offered a proposal on it: %v", hows(open))
+	if c := carried[0]; c.Blocks || !strings.Contains(c.What, "REMANDED it") || !strings.Contains(c.What, "blue reporting what the stated direction found") {
+		t.Errorf("the carried gap's row blocks, or drops the remand or its stated condition: %+v", c)
 	}
 }

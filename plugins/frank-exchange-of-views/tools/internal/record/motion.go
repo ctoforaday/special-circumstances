@@ -348,6 +348,17 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	// the empty string and report a board with no rulings on it.
 	ruled := map[*Motion]bool{}
 	for i, e := range evs {
+		// THE RAISER'S ACT TAKING A PROPOSAL ANSWERS IT (accepts on a regrade or a close), and reads as
+		// AcceptedWord — motion_answers' word for it. First answer wins, as for a ruling.
+		if m := byID[acceptsOf(e)]; m != nil && !ruled[m] {
+			ruled[m] = true
+			w := win.Of(e)
+			m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = AcceptedWord, e.GetSeatId(), w.Epoch, w.Sitting
+			if seq != nil {
+				m.ruled = seq[i]
+			}
+			continue
+		}
 		id, ok := motionIDOf(e)
 		if !ok || id == "" {
 			continue
@@ -581,4 +592,25 @@ func MotionVerdictEnum(subject string) EnumField {
 		Key: "ruling", Flag: flags.As, Values: MotionVerdicts[subject],
 		Why: "the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission",
 	}
+}
+
+// AcceptedWord is the answer a proposal reads as when its raiser takes it by its own act: the word
+// the motion_answers view writes for an act carrying accepts.
+const AcceptedWord = "accepted"
+
+// acceptsOf is the docket motion e's act takes (Regrade.accepts, Close.accepts), "" for none.
+func acceptsOf(e *Event) string {
+	switch b := recordBody(e).(type) {
+	case *recordpb.Regrade:
+		return b.GetAccepts()
+	case *recordpb.Close:
+		return b.GetAccepts()
+	}
+	return ""
+}
+
+// recordBody is e's body, nil for none.
+func recordBody(e *Event) proto.Message {
+	b, _ := recordpb.Body(e)
+	return b
 }

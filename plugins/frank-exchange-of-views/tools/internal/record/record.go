@@ -952,6 +952,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	if err := recordpb.CheckRequired(body); err != nil {
 		return err
 	}
+	if err := requireAuthorAccept(q, seatID, body); err != nil {
+		return err
+	}
 	switch b := body.(type) {
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end, or at the end of the sentence
@@ -1259,6 +1262,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
+				return err
+			}
+			if err := requireFiledByAuthor(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
@@ -1770,30 +1776,6 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s is assigned to %s — the lens that minted its chain's first gap — and only its assignee %ss it; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its assignee; if it needs the bench, it is docketed at impasse",
 		gapID, assignee, act, seatID)
-}
-
-// requireNoStandingDocket refuses the close of a gap a docketing or a proposal stands on (ruled by
-// gblock 2026-10-31; the freeze, F9). The lens's preference comes before the docket: once the gap is
-// before the bench, the bench disposes of it, and the lens's one act there is its closing; while a
-// proposal stands in its window, the assignee answers it by accepting it, and a close of its own would
-// answer nobody. On universe-m37 five dockets closed within minutes of being filed, and the bench sat to
-// rule three times on gaps that were over.
-func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
-	docketing, proposal, err := standingOnGap(q, gapID)
-	if err != nil {
-		return err
-	}
-	switch {
-	case docketing != "":
-		return feov.Errorf(feov.Conflict,
-			"gap %s is docketed for the bench: docketing %s stands on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
-			gapID, docketing, gapID)
-	case proposal != "":
-		return feov.Errorf(feov.Conflict,
-			"proposal %s stands on gap %s in its assignee's window: the assignee answers it by accepting it, and otherwise the bench does once it is docketed. Nothing was recorded; what you found goes in your closing argument on %s",
-			proposal, gapID, gapID)
-	}
-	return nil
 }
 
 // requireNoDocketingOnFiling refuses a proposal on a gap a docketing stands on (L38): the docketed gap

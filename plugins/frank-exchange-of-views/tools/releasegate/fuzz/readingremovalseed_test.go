@@ -253,7 +253,7 @@ func (r *runner) remedyRemovalSentences(blue string) string {
 	r.mu.Lock()
 	retired, estoppedGap := r.removal.retiredCite, r.removal.estoppedGap
 	r.mu.Unlock()
-	if _, ok := r.do("edit", blue).set("--answers", estoppedGap).bare("--accept").
+	if _, ok := r.do("edit", blue).set("--accept", estoppedGap).
 		set("--reason", "fuzz: accepting red's prescribed fix on "+estoppedGap+" exactly as recorded").admit(); !ok {
 		return "blue's accept of the prescription on the estopped sentence was refused"
 	}

@@ -380,7 +380,7 @@ Reversibility under load was not tested.
 		},
 		Expect: []Expectation{
 
-			{Seat: "blue-respond", Verb: "motion docket file regrade", Because: "This sitting is arguing rather than repairing, and a proposal is filed by any seat but the gap's assignee and the bench. Blue's channel to dispute a grade it believes red has wrong — without waiting for red to move it: it proposes the regrade it holds right, the gap's lens may accept it in its window, and otherwise the gap is docketed for the bench, whose answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A gap docketed on blue's proposal owes blue's closing on it: the bench rules from the two parties' closings, the transcript and the final state, and waits for both. A blue that escalates and files no closing has left its case to red's account of it."},
+			{Seat: "blue-respond", Verb: "motion docket file regrade", Because: "This sitting is arguing rather than repairing, and a proposal is filed by the gap's author — blue, on the report. Blue's channel to dispute a grade it believes red has wrong — without waiting for red to move it: it proposes the regrade it holds right, the gap's lens may take it by its own act in its window, and otherwise the gap is docketed for the bench, whose answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A gap docketed on blue's proposal owes blue's closing on it: the bench rules from the two parties' closings, the transcript and the final state, and waits for both. A blue that escalates and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond", Verb: "inquiry record", Because: "Two inquiries are proposed and neither has a fate. An open inquiry holds the PASS, and blue's work list names each one whose fate predates the sitting — an inquiry declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead leaves the first one unanswered."},
 		},
 	}
@@ -487,16 +487,15 @@ Figures were read from the deployed configuration at the pinned revision.
 				Fix:      "Correct every site.",
 				Check:    "No site states a contradicting figure.", CheckKind: "document",
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
-				Baits: "motion docket file close",
-				Why: "A gap red RE-RAISES is docket-bound: it goes before the bench, where its parties — " +
-					"the assignee and blue — argue it in their closings.",
+				Baits: "dispatch",
+				Why: "A gap red RE-RAISES is docket-bound: the dispatch puts it before the bench at impasse, where " +
+					"its parties — the lens that raised it and blue — argue it in their closings. The chair files nothing on it.",
 			},
 		},
 		Inquiries: []Inquiry{
 			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
-			{Seat: "red-chair", Verb: "motion docket file close", Because: "THIS proposes the gap's close: its assignee may accept it in its window, and otherwise the gap is docketed and its parties — the assignee and blue — argue it in their closings. A `docket-bound` board with no proposal written down lets a gap the chair holds wrongly open get no answer with nothing able to notice. The chair closes nothing itself, and an open gap it cannot close is exactly the one whose close it proposes."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
@@ -660,7 +659,7 @@ No material downside was identified.
 			// seat fail an expectation it had no way to meet — which is the defect
 			// TestEveryExpectationIsReachableOnItsBoard exists to catch, and which the `needs`
 			// map enforces for this verb.
-			Subject: "docket", Filer: "red-chair", GapID: "G1", Act: closeProposal("red-chair"),
+			Subject: "docket", Filer: "blue-respond", GapID: "G1", Act: closeProposal("blue-respond"),
 			Basis: "red re-raised this gap and blue's answer did not move it; it is the bench's to settle, not mine to close",
 		}},
 		Expect: []Expectation{
@@ -732,7 +731,7 @@ The combined effect is largest when the two are applied together.
 		},
 		// THE GAP IS BEFORE THE BENCH: the dispatch docketed it at impasse, and both parties argued it.
 		Motions: []Motion{{
-			Subject: "docket", Filer: "red-chair", GapID: "G1", Act: closeProposal("red-chair"),
+			Subject: "docket", Filer: "blue-respond", GapID: "G1", Act: closeProposal("blue-respond"),
 			Basis: "at impasse under the run's terms — the exchanges on G1 reached their limit without resolving it; the bench owes a ruling",
 		}},
 		Expect: []Expectation{
@@ -827,7 +826,7 @@ The fall coincides with the cache layer's release.
 				"withhold a measured fall.",
 		}},
 		Motions: []Motion{{
-			Subject: "docket", Filer: "red-chair", GapID: "G1", Act: closeProposal("red-chair"),
+			Subject: "docket", Filer: "blue-respond", GapID: "G1", Act: closeProposal("blue-respond"),
 			Basis: "at impasse under the run's terms — the exchanges on G1 reached their limit without resolving it; the bench owes a ruling",
 		}},
 		Expect: []Expectation{
@@ -836,11 +835,12 @@ The fall coincides with the cache layer's release.
 	}
 }
 
-// lensPropose is a lens sitting over another lens's gap that is graded past what the report commits:
-// the gap is not this lens's to regrade, and its road is the regrade it proposes in a docket motion.
-func lensPropose() Board {
+// lensAccept is a lens sitting over two gaps of its own: one whose check is met on the page, and one
+// graded past what the report commits, on which blue — the gap's author — has proposed the regrade
+// the report bears out. The proposal is the lens's to take by its own act in its window.
+func lensAccept() Board {
 	return Board{
-		Name: "lens-propose", Seat: "red-lens-evidence",
+		Name: "lens-accept", Seat: "red-lens-evidence",
 		Report: `# Does the retry policy bound tail latency? — research report
 
 ## TL;DR
@@ -851,9 +851,8 @@ The retry policy bounds tail latency at three attempts.
 
 The client retries a failed request at most three times, per the client's configuration.
 
-The retry budget was tuned on a single weekday's traffic.
+The retry budget was tuned on a single weekday's traffic, a limitation of this report.
 `,
-		// G1 is this lens's own, its acceptance check met; G2 is the logic lens's, minted second.
 		Gaps: []Gap{{
 			Key: "bound", Class: "derivation_status_overclaim",
 			Location: `The client retries a failed request at most three times, per the client's configuration.`,
@@ -865,16 +864,21 @@ The retry budget was tuned on a single weekday's traffic.
 			Why:   "This lens's own gap, its check met on the page.",
 		}, {
 			Key: "budget", Class: "verification_scope_blindspot",
-			Location: `The retry budget was tuned on a single weekday's traffic.`,
+			Location: `The retry budget was tuned on a single weekday's traffic, a limitation of this report.`,
 			Problem:  "The tuning window is one day.",
 			Fix:      "Name the window as a limitation.",
 			Check:    "The report states the tuning window as a limitation.", CheckKind: "document",
 			Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
-			Baits: "motion docket file regrade",
-			Why:   "Another lens's gap, graded `certain` for a sentence that states its window: not this lens's to regrade.",
+			Baits: "regrade",
+			Why:   "This lens's own gap, graded `certain` for a sentence that states its window as a limitation; blue proposes it graded low.",
+		}},
+		Motions: []Motion{{
+			Subject: "docket", Filer: "blue-respond", GapID: "G2",
+			Act:   []string{"regrade", "--severity", "low", "--likelihood", "low"},
+			Basis: "the report states the one-day window as a limitation, so the defect is disclosed and its weight is low",
 		}},
 		Expect: []Expectation{
-			{Seat: "red-lens-evidence", Verb: "motion docket file regrade", Because: "G2 is the logic lens's gap and overstates a limitation the report already states. Only its assignee regrades it; another lens that holds the grade wrong proposes the regrade, and the proposal is on the record whether it is accepted or ruled."},
+			{Seat: "red-lens-evidence", Verb: "regrade", Because: "Blue's proposal on G2 is right: the report discloses the window. The lens takes it by its own act — the regrade that accepts the proposal — and the tool applies the grades as filed; leaving it untaken puts the gap before the bench for nothing."},
 			{Seat: "red-lens-evidence", Verb: "close", Because: "G1 is this lens's own and its check is met on the page; its close is this lens's act alone."},
 		},
 	}
@@ -922,7 +926,7 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensPropose(), lensInquiry(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensAccept(), lensInquiry(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out
@@ -942,16 +946,14 @@ func Boards() map[string]Board {
 var NoSituation = map[string]string{
 	// A LANE SITS ONCE, BEFORE ANY BOARD EXISTS: the boards here are debate states, and a lane's
 	// sitting precedes the first of them. Each of its acts is the same verb blue's boards demand.
-	"lane inquiry propose":            laneSitsBeforeAnyBoard,
-	"lane inquiry record":             laneSitsBeforeAnyBoard,
-	"lane log":                        laneSitsBeforeAnyBoard,
-	"lane motion docket file regrade": laneHasNoGap,
-	"lane motion docket file close":   laneHasNoGap,
-	"lane motion petition file":       laneSitsBeforeAnyBoard,
-	"lens motion docket file close": "a lens closes its own gaps; on another lens's it proposes the regrade lens-propose stages, and a close it holds " +
-		"another lens owes is argued the same way. A board for each act of one road would bait the act, not the choice.",
-	"chair motion docket file regrade": "the chair's docket filings argue a gap it cannot close: adjudicate stages its close proposal, and a regrade " +
-		"proposal is the same road with another act.",
+	"lane inquiry propose":      laneSitsBeforeAnyBoard,
+	"lane inquiry record":       laneSitsBeforeAnyBoard,
+	"lane log":                  laneSitsBeforeAnyBoard,
+	"lane motion petition file": laneSitsBeforeAnyBoard,
+	"lens motion docket file regrade": "a lens files a proposal only as the author of a gap about its own gap, which no board here stages; " +
+		"lens-accept stages the lens on the other side, taking its author's proposal by its own act.",
+	"lens motion docket file close": "a lens files a proposal only as the author of a gap about its own gap, which no board here stages, " +
+		"and a close proposal is the same road as the regrade with another act.",
 	"blue motion docket file close": "blue disputes a gap by proposing the act it holds right; arithmetic and docket stage its regrade proposal, " +
 		"and a close proposal is the same road with another act.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
@@ -961,9 +963,6 @@ var NoSituation = map[string]string{
 	"bench motion position rule": "possible and real — the bench rules the chair's position on a PASS it withheld — but it answers the chair position above, " +
 		"which no board here stages for the same reason; record's withheldpass_test.go and cli's positionheard_test.go drive the ruling instead.",
 }
-
-// laneHasNoGap is why a lane proposes no act: it sits before any gap is minted.
-const laneHasNoGap = "a lane sits before any gap is minted, so it has no gap to propose an act on."
 
 // closeProposal is a docket motion's proposed close as not_a_defect, verified by its filer.
 func closeProposal(filer string) []string {

@@ -188,7 +188,8 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 	mintRefusedNaming(t, runDir, "(2) another lens's mint of the ruled class on the sentence", otherLens, class, ruledSentence, names)
 	asSeat(t, runDir, "red-lens-evidence", "register")
 	mintRefusedNaming(t, runDir, "(2) the assignee's own mint of the ruled class", "red-lens-evidence", class, ruledSentence, names)
-	actRefusedNaming(t, runDir, "(3) a proposal on the ruled gap", otherLens, []string{"the bench ruled gap " + boardGap, "docketing " + d, "tombstone"},
+	asSeat(t, runDir, blueSeat, "register")
+	actRefusedNaming(t, runDir, "(3) the author's proposal on the ruled gap", blueSeat, []string{"the bench ruled gap " + boardGap, "docketing " + d, "tombstone"},
 		"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 	if out, err := tombstoneMint(t, runDir, otherLens, otherClass, ruledSentence); err != nil {
 		t.Errorf("(4) a mint of another class on the ruled sentence: %v %s", err, out)
@@ -243,8 +244,8 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		runDir := newRun(t)
 		impasseBoard(t, runDir, 1, 1)
 		d := ruleAtImpasse(t, runDir, false)
-		asSeat(t, runDir, otherLens, "register")
-		actRefusedNaming(t, runDir, "a proposal on the ruled section gap", otherLens, []string{"docketing " + d, "tombstone", "it stands for the run"},
+		asSeat(t, runDir, blueSeat, "register")
+		actRefusedNaming(t, runDir, "the author's proposal on the ruled section gap", blueSeat, []string{"docketing " + d, "tombstone", "it stands for the run"},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 		args := []string{"--run", runDir, "--seat-id", otherLens, "--about-kind", "section", "--about", "Findings", "--class", class,
 			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
@@ -373,7 +374,8 @@ func TestARulingBarsItsGapForEitherSide(t *testing.T) {
 			mintRefusedNaming(t, runDir, "another lens's mint of G's class on its sentence", otherLens, class, c.sentence, names)
 			asSeat(t, runDir, "red-lens-evidence", "register")
 			mintRefusedNaming(t, runDir, "the assignee's own mint of G's class", "red-lens-evidence", class, c.sentence, names)
-			actRefusedNaming(t, runDir, "a proposal on G", otherLens, names,
+			asSeat(t, runDir, blueSeat, "register")
+			actRefusedNaming(t, runDir, "the author's proposal on G", blueSeat, names,
 				"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 			if out, err := tombstoneMint(t, runDir, otherLens, otherClass, c.sentence); err != nil {
 				t.Errorf("(4) a mint of another class on the ruled sentence: %v %s", err, out)

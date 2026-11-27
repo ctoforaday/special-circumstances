@@ -50,42 +50,63 @@ func (r *runner) escalateTrifle(seatID string) {
 		"fuzz: "+id+" is not material, and blue escalates it to the bench all the same")...)
 }
 
-// closeDocketed is a lens reaching for the close of a gap of its own while a docketing or a proposal
-// stands on it: once docketed, the gap is the bench's until it rules (ruled by gblock 2026-10-31).
+// closeDocketed is a lens reaching for the close of a gap of its own while a docketing or the author's
+// proposal stands on it (closeBeforeTheBench).
 func (r *runner) closeDocketed(seatID string) {
 	if !r.coin(30) {
 		return
 	}
 	for _, id := range r.openGaps() {
 		if r.minterOf(id) == seatID && r.beforeTheBench(id) {
-			r.closeDocketedRefused(seatID, id)
+			r.closeBeforeTheBench(seatID, id)
 			return
 		}
 	}
 }
 
-// closeDocketedRefused drives the close of gapID, on which a docketing or a proposal stands, and holds
-// the tool to refusing it as a conflict that names it and that nothing was recorded. A gap that moved
-// under the seat's reading refuses first; the same close then lands on the refusal this drive drives.
-func (r *runner) closeDocketedRefused(seatID, gapID string) {
-	// A GAP WHOSE LIVE-ANSWER DEMAND NOTHING MEETS refuses first, as a close of it does whatever the
-	// docket says: the verb's guard runs before the write.
+// closeBeforeTheBench drives the raiser's close of gapID while something holds it for the bench.
+//
+//   - Under a standing docketing the close is the raiser's concession, admitted under every cause and
+//     ending the docketing with no ruling: on the concession rotation (concedes) it lands, counted
+//     concession:raiser:close; otherwise the gap is left to the bench.
+//   - While the author's proposal stands undocketed the raiser answers it by taking it, and its own
+//     close is refused as a conflict naming the proposal and that nothing was recorded.
+//
+// A gap whose live-answer demand nothing meets, or on which a failed check stands, refuses the close
+// first whatever the docket says: the verb's guard runs before the write. A gap that moved under the
+// seat's reading refuses first; the same close then lands on the refusal this drive drives.
+func (r *runner) closeBeforeTheBench(seatID, gapID string) {
 	if d, ok := r.demandOf(gapID); !ok || d.Unmet() {
 		return
 	}
-	motions := r.standingOn(gapID)
-	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a docketed gap",
-		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec", "--json"}
+	if _, standing := r.standingFailedCheckOf(gapID); standing {
+		return
+	}
+	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a gap before the bench",
+		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"}
+	if ds := r.standingDocketings(gapID); len(ds) > 0 {
+		if !r.concedes(gapID) {
+			return
+		}
+		if _, ok := r.admitFresh(gapID, args...); !ok {
+			return
+		}
+		r.countGate("concession:raiser:close")
+		r.endedUnruled(ds, seatID+"'s close of "+gapID)
+		return
+	}
+	motions := r.standingProposals(gapID)
+	args = withJSON(args)
 	for {
 		before := r.readPointOf(seatID, gapID)
 		out, err := r.exec(args...)
 		if err == nil {
-			r.noteActErr(fmt.Sprintf("the close of %s, with %v standing on it, was admitted: %s", gapID, motions, firstLine(out)))
+			r.noteActErr(fmt.Sprintf("the close of %s, with the author's proposal %v standing on it undocketed, was admitted: %s", gapID, motions, firstLine(out)))
 			return
 		}
 		env, ok := refusalEnvelopeIn(out)
 		if !ok || env.Code != string(feov.Conflict) {
-			r.noteActErr(fmt.Sprintf("the close of docketed gap %s was refused, and not as a conflict: %s", gapID, firstLine(out)))
+			r.noteActErr(fmt.Sprintf("the close of %s under the author's proposal was refused, and not as a conflict: %s", gapID, firstLine(out)))
 			return
 		}
 		if r.staleMoved(seatID, gapID, before) {
@@ -96,7 +117,7 @@ func (r *runner) closeDocketedRefused(seatID, gapID string) {
 			named = named || strings.Contains(env.Error, m)
 		}
 		if !named || !strings.Contains(env.Error, "Nothing was recorded") {
-			r.noteActErr(fmt.Sprintf("the close of docketed gap %s was refused without naming what stands on it (%v) and that nothing was recorded: %s", gapID, motions, firstLine(env.Error)))
+			r.noteActErr(fmt.Sprintf("the close of %s under the author's proposal was refused without naming it (%v) and that nothing was recorded: %s", gapID, motions, firstLine(env.Error)))
 			return
 		}
 		r.mu.Lock()
@@ -127,7 +148,7 @@ func (r *runner) docketedOffTheList(role, seatID string) {
 		held = append(held, holder{d.GapID, d.ID})
 	}
 	for _, m := range record.MotionsOf(b.Events, b.At) {
-		if m.Subject == "docket" && !m.Ruled() && m.GapID != "" {
+		if m.Subject == "docket" && m.Standing() && m.GapID != "" {
 			held = append(held, holder{m.GapID, m.ID})
 		}
 	}

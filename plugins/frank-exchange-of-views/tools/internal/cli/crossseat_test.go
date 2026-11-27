@@ -218,7 +218,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// `motion docket rule --as` now; the property is the same and so is the word that must
 	// be refused.
 	id := mintGap(t, runDir, "not-haltable", "partial_control_coverage")
-	m := docketFile(t, runDir, "red-chair", id, "put before the bench")
+	m := docketFile(t, runDir, blueSeat, id, "put before the bench")
 	args := benchRuleArgs(m, "halt", "p")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := run(t, args...); err == nil {

@@ -114,7 +114,7 @@ func TestTheBenchAloneOwesTheOpinionFields(t *testing.T) {
 			mustRefuse(t, err, "requires --")
 		})
 	}
-	t.Run("the assignee with an opinion field", func(t *testing.T) {
+	t.Run("the raiser with an opinion field", func(t *testing.T) {
 		// M1 stands in its assignee's window: no docketing holds it yet.
 		run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").seed()
@@ -122,6 +122,6 @@ func TestTheBenchAloneOwesTheOpinionFields(t *testing.T) {
 		r := actRule("M1", true, evLens)
 		r.GetDocket().Principle = proto.String("a rule")
 		_, err := Append(sit(t, run, evLens), r)
-		mustRefuse(t, err, "the bench's opinion")
+		mustRefuse(t, err, "a docket ruling is the bench's")
 	})
 }

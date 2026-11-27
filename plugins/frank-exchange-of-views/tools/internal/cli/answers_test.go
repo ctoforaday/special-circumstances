@@ -295,7 +295,7 @@ func answerDrives() []answerDrive {
 			d.endsWithRow(d.refused("a second carry in the sitting", "red-chair", carry("not_a_defect")...), rowCarry)
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
-			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
+			m := docketFile(d.t, d.run, blueSeat, "G1", "red cannot settle G1")
 			k := docketNow(d.t, d.run, "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(d.t, d.run, "G1")
 			rule := func(k, text string) []string {
@@ -322,7 +322,7 @@ func answerDrives() []answerDrive {
 			// "only on a new docketing of it": blue's proposal is admitted on the remanded gap, the
 			// lens's on its own gap is refused (it takes the act itself), and the bench rules blue's
 			// docketing in the sitting convened for it.
-			if r := d.refused("the lens's proposal on its own gap", lensSeat, "motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--reason", "r"); !strings.Contains(r, "you are its assignee") {
+			if r := d.refused("the lens's proposal on its own gap", lensSeat, "motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--reason", "r"); !strings.Contains(r, "you are its raiser") {
 				d.t.Fatalf("the lens's proposal on its own gap is refused for another reason:\n%s", r)
 			}
 			again := d.docketMotion("a new proposal on the ruled gap, by blue", "blue-respond")

@@ -7,7 +7,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -320,9 +319,11 @@ func TestACompliantRemandAnswerIsNotRedocketed(t *testing.T) {
 	}
 }
 
-// ONCE DOCKETED, A GAP LEAVES THE PARTIES' LISTS BUT FOR ITS CLOSING, AND THE LENS'S CLOSE IS REFUSED
-// (ruled by gblock 2026-10-31). Blue's answer is on the record and reaches no list. The row rides `closings_owed` while the closing is owed and goes with it. The
-// bench's list still holds the gap.
+// ONCE DOCKETED, A GAP LEAVES THE PARTIES' LISTS BUT FOR ITS CLOSING (ruled by gblock 2026-10-31). Blue's
+// answer is on the record and reaches no list. The row rides `closings_owed` while the closing is owed
+// and goes with it. The bench's list still holds the gap. The lens's close of it is admitted: it is the
+// raiser's concession, ending the docketing with no ruling ("Either party concedes", 2026-11-25), so
+// the row is the lens's to close.
 func TestADocketedGapLeavesTheListsButForItsClosing(t *testing.T) {
 	st := mintedOn(t).blueSitsOn("G1", true)
 	// A computation demand is an item the sitting's own arm writes, on every gap it reads.
@@ -332,12 +333,8 @@ func TestADocketedGapLeavesTheListsButForItsClosing(t *testing.T) {
 	st.docketMotion("red-chair", "D1", "G1").docketMotion("red-chair", "D2", "G2")
 	run := st.seed()
 
-	err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1"))
-	if err == nil || !strings.Contains(err.Error(), "docketing D1 stands on it") || !strings.Contains(err.Error(), "closing argument") {
-		t.Errorf("the close of a docketed gap: %v", err)
-	}
-	if feov.CodeOf(err) != string(feov.Conflict) {
-		t.Errorf("the close of a docketed gap is refused as %v, want a conflict", feov.CodeOf(err))
+	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1")); err != nil {
+		t.Errorf("the raiser's close of a docketed gap, its concession, was refused: %v", err)
 	}
 
 	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}} {
@@ -348,8 +345,8 @@ func TestADocketedGapLeavesTheListsButForItsClosing(t *testing.T) {
 		if len(w.Open) != 0 || w.Counts.Open != 0 {
 			t.Errorf("%s: `open` holds the docketed gap: %+v", seat.id, w.Open)
 		}
-		if len(w.ClosingsOwed) != 2 || w.ClosingsOwed[0].ID != "G1" || w.ClosingsOwed[0].YoursToClose {
-			t.Errorf("%s: closings_owed = %+v, want G1's and G2's rows, not its to close", seat.id, w.ClosingsOwed)
+		if len(w.ClosingsOwed) != 2 || w.ClosingsOwed[0].ID != "G1" || w.ClosingsOwed[0].YoursToClose != (seat.role == "lens") {
+			t.Errorf("%s: closings_owed = %+v, want G1's and G2's rows, the raiser's to close (its concession)", seat.id, w.ClosingsOwed)
 		}
 		for _, gap := range []string{"G1", "G2"} {
 			named := 0

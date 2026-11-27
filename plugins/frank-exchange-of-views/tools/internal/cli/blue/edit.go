@@ -56,9 +56,14 @@ func newEdit() *cobra.Command {
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
 		gapID := seat.Str(cmd, flags.Answers)
-		accepting, err := cmd.Flags().GetBool(flags.Accept)
-		if err != nil {
-			return nil, err
+		// --accept G NAMES THE GAP whose statement blue takes, and the edit answers it: one id, so
+		// --answers beside it would be a second source for one fact.
+		accepting := seat.Str(cmd, flags.Accept) != ""
+		if accepting {
+			if gapID != "" {
+				return nil, feov.Errorf(feov.Validation, "--accept %s names the gap this edit answers — drop --answers, which would be a second source for one fact", seat.Str(cmd, flags.Accept))
+			}
+			gapID = seat.Str(cmd, flags.Accept)
 		}
 
 		// ACCEPTANCE: THE TOOL SUPPLIES THE TEXT, SO BLUE CANNOT MIS-TRANSCRIBE IT.
@@ -72,9 +77,6 @@ func newEdit() *cobra.Command {
 		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
 		// --reason is the argument red re-audits against; nothing about agreeing removes that.
 		if accepting {
-			if gapID == "" {
-				return nil, feov.Errorf(feov.MissingField, "--accept needs --answers: the gap whose prescribed fix you are accepting")
-			}
 			if oldStr != "" || newStr != "" {
 				return nil, feov.Errorf(feov.Validation, "--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
@@ -118,7 +120,7 @@ func newEdit() *cobra.Command {
 		// report from then on (#1252).
 		body := &recordpb.BlueEdit{
 			EditKey: proto.String(seat.Str(cmd, flags.Key)),
-			Answers: proto.String(seat.Str(cmd, flags.Answers)),
+			Answers: proto.String(gapID),
 			Text:    proto.String(reason),
 		}
 		var tells []string
@@ -133,12 +135,19 @@ func newEdit() *cobra.Command {
 			}
 			var a Accepted
 			if accepting {
-				loc, fix, found, err := l.Prescription(gapID)
+				st, found, err := l.Statement(gapID)
 				if err != nil {
 					return err
 				}
 				if !found {
 					return feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", gapID)
+				}
+				loc, fix := st.Location, st.FixNew
+				switch {
+				case st.Withdrawn:
+					return feov.Errorf(feov.Conflict, "--accept: gap %s's raiser stated no text in its closing, withdrawing every pair it offered, so there is nothing to accept. Write the edit yourself with --quote and --new", gapID)
+				case st.Retire:
+					return feov.Errorf(feov.Conflict, "--accept: gap %s's raiser states a retire of its anchor in its closing, not a pair: take it with `retire --accept %s`", gapID, gapID)
 				}
 				if strings.TrimSpace(fix) == "" {
 					return feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
@@ -245,10 +254,10 @@ func newEdit() *cobra.Command {
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
 	flags.Text(c, flags.Quote, flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
-	seat.RequiredUnless(c, flags.Quote, "unless --accept")
+	seat.RequiredUnlessGiven(c, flags.Quote, flags.Accept)
 	flags.Text(c, flags.New, "the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
-	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Accept, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }

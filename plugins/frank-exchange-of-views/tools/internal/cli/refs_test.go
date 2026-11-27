@@ -36,7 +36,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		// The gap reference is the filing's; the bench's ruling names the DOCKETING, so the
 		// dangling-gap case is `motion docket file --id`, and the dangling-docketing case the row
 		// below it.
-		{"motion docket file --id", "no mint event created", append([]string{"motion", "docket", "file", "close", "--seat-id", "red-chair",
+		{"motion docket file --id", "no mint event created", append([]string{"motion", "docket", "file", "close", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "escalating a gap nobody minted"}, closeFlags("not_a_defect")...)},
 		{"motion docket rule --id", "no docketing", []string{"motion", "docket", "rule", "--seat-id", "judge",
 			"--id", "D9", "--for-author", "--principle", "p", "--tension", "t",
@@ -79,7 +79,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 
 	// The bench's two references — the gap on the filing, the docketing on the ruling — both
 	// resolve, which is the converse of the two rows above.
-	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
+	m := docketFile(t, runDir, blueSeat, first, "put before the bench")
 	k := docketNow(t, runDir, first, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 	conveneBench(t, runDir, first)
 	for _, c := range [][]string{

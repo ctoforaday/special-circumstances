@@ -39,8 +39,18 @@ func acceptRunOf(t *testing.T, body string) string {
 
 func acceptEdit(t *testing.T, runDir, key, gap string, args ...string) error {
 	t.Helper()
-	_, err := run(t, append([]string{"edit", "--run", runDir, "--seat-id", blueSeat, "--key", key,
-		"--answers", gap, "--reason", "red's text is right"}, args...)...)
+	// A bare "--accept" takes gap's statement: `--accept G` names the gap the edit answers, so it
+	// stands in for --answers.
+	answers := []string{"--answers", gap}
+	for i, a := range args {
+		if a == "--accept" {
+			args = append(append(append([]string{}, args[:i]...), "--accept", gap), args[i+1:]...)
+			answers = nil
+			break
+		}
+	}
+	_, err := run(t, append(append([]string{"edit", "--run", runDir, "--seat-id", blueSeat, "--key", key,
+		"--reason", "red's text is right"}, answers...), args...)...)
 	return err
 }
 
