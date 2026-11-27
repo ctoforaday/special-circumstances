@@ -75,6 +75,10 @@ CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 -- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
 -- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
 CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
+-- The openings in record order: a seat's next opening after one of its sittings (agent_sitting's
+-- next_opening) is found among the openings, never by walking the acts between them. Without it
+-- the latest sitting of every seat walks the events from its opening to the end of the record.
+CREATE INDEX "events_opening_order" ON "events" ("id") WHERE "sitting_id" = "id";
 -- A seat's own acts of one type, where the type's body table holds nothing to narrow by: the
 -- report parts a seat filed (ReportAtPart, partStandingAt).
 CREATE INDEX "events_seat" ON "events" ("seat_id");
@@ -1891,9 +1895,10 @@ WHERE o."agent_id" IS NOT NULL;
 CREATE VIEW "report_delivery" AS
 SELECT r."event_id" AS "event_id", e."seat_id" AS "seat_id", e."sitting_id" AS "sitting_id", r."head" AS "head",
        COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = e."sitting_id"), 1) AS "sat_through",
-       CASE WHEN e."seat_id" IN ('red-lens-adversary','red-lens-architecture','red-lens-computation','red-lens-dark-side','red-lens-evidence','red-lens-logic','red-lens-voice') THEN ((SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+       CASE WHEN e."seat_id" IN ('red-lens-adversary','red-lens-architecture','red-lens-computation','red-lens-dark-side','red-lens-evidence','red-lens-logic','red-lens-voice') THEN ((SELECT COUNT(*) FROM (SELECT 1 FROM "report_read" p CROSS JOIN "events" pe ON pe."id" = p."event_id"
           WHERE pe."seat_id" = e."seat_id" AND p."event_id" < r."event_id"
-            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2
+            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)
+          LIMIT 2)) < 2
      OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = e."seat_id"
                   AND u."event_id" < r."event_id"
                   AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
