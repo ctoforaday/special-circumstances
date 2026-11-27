@@ -67,12 +67,12 @@ func requireClosingsOnlySitting(w writeView, seatID string, typ recordpb.EventTy
 	switch {
 	case isFinalEpoch(params, epoch):
 		return feov.Errorf(feov.Conflict,
-			"the record is at epoch %d, the run's last under its epoch limit of %d: this is the final sitting, and a party sits in it for the closings it owes and nothing else — no lens audits an act after it. "+
+			"no lens sits after this sitting to audit an act of yours, so a party sits in it for the closings it owes and nothing else: this is the final sitting, epoch %d under the run's epoch limit of %d. "+
 				"Nothing was recorded; file your closing on each docketed gap your work list names",
 			epoch, params.MaxEpochs)
 	case role != "lens" && blueHeldOut(params, epoch):
 		return feov.Errorf(feov.Conflict,
-			"the record is at epoch %d, the last that dispatches a lens under the run's epoch limit of %d: blue is held out of it, and sits for the closings it owes and nothing else — no lens would audit any other act of blue's. "+
+			"no lens sits after this sitting to audit an act of blue's, so blue sits in it for the closings it owes and nothing else: epoch %d is the last that dispatches a lens under the run's epoch limit of %d. "+
 				"Nothing was recorded; file your closing on each docketed gap your work list names",
 			epoch, params.MaxEpochs)
 	}

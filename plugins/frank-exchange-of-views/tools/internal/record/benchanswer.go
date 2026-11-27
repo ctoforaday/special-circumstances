@@ -318,6 +318,11 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 			texts = append(texts, a)
 		}
 	}
+	// WHO SITS AFTER: a raiser's statement applied in this transaction, and a remand, each need the
+	// sitting its reason names (lensSitsAfter, partiesSitAfter).
+	if err := requireSitsAfter(q, p, d, len(texts) > 0); err != nil {
+		return err
+	}
 	switch {
 	case wantRegrade == nil && len(regrades) > 0:
 		return feov.Errorf(feov.Validation, "the bench writes no grade of its own: a bench regrade of %s at event %d stands since docketing %s, and this answer applies none. Nothing was recorded", p.GapID, regrades[0].at, p.ID)

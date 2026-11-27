@@ -156,7 +156,7 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 		if !said {
 			t.Errorf("the plan's why does not name blue's closing: %q", plan.Why)
 		}
-		held := []string{"blue is held out of it", "Nothing was recorded"}
+		held := []string{"no lens sits after this sitting to audit an act of blue's", "Nothing was recorded"}
 		asSeat(t, runDir, "blue-respond", "register")
 		actRefusedOnRecord(t, runDir, "held-out blue's edit", "blue-respond", held, "edit", "--quote", "# report", "--new", "# the report", "--answers", boardGap, "--reason", "late")
 		t.Run("held-out blue's retire and inquiry fate", func(t *testing.T) {
