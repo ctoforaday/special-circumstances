@@ -65,8 +65,9 @@ or, when nobody does, the running server it linked to last, then (for conversati
 `~/.gemini/antigravity-cli`) the current remote-control daemon's server. Before each attempt it
 checks that no other process holds the conversation, and it names the route it took
 (`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). It moves on to the
-daemon only when the first server could not be reached at all. A server that answers 429 is asked
-again, up to three times, before the message queues. A server that was sent the message and did
+daemon only when the first server could not be reached at all. A server that refused the request before
+handling it (401, 404 or 405, measured to come only then) did not get it, and the message queues;
+one that answers 429 is asked again, up to three times, before the message queues. A server that was sent the message and did
 not confirm it (no answer, a dropped connection, any other error status) may have it, so `send`
 tries no other server, queues nothing, and exits non-zero saying the delivery is unknown. The
 holder check sees only `send`'s own pid namespace, so from a container sharing Antigravity's data

@@ -546,6 +546,23 @@ func TestSendRateLimitedReprobes(t *testing.T) {
 	}
 }
 
+// A REFUSAL BEFORE HANDLING DID NOT DELIVER: the message queues, naming it, and no other server is
+// tried.
+func TestSendRefusedQueues(t *testing.T) {
+	w := newSendWorld(t)
+	a1, h1 := countingServer(t, http.StatusUnauthorized)
+	ad, hd := countingServer(t, http.StatusOK)
+	w.linkAs(t, agyPeer, a1, serverS1, frozen)
+	w.linkAs(t, agySelf, ad, newDaemon, frozen)
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return newDaemon, true }
+	w.running(serverS1, newDaemon)
+	out := w.sendFromClaude(t)
+	wantQueued(t, w, out, "the language server recorded at "+a1+" refused the message before acting on it, HTTP 401")
+	if h1.Load() != 1 || hd.Load() != 0 {
+		t.Errorf("requests %d to S1 and %d to the daemon, want 1 and 0", h1.Load(), hd.Load())
+	}
+}
+
 // A SERVER THAT CANNOT BE REACHED NEVER GOT THE MESSAGE, so the daemon delivers it.
 func TestSendDialFailureFallsBack(t *testing.T) {
 	w := newSendWorld(t)

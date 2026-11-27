@@ -511,6 +511,9 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (De
 	if resp.StatusCode == http.StatusTooManyRequests {
 		return Delivery{}, &RateLimitedError{Address: s.Address, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	}
+	if refusedBeforeActing[resp.StatusCode] {
+		return Delivery{}, &RefusedError{Address: s.Address, Status: resp.StatusCode, Body: string(bytes.TrimSpace(msg))}
+	}
 	if resp.StatusCode != http.StatusOK {
 		return Delivery{}, fmt.Errorf("the language server recorded at %s answered HTTP %d: %s", s.Address, resp.StatusCode, bytes.TrimSpace(msg))
 	}
@@ -530,6 +533,30 @@ func (e *UnreachedError) Error() string {
 }
 
 func (e *UnreachedError) Unwrap() error { return e.Err }
+
+// refusedBeforeActing is the statuses a language server was measured to answer only for a request it
+// never handled (TestLiveAntigravitySendAgentMessageRefusals, agy 1.5.18): 401, from the CSRF check
+// that runs before any method (a missing or a wrong token); 404, for a method that does not exist;
+// 405, for a method other than POST. Each left the named conversation without a step. A 400 is not
+// here: agy answers it for a body it cannot decode, before acting, but a method's own validation
+// answers it too, and the two are one status.
+var refusedBeforeActing = map[int]bool{
+	http.StatusUnauthorized:     true,
+	http.StatusNotFound:         true,
+	http.StatusMethodNotAllowed: true,
+}
+
+// RefusedError is a SendAgyServer failure whose status a language server answers only for a request
+// it never handled (refusedBeforeActing): the message did not arrive.
+type RefusedError struct {
+	Address string
+	Status  int
+	Body    string
+}
+
+func (e *RefusedError) Error() string {
+	return fmt.Sprintf("the language server recorded at %s refused the message before acting on it, HTTP %d: %s", e.Address, e.Status, e.Body)
+}
 
 // RateLimitedError is a SendAgyServer failure in which the server answered 429: it declined the
 // request without acting on it. RetryAfter is the wait its Retry-After header asks for, zero when it

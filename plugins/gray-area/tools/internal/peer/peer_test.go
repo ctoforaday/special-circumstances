@@ -411,6 +411,21 @@ func TestSendAgyServerRateLimited(t *testing.T) {
 	}
 }
 
+// ONLY THE STATUSES MEASURED TO PRECEDE ANY HANDLING ARE REFUSALS; every other one may follow it.
+func TestSendAgyServerRefusedStatuses(t *testing.T) {
+	for status, refused := range map[int]bool{401: true, 404: true, 405: true, 400: false, 403: false, 500: false, 503: false} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "no", status)
+		}))
+		_, err := SendAgyServer(NewAgyClient(5*time.Second), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+		srv.Close()
+		var r *RefusedError
+		if err == nil || errors.As(err, &r) != refused || (refused && r.Status != status) {
+			t.Errorf("HTTP %d: err = %v, want refused=%v", status, err, refused)
+		}
+	}
+}
+
 func TestRetryAfter(t *testing.T) {
 	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
 	for h, want := range map[string]time.Duration{

@@ -74,7 +74,9 @@ daemon root (~/.gemini/antigravity-cli). When a recorded, running server holds i
 that server delivers. Before every attempt send checks again that no process but
 that server holds the conversation, because two writers corrupt it; any other
 holder, or a holder it cannot inspect, queues the message and is named. Send moves
-on from a server only when it could not be reached at all. A server that answers 429
+on from a server only when it could not be reached at all. A server that refused the
+request before handling it — a 401, 404 or 405, which Antigravity was measured to
+answer only then — did not get it, and the message queues. A server that answers 429
 (rate limited) declined without acting: send asks it again after the wait it names
 (at most 5 seconds), checking the holder again first, and after its third 429 queues
 the message — never through another server. A server that was sent the message and
@@ -393,7 +395,9 @@ const (
 
 // send delivers through target, whose probe found nobody else holding the conversation. A target
 // that could not be reached leaves the message undelivered, with that as the cause, and the send
-// may go on. A target that answers 429 declined without acting: send asks it again, up to
+// may go on. A target that refused the request before handling it (peer.RefusedError) did not
+// get the message, which queues; no other server is tried. A target that answers 429 declined
+// without acting: send asks it again, up to
 // rateLimitAttempts times, probing before each request as before the first, and then queues — never
 // another server, which the conversation could reach twice. Any other failure leaves its arrival
 // unknown and stops the send.
@@ -402,12 +406,16 @@ func (r *agyRouter) send(target peer.Server) (d peer.Delivery, ok, stop bool) {
 		d, err := peer.SendAgyServer(r.client, target, r.m, r.routeFor(target))
 		var unreached *peer.UnreachedError
 		var limited *peer.RateLimitedError
+		var refused *peer.RefusedError
 		switch {
 		case err == nil:
 			return d, true, false
 		case errors.As(err, &unreached):
 			r.queue("%v", err)
 			return peer.Delivery{}, false, false
+		case errors.As(err, &refused):
+			r.queue("%v", err)
+			return peer.Delivery{}, false, true
 		case errors.As(err, &limited) && attempt == rateLimitAttempts:
 			r.queue("the language server recorded at %s answered 429 (rate limited) %d times", target.Address, attempt)
 			return peer.Delivery{}, false, true
