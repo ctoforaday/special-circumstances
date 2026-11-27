@@ -39,13 +39,14 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 
 `build` is isolated: `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_PLUGIN_CACHE_DIR` point inside
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
-on the box are unaffected. Under either harness `XDG_RUNTIME_DIR` is `$WORKDIR/run`: every telepathy
-verb deletes the Antigravity server records under it whose server is gone, and a universe built from
-the checkout must not do that to the host's. Everything else keyed on that directory moves with it:
-Claude Code's inbox sockets (`cc-socks/`) are under `$WORKDIR/run`, and the user's systemd bus is
-out of reach, so `systemctl --user` fails inside the universe. telepathy then finds the
-remote-control daemon by scanning `/proc`, which finds the HOST's daemon; as the universe holds no
-record for it, a universe `send` to a host conversation queues to that conversation's mailbox.
+on the box are unaffected. Under either harness `XDG_RUNTIME_DIR` is `$WORKDIR/run`, so Claude
+Code's inbox sockets (`cc-socks/`) are under `$WORKDIR/run`, and the user's systemd bus is out of
+reach: `systemctl --user` fails inside the universe, and telepathy finds the remote-control daemon
+by scanning `/proc`, which finds the HOST's daemon. The daemon's token file is out of reach too:
+under `agy`, `XDG_CONFIG_HOME` is the universe home's; under `claude` it is `$WORKDIR/xdg-config`,
+one symlink per entry of the host's `~/.config` except `gray-area` and `systemd`, so gh, git and the
+rest keep the host's configuration. A universe `send` to a host conversation therefore queues to its
+mailbox and is never woken.
 
 Authentication is the exception, and it is lent rather than shared: `run`, `resume` and `shell` pass
 the host login's current access token in `CLAUDE_CODE_OAUTH_TOKEN`, and the universe holds no
@@ -282,13 +283,13 @@ credentials for either, so it skips them; a run here is the check.
 | Test | Module | What it holds |
 |---|---|---|
 | `TestLiveAntigravityEventContract` | `shared/hookcore` | agy's SessionStart fires once per new conversation and not on resume; PreInvocation fires every model step, `invocationNum` from 0 each turn; an injected ephemeral message is acted on; hooks never receive the language server's address or token, the agent's shell does |
-| `TestLiveAntigravityLinkAndSend` | `plugins/gray-area/tools` (`./cmd/telepathy`) | gray-area's hooks and binaries, built from the checkout, link a new conversation, relink it on a new server, wake it through that server, and queue to its mailbox once the server is gone |
+| `TestLiveAntigravity{ChosenTokenIsHonoured,SendWakesIdle,SendHeldElsewhere,WakeOnlyRealMail}` | `plugins/gray-area/tools` (`./cmd/telepathy`) | a language server started with `ANTIGRAVITY_SERVER_CSRF_TOKEN` takes that token and refuses another; `send` queues a message and its wake makes an idle conversation answer it; a conversation another server holds gets no wake and no second holder; `agy-wake` wakes only for real mail |
 | `TestLiveAntigravityContract`, `TestLiveClaudeContract`, `TestLiveShipped*` | `shared/hookcore` | the PreToolUse block and rewrite and the shipped plugins under each client |
 
 ```sh
 unset $(env | grep -o '^FEOV_[A-Z_]*')
 HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveShippedAntigravity|TestLiveAntigravity' .
-HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
+HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravity ./cmd/telepathy
 ```
 
 Each live test runs in a throwaway home created with `shared/testhome.NewLiveHome` and
@@ -305,7 +306,7 @@ renew manually with `agy -p ok --model gemini-3.8-flash-low`; renew Claude with 
 or `claude -p "Reply with the single word ok" --model haiku --max-turns 1` in your real HOME). Under `HOOKCORE_LIVE=1`, missing binaries and missing or unrenewable
 credentials fail closed rather than skipping. Run them on `gemini-3.8-flash-low`, a few turns at a
 time. Run them after a change to hookcore's Antigravity paths, to a plugin's root `hooks.json`, or
-to `telepathy send`/`link`, and after an agy upgrade. A model-driven assertion can miss on one run,
+to `telepathy send`/`agy-provision`/`agy-wake`, and after an agy upgrade. A model-driven assertion can miss on one run,
 so a single red is a reason to read the test's log before it is a verdict.
 
 ## Environment that will bite you

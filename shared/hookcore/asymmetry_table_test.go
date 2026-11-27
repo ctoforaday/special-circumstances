@@ -42,7 +42,7 @@ var harnessAsymmetries = []asymmetryRow{
 		AgyBehaviour:    "Fires SessionStart on turn 1, then fires no SessionStart on `agy --conversation <id>` (fresh language server); only PreInvocation with invocationNum==0 fires.",
 		RelyingOn: []string{
 			"plugins/prosthetic-conscience/tools/internal/sessionstart/main.go",
-			"plugins/gray-area/tools/cmd/gray-area-capture/link.go",
+			"plugins/gray-area/tools/cmd/gray-area-capture/main.go",
 			"shared/hookcore/hookcore.go",
 			"docs/local-development.md",
 		},
@@ -63,13 +63,12 @@ var harnessAsymmetries = []asymmetryRow{
 	},
 	{
 		ID:              "hook-wake-credentials",
-		Claim:           "Antigravity hooks receive no language-server address or CSRF token (only ANTIGRAVITY_CONVERSATION_ID), while the agent shell receives all three; Claude Code advertises every running session in ~/.claude/sessions/<pid>.json visible directly to hooks with no shell link step.",
-		ClaudeBehaviour: "Creates ~/.claude/sessions/<pid>.json containing pid, sessionId, and cwd readable during SessionStart with no shell link command.",
+		Claim:           "Antigravity hooks receive no language-server address or CSRF token (only ANTIGRAVITY_CONVERSATION_ID), while the agent shell receives all three; Claude Code advertises every running session in ~/.claude/sessions/<pid>.json visible directly to hooks with no step in an agent's shell.",
+		ClaudeBehaviour: "Creates ~/.claude/sessions/<pid>.json containing pid, sessionId, and cwd readable during SessionStart with no command in an agent's shell.",
 		AgyBehaviour:    "Hook processes never receive ANTIGRAVITY_LS_ADDRESS or ANTIGRAVITY_CSRF_TOKEN (only ANTIGRAVITY_CONVERSATION_ID); the agent's run_command shell receives all three.",
 		RelyingOn: []string{
-			"plugins/gray-area/tools/cmd/gray-area-capture/link.go",
 			"plugins/gray-area/tools/internal/peer/peer.go",
-			"plugins/gray-area/tools/internal/telecli/link.go",
+			"plugins/gray-area/tools/internal/telecli/agyprovision.go",
 			"docs/local-development.md",
 		},
 		Upstream: []string{"google-antigravity/antigravity-cli#1741"},
@@ -82,7 +81,7 @@ var harnessAsymmetries = []asymmetryRow{
 		ClaudeBehaviour: "Writes ~/.claude/sessions/<pid>.json matching pid, sessionId, and cwd while alive, and removes that file when the standalone process exits.",
 		AgyBehaviour:    "While alive with ANTIGRAVITY_LS_ADDRESS and ANTIGRAVITY_CSRF_TOKEN in its shell, standalone `agy -p` leaves zero files under ~/.gemini containing either wake credential.",
 		RelyingOn: []string{
-			"plugins/gray-area/tools/internal/telecli/link.go",
+			"plugins/gray-area/tools/internal/telecli/agyprovision.go",
 			"plugins/gray-area/tools/internal/telecli/send.go",
 			"plugins/gray-area/tools/internal/peer/agy_proc_linux.go",
 		},

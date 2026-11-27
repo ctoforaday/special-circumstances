@@ -34,7 +34,8 @@ telepathy search <term>          who worked on a PR, branch, issue, or term (rip
 telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 telepathy send <id> <message>    deliver a message to a Claude Code or Antigravity session ("-" reads stdin)
-telepathy link                   from an Antigravity shell: make this conversation wakeable by send
+telepathy agy-provision          the human runs it: gives the Antigravity daemon the token send wakes it with
+telepathy agy-wake               systemd runs it at each daemon start: wakes conversations with mail waiting
 ```
 
 `send` is the one verb that acts rather than reads, and the only way a message crosses harnesses.
@@ -42,39 +43,28 @@ telepathy link                   from an Antigravity shell: make this conversati
 - BEFORE messaging another Claude Code session from a Claude Code session, YOU MUST use
   `SendMessage`, which carries a reply address and the sender's identity. `send` is for when either
   side is Antigravity.
-- AFTER a `send`, YOU MUST read the route it printed. `antigravity-daemon`,
-  `antigravity-server-own` and `antigravity-server-holder` mean a language server delivered it and
-  woke the conversation. `antigravity-mailbox` means QUEUED: the conversation reads it at its next
-  turn and nothing wakes it, so do not wait on a reply; the lines under it give the cause, when the
-  daemon started and when the conversation last recorded a step. `claude-socket` means it reached
-  the session's inbox, where a session that bypasses permission prompts holds it for its human. No
-  route says the message was read.
-- AFTER a `send` that exits non-zero with delivery UNKNOWN, YOU MUST look at the conversation's
-  latest turns before sending again: a language server was sent the message and did not confirm
-  it, so it may have arrived; `send` tried no other server and queued nothing.
+- AFTER a `send`, YOU MUST read the route and the line under it. `claude-socket` means it reached
+  the session's inbox, where a session that bypasses permission prompts holds it for its human.
+  `antigravity-mailbox` means QUEUED, always, for every Antigravity message: the conversation reads
+  it at the start of its next turn. `woken` under it means the daemon was sent a wake that starts
+  that turn now; `not woken` gives the cause, when the daemon started and when the conversation
+  last recorded a step, so do not wait on a reply. No route says the message was read.
 - BEFORE waiting on a queued message, YOU MUST check `telepathy agents`' "waiting for Antigravity"
   section: a message stays listed there until the conversation's client reads it, and is marked
   "yours" when you sent it.
-- Live delivery to an Antigravity conversation runs on Linux only; on other platforms second-writer
-  safety cannot be verified, so `send` always queues to the mailbox. On Linux, an Antigravity server
-  becomes reachable live when a conversation on it runs `telepathy link` (or any other verb) from
-  its own shell; the server's token reaches nothing else. Records are keyed by server (PID and start
-  time, or address) and store port and token, so linking one daemon-hosted conversation restores
-  live delivery for every idle CLI conversation under `~/.gemini/antigravity-cli` (a standalone
-  interactive `agy` does not restore the daemon route). `send` first finds who holds the
-  conversation (`presence/<id>.lock`, or `conversations/<id>.db` open): a recorded, running server
-  that holds it delivers; with no holder, the running server it linked to last delivers, and the
-  daemon only when that server could not be reached at all; any other holder queues the message
-  and is named. A refusal before any handling, in the shapes measured on agy 1.5.18 (a 401 from
-  the CSRF check, a 404 or 405 with no Connect error), did not deliver, and the message queues; a
-  server that answers 429 gets up to 3 requests in all, and then the message queues. The holder
-  check sees only `send`'s own pid namespace and this host's locks: from a container that shares
-  Antigravity's data with the host, a holder on the host is invisible, and so is a lock taken on
-  another host through a FUSE client of a distributed filesystem; either way `send` can create a
-  second writer. Every verb deletes the records of servers that are gone. When Gray
-  Area's hook asks you to run `telepathy link`, run it: that one command is what lets other agents
-  wake conversations on this server. When no daemon-hosted conversation has linked since a restart,
-  `send` queues to the mailbox and says so.
+- A wake needs Linux, a conversation under `~/.gemini/antigravity-cli`, the daemon's token file
+  (`$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env`), a running daemon, its HTTP port, and no
+  process but the daemon holding the conversation (`presence/<id>.lock`, or `conversations/<id>.db`
+  open): a language server sent a message for a conversation another process holds adopts it, and
+  the two then write it at once. A conversation held elsewhere gets no wake; its holder's next turn
+  reads the mailbox. The holder check sees only `send`'s own pid namespace and this host's locks:
+  from a container that shares Antigravity's data with the host, a holder on the host is invisible,
+  and so is a lock taken on another host through a FUSE client of a distributed filesystem; either
+  way a wake can create a second writer.
+- BEFORE running `telepathy agy-provision`, or acting on a `no daemon token file` cause, YOU MUST
+  have the human's agreement: the verb writes files outside the repository and rotates the token,
+  and the restart it prints ends every turn running on the daemon and wakes every daemon
+  conversation with mail waiting. Otherwise tell the human the cause and leave it there.
 
 `search` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps
