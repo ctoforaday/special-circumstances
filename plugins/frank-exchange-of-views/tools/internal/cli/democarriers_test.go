@@ -223,7 +223,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"RETIRE TAKES ONE ANCHOR OFF A SENTENCE THAT STAYS. Name one anchor of any kind",
 			"the tool takes it out of the report and keeps the sentence it stood on word for word",
 			"An anchor out of the report is in no document",
-			"AN OPEN GAP'S OWN MARKER STAYS ON ITS SENTENCE.",
+			"A RETIRE NEVER TAKES AN OPEN GAP'S OWN MARKER.",
 			"A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire of a citation that a computation still in the report names as its method is refused, naming each such computation",
 			"Retiring an anchor placed as an open gap's answer takes that answer away; with no other answer standing, the gap is owed again.",
 			"Retiring the answers of a gap already closed leaves its closure standing, and the gap's lens is told.",
