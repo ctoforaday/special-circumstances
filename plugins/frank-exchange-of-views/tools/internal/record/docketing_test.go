@@ -206,6 +206,47 @@ func TestTheStoredDocketingIsTheFold(t *testing.T) {
 				d.SidedWith, d.Disposition, d.Final = recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), notADefect.Enum(), proto.Bool(true)
 			}))
 		}, map[string]string{"G5": ""}},
+		// A PARTY'S CONCESSION OR AN AMEND ENDS A DOCKETING AND ITS PROPOSAL unruled, in both twins.
+		{"more gaps, docketed", func() {
+			for _, g := range []string{"C1", "C2", "C3", "C4", "C5", "C6", "C7"} {
+				r.mint(g)
+			}
+			r.propose("M6", "C1")
+			r.docket("K6", "C1", proposal, "M6")
+			r.docket("K7", "C2", impasse, "")
+			r.docket("K8", "C3", impasse, "")
+			r.docket("K9", "C4", impasse, "")
+			r.docket("K10", "C5", movement, "")
+			r.propose("M11", "C6")
+		}, map[string]string{"C1": "K6 M6", "C2": "K7", "C5": "K10", "C6": "M11"}},
+		{"the raiser's regrade taking the proposal ends both", func() {
+			r.must(evLens, &recordpb.Regrade{GapId: proto.String("C1"), Severity: recordpb.Grade_GRADE_LOW.Enum(),
+				Basis: proto.String("taken"), Accepts: proto.String("M6")})
+		}, map[string]string{"C1": ""}},
+		{"the bench's edit of the author's shape ends nothing", func() { r.must(benchSeat, editAccepting("C2")) }, map[string]string{"C2": "K7"}},
+		{"the author's edit accepting the statement ends it", func() { r.must("blue-respond", editAccepting("C2")) }, map[string]string{"C2": ""}},
+		{"the author's retire accepting the statement ends it", func() {
+			r.must("blue-respond", &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r"), Answers: proto.String("C3"), Accepted: proto.Bool(true)})
+		}, map[string]string{"C3": ""}},
+		{"an amend of the gap ends it", func() {
+			r.must(evLens, &recordpb.Amend{GapId: proto.String("C4"), Problem: proto.String("narrowed"), Basis: proto.String("b")})
+		}, map[string]string{"C4": ""}},
+		{"an amend ends no grade-movement docketing", func() {
+			r.must(evLens, &recordpb.Amend{GapId: proto.String("C5"), Problem: proto.String("narrowed"), Basis: proto.String("b")})
+		}, map[string]string{"C5": "K10"}},
+		{"the author's edit accepting the statement ends a proposal in its window", func() { r.must("blue-respond", editAccepting("C6")) }, map[string]string{"C6": ""}},
+		{"on a gap about a gap the author is that gap's minter", func() {
+			m := rawMint("C8")
+			m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("C7")
+			r.must("red-lens-logic", m)
+			r.docket("K12", "C8", impasse, "")
+			r.must("blue-respond", &recordpb.Amend{GapId: proto.String("C7"), Problem: proto.String("x"), Basis: proto.String("b"),
+				Answers: proto.String("C8"), Accepted: proto.Bool(true)})
+		}, map[string]string{"C8": "K12"}},
+		{"its minter's amend answering it ends it", func() {
+			r.must(evLens, &recordpb.Amend{GapId: proto.String("C7"), Problem: proto.String("y"), Basis: proto.String("b"),
+				Answers: proto.String("C8"), Accepted: proto.Bool(true)})
+		}, map[string]string{"C8": ""}},
 	} {
 		step.act()
 		stored, folded := r.standing()
@@ -317,4 +358,10 @@ func TestEveryDocketRulingReaderResolvesItsGapThroughTheDocketing(t *testing.T) 
 			}
 		})
 	}
+}
+
+// editAccepting is an edit applying the raiser's statement on gap (--accept G).
+func editAccepting(gap string) *recordpb.BlueEdit {
+	return &recordpb.BlueEdit{EditKey: proto.String("accept-" + gap), Answers: proto.String(gap), Old: proto.String("was"),
+		New: proto.String("is"), Accepted: proto.Bool(true)}
 }

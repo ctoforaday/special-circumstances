@@ -912,14 +912,15 @@ Owed by this spec, each one translation with a test on an archived run:
   a composed section gains none (9). A section gap about a MISSING section takes no token: its heading is not in the
   report at its mint (R0 (5): wave-a G-22d16d99, "Technical foundations"; lead's acceptance, 2026-11-26). No archived
   section mint keys two headings, and no later archived edit of a heading gains a token. **Built with R4** (deviation
-  reported at R1 Commit C, 2026-11-26): its token is a gap token on a heading, which the write refuses (`anchortext.Attach`'s
-  `ErrOnHeading`) until R4 admits a section gap's token there; until then migrated records hold the 2 section
-  mints without a token.
+  reported at R1 Commit C, 2026-11-26; not attempted): its token is a gap token on a heading, which the write is
+  expected to refuse (`anchortext.Attach`'s `ErrOnHeading`) until R4 admits a section gap's token there; until then
+  migrated records hold the 2 section mints without a token.
 - **Sides** — archived bench rulings are written `SIDED_WITH_AUTHOR` (Translation 4); no archive holds a non-bench
   `sided_with` (B2's accept never ran in a smoke). `TestNoArchiveHoldsAnAcceptAsARuling` asserts it, and that no
   migrated act carries `accepts`, `accepted` or a regrade's `answers`. An archived ruling of a docketing an
   `Amend` (Translation 7) ended first is written as no event, as one a `Close` ended is (`endedRuling`); measured
-  at R1's Commit C, every migrate archive test reports the counts it reported at Commit B.
+  at R1's Commit C, every migrate archive test reports the counts it reported at Commit B, and no archived
+  docketing is followed by an amend of its gap before its ruling (`TestAnAmendEndsTheArchivedDocketingItFollows`: 0).
 - **Measurements owed before the build** (each NOT MEASURED; a refusal or a change beyond the stated residue stops the
   phase and goes to gblock): (1) replaying with fates, coverage and the reaching retire moved from answer to turn
   (§III.B3) — archived exchange counts, and the live cause Translation 3 derives for each archived docketing; (2) the

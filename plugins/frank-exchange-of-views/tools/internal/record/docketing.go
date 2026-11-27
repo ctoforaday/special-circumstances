@@ -192,8 +192,12 @@ func docketingsAt(evs []*Event, seq []int64) []*Docketing {
 				}
 			}
 		}
-		end(byGap[c.gap])
-		end(byMotion[c.motion])
+		if c.gap != "" {
+			end(byGap[c.gap])
+		}
+		if c.motion != "" {
+			end(byMotion[c.motion])
+		}
 	})
 	return order
 }

@@ -369,6 +369,12 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { r.editAccept("blue-respond", "H") }, func() []string {
 			return []string{gapIs("H", `"open" AND "standing_docketing" IS NULL AND "standing_docketing_at" IS NULL`)}
 		}},
+		// The author's accept of the statement ends a proposal standing in its window too.
+		{func() { r.mintOf("HP", doc, "") }, none},
+		{func() { r.fileDocket("M12", "HP") }, func() []string { return []string{gapIs("HP", `"unruled_docket_motion" = 'M12'`)} }},
+		{func() { r.editAccept("blue-respond", "HP") }, func() []string {
+			return []string{gapIs("HP", `"open" AND "unruled_docket_motion" IS NULL AND "unruled_docket_filed" IS NULL`)}
+		}},
 		{func() { r.mintOf("HR", doc, "") }, none},
 		{func() { r.docket("K11", "HR", impasse, "") }, func() []string { return []string{gapIs("HR", `"standing_docketing" = 'K11'`)} }},
 		{func() { r.retireAccept("HR") }, func() []string { return []string{gapIs("HR", `"open" AND "standing_docketing" IS NULL`)} }},
@@ -478,7 +484,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	// bench (red's close follows it), the rest open.
 	want := map[string]string{"A": "open", "P": "open", "Q": "open", "R": "close", "D": "motion_rule", "E": "open", "U": "open",
 		"F": "close", "G": "close", "X": "open", "Y": "motion_rule", "Z": "open", "DY": "open", "AM": "open",
-		"H": "open", "HR": "open", "GA": "open", "GB": "open", "GC": "open", "AX": "open", "AG": "open"}
+		"H": "open", "HP": "open", "HR": "open", "GA": "open", "GB": "open", "GC": "open", "AX": "open", "AG": "open"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}

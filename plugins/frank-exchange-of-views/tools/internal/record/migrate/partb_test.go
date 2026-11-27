@@ -336,3 +336,40 @@ func TestNoArchiveHoldsAnAcceptAsARuling(t *testing.T) {
 	}
 	t.Logf("%d docket rulings, %d sided with the author", rulings, sided)
 }
+
+// T-B43, the amend's end (X18): an archived docketing a Translation 7 amend of its gap follows stands no
+// longer, and its archived ruling after the amend is written as no event. Counted over every archive:
+// the docketings an amend follows, unruled before it, on the migrated record — none (measured at R1's
+// Commit C: no amended link follows a docketing of its gap) — and of those any still read as standing.
+func TestAnAmendEndsTheArchivedDocketingItFollows(t *testing.T) {
+	followed, standing := 0, 0
+	for _, name := range partBRuns(t) {
+		_, dir := MigratedArchive(t, name)
+		db, err := sql.Open("sqlite", "file:"+filepath.Join(dir, "records", "record.db")+"?mode=ro")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var f, s int
+		err = db.QueryRow(`SELECT count(*), coalesce(sum(g."standing_docketing" = dk."docketing_id"), 0)
+		  FROM "docketing" dk JOIN "gap_state" g ON g."gap_id" = dk."gap_id"
+		  WHERE dk."cause" <> 'grade_movement'
+		    AND EXISTS (SELECT 1 FROM "amend" a WHERE a."gap_id" = dk."gap_id" AND a."event_id" > dk."event_id")
+		    AND NOT EXISTS (SELECT 1 FROM "motion_rule_docket" rd JOIN "amend" a ON a."gap_id" = dk."gap_id"
+		                    WHERE rd."docketing_id" = dk."docketing_id" AND rd."event_id" < a."event_id")`).Scan(&f, &s)
+		db.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f > 0 {
+			t.Logf("%s: %d docketing(s) an amend follows, %d standing", name, f, s)
+		}
+		followed, standing = followed+f, standing+s
+	}
+	if standing != 0 {
+		t.Errorf("%d docketing(s) an amend of their gap follows still stand", standing)
+	}
+	if followed != 0 {
+		t.Errorf("%d archived docketing(s) an amend of their gap follows, want 0: state each outcome here", followed)
+	}
+	t.Logf("%d archived docketing(s) an amend of their gap follows", followed)
+}

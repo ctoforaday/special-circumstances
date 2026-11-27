@@ -219,8 +219,8 @@ type Motion struct {
 // Ruled reports whether the motion has an answer.
 func (m Motion) Ruled() bool { return m.Ruling != "" }
 
-// Standing reports whether a docket motion stands as a proposal: unruled, and no non-carry Close of
-// its gap written after its filing ended it — gap_state.unruled_docket_motion's rule. A petition or a
+// Standing reports whether a docket motion stands as a proposal: unruled, and no act written after
+// its filing ended it (concessions) — gap_state.unruled_docket_motion's rule. A petition or a
 // position stands while it is unruled.
 func (m Motion) Standing() bool { return !m.Ruled() && m.ended == 0 }
 
@@ -374,21 +374,17 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		}
 	}
 
-	// PASS 3: A CLOSE ENDS A PROPOSAL (§III.B14, L42). A non-carry Close of a docket motion's gap
-	// written after its filing ends it unruled; a carry restates an earlier epoch's closure and answers
-	// nothing.
-	for i, e := range evs {
-		c, ok := recordpb.BodyAs[*recordpb.Close](e)
-		if !ok || c.GetCarriedFrom() != "" {
-			continue
-		}
+	// PASS 3: AN ACT WRITTEN AFTER A PROPOSAL'S FILING ENDS IT UNRULED (concessions, §III.B14, L42): a
+	// non-carry Close of its gap (a carry restates an earlier epoch's closure and answers nothing), the
+	// raiser's act taking it, the author's concession, an amend of its gap.
+	concessions(evs, func(i int, c concession) {
 		for _, id := range order {
 			m := byID[id]
-			if m.GapID == c.GetGapId() && !m.Ruled() && m.ended == 0 && m.pos != 0 && m.pos <= i {
+			if ((c.gap != "" && m.GapID == c.gap) || (c.motion != "" && m.ID == c.motion)) && !m.Ruled() && m.ended == 0 && m.pos != 0 && m.pos <= i {
 				m.ended = i + 1
 			}
 		}
-	}
+	})
 
 	out := make([]*Motion, 0, len(order))
 	for _, id := range order {
