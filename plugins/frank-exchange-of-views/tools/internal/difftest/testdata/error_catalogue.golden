@@ -325,7 +325,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -415,7 +415,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -565,27 +565,27 @@ feov-record: finding: the quote occurs more than once in the report (it stands 2
 
 ── a retry quoting other text
 exit 2
-feov-record: finding: --key "F-owed" already names finding FINDING002 on this run, stated with --quote "A sentence the report held."; this repeat states --quote "somewhere" — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
+feov-record: finding: --key "F-owed" already names finding FINDING003 on this run, stated with --quote "A sentence the report held."; this repeat states --quote "somewhere" — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
 
 ── a retry stating the act otherwise
 exit 2
-feov-record: finding: --key "F-owed" already names finding FINDING002 on this run, stated with --severity low; this repeat states --severity high — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
+feov-record: finding: --key "F-owed" already names finding FINDING003 on this run, stated with --severity low; this repeat states --severity high — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
 
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
-feov-record: edit: your old span carries finding anchor <!--fx:FINDING003--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING003--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: edit: your old span carries finding anchor <!--fx:FINDING003--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING003--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens
 
 ── an edit carrying an anchor onto a heading
 exit 2
-feov-record: edit: this edit puts <!--fx:FINDING003--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
+feov-record: edit: this edit puts <!--fx:FINDING002--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
 
 ── an edit ending its own sentence before an anchor its quote leaves out
 exit 2
-feov-record: edit: your quote stops before finding anchor <!--fx:FINDING003--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
+feov-record: edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, quote it as `show report` prints it and write it where it goes; to take its claim out, cut its sentence whole, which takes the anchor with it
 
 ── repeat target: the lens regrades GAP001
 exit 0
@@ -625,7 +625,7 @@ feov-record: closing: GAP001 is not before the bench: no docket motion on it sta
 ── blue puts GAP001 before the bench, so its closing argues a docketing
 exit 2
 feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
-  event 50, red-lens-evidence: regraded GAP001
+  event 52, red-lens-evidence: regraded GAP001
 
 Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
 

@@ -50,7 +50,7 @@ func newRetire() *cobra.Command {
 	// off the report.
 	seat.Supplies(c, "claim", "the sentence the retired anchor stood on, read off the report; it stays word for word")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap")
-	c.Flags().Var(named, flags.Anchor, "the one anchor, of any kind, to retire while its sentence stays in the report word for word. An open gap's own marker is refused: carry it, or cut its sentence with `edit`, which hands the gap to its lens. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire or a cut of its sentence")
+	c.Flags().Var(named, flags.Anchor, "the one anchor `id`, of any kind, to retire while its sentence stays in the report word for word. An open gap's own marker is refused: carry it, or cut its sentence with an edit, which hands the gap to its lens. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire or a cut of its sentence")
 	return seat.Require(c, flags.Anchor)
 }
 

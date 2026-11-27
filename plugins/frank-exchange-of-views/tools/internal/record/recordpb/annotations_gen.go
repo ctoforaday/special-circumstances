@@ -93,7 +93,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_COMPUTATION", Means: "a program blue ran twice on a bundle, with the bundle's hash, its exit and its basis — the answer a computation check demands"},
 	{Name: "EVENT_TYPE_REGRADE", Means: "a gap's grade changed, with the basis for the change"},
 	{Name: "EVENT_TYPE_REPRODUCE", Means: "red checking a recorded computation against its bundle's re-run, and whether what it computes is sound"},
-	{Name: "EVENT_TYPE_RETIRE", Means: "a claim retired from the report, with the reason and what supersedes it"},
+	{Name: "EVENT_TYPE_RETIRE", Means: "an anchor blue took out of the report, its sentence staying, with the reason"},
 	{Name: "EVENT_TYPE_SPOT_CHECK", Means: "red re-checking a sample of prior work, or stating that it checked none and why"},
 	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's PASS, checked against the open board"},
 	{Name: "EVENT_TYPE_VERIFY", Means: "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"},

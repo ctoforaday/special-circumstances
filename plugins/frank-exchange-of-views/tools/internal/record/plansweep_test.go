@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
@@ -44,6 +45,11 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 		_ = requireDeliveredText(db, evLens, "a close", []string{"G1"})
 		_, _ = motionGaps(db, "M1")
 		_ = requireReportRead(db, evLens, &recordpb.ReportRead{Head: proto.Int64(1)})
+	}
+	// The release fuzz's gap-state oracle (releasegate/fuzz/anchororacle_test.go); its rows are
+	// asserted by recordsql's gap-state tests.
+	if db, err := openRun(run); err == nil && db != nil {
+		_, _ = recordsql.GapStateRefreshDiff(db)
 	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
 

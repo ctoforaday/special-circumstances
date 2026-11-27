@@ -147,7 +147,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s gr
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_part', 'a lane''s part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool handed a delivery''s last report-text item into the seat''s context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens''s latest in a sitting it sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'red checking a recorded computation against its bundle''s re-run, and whether what it computes is sound');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'an anchor blue took out of the report, its sentence staying, with the reason');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
@@ -887,15 +887,18 @@ CREATE TABLE "blue_edit_reopened" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
+CREATE TABLE "blue_edit_removed_anchors" (
+  "event_id" INTEGER NOT NULL REFERENCES "blue_edit"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "retire" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "claim" TEXT NOT NULL,
+  "claim" TEXT,
   "reason" TEXT NOT NULL,
-  "superseded_by" TEXT,
-  "removal_basis" TEXT,
-  "claim_kept" INTEGER,
-  "answers" TEXT,
-  CHECK ("claim_kept" IS NULL OR "claim_kept" IN (0, 1))
+  "answers" TEXT
 ) STRICT;
 
 CREATE TABLE "retire_anchors" (
@@ -1020,14 +1023,16 @@ CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
--- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads,
--- and the retirement that retired an anchor (AnchorRetiredAt).
+-- The retires naming an anchor: anchor_removal's retire arm, read per anchor (the evidence_anchor
+-- view's removal, record.AnchorRemovedAt).
 CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
--- The computations applying a citation as their method (Computation.cites): what a retire of that
--- citation is refused over (record.requireCitationUncited).
+-- The cuts naming an anchor: anchor_removal's edit arm, read per anchor as its retire arm is.
+CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("value", "event_id");
+-- The computations applying a citation as their method (Computation.cites): what a retire, or a
+-- cut, of that citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
+-- (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The findings about the question, which the logic lens's item for a part's check and blue-respond's
 -- question item list (record.questionFindingsAt).
@@ -1066,8 +1071,9 @@ CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
 -- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
 CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
--- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
--- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
+-- The edits whose reopened names an anchor, in order: the latest is the last edit that changed its
+-- sentence, whose stamped old paragraphs still hold it, and the first after a head is the change that
+-- touched it since; an edit that took its sentence lists it in removed_anchors instead.
 CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
 
 CREATE TABLE "demand_lineage" (
@@ -1211,6 +1217,11 @@ CREATE TRIGGER "gap_dirty_motion_rule_position_gap_ids" AFTER INSERT ON "motion_
   SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."value") WHERE "x" IS NOT NULL;
 END;
 CREATE TRIGGER "gap_dirty_retire_anchors" AFTER INSERT ON "retire_anchors" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
+      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."value") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_blue_edit_removed_anchors" AFTER INSERT ON "blue_edit_removed_anchors" BEGIN
   INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
   SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
       UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."value"
@@ -1432,11 +1443,11 @@ GROUP BY "agent_id", "bucket";
 -- "delta" is in CHARACTERS because SQLite's length() counts code points on TEXT, which is what Go's
 -- len([]rune(s)) counted. length() on a BLOB would count bytes, and these columns are TEXT.
 --
--- AN EVIDENCE ANCHOR'S RETIRE IS A CHANGE TOO. It takes a citation's or a computation's anchor off a
--- sentence the report keeps word for word, and it names the gap it answers with the key an edit
--- carries — so the gap's change log lists it beside the edits, or an anchor blue took off a sentence
--- because a gap asked for it reads as no answer at all. Its row holds the sentence on both sides (the
--- words did not move) and "retired" names the anchor that left; "retired" is '' on an edit.
+-- A RETIRE IS A CHANGE TOO. It takes one anchor off a sentence the report keeps word for word, and it
+-- names the gap it answers with the key an edit carries — so the gap's change log lists it beside the
+-- edits, or an anchor blue took off a sentence because a gap asked for it reads as no answer at all.
+-- Its row holds the sentence on both sides (the words did not move) and "retired" names the anchor
+-- that left; "retired" is '' on an edit. A cut's anchors are in the edit's own row (removed_anchors).
 CREATE VIEW "change" AS
 SELECT
   e."seat_id"                           AS "seat_id",
@@ -1466,7 +1477,6 @@ FROM (
   SELECT COALESCE(r."answers", ''), r."claim", r."claim", 0, r."reason", 0, 0, ra."value", r."event_id"
   FROM "retire" r
   JOIN "retire_anchors" ra ON ra."event_id" = r."event_id"
-  WHERE r."claim_kept" = 1
 ) x
 JOIN "events" e ON e."id" = x."event_id";
 
@@ -1510,11 +1520,13 @@ WHERE rp."ruling" = 'upheld';
 
 -- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
 -- a live one answers, the gap it was placed as the answer to, the act that placed it and the
--- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
--- generated from the row, so a backing kind added to that table lands here with no SQL written.
--- A retired anchor never comes back (an edit invents no anchor), so its retire is the first
--- retire naming it: one lookup per anchor on retire_anchors_value, never a grouped walk of every
--- retire joined back.
+-- act that took it out, a retire or a cut (NULL while it stands). One arm per
+-- recordsql.EvidenceTables row, generated from the row, so a backing kind added to that table lands
+-- here with no SQL written. An anchor out of the report never comes back (an edit invents no anchor),
+-- so the act that took it out is the first anchor_removal row naming it: one indexed lookup per anchor
+-- on each arm's value index, never a grouped walk of every removal joined back. It is asked as the
+-- first row in event order, not as MIN(): SQLite flattens that into a merge of the two arms' value
+-- indexes, where MIN() over the compound view builds an automatic index over every removal on each read.
 CREATE VIEW "evidence_anchor" AS
 WITH "placed" AS (
   SELECT x."label" AS "anchor_id", 'citation' AS "kind", 'source' AS "check_kind",
@@ -1529,22 +1541,23 @@ WITH "placed" AS (
 )
 SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "check_kind",
        p."answers" AS "answers", p."placed_event" AS "placed_event",
-       (SELECT MIN(ra."event_id") FROM "retire_anchors" ra WHERE ra."value" = p."anchor_id") AS "retired_event"
+       (SELECT ar."event_id" FROM "anchor_removal" ar WHERE ar."anchor_id" = p."anchor_id"
+         ORDER BY ar."event_id" LIMIT 1) AS "retired_event"
 FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
 -- is about, checked by its minter — a cited source's claim_contradicts_source or
 -- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
--- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
--- it again, meets the demand (gap_refresh's met arms 2 and 3); this is the one statement of the
--- reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
--- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- reader's own backing re-read of it meets the demand here. Its removal — a retire, or a cut of its
+-- sentence — or that seat's check of it again, meets the demand (gap_refresh's met arms 2 and 3);
+-- this is the one statement of the reach, which the close's refusal (record.EvidenceDemandOf) and a
+-- removal's reach (record.reachingRemovalsOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
 -- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
 -- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
--- the successor's from its mint: a retire before it had met the ancestor, which then passed no
--- demand on, and a check counts for the gap only at or after its mint.
+-- the successor's from its mint: a removal before it (a retire, or a cut) had met the ancestor,
+-- which then passed no demand on, and a check counts for the gap only at or after its mint.
 --
 --   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
 --             from.
@@ -1601,8 +1614,9 @@ WHERE a."about_kind" = 'anchor';
 --                       severity columns are MINT-TIME grades.
 --   evidence_answered, awaiting_evidence  the live-answer demand, met, and an open gap whose check
 --                       kind demands one with none met: the debt list blue is handed.
---   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
---                       closing act other than a carry follows it. The closure stands; the column is
+--   answers_retired_event  the last removal — a retire, or a cut of its sentence — that left none of
+--                       a closed gap's answers live, while no closing act other than a carry
+--                       follows it. The closure stands; the column is
 --                       the gap's lens's news.
 --   unruled_docket_filed, unruled_docket_motion  the newest docket filing on the gap no ruling names,
 --                       and its motion id. The PASS gate asks the same per-motion question of the
@@ -1788,30 +1802,46 @@ LEFT JOIN "events" ce ON ce."id" =
 --   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
 --            at the end of the sentence Token(a) sits in, found by that token, never by text);
 --            exact=0. One row per anchor event placed by sentence_of — a reading's gap.
---   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
---            are removed). One row per named anchor; exact=0.
+--   remove → a=an anchor id a retire took out, or one a cut's removed_anchors lists (Token(a) and
+--            the husk it leaves are removed). One row per named anchor; exact=0.
+-- "ord" orders the rows of ONE event: every row but a remove is 0, and a remove is its list
+-- position + 1, so an edit's removes follow its splice in removed_anchors' order (the child
+-- table's ord is 0-based, and read as-is the first remove would tie with the splice).
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 --
 -- Each arm reads its body table alone: every body row's event_id references events(id) and the
 -- record opens with foreign keys enforced, so a join back to events filters nothing.
 CREATE VIEW "report_op" AS
-  SELECT p."event_id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+  SELECT p."event_id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact", 0 AS "ord"
     FROM "report_part" p
   UNION ALL
-  SELECT b."event_id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
+  SELECT b."event_id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0), 0
     FROM "blue_edit" b
   UNION ALL
-  SELECT a."event_id", 'insert', a."location", a."id", 0
+  SELECT a."event_id", 'insert', a."location", a."id", 0, 0
     FROM "anchor" a
     WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
   UNION ALL
-  SELECT a."event_id", 'sentence_of', a."sentence_of", a."id", 0
+  SELECT a."event_id", 'sentence_of', a."sentence_of", a."id", 0, 0
     FROM "anchor" a
     WHERE COALESCE(a."sentence_of", '') != '' AND COALESCE(a."id", '') != ''
   UNION ALL
-  SELECT ra."event_id", 'remove', ra."value", NULL, 0
-    FROM "retire_anchors" ra;
+  SELECT ar."event_id", 'remove', ar."anchor_id", NULL, 0, ar."ord" + 1
+    FROM "anchor_removal" ar;
+
+-- anchor_removal is EVERY ANCHOR THAT LEFT THE REPORT, one row per anchor and the act that took it:
+-- "by" is 'retire' (retire_anchors: the anchor alone, its sentence staying) or 'edit'
+-- (blue_edit_removed_anchors: a pure cut took it with its sentence). "ord" is its position in that
+-- act's list. It is THE "this anchor is out of the report" fact: every reader of an anchor leaving
+-- reads this one view, so a cut and a retire are never told apart by a reader that forgot one arm.
+-- Both arms are indexed on the anchor (retire_anchors_value, blue_edit_removed_anchors_value).
+CREATE VIEW "anchor_removal" AS
+  SELECT ra."value" AS "anchor_id", ra."event_id" AS "event_id", 'retire' AS "by", ra."ord" AS "ord"
+    FROM "retire_anchors" ra
+  UNION ALL
+  SELECT er."value", er."event_id", 'edit', er."ord"
+    FROM "blue_edit_removed_anchors" er;
 
 -- A SEAT'S SITTING AND ITS ENDS, one row per opening that carries an agent, built over "sittings" as
 -- seat_of_agent is built over agent_binding. The agent is the one the opening names (a hook bracket's,
@@ -1969,8 +1999,9 @@ JOIN "events" e ON e."id" = a."event_id"
 WHERE a."about_kind" = 'anchor'
 ),
 "answered" AS MATERIALIZED (
-  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many retired and the last
-  -- retire, and how many stand live of the gap's own check kind. The IN reaches each placing table's
+  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many are out of the report
+  -- (anchor_removal: retired, or cut with their sentence) and the last removal, and how many stand
+  -- live of the gap's own check kind. The IN reaches each placing table's
   -- answers index; the join alone materializes every anchor on the record.
   SELECT "d"."gap_id" AS "gap_id", count(*) AS "placed", count(ea."retired_event") AS "retired",
          max(ea."retired_event") AS "last_retired",
@@ -1997,13 +2028,14 @@ WHERE a."about_kind" = 'anchor'
 "met" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. an anchor the demand reaches is retired: the one the gap is about, or one an ancestor it
-  --      carries the demand from reaches, retired since the heir's mint;
+  --   2. an anchor the demand reaches is out of the report, by a retire or a cut: the one the gap is
+  --      about, or one an ancestor it carries the demand from reaches, out since the heir's mint;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
   --      read it is at or after the gap's mint and holds. Another seat's check meets nothing;
-  --   4. a gap marker of the demand's lineage has left the report: the gap's own, or an ancestor's
-  --      retired since the heir's mint. The claim a marker marks leaves the report only with it, and
-  --      a retire is the one act that takes a marker out, so retire_anchors is the subject's state.
+  --   4. a gap marker of the demand's lineage has left the report WITH ITS CLAIM: the gap's own, or
+  --      an ancestor's cut since the heir's mint. A cut takes a sentence and its marker together, so
+  --      anchor_removal's edit arm is the subject's state; a retire keeps the sentence (and F14
+  --      admits one on a closed gap's marker), so it meets nothing here.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0
   UNION
   SELECT r."gap_id"
@@ -2015,8 +2047,8 @@ WHERE a."about_kind" = 'anchor'
   UNION
   SELECT l."gap_id"
   FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
-  WHERE EXISTS (SELECT 1 FROM "retire_anchors" ra
-                WHERE ra."value" = l."from_gap" AND (l."from_gap" = l."gap_id" OR ra."event_id" > "d"."minted"))
+  WHERE EXISTS (SELECT 1 FROM "blue_edit_removed_anchors" er
+                WHERE er."value" = l."from_gap" AND (l."from_gap" = l."gap_id" OR er."event_id" > "d"."minted"))
 ),
 "latest_remand" AS MATERIALIZED (
   -- THE LATEST REMAND ON EACH NAMED GAP (the remand view): its direction is the live one.
@@ -2044,8 +2076,9 @@ SELECT
   g."complexity_cost"                                                         AS "current_complexity_cost",
   (em."gap_id" IS NOT NULL)                                                   AS "evidence_answered",
   (k."open" AND k."check_kind" IN ('source', 'computation') AND em."gap_id" IS NULL) AS "awaiting_evidence",
-  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: at least one anchor placed as its answer, every one
-  -- retired, the last of them after the last closing act that is not a carry.
+  -- THE ANSWERS TO A CLOSED GAP, ALL OUT OF THE REPORT: at least one anchor placed as its answer,
+  -- every one retired or cut with its sentence, the last removal after the last closing act that is
+  -- not a carry.
   CASE WHEN NOT k."open" AND an."placed" = an."retired" AND k."judged" < an."last_retired"
        THEN an."last_retired" END                                            AS "answers_retired_event",
   k."filed"                                                                   AS "unruled_docket_filed",

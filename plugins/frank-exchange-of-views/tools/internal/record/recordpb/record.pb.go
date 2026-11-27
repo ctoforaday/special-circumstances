@@ -5421,8 +5421,9 @@ type BlueEdit struct {
 	// --quote mint meets the guard, a found source's claim_contradicts_source included (F4 (a)), and
 	// a later edit that rewords the applied sentence ends it (F12, record/estoppel.go).
 	AppliedVerbatim *bool `protobuf:"varint,6,opt,name=applied_verbatim,json=appliedVerbatim,proto3,oneof" json:"applied_verbatim,omitempty"`
-	// reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
-	// computations whose referent moved under them.
+	// reopened are the anchors whose SENTENCE this edit rewrote and that still stand — the citations,
+	// findings and computations whose referent moved under them. An anchor a cut took is in
+	// removed_anchors, never here: it left the report with its sentence.
 	//
 	// THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
 	// lost unrecorded: a rewrite that drops one is refused, droppedMarker backstops the whole edit,

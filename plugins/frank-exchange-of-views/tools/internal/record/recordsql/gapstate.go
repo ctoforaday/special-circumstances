@@ -410,8 +410,11 @@ func GapStateRefreshDiff(db *sql.DB) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
-	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
+	// Two statements, each its own Exec: planguard plans one statement per call.
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint"`); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(`INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
 		return "", err
 	}
 	refreshed, err := gapStateRows(tx)

@@ -220,14 +220,18 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 		says    []string
 	}{
 		{"retire --help", page(blueSeat, "retire"), []string{
-			"EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or computation and no claim takes that anchor out of the report and keeps the sentence it stood on word for word",
-			"A retired anchor is in no document",
-			"A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taking a citation that a computation still in the report names as its method is refused, naming each such computation",
+			"RETIRE TAKES ONE ANCHOR OFF A SENTENCE THAT STAYS. Name one anchor of any kind",
+			"the tool takes it out of the report and keeps the sentence it stood on word for word",
+			"An anchor out of the report is in no document",
+			"AN OPEN GAP'S OWN MARKER IS NOT RETIRED.",
+			"A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire of a citation that a computation still in the report names as its method is refused, naming each such computation",
 			"Retiring an anchor placed as an open gap's answer takes that answer away; with no other answer standing, the gap is owed again.",
 			"Retiring the answers of a gap already closed leaves its closure standing, and the gap's lens is told.",
 		}},
 		{"edit --help", page(blueSeat, "edit"), []string{
-			"EVIDENCE NEVER STANDS BARE. A replacement that would leave a citation's or computation's anchor with no prose before it in its sentence is refused, whether your quote holds it or not",
+			"A CUT IS THE ONE EDIT THAT TAKES ANCHORS: quote one or more whole sentences and write nothing of them in the replacement",
+			"NO ANCHOR STANDS BARE. A rewrite that would leave an anchor of any kind with no prose before it in its sentence is refused, whether your quote holds it or not",
+			"A cut that would take a citation a computation still in the report applies is refused, naming the computation",
 		}},
 		{"reproduce --help", page(lensSeat, "reproduce"), []string{
 			"A COMPUTATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, and nothing is recorded",
