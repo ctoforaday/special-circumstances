@@ -129,8 +129,14 @@ func requiredProbes() map[string]requiredProbe {
 		}}
 	probes["blue edit"] = requiredProbe{seat: "blue-respond", args: fixed("edit",
 		"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r")}
-	probes["blue retire"] = requiredProbe{seat: "blue-respond", args: fixed("retire",
-		"--quote", "a claim that is no longer in the report.", "--reason", "r")}
+	probes["blue retire"] = requiredProbe{seat: "blue-respond",
+		setup: func(t *testing.T, runDir string) actVars {
+			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/r": []byte("<html>the source</html>")}})
+			must(t, runDir, "cite", "--seat-id", "blue-respond", "--quote", "§2 the finding prose lands in a quoted sentence.",
+				"--url", "https://src/r", "--title", "T")
+			return actVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
+		},
+		args: func(v actVars) []string { return []string{"retire", "--anchor", v["anchor"], "--reason", "r"} }}
 	probes["motion grade file"] = requiredProbe{seat: "blue-respond", args: fixed("motion", "grade", "file",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "r")}
 	probes["motion petition file"] = requiredProbe{seat: lensSeat, args: fixed("motion", "petition", "file",

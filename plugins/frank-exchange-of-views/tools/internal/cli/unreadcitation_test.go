@@ -6,9 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -51,11 +48,11 @@ func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 	}
 }
 
-// --ANCHOR ALONE RETIRES ONE EVIDENCE ANCHOR STANDING ON A SENTENCE, AND NOTHING ELSE. Each refusal
-// names what it was given and records nothing; the retire that lands shows in the report's
-// retirements as the source a sentence that stays lost — in the changelog — never as a claim that
-// left.
-func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
+// --ANCHOR RETIRES ONE ANCHOR STANDING ON A SENTENCE, OF ANY KIND, AND NOTHING ELSE. Each refusal
+// names what it was given and records nothing. The retire that lands changes no text, so it renders in
+// no CHANGELOG section (lead call 11-26: anchor changes go to the work lists); `show changes` lists it
+// as an anchor removal by retire. A finding anchor retires the same way.
+func TestARetireTakesOneAnchorOffASentence(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1", "https://grass/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -79,7 +76,6 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	}
 	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
 	refused("two citations", retire(sky+","+grass), "names 2", sky, grass)
-	refused("a finding", retire(finding), finding+" is a finding anchor", "--quote")
 	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires {
 		t.Errorf("%d retire(s) recorded by refused retires", n-retires)
 	}
@@ -88,24 +84,33 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 		t.Fatalf("retire --anchor %s: %v", sky, err)
 	}
 	refused("a retired citation", retire(sky), "the report holds no", sky)
+	if err := retire(finding); err != nil {
+		t.Fatalf("retire --anchor %s (a finding): %v", finding, err)
+	}
+	if md := readReport(t, runDir); !strings.Contains(md, "The sky is blue.") || strings.Contains(md, sky) || strings.Contains(md, finding) || !strings.Contains(md, "Fire is hot.") {
+		t.Errorf("the retires did not take the two anchors off sentences that stay:\n%s", md)
+	}
 	a, err := report.Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A set with no edit has no CHANGELOG to write; either way it names no retire.
 	changelog, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), report.FileChangelog))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(changelog), "**The sky is blue.** — stays in the report; a citation it stood on was retired from it") {
-		t.Errorf("the changelog does not list the sentence that kept its place:\n%s", changelog)
+	for _, w := range []string{sky, finding, "The sky is blue", "Fire is hot", "retired from it"} {
+		if strings.Contains(string(changelog), w) {
+			t.Errorf("the changelog lists the anchor-only retire (%q); it changes no text:\n%s", w, changelog)
+		}
 	}
-
-	// A bare citation — an archived edit left it so — leaves with its claim, not alone.
-	tok := "<!--cite:" + grass + "-->"
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, &recordpb.BlueEdit{
-		Old: proto.String("The grass is green" + tok + "."), New: proto.String(tok), Text: proto.String("cut"),
-	}); err != nil {
-		t.Fatalf("the edit that left the citation bare: %v", err)
+	changes, err := run(t, "show", "changes", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("show changes: %v", err)
 	}
-	refused("a bare citation", retire(grass), grass+" stands bare", "retire that claim with --quote")
+	for _, id := range []string{sky, finding} {
+		if !strings.Contains(changes, id) {
+			t.Errorf("show changes does not list the retire of %s:\n%s", id, changes)
+		}
+	}
 }

@@ -139,7 +139,7 @@ func TestALaneIsRefusedEveryActThatChangesTheReport(t *testing.T) {
 		{"edit", "--key", "E1", "--quote", "91 is 7 x 13.", "--new", "91 = 7 x 13.", "--reason", "tighter"},
 		{"cite", "--quote", "91 is 7 x 13.", "--url", "https://example.org/91", "--title", "91"},
 		{"compute", "--quote", "91 is 7 x 13.", "--reason", "factor it"},
-		{"retire", "--quote", "91 is 7 x 13.", "--reason", "redundant"},
+		{"retire", "--anchor", "C-0000abcd", "--reason", "redundant"},
 	} {
 		args := append([]string{argv[0], "--run", runDir, "--seat-id", "blue-lane-1", "--json"}, argv[1:]...)
 		out, err := run(t, args...)

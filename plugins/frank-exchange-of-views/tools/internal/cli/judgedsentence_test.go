@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
@@ -34,7 +33,7 @@ type judgedKind struct {
 	quote string
 	edit  [2]string
 	// elsewhere rewrites prose outside the checked sentence; cut is the checked sentence's prose before
-	// and after the anchor's token, which an edit down to the token alone leaves bare.
+	// and after the anchor's token, which a cut of the whole sentence takes with it.
 	elsewhere [2]string
 	cut       [2]string
 }
@@ -133,8 +132,8 @@ func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 
 // A CHECK LANDS ONLY ON THE SENTENCE THE SEAT JUDGED, one script over every backing kind's row. A
 // write of another seat commits between the check's read of the sentence and its landing
-// (lens.SetBeforeCheckAppendForTest). One that changes the sentence, cuts it to leave the anchor bare,
-// or retires the anchor refuses the check: nothing recorded, and a reproduce's execution, stored before
+// (lens.SetBeforeCheckAppendForTest). One that changes the sentence, cuts it with its anchor, or
+// retires the anchor refuses the check: nothing recorded, and a reproduce's execution, stored before
 // the append, is the one the check judged again stands on. One that leaves the
 // sentence as it was — an edit elsewhere, a gap's token placed at the sentence's end — lets it land,
 // recording the sentence the seat read, which is the sentence the report holds at the check's event.
@@ -220,17 +219,15 @@ func TestACheckLandsOnlyOnTheSentenceTheSeatJudged(t *testing.T) {
 			}{
 				{"the sentence changed", verb("edit", "--seat-id", blueSeat, "--quote", k.edit[0], "--new", k.edit[1], "--reason", "rewrote the sentence while it was checked"),
 					[]string{"while this check was made", "changed", "the report now holds", "judge it again"}},
-				// `blue edit` refuses to leave a citation bare, so the cut is appended as an edit from a
-				// record before that refusal holds it — the state the landing must still refuse.
-				{"the anchor left bare", func(t *testing.T, runDir, id string) error {
-					tok := anchor.Token(id)
-					_, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, &recordpb.BlueEdit{
-						Old: proto.String(k.cut[0] + tok + k.cut[1]), New: proto.String(tok), Text: proto.String("cut the sentence while it was checked"),
-					})
-					return err
-				}, []string{"while this check was made", "stands bare"}},
+				{"the sentence cut", func(t *testing.T, runDir, id string) error {
+					out, err := cut(t, runDir, k.cut[0]+anchor.Token(id)+k.cut[1])
+					if err != nil {
+						return fmt.Errorf("%w\n%s", err, out)
+					}
+					return nil
+				}, []string{"while this check was made", "is out of the report", "cut its sentence"}},
 				{"the anchor retired", verb("retire", "--seat-id", blueSeat, "--anchor", "ID", "--reason", "retired while it was checked"),
-					[]string{"while this check was made", "is retired"}},
+					[]string{"while this check was made", "is out of the report", "blue retired it"}},
 			}
 			for _, r := range refusals {
 				runDir, id, _, err := window(r.write)
