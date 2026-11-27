@@ -2197,17 +2197,20 @@ type GapEdit struct {
 	New string `json:"new"`
 }
 
-// reopeningEditsAt is every standing edit, as the change view orders them, keyed by each anchor id
-// its recorded `reopened` names, and by each its `removed_anchors` names: a pure cut took that
-// anchor's sentence.
+// reopeningEditsAt is every standing edit, in event order, keyed by each anchor id its recorded
+// `reopened` names, and by each its `removed_anchors` names: a pure cut took that anchor's sentence.
+// Only an edit names either list, so the rows are read off blue_edit and its event directly — each a
+// rowid lookup from the anchor list — rather than joined through the change view's union with
+// retires, whose join on the list's event id SQLite answers with an index built per read.
 func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	out := map[string][]GapEdit{}
-	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
-	  FROM "change" c JOIN (
+	rows, err := q.Query(`SELECT w."value", e."epoch", COALESCE(e."seat_id", ''), COALESCE(b."old", ''), COALESCE(b."new", '')
+	  FROM (
 	    SELECT "event_id", "value" FROM "blue_edit_reopened"
 	    UNION ALL
 	    SELECT "event_id", "value" FROM "blue_edit_removed_anchors"
-	  ) r ON r."event_id" = c."event_id" ORDER BY c."event_id"`)
+	  ) w JOIN "blue_edit" b ON b."event_id" = w."event_id"
+	  JOIN "events" e ON e."id" = w."event_id" ORDER BY w."event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking which edits changed a gap's sentence: %w", err)
 	}

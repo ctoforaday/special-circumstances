@@ -321,14 +321,17 @@ WHERE rp."ruling" = 'upheld';
 -- recordsql.EvidenceTables row, generated from the row, so a backing kind added to that table lands
 -- here with no SQL written. An anchor out of the report never comes back (an edit invents no anchor),
 -- so the act that took it out is the first anchor_removal row naming it: one indexed lookup per anchor
--- on each arm's value index, never a grouped walk of every removal joined back.
+-- on each arm's value index, never a grouped walk of every removal joined back. It is asked as the
+-- first row in event order, not as MIN(): SQLite flattens that into a merge of the two arms' value
+-- indexes, where MIN() over the compound view builds an automatic index over every removal on each read.
 CREATE VIEW "evidence_anchor" AS
 WITH "placed" AS (
 ` + evidenceAnchorArmsSQL() + `
 )
 SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "check_kind",
        p."answers" AS "answers", p."placed_event" AS "placed_event",
-       (SELECT MIN(ar."event_id") FROM "anchor_removal" ar WHERE ar."anchor_id" = p."anchor_id") AS "retired_event"
+       (SELECT ar."event_id" FROM "anchor_removal" ar WHERE ar."anchor_id" = p."anchor_id"
+         ORDER BY ar."event_id" LIMIT 1) AS "retired_event"
 FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap

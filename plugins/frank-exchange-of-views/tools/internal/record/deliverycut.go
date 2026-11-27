@@ -348,8 +348,8 @@ const latestReopeningSQL = `SELECT COALESCE(b."old_paragraphs", '') FROM (
     SELECT r."event_id" FROM "blue_edit_reopened" r WHERE r."value" = ?1
     UNION ALL
     SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?1
-  ) r JOIN "blue_edit" b ON b."event_id" = r."event_id"
-  ORDER BY r."event_id" DESC LIMIT 1`
+  ) w JOIN "blue_edit" b ON b."event_id" = w."event_id"
+  ORDER BY w."event_id" DESC LIMIT 1`
 
 // gapPassages is the passage of each gap the statement names: the gap's section as it stands
 // (PassageAround); for a gap whose anchor is gone, the paragraph that held it before the
