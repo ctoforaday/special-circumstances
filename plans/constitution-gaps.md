@@ -3020,9 +3020,14 @@ and `~/.claude/scratch/p12/r2/`):
        the seven `F-` tokens, and every archived golden that reads
        m26's claims or gap locations moves with it. Once re-seated, the two `C-` count as claims again
        (`segmentLabels` needs prose before the token), so m26's per-kind claim counts move. On ae2b9a9fb three migrate
-       goldens carry an m26 line that reads them: `archived_renders` (raw, normalized and skeleton digests, the
-       per-kind counts, and `bare-gap` 2 → 0), `archived_gaps` (G-59e61f8c and G-0f2d72fd read `gone` today) and
-       `archived_gap_rewrites` (gains `reseated=11`, below). Each changed line is read on regeneration. No other
+       goldens carry an m26 line that reads them: `archived_renders` (raw, normalized and skeleton digests, and
+       `bare-gap` 2 → 0), `archived_gaps` (G-59e61f8c and G-0f2d72fd read `gone` today) and
+       `archived_gap_rewrites` (gains `reseated=11`, below). Measured at regeneration (step 8, 11-27): the
+       render line's three digests move and `bare-gap` goes 2 → 0, and its per-kind marker counts do not move (the
+       golden counts tokens per kind, and the re-seat moves tokens, removing none); `archived_gaps` reads both gaps
+       `marked`; `archived_gap_rewrites` reads `reopened=1 reseated=11`, `reopened` 2 → 1 because the lost edits
+       260 and 263 are counted by no census (the one left is edit 240's, source 199, G-0f2d72fd).
+       Each changed line is read on regeneration. No other
        archive's line moves by this translation.
      - **Where the rewrites are carried.** Translation 6 runs in the `gapplace` placer, beside translation 2's
        pre-scan; the placer already rewrites archived edits' anchor runs (its `abutting` shape rewrites an edit's
@@ -4600,7 +4605,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
          - The final report bytes: `TestEveryArchivedRunRenders`' golden keeps every line's raw digest except b3's,
            b6's, b9's and m19's, whose raw and normalized digests move (translation 4's `F-`, and b3's, b6's and b9's
            `G-`) and whose skeleton digest is measured at the golden's first regeneration and read there, and m26's,
-           whose raw, normalized and skeleton digests and per-kind claim counts move and whose `bare-gap` goes from 2 to 0
+           whose raw, normalized and skeleton digests move, its per-kind marker counts staying, and whose `bare-gap` goes from 2 to 0
            (translation 6), and m36's, whose raw, normalized and skeleton digests move with finding 28 → 30 and gap
            15 → 17 (F14 keeps 442's tokens on their sentence). It gains m37's and m38's lines, read in full on their
            first regeneration. m26's lines in `archived_gaps` and `archived_gap_rewrites` move too (translation 6,
