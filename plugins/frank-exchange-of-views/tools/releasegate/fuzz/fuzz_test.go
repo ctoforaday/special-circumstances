@@ -8411,6 +8411,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if msg != "" && res.err == "" {
 			res.err = msg
 		}
+		// EVERY RETIRE KEPT ITS SENTENCE, held at the retire's own event (retiresKeepSentences).
+		if _, msg := retiresKeepSentences(oracleRun, fam); msg != "" && res.err == "" {
+			res.err = msg
+		}
 		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps).
 		stamps, msg := checkSpotCheckStamps(fam)
 		res.spotChecksNamed, res.spotChecksStamped, res.spotChecksWithChanges = stamps.named, stamps.stamped, stamps.withChanges
@@ -8911,8 +8915,6 @@ var dialecticProseKey = map[string]string{
 	"inquiry": "question",
 
 	// The lens's below-the-bar work and the fate the chair gave it.
-	// Substance leaving the report, on the record, with its reason.
-	"retire": "claim",
 	// Run-level voices.
 	"halt": "opinion", "certify": "statement", "declare": "holding",
 	// The log: what a seat told the operator. It renders in run.md, beside the seats that sat
@@ -8931,6 +8933,7 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
+	"retire":      "an anchor taken off a sentence that stays: an anchor change goes to the work lists, never a section of the set (RULINGS.md 11-20, ruling 1; plans/constitution-gaps.md §III.10c), and its claim is the tool's stamp of that sentence, which the report carries until an edit rewrites it and editHistory renders the edit — that the retire kept its sentence is held at its own event (retiresKeepSentences)",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
@@ -9094,7 +9097,7 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		}
 		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
 		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
-		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
+		// anchor a prescription carried is not prose — and, where the
 		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
 		// space, and as a reader reads them (asRead). A token the weave turns into a note is read as
 		// the note reference it ships as (wovenAsNotes, shipsWoven).
@@ -9594,15 +9597,20 @@ func (r *runner) retireOneAnchor(seatID, id string) {
 // later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds no applied
 // text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs drive the
 // retire of a gap token; this one holds its precondition. A FORCED CHAIN'S CITATION IS NEVER THE DRAWN
-// RETIRE'S (forcedChainCitation).
+// RETIRE'S (forcedChainCitation). NOR IS THE STALENESS ARM'S COMPUTATION (stalenessAnchor): the seam
+// forges its judgement standing at the debate's end, and a retire would take it out of the report and
+// its judgement out of standing, leaving the oracle nothing to report (CI run 45967095843, seed 21).
 func (r *runner) drawnRetireAnchor() string {
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return ""
 	}
+	r.mu.Lock()
+	staleness := r.stalenessAnchor
+	r.mu.Unlock()
 	var ids []string
 	for _, id := range anchor.IDs(string(cur)) {
-		if !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedChainCitation(id) {
+		if !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedChainCitation(id) && id != staleness {
 			ids = append(ids, id)
 		}
 	}
