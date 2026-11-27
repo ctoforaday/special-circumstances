@@ -4,15 +4,19 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/capture"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // lifecycleSeed is the seed whose run is FORCED through the anchor lifecycle's acts and refusals
@@ -35,8 +39,12 @@ const otherLens = "red-lens-logic"
 // other drive quotes them, so no gap the drive mints meets another gap of its class on its sentence.
 // The eleventh and twelfth carry the citation a computation on the other applies, and the same-act cut
 // of both; the thirteenth and fifteenth are the sentences whose cuts take a gap's marker; the eighteenth
-// is the cut of a cited sentence whose gap's lens reads it stale. The last claim is never cut, so every
-// cut sentence has one after it.
+// is the cut of a cited sentence whose gap's lens reads it stale; the twentieth's cut moves its citation
+// onto the twenty-first; the twenty-second carries a citation under a refuting reading when it is cut;
+// the twenty-third and twenty-fourth are the cuts whose quote takes the abutting token, and whose span
+// stops before it; the twenty-fifth carries the closed gap whose marker blue retires; the twenty-sixth
+// on carry one anchor of each kind (anchor.Kinds), retired with the sentence kept. The last claim is
+// never cut, so every cut sentence has one after it.
 var lifecycleClaims = [...]string{
 	"The first lifecycle claim holds",
 	"The second lifecycle claim holds",
@@ -57,6 +65,17 @@ var lifecycleClaims = [...]string{
 	"The seventeenth lifecycle claim holds",
 	"The eighteenth lifecycle claim holds",
 	"The nineteenth lifecycle claim holds",
+	"The twentieth lifecycle claim holds",
+	"The twenty-first lifecycle claim holds",
+	"The twenty-second lifecycle claim holds",
+	"The twenty-third lifecycle claim holds",
+	"The twenty-fourth lifecycle claim holds",
+	"The twenty-fifth lifecycle claim holds",
+	"The twenty-sixth lifecycle claim holds",
+	"The twenty-seventh lifecycle claim holds",
+	"The twenty-eighth lifecycle claim holds",
+	"The twenty-ninth lifecycle claim holds",
+	"The thirtieth lifecycle claim holds",
 }
 
 // lifecycleCounts are the anchor lifecycle's counts (III.1′.7), each a tally gate over the sweep.
@@ -105,6 +124,22 @@ type lifecycleCounts struct {
 	// cutStaledDelivery: the lens's close of a gap about a citation, refused in the sitting whose delivery
 	// predates blue's pure cut of the citation's sentence, then admitted after its next delivery.
 	cutStaledDelivery int
+	// cutMovedTokens: an edit cutting a cited sentence onto its neighbour, carrying the citation's token
+	// there: a rewrite, admitted, that removes no anchor.
+	cutMovedTokens int
+	// cutClearedChecks: a pure cut of a sentence whose citation stands on a refuting reading under the
+	// reader's open gap: the failed check no longer blocks a PASS, and the gap's close lands.
+	cutClearedChecks int
+	// abuttingQuotedCuts and abuttingUnquotedCuts: a pure cut whose quote takes the token abutting its
+	// sentence, and one whose quote stops before it; after each the report the record renders is its
+	// replayed op stream, and every token the cut took has one remove.
+	abuttingQuotedCuts, abuttingUnquotedCuts int
+	// closedMarkerRetires: blue's retire of a closed gap's own marker, admitted (F14), the report changed
+	// by the token alone.
+	closedMarkerRetires int
+	// keptRetiresHeadStill: an anchor-only retire of one anchor of each kind (anchor.Kinds), its sentence
+	// kept word for word, listed in the change view, the report head where it stood.
+	keptRetiresHeadStill int
 }
 
 // lifecycleTally is lifecycleCounts as a run's tally file carries it.
@@ -128,6 +163,12 @@ type lifecycleTally struct {
 	QuoteGapMootAfterMarkerCut int `json:"quote_gap_moot_after_marker_cut"`
 	CutReadiedRaiser           int `json:"cut_readied_raiser"`
 	CutStaledDelivery          int `json:"cut_staled_delivery"`
+	CutMovedTokens             int `json:"cut_moved_tokens"`
+	CutClearedChecks           int `json:"cut_cleared_checks"`
+	AbuttingQuotedCuts         int `json:"abutting_quoted_cuts"`
+	AbuttingUnquotedCuts       int `json:"abutting_unquoted_cuts"`
+	ClosedMarkerRetires        int `json:"closed_marker_retires"`
+	KeptRetiresHeadStill       int `json:"kept_retires_head_still"`
 }
 
 func (c lifecycleCounts) tally() lifecycleTally {
@@ -141,6 +182,9 @@ func (c lifecycleCounts) tally() lifecycleTally {
 		RetiredAboutMintsRefused: c.retiredAboutMintsRefused, ReachingRetireTurns: c.reachingRetireTurns,
 		ScreenedUnsound: c.screenedUnsound, QuoteGapMootAfterMarkerCut: c.quoteGapMootAfterMarkerCut,
 		CutReadiedRaiser: c.cutReadiedRaiser, CutStaledDelivery: c.cutStaledDelivery,
+		CutMovedTokens: c.cutMovedTokens, CutClearedChecks: c.cutClearedChecks,
+		AbuttingQuotedCuts: c.abuttingQuotedCuts, AbuttingUnquotedCuts: c.abuttingUnquotedCuts,
+		ClosedMarkerRetires: c.closedMarkerRetires, KeptRetiresHeadStill: c.keptRetiresHeadStill,
 	}
 }
 
@@ -165,6 +209,12 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 	t.QuoteGapMootAfterMarkerCut += o.QuoteGapMootAfterMarkerCut
 	t.CutReadiedRaiser += o.CutReadiedRaiser
 	t.CutStaledDelivery += o.CutStaledDelivery
+	t.CutMovedTokens += o.CutMovedTokens
+	t.CutClearedChecks += o.CutClearedChecks
+	t.AbuttingQuotedCuts += o.AbuttingQuotedCuts
+	t.AbuttingUnquotedCuts += o.AbuttingUnquotedCuts
+	t.ClosedMarkerRetires += o.ClosedMarkerRetires
+	t.KeptRetiresHeadStill += o.KeptRetiresHeadStill
 }
 
 // lifecycleGates is the sweep's gate on each count, with what a zero means (III.1′.7's tally column,
@@ -196,6 +246,12 @@ func (t lifecycleTally) gates() []struct {
 		{t.QuoteGapMootAfterMarkerCut, "moot closes admitted of a --quote computation or source gap once a pure cut took out its marker, or its ancestor's"},
 		{t.CutReadiedRaiser, "pure cuts of a gap's marked sentence, answering no gap, leaving the gap open and gone with its minting lens engaged on it"},
 		{t.CutStaledDelivery, "closes refused on a delivery that predates a pure cut of the gap's subject, then admitted after the lens's next delivery"},
+		{t.CutMovedTokens, "cuts of a cited sentence onto its neighbour that carried the token there, removing no anchor"},
+		{t.CutClearedChecks, "pure cuts of a sentence whose citation stood on a refuting reading, clearing the failed check, the reader's gap then closed"},
+		{t.AbuttingQuotedCuts, "pure cuts whose quote took the abutting token, the rendered report its replayed ops and one remove per token"},
+		{t.AbuttingUnquotedCuts, "pure cuts whose quote stopped before the abutting token, the rendered report its replayed ops and one remove per token"},
+		{t.ClosedMarkerRetires, "retires of a closed gap's own marker admitted (F14)"},
+		{t.KeptRetiresHeadStill, "anchor-only retires, one of each anchor kind, listed in the change view with the report head unmoved"},
 	}
 }
 
@@ -420,14 +476,8 @@ func (r *runner) countLifecycle(f func(c *lifecycleCounts)) {
 func (r *runner) driveLifecycle(blue string) string {
 	const lens, comp = citationOwner, computationOwner
 	c := lifecycleClaims
-	if _, ok := r.do("edit", blue).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+strings.Join(c[:], ". ")).
-		set("--reason", "fuzz: the claims the lifecycle arms rest on").admit(); !ok {
-		return "blue's edit adding the claims was refused"
-	}
-	for _, seat := range []string{lens, comp, otherLens} {
-		if !r.openSitting(seat) {
-			return "the register of " + seat + " was refused"
-		}
+	if why := r.lifecycleSetUp(blue); why != "" {
+		return why
 	}
 	for _, arm := range []func() string{
 		func() string { return r.lifecycleClosedAnswerRetired(blue, lens, c[0]) },
@@ -441,12 +491,34 @@ func (r *runner) driveLifecycle(blue string) string {
 		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13], "") },
 		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15], c[16]) },
 		func() string { return r.lifecycleCutStaled(blue, lens, c[17]) },
+		func() string { return r.lifecycleCutMovesToken(blue, c[19], c[20]) },
+		func() string { return r.lifecycleCutClearsCheck(blue, lens, c[21]) },
+		func() string { return r.lifecycleAbuttingCuts(blue, c[22], c[23]) },
+		func() string { return r.lifecycleClosedMarkerRetire(blue, lens, c[24]) },
+		func() string { return r.lifecycleKeptRetires(blue, lens, c[25:29]) },
 	} {
 		if s := arm(); s != "" {
 			return s
 		}
 	}
 	return lifecycleDriven
+}
+
+// lifecycleSetUp is what the lifecycle arms stand on: blue adds lifecycleClaims after sourceDemandOpen,
+// and the citation owner, the computation owner and otherLens each open a sitting. It returns why it
+// did not, or "".
+func (r *runner) lifecycleSetUp(blue string) string {
+	c := lifecycleClaims
+	if _, ok := r.do("edit", blue).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+strings.Join(c[:], ". ")).
+		set("--reason", "fuzz: the claims the lifecycle arms rest on").admit(); !ok {
+		return "blue's edit adding the claims was refused"
+	}
+	for _, seat := range []string{citationOwner, computationOwner, otherLens} {
+		if !r.openSitting(seat) {
+			return "the register of " + seat + " was refused"
+		}
+	}
+	return ""
 }
 
 // lifecycleClosedAnswerRetired: a source gap closed on blue's citation; blue retires the citation; the
@@ -761,30 +833,14 @@ func (r *runner) lifecycleCutQuote(claim string) (quote, why string) {
 	return q, ""
 }
 
-// lifecycleCut is blue's pure cut of the sentence claim opens, answering gap where it is set: it
-// returns the anchors the edit recorded as removed, or why it did not land.
+// lifecycleCut is blue's pure cut of the sentence claim opens, answering gap where it is set, through
+// cutCitingFirst: it returns the anchors the edit recorded as removed, or why it did not land.
 func (r *runner) lifecycleCut(blue, claim, gap string) (removed []string, why string) {
 	q, why := r.lifecycleCutQuote(claim)
 	if q == "" {
 		return nil, why
 	}
-	c := r.do("edit", blue).set("--quote", q).set("--new", "").set("--reason", "fuzz: the claim cannot stand")
-	if gap != "" {
-		c.set("--answers", gap)
-	}
-	if out, ok := c.admit(); !ok {
-		return nil, "blue's pure cut of " + claim + " was refused: " + firstLine(out)
-	}
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
-		return nil, "the record could not be read after the cut: " + err.Error()
-	}
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); ok {
-			return be.GetRemovedAnchors(), ""
-		}
-	}
-	return nil, "the record holds no edit after blue's cut of " + claim
+	return r.cutCitingFirst(blue, q, gap)
 }
 
 // lifecycleCitedCut (L6, ruling Same-act L6): blue cites the eleventh claim (C) and computes on the
@@ -979,6 +1035,303 @@ func (r *runner) lifecycleCutStaled(blue, lens, claim string) string {
 // screenUnsoundComputationName is the bundle of the computation limitSeed's run ends on, judged unsound
 // (screenAtLimit).
 const screenUnsoundComputationName = "fuzz-screen-unsound.js"
+
+// lifecycleCutMovesToken: blue cites claim, then cuts claim onto next, the citation's token carried to
+// the end of next. A rewrite: admitted, no anchor in its removed_anchors, no anchor_removal for the
+// citation, and the token stands after next (cutMovedTokens).
+func (r *runner) lifecycleCutMovesToken(blue, claim, next string) string {
+	cite := r.lifecycleCite(blue, claim, "/lifecycle-20", "")
+	if cite == "" {
+		return "blue's citation of the twentieth claim was refused"
+	}
+	md, err := record.RenderRun(r.run())
+	if err != nil {
+		return "the report could not be rendered: " + err.Error()
+	}
+	run := abuttingRun(md, claim)
+	if !strings.Contains(run, anchor.Token(cite)) {
+		return "citation " + cite + " does not stand at the twentieth claim's end: " + run
+	}
+	if _, ok := r.do("edit", blue).set("--quote", claim+run+". "+next).set("--new", next+run).
+		set("--reason", "fuzz: the claim folds into the next").admit(); !ok {
+		return "blue's cut of the twentieth claim onto the twenty-first, carrying " + cite + ", was refused"
+	}
+	if removed := lastEditRemoved(r.run()); len(removed) != 0 {
+		return fmt.Sprintf("blue's cut carrying %s onto the next sentence recorded removed_anchors %v, want none", cite, removed)
+	}
+	if rm, found, err := record.AnchorRemovedAt(r.run(), cite); err != nil || found {
+		return fmt.Sprintf("anchor_removal holds %s (%+v, %v) after an edit that carried it", cite, rm, err)
+	}
+	if after, _ := record.RenderRun(r.run()); !strings.Contains(after, next+run) || strings.Contains(after, claim) {
+		return "the report does not hold " + cite + " on the twenty-first claim alone after the cut that moved it"
+	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.cutMovedTokens++ })
+	return ""
+}
+
+// lastEditRemoved is the removed_anchors of the record's last edit.
+func lastEditRemoved(run record.Run) []string {
+	b, err := record.FamilyOf(run)
+	if err != nil {
+		return []string{"(the record could not be read: " + err.Error() + ")"}
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); ok {
+			return be.GetRemovedAnchors()
+		}
+	}
+	return nil
+}
+
+// failedCheckStands is whether a check of anchor id that does not hold stands on the record's anchor
+// ledger (record.StandingChecks).
+func (r *runner) failedCheckStands(id string) (bool, error) {
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return false, err
+	}
+	return slices.ContainsFunc(record.StandingChecks(b.Events, b.At), func(c record.StandingCheck) bool { return c.Anchor == id && !c.Holds }), nil
+}
+
+// lifecycleCutClearsCheck: blue cites claim; the lens reads the citation `refutes` and mints its
+// claim_contradicts_source gap about it, so a failed check stands on the citation.
+// Blue's pure cut of the sentence, answering no gap, takes the citation: the failed check clears
+// (anchorChecksOf's edit arm), and at the lens's next sitting its close of the gap lands
+// (cutClearedChecks).
+func (r *runner) lifecycleCutClearsCheck(blue, lens, claim string) string {
+	cite := r.lifecycleCite(blue, claim, "/lifecycle-22", "")
+	if cite == "" {
+		return "blue's citation of the twenty-second claim was refused"
+	}
+	if !r.openSitting(lens) {
+		return "the register of " + lens + " was refused"
+	}
+	g, ok := r.lifecycleRead(lens, cite, "refutes")
+	if !ok || g == "" {
+		return lens + "'s refuting reading of " + cite + ", or its gap about it, was refused"
+	}
+	if failed, err := r.failedCheckStands(cite); err != nil || !failed {
+		return fmt.Sprintf("no failed check stands on citation %s after its refuting reading (%v)", cite, err)
+	}
+	removed, why := r.lifecycleCut(blue, claim, "")
+	if why != "" {
+		return why
+	}
+	if !slices.Contains(removed, cite) {
+		return fmt.Sprintf("blue's pure cut of the twenty-second claim recorded removed_anchors %v, which do not hold %s", removed, cite)
+	}
+	if failed, err := r.failedCheckStands(cite); err != nil || failed {
+		return fmt.Sprintf("citation %s's failed check still stands after the cut took it (%v)", cite, err)
+	}
+	if !r.openSitting(lens) {
+		return "the register of " + lens + " after the cut was refused"
+	}
+	if env, ok := r.lifecycleClose(lens, g); !ok {
+		return "the close of " + g + " after the cut took the citation it is about was refused: " + env.Error
+	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.cutClearedChecks++ })
+	return ""
+}
+
+// lifecycleAbuttingCuts: blue cites quoted and unquoted; it cuts quoted with a quote that takes its
+// abutting token, and unquoted with a quote that stops at its last word, before the token. After each
+// the report the record renders is the replay of its whole op stream, and each token the cut took has
+// one remove (abuttingQuotedCuts, abuttingUnquotedCuts).
+func (r *runner) lifecycleAbuttingCuts(blue, quoted, unquoted string) string {
+	for _, arm := range []struct {
+		claim, path string
+		quote       func(md, claim string) string
+		count       func(c *lifecycleCounts)
+	}{
+		{quoted, "/lifecycle-23", func(md, claim string) string { return claim + abuttingRun(md, claim) + ". " },
+			func(c *lifecycleCounts) { c.abuttingQuotedCuts++ }},
+		{unquoted, "/lifecycle-24", func(_, claim string) string { return claim },
+			func(c *lifecycleCounts) { c.abuttingUnquotedCuts++ }},
+	} {
+		cite := r.lifecycleCite(blue, arm.claim, arm.path, "")
+		if cite == "" {
+			return "blue's citation of " + arm.claim + " was refused"
+		}
+		md, err := record.RenderRun(r.run())
+		if err != nil {
+			return "the report could not be rendered: " + err.Error()
+		}
+		if !strings.Contains(abuttingRun(md, arm.claim), anchor.Token(cite)) {
+			return "citation " + cite + " does not abut " + arm.claim
+		}
+		removed, why := r.cutCitingFirst(blue, arm.quote(md, arm.claim), "")
+		if why != "" {
+			return why
+		}
+		if !slices.Contains(removed, cite) {
+			return fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, which do not hold %s", arm.claim, removed, cite)
+		}
+		if why := replayedIsWritten(r.run(), removed); why != "" {
+			return "after blue's pure cut of " + arm.claim + ": " + why
+		}
+		r.countLifecycle(arm.count)
+	}
+	return ""
+}
+
+// replayedIsWritten is why the report the record renders is not the replay of its whole op stream, or
+// an anchor of took has other than one remove op, or "".
+func replayedIsWritten(run record.Run, took []string) string {
+	ops, err := record.ReportProjection(run)
+	if err != nil {
+		return "the report ops could not be read: " + err.Error()
+	}
+	replayed, err := reportproj.Replay("", false, ops)
+	if err != nil {
+		return "the report ops could not be replayed: " + err.Error()
+	}
+	written, err := record.RenderRun(run)
+	if err != nil {
+		return "the report could not be rendered: " + err.Error()
+	}
+	if replayed != written {
+		return "the report the record renders is not the replay of its ops"
+	}
+	for _, id := range took {
+		n := 0
+		for _, op := range ops {
+			if op.Kind == "remove" && op.A == id {
+				n++
+			}
+		}
+		if n != 1 {
+			return fmt.Sprintf("anchor %s has %d remove op(s), want one", id, n)
+		}
+	}
+	return ""
+}
+
+// lifecycleClosedGap is lens's gap on claim, minted and closed: its id, or "" and why not.
+func (r *runner) lifecycleClosedGap(lens, claim string) (string, string) {
+	g, why := r.lifecycleMint(lens, "document", claim, "", "low")
+	if g == "" {
+		return "", "the gap's mint on " + claim + " was refused: " + why
+	}
+	if env, ok := r.lifecycleClose(lens, g); !ok {
+		return "", "the close of " + g + " was refused: " + env.Error
+	}
+	return g, ""
+}
+
+// lifecycleClosedMarkerRetire (F14): the lens mints a gap on claim and closes it; blue's retire of the
+// closed gap's own marker lands, the report changed by its token alone, and anchor_removal holds the
+// retire (closedMarkerRetires). The open gap's refusal is retireOneAnchor's (openMarkerRetiresRefused).
+func (r *runner) lifecycleClosedMarkerRetire(blue, lens, claim string) string {
+	g, why := r.lifecycleClosedGap(lens, claim)
+	if g == "" {
+		return why
+	}
+	before, err := record.RenderRun(r.run())
+	if err != nil {
+		return "the report could not be rendered: " + err.Error()
+	}
+	if _, ok := r.do("retire", blue).set("--anchor", g).set("--reason", "fuzz: the closed gap's marker leaves its sentence").admit(); !ok {
+		return "blue's retire of closed gap " + g + "'s marker was refused"
+	}
+	if after, _ := record.RenderRun(r.run()); after != strings.Replace(before, anchor.Token(g), "", 1) {
+		return "blue's retire of closed gap " + g + "'s marker changed the report beyond its token"
+	}
+	if rm, found, err := record.AnchorRemovedAt(r.run(), g); err != nil || !found || rm.By != record.RemovedByRetire {
+		return fmt.Sprintf("anchor_removal for %s is %+v (found %v, %v), want the retire", g, rm, found, err)
+	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.closedMarkerRetires++ })
+	return ""
+}
+
+// lifecyclePlace places one anchor of kind on claim, by the verb that places the kind: a finding and a
+// gap by lens, the gap closed so its marker may leave (F14); a citation and a computation by blue. It
+// returns the anchor's id, or "" and why not.
+func (r *runner) lifecyclePlace(blue, lens, kind, claim string, n int) (string, string) {
+	switch kind {
+	case "finding":
+		if _, ok := r.do("finding", lens).set("--quote", claim).set("--severity", "low").set("--likelihood", "low").
+			set("--impact", "low").set("--reason", "fuzz: the lifecycle arm's finding").admit(); !ok {
+			return "", lens + "'s finding on " + claim + " was refused"
+		}
+	case "citation":
+		if r.lifecycleCite(blue, claim, fmt.Sprintf("/lifecycle-kept-%d", n), "") == "" {
+			return "", "blue's citation of " + claim + " was refused"
+		}
+	case "computation":
+		if r.lifecycleCompute(blue, claim, fmt.Sprintf("fuzz-lifecycle-kept-%d.js", n), "", "") == "" {
+			return "", "blue's computation of " + claim + " was refused"
+		}
+	case "gap":
+		if g, why := r.lifecycleClosedGap(lens, claim); g == "" {
+			return "", why
+		}
+	default:
+		return "", "the drive places no anchor of kind " + kind + ": add its verb to lifecyclePlace"
+	}
+	md, err := record.RenderRun(r.run())
+	if err != nil {
+		return "", "the report could not be rendered: " + err.Error()
+	}
+	for _, id := range anchor.IDs(abuttingRun(md, claim)) {
+		if anchor.Kind(id) == kind {
+			return id, ""
+		}
+	}
+	return "", "no " + kind + " anchor stands at the end of " + claim
+}
+
+// lifecycleKeptRetires: for each anchor kind (anchor.Kinds), one anchor of it on a claim of its own,
+// retired by blue with the sentence kept: the report changes by the token alone, the change view lists
+// the retire, and the report head does not move (keptRetiresHeadStill, one per kind).
+func (r *runner) lifecycleKeptRetires(blue, lens string, claims []string) string {
+	kinds := anchor.Kinds()
+	if len(kinds) > len(claims) {
+		return fmt.Sprintf("%d anchor kinds and %d claims for their retires: add a lifecycle claim per kind", len(kinds), len(claims))
+	}
+	for i, kind := range kinds {
+		id, why := r.lifecyclePlace(blue, lens, kind, claims[i], i)
+		if id == "" {
+			return why
+		}
+		before, head, err := record.ReportAtHead(r.run())
+		if err != nil {
+			return "the report and its head could not be read: " + err.Error()
+		}
+		if _, ok := r.do("retire", blue).set("--anchor", id).set("--reason", "fuzz: the "+kind+" anchor leaves its sentence").admit(); !ok {
+			return "blue's retire of " + kind + " anchor " + id + " was refused"
+		}
+		after, moved, err := record.ReportAtHead(r.run())
+		switch {
+		case err != nil:
+			return "the report and its head could not be read after the retire: " + err.Error()
+		case after != strings.Replace(before, anchor.Token(id), "", 1):
+			return "blue's retire of " + id + " changed the report beyond its token"
+		case moved != head:
+			return fmt.Sprintf("blue's retire of %s moved the report head from %d to %d", id, head, moved)
+		}
+		if listed, why := r.changeListsRetire(id); !listed {
+			return why
+		}
+		r.countLifecycle(func(c *lifecycleCounts) { c.keptRetiresHeadStill++ })
+	}
+	return ""
+}
+
+// changeListsRetire is whether the change view lists a retire of id, and why not.
+func (r *runner) changeListsRetire(id string) (bool, string) {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		return false, "the record could not be opened: " + err.Error()
+	}
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM "change" WHERE "retired" = ?`, id).Scan(&n); err != nil {
+		return false, "the change view could not be read: " + err.Error()
+	}
+	if n != 1 {
+		return false, fmt.Sprintf("the change view lists %d retire(s) of %s, want one", n, id)
+	}
+	return true, ""
+}
 
 // screenAtLimit is limitSeed's half of the assembly screen arm, driven at the chair's sitting whose plan
 // reaches the epoch limit, which dispatches nobody: blue-respond, in a sitting of its own, computes the

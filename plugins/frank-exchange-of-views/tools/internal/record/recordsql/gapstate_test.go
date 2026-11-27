@@ -11,74 +11,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// gapStateSnapshot is every gap_state row, in mint order, one string each.
-func gapStateSnapshot(t *testing.T, q interface {
-	Query(string, ...any) (*sql.Rows, error)
-}) []string {
-	t.Helper()
-	rows, err := q.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	cols, _ := rows.Columns()
-	var out []string
-	for rows.Next() {
-		v := make([]any, len(cols))
-		p := make([]any, len(cols))
-		for i := range v {
-			p[i] = &v[i]
-		}
-		if err := rows.Scan(p...); err != nil {
-			t.Fatal(err)
-		}
-		out = append(out, fmt.Sprint(v))
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	return out
-}
-
-// gapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
-// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
-// they agree row for row and nothing is left named or unflushed, else what differs. The refresh
-// asked of every gap is the rules with no marker in the way, so a gap a marker failed to name stands
-// out as the row the full refresh moves.
+// gapStateRefreshDiff is GapStateRefreshDiff of db, the test failing where it cannot be asked.
 func gapStateRefreshDiff(t *testing.T, db *sql.DB) string {
 	t.Helper()
-	tx, err := db.Begin()
+	d, err := GapStateRefreshDiff(db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	var out []string
-	var pending int
-	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
-		t.Fatal(err)
-	}
-	if pending != 0 {
-		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
-	}
-	stored := gapStateSnapshot(t, tx)
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
-	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
-		t.Fatal(err)
-	}
-	refreshed := gapStateSnapshot(t, tx)
-	for i := 0; i < max(len(stored), len(refreshed)); i++ {
-		var s, f string
-		if i < len(stored) {
-			s = stored[i]
-		}
-		if i < len(refreshed) {
-			f = refreshed[i]
-		}
-		if s != f {
-			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
-		}
-	}
-	return strings.Join(out, "\n")
+	return d
 }
 
 // gapStateHolds is each of a step's truths that does not hold, or "" when all do.

@@ -902,7 +902,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
 	t.Logf("evidenced cuts: %d pure cut(s) that took their sentence's anchors, %d rewrite(s) refused for dropping one, all seed %d's forced run", f.pureCutsRemoved, f.proseDropRefused, evidencedCutSeed)
 	t.Logf("anchor retires: %d retire(s) that took one anchor and kept its sentence word for word, %d retire(s) of an open gap's own marker refused naming it (F14)", f.anchorRetiresKept, f.openMarkerRetiresRefused)
-	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave a citation bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
+	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave an anchor bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
 	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound computation in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-computation blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
@@ -1104,7 +1104,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE BARE-PRESCRIPTION GATE. No drawn prescription leaves an anchor bare, so the mint's refusal
 		// of one is reached only by the forced drive.
 		if f.mintBareRefused == 0 {
-			t.Errorf("seed %d's forced run drove ZERO mints refused for a prescription that would leave a citation bare across %d runs — the refusal that keeps an unappliable fix off the board is unexercised (false green)", mintBareSeed, f.completed)
+			t.Errorf("seed %d's forced run drove ZERO mints refused for a prescription that would leave an anchor bare across %d runs — the refusal that keeps an unappliable fix off the board is unexercised (false green)", mintBareSeed, f.completed)
 		}
 		// THE SOURCE-SEARCH GATE. A search of a cited source prints, at each hit, the span cite takes;
 		// the drive that searches every admitted cite's source is the only one that checks it.

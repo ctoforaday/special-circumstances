@@ -74,9 +74,9 @@ func TestTheDrawnRetireTakesOneAnchorAndKeepsItsSentence(t *testing.T) {
 	}
 }
 
-// THE BARE-PRESCRIPTION SEED's refusal is read by its words (mintBaringCitation): a lens prescribing the
-// citation's token alone as the sentence's replacement is refused naming the token left on no words,
-// and the drive counts it rather than reading it as another refusal.
+// THE BARE-PRESCRIPTION SEED's refusal is read by its words, for EVERY anchor kind (mintBaringCitation):
+// a lens prescribing an anchor's token alone as its sentence's replacement is refused naming the token
+// left on no words, and the drive counts it per kind rather than reading it as another refusal.
 func TestTheBarePrescriptionSeedCountsItsRefusal(t *testing.T) {
 	r := stagedLifecycleRunner(t)
 	r.forceMintBare = true
@@ -85,7 +85,15 @@ func TestTheBarePrescriptionSeedCountsItsRefusal(t *testing.T) {
 		t.Fatalf("the register of %s was refused", citationOwner)
 	}
 	r.mintBaringCitation(citationOwner)
-	if r.mintBareRefused != 1 || r.mintBareAdmittedErr != "" || r.mintBareOther != "" {
-		t.Errorf("the bare prescription: %d refusal(s) counted, admitted %q, other %q; want 1 and neither", r.mintBareRefused, r.mintBareAdmittedErr, r.mintBareOther)
+	if r.mintBareAdmittedErr != "" || r.mintBareOther != "" || r.actErr != "" {
+		t.Fatalf("the bare prescription: admitted %q, other %q, act %q; want none", r.mintBareAdmittedErr, r.mintBareOther, r.actErr)
+	}
+	for _, kind := range anchor.Kinds() {
+		if !r.mintBareKinds[kind] {
+			t.Errorf("the bare prescription of a %s anchor was not refused naming it", kind)
+		}
+	}
+	if r.mintBareRefused != len(anchor.Kinds()) {
+		t.Errorf("the bare prescription: %d refusal(s) counted, want one per kind (%d)", r.mintBareRefused, len(anchor.Kinds()))
 	}
 }

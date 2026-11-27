@@ -335,6 +335,11 @@ type runner struct {
 	// back one layer down and buy nothing but a slower version of the old behaviour.
 	mu          sync.Mutex
 	bin, runDir string
+	// anchorOracle is the per-act oracles' replay of the report, behind a lock of its own
+	// (anchororacle_test.go).
+	anchorOracle anchorReplay
+	// drawnCuts numbers blue's drawn pure cuts of a cited sentence (drawnCitedCut).
+	drawnCuts int
 	// writer is the feov-sitting-write binary the hooks hand a sitting's harness-observed facts to:
 	// its envelope's admission at PostToolUse and its close at SubagentStop (dispatchReturns).
 	writer string
@@ -479,13 +484,17 @@ type runner struct {
 	// for word; openMarkerRetiresRefused counts its drawn retires of an open gap's own marker, refused
 	// naming the gap (F14). The sweep gates each at zero.
 	anchorRetiresKept, openMarkerRetiresRefused int
-	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave a citation
-	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one.
+	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave an anchor
+	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one of
+	// each kind (mintBareKinds).
 	// mintBareAdmittedErr is the first such mint the tool recorded, or refused without saying so; it
 	// fails the run. mintBareOther is the first other refusal the drive met, which a run that never
 	// counts one names.
 	mintBareRefused                    int
 	mintBareAdmittedErr, mintBareOther string
+	// mintBareKinds is the anchor kinds whose bare prescription the tool refused; mintBareSeed's run
+	// fails without every kind (anchor.Kinds).
+	mintBareKinds map[string]bool
 	// sourceSearches counts the source searches whose hits round-tripped through `cite --source-span`
 	// (sourceSearchCited). The sweep gates it at zero. sourceSearchErr is the first search that was
 	// refused, found nothing, or printed a hit whose source_span is not the span cite took; it fails
@@ -2401,6 +2410,8 @@ func (r *runner) execCall(agent string, owed bool, args ...string) (string, erro
 	if seat != "" {
 		r.handNext(seat, agent)
 	}
+	// THE ANCHOR ORACLES JUDGE THE RECORD AFTER EVERY ACT IT ADMITTED (anchororacle_test.go).
+	r.anchorOracles()
 	if r.forceOwedComputation && seat == computationOwner {
 		r.countOwnerAct(args)
 	}
@@ -3600,6 +3611,118 @@ func (r *runner) retireCitingFirst(seatID, citation string) bool {
 	return true
 }
 
+// cutCitingFirst is blue's pure cut of quote, whole sentences, answering gap where it is set: the cut's
+// twin of retireCitingFirst (L6). While a computation outside the cut applies a citation the cut takes,
+// the cut is refused naming each such computation and writes nothing; blue then retires each by its
+// anchor, and the same cut lands. A computation the cut takes with the citation is no bar (ruling
+// Same-act L6). It returns the anchors the cut recorded as removed, or why it did not land; a refused
+// cut that wrote, or one refused without naming a computation that applies the citation, fails the run.
+func (r *runner) cutCitingFirst(seatID, quote, gap string) (removed []string, why string) {
+	var citing []string
+	for _, c := range anchor.IDs(quote) {
+		if anchor.Kind(c) != "citation" {
+			continue
+		}
+		for _, k := range computationsCiting(r.run(), c) {
+			if !strings.Contains(quote, anchor.Token(k)) && !slices.Contains(citing, k) {
+				citing = append(citing, k)
+			}
+		}
+	}
+	cut := func() *cmd {
+		c := r.do("edit", seatID).set("--quote", quote).set("--new", "").set("--reason", "fuzz: the claim cannot stand")
+		if gap != "" {
+			c.set("--answers", gap)
+		}
+		return c
+	}
+	if len(citing) > 0 {
+		before, err := record.RenderRun(r.run())
+		if err != nil {
+			return nil, "the report could not be rendered before the cut: " + err.Error()
+		}
+		out, err := cut().result()
+		if after, _ := record.RenderRun(r.run()); err == nil || after != before {
+			why := "blue's pure cut of " + quote + " took a citation computation " + citing[0] + " applies, and the cut was recorded"
+			r.noteActErr(why)
+			return nil, why
+		}
+		for _, k := range citing {
+			if !strings.Contains(out, k) {
+				why := "blue's pure cut of " + quote + " was refused without naming computation " + k + ", which applies a citation it takes: " + firstLine(out)
+				r.noteActErr(why)
+				return nil, why
+			}
+		}
+		r.countLifecycle(func(c *lifecycleCounts) { c.citedCutsRefused++ })
+		for _, k := range citing {
+			if !r.lifecycleRetire(seatID, k, "") {
+				return nil, "blue's retire of " + k + ", the computation applying a citation the cut takes, was refused"
+			}
+		}
+	}
+	if out, ok := cut().admit(); !ok {
+		return nil, "blue's pure cut of " + quote + " was refused: " + firstLine(out)
+	}
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return nil, "the record could not be read after the cut: " + err.Error()
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); ok {
+			return be.GetRemovedAnchors(), ""
+		}
+	}
+	return nil, "the record holds no edit after blue's cut of " + quote
+}
+
+// drawnCitedCut is blue's drawn pure cut of a cited sentence (citedCut), the citation applied by a
+// computation on another sentence one time in two. OWEDCOMPUTATIONSEED'S BLUE PROVES ONLY computeOwed's
+// (execCall refuses any other computation there), so its cut is never of an applied citation.
+func (r *runner) drawnCitedCut(seatID string) {
+	r.citedCut(seatID, !r.forceOwedComputation && r.coin(50))
+}
+
+// citedCut is a pure cut of a cited sentence, through cutCitingFirst: blue adds two sentences of its
+// own after sourceDemandOpen and cites the first; where applied, it computes on the second applying
+// that citation, so the cut of the first is refused naming the computation, which blue retires before
+// the cut lands. The sentences are the draw's own, numbered, so no other drive quotes them and no
+// seeded sentence another drive rests on is cut. The cut takes the citation (removed_anchors).
+func (r *runner) citedCut(seatID string, applied bool) {
+	r.mu.Lock()
+	r.drawnCuts++
+	n := r.drawnCuts
+	r.mu.Unlock()
+	claim, other := fmt.Sprintf("The drawn cut claim %d holds", n), fmt.Sprintf("The drawn method claim %d holds", n)
+	if _, ok := r.do("edit", seatID).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+claim+". "+other).
+		set("--reason", "fuzz: two claims added, the first to be cut").admit(); !ok {
+		return
+	}
+	cite := r.lifecycleCite(seatID, claim, fmt.Sprintf("/drawn-cut-%d", n), "")
+	if cite == "" {
+		r.noteActErr("blue's citation of " + claim + " was refused")
+		return
+	}
+	if applied {
+		if k := r.lifecycleCompute(seatID, other, fmt.Sprintf("fuzz-drawn-method-%d.js", n), "", cite); k == "" {
+			r.noteActErr("blue's computation on " + other + " applying " + cite + " was refused")
+			return
+		}
+	}
+	q, why := r.lifecycleCutQuote(claim)
+	if q == "" {
+		r.noteActErr(why)
+		return
+	}
+	removed, why := r.cutCitingFirst(seatID, q, "")
+	switch {
+	case why != "":
+		r.noteActErr(why)
+	case !slices.Equal(removed, []string{cite}):
+		r.noteActErr(fmt.Sprintf("blue's pure cut of %s recorded removed_anchors %v, want [%s]", claim, removed, cite))
+	}
+}
+
 // lastComputationOn is the computation last placed on claim, read off the record, or "".
 func lastComputationOn(run record.Run, claim string) string {
 	b, err := record.FamilyOf(run)
@@ -3614,12 +3737,13 @@ func lastComputationOn(run record.Run, claim string) string {
 	return ""
 }
 
-// mintBareClaim is the sentence mintBareSeed's run adds and cites, for a lens to prescribe away.
-const mintBareClaim = "Whether the cited claim stands"
+// mintBareClaim is the sentence mintBareSeed's run adds for an anchor of kind, for a lens to prescribe
+// away: one sentence per kind (anchor.Kinds), each carrying that kind's anchor alone.
+func mintBareClaim(kind string) string { return "Whether the " + kind + " anchor's claim stands" }
 
 // citeForBareMint is blue's half of mintBareSeed's forced run: blue-respond's first sitting adds a
-// sentence and cites it, so a lens can prescribe a fix that would leave the citation bare
-// (mintBaringCitation). It draws nothing from the run's RNG.
+// sentence per anchor kind and places blue's own kinds on theirs, a citation and a computation; the
+// lens's half places the finding and the gap (mintBaringCitation). It draws nothing from the run's RNG.
 func (r *runner) citeForBareMint(seatID string) {
 	r.mu.Lock()
 	due := r.forceMintBare && !r.mintBareCited && seatID == "blue-respond"
@@ -3631,21 +3755,31 @@ func (r *runner) citeForBareMint(seatID string) {
 		return
 	}
 	const open = "Whether the trend outlasts the sample"
-	if _, ok := r.do("edit", seatID).set("--quote", open).set("--new", open+". "+mintBareClaim).
-		set("--reason", "fuzz: a claim added to be cited").admit(); !ok {
+	var claims []string
+	for _, kind := range anchor.Kinds() {
+		claims = append(claims, mintBareClaim(kind))
+	}
+	if _, ok := r.do("edit", seatID).set("--quote", open).set("--new", open+". "+strings.Join(claims, ". ")).
+		set("--reason", "fuzz: claims added to carry an anchor each").admit(); !ok {
 		return
 	}
-	r.do("cite", seatID).set("--quote", mintBareClaim).set("--url", sourceURL("/blue-shared")).
+	r.do("cite", seatID).set("--quote", mintBareClaim("citation")).set("--url", sourceURL("/blue-shared")).
 		set("--title", sourceTitle).set("--source-span", sourceBody("/blue-shared")).admit()
+	if dir, argv, err := r.writeBundle("fuzz-bare-mint.js", "console.log('fuzz: the computation a fix would leave bare');"); err == nil {
+		r.do("compute", seatID).set("--quote", mintBareClaim("computation")).set("--dir", dir).
+			set("--reason", "fuzz: the computation a fix would leave bare").runs(argv).admit()
+	}
 }
 
-// mintBaringCitation is the lens's half of mintBareSeed's forced run: a lens sitting after blue cited
-// mintBareClaim prescribes the citation's token alone as the sentence's replacement, which blue's
-// accept would refuse for leaving the citation bare, and the mint must refuse it with the report
-// unchanged. A mint refused for anything else leaves the drive to the next lens sitting. It draws nothing from the run's RNG.
+// mintBaringCitation is the lens's half of mintBareSeed's forced run, over every anchor kind: a lens
+// sitting after blue's half places the kinds a lens places (a finding, and a gap of a class the
+// prescription does not mint), then on each kind's sentence prescribes that anchor's token alone as the
+// sentence's replacement. Blue's accept would leave the token on no words, so the mint must refuse it
+// naming the token, with the report unchanged (mintBareKinds, one per kind). A mint refused for anything
+// else leaves the kind to the next lens sitting. It draws nothing from the run's RNG.
 func (r *runner) mintBaringCitation(seatID string) {
 	r.mu.Lock()
-	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && r.mintBareRefused == 0 && r.mintBareAdmittedErr == ""
+	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && len(r.mintBareKinds) < len(anchor.Kinds()) && r.mintBareAdmittedErr == ""
 	if due {
 		r.mintBareDriving = true
 	}
@@ -3658,34 +3792,74 @@ func (r *runner) mintBaringCitation(seatID string) {
 		r.mintBareDriving = false
 		r.mu.Unlock()
 	}()
+	for _, kind := range anchor.Kinds() {
+		r.mu.Lock()
+		done := r.mintBareKinds[kind]
+		r.mu.Unlock()
+		if !done {
+			r.mintBaringKind(seatID, kind)
+		}
+	}
+}
+
+// mintBareAnchor is the anchor of kind standing at the end of its mintBareClaim sentence, or "".
+func mintBareAnchor(md, kind string) string {
+	for _, id := range anchor.IDs(abuttingRun(md, mintBareClaim(kind))) {
+		if anchor.Kind(id) == kind {
+			return id
+		}
+	}
+	return ""
+}
+
+// mintBaringKind is mintBaringCitation's drive of one kind: the lens places a finding or a gap where
+// the sentence holds none, then prescribes the kind's token alone.
+func (r *runner) mintBaringKind(seatID, kind string) {
+	claim := mintBareClaim(kind)
 	before, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
 		return
 	}
-	cite := ""
-	for _, id := range anchor.IDs(abuttingRun(before, mintBareClaim)) {
-		if anchor.Kind(id) == "citation" {
-			cite = id
+	id := mintBareAnchor(before, kind)
+	if id == "" {
+		switch kind {
+		case "finding":
+			r.do("finding", seatID).set("--quote", claim).set("--severity", "low").set("--likelihood", "low").
+				set("--impact", "low").set("--reason", "fuzz: the finding a fix would leave bare").admit()
+		case "gap":
+			r.do("mint", seatID).set("--quote", claim).set("--class", mintPoolClasses[1]).set("--problem", "fuzz: the gap a fix would leave bare").
+				set("--check-kind", "document").set("--check", "acc").set("--fix", dirCounter).set("--severity", "low").
+				set("--likelihood", "low").set("--impact", "low").set("--reason", "fuzz: the gap a fix would leave bare").admit()
+		default:
+			return // blue's half has not placed it
+		}
+		if before, err = record.RenderRun(r.run()); err != nil {
+			r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
+			return
+		}
+		if id = mintBareAnchor(before, kind); id == "" {
+			return
 		}
 	}
-	if cite == "" {
-		return // blue's cite has not landed on the sentence
-	}
-	out, err := r.do("mint", seatID).set("--quote", mintBareClaim).set("--new", anchor.Token(cite)+".").
+	out, err := r.do("mint", seatID).set("--quote", claim).set("--new", anchor.Token(id)+".").
 		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
-		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the citation bare").result()
+		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the "+kind+" anchor bare").result()
 	after, _ := record.RenderRun(r.run())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
 	case err == nil || after != before:
-		r.mintBareAdmittedErr = seatID + " minted a prescription leaving citation " + cite + " bare: " + firstLine(out)
-	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(cite)) && strings.Contains(out, "standing bare"):
+		r.mintBareAdmittedErr = seatID + " minted a prescription leaving " + kind + " anchor " + id + " bare: " + firstLine(out)
+	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(id)) && strings.Contains(out, "standing bare"):
 		r.mintBareRefused++
+		if r.mintBareKinds == nil {
+			r.mintBareKinds = map[string]bool{}
+		}
+		r.mintBareKinds[kind] = true
 	case r.mintBareOther == "":
-		r.mintBareOther = seatID + ": " + firstLine(out)
+		r.mintBareOther = seatID + " (" + kind + "): " + firstLine(out)
 	}
 }
 
@@ -5903,6 +6077,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			pv.admit()
 		})
 		r.maybe(30, func() { r.retireDrawnAnchor(seatID) })
+		// BLUE'S DRAWN PURE CUT OF A CITED SENTENCE goes through cutCitingFirst (L6).
+		r.maybe(10, func() { r.drawnCitedCut(seatID) })
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
@@ -7358,8 +7534,8 @@ const unsoundComputationName = "fuzz-unsound-computation.js"
 // it. No drawn edit cuts a whole evidenced sentence or drops an anchor from one, so neither has another
 // reach. It is none of the other forced seeds.
 
-// mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
-// (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
+// mintBareSeed is the seed whose run is FORCED to mint, for each anchor kind, a prescription that would
+// leave an anchor of it bare (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
 // it, so none leaves an anchor bare, and the refusal has no other reach. It is none of the forced
 // seeds before it.
 
@@ -8342,8 +8518,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.stalenessStage == stalenessDriven {
 		res.stalenessAnchor = r.stalenessAnchor
 	}
-	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {
-		res.err = "forced bare prescription: no mint prescribing a citation bare was refused"
+	if r.forceMintBare && len(r.mintBareKinds) < len(anchor.Kinds()) && res.err == "" {
+		res.err = fmt.Sprintf("forced bare prescription: the mints prescribing an anchor bare were refused for kinds %v of %v", slices.Sorted(maps.Keys(r.mintBareKinds)), anchor.Kinds())
 		switch {
 		case !r.mintBareCited:
 			res.err += "; blue-respond never sat"

@@ -36,7 +36,7 @@ const (
 	lensPetitionSeed        = 13 // a lens petition's hearing (barrierhearing_test.go)
 	bluePetitionSeed        = 14 // blue's petition's hearing (barrierhearing_test.go)
 	readingDebtSeed         = 15 // a reading debt's whole life on a cited source (readingdebtseed_test.go)
-	mintBareSeed            = 16 // a prescription that would leave a citation bare (fuzz_test.go)
+	mintBareSeed            = 16 // a prescription that would leave an anchor of each kind bare (fuzz_test.go)
 	evidencedCutSeed        = 17 // a pure cut of an evidenced claim, and the rewrites that drop its anchor (fuzz_test.go)
 	sourceDemandSeed        = 18 // the live-answer demand's refusals (sourcedemandseed_test.go)
 	lifecycleSeed           = 19 // the anchor lifecycle's acts and refusals (lifecycleseed_test.go)

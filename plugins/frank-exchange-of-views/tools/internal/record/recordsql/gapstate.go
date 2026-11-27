@@ -385,3 +385,76 @@ func flushGapState(tx *sql.Tx) error {
 	}
 	return nil
 }
+
+// GapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
+// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
+// they agree row for row and nothing is left named or unflushed, else what differs. The refresh asked
+// of every gap is the rules with no marker in the way, so a gap a marker failed to name stands out as
+// the row the full refresh moves. db is a write handle (Open): the refresh is the flush trigger's, run
+// by inserting the rows that fire it.
+func GapStateRefreshDiff(db *sql.DB) (string, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var out []string
+	var pending int
+	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
+		return "", err
+	}
+	if pending != 0 {
+		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
+	}
+	stored, err := gapStateRows(tx)
+	if err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
+	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
+		return "", err
+	}
+	refreshed, err := gapStateRows(tx)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < max(len(stored), len(refreshed)); i++ {
+		var s, f string
+		if i < len(stored) {
+			s = stored[i]
+		}
+		if i < len(refreshed) {
+			f = refreshed[i]
+		}
+		if s != f {
+			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
+		}
+	}
+	return strings.Join(out, "\n"), nil
+}
+
+// gapStateRows is every gap_state row, in mint order, one string each.
+func gapStateRows(tx *sql.Tx) ([]string, error) {
+	rows, err := tx.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for rows.Next() {
+		v := make([]any, len(cols))
+		p := make([]any, len(cols))
+		for i := range v {
+			p[i] = &v[i]
+		}
+		if err := rows.Scan(p...); err != nil {
+			return nil, err
+		}
+		out = append(out, fmt.Sprint(v))
+	}
+	return out, rows.Err()
+}
