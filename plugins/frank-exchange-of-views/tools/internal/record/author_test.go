@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -150,4 +151,72 @@ func TestTheAuthorIsTheSubjectsAuthor(t *testing.T) {
 			}
 		})
 	}
+}
+
+// THE AUTHOR'S ACTS ARE ITS HALF OF THE EXCHANGE, AND ITS TURN COMES FIRST AT EVERY READER (X17, T-B47):
+// on G2, a gap about G1, the author is G1's minter, a lens. Its regrade of G1 naming G2 is its act on G2
+// (Regrade.answers): the raiser's turn comes (lensTurnOn), a dispatch of the raiser after it is not
+// early (EarlyLensDispatches), the round the raiser's audit ends is one the author acted in and moved,
+// and after a remand of G2 it answers the remand. At impasse the plan dockets G2 awaiting the author's
+// closing, not blue's. Each reader keyed on blue's seat instead reads none of this.
+func TestTheAuthorsActIsItsHalfOfTheExchange(t *testing.T) {
+	const author, raiser = evLens, outsideLens
+	authorRegrades := func(b *stage) *stage {
+		agent := fmt.Sprintf("author-acts-%d", b.n)
+		return b.register("red-chair").dispatch(2, author, "G2").registerAs(author, agent).
+			add(author, &recordpb.Regrade{GapId: proto.String("G1"), Answers: proto.String("G2"),
+				Severity: recordpb.Grade_GRADE_HIGH.Enum(), Basis: proto.String("G2 is right: the grade understated it")}).stop(agent)
+	}
+	t.Run("the raiser's turn and its audit", func(t *testing.T) {
+		acted := authorRegrades(authorStage(t))
+		x, err := Exchanges(acted.register("red-chair").seed(), DefaultParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g := x["G2"]; g == nil || !g.lensTurn || !g.pending.acted {
+			t.Fatalf("after the author's act on G2 the raiser's turn has not come, or the open round reads no act: %+v", g)
+		}
+		dispatched := acted.more().register("red-chair").dispatch(2, raiser, "G2")
+		early, err := EarlyLensDispatches(dispatched.seed())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if slices.ContainsFunc(early, func(d EarlyLensDispatch) bool { return d.GapID == "G2" }) {
+			t.Errorf("capture names a dispatch on G2 early, after the author's act: %+v", early)
+		}
+		x, err = Exchanges(authorRegrades(authorStage(t)).register("red-chair").dispatch(2, raiser, "G2").sitClosed(raiser).register("red-chair").seed(), DefaultParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g := x["G2"]; g == nil || g.Exchanges != 1 || g.Stalled != 0 || len(g.rounds) != 1 || !g.rounds[0].acted || !g.rounds[0].audited {
+			t.Errorf("the raiser's audit after the author's act ends one round the author acted in and moved: %+v", g)
+		}
+	})
+	t.Run("the remand's exchange", func(t *testing.T) {
+		st := authorStage(t)
+		for range 2 {
+			st.register("red-chair").dispatch(2, author, "G2").sitClosed(author).dispatch(2, raiser, "G2").sitClosed(raiser)
+		}
+		st.docketAndRemandWith("M1", "G2", remandDirection)
+		x, err := Exchanges(authorRegrades(st).register("red-chair").seed(), DefaultParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g := x["G2"]; g == nil || !g.answeredRemand {
+			t.Errorf("the author's act on G2 after its remand does not answer the remand: %+v", g)
+		}
+	})
+	t.Run("impasse awaits the author's closing", func(t *testing.T) {
+		st := authorStage(t)
+		for range 2 {
+			st.register("red-chair").dispatch(2, author, "G2").sitClosed(author).dispatch(2, raiser, "G2").sitClosed(raiser)
+		}
+		plan := planOfT(t, st.register("red-chair").seed())
+		if !whyMentions(plan, "G2: at impasse") {
+			t.Fatalf("G2 is not docketed at impasse: why %q", plan.Why)
+		}
+		if _, ok := partyOf(plan, author); !ok || !whyMentions(plan, closingsAwaitedWhy("G2", []string{raiser, author})) {
+			t.Errorf("the docketing of G2 does not await its raiser's and its author's closings: parties %+v, why %q", plan.Parties, plan.Why)
+		}
+	})
 }

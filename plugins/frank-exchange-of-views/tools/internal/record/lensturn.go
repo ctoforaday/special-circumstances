@@ -57,6 +57,11 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 		}
 		at := ids[i]
 		for _, g := range d.GetGapIds() {
+			// A LENS ENGAGED ON A GAP IT DID NOT RAISE IS THAT GAP'S AUTHOR (a gap about its gap), whose
+			// turn is not the raiser's to audit: only the raiser's dispatch can come early.
+			if minted[g] != d.GetSeatId() {
+				continue
+			}
 			if !lensTurnOn(turns[g], d.GetSeatId(), authorOf(g), mintedAt[g], latestBefore(remandPlaces(remands[g]), at), at) {
 				out = append(out, EarlyLensDispatch{At: at, SeatID: d.GetSeatId(), GapID: g})
 			}
