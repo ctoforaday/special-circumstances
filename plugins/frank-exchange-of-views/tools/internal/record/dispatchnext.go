@@ -143,18 +143,21 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			return emptyPlan(), false, err
 		}
 	}
-	// THE BLOCKERS RETURNED, AND THE REASONS THAT STATE THEM, ARE THE RECORD'S ONCE THE VERB HAS
-	// WRITTEN. The plan above was folded before its docketings and its rows: its list lacks the
+	// THE BLOCKERS RETURNED, THE STALE AREAS AND THE REASONS THAT STATE THEM ARE THE RECORD'S ONCE THE
+	// VERB HAS WRITTEN. The plan above was folded before its docketings and its rows: its list lacks the
 	// docketings just written, each a gap before the bench. The workflow convenes the
 	// terminal bench off the relayed blockers, and the plan asked again in the sitting is folded on
 	// the record with them: a plan stored with the list folded before would be one the record had
-	// already moved past, by the verb's own act, and asked again it would never stand.
+	// already moved past, by the verb's own act, and asked again it would never stand. The stale areas
+	// are the stale_area blockers' list, and the chair's spot-check is driven off it while its work
+	// list reads the blockers: refolded apart, the two named different areas and the chair's sitting
+	// ended owing changes behind a pin the plan never named.
 	if wrote {
 		after, err := planAt(tx, files)
 		if err != nil {
 			return emptyPlan(), false, err
 		}
-		plan.Blockers, plan.Why = after.Blockers, after.Why
+		plan.Blockers, plan.Why, plan.StaleAreas = after.Blockers, after.Why, after.StaleAreas
 		plan = plan.WithKey()
 	}
 	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the hook writes it

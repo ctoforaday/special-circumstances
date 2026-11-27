@@ -2263,6 +2263,7 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	if err := json.Unmarshal([]byte(out), &plan); err != nil || plan == nil {
 		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
+	r.staleAreasAgree(plan)
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
 	// exists to catch.
@@ -2327,14 +2328,57 @@ func (r *runner) engaged(seatID string) []string {
 	return out
 }
 
+// chairHoldsDelivery is whether seatID's current sitting holds a delivery of report text
+// (record.DeliveryThisSitting); a record that does not read is noted, and reads as none.
+func (r *runner) chairHoldsDelivery(seatID string) bool {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		r.noteActErr("the record does not open to ask " + seatID + "'s delivery: " + err.Error())
+		return false
+	}
+	_, held, err := record.DeliveryThisSitting(db, seatID)
+	if err != nil {
+		r.noteActErr("whether " + seatID + "'s sitting holds a delivery does not read: " + err.Error())
+		return false
+	}
+	return held
+}
+
+// staleAreasAgree holds a plan's stale_areas to its own blockers: each stale_area blocker names an
+// area the list carries, and each area the list carries is a stale_area blocker. The chair's spot-check
+// is driven off the list and its standing reads the blockers, so a plan that disagrees with itself
+// sends the chair into a sitting whose owed changes it never reads.
+func (r *runner) staleAreasAgree(plan map[string]any) {
+	listed := map[string]bool{}
+	for _, a := range r.staleAreasOf(plan) {
+		listed[a] = true
+	}
+	blocked := map[string]bool{}
+	bs, _ := plan["blockers"].([]any)
+	for _, b := range bs {
+		m, _ := b.(map[string]any)
+		if m["kind"] == string(record.BlockerStaleArea) {
+			if s, _ := m["subject"].(string); s != "" {
+				blocked[s] = true
+			}
+		}
+	}
+	if !maps.Equal(listed, blocked) {
+		r.noteActErr(fmt.Sprintf("the plan's stale_areas %v disagree with its stale_area blockers %v", slices.Sorted(maps.Keys(listed)), slices.Sorted(maps.Keys(blocked))))
+	}
+}
+
 // staleAreas is the current plan's stale areas — each retired lens whose pin the head moved
 // past, by seat — which the chair's spot-check names before a PASS.
-func (r *runner) staleAreas() []string {
+func (r *runner) staleAreas() []string { return r.staleAreasOf(r.planThisSitting) }
+
+// staleAreasOf is plan's stale areas, by seat.
+func (r *runner) staleAreasOf(plan map[string]any) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	if plan == nil {
 		return out
 	}
-	areas, _ := r.planThisSitting["stale_areas"].([]any)
+	areas, _ := plan["stale_areas"].([]any)
 	for _, a := range areas {
 		m, _ := a.(map[string]any)
 		if sid, ok := m["seat_id"].(string); ok {
@@ -5955,8 +5999,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// changes (readDelivery, at sit), and the PASS gate refuses a verdict until a spot-check names
 		// every one: with stale areas on the plan the drive always files it, or every run whose lenses
 		// retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
-		// With none, the chair is handed no report text, so its sitting holds no delivery: in about
-		// half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
+		// With none at its register, the chair is handed no report text, so its sitting holds no delivery:
+		// in about half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
 		// a chair whose areas have not changed owes no repeat, and one it filed would stand on nothing.
 		//
 		// A spot-check names no closure only when the board holds none.
@@ -5971,7 +6015,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 			} else {
 				sc.set("--reason", "fuzz: the archive was empty at round start")
 			}
-			if len(stale) > 0 {
+			// A SITTING THAT HOLDS A DELIVERY HOLDS ONE WHATEVER THE PLAN SAYS NOW: the chair's register
+			// hands it the changes behind the areas stale then, and the plan's own docketings can leave
+			// none stale by the time it is printed. The spot-check stands on that delivery, so the
+			// refusal is driven only where the sitting holds none.
+			if len(stale) > 0 || r.chairHoldsDelivery(seatID) {
 				sc.admit()
 			} else {
 				r.refuseUndelivered(sc.all()...)
