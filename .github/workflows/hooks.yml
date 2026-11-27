@@ -853,16 +853,16 @@ jobs:
       #
       # SWEEPS IN THEIR OWN JOBS, GUARDS ON EVERY RUN (ruled 2026-09-04). releasegate/fuzz's
       # binary-driving sweeps — the debate fuzz, the shipped-hook resolution, the schedule
-      # enumeration — skip unless FEOV_RELEASE_GATE=1, which is set here only on the
-      # nightly, by the release-fuzz job on a pull request that changes what they drive, and
-      # by the release job on a feov tag (the last two assert the sweep's own PASS line, so a
-      # typo'd variable cannot skip its way to green). The package's cheap
+      # enumeration — skip unless FEOV_RELEASE_GATE=1, which is set only by the release-fuzz
+      # job, on a pull request that changes what they drive and on the nightly, and by the
+      # release job on a feov tag (both assert the sweep's own PASS line, so a typo'd variable
+      # cannot skip its way to green). The package's cheap
       # literal-surface guards run on every event, in ~2s. Measured at the split: the
       # 573s Windows fuzz bill (run 32813820292) leaves this job's pull-request legs. What a
       # sweep run proved about the PLATFORM — the .exe build, the spawns, the temp
       # plumbing — the guards and the rest of the suite still prove; the depth was always
       # statistics on debate semantics, which are platform-independent and keep full depth
-      # on the nightly, the release-fuzz job and the tag.
+      # in the release-fuzz job (on a pull request and on the nightly) and on the tag.
       #
       # -short remains for the packages that carry their own Short gears. record and
       # recordsql still run FULL depth everywhere: the DSN truncation and the unclosed
@@ -873,29 +873,20 @@ jobs:
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
       #
-      # -timeout=100m ON THE NIGHTLY, where the debate sweep runs: TestFuzzDebate alone took
-      # 4271s (71 min) on a runner to itself (release-fuzz, run 40178244370), and a 40-minute
-      # bound killed it mid-sweep on main's nightly (run 40181045085), the leg failing on the clock
-      # with the sweep's own verdict unprinted. The release job's sweep step carries the same bound
-      # for the same reason, and each release-fuzz part, a quarter of the seeds, carries -timeout=60m;
-      # every other event keeps Go's default ten minutes, where no package runs that long. Both arms are workflow literals, like the -short arms.
-      - run: go test ${{ github.event_name == 'schedule' && '-timeout=100m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+      # THE NIGHTLY'S SWEEP RUNS IN FOUR PARTS, NOT HERE. It ran whole in this job under
+      # -timeout=100m until main's nightly of 2026-11-27 ran out of that bound with no seed failed:
+      # the same seeds took 3.4x as long as on 2026-11-24 (part 1/4 measured locally: 217s at
+      # 832496f, 737s at 6024176), most of it from 16b32e79's record views. The release-fuzz parts
+      # run a quarter of the seeds each on runners of their own, and release-fuzz-tally judges the
+      # gates over all four, so the nightly keeps the whole sweep at full depth on Linux. This job
+      # leaves FEOV_RELEASE_GATE unset, as it does on a pull request.
+      #
+      # -timeout=30m ON THE NIGHTLY, per package, as race-nightly bounds its own: record/migrate
+      # took 388s at full depth on 2026-11-27, too near Go's default ten minutes to leave on it.
+      # Both arms are workflow literals, like the -short arms.
+      - run: go test ${{ github.event_name == 'schedule' && '-timeout=30m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
-          FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
-      # A FAILED NIGHTLY SWEEP KEEPS ITS RUN DIRECTORIES. TestFuzzDebate removes a passing run's
-      # directory and keeps a failing one's for inspection, but on the runner that directory dies
-      # with the job: seeds 13 and 20 failed on the nightlies of 2026-11-16 and -17 (a lens's reading
-      # debt left standing at its envelope) and neither failed in 48 local reruns, so the record each
-      # left was the one thing that could say why. Linux only, where TMPDIR is the tmpfs above.
-      - name: Upload the failing fuzz runs
-        if: failure() && github.event_name == 'schedule' && runner.os == 'Linux'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
-        with:
-          name: nightly-fuzz-failed-runs
-          path: /dev/shm/tmp/fuzz-run-*/
-          retention-days: 14
-          if-no-files-found: ignore
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
@@ -990,7 +981,10 @@ jobs:
     #
     # IT RESTORES feov-record's CACHE FROM MAIN, read-only: that job compiles this module's whole
     # test graph on main's nightly, so what a pull request did not change is already compiled.
-    if: github.event_name == 'pull_request'
+    #
+    # ON THE NIGHTLY IT ALWAYS RUNS: there is no pull request to scope, and the nightly is where
+    # the sweep keeps full depth (feov-record's go test step says why it moved here).
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -1013,7 +1007,14 @@ jobs:
         id: scope
         working-directory: .
         shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
+          if [ "$EVENT" = schedule ]; then
+            echo "the nightly runs the release sweeps whole, in four parts"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git rev-parse -q --verify HEAD^2 >/dev/null || {
             echo "::error::HEAD is not the pull request's merge commit, so its changes cannot be read"
             exit 1
@@ -1081,7 +1082,8 @@ jobs:
     # dedicated paths (halt, unverified, verified, the shipped hooks) run in part 3 alone (#1624),
     # which the step asserts. No part judges the sweep's gates: release-fuzz-tally reads the four
     # tallies and judges them over the whole sweep. fail-fast is off so one red part leaves the
-    # others' tallies standing. The nightly and the release job run the sweep whole, in one process.
+    # others' tallies standing. The nightly runs here too, all four parts; the release job runs the
+    # sweep whole, in one process.
     #
     # timeout-minutes 75: the whole sweep measured 4271s (71 min) on one runner (run 40178244370),
     # and a part runs a quarter of its seeds. The test's own -test.timeout=60m fires first and names
@@ -1092,7 +1094,7 @@ jobs:
     #
     # A PART WITHOUT A BUILD FAILS rather than skipping: a skipped part reads as a green one.
     needs: release-fuzz-build
-    if: always() && github.event_name == 'pull_request'
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     timeout-minutes: 75
     strategy:
@@ -1181,6 +1183,19 @@ jobs:
           path: ${{ runner.temp }}/release-fuzz.log
           retention-days: 14
           overwrite: true
+      # A FAILED NIGHTLY SWEEP KEEPS ITS RUN DIRECTORIES. TestFuzzDebate removes a passing run's
+      # directory and keeps a failing one's for inspection, but on the runner that directory dies
+      # with the job: seeds 13 and 20 failed on the nightlies of 2026-11-16 and -17 (a lens's reading
+      # debt left standing at its envelope) and neither failed in 48 local reruns, so the record each
+      # left was the one thing that could say why. TMPDIR is the tmpfs above. Each part names its own.
+      - name: Upload the failing fuzz runs
+        if: failure() && github.event_name == 'schedule' && needs.release-fuzz-build.outputs.run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nightly-fuzz-failed-runs-${{ matrix.part }}
+          path: /dev/shm/tmp/fuzz-run-*/
+          retention-days: 14
+          if-no-files-found: ignore
 
   release-fuzz-tally:
     # THE SWEEP'S GATES, OVER EVERY PART (#1616). The release-fuzz parts each measure a quarter of
@@ -1193,7 +1208,7 @@ jobs:
     #
     # THE PASS IS ASSERTED, as in the parts: the test skips without FUZZ_TALLIES.
     needs: [release-fuzz-build, release-fuzz]
-    if: always() && github.event_name == 'pull_request' && needs.release-fuzz-build.result == 'success' && needs.release-fuzz-build.outputs.run == 'true'
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'schedule') && needs.release-fuzz-build.result == 'success' && needs.release-fuzz-build.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
