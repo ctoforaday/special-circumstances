@@ -411,17 +411,39 @@ func TestSendAgyServerRateLimited(t *testing.T) {
 	}
 }
 
-// ONLY THE STATUSES MEASURED TO PRECEDE ANY HANDLING ARE REFUSALS; every other one may follow it.
-func TestSendAgyServerRefusedStatuses(t *testing.T) {
-	for status, refused := range map[int]bool{401: true, 404: true, 405: true, 400: false, 403: false, 500: false, 503: false} {
+// A REFUSAL IS A MEASURED SHAPE, STATUS AND BODY; every other answer may follow handling. The
+// refused rows are agy 1.5.18's own bodies; the others are what a reworded interceptor or a
+// handler-level error would send.
+func TestSendAgyServerRefusedShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		status  int
+		body    string
+		refused bool
+	}{
+		{"401 missing CSRF token", 401, `{"code":"unauthenticated","message":"unauthenticated: missing CSRF token"}`, true},
+		{"401 invalid CSRF token", 401, `{"code":"unauthenticated","message":"unauthenticated: invalid CSRF token"}`, true},
+		{"404 from the router", 404, "404 page not found", true},
+		{"405 from Connect", 405, "", true},
+		{"401 with another message", 401, `{"code":"unauthenticated","message":"unauthenticated: session expired"}`, false},
+		{"401 that is not a Connect error", 401, "unauthorized", false},
+		{"401 with another code", 401, `{"code":"permission_denied","message":"unauthenticated: invalid CSRF token"}`, false},
+		{"404 carrying a Connect error", 404, `{"code":"not_found","message":"conversation not found"}`, false},
+		{"405 carrying a Connect error", 405, `{"code":"unimplemented","message":"no"}`, false},
+		{"400 from decoding", 400, `{"code":"invalid_argument","message":"unmarshal message: syntax error"}`, false},
+		{"403", 403, `{"code":"permission_denied","message":"no"}`, false},
+		{"500", 500, "boom", false},
+		{"503", 503, "", false},
+	} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, "no", status)
+			w.WriteHeader(tc.status)
+			io.WriteString(w, tc.body)
 		}))
 		_, err := SendAgyServer(NewAgyClient(5*time.Second), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
 		srv.Close()
 		var r *RefusedError
-		if err == nil || errors.As(err, &r) != refused || (refused && r.Status != status) {
-			t.Errorf("HTTP %d: err = %v, want refused=%v", status, err, refused)
+		if err == nil || errors.As(err, &r) != tc.refused || (tc.refused && r.Status != tc.status) {
+			t.Errorf("%s: err = %v, want refused=%v", tc.name, err, tc.refused)
 		}
 	}
 }

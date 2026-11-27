@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,8 +20,9 @@ import (
 )
 
 // TestLiveAntigravitySendAgentMessageRefusals pins the statuses peer.RefusedError reads as "refused
-// before acting" against a real language server: 401 for no token and for a wrong one, 404 for a
-// method that does not exist, 405 for a GET. For each, the conversation the request named gains no
+// before acting" against a real language server, and that peer.IsRefusal reads each measured answer
+// as the table says: 401 for no token and for a wrong one, 404 for a method that does not exist,
+// 405 for a GET carrying a whole message. For each, the conversation the request named gains no
 // step and never sees the text. It pins too the 400 a body that is not JSON gets, which is not a
 // refusal (a method's own validation answers 400 as well). The disconfirming case follows: the same
 // request made valid answers 200 and the text arrives.
@@ -172,23 +174,30 @@ func TestLiveAntigravitySendAgentMessageRefusals(t *testing.T) {
 		return resp.StatusCode, redact(strings.TrimSpace(string(b)))
 	}
 
+	// The GET carries a whole message, in the query Connect reads a GET's message from.
+	get := path + "?" + url.Values{"connect": {"v1"}, "encoding": {"json"},
+		"message": {string(body(target, "LIVE_REFUSAL_GET"))}}.Encode()
 	before := transcript(target)
 	for _, tc := range []struct {
 		name, method, path string
 		payload            []byte
 		token              string
 		want               int
+		refusal            bool // what peer.IsRefusal must read the answer as
 	}{
-		{"no token", http.MethodPost, path, body(target, "LIVE_REFUSAL_NO_TOKEN"), "", http.StatusUnauthorized},
-		{"wrong token", http.MethodPost, path, body(target, "LIVE_REFUSAL_WRONG_TOKEN"), "not-the-token", http.StatusUnauthorized},
-		{"body not JSON", http.MethodPost, path, []byte(`{"recipient": "` + target + `", LIVE_REFUSAL_MALFORMED`), server.Token, http.StatusBadRequest},
-		{"no such method", http.MethodPost, "/exa.language_server_pb.LanguageServerService/NoSuchMethod", body(target, "LIVE_REFUSAL_NO_METHOD"), server.Token, http.StatusNotFound},
-		{"GET", http.MethodGet, path, nil, server.Token, http.StatusMethodNotAllowed},
+		{"no token", http.MethodPost, path, body(target, "LIVE_REFUSAL_NO_TOKEN"), "", http.StatusUnauthorized, true},
+		{"wrong token", http.MethodPost, path, body(target, "LIVE_REFUSAL_WRONG_TOKEN"), "not-the-token", http.StatusUnauthorized, true},
+		{"body not JSON", http.MethodPost, path, []byte(`{"recipient": "` + target + `", LIVE_REFUSAL_MALFORMED`), server.Token, http.StatusBadRequest, false},
+		{"no such method", http.MethodPost, "/exa.language_server_pb.LanguageServerService/NoSuchMethod", body(target, "LIVE_REFUSAL_NO_METHOD"), server.Token, http.StatusNotFound, true},
+		{"GET", http.MethodGet, get, nil, server.Token, http.StatusMethodNotAllowed, true},
 	} {
 		status, got := request(tc.method, tc.path, tc.payload, tc.token)
 		t.Logf("MEASURED %-17s → HTTP %d: %s", tc.name, status, got)
 		if status != tc.want {
 			t.Errorf("%s: HTTP %d, want %d", tc.name, status, tc.want)
+		}
+		if r := peer.IsRefusal(status, []byte(got)); r != tc.refusal {
+			t.Errorf("%s: peer.IsRefusal reads HTTP %d %q as %v, want %v", tc.name, status, got, r, tc.refusal)
 		}
 	}
 	// The production path classifies a wrong token as a refusal.
@@ -199,7 +208,10 @@ func TestLiveAntigravitySendAgentMessageRefusals(t *testing.T) {
 	if !errors.As(err, &refused) {
 		t.Errorf("SendAgyServer with a wrong token: err = %v, want a RefusedError", err)
 	}
-	time.Sleep(20 * time.Second)
+	// One window for both cases: the refusals get as long to show a step as the valid request
+	// gets to show its text, and the valid one's latency is logged against it.
+	const window = 30 * time.Second
+	time.Sleep(window)
 	if after := transcript(target); after != before {
 		t.Errorf("the target conversation's transcript changed after the refused requests (%d → %d bytes)", len(before), len(after))
 	}
@@ -213,11 +225,16 @@ func TestLiveAntigravitySendAgentMessageRefusals(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("a valid SendAgentMessage answered %d: %s", status, got)
 	}
-	var arrived bool
-	for deadline := time.Now().Add(90 * time.Second); time.Now().Before(deadline) && !arrived; time.Sleep(time.Second) {
+	if r := peer.IsRefusal(status, []byte(got)); r {
+		t.Errorf("peer.IsRefusal reads the valid answer as a refusal")
+	}
+	sent, arrived := time.Now(), false
+	for deadline := sent.Add(window); time.Now().Before(deadline) && !arrived; time.Sleep(250 * time.Millisecond) {
 		arrived = strings.Contains(transcript(target), "LIVE_ACCEPTED_7")
 	}
 	if !arrived {
-		t.Error("a valid SendAgentMessage answered 200 and its text never reached the target conversation")
+		t.Errorf("a valid SendAgentMessage answered 200 and its text did not reach the target conversation within %s", window)
+	} else {
+		t.Logf("MEASURED the valid message arrived after %s (window %s)", time.Since(sent).Round(time.Millisecond), window)
 	}
 }

@@ -31,15 +31,16 @@ func fullBacklog(t *testing.T) string {
 		t.Fatal(err)
 	}
 	addr := fmt.Sprintf("127.0.0.1:%d", sa.(*syscall.SockaddrInet4).Port)
-	for i := 0; i < 8; i++ {
+	for i := 0; ; i++ {
+		if i == 8 {
+			t.Skip("the accept queue never filled, so no dial hangs here")
+		}
 		c, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
 		if err != nil {
 			return addr // the queue is full: this dial hung
 		}
 		t.Cleanup(func() { c.Close() })
 	}
-	t.Skip("the accept queue never filled, so no dial hangs here")
-	return ""
 }
 
 // A DIAL THAT NEVER COMPLETES NEVER SENT THE MESSAGE. The dial's own bound, below the request's, makes

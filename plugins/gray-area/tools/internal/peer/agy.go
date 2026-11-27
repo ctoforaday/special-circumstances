@@ -511,7 +511,7 @@ func SendAgyServer(client *http.Client, s Server, m AgyMessage, route Route) (De
 	if resp.StatusCode == http.StatusTooManyRequests {
 		return Delivery{}, &RateLimitedError{Address: s.Address, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	}
-	if refusedBeforeActing[resp.StatusCode] {
+	if IsRefusal(resp.StatusCode, bytes.TrimSpace(msg)) {
 		return Delivery{}, &RefusedError{Address: s.Address, Status: resp.StatusCode, Body: string(bytes.TrimSpace(msg))}
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -534,20 +534,36 @@ func (e *UnreachedError) Error() string {
 
 func (e *UnreachedError) Unwrap() error { return e.Err }
 
-// refusedBeforeActing is the statuses a language server was measured to answer only for a request it
-// never handled (TestLiveAntigravitySendAgentMessageRefusals, agy 1.5.18): 401, from the CSRF check
-// that runs before any method (a missing or a wrong token); 404, for a method that does not exist;
-// 405, for a method other than POST. Each left the named conversation without a step. A 400 is not
-// here: agy answers it for a body it cannot decode, before acting, but a method's own validation
-// answers it too, and the two are one status.
-var refusedBeforeActing = map[int]bool{
-	http.StatusUnauthorized:     true,
-	http.StatusNotFound:         true,
-	http.StatusMethodNotAllowed: true,
+// IsRefusal reports whether a SendAgentMessage answer of status and body is a refusal before any
+// handling: the shapes measured on agy 1.5.18 (TestLiveAntigravitySendAgentMessageRefusals), each
+// of which left the named conversation without a step —
+//   - 401 with the CSRF interceptor's Connect error: code "unauthenticated", message starting
+//     "unauthenticated: missing CSRF token" or "unauthenticated: invalid CSRF token";
+//   - 404 or 405 whose body is not a Connect error: the router's "404 page not found" and
+//     Connect's empty 405, which no handler writes.
+//
+// Every other shape is not a refusal — a 401 with another message, a 404 or 405 carrying a Connect
+// error, any 400 (a body agy cannot decode gets one, and so does a method's own validation) — so a
+// reworded or handler-level error reads as one that may have arrived, never as one that did not.
+func IsRefusal(status int, body []byte) bool {
+	var ce struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	connectError := json.Unmarshal(body, &ce) == nil && ce.Code != ""
+	switch status {
+	case http.StatusUnauthorized:
+		return connectError && ce.Code == "unauthenticated" &&
+			(strings.HasPrefix(ce.Message, "unauthenticated: missing CSRF token") ||
+				strings.HasPrefix(ce.Message, "unauthenticated: invalid CSRF token"))
+	case http.StatusNotFound, http.StatusMethodNotAllowed:
+		return !connectError
+	}
+	return false
 }
 
-// RefusedError is a SendAgyServer failure whose status a language server answers only for a request
-// it never handled (refusedBeforeActing): the message did not arrive.
+// RefusedError is a SendAgyServer failure IsRefusal reads as a refusal before any handling: the
+// message did not arrive.
 type RefusedError struct {
 	Address string
 	Status  int
