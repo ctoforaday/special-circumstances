@@ -5,14 +5,23 @@ not hooks, not MCP servers — so this is the one place they can be recorded.
 
 The record lives in $XDG_RUNTIME_DIR/gray-area/antigravity-servers (directory 0700,
 record 0600, gone at logout), keyed by server (PID and start time, or address),
-storing port and token. On Linux, because a restarted remote-control daemon loads any
+storing port and token. Each link also leaves an empty marker for the conversation in
+$XDG_RUNTIME_DIR/gray-area/antigravity-linked, which nothing deletes, so Gray Area's
+hook can tell a stale link from none. On Linux, because a restarted remote-control daemon loads any
 idle CLI conversation from disk when sent a message for it, linking any one
 daemon-hosted conversation makes every idle conversation under the CLI daemon root
 wakeable by telepathy send (a standalone interactive agy does not restore the daemon
-route). A link lasts until the server restarts; linking again with the same server
-writes nothing. Every other telepathy verb run from an Antigravity shell links as a
-side effect, and Gray Area's Antigravity hook asks for a link on the first step of
-any turn while its server has none.
+route). Each record lists the conversations linked to its server, each with when it
+last linked; linking again refreshes that time, and send prefers the running server
+a conversation linked to last. A link lasts until the server exits: this verb and
+every other one delete the records of servers that are gone, and keep a record
+whose process cannot be judged. Every other telepathy verb run from an Antigravity
+shell links as a side effect, and Gray Area's Antigravity hook asks for a link on
+the first step of any turn while neither its server nor the conversation has a
+running server's record. A record whose server cannot be judged running (no
+Antigravity process above the shell, or a host with no machine id) is never used
+by send, and link says so; the hook does not ask on a host with no machine id, nor
+while neither it nor the record finds an Antigravity process.
 
 A Claude Code session needs no link: its inbox socket is advertised for it.
 

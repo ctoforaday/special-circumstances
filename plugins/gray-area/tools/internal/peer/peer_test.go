@@ -3,6 +3,7 @@ package peer
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -41,7 +42,7 @@ func TestRegisterRecordsTheServerPrivatelyKeyedByServer(t *testing.T) {
 	if s.Key != wantKey || s.PID != 4242 || s.StartTime != 99999 || !s.Daemon || s.Address != "localhost:1234" || s.Token != "tok" || s.RegisteredAt != at.Unix() {
 		t.Fatalf("returned record = %+v", s)
 	}
-	byConv, err := LookupConversationServer(rt, "conv-1")
+	byConv, err := LookupConversationServer(rt, "conv-1", allLive)
 	if err != nil || byConv == nil || byConv.Key != wantKey {
 		t.Fatalf("LookupConversationServer = %+v, %v", byConv, err)
 	}
@@ -121,11 +122,11 @@ func TestRegisterConcurrentLinksPreserveAllConversations(t *testing.T) {
 	}
 }
 
-// ONCE PER SERVER LAUNCH. Every telepathy verb run from an Antigravity shell calls Register, so a
-// record that already names this server and conversation must not be rewritten; a second
-// conversation on the same server shares the same server record; a restarted server writes a new
-// server record.
-func TestRegisterWritesOncePerServerLaunchAndSharesAcrossConversations(t *testing.T) {
+// ONE RECORD PER SERVER LAUNCH. Every telepathy verb run from an Antigravity shell calls Register:
+// a conversation already listed is AlreadyLinked and keeps the record's first registration time; a
+// second conversation on the same server shares the same server record; a restarted server writes
+// a new server record.
+func TestRegisterKeepsOneRecordPerServerLaunchAndSharesAcrossConversations(t *testing.T) {
 	rt := t.TempDir()
 	h1 := hostID(100, 5000, true)
 	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok-a"), h1, at); got != Recorded || err != nil {
@@ -134,8 +135,8 @@ func TestRegisterWritesOncePerServerLaunchAndSharesAcrossConversations(t *testin
 	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:1", "tok-a"), h1, at.Add(time.Hour)); got != AlreadyLinked || err != nil {
 		t.Errorf("same server and conv again: RegisterWith = %v, %v; want AlreadyLinked", got, err)
 	}
-	if s, _ := LookupConversationServer(rt, "conv-1"); s == nil || s.RegisteredAt != at.Unix() {
-		t.Errorf("record = %+v; the same server's record was rewritten", s)
+	if s, _ := LookupConversationServer(rt, "conv-1", allLive); s == nil || s.RegisteredAt != at.Unix() {
+		t.Errorf("record = %+v; the server's first registration time moved", s)
 	}
 	// Second conversation on the same server joins the same record without bumping RegisteredAt.
 	if _, got, err := RegisterWith(rt, agyShell("conv-2", "localhost:1", "tok-a"), h1, at.Add(time.Hour)); got != Recorded || err != nil {
@@ -149,7 +150,7 @@ func TestRegisterWritesOncePerServerLaunchAndSharesAcrossConversations(t *testin
 	if _, got, err := RegisterWith(rt, agyShell("conv-1", "localhost:2", "tok-b"), h2, at.Add(2*time.Hour)); got != Recorded || err != nil {
 		t.Errorf("restarted server: RegisterWith = %v, %v; want Recorded", got, err)
 	}
-	if s, _ := LookupConversationServer(rt, "conv-1"); s == nil || s.Token != "tok-b" || s.Address != "localhost:2" || s.PID != 200 {
+	if s, _ := LookupConversationServer(rt, "conv-1", allLive); s == nil || s.Token != "tok-b" || s.Address != "localhost:2" || s.PID != 200 {
 		t.Errorf("record = %+v; want the restarted server", s)
 	}
 }
@@ -184,10 +185,10 @@ func TestRegisterRefusesAnIdThatIsAPath(t *testing.T) {
 }
 
 func TestLookupOfAnUnrecordedConversationIsNil(t *testing.T) {
-	if s, err := LookupConversationServer(t.TempDir(), "never"); s != nil || err != nil {
+	if s, err := LookupConversationServer(t.TempDir(), "never", allLive); s != nil || err != nil {
 		t.Errorf("LookupConversationServer = %v, %v; want nil, nil", s, err)
 	}
-	if s, err := LookupConversationServer("", "never"); s != nil || err != nil {
+	if s, err := LookupConversationServer("", "never", allLive); s != nil || err != nil {
 		t.Errorf("LookupConversationServer with no runtime dir = %v, %v; want nil, nil", s, err)
 	}
 	if s, err := LookupDaemonServer(t.TempDir(), ServerIdentity{PID: 1, StartTime: 2}); s != nil || err != nil {
@@ -281,11 +282,11 @@ func TestSendAgyServerSpeaksSendAgentMessage(t *testing.T) {
 	defer srv.Close()
 	addr := strings.TrimPrefix(srv.URL, "http://")
 	d, err := SendAgyServer(srv.Client(), Server{Address: addr, Token: "tok"},
-		AgyMessage{Recipient: "conv-1", Sender: "me", Title: "T", Content: "C"})
+		AgyMessage{Recipient: "conv-1", Sender: "me", Title: "T", Content: "C"}, RouteAgyHolderRecord)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Route != RouteAgyServer || d.Via != addr {
+	if d.Route != RouteAgyHolderRecord || d.Via != addr {
 		t.Errorf("delivery = %+v", d)
 	}
 	if gotPath != "/exa.language_server_pb.LanguageServerService/SendAgentMessage" || gotToken != "tok" {
@@ -304,9 +305,163 @@ func TestSendAgyServerRefusalIsAnError(t *testing.T) {
 		http.Error(w, "csrf", http.StatusForbidden)
 	}))
 	defer srv.Close()
-	_, err := SendAgyServer(srv.Client(), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "stale"}, AgyMessage{})
+	_, err := SendAgyServer(srv.Client(), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "stale"}, AgyMessage{}, RouteAgyOwnRecord)
 	if err == nil || !strings.Contains(err.Error(), "403") {
 		t.Errorf("err = %v, want the status named", err)
+	}
+}
+
+// ONLY A CONNECTION NEVER OPENED PROVES THE MESSAGE DID NOT ARRIVE. A refused connection is an
+// UnreachedError; a server that took the request and did not answer, or answered an error status,
+// is not.
+func TestSendAgyServerSaysWhetherTheMessageCanHaveArrived(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := ln.Addr().String()
+	ln.Close()
+
+	release := make(chan struct{})
+	hang := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer hang.Close()
+	defer close(release)
+	fail := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer fail.Close()
+	// A server that read the message and redirects to a port nobody listens on: followed, the
+	// redirect would fail as a dial, and a message the first server has would read as never sent.
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		http.Redirect(w, r, "http://"+closed+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	defer redirect.Close()
+	reset := resetAfterRequest(t)
+
+	// The refused case gets a long bound: a refused loopback connection can take a second to fail
+	// on Windows, and a deadline reached while dialling is not the refusal under test.
+	short, long := NewAgyClient(200*time.Millisecond), NewAgyClient(30*time.Second)
+	for _, tc := range []struct {
+		name, addr string
+		client     *http.Client
+		unreached  bool
+		op         string // the *net.OpError's Op the failure must carry, when it is one
+	}{
+		{"refused", closed, long, true, "dial"},
+		{"no answer", strings.TrimPrefix(hang.URL, "http://"), short, false, ""},
+		{"error status", strings.TrimPrefix(fail.URL, "http://"), short, false, ""},
+		{"reset after the request", reset, long, false, "read"},
+		{"redirect", strings.TrimPrefix(redirect.URL, "http://"), long, false, ""},
+	} {
+		_, err := SendAgyServer(tc.client, Server{Address: tc.addr, Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+		var u *UnreachedError
+		if err == nil || errors.As(err, &u) != tc.unreached {
+			t.Errorf("%s: err = %v, want unreached=%v", tc.name, err, tc.unreached)
+		}
+		var op *net.OpError
+		if tc.op != "" && (!errors.As(err, &op) || op.Op != tc.op) {
+			t.Errorf("%s: err = %v, want a %q *net.OpError: the case no longer exercises the shape it names", tc.name, err, tc.op)
+		}
+	}
+}
+
+// resetAfterRequest stands in a server that reads a whole request and then resets the connection,
+// and returns its address.
+func resetAfterRequest(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			if req, err := http.ReadRequest(bufio.NewReader(c)); err == nil {
+				_, _ = io.Copy(io.Discard, req.Body)
+			}
+			_ = c.(*net.TCPConn).SetLinger(0)
+			c.Close()
+		}
+	}()
+	return ln.Addr().String()
+}
+
+// A 429 DECLINED THE REQUEST: it is its own error, carrying the wait the server asked for.
+func TestSendAgyServerRateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "2")
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	_, err := SendAgyServer(NewAgyClient(5*time.Second), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+	var rl *RateLimitedError
+	if !errors.As(err, &rl) || rl.RetryAfter != 2*time.Second {
+		t.Errorf("err = %#v, want a RateLimitedError asking for 2s", err)
+	}
+}
+
+// A REFUSAL IS A MEASURED SHAPE, STATUS AND BODY; every other answer may follow handling. The
+// refused rows are agy 1.5.18's own bodies; the others are what a reworded interceptor or a
+// handler-level error would send.
+func TestSendAgyServerRefusedShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		status  int
+		body    string
+		refused bool
+	}{
+		{"401 missing CSRF token", 401, `{"code":"unauthenticated","message":"unauthenticated: missing CSRF token"}`, true},
+		{"401 invalid CSRF token", 401, `{"code":"unauthenticated","message":"unauthenticated: invalid CSRF token"}`, true},
+		{"404 from the router", 404, "404 page not found", true},
+		{"405 from Connect", 405, "", true},
+		{"401 with another message", 401, `{"code":"unauthenticated","message":"unauthenticated: session expired"}`, false},
+		{"401 that is not a Connect error", 401, "unauthorized", false},
+		{"401 with another code", 401, `{"code":"permission_denied","message":"unauthenticated: invalid CSRF token"}`, false},
+		{"404 carrying a Connect error", 404, `{"code":"not_found","message":"conversation not found"}`, false},
+		{"405 carrying a Connect error", 405, `{"code":"unimplemented","message":"no"}`, false},
+		{"400 from decoding", 400, `{"code":"invalid_argument","message":"unmarshal message: syntax error"}`, false},
+		{"403", 403, `{"code":"permission_denied","message":"no"}`, false},
+		{"500", 500, "boom", false},
+		{"503", 503, "", false},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(tc.status)
+			io.WriteString(w, tc.body)
+		}))
+		_, err := SendAgyServer(NewAgyClient(5*time.Second), Server{Address: strings.TrimPrefix(srv.URL, "http://"), Token: "tok"}, AgyMessage{}, RouteAgyOwnRecord)
+		srv.Close()
+		var r *RefusedError
+		if err == nil || errors.As(err, &r) != tc.refused || (tc.refused && r.Status != tc.status) {
+			t.Errorf("%s: err = %v, want refused=%v", tc.name, err, tc.refused)
+		}
+	}
+}
+
+func TestRetryAfter(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	for h, want := range map[string]time.Duration{
+		"":                              0,
+		"3":                             3 * time.Second,
+		" 7 ":                           7 * time.Second,
+		"-1":                            0,
+		"soon":                          0,
+		"Fri, 27 Nov 2026 12:00:04 GMT": 4 * time.Second,
+		"Fri, 27 Nov 2026 11:59:00 GMT": 0,
+	} {
+		if got := retryAfter(h, now); got != want {
+			t.Errorf("retryAfter(%q) = %s, want %s", h, got, want)
+		}
 	}
 }
 

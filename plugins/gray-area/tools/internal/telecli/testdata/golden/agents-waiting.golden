@@ -1,0 +1,15 @@
+SESSION    STATE       ACTS  LAST           CWD
+bbbbbbbb   unknown        1  Edit 29m ago   /work/beta
+aaaaaaaa   unknown        7  Read 1h ago    /work/alpha
+dddddddd   lost           0  —              /work/delta
+cccccccc   lost           0  —              /work/gamma
+
+  `unknown` means liveness could not be established — a foreign pid namespace, or a platform where this is not implemented. It is not `ended`.
+
+  `lost` is inferred, not measured: last active before the boot at 2026-09-09 11:40:00 UTC and not seen to end. `telepathy agents --lost` prints each with the commands that bring it back.
+
+waiting for Antigravity — messages in a conversation's mailbox that its client has not read:
+SESSION    WAITING  OLDEST                   NOTE
+aaaa1111         2  2026-09-08 22:15:00 UTC  1 yours, 1 from a shell, +1 agy notice
+bbbb2222         3  2026-09-09 11:00:00 UTC  2 unreadable
+cccc3333         0  —                        +2 agy notices

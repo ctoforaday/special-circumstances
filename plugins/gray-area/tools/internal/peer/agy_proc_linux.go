@@ -24,8 +24,8 @@ const daemonUnit = "antigravity-cli-daemon.service"
 func HostServer() ServerIdentity {
 	pid := os.Getppid()
 	for depth := 0; depth < 32 && pid > 1; depth++ {
-		ppid, comm, start, ok := readProcStat(pid)
-		if !ok {
+		ppid, comm, start, err := readProcStat(pid)
+		if err != nil {
 			break
 		}
 		if isAgyProcess(pid, comm) {
@@ -48,7 +48,7 @@ func HostServer() ServerIdentity {
 // /proc for an `agy remote-control serve` process.
 func CurrentDaemon() (ServerIdentity, bool) {
 	if pid, ok := systemdDaemonPID(); ok {
-		if _, _, start, ok := readProcStat(pid); ok && start > 0 {
+		if _, _, start, err := readProcStat(pid); err == nil && start > 0 {
 			return ServerIdentity{PID: pid, StartTime: start, Daemon: true}, true
 		}
 	}
@@ -67,7 +67,7 @@ func CurrentDaemon() (ServerIdentity, bool) {
 		if !isDaemonCmdline(pid) {
 			continue
 		}
-		if _, _, start, ok := readProcStat(pid); ok && start > 0 {
+		if _, _, start, err := readProcStat(pid); err == nil && start > 0 {
 			return ServerIdentity{PID: pid, StartTime: start, Daemon: true}, true
 		}
 	}
@@ -76,28 +76,39 @@ func CurrentDaemon() (ServerIdentity, bool) {
 
 // ProcessStartTime returns the kernel start time (clock ticks since boot) of pid from /proc/<pid>/stat.
 func ProcessStartTime(pid int) (int64, bool) {
-	if pid <= 0 {
-		return 0, false
-	}
-	_, _, start, ok := readProcStat(pid)
-	return start, ok && start > 0
+	start, err := procStartTime(pid)
+	return start, err == nil && start > 0
 }
 
-// otherDBHolder checks whether ANY live process (regardless of comm) other than excludePID holds
+// procStartTime is pid's start time in clock ticks since boot. Its error wraps fs.ErrNotExist only
+// when there is no such process; any other failure to read it is a different error, so a caller
+// can tell a process that is gone from one it could not look at.
+func procStartTime(pid int) (int64, error) {
+	if pid <= 0 {
+		return 0, fmt.Errorf("pid %d is not a process id", pid)
+	}
+	_, _, start, err := readProcStat(pid)
+	return start, err
+}
+
+// otherDBHolder finds a live process (regardless of comm) other than excludePID that holds
 // <agyRoot>/conversations/<conversation>.db (or its -wal/-shm) open.
 // Fails CLOSED: if /proc cannot be read, agyRoot cannot be canonicalised, or a same-UID
 // process's /proc/<pid>/fd cannot be read (for a reason other than the process exiting), it
-// reports busy with the reason.
-func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) {
+// reports HolderUninspectable with the reason.
+func otherDBHolder(agyRoot, conversation string, excludePID int) Holder {
+	uninspectable := func(format string, a ...any) Holder {
+		return Holder{Kind: HolderUninspectable, Detail: fmt.Sprintf(format, a...)}
+	}
 	if agyRoot == "" || conversation == "" {
-		return true, "conversation root is empty, so open handles cannot be verified"
+		return uninspectable("conversation root is empty, so open handles cannot be verified")
 	}
 	canonRoot, err := filepath.EvalSymlinks(agyRoot)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			canonRoot = filepath.Clean(agyRoot)
 		} else {
-			return true, fmt.Sprintf("cannot resolve conversation root %s: %v", agyRoot, err)
+			return uninspectable("cannot resolve conversation root %s: %v", agyRoot, err)
 		}
 	}
 	convDir := filepath.Join(canonRoot, "conversations")
@@ -106,13 +117,13 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 		if errors.Is(err, fs.ErrNotExist) {
 			canonConvDir = convDir
 		} else {
-			return true, fmt.Sprintf("cannot resolve conversations dir %s: %v", convDir, err)
+			return uninspectable("cannot resolve conversations dir %s: %v", convDir, err)
 		}
 	}
 	wantPrefix := filepath.Join(canonConvDir, conversation+".db")
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return true, fmt.Sprintf("cannot read /proc to verify no second writer: %v", err)
+		return uninspectable("cannot read /proc to verify no second writer: %v", err)
 	}
 	myUID := uint32(os.Getuid())
 	for _, e := range entries {
@@ -133,7 +144,7 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 			if errors.Is(err, fs.ErrNotExist) {
 				continue // process exited
 			}
-			return true, fmt.Sprintf("cannot stat %s to verify no second writer: %v", fdDir, err)
+			return uninspectable("cannot stat %s to verify no second writer: %v", fdDir, err)
 		}
 		if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Uid != myUID {
 			continue
@@ -143,7 +154,7 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 			if errors.Is(err, fs.ErrNotExist) {
 				continue // process exited between stat and ReadDir
 			}
-			return true, fmt.Sprintf("cannot inspect /proc/%d/fd to verify no second writer: %v", pid, err)
+			return uninspectable("cannot inspect /proc/%d/fd to verify no second writer: %v", pid, err)
 		}
 		for _, f := range fds {
 			target, err := os.Readlink(filepath.Join(fdDir, f.Name()))
@@ -151,53 +162,124 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) (bool, string) 
 				continue // fd closed or process exited
 			}
 			if target == wantPrefix || target == wantPrefix+"-wal" || target == wantPrefix+"-shm" {
-				return true, fmt.Sprintf("process pid %d already has conversations/%s.db open", pid, conversation)
+				return Holder{PID: pid, Kind: HolderDBOpen, Detail: fmt.Sprintf("pid %d has conversations/%s.db open", pid, conversation)}
 			}
 		}
 	}
-	return false, ""
+	return Holder{Kind: HolderNone}
 }
 
-// flockHeldOnlyBy reports whether /proc/locks shows FLOCK holders for path's inode and ALL of them
-// are excludePID. Returns false when any other PID holds the lock or /proc/locks cannot confirm.
-func flockHeldOnlyBy(path string, excludePID int) bool {
-	if excludePID <= 0 {
-		return false
-	}
+// flockHolders lists the pids /proc/locks shows holding a FLOCK on path's inode, without opening
+// path. Its error wraps fs.ErrNotExist when path does not exist.
+//
+// It refuses, with an error, where /proc/locks may not show the process holding the lock:
+//   - a pid it names has exited. /proc/locks names the process that TOOK a flock, and the lock
+//     lives as long as any descriptor sharing that open file, so a locker that passed its
+//     descriptor on and exited is named while the process now holding the lock is not;
+//   - it names no holder while the file is on a network filesystem, where a lock taken on
+//     another host is not in this host's /proc/locks.
+//
+// Stated limit: /proc/locks, like the /proc/<pid>/fd scan, sees only the processes of this procfs's
+// pid namespace. A holder outside it — an agy on the host while telepathy runs in a container that
+// shares its data — is invisible, and send can then create a second writer.
+func flockHolders(path string) ([]int, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return false
+		return nil, err
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return false
+		return nil, fmt.Errorf("no inode for %s", path)
 	}
 	raw, err := os.ReadFile("/proc/locks")
 	if err != nil {
-		return false
+		return nil, err
 	}
-	wantIno := strconv.FormatUint(st.Ino, 10)
-	sawExclude := false
-	for _, line := range strings.Split(string(raw), "\n") {
+	pids, err := lockHolders(string(raw), strconv.FormatUint(st.Ino, 10))
+	if err != nil {
+		return nil, err
+	}
+	for _, pid := range pids {
+		if _, err := os.Stat(fmt.Sprintf("/proc/%d", pid)); errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("/proc/locks names pid %d, which has exited, so the process now holding the lock is not named", pid)
+		}
+	}
+	if len(pids) == 0 {
+		if why := blindSpotOf(path); why != "" {
+			return nil, errors.New(why)
+		}
+	}
+	return pids, nil
+}
+
+// blindSpotOf is locksBlindSpot; a variable so a test can stand in a filesystem this box does not
+// have.
+var blindSpotOf = locksBlindSpot
+
+// locksBlindSpot says why /proc/locks may leave out a lock on path, or "" when it lists every lock
+// this host's kernel knows of.
+func locksBlindSpot(path string) string {
+	var sfs syscall.Statfs_t
+	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
+		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
+	}
+	if name := networkFS(uint32(sfs.Type)); name != "" {
+		return "the lock is on " + name + ", where a lock taken on another host is not in this host's /proc/locks"
+	}
+	return ""
+}
+
+// networkFS names the network or cluster filesystem with superblock magic m, or "". The magics are
+// include/uapi/linux/magic.h's and the filesystems' own headers'. FUSE (0x65735546) is not here:
+// most FUSE filesystems are local, and a FUSE client of a distributed one (GlusterFS, CephFS-fuse,
+// BeeGFS) is a stated blind spot.
+func networkFS(m uint32) string {
+	switch m {
+	case 0x6969:
+		return "NFS"
+	case 0x517B, 0xFF534D42, 0xFE534D42:
+		return "SMB"
+	case 0x00C36400:
+		return "Ceph"
+	case 0x5346414F, 0x6B414653:
+		return "AFS"
+	case 0x01021997:
+		return "9P"
+	case 0x01161970:
+		return "GFS2"
+	case 0x7461636F:
+		return "OCFS2"
+	case 0x0BD00BD0:
+		return "Lustre"
+	case 0x73757245:
+		return "Coda"
+	case 0x47504653:
+		return "GPFS"
+	}
+	return ""
+}
+
+// lockHolders reads /proc/locks text for the FLOCK holders of inode ino.
+func lockHolders(locks, ino string) ([]int, error) {
+	var pids []int
+	for _, line := range strings.Split(locks, "\n") {
 		fields := strings.Fields(line)
-		// Format: N: FLOCK ADVISORY WRITE <pid> <maj>:<min>:<ino> 0 EOF
+		// Format: N: FLOCK ADVISORY WRITE <pid> <maj>:<min>:<ino> 0 EOF. A waiter's line reads
+		// "N: -> FLOCK ...", so its second field is not FLOCK and it is not a holder.
 		if len(fields) < 6 || fields[1] != "FLOCK" {
 			continue
 		}
 		devIno := strings.Split(fields[5], ":")
-		if len(devIno) != 3 || devIno[2] != wantIno {
+		if len(devIno) != 3 || devIno[2] != ino {
 			continue
 		}
 		pid, err := strconv.Atoi(fields[4])
 		if err != nil {
-			return false
+			return nil, fmt.Errorf("/proc/locks names no pid for the lock: %q", line)
 		}
-		if pid != excludePID {
-			return false
-		}
-		sawExclude = true
+		pids = append(pids, pid)
 	}
-	return sawExclude
+	return pids, nil
 }
 
 func systemdDaemonPID() (int, bool) {
@@ -214,30 +296,33 @@ func systemdDaemonPID() (int, bool) {
 	return pid, true
 }
 
-// readProcStat parses ppid, comm, and starttime (field 22) from /proc/<pid>/stat.
-func readProcStat(pid int) (ppid int, comm string, startTime int64, ok bool) {
+// readProcStat parses ppid, comm, and starttime (field 22) from /proc/<pid>/stat. Its error wraps
+// fs.ErrNotExist when there is no such process, and is some other error when the file could not be
+// read or parsed.
+func readProcStat(pid int) (ppid int, comm string, startTime int64, err error) {
 	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {
-		return 0, "", 0, false
+		return 0, "", 0, err
 	}
+	malformed := fmt.Errorf("/proc/%d/stat is malformed", pid)
 	s := string(b)
 	open := strings.IndexByte(s, '(')
 	closeIdx := strings.LastIndexByte(s, ')')
 	if open < 0 || closeIdx <= open || closeIdx+2 >= len(s) {
-		return 0, "", 0, false
+		return 0, "", 0, malformed
 	}
 	comm = s[open+1 : closeIdx]
 	fields := strings.Fields(s[closeIdx+2:])
 	// fields[0] is state (field 3), fields[1] is ppid (field 4), fields[19] is starttime (field 22).
 	if len(fields) <= 19 {
-		return 0, "", 0, false
+		return 0, "", 0, malformed
 	}
 	ppid, err1 := strconv.Atoi(fields[1])
 	startTime, err2 := strconv.ParseInt(fields[19], 10, 64)
 	if err1 != nil || err2 != nil {
-		return 0, "", 0, false
+		return 0, "", 0, malformed
 	}
-	return ppid, comm, startTime, true
+	return ppid, comm, startTime, nil
 }
 
 func isAgyProcess(pid int, comm string) bool {

@@ -127,7 +127,7 @@ What it can do today:
 | `/gray-area:audit-repetition` | What was done more than once, and what was repeated three times back to back? |
 | `/gray-area:audit-seat-coverage` | Does the record name every subagent transcript that exists? |
 | `gray-area tools` | What did a given agent actually invoke? (command line) |
-| `telepathy agents` | Which agents are running on this box, and what is each doing — and which did the last restart cut off? |
+| `telepathy agents` | Which agents are running on this box, and what is each doing — which did the last restart cut off, and which Antigravity conversations have mail waiting? |
 | `telepathy touched` | Is anyone else acting on this file? |
 | `telepathy session` | One session's shape: calls and errors by tool |
 | `telepathy search` | Search every local transcript, joined back to who and when |

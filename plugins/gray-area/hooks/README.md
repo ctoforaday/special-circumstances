@@ -36,10 +36,22 @@ ride on `SessionStart`, because `SessionStart` does not fire when a conversation
 language server (observed, agy 1.5.0), and that is exactly when a link goes stale.
 
 The ask is one ephemeral message naming the telepathy binary beside the hook. It is sent only when
-there is no record for this conversation, or the recorded server no longer accepts a connection; a
-stale link is named as stale, because a conversation whose history already shows `linked` ignored
-a plain request. A hook cannot record the link itself: the server's token reaches an agent's shell
-commands and nothing else, and a hook can inject messages but never a tool call. Under a permission
+neither this conversation nor the server hosting it has a record whose server process is running.
+It is never sent where no record can be judged running and the ask would repeat on every turn: on
+a host with no pid domain (no `/etc/machine-id`, or not Linux), or when neither the hook nor the
+conversation's record finds an Antigravity process to name.
+
+A conversation that has linked before is told its earlier link points at a server that is no longer
+running, because one whose history already showed `linked` ignored the plain request; one that
+never linked gets the plain request, because a fresh conversation ignored the stale wording. The
+evidence of an earlier link is the conversation's marker under
+`$XDG_RUNTIME_DIR/gray-area/antigravity-linked`, which every telepathy verb run from an Antigravity
+shell leaves when it records the server, and nothing deletes: a gone server's record is pruned, so
+it cannot carry that fact. The marker is on tmpfs, so after a reboot a conversation that had linked
+is asked plainly.
+
+A hook cannot record the link itself: the server's token reaches an agent's shell commands and
+nothing else, and a hook can inject messages but never a tool call. Under a permission
 policy that prompts for shell commands, the ask costs the human one approval per conversation per
 server launch.
 
