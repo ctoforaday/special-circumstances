@@ -73,9 +73,6 @@ var referenceChecks = []struct {
 		extra: []string{"--severity", "low", "--reason", "r"}},
 	{verb: []string{"motion", "docket", "file", "close"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "not_a_defect", "--verified-by", "blue-respond", "--verified-with", "read", "--verified-against", "the report", "--reason", "r"}},
-	// The accept names the motion it answers, by its id.
-	{verb: []string{"motion", "docket", "accept"}, flag: "--id", against: "the motions on the record", bogus: "M-00000009",
-		extra: []string{"--reason", "r"}},
 	// THE LENS'S CHECK KEYS ON Q: it judges an inquiry blue proposed, and its flag is checked against
 	// the inquiries on the record before the write asks whose check it is.
 	{verb: []string{"inquiry", "check"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",

@@ -97,27 +97,6 @@ func docketMotion(t *testing.T, runDir, gap string) error {
 	return proposeRegradeOf(t, runDir, "blue-respond", gap, "low")
 }
 
-// A seat's own acts are never news to it: the assignee accepts blue's proposed regrade of its gap,
-// which writes its answer to the motion — a change to the gap — and then the regrade, an act on the
-// gap that is refused when the gap moved under it, in the same transaction.
-func TestASeatsOwnActsOnAGapNeverRefuseIt(t *testing.T) {
-	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "own", "false_universal")
-	exchangeOn(t, runDir, gap)
-	sit(t, runDir, lensSeat)
-	out, err := runAt(t, append(regradeProposalArgs(runDir, "blue-respond", gap, "low", "the harm needs two failures"), "--json")...)
-	if err != nil {
-		t.Fatalf("blue's proposal: %v", err)
-	}
-	if _, err := run(t, "motion", "docket", "accept", "--run", runDir, "--seat-id", lensSeat, "--id", filedMotionID(t, out),
-		"--reason", "the harm needs two failures"); err != nil {
-		t.Fatalf("the lens's accept, whose regrade follows its own answer: %v", err)
-	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_STALE); n != 0 {
-		t.Errorf("%d stale refusals recorded on a seat's own acts", n)
-	}
-}
-
 // An unchanged gap takes the act on the first call: a sitting that opened after the change has read it.
 func TestAnActOnAGapUnchangedSinceTheSittingOpenedLands(t *testing.T) {
 	runDir := seatRun(t)

@@ -234,12 +234,12 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			seat.UnplacedEvidenceRule,
 		}},
 		{"close --help", page(lensSeat, "close"), []string{
-			"under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included",
+			"under every disposition — `moot` and `not_a_defect` included",
 			"a `source` gap's fix that rewords the sentence leaves it unanswered until blue cites on the reworded sentence as that gap's answer",
 			"A demand you no longer hold is not yours to end: another seat proposes ending the gap, or the dispatch puts it before the bench at impasse, and the bench's closing ruling is not held to the demand.",
 		}},
 		{"mint --help", page(lensSeat, "mint"), []string{
-			"if the defect it closed is still in the report, that is a new gap — mint it naming that gap as the one it supersedes",
+			"if the defect it closed is still in the report, that is a new gap — mint it.",
 			"A gap about a retired citation or computation is refused, naming its retire",
 		}},
 		{"cite --help", page(blueSeat, "cite"), []string{

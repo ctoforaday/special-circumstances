@@ -145,21 +145,6 @@ func requiredProbes() map[string]requiredProbe {
 		args: fixed("motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low", "--reason", "r")}
 	probes["motion docket file close"] = requiredProbe{seat: "red-chair", setup: exchanged,
 		args: fixed(append([]string{"motion", "docket", "file", "close", "--id", "G1", "--reason", "r"}, closeFlags("not_a_defect")...)...)}
-	// The assignee's accept answers blue's proposal on its gap, read in a sitting of its own.
-	probes["motion docket accept"] = requiredProbe{seat: lensSeat,
-		setup: func(t *testing.T, runDir string) actVars {
-			exchangeOn(t, runDir, "G1")
-			out, err := runAt(t, "motion", "docket", "file", "regrade", "--run", runDir, "--seat-id", "blue-respond",
-				"--id", "G1", "--severity", "low", "--reason", "r", "--json")
-			if err != nil {
-				t.Fatalf("blue's proposal: %v", err)
-			}
-			must(t, runDir, "register", "--seat-id", lensSeat)
-			return actVars{"m": filedMotionID(t, out)}
-		},
-		args: func(v actVars) []string {
-			return []string{"motion", "docket", "accept", "--id", v["m"], "--reason", "r"}
-		}}
 	probes["fetch"] = requiredProbe{seat: lensSeat,
 		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/f": []byte("<html>the source</html>")}})

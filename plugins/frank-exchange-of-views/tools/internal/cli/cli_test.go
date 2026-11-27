@@ -173,7 +173,6 @@ func deliverBeforeActing(t *testing.T, args []string, seatID string) {
 	}
 	switch {
 	case len(words) >= 1 && (words[0] == "close" || words[0] == "spot-check"):
-	case len(words) >= 3 && words[0] == "motion" && words[2] == "accept":
 	default:
 		return
 	}

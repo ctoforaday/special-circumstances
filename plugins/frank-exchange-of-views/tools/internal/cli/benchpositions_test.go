@@ -170,13 +170,13 @@ func TestTheBenchChoosesBetweenThePartiesPositions(t *testing.T) {
 	t.Run("impasse: a flag outside the pair, two answers, and no answer are refused naming the pair", func(t *testing.T) {
 		runDir, gap, d := positionsRun(t)
 		conveneBench(t, runDir, gap)
-		for _, args := range [][]string{{"for-filer"}, {"keep"}, {"for-raiser", "--for-author"}} {
+		for _, args := range [][]string{{"keep"}, {"for-raiser", "--for-author"}} {
 			out, err := answerDocketing(t, runDir, d, args[0], append(args[1:], "--final")...)
 			if err == nil || !strings.Contains(err.Error()+out, "--for-raiser | --for-author") {
 				t.Errorf("%v: %v\n%s", args, err, out)
 			}
 		}
-		for _, gone := range []string{"--as", "--accept", "--reject"} {
+		for _, gone := range []string{"--as", "--accept", "--reject", "--for-filer", "--for-assignee"} {
 			out, err := runAt(t, "motion", "docket", "rule", "--run", runDir, "--seat-id", "judge", "--id", d, gone, "repaired", "--reason", "r")
 			if err == nil || !strings.Contains(err.Error()+out, "unknown flag") {
 				t.Errorf("%s on the docket ruling: %v\n%s", gone, err, out)
@@ -406,11 +406,11 @@ func lensRegrade(t *testing.T, runDir, gap, axis, grade string) (string, error) 
 	return run(t, "regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap, "--"+axis, grade, "--reason", "the lens's move")
 }
 
-// Lens against lens: a red seat's close proposal on another lens's gap puts the filer's proposal
-// against the assignee's text; --for-filer applies the close with its stored word, --for-assignee the
-// assignee's text, and red's pair is refused there.
-func TestALensProposalIsRuledForTheFilerOrTheAssignee(t *testing.T) {
-	for _, side := range []string{"for-filer", "for-assignee"} {
+// Lens against lens: a red seat's close proposal on another lens's gap is a filing that is not the
+// raiser's, and the docketing pairs it as the author's statement against the raiser's text:
+// --for-author applies the close with its stored word, --for-raiser the raiser's text.
+func TestALensProposalIsRuledForTheRaiserOrAsTheAuthors(t *testing.T) {
+	for _, side := range []string{"for-author", "for-raiser"} {
 		t.Run(side, func(t *testing.T) {
 			runDir := newRun(t)
 			seedCastWith(t, runDir, "red-lens-logic")
@@ -430,16 +430,11 @@ func TestALensProposalIsRuledForTheFilerOrTheAssignee(t *testing.T) {
 			}
 			d := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
 			conveneBench(t, runDir, gap)
-			for _, refused := range []string{"for-raiser", "for-author"} {
-				if out, err := answerDocketing(t, runDir, d, refused, "--final"); err == nil || !strings.Contains(err.Error()+out, "--for-filer | --for-assignee") {
-					t.Errorf("--%s on a lens's proposal: %v\n%s", refused, err, out)
-				}
-			}
 			if out, err := answerDocketing(t, runDir, d, side, "--final"); err != nil {
 				t.Fatalf("--%s: %v\n%s", side, err, out)
 			}
 			r := lastRuling(t, runDir)
-			want := map[string][2]string{"for-filer": {"filer", "moot"}, "for-assignee": {"assignee", "repaired"}}[side]
+			want := map[string][2]string{"for-author": {"author", "moot"}, "for-raiser": {"raiser", "repaired"}}[side]
 			if recordpb.Word(r.GetSidedWith()) != want[0] || recordpb.Word(r.GetDisposition()) != want[1] {
 				t.Errorf("the ruling = %v %v, want %v", r.GetSidedWith(), r.GetDisposition(), want)
 			}

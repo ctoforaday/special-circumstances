@@ -129,10 +129,9 @@ const (
 	rowRegrade      = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
 	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
 	rowFoundSource  = "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now"
-	rowClose        = "a successor naming the gap in --supersedes: mint it where the gap is yours, or propose it in a docket motion where it is not"
-	rowCarry        = "a supersede of the gap proposed in a docket motion"
+	rowClose        = "a new gap on the defect where it still stands in the report: a closed gap stays closed, and no mint names it"
+	rowCarry        = "a log entry: a carry restates a closure the record holds, which stands as its lens made it, and a defect still in the report is a new gap of the lens that finds it"
 	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only on a new docketing of it"
-	rowAccept       = "your own next act on the gap, which the accept made yours: a regrade at your next sitting while the gap is open, or a successor naming it in --supersedes once it is closed"
 	rowPetition     = "a declaration"
 	rowPositionRule = "a declaration"
 	rowInquiry      = "a new record of the inquiry's fate"
@@ -344,18 +343,6 @@ func answerDrives() []answerDrive {
 			k2 := docketNow(d.t, d.run, "G1", recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, again)
 			conveneBench(d.t, d.run, "G1")
 			d.admitted("the bench's ruling on the new docketing", "judge", rule(k2, "the gap again")...)
-		}},
-		// THE ASSIGNEE'S ACCEPT APPLIES THE ACT ANOTHER SEAT PROPOSED, and answers the proposal once.
-		{name: "an accept, the lens", row: rowAccept, helps: []string{"lens motion docket accept"}, drive: func(d drive) {
-			m := d.propose("blue's regrade proposal", "blue-respond", "regrade", "--severity", "high")
-			accept := func(text string) []string { return []string{"motion", "docket", "accept", "--id", m, "--reason", text} }
-			d.landed("the accept", lensSeat, accept("the proposal is right")...)
-			d.endsWithRow(d.refused("a second accept", lensSeat, accept("again")...), rowAccept)
-			// "a regrade at your next sitting while the gap is open".
-			regrade := []string{"regrade", "--id", "G1", "--severity", "low", "--reason", "the accept was wrong"}
-			d.refused("a regrade in the accepting sitting", lensSeat, regrade...)
-			d.nextSitting(lensSeat)
-			d.landed("the next sitting's regrade", lensSeat, regrade...)
 		}},
 		{name: "a ruling on a petition", row: rowPetition, helps: []string{"bench motion petition rule"}, drive: func(d drive) {
 			m := motionID(d.t, d.run, "motion", "petition", "file", "--seat-id", lensSeat,

@@ -297,7 +297,6 @@ func gapProbe(t *testing.T) entityProbe {
 			// may accept it, else the bench rules it.
 			{"motion docket file close", append([]string{"motion", "docket", "file", "close", "--id", "G1",
 				"--reason", "contested and not mine to close"}, closeFlags("not_a_defect")...)},
-			{"motion docket accept", []string{"motion", "docket", "accept", "--id", "M1", "--reason", "the proposal is right"}},
 			{"motion docket rule:remanded", docketRuleArgs("remanded")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},

@@ -141,25 +141,6 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 			append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "late"}, closeFlags("not_a_defect")...)...)
 	})
 
-	t.Run("requireNoClosingThisSitting on an undocketed gap: a closing under a proposal, then a second proposal", func(t *testing.T) {
-		// The chair proposes a regrade; blue files its closing under it; the assignee accepts it, so the
-		// gap is open with nothing standing; blue's proposal in the same sitting is refused.
-		runDir := newRun(t)
-		impasseBoard(t, runDir, 3, 1)
-		out, err := runAt(t, "motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures",
-			"--json", "--run", runDir, "--seat-id", "red-chair")
-		if err != nil {
-			t.Fatalf("the chair's regrade proposal: %v %s", err, out)
-		}
-		m := filedMotionID(t, out)
-		asSeat(t, runDir, "blue-respond", "register")
-		asSeat(t, runDir, "blue-respond", "closing", "--id", boardGap, "--reason", "blue's position")
-		asSeat(t, runDir, lens, "register")
-		asSeat(t, runDir, lens, "motion", "docket", "accept", "--id", m, "--reason", "the regrade is right")
-		actRefusedNaming(t, runDir, "blue's proposal after its closing in the sitting", "blue-respond", []string{"already filed its closing on " + boardGap + " in this sitting"},
-			append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "late"}, closeFlags("not_a_defect")...)...)
-	})
-
 	t.Run("docketHeld: the bench rules the standing docketing it is convened on, naming its proposal", func(t *testing.T) {
 		runDir, m, d := proposalDocketed(t)
 		conveneBench(t, runDir, boardGap)
@@ -236,16 +217,6 @@ func TestEveryDocketingDutyIsKeyedOnTheDocketing(t *testing.T) {
 		runDir, d := impasseDocketed(t)
 		actRefusedNaming(t, runDir, "the chair's proposal on a docketed gap", "red-chair", []string{"docketing " + d},
 			append([]string{"motion", "docket", "file", "close", "--id", boardGap, "--reason", "a second ask"}, closeFlags("not_a_defect")...)...)
-	})
-
-	t.Run("the assignee's accept is refused while a docketing stands (L27)", func(t *testing.T) {
-		runDir, m, d := proposalDocketed(t)
-		asSeat(t, runDir, lens, "register")
-		actRefusedOnRecord(t, runDir, "the assignee's accept of a docketed proposal", lens, []string{d, "the bench answers motion " + m}, "motion", "docket", "accept", "--id", m, "--reason", "the close is right")
-		// THE CONTROL: in the window the same accept lands.
-		r2, m2 := proposalInWindow(t)
-		asSeat(t, r2, lens, "register")
-		asSeat(t, r2, lens, "motion", "docket", "accept", "--id", m2, "--reason", "the close is right")
 	})
 
 	t.Run("the remand: the docketing's gap", func(t *testing.T) {

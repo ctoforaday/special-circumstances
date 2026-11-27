@@ -112,7 +112,6 @@ func TestRedGetsItsClosingAtTheFinalSitting(t *testing.T) {
 			t.Fatalf("plan = %+v, want the final sitting readying exactly the proposal's two closings", plan)
 		}
 		asSeat(t, runDir, lens, "register")
-		actRefusedOnRecord(t, runDir, "the assignee's accept", lens, final, "motion", "docket", "accept", "--id", m, "--reason", "the close is right")
 		argue(t, runDir)
 		asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
 		ruleProposalDocketing(t, runDir, m)
