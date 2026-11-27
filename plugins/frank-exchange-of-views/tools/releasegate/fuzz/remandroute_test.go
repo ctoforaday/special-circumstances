@@ -18,8 +18,8 @@ import (
 // both remands were stored and never acted on, and the run passed against the bench's holding.
 //
 // The drive reaches both: blue escalates a gap that is not material to the bench, which the
-// dispatch never dockets on its own, and the bench sitting convened on a docket filed on a gap its lens
-// had closed reaches for a remand before it rules. The sweep gates each at zero.
+// dispatch never dockets on its own, and the bench sitting convened on a docketing whose gap has
+// closed since reaches for a remand before it rules. The sweep gates each at zero.
 
 // escalateTrifle files blue's proposed close of an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
@@ -48,36 +48,6 @@ func (r *runner) escalateTrifle(seatID string) {
 	id := trifles[r.rng.Intn(len(trifles))]
 	r.admitFresh(id, proposeCloseArgs(seatID, id, "not_a_defect",
 		"fuzz: "+id+" is not material, and blue escalates it to the bench all the same")...)
-}
-
-// docketClosedGap is blue proposing the successor of a gap its lens closed and no docket motion has
-// named — the one act a proposal on a closed gap may propose, and the one that puts a closed gap before
-// the bench, whose sitting then reaches for the remand its scenario asks for. A gap with no counted
-// exchange is left alone: a proposal waits for one.
-func (r *runner) docketClosedGap(seatID string) {
-	if !r.coin(25) {
-		return
-	}
-	b, ok := r.board()
-	if !ok {
-		r.noteActErr("the record could not be read to docket a gap its lens closed")
-		return
-	}
-	named := map[string]bool{}
-	for _, m := range record.MotionsOf(b.Events, b.At) {
-		if m.Subject == "docket" {
-			named[m.GapID] = true
-		}
-	}
-	for _, d := range r.docketings() {
-		named[d.GapID] = true
-	}
-	for _, id := range r.closedGapIDs() {
-		if !named[id] && !r.closedThisSitting(seatID, id) && r.exchanged(id) {
-			r.proposeSuccessor(seatID, id, "fuzz: "+id+" closed, and blue puts the close before the bench")
-			return
-		}
-	}
 }
 
 // closeDocketed is a lens reaching for the close of a gap of its own while a docketing or a proposal

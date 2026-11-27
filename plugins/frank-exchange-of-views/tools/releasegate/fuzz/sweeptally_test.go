@@ -1148,7 +1148,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject across %d runs — it must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.completed)
 		}
 		// ONE_GAP_REDIRECTS (plans/findings-fold.md §III.A6): the refusal states the refused seat's road
-		// by whose gap holds the subject — its own gap's, superseded or regraded; another seat's, on the
+		// by whose gap holds the subject — its own gap's, regraded; another seat's, on the
 		// board already or disputed by a proposed act — and no road names a finding. Each road must be
 		// reached, or the text of the one unreached is unexercised behind a green sweep.
 		for _, road := range []string{"own", "another"} {

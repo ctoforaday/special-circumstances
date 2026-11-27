@@ -23,8 +23,7 @@ import (
 // where blue's acts include an evidence anchor placed as the gap's answer and a REACHING RETIRE, one
 // taking out the anchor the gap is about or whose reading it carries (gblock, 2026-11-03),
 // and after the bench's latest remand of it; and a gap blue is engaged on whose assignee's turn HAS
-// come must engage that lens too, so the rule never holds a lens off blue's answer. A gap a successor
-// superseded closed at the successor's mint, so no plan engages anyone on it.
+// come must engage that lens too, so the rule never holds a lens off blue's answer.
 //
 // A plan's docket comes after the lens: on universe-m37 the dispatch docketed six gaps with the lens's
 // audit of blue's answer still to come, and the lens closed five of them minutes after. A gap the plan

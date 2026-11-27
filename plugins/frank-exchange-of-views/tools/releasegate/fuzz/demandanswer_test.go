@@ -47,7 +47,7 @@ func demandBoard(t *testing.T) (*runner, map[string]string) {
 func TestTheDriveAnswersEachDemandBeforeItCloses(t *testing.T) {
 	r, kinds := demandBoard(t)
 	for kind, g := range kinds {
-		r.closeGap("red-chair", g, false)
+		r.closeGap("red-chair", g)
 		if r.actErr != "" {
 			t.Fatalf("closeGap of %s gap %s: %s", kind, g, r.actErr)
 		}

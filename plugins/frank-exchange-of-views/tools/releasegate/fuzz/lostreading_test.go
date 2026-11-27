@@ -123,7 +123,7 @@ func TestAOneGapRefusalOverAGapClosedUnderTheDriveIsNoted(t *testing.T) {
 		t.Fatalf("over the open gap: discharged %d (%s)", r.reading.debtsDischarged["other_seat_gap"], r.actErr)
 	}
 	// THE GAP CLOSED BETWEEN THE REFUSAL AND THE READ: a's debt stands, and the drive notes it.
-	r.closeGap(b, g, false)
+	r.closeGap(b, g)
 	if r.actErr != "" {
 		t.Fatalf("b's close of %s: %s", g, r.actErr)
 	}

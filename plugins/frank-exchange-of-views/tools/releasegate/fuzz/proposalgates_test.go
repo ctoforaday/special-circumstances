@@ -24,15 +24,15 @@ var proposalGateKeys = []struct{ key, what string }{
 	{"docketing:impasse", "docketings at impasse"},
 	{"docketing:proposal", "docketings holding a proposal"},
 	{"docketing:grade_movement", "docketings at grade movement"},
-	{"answer:impasse:red", "bench answers for red at impasse"},
-	{"answer:impasse:blue", "bench answers for blue at impasse"},
+	{"answer:impasse:raiser", "bench answers for the raiser at impasse"},
+	{"answer:impasse:author", "bench answers for the author at impasse"},
 	{"answer:impasse:remand", "remands at impasse"},
-	{"answer:proposal:red", "bench answers for red on a proposal"},
-	{"answer:proposal:blue", "bench answers for blue on a proposal"},
+	{"answer:proposal:raiser", "bench answers for the raiser on a proposal"},
+	{"answer:proposal:author", "bench answers for the author on a proposal"},
 	{"answer:grade_movement:kept", "grade-movement answers keeping the moved grades (--keep)"},
 	{"answer:grade_movement:restored", "grade-movement answers restoring the prior grades (--restore)"},
-	{"tombstone:placed:red", "ruling tombstones placed by a ruling for red"},
-	{"tombstone:placed:blue", "ruling tombstones placed by a ruling for blue"},
+	{"tombstone:placed:raiser", "ruling tombstones placed by a ruling for the raiser"},
+	{"tombstone:placed:author", "ruling tombstones placed by a ruling for the author"},
 	{"estopped_refused:regrade", "proposed regrades refused by a ruling's standing tombstone"},
 	{"closing_no_text", "red closings stating no text (--no-text)"},
 	{"closings_only_refused", "acts other than a closing refused in a closings-only sitting"},
@@ -44,9 +44,6 @@ var proposalGateKeys = []struct{ key, what string }{
 	{"motion:lens:regrade", "regrade proposals filed by another lens"},
 	{"motion:chair:close", "close proposals filed by the chair"},
 	{"motion:chair:regrade", "regrade proposals filed by the chair"},
-	{"assignee_accepts:close", "close proposals the assignee accepted as filed"},
-	{"assignee_accepts:regrade", "regrade proposals the assignee accepted as filed"},
-	{"accepts_refused", "assignee accepts the act's own checks refused"},
 }
 
 // proposalOracles is every proposalOracle key, each a defect at ANY count.
@@ -236,8 +233,7 @@ func TestEveryProposalGateKeyIsOneItsCountersWrite(t *testing.T) {
 	}
 	drives := map[string]bool{"estopped_refused:regrade": true,
 		"closing_no_text": true, "closings_only_refused": true,
-		"final_sitting_closings:red": true, "final_sitting_closings:blue": true,
-		"assignee_accepts:close": true, "assignee_accepts:regrade": true, "accepts_refused": true}
+		"final_sitting_closings:red": true, "final_sitting_closings:blue": true}
 	roles := map[string]bool{"blue": true, "lens": true, "chair": true}
 	acts := map[string]bool{}
 	for _, a := range []*recordpb.Motion{{Act: &recordpb.Motion_Close{}}, {Act: &recordpb.Motion_Regrade{}}} {

@@ -14,30 +14,28 @@ import (
 )
 
 // A PROPOSAL BY A SEAT THAT IS NOT THE GAP'S PARTY (§III.B9, amendment 5): another lens, or the chair,
-// proposes a close, a regrade or a successor of a lens's open gap, and the gap's assignee accepts it in
-// its window or leaves it for the bench, whose answer for the filer applies it and whose answer for the
-// assignee applies red's text. The sweep gates each (role, act) cell (motion:<role>:<act>); left to
-// blue's drives, no other filer ever proposed.
+// proposes a close or a regrade of a lens's open gap, and the dispatch dockets it for the bench, whose
+// answer for the author applies it and whose answer for the raiser — the gap's lens — applies red's
+// text. The sweep gates each (role, act) cell (motion:<role>:<act>); left to blue's drives, no other
+// filer ever proposed.
 
-// bystanderTurn rotates each filer role's act across the sweep's runs in one process — close, regrade,
-// supersede — so every cell is driven whichever runs reach the drive.
+// bystanderTurn rotates each filer role's act across the sweep's runs in one process — close, regrade
+// — so every cell is driven whichever runs reach the drive.
 var bystanderTurn = map[string]*atomic.Int64{"lens": {}, "chair": {}}
 
 // bystanderActs is the acts a bystander's proposal rotates through.
-var bystanderActs = []string{"close", "regrade", "supersede"}
+var bystanderActs = []string{"close", "regrade"}
 
 // proposeAsBystander is seatID — a lens, or the chair — proposing an act on another lens's open gap,
 // never in a run forced to a verdict: on a coin where a gap qualifies, and on bystanderSeed's run at
 // every sitting one does. The gap has had its counted exchange, holds no proposal or docketing, no
 // ruling's tombstone, is not seatID's own and not a dispute scenario's (whose one proposal is blue's
 // regrade). The coin is drawn only once a gap qualifies, so a run with none draws as it did. A proposal
-// the record admits once its read point is fresh is admitFresh's; a successor the assignee could not
-// mint is the record's answer (proposeSuccessor).
+// the record admits once its read point is fresh is admitFresh's.
 //
-// THE FORCED RUN OPENS ON A REGRADE. Its assignee leaves it to the bench (assigneeAnswers), and the
-// bench sides with the assignee against a regrade (benchRules): the assignee's side of a regrade
-// states the grades as they stand, so it is always stated, and `--for-assignee` lands. A close or a
-// supersede reaches that side only where the assignee's closing states text.
+// THE FORCED RUN OPENS ON A REGRADE, and the bench sides with the raiser against it (benchRules): the
+// raiser's side of a regrade states the grades as they stand, so it is always stated, and
+// `--for-raiser` lands. A close reaches that side only where the lens's closing states text.
 func (r *runner) proposeAsBystander(seatID string) {
 	role := seatclass.RoleOfSeat(seatID)
 	turn := bystanderTurn[role]
@@ -63,7 +61,7 @@ func (r *runner) proposeAsBystander(seatID string) {
 }
 
 // forcedBystanderActs is bystanderSeed's rotation, by filer role: a regrade first.
-var forcedBystanderActs = []string{"regrade", "close", "supersede"}
+var forcedBystanderActs = []string{"regrade", "close"}
 
 // bystanderGaps is the gaps seatID may propose on as a bystander (proposeAsBystander).
 func (r *runner) bystanderGaps(seatID string) []string {
@@ -109,15 +107,6 @@ func (r *runner) bystanderProposal(seatID, act, id string) string {
 		dim := pick(r.rng, free)
 		r.bystanderFiles(id, []string{"motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
 			"--" + dim, r.gradeOtherThan(r.currentGrade(id, dim)), "--reason", reason})
-	default:
-		// A SUCCESSOR OF A GAP THAT AWAITS A LIVE ANSWER carries its demand at the gap's check kind
-		// (gblock 2026-11-05), which a bystander's restatement does not type: such a gap is left out.
-		if r.awaitsEvidence(id) {
-			return ""
-		}
-		if r.bystanderFiles(id, r.proposeSupersedeArgs(seatID, id, reason)) == "successor_unmintable_refused" {
-			r.bystanderFiles(id, r.plainSuccessorArgs(seatID, id, reason))
-		}
 	}
 	return id
 }
@@ -125,15 +114,13 @@ func (r *runner) bystanderProposal(seatID, act, id string) string {
 // bystanderRefusals is each refusal a bystander's proposal meets as the record working as ruled, by the
 // words that name it, and its tally key: another seat's proposal landed on the gap since the drive read
 // it — the lenses sit in parallel, so two may draw one gap (a gap holds one proposal at a time, F5) —
-// the successor stated is one its assignee's mint could not write (L48), which another seat's act since
-// the read can make so, or the gap closed since the read.
+// or the gap closed since the read.
 var bystanderRefusals = []struct {
 	code       feov.Code
 	words, key string
 }{
 	{feov.Conflict, "a gap holds one proposal at a time", "one_proposal_refused"},
-	{feov.Validation, unmintableSuccessor, "successor_unmintable_refused"},
-	{feov.Conflict, "no act but a successor moves a closed gap", "closed_gap_refused"},
+	{feov.Conflict, "no proposed act moves a closed gap", "closed_gap_refused"},
 }
 
 // bystanderFiles is a bystander's filing of args on gapID: admitted, or refused by one of
@@ -171,29 +158,10 @@ func (r *runner) bystanderProposedOn(gapID string) bool {
 	return false
 }
 
-// awaitsEvidence reports whether gapID awaits a live answer, as its assignee's work list reads it.
-func (r *runner) awaitsEvidence(gapID string) bool {
-	r.mu.Lock()
-	minter := r.minter[gapID]
-	r.mu.Unlock()
-	w, err := record.WorkOfSeat(r.run(), "lens", minter)
-	if err != nil {
-		r.noteActErr(minter + "'s work list could not be read: " + err.Error())
-		return true
-	}
-	for _, g := range w.Open {
-		if g.ID == gapID {
-			return g.AwaitingEvidence
-		}
-	}
-	return false
-}
-
-// BYSTANDERSEED'S RUN REACHES `--for-assignee`, pinned deterministically: another lens's regrade on a
-// lens's gap, filed after the gap's counted exchange, is left by the assignee to the bench, docketed at
-// the next plan, and the bench sides with the assignee — the one answer only a red seat's proposal on
-// another red seat's gap takes.
-func TestABystandersRegradeIsLeftToTheBenchWhichSidesWithTheAssignee(t *testing.T) {
+// BYSTANDERSEED'S RUN REACHES THE BENCH ON ANOTHER LENS'S REGRADE, pinned deterministically: filed on a
+// lens's gap after its counted exchange, it is docketed at the next plan, and the bench sides with the
+// raiser — the gap's lens.
+func TestABystandersRegradeIsLeftToTheBenchWhichSidesWithTheRaiser(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
 	stageRun, err := record.NewRun(runDir)
@@ -237,12 +205,6 @@ func TestABystandersRegradeIsLeftToTheBenchWhichSidesWithTheAssignee(t *testing.
 	if ms := r.unruledDocketMotions(gapID); len(ms) != 1 {
 		t.Fatalf("proposals standing on %s after the bystander's filing = %v, want one", gapID, ms)
 	}
-	r.dispatchSits("lens", lens)
-	r.assigneeAnswers(lens, gapID)
-	r.dispatchReturns(lens, false)
-	if got := r.docketTally()["assignee_accepts:regrade"]; got != 0 {
-		t.Fatalf("the assignee accepted the bystander's regrade %d time(s) on bystanderSeed's run, want none", got)
-	}
 
 	r.partiesClose(t, lens)
 	r.dispatchSits("bench", "judge", "docket")
@@ -250,8 +212,8 @@ func TestABystandersRegradeIsLeftToTheBenchWhichSidesWithTheAssignee(t *testing.
 	if r.actErr != "" {
 		t.Fatalf("the bench's ruling: %s", r.actErr)
 	}
-	if got := r.docketTally()["answer:proposal:assignee"]; got != 1 {
-		t.Errorf("answer:proposal:assignee = %d, want the bench's one answer for the assignee; tally %v", got, r.docketTally())
+	if got := r.docketTally()["answer:proposal:raiser"]; got != 1 {
+		t.Errorf("answer:proposal:raiser = %d, want the bench's one answer for the raiser; tally %v", got, r.docketTally())
 	}
 	r.dispatchReturns("judge", r.envelopeEnds("judge"))
 }

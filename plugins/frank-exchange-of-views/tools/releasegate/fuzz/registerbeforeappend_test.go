@@ -70,7 +70,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		t.Fatal("blue-respond is already registered before closeGap ran — the setup no longer reproduces the ordering this pins")
 	}
 
-	r.closeGap("red-chair", gapID, false)
+	r.closeGap("red-chair", gapID)
 	if r.actErr != "" {
 		t.Fatalf("closeGap: %s", r.actErr)
 	}

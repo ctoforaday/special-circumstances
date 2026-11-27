@@ -8,7 +8,7 @@ package fuzz
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
 // not a happy path: lens (verify/mint/inquiry/log/closing), merge (position/
-// mint/close incl. repaired_with_regression/regrade any axis/
+// mint/close/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (closing/dispute
 // across all four dimensions/inquiry/retire/petition), bench
 // (opinion/outcome/certify/assemble/petition-rule). The
@@ -921,8 +921,8 @@ type runner struct {
 	partsRecorded int
 	withheld      map[string]bool
 	// proposalGates counts the proposed-act and docketing drives the sweep gates by key (countGate):
-	// the successor refusals a filer reads and answers, the acts a closings-only sitting refuses and the
-	// closings it files, the proposals a ruling's tombstone bars. The counts read off the stream at the
+	// the sides that stated nothing refused, the acts a closings-only sitting refuses and the closings
+	// it files, the proposals a ruling's tombstone bars. The counts read off the stream at the
 	// run's end — docketings by cause, the bench's answers by cause and side, ruling tombstones by side —
 	// join them in the run's outcome (docketTally).
 	proposalGates map[string]int
@@ -1446,10 +1446,10 @@ func (r *runner) fileClosing(seatID, id string) bool {
 }
 
 // blueClosingWords is each closing word blue's closing may state at an impasse docketing; blueRefusedWords
-// the two it may not, each driven to its refusal.
+// the one it may not, a word that closes nothing, driven to its refusal.
 var (
 	blueClosingWords = []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "moot"}
-	blueRefusedWords = []string{"repaired_with_regression", "amends_prior"}
+	blueRefusedWords = []string{"remanded"}
 )
 
 // blueClosingWord is the --as blue's closing on gap id states, by a draw: at a gap docketed at impasse, a
@@ -4808,13 +4808,12 @@ func (r *runner) freeClass(args []string) {
 }
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
-// subject — a gap still open now was open at the write, since a closed gap does not reopen — unless
-// the mint names it in --supersedes.
+// subject — a gap still open now was open at the write, since a closed gap does not reopen.
 func (r *runner) checkOneGap(gapID string, args []string) {
 	open, _ := r.sameClassAndSubject(argOf(args, "--class"), args)
 	order := r.mintOrder()
 	for _, g := range open {
-		if g.ID != gapID && order[g.ID] < order[gapID] && !strings.Contains(argOf(args, "--supersedes"), g.ID) {
+		if g.ID != gapID && order[g.ID] < order[gapID] {
 			r.noteActErr(fmt.Sprintf("mint admitted %s while %s, of its class %s, stood open on its subject", gapID, g.ID, g.Class))
 			return
 		}
@@ -4839,7 +4838,7 @@ func (r *runner) mintOrder() map[string]int {
 // mintOverOpen is the first wave's race, driven: as lens seatID, a mint of the class of an open gap,
 // on its subject — its marked sentence or its inquiry — drawn from other lenses' gaps where the board
 // holds any, and from the lens's own on a coin. The record refuses it naming that gap and the road
-// from it (oneGapAnswered): the lens's own gap is superseded or regraded, another lens's is already
+// from it (oneGapAnswered): the lens's own gap is regraded, another lens's is already
 // on the board or disputed by a proposed act. An admission fails the run unless the gap has closed
 // since the board was read.
 func (r *runner) mintOverOpen(seatID string) {
@@ -4907,7 +4906,7 @@ func (r *runner) mintOverOpen(seatID string) {
 }
 
 // mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from red's
-// own --fix-new, with no --supersedes naming the gap that prescribed it. That is exactly the shape
+// own --fix-new. That is exactly the shape
 // lens/mint.go refuses, and the refusal is what writes the tool's `log --type estoppel` entry. The
 // guard keys on the TEXT, not the seat (record.EstoppelConflict), so any lens's mint against the
 // prescription is refused, not only the prescribing lens's.
@@ -5053,12 +5052,11 @@ func (r *runner) openGaps() []string {
 	return ids
 }
 
-// closeGap closes gap id from the sitting lens. The close itself, the regression close and the
-// amends_prior close are issued as the gap's ORIGINATOR — the lens whose mint created it — because
-// the record refuses a close from anyone else (roundless §III.B.3, requireOriginator); the chair
-// dispatching that lens is what this driver models by looking the minter up. A successor minted
-// here is the closer's own. The chair's `carry` lives in carryPrior.
-func (r *runner) closeGap(chairID, id string, allowReg bool) {
+// closeGap closes gap id from the sitting lens. The close is issued as the gap's ORIGINATOR — the
+// lens whose mint created it — because the record refuses a close from anyone else (roundless
+// §III.B.3, requireOriginator); the chair dispatching that lens is what this driver models by looking
+// the minter up. The chair's `carry` lives in carryPrior.
+func (r *runner) closeGap(chairID, id string) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
 	if !r.openOnRecord(id) {
 		return
@@ -5117,52 +5115,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			}
 		}
 	}
-	// A regression close carries lineage forward: it mints a successor and closes WITH it
-	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
-	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
-	if allowReg && r.coin(35) {
-		// THE CLOSER MINTS ITS OWN SUCCESSOR: it is the seat that is sitting. Where it mints none —
-		// its stock is spent, or the mint is refused — the close is forwarded to a gap the board
-		// already holds open, which is what a successor is: a real, still-open gap, and the record
-		// refuses a dead-end forwarding address either way.
-		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
-		// THE SUCCESSOR CARRIES THE REGRESSION, and does not supersede the gap: a mint superseding it
-		// would close it before its repair could be recorded.
-		succ := ""
-		if r.mintsFresh(closer) {
-			succ = r.mint(closer)
-		}
-		if succ == "" {
-			for _, other := range r.openGaps() {
-				if other != id {
-					succ = other
-					break
-				}
-			}
-		}
-		if succ != "" {
-			if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "repaired_with_regression",
-				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
-				return
-			}
-		}
-	}
 	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
 	// enum-coverage sweep now demands every value be reached — and three of them
 	// (not_a_defect, defect_accepted, defect_owed_elsewhere) had never been driven by
 	// anything, on either closing verb, in the tool's life.
-	//
-	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
-	// closed clean earlier, so it needs a prior closure to amend.
-	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
-	// 60 runs. The precondition is already the rare part.
-	if prior := r.closedGapIDs(); len(prior) > 0 {
-		if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "amends_prior",
-			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
-			"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
-			return
-		}
-	}
 	// `moot` IS DRIVEN ONCE PER SWEEP, NOT MIXED INTO THE POOL. The vocabulary is shared between
 	// the closing verbs (#342), so a word added for the bench's docket ruling reaches this verb
 	// too, and the enum-coverage gate names it the moment it exists without a drive.
@@ -5232,11 +5188,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 }
 
 // openOnRecord reports whether the record reads gap id open NOW — the one place the drive asks before it
-// acts on a gap it chose from a list read earlier (the plan's, a sitting's, its own). A mint superseding
-// an open gap closes it in that act (ruled by gblock 2026-11-04), so a gap the drive chose open can be
-// closed by the time it acts: a later mint of the same sitting, the successor a regression close mints
-// among them, superseded it, and the record refuses every act on it naming the successor. A read that
-// fails is reported and answers false, so nothing is aimed at a gap the drive cannot see.
+// acts on a gap it chose from a list read earlier (the plan's, a sitting's, its own): a gap the drive
+// chose open can be closed by the time it acts — by the bench's ruling, or by its lens's close in an
+// earlier act of the sitting. A read that fails is reported and answers false, so nothing is aimed at
+// a gap the drive cannot see.
 func (r *runner) openOnRecord(id string) bool {
 	fam, err := record.FamilyOf(r.run())
 	if err != nil {
@@ -5459,8 +5414,7 @@ func (r *runner) doneButOpen(id, fix string, open bool) bool {
 // already holds, from an earlier epoch, with --carried-from naming that epoch. It used to run inside
 // closeGap — a lens act — and so ran in the lens's sitting under the chair's seat id; the chair sits
 // first each epoch now, so it is driven from the chair branch, where the seat performing it is the
-// seat that is sitting. The successor a carry may name is an OPEN gap the board already holds: the
-// chair mints nothing, so it forwards to a gap a lens minted.
+// seat that is sitting.
 func (r *runner) carryPrior(seatID string) {
 	// A CARRY restates last round's verification rather than asserting a fresh act, so it is its
 	// own verb and takes --carried-from instead of the verification triple. IT IS THE CHAIR'S —
@@ -5502,11 +5456,6 @@ func (r *runner) carryPrior(seatID string) {
 		// how the annotation deleted it silently. Both shapes are legal and both are driven.
 		if r.coin(50) {
 			carry = append(carry, "--reason", "fuzz: carried from the prior round")
-		}
-		// --superseded-by NAMES A REGRESSION, and only beside --as repaired_with_regression: on a
-		// carry restating a repair it is refused, and the carry without it is admitted.
-		if open := r.openGaps(); len(open) > 0 && r.coin(20) {
-			r.refuse(feov.Validation, append(slices.Clone(carry), "--superseded-by", open[r.rng.Intn(len(open))])...)
 		}
 		r.admit(carry...)
 	}
@@ -6233,7 +6182,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
-			r.docketClosedGap(seatID)
 			r.reconsider(seatID)
 		}
 		r.extras("blue", seatID, open)
@@ -6439,9 +6387,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.lensMovesBenchAxis(seatID)
 		engaged := slices.DeleteFunc(r.engaged(seatID), func(id string) bool { return id == leftClosed })
 		for _, id := range engaged {
-			// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE, read at each act: a
-			// mint of this sitting's — the successor a regression close mints among them — may have
-			// superseded one since (openOnRecord).
+			// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE, read at each act
+			// (openOnRecord).
 			if !r.openOnRecord(id) {
 				continue
 			}
@@ -6449,30 +6396,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if r.presented.has(id) {
 				r.evaluated.add(id)
 			}
-			// A PROPOSAL STANDING IN THE ASSIGNEE'S WINDOW is answered at its sitting, by a seeded draw:
-			// accepted as filed, or left for the dispatch to docket.
-			if d != dirDisputeWon {
-				r.assigneeAnswers(seatID, id)
-				if !r.openOnRecord(id) {
-					continue
-				}
-			}
 			// BLUE SITS AFTER THE LENSES IN AN EPOCH, so a gap the plan engages both on has not
 			// been answered yet the first time the lens sees it: closing it then is red closing
 			// on nothing — which is exactly what left `--answers`, verbatim application and the
 			// estoppel guard undriven across forty runs. A lens closes a gap blue has SAT on.
 			switch {
 			case satisfied(d) && r.presented.has(id):
-				// ONE COIN, NOT TWO — see closeGap: the regression close is sampled in exactly
-				// one place, so it is driven rather than multiplied down to noise.
-				r.closeGap(seatID, id, true)
+				r.closeGap(seatID, id)
 			case d == dirCompute && r.reproduced.has(id):
-				r.closeGap(seatID, id, false)
+				r.closeGap(seatID, id)
 			case d == dirDisputeWon && r.presented.has(id) && r.disputeFiled.has(id):
-				// THE ASSIGNEE ACCEPTS THE REGRADE BLUE PROPOSED, and the tool applies it as filed;
-				// the gap, no longer before the bench, is then its lens's to close.
-				r.acceptProposal(seatID, id)
-				r.closeGap(seatID, id, false)
+				// THE REGRADE BLUE PROPOSED IS DOCKETED AND THE BENCH SIDES WITH IT (docketAnswer): the
+				// gap, no longer before the bench, is then its lens's to close.
+				if !r.beforeTheBench(id) {
+					r.closeGap(seatID, id)
+				}
 			default:
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
 				// regrade is movement, so sample one — by the minter, which this seat is. EVERY
@@ -6937,8 +6875,8 @@ type outcome struct {
 	// maxOpenPerClassSentence is the most open gaps of one class standing in one sentence of the
 	// report at the run's end, read off the stored record.
 	maxOpenPerClassSentence int
-	// oneGapBreach names the first pair of open gaps of one class in one sentence that no --supersedes
-	// relates, where the run ended holding one: the gaps, the class and the sentence.
+	// oneGapBreach names the first pair of open gaps of one class in one sentence, where the run ended
+	// holding one: the gaps, the class and the sentence.
 	oneGapBreach string
 	// WHAT HELD THE RUN OPEN, said by the run itself (PR #1642's four, F7): finalBlockers is the last
 	// relayed plan's blockers by kind and finalParties the seats it readied; mintsByEpoch and
@@ -8169,11 +8107,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// ruling for blue closes it with no edit (a ruling for red applies red's text as an edit
 				// answering it). The bench's close of a gap is that gap's answer, as COMPUTE reads it.
 				// AND A SPAN THE FREEZE HOLDS IS THE RECORD'S ANSWER: red's text in its closing on a docketed
-				// gap, or a standing supersede's quote, holds the sentence until its ruling, and blue's edit of
-				// it is refused naming the statement (record/freeze.go).
+				// gap holds the sentence until its ruling, and blue's edit of it is refused naming the
+				// statement (record/freeze.go).
 				// AND A BYSTANDER'S PROPOSAL ON IT IS ITS ANSWER where it closed the gap: another lens's or the
-				// chair's proposed close or supersede, which the assignee accepted or the bench sided with,
-				// closes the gap with no edit of blue's (proposeAsBystander).
+				// chair's proposed close, which the bench sided with, closes the gap with no edit of blue's
+				// (proposeAsBystander).
 				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) && !(!g.Open && r.bystanderProposedOn(id)) {
 					r.mu.Lock()
 					why := cmp.Or(r.unanswered[id], "no refusal of blue's edit answering it was recorded")
@@ -8764,6 +8702,9 @@ var coverExempt = map[string]bool{
 	// NO DRIVE OF THE SWEEP WRITES A DOCKETING YET: the dispatch writes it, and the sweep's dispatch
 	// drive files the docket motion. The exemption goes when the dispatch writes docketings.
 	"docketing": true,
+	// AN AMEND IS WRITTEN BY MIGRATE replaying an archived supersede link; the verb that records one
+	// lands with R4, and the exemption goes with it.
+	"amend": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -9710,8 +9651,7 @@ func (r *runner) checkInquiries(seatID string) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
 				continue
 			}
-			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and left again before the re-read —
-			// superseded or closed — so the inquiry reads unchecked on both sides of a refusal that
+			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and closed again before the re-read, so the inquiry reads unchecked on both sides of a refusal that
 			// named the gap (composedsource_test.go).
 			r.mu.Lock()
 			composedBeside := r.composedInquiry == j.ID && r.composedGap != composedBefore
@@ -9938,8 +9878,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// shape the hyphenated grade words produced.
 			proposed := r.gradeOtherThan(r.currentGrade(id, dim))
 			// THE CONTEST IS A PROPOSED REGRADE, filed once per gap: the gap holds one proposal at a
-			// time, and its assignee accepts it (dirDisputeWon) or leaves it for the bench, which
-			// rejects it (dirDisputeLost). It is refused before the gap's first counted exchange, and
+			// time, and the bench sides with it (dirDisputeWon) or rejects it (dirDisputeLost). It is refused before the gap's first counted exchange, and
 			// blue files it again at a later sitting. A GAP BEFORE THE BENCH IS FILED ON ALL THE SAME: the
 			// record refuses a proposal on a docketed gap, or on one another proposal stands on, and the
 			// refusal kept is what the oracle reads.
@@ -10060,7 +9999,7 @@ func (r *runner) noteUnanswered(gapID, why string) {
 }
 
 // applyHeldByFreeze reports whether blue's last attempt to answer gapID was refused by the freeze — red's
-// text in a closing, or a standing supersede's quote, holds the span until its ruling — the record's
+// text in a closing holds the span until its ruling — the record's
 // answer to an APPLY the scenario asked for.
 func (r *runner) applyHeldByFreeze(gapID string) bool {
 	r.mu.Lock()
@@ -10513,8 +10452,7 @@ func (r *runner) unruledDocketMotions(gapID string) []string {
 const settledByFuzzBench = "the proposition this ruling bars"
 
 // benchDisposes is the bench answering each docketing standing on gapID, for the outcome want: the
-// dispatch writes the docketing — at impasse, at grade movement, or holding a proposal its assignee did
-// not accept in its window — and convenes the bench on it, and the bench answers it (docketAnswer). A
+// dispatch writes the docketing — at impasse, at grade movement, or holding a proposal — and convenes the bench on it, and the bench answers it (docketAnswer). A
 // gap the bench sits on with no docketing standing is open only where the dispatch convened it on
 // nothing; a close of the gap ends its docketing unruled. It reports whether a remand landed.
 func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (remanded bool) {

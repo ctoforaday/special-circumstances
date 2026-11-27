@@ -13,12 +13,12 @@ import (
 
 // THE LOCK A RULING ON A GRADE HOLDS (amendments 2–4, gblock 2026-11-20): the bench writes no grade of
 // its own; a ruling on a grade — a side of a regrade proposal's pair, or --keep | --restore at grade
-// movement — locks each axis it decided at the grade it leaves, the assignee may not move it back, a
-// successor carries it, and the ruling's tombstone ending ends it.
+// movement — locks each axis it decided at the grade it leaves, the assignee may not move it back, and
+// the ruling's tombstone ending ends it.
 //
 // The drive reaches each: the assignee of a gap a ruling locked reaches to move a locked axis and is
-// refused; blue proposes on a gap the bench ruled closed, first a regrade (refused, the gap being
-// closed or its ruling's tombstone standing) and then its successor. benchOrdersSeed's run takes every
+// refused; blue proposes a regrade on a gap the bench ruled closed, refused, the gap being closed or
+// its ruling's tombstone standing. benchOrdersSeed's run takes every
 // arm on every gap that reaches it.
 
 // benchOrdersPct is how often a drawn run takes each arm where it can.
@@ -191,10 +191,9 @@ func (r *runner) lensMovesBenchAxis(seatID string) {
 }
 
 // reconsider is blue putting a gap the bench ruled closed before it again. While the ruling's tombstone
-// stands, a proposed regrade of it and a proposed successor are each refused naming the tombstone — the
-// ruling is final for the ruled gap's text until a reword ends it (estopped_refused); once a reword
-// ended it, the regrade is refused as a proposal on a closed gap, and the successor — the one act a
-// proposal on a closed gap may propose — is admitted. A gap before the bench is left to it.
+// stands, a proposed regrade of it is refused naming the tombstone — the ruling is final for the ruled
+// gap's text until a reword ends it (estopped_refused); once a reword ended it, the regrade is refused
+// as a proposal on a closed gap, which no proposed act moves. A gap before the bench is left to it.
 func (r *runner) reconsider(seatID string) {
 	if !r.benchOrdersArm() {
 		return
@@ -224,9 +223,8 @@ func (r *runner) reconsider(seatID string) {
 		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was admitted: %s", id, firstLine(out)))
 	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands):
 		r.countGate("estopped_refused:regrade")
-		r.estoppedSuccessorRefused(seatID, id)
 	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, "gap "+id+" is closed"):
-		r.proposeSuccessor(seatID, id, "fuzz: the bench ruled "+id+" closed, and blue proposes the statement that replaces it")
+		// A CLOSED GAP IS MOVED BY NO PROPOSED ACT: a defect still in the report is a new gap, its lens's.
 	default:
 		r.noteActErr(fmt.Sprintf("blue's proposed regrade of %s, which the bench ruled closed, was refused, and neither by its ruling's tombstone nor as a closed gap's: %s", id, firstLine(out)))
 	}
@@ -249,19 +247,4 @@ func (r *runner) tombstoned() (gaps map[string]bool, ok bool) {
 		gaps[e.ID] = true
 	}
 	return gaps, true
-}
-
-// estoppedSuccessorRefused is blue proposing the successor of gapID while its ruling's tombstone
-// stands: refused naming the tombstone, as the regrade was.
-func (r *runner) estoppedSuccessorRefused(seatID, gapID string) {
-	out, err := r.exec(withJSON(r.plainSuccessorArgs(seatID, gapID, "fuzz: the bench ruled "+gapID+" closed, and blue proposes its successor"))...)
-	env, ok := refusalEnvelopeIn(out)
-	switch {
-	case err == nil:
-		r.noteActErr(fmt.Sprintf("blue's proposed successor of %s was admitted while its ruling's tombstone stood: %s", gapID, firstLine(out)))
-	case ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands):
-		r.countGate("estopped_refused:supersede")
-	default:
-		r.noteActErr(fmt.Sprintf("blue's proposed successor of %s, whose ruling's tombstone stands, was refused, and not by the tombstone: %s", gapID, firstLine(out)))
-	}
 }

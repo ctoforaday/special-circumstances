@@ -636,8 +636,7 @@ func (r *runner) sourceRows(url string) int {
 // new evidence — and the gap it obliges meets the estoppel guard like any `--quote` mint
 // (plans/gap-is-the-one-holder.md D10, F4 (a)): the claim_contradicts_source mint quoting the
 // sentence is refused naming the prescribing gap (found_source_mints_estopped), and the lens's
-// debt clears by the mint `--supersedes` that gap where the lens minted it, else by the lens's
-// reading of another source for the sentence.
+// debt clears by its reading of another source for the sentence.
 func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	quote := strings.TrimSpace(plainText(line))
 	url := foundSourceURL(seatID)
@@ -666,12 +665,12 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		r.debtDischargedBy(seatID, quote, "mint", "the mint quoting the sentence blue reworded")
 		return
 	case merr == nil:
-		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was admitted with no --supersedes, and a found-source gap meets the estoppel guard like any quote mint: " + firstLine(mout))
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was admitted, and a found-source gap meets the estoppel guard like any quote mint: " + firstLine(mout))
 		r.noteReadingMintLanded(seatID, mout, classContradicts, "quote")
 		return
 	case strings.Contains(mout, oneGapWords):
-		// A SIBLING'S claim_contradicts_source GAP ON THE SENTENCE — its own mint --supersedes the
-		// prescribing gap — met the one-gap rule first, and discharges this lens's debt (F9).
+		// A SIBLING'S claim_contradicts_source GAP ON THE SENTENCE met the one-gap rule first, and
+		// discharges this lens's debt (F9).
 		noteEither(args[:2], "a found-source mint over a prescription, refused by the one-gap rule over a sibling's gap on the sentence", false)
 		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
@@ -695,17 +694,8 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	}
 	prescribing = named
 	r.countReading(func(c *readingCounts) { c.foundSourceMintsEstopped++ })
-	if r.minterOf(prescribing) == seatID {
-		sout, serr := r.exec(append(args, "--supersedes", prescribing)...)
-		if serr == nil {
-			r.noteReadingMintLanded(seatID, sout, classContradicts, "quote")
-			r.debtDischargedBy(seatID, quote, "mint", "the mint --supersedes "+prescribing+" on the reading over it")
-			return
-		}
-		noteEither(args[:2], "a found-source mint superseding the prescribing gap, refused", false)
-	}
-	// ANOTHER LENS PRESCRIBED THE TEXT, or its gap takes no successor now: the lens's debt clears by its
-	// reading of another source for the sentence that leaves no debt (readFoundClearing).
+	// THE LENS'S DEBT CLEARS BY ITS READING of another source for the sentence that leaves no debt
+	// (readFoundClearing).
 	if r.readFoundClearing(seatID, quote) != 0 {
 		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the prescribed sentence")
 	}

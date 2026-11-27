@@ -59,7 +59,7 @@ func (r *runner) aboutGapRefusedDrive(seatID string) {
 // stale, naming the regrade, and admits it again once read (admitFresh). Lenses sit side by side, so
 // this is the race the stale refusal exists for; once per run, and never in a forced-verdict run, whose
 // bound a hand-filed docket motion would move. The gap's minter has returned from its dispatch: only it
-// closes, supersedes or regrades the gap in a lens wave, so the filing races nothing but the regrade
+// closes or regrades the gap in a lens wave, so the filing races nothing but the regrade
 // it is refused for. A run whose lenses never regrade under a sibling's
 // sitting files none, which the sweep's stale-event gate counts across runs.
 func (r *runner) disputeMovedGap(seatID string) {

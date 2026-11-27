@@ -232,7 +232,7 @@ func (r *runner) closeNamedOnTurn(seatID string, engaged []string) {
 		if !slices.Contains(open, g) || slices.Contains(engaged, g) || r.minterOf(g) != seatID || !r.closableNow(g) {
 			continue
 		}
-		r.closeGap(seatID, g, false)
+		r.closeGap(seatID, g)
 	}
 }
 
