@@ -63,6 +63,9 @@ func TestReadDaemonTokenRefuses(t *testing.T) {
 			t.Errorf("%s: the refusal carries the token: %v", name, err)
 		}
 	}
+	if _, err := ReadDaemonToken(sub); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Errorf("a directory = %v, want it refused as not a regular file", err)
+	}
 }
 
 func TestWriteDaemonTokenModes(t *testing.T) {
