@@ -87,7 +87,7 @@ func TestSendQueuedCauseGoldens(t *testing.T) {
 		}},
 	} {
 		t.Run(tc.cause, func(t *testing.T) {
-			if runtime.GOOS == "windows" && tc.cause != "linux-only" && tc.cause != "not-daemon-root" && tc.cause != "no-token-file" {
+			if runtime.GOOS == "windows" {
 				t.Skip("the daemon's token file is read on Unix only")
 			}
 			w := newSendWorld(t)

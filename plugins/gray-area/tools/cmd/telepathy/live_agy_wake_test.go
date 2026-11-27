@@ -42,6 +42,8 @@ const liveModel = "gemini-3.8-flash-low"
 //     the message stays queued and the stand-in daemon never opens the conversation.
 //   - WakeOnlyRealMail: agy-wake wakes the conversation holding a message from an agent, and not
 //     those holding only a wake message or only an agy notice.
+//   - SessionRowOnce: gray-area's hooks, built from the checkout and installed in the home, wrote
+//     each conversation one session row at SessionStart and none when it resumed on another server.
 //
 // Gated like every live harness test (HOOKCORE_LIVE=1); it spends about ten agy flash turns.
 func TestLiveAntigravityMailboxWake(t *testing.T) {
@@ -150,6 +152,15 @@ func TestLiveAntigravityMailboxWake(t *testing.T) {
 			}
 		}
 	})
+
+	// Every conversation was created by agy -p, and host, b, c and m then resumed on another server.
+	t.Run("SessionRowOnce", func(t *testing.T) {
+		for _, conv := range []string{host, b, c, m, w, s} {
+			if n := r.sessionRows(conv); n != 1 {
+				t.Errorf("conversation %s has %d session rows, want SessionStart's one and none on resume", conv, n)
+			}
+		}
+	})
 }
 
 // wakeRig is one throwaway agy home with the token a stand-in daemon is started with.
@@ -178,6 +189,7 @@ func newWakeRig(t *testing.T) *wakeRig {
 	}
 	r.agyDir = filepath.Join(r.home, ".gemini", "antigravity-cli")
 	writeLiveFile(t, filepath.Join(r.agyDir, "settings.json"), `{"toolPermission":"always-proceed"}`, 0o644)
+	r.installGrayArea()
 	r.env0 = testhome.LiveEnv(t, r.home, "XDG_RUNTIME_DIR="+t.TempDir(), "XDG_CONFIG_HOME="+t.TempDir(), "XDG_STATE_HOME="+t.TempDir())
 	r.token = "live-" + r.suffix() + r.suffix()
 	// Outside the home: an agent in it that ran telepathy would find no token there.
@@ -187,6 +199,48 @@ func newWakeRig(t *testing.T) *wakeRig {
 	}
 	writeLiveFile(t, r.tokenFile, peer.DaemonTokenVar+"="+r.token+"\n", 0o600)
 	return r
+}
+
+// installGrayArea installs the checkout's gray-area plugin into the home: its hooks.json, manifest,
+// fetch-bin.sh, and both binaries built from this tree.
+func (r *wakeRig) installGrayArea() {
+	r.t.Helper()
+	src, err := filepath.Abs("../../..")
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	plugin := filepath.Join(r.home, ".gemini", "config", "plugins", "gray-area")
+	for _, f := range []struct {
+		from, to string
+		mode     os.FileMode
+	}{
+		{"hooks.json", "hooks.json", 0o644},
+		{".antigravity-plugin/plugin.json", ".antigravity-plugin/plugin.json", 0o644},
+		{"hooks/fetch-bin.sh", "hooks/fetch-bin.sh", 0o755},
+	} {
+		b, err := os.ReadFile(filepath.Join(src, f.from))
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		writeLiveFile(r.t, filepath.Join(plugin, f.to), string(b), f.mode)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	build := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(plugin, "bin")+string(filepath.Separator),
+		"./cmd/gray-area-capture", "./cmd/telepathy")
+	build.Dir = filepath.Join(src, "tools")
+	if out, err := build.CombinedOutput(); err != nil {
+		r.t.Fatalf("build: %v\n%s", err, out)
+	}
+}
+
+// sessionRows counts the session rows gray-area's capture hook wrote for conv.
+func (r *wakeRig) sessionRows(conv string) int {
+	b, err := os.ReadFile(filepath.Join(r.work, ".claude", "gray-area", "trajectories-"+conv+".jsonl"))
+	if err != nil {
+		return 0
+	}
+	return strings.Count(strings.TrimSpace(string(b)), "\n") + 1
 }
 
 func (r *wakeRig) suffix() string {

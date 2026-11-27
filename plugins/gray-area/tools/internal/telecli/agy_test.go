@@ -3,6 +3,7 @@ package telecli
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -226,6 +227,31 @@ func TestAgyWakeWaitsForThePort(t *testing.T) {
 	}
 	if _, errOut, _ := w.run(t, "agy-wake"); !strings.Contains(errOut, "woke "+agyPeer) || looks != 3 {
 		t.Errorf("looks %d, stderr:\n%s", looks, errOut)
+	}
+}
+
+// A DAEMON THAT NEVER ANSWERS cannot hold agy-wake past its bound: each request's timeout is cut to
+// the time left, so the run returns, on the real clock, having named every conversation.
+func TestAgyWakeBoundWithADaemonThatNeverAnswers(t *testing.T) {
+	w := newWakeWorld(t)
+	queueMessage(t, w.brain, agyPeer, "m1", mailboxJSON("telepathy", "2026-09-09T09:00:00Z"))
+	queueMessage(t, w.brain, agySelf, "m2", mailboxJSON("telepathy", "2026-09-09T09:00:00Z"))
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(release) })
+	addr := strings.TrimPrefix(srv.URL, "http://")
+	w.env.DaemonAddress = func(*http.Client, int) (string, error) { return addr, nil }
+	w.env.Now, w.env.Sleep = time.Now, time.Sleep
+	w.env.WakeBound, w.env.SendTimeout = 400*time.Millisecond, 30*time.Second
+	began := time.Now()
+	_, errOut, code := w.run(t, "agy-wake")
+	took := time.Since(began)
+	if code != 0 || took > 3*time.Second {
+		t.Errorf("exit %d after %s, want 0 within the 400ms bound and a margin:\n%s", code, took, errOut)
+	}
+	if !strings.Contains(errOut, "not woken "+agyPeer) || !strings.Contains(errOut, "not woken "+agySelf) || strings.Contains(errOut, "woke ") {
+		t.Errorf("stderr does not name both conversations as not woken:\n%s", errOut)
 	}
 }
 

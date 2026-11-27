@@ -79,6 +79,9 @@ const testToken = "test-token-7f3a"
 // a stand-in server that answers status and records each wake it is sent.
 func (w *sendWorld) provisioned(t *testing.T, status int) (addr string, got <-chan map[string]string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the daemon's token file is read on Unix only")
+	}
 	if err := os.MkdirAll(filepath.Dir(w.tokenFile), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -155,6 +158,9 @@ func TestSendQueuesAndWakesTheIdleConversation(t *testing.T) {
 // THE TOKEN FILE IS READ BEFORE ANY CONTACT: with none, no daemon is looked for, no port probed and
 // no holder inspected, and the message is queued saying who provisions it.
 func TestSendReadsTheTokenBeforeAnyContact(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the daemon's token file is read on Unix only")
+	}
 	w := newSendWorld(t)
 	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) {
 		t.Error("the daemon was looked for without a token file")
@@ -194,6 +200,19 @@ func TestSendHeldElsewhereSendsNoWake(t *testing.T) {
 	}
 	if n := len(w.mailbox(t)); n != 1 {
 		t.Errorf("%d undelivered markers, want 1", n)
+	}
+}
+
+// WITH NO CONFIGURATION DIRECTORY THERE IS NO TOKEN FILE, and no daemon is looked for.
+func TestSendWithoutAConfigurationDirectory(t *testing.T) {
+	w := newSendWorld(t)
+	w.env.TokenFile = ""
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) {
+		t.Error("the daemon was looked for without a token file")
+		return newDaemon, true
+	}
+	if out := w.sendFromClaude(t); !strings.Contains(out, "not woken: no configuration directory, so no daemon token file") {
+		t.Errorf("stdout = %q", out)
 	}
 }
 
