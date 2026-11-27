@@ -24,8 +24,8 @@ import (
 // (fetch-once, hash-verified — red re-reads the exact bytes), then places an INVISIBLE
 // "<!--cite:c-<hex>-->" anchor at the quoted sentence, exactly the way every kind of anchor is
 // placed. Assembly weaves those anchors into the visible [^N] footnotes and a composed
-// ## Bibliography. Because the anchor is tool-inserted and leaves only with a retire that names
-// it, the record shows exactly what the report references.
+// ## Bibliography. Because the anchor is tool-inserted and leaves only on an act that names it — a
+// retire, or the cut of its sentence — the record shows exactly what the report references.
 //
 // A source that cannot be loaded is an UNUSABLE citation: the cite is REJECTED and the
 // failure is logged by the tool as a defect (a bare `fetch` miss is only an error — but the

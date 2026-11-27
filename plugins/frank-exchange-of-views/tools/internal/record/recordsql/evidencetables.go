@@ -11,8 +11,8 @@ import (
 //
 // An evidence anchor is an anchor whose row of the anchor kinds table (internal/anchor) says it
 // `backs` its sentence: a citation or a computation. Every such anchor lives one way — placed at the
-// end of its quote, carried by every edit, checked by one lens verb, retired by `retire` — and every
-// reader of that lifecycle asks the kind's row here for what differs, never `anchor.Kind(id) == "…"`.
+// end of its quote, carried by every rewrite, checked by one lens verb, and taken out by a retire or
+// with its sentence in a cut — and every reader of that lifecycle asks the kind's row here for what differs, never `anchor.Kind(id) == "…"`.
 //
 // It lives in recordsql, beside the DDL, and not in record: the views are written from it, record
 // imports recordsql, and recordsql cannot import record. The anchor kinds table stays the vocabulary

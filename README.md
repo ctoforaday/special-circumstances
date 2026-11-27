@@ -127,7 +127,7 @@ What it can do today:
 | `/gray-area:audit-repetition` | What was done more than once, and what was repeated three times back to back? |
 | `/gray-area:audit-seat-coverage` | Does the record name every subagent transcript that exists? |
 | `gray-area tools` | What did a given agent actually invoke? (command line) |
-| `telepathy agents` | Which agents are running on this box, and what is each doing — and which did the last restart cut off? |
+| `telepathy agents` | Which agents are running on this box, and what is each doing — which did the last restart cut off, and which Antigravity conversations have mail waiting? |
 | `telepathy touched` | Is anyone else acting on this file? |
 | `telepathy session` | One session's shape: calls and errors by tool |
 | `telepathy search` | Search every local transcript, joined back to who and when |
@@ -164,7 +164,7 @@ The run lands in `research/<date>_<slug>/`:
 | `README.md` | The run's front door — verdict, gaps, and what each document below holds |
 | `report.md` | The research — verdict, TL;DR, the Catechism, the argument, risks, open questions |
 | `docket.md`, `debate.md`, `judgments.md` | The record's documents: the board all three parties wrote, the epoch-by-epoch transcript, the motions and their rulings |
-| `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full and every reading of each citation; the log, record check and cost; the claims the report retired and every edit, with blue's reason |
+| `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full and every reading of each citation; the log, record check and cost; the asks a later certification superseded, and every edit, with blue's reason and the span it replaced |
 | `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
 | `records/record.db` | The record — one SQLite store, the authoritative account of every act |
 | `blue/`, `red/` | The seats' working surfaces — a lane's part waits in `blue/candidates/` until it is recorded |

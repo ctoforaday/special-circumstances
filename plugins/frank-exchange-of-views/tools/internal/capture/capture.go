@@ -439,8 +439,9 @@ func AssemblyScreen(run record.Run) Audit {
 	}
 	report, renderErr := record.RenderRun(run)
 	ev := record.EvidenceJSONOf(fam.Events, fam.At, report, renderErr)
-	// THE SCREEN COUNTS EVERY EVIDENCE ANCHOR ON THE RECORD, retired ones included: the table's
-	// lists hold the live ones, and a retired anchor is one the screen has found out of the report.
+	// THE SCREEN COUNTS EVERY EVIDENCE ANCHOR ON THE RECORD, those out of the report included
+	// (anchor_removal: retired, or cut with their sentence): the table's lists hold the live ones, and
+	// one out of the report is one the screen has found out of it.
 	citations, computations := ev.Counts.Sources, ev.Counts.Computations
 	for _, r := range ev.Retired {
 		if r.Computation != nil {
@@ -470,7 +471,8 @@ func AssemblyScreen(run record.Run) Audit {
 
 	// THE SCREEN SCREENS THE GAP, NOT THE READING (gblock, 2026-11-06, #1727; record.AssemblyFailures):
 	// an open MATERIAL gap of a class a reading defines whose subject the assembled report still
-	// carries — a citation not retired, a sentence that still locates — a standing reading debt (a
+	// carries — a citation still in the report (neither retired nor cut with its sentence), a sentence
+	// that still locates — a standing reading debt (a
 	// found-wrong reading with no gap at all, red's unfinished promise), and a computation a standing
 	// judgement calls unsound. A refuted citation whose gap was graded low, or closed, is in no row.
 	// The url is no key: two citations of one url back two sentences, and a screen keyed by it failed
@@ -497,8 +499,8 @@ func AssemblyScreen(run record.Run) Audit {
 			Detail: fmt.Sprintf("%d defect(s) the record holds open against the assembled report: %s. An open material gap of a class a reading defines, a reading that finds a source against its sentence with no gap on it, or a computation judged unsound points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, "; "))}
 	}
-	// EVER FOUND AGAINST is this audit's own count, per kind, read off each anchor's checks, retired
-	// anchors included: a citation a reading ever found against (refutes|absent), a computation a
+	// EVER FOUND AGAINST is this audit's own count, per kind, read off each anchor's checks, anchors out
+	// of the report (retired or cut) included: a citation a reading ever found against (refutes|absent), a computation a
 	// judgement ever called unsound. The standing set is what a PASS here has just shown empty.
 	unsound := recordpb.Word(recordpb.Soundness_SOUNDNESS_UNSOUND)
 	sources, comps := slices.Clone(ev.Sources), slices.Clone(ev.Computations)
@@ -522,7 +524,7 @@ func AssemblyScreen(run record.Run) Audit {
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with an open material gap of a class a reading defines on it, a standing reading debt, or a standing judgement calling it unsound; %d citation(s) ever found against by red and %d computation(s) ever judged unsound, each since answered by a gap, re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
+		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with an open material gap of a class a reading defines on it, a standing reading debt, or a standing judgement calling it unsound; %d citation(s) ever found against by red and %d computation(s) ever judged unsound, each since answered by a gap, re-checked, reopened by a rewrite, or taken out of the report (retired, or cut with its sentence); %d cited source(s) no reading of the sentence they back has reached",
 			citations, computations, foundAgainst, judgedUnsound, ev.Counts.SourcesUnverified)}
 }
 

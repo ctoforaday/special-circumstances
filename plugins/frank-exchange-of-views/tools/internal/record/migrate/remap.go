@@ -165,7 +165,7 @@ var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref
 		Close.gap_id Closing.gap_id Regrade.gap_id Amend.gap_id Amend.answers SpotCheck.ids
 		Anchor.id Anchor.sentence_of Cite.label Verify.anchor Computation.computation_id
-		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers Cite.answers
+		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened BlueEdit.removed_anchors Retire.anchors Retire.answers Cite.answers
 		Motion.motion_id DocketMotion.gap_id
 		InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.docketing_id
@@ -196,7 +196,7 @@ var (
 		Register.agent_id Register.agent_type
 		Register.hook_version Register.run_via Register.tool_version
 		Reproduce.bundle_sha Reproduce.claim Reproduce.drift Reproduce.rerun_sha Retire.claim
-		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
+		SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url QuestionPart.supersedes_coverage`)

@@ -280,7 +280,7 @@ func lineEndAt(text string, i int) int {
 // followed by the end of its block; by whitespace — a soft wrap is whitespace — and then an
 // uppercase letter, an opener, an HTML comment, or a digit after a word that is no abbreviation
 // (endsBeforeDigit) when the number is whole (decimalAt); or, with no closer, by a comment flush,
-// which then opens the next sentence (the shape a cut leaves). A comment flush after a closer
+// which then opens the next sentence. A comment flush after a closer
 // belongs to the sentence the closer ends, and the same test runs again after the comment run. An
 // HTML comment — every anchor token — and a code span are opaque. There is no abbreviation list: a
 // hand-kept table stops covering its case, so "3.5", "e.g. foo", "Fig. 3", "No. 5" and

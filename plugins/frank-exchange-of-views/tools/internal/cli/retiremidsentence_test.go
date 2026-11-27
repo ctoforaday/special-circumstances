@@ -9,11 +9,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A MARKER ON A MID-SENTENCE CLAUSE IS NEVER BARE, so the retire named nothing and said nothing.
-// B9's G4: a lens-placed citation marker sat on "not a hypothetical edge case, …" inside a sentence; blue
-// edited the clause down to its markers and retired it twice, and both retires printed only
-// "retired: …" while the marker stayed. The seat now names the marker, and the retire says what
-// stayed when it names none.
+// A MARKER ON A MID-SENTENCE CLAUSE IS RETIRED BY NAME. B9's G4: a lens-placed citation marker sat on
+// "not a hypothetical edge case, …" inside a sentence; blue edited the clause down to its markers and
+// retired it twice, and both retires printed only "retired: …" while the marker stayed. A retire names
+// its one anchor: it takes that marker off the sentence, which stays word for word, and refuses one the
+// report does not hold.
 
 // clauseCut cites a clause inside a sentence, edits the clause down to its marker, and returns the
 // run and the marker's id. The rest of the sentence stands before the marker, so it is not bare.
@@ -39,55 +39,46 @@ func clauseCut(t *testing.T) (string, string) {
 	return runDir, m[1]
 }
 
-func TestARetireOverAMidSentenceMarkerSaysItStayed(t *testing.T) {
-	runDir, label := clauseCut(t)
-	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "the sky is blue", "--reason", "refuted")
-	if err != nil {
-		t.Fatalf("retire: %v", err)
-	}
-	if got := lastBody(t, runDir, &recordpb.Retire{}).GetAnchors(); len(got) != 0 {
-		t.Fatalf("a marker with prose before it in its sentence left without being named: %v", got)
-	}
-	if !strings.Contains(out, "anchor stayed: "+label) {
-		t.Errorf("the retire took nothing and did not say the marker stayed:\n%s", out)
-	}
-}
-
 func TestARetireNamingTheMarkerTakesItOut(t *testing.T) {
 	runDir, label := clauseCut(t)
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "the sky is blue",
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
 		"--anchor", label, "--reason", "refuted"); err != nil {
 		t.Fatalf("retire --anchor: %v", err)
 	}
 	if got := lastBody(t, runDir, &recordpb.Retire{}).GetAnchors(); !slices.Equal(got, []string{label}) {
 		t.Fatalf("retire named %v, want [%s]", got, label)
 	}
-	if rep := readReport(t, runDir); strings.Contains(rep, label) {
-		t.Errorf("the named marker is still in the report:\n%s", rep)
+	if rep := readReport(t, runDir); strings.Contains(rep, label) || !strings.Contains(rep, "\n\nThe data shows and the grass is green.\n\n") {
+		t.Errorf("want the named marker out and its sentence kept word for word:\n%s", rep)
 	}
 }
 
 func TestARetireRefusesAMarkerTheCutDidNotLeave(t *testing.T) {
 	runDir, _ := clauseCut(t)
-	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "the sky is blue",
+	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
 		"--anchor", "C-00000000", "--reason", "refuted")
 	if err == nil || !strings.Contains(err.Error(), "the report holds no") {
 		t.Fatalf("a marker not in the report was accepted: %v", err)
 	}
 }
 
-// A marker a later edit carried back into prose backs that text now, and leaves only with it —
-// B9's edit 167 restored the clause around its markers.
-func TestARetireRefusesAMarkerCarriedBackIntoProse(t *testing.T) {
+// A MARKER A LATER EDIT CARRIED BACK INTO PROSE IS RETIRED THE SAME WAY (B9's edit 167 restored the
+// clause around its markers). A retire takes an anchor off a sentence that stays, so the restored,
+// qualified sentence keeps every word and loses only the named marker.
+func TestARetireTakesAMarkerCarriedBackIntoProse(t *testing.T) {
 	runDir, label := clauseCut(t)
 	tok := "<!--cite:" + label + "-->"
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "shows "+tok+" and", "--new", "shows the sky may be blue"+tok+" and", "--reason", "restored, qualified"); err != nil {
 		t.Fatalf("restore prose around the marker: %v", err)
 	}
-	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "the sky is blue",
-		"--anchor", label, "--reason", "refuted")
-	if err == nil || !strings.Contains(err.Error(), "back into prose") {
-		t.Fatalf("a marker re-attached to prose was taken out: %v", err)
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", label, "--reason", "refuted"); err != nil {
+		t.Fatalf("a retire of a marker on prose was refused: %v", err)
+	}
+	if got := lastBody(t, runDir, &recordpb.Retire{}); !slices.Equal(got.GetAnchors(), []string{label}) || got.GetClaim() != "The data shows the sky may be blue and the grass is green." {
+		t.Errorf("the retire recorded anchors %v claim %q", got.GetAnchors(), got.GetClaim())
+	}
+	if rep := readReport(t, runDir); strings.Contains(rep, tok) || !strings.Contains(rep, "The data shows the sky may be blue and the grass is green.") {
+		t.Errorf("want the marker out and the restored sentence kept word for word:\n%s", rep)
 	}
 }

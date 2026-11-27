@@ -14,7 +14,8 @@ import (
 // tombstoneDrive is a fixture stream covering each placing and ending arm of the tombstone rule: a
 // bench ruling of each anchor kind of ruled gap and the act that ends each, a remand that places
 // nothing, and estoppel placed, ended by a later verbatim edit answering another gap (L24), and placed
-// again. Each step is one act, written through the write path (a Replay: writeIn, validate, no act
+// again; and a pure cut ending each kind its removed_anchors reaches (F16): a ruled gap's own token, the
+// anchor a ruled gap is about, and an estopped gap's token. Each step is one act, written through the write path (a Replay: writeIn, validate, no act
 // judgement).
 func tombstoneDrive() []struct {
 	seat string
@@ -65,6 +66,9 @@ func tombstoneDrive() []struct {
 		}
 		return step{blueRespondSeat, e}
 	}
+	cut := func(removed ...string) step {
+		return step{blueRespondSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String(""), Text: proto.String("why"), RemovedAnchors: removed}}
+	}
 	anchor, inquiry := recordpb.AboutKind_ABOUT_KIND_ANCHOR, recordpb.AboutKind_ABOUT_KIND_INQUIRY
 	fix := strings.Repeat("the prescribed sentence carries its evidence ", 2)
 	return []step{
@@ -79,6 +83,10 @@ func tombstoneDrive() []struct {
 		mint("P1", quote("Papa one holds.", fix+"one")),
 		mint("P2", quote("Papa two holds.", fix+"two")),
 		mint("B1", quote("Bravo holds.", fix+"bravo")),
+		{blueRespondSeat, stamped(&recordpb.Cite{Label: proto.String("C-00000008"), Url: proto.String("https://example.org/h"), Title: proto.String("t"), CiteKey: proto.String("k-h"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()})},
+		mint("G6", quote("Foxtrot holds.", "")),
+		mint("G7", about(anchor, "C-00000008")),
+		mint("P3", quote("Papa three holds.", fix+"three")),
 		// a ruling on each, then the act that ends it
 		docket("K1", "G1"), forBlue("K1"),
 		edit("", false, "G5"), // a reword of another sentence ends nothing
@@ -86,7 +94,7 @@ func tombstoneDrive() []struct {
 		docket("K2", "G2"), forBlue("K2"),
 		edit("", false, "C-00000001"),
 		docket("K3", "G3"), forBlue("K3"),
-		{blueRespondSeat, &recordpb.Retire{Claim: proto.String("the computation"), Reason: proto.String("superseded"), Anchors: []string{"K-00000002"}, ClaimKept: proto.Bool(true)}},
+		{blueRespondSeat, &recordpb.Retire{Claim: proto.String("the computation"), Reason: proto.String("superseded"), Anchors: []string{"K-00000002"}}},
 		docket("K4", "G4"), forBlue("K4"),
 		{blueRespondSeat, &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED.Enum(),
 			SupersedesStatus: proto.String("proposed"), Reason: proto.String("it held"), Method: proto.String("read")}},
@@ -104,6 +112,14 @@ func tombstoneDrive() []struct {
 		edit("P1", true, "P1"),
 		// a second reword of G1's sentence, with nothing standing, writes no row
 		edit("", false, "G1"),
+		// a pure cut ends what its removed_anchors reaches (F16): G6's own token, the citation G7 is
+		// about, and P3's token
+		docket("K7", "G6"), forBlue("K7"),
+		cut("G6"),
+		docket("K8", "G7"), forBlue("K8"),
+		cut("C-00000008"),
+		edit("P3", true, "P3"),
+		cut("P3"),
 		// the bench's verbatim application of red's closing text on B1, whose mint prescribes the same
 		// text, places no estoppel: the bar on what the bench decided is its ruling's tombstone
 		{benchSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String("n"), Text: proto.String("red's text"),
@@ -145,7 +161,7 @@ func tombstonesFromStream(evs []*Event) []string {
 			if b.GetAppliedVerbatim() && mints[b.GetAnswers()].GetFixNew() != "" && e.GetSeatId() != benchSeat {
 				placed = b.GetAnswers()
 			}
-			for _, r := range b.GetReopened() {
+			for _, r := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
 				delete(stand, pair{r, ruling})
 				for _, g := range about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, r) {
 					delete(stand, pair{g, ruling})
@@ -226,8 +242,8 @@ func runTombstoneDrive(t *testing.T) string {
 	if err := b.Querier().QueryRow(`SELECT count(*) FILTER (WHERE "ends" IS NULL), count(*) FILTER (WHERE "ends") FROM "tombstone"`).Scan(&places, &ends); err != nil {
 		t.Fatal(err)
 	}
-	if places != 9 || ends != 5 {
-		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 9 and 5", places, ends)
+	if places != 12 || ends != 8 {
+		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 12 and 8", places, ends)
 	}
 	return ""
 }

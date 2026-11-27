@@ -24,12 +24,13 @@ import (
 // its silence judges nothing.
 //
 // Movement is a STATE change by a party's act on G: the gap's grade changed, an act naming G (its
-// `answers`) changed what G is about — a blue edit with old != new, an evidence-anchor retire, a
-// citation or computation placed as its answer (ruled by gblock 2026-10-31), a fate or question part
-// that changed the inquiry, section or part G is about (fateActsOf), the minter's moving regrade of
-// the gap G is about — or it closed. A change to G's subject that names no gap is G's raiser's turn
-// and no movement (lensTurnActsOf; F-FATE, 2026-11-24). A closing argument, a spot-check, a regrade
-// to the same grade or an edit that changed nothing are acts but not movement; a proposal is neither.
+// `answers`) changed what G is about — a blue edit with old != new, a retire, a citation or
+// computation placed as its answer (ruled by gblock 2026-10-31), a fate or question part that changed
+// the inquiry, section or part G is about (fateActsOf), the minter's moving regrade of the gap G is
+// about — or it closed. A change to G's subject that names no gap — a cut of its marker, a retire or a
+// cut taking out the anchor it is about — is G's raiser's turn and no movement (lensTurnActsOf;
+// F-FATE, 2026-11-24). A closing argument, a spot-check, a regrade to the same grade or an edit that
+// changed nothing are acts but not movement; a proposal is neither.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
 // what the record can establish; Unresolved states what it cannot, so a reader is never handed a
@@ -347,9 +348,9 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// An evidence-anchor retire naming the gap moves the report as an edit does: the anchor
-			// leaves its sentence. A retire that takes out the anchor a gap is about without naming it is
-			// that gap's raiser's turn and no movement (lensTurnActsOf).
+			// A retire naming the gap moves the report as an edit does: the anchor leaves a sentence that
+			// stays. A retire or a cut that takes out the anchor a gap is about without naming it is that
+			// gap's raiser's turn and no movement (lensTurnActsOf).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
 			}

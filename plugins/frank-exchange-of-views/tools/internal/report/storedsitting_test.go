@@ -71,8 +71,8 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{Answers: proto.String("G1")}),
-		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{Claim: proto.String("the old figure"),
-			Reason: proto.String("superseded"), RemovalBasis: proto.String(record.RemovalAsserted)}),
+		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e3", &recordpb.BlueEdit{Old: proto.String("the old figure."), New: proto.String(""),
+			Text: proto.String("superseded")}), // a pure cut: what leaves the report leaves by an edit
 		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
 	}
 	dir := recordtest.TmpRun(t)
@@ -156,11 +156,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		absent("show changes", got, "`blue-respond` #2")
 	})
 
-	t.Run("the changelog", func(t *testing.T) {
-		contains("withdrawn claims", withdrawnClaims(fam), "(blue-respond #1)")
-	})
-
-	// THE CHANGELOG lists what left the report.
+	// THE CHANGELOG lists what left the report — the cut's span — under the sitting the record stores.
 	t.Run("the changelog document", func(t *testing.T) {
 		docs, err := shippedDocs(run)
 		if err != nil {
@@ -173,6 +169,8 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 			}
 		}
 		contains("CHANGELOG.md", body, "the old figure")
+		contains("CHANGELOG.md", body, "### `blue-respond` #1 (epoch 2)")
+		absent("CHANGELOG.md", body, "`blue-respond` #2")
 	})
 
 	t.Run("the fact box", func(t *testing.T) {

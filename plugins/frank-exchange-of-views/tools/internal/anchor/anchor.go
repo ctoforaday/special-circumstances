@@ -5,8 +5,8 @@
 //
 // Every kind of anchor is one row of `kinds`, holding what the kind MEANS. No column says how an
 // anchor is placed or carried: every kind lives the same way — the tool places it at the end of its
-// quote, every edit carries it, and `retire` is the one way it leaves — so a reader of that
-// lifecycle walks every row alike. One column, `backs`, says which kinds are evidence: an evidence
+// quote, every rewrite carries it, and it leaves with its sentence when an edit cuts that sentence
+// whole, or alone by a retire — so a reader of that lifecycle walks every row alike. One column, `backs`, says which kinds are evidence: an evidence
 // anchor counts as a claim, and the record's facts about its kind are its row of
 // recordsql.EvidenceTables.
 //
@@ -19,8 +19,8 @@
 // for its span locator; anything importing it inherited a command package, and `internal/cli/seat`
 // could not import it at all without a cycle.
 //
-// The enforcement stayed where it belongs: `bluedoc` still owns the rule that an edit may carry an
-// anchor but never drop, duplicate or invent one. This package owns only what an anchor IS.
+// The enforcement stayed where it belongs: `bluedoc` still owns the rule that a rewrite carries every
+// anchor and never drops, duplicates or invents one. This package owns only what an anchor IS.
 package anchor
 
 import (
@@ -80,13 +80,8 @@ var otherIDs = []kind{
 	{name: "docketing", prefix: "D-"},
 }
 
-// lifecycle is what Label says of every kind alike, because every kind lives the same way; an evidence
-// anchor (backs) may also leave alone, and Label says so of it (evidenceLeaves).
-const lifecycle = " (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit)"
-
-// evidenceLeaves is what Label adds of an evidence anchor: it never stands bare, so it leaves its
-// sentence alone, by a retire that keeps the sentence word for word.
-const evidenceLeaves = " (the tool places it and every edit carries it; it never stands bare, so it leaves by `retire --anchor` alone, which keeps its sentence word for word, or with its claim by `edit` then `retire` — never by a raw edit)"
+// lifecycle is what Label says of every kind alike, because every kind lives the same way.
+const lifecycle = " (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit)"
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
@@ -282,8 +277,8 @@ var wrapper = regexp.MustCompile(`\([.,;:!?…]*\)|\[[.,;:!?…]*\]|\*[.,;:!?…
 // no partner is content: "***" and "* * *" are rules, "- [ ]" is a task's box, and a table row's
 // "|" pairs with nothing. Left in, "()" ships as "()" and "****" as a rule no author drew.
 //
-// ONE RULE, for both places an anchor leaves text: assembly stripping the tokens no reader sees,
-// and the replay of a retire. "No letter and no digit" was the rule at both and it is not this
+// ONE RULE, for every place an anchor leaves text: assembly stripping the tokens no reader sees,
+// and the replay of a cut or a retire. "No letter and no digit" was the rule at both and it is not this
 // one: a table's delimiter row, a row of marks, a cell cut down to a dash, a rule, a line of code
 // hold neither and are what their author wrote. A span that still holds another anchor is not a
 // husk either — the token is not punctuation — so several anchors leaving one line take it only
@@ -342,9 +337,6 @@ func Label(id string) string {
 	k := rowOf(id)
 	if k.name == "" {
 		return id
-	}
-	if k.backs {
-		return k.label + " " + Token(id) + evidenceLeaves
 	}
 	return k.label + " " + Token(id) + lifecycle
 }

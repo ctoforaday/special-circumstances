@@ -1,7 +1,6 @@
 package bluedoc
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
@@ -40,21 +39,5 @@ func TestTouchedParagraphsAreWholeBlocksAroundTheSpan(t *testing.T) {
 				t.Fatalf("the new run %q does not hold the replacement %q", n, c.new)
 			}
 		})
-	}
-}
-
-// AN ANCHOR THE EDIT LEAVES BARE IS REOPENED: its sentence is gone, so its referent changed. One
-// whose own sentence is unchanged in a touched paragraph is not.
-func TestReopenedAnchorsListsAnAnchorLeftBare(t *testing.T) {
-	const g, c = "<!--gap:G-000000c3-->", "<!--cite:C-000000b2-->"
-	before := "Kept sentence" + c + ". Cut sentence" + g + "."
-	after := "Kept sentence" + c + ". " + g
-	got := ReopenedAnchors(before, after)
-	if !slices.Equal(got, []string{"G-000000c3"}) {
-		t.Fatalf("an anchor left bare: want [G-000000c3], got %v", got)
-	}
-	// Already bare on both sides: the edit did not bare it.
-	if got := ReopenedAnchors(after, after+" More."); len(got) != 0 {
-		t.Fatalf("an anchor bare before the edit: want none, got %v", got)
 	}
 }

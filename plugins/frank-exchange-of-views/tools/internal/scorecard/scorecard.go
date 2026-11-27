@@ -213,8 +213,8 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 
 	// The dropped_finding_markers and unbacked_citations detectors lived here — they compared the
 	// anchor/cite events against the marker tokens PRESENT in blue/report.md, to catch a raw edit
-	// that dropped an immortal marker. Under report-as-record (#709) there is no file to raw-edit:
-	// the report is REPLAYED from the record and places only recorded markers, so EXPECTED⊄PRESENT
+	// that dropped a marker no retire or cut had taken out of the report. Under report-as-record
+	// (#709) there is no file to raw-edit: the report is REPLAYED from the record and places only recorded markers, so EXPECTED⊄PRESENT
 	// is 0 by construction and the tampering they watched for cannot occur. Removed rather than kept
 	// as a check that can never fire — a detector that always reads 0 is a plausible zero.
 

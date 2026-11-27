@@ -40,7 +40,7 @@ Examples:
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"
 
 Available Commands:
-  agents      who is running, in which worktree, doing what — and after a restart, what it cut off
+  agents      who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting
   backfill    read the existing corpus into the store
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command

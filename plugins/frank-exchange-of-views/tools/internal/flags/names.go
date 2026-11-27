@@ -62,11 +62,11 @@ const (
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and compute
 	// splice an anchor there, mint says the defect lives there and anchors its gap, edit
-	// replaces it, retire says it left. A section heading prepended to it makes it match
+	// replaces it — or, replacing a whole sentence with nothing, cuts it and its anchors. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
 	Quote = "quote"
-	// New is what that span should BECOME — blue applying an edit, red proposing one,
-	// blue naming the claim that replaces a retired one. Paired with --quote everywhere.
+	// New is what that span should BECOME — blue applying an edit, red proposing one.
+	// Paired with --quote everywhere.
 	New = "new"
 
 	// The citation axis. --url is the source a `fetch` reads, a `blue cite` anchors and a
@@ -419,11 +419,11 @@ var payloadFlag = map[string]string{
 	"soundness":     As,
 	// Every span a verb addresses in blue/report.md is typed as --quote; the schema keeps the
 	// key that says WHICH span it is.
-	"location":         Quote,
-	"claim":            Quote,
-	"old":              Quote,
-	"fix_new":          New,
-	"superseded_by":    New,
+	"location": Quote,
+	"claim":    Quote,
+	"old":      Quote,
+	"fix_new":  New,
+
 	"acceptance_check": Check,
 	"complexity_cost":  Complexity,
 	"anchor_seat":      VerifiedBy,

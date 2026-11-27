@@ -684,8 +684,8 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	rowsAre("(d) retried", "place", "end", "place")
 }
 
-// T-B19 (14), the cut: an edit that takes the applied sentence out and leaves P's token bare lists P in
-// its reopened, so it is a change to P's sentence and writes P's estoppel end row; a mint quoting red's
+// T-B19 (14), the cut: a pure cut that takes the applied sentence out with P's token stamps P in
+// removed_anchors (F16), so it is a change to P's sentence and writes P's estoppel end row; a mint quoting red's
 // applied text, back in blue's own sentence, then lands — the estoppel bound the text it applied.
 func TestACutOfAnEstoppedSentenceEndsItsEstoppel(t *testing.T) {
 	runDir := newRun(t)
@@ -703,14 +703,14 @@ func TestACutOfAnEstoppedSentenceEndsItsEstoppel(t *testing.T) {
 	}
 	end := strings.Index(report[at:], tok+".") + len(tok+".")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "CUT", "--quote", report[at:at+end],
-		"--new", tok, "--reason", "the sentence goes"); err != nil {
+		"--new", "", "--reason", "the sentence goes"); err != nil {
 		t.Fatalf("blue's cut: %v\n%s", err, readReport(t, runDir))
 	}
 	if rows, _ := tombstoneRows(t, runDir); len(rows) != 2 || rows[0].GetEnds() || !rows[1].GetEnds() || rows[1].GetGapId() != prior {
 		t.Fatalf("the cut wrote estoppel rows %v, want P's place and its end", rows)
 	}
-	if !strings.Contains(readReport(t, runDir), tok) || strings.Contains(readReport(t, runDir), quote) {
-		t.Fatalf("the cut left %q, want the sentence gone and the token bare", readReport(t, runDir))
+	if strings.Contains(readReport(t, runDir), tok) || strings.Contains(readReport(t, runDir), quote) {
+		t.Fatalf("the cut left %q, want the sentence gone with its token", readReport(t, runDir))
 	}
 	// The text is gone from the report, so the mint is asked of a sentence holding red's words again.
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "BACK", "--quote", "Sieve costs grow with the bound.",

@@ -9,7 +9,7 @@ type PointCounts struct {
 	// before it. The rest were open there.
 	GapsMinted, GapsClosed int
 	// Citations and Computations are the anchors placed at the point, and the Retired ones those a
-	// retire at or before it took out.
+	// retire or a pure cut at or before it took out.
 	Citations, CitationsRetired       int
 	Computations, ComputationsRetired int
 	// Readings is every `verify` at the point: of a citation, or of a source the reader found.
@@ -23,8 +23,9 @@ func (c PointCounts) GapsOpen() int { return c.GapsMinted - c.GapsClosed }
 //
 // A GAP IS OPEN AT A POINT UNTIL ITS FIRST CLOSING ACT (Gap.ClosedEvent, gap_state's closed_event),
 // so at the record's newest event the open and closed
-// counts are the board's own. An anchor is retired at a point by the first retire naming it
-// (evidence_anchor's retired_event), and a citation with no label is no anchor (EvidenceJSONOf).
+// counts are the board's own. An anchor is out at a point from the first act that took it out, a
+// retire or a pure cut (evidence_anchor's retired_event, from anchor_removal), and a citation with no
+// label is no anchor (EvidenceJSONOf).
 //
 // The family is the loaded one (FamilyOf): the point of each act is the window index's, and a
 // family built by hand has none.
@@ -52,6 +53,10 @@ func (f Family) CountsAt(point int64) PointCounts {
 			c.Readings++
 		case *recordpb.Retire:
 			for _, a := range b.GetAnchors() {
+				retired[a] = true
+			}
+		case *recordpb.BlueEdit:
+			for _, a := range b.GetRemovedAnchors() {
 				retired[a] = true
 			}
 		}

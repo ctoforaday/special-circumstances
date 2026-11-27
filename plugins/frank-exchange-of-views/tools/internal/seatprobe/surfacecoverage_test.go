@@ -196,8 +196,10 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
 		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
 		"render-page": {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
-		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
-		"inquiry":     {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+		"retire": {"a cited sentence a gap faults, whose citation a retire takes off it", func(b Board) bool {
+			return slices.ContainsFunc(b.Gaps, func(g Gap) bool { return g.Baits == "retire" && slices.Contains(b.Claims, g.Location) })
+		}},
+		"inquiry": {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {

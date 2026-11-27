@@ -153,7 +153,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
-//     (blueAnswersOf), a retire that reached it (WindowIndex.Reaches), the bench's
+//     (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), the bench's
 //     remand of it — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
 //     on it. A sitting that never closed does not end the debt. A gap it holds with
@@ -215,8 +215,8 @@ type gapNews struct {
 }
 
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
-// (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), a fate or question part that changed
-// what it is about naming no gap (fateActsOf), the bench's
+// (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), a fate or
+// question part that changed what it is about naming no gap (fateActsOf), the bench's
 // remand of it. It is one reading with two
 // readers: the assignee owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
@@ -231,15 +231,15 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 	answers := blueAnswersOf(evs, win, open, motions)
 	for _, g := range gaps {
 		a := answers[g.id]
-		// ONE EVENT, ONE ITEM: a retire that answers the gap it also reaches is named once, as the
-		// reaching retire below, which says what it reached the gap through.
+		// ONE EVENT, ONE ITEM: a removal that answers the gap it also reaches is named once, as the
+		// reaching removal below, which says what it reached the gap through.
 		if a.answered() && a.at != a.metAt {
 			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
 		}
-		// A REACHING RETIRE IS NEWS OF ITS OWN: blue's sitting need not have been engaged on the gap,
-		// and the retire met the gap's demand all the same.
+		// A REACHING REMOVAL IS NEWS OF ITS OWN: blue's sitting need not have been engaged on the gap,
+		// and the retire or cut met the gap's demand all the same.
 		if a.metAt != 0 {
-			out = append(out, gapNews{gap: g.id, at: a.metAt, item: "blue's retire of " + a.met.anchor + ", " + a.met.how(g.id)})
+			out = append(out, gapNews{gap: g.id, at: a.metAt, item: a.met.news() + ", " + a.met.how(g.id)})
 		}
 		// A FATE OR QUESTION PART THAT CHANGED WHAT THE GAP IS ABOUT, naming no gap, is news of its own
 		// as a reaching retire is: the lens's turn, and no answer of blue's.

@@ -221,14 +221,18 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 		says    []string
 	}{
 		{"retire --help", page(blueSeat, "retire"), []string{
-			"EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or computation and no claim takes that anchor out of the report and keeps the sentence it stood on word for word",
-			"A retired anchor is in no document",
-			"A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taking a citation that a computation still in the report names as its method is refused, naming each such computation",
+			"RETIRE TAKES ONE ANCHOR OFF A SENTENCE THAT STAYS. Name one anchor of any kind",
+			"the tool takes it out of the report and keeps the sentence it stood on word for word",
+			"An anchor out of the report is in no document",
+			"A RETIRE NEVER TAKES AN OPEN GAP'S OWN MARKER.",
+			"A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire of a citation that a computation still in the report names as its method is refused, naming each such computation",
 			"Retiring an anchor placed as an open gap's answer takes that answer away; with no other answer standing, the gap is owed again.",
 			"Retiring the answers of a gap already closed leaves its closure standing, and the gap's lens is told.",
 		}},
 		{"edit --help", page(blueSeat, "edit"), []string{
-			"EVIDENCE NEVER STANDS BARE. A replacement that would leave a citation's or computation's anchor with no prose before it in its sentence is refused, whether your quote holds it or not",
+			"A CUT IS THE ONE EDIT THAT TAKES ANCHORS: quote one or more whole sentences and write nothing of them in the replacement",
+			"NO ANCHOR STANDS BARE. A rewrite that would leave an anchor of any kind with no prose before it in its sentence is refused, whether your quote holds it or not",
+			"A cut that would take a citation a computation still in the report applies is refused, naming the computation",
 		}},
 		{"reproduce --help", page(lensSeat, "reproduce"), []string{
 			seat.UnplacedEvidenceRule,
@@ -240,7 +244,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 		}},
 		{"mint --help", page(lensSeat, "mint"), []string{
 			"if the defect it closed is still in the report, that is a new gap — mint it.",
-			"A gap about a retired citation or computation is refused, naming its retire",
+			"A gap about a citation or computation out of the report is refused, naming the act that took it out",
 		}},
 		{"cite --help", page(blueSeat, "cite"), []string{
 			"Name the gap it answers, and the citation is placed as that gap's answer",
@@ -251,17 +255,17 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"A computation leaves by a `retire` naming it alone, its sentence kept",
 		}},
 		{"show changes --help", page(blueSeat, "show", "changes"), []string{
-			"each edit, and each citation or computation blue retired from a sentence the report keeps, named by its kind",
+			"each edit, and each anchor blue retired from a sentence the report keeps, named by its kind",
 		}},
 		{"show evidence --help", page(lensSeat, "show", "evidence"), []string{
-			"A retired anchor is in no document, and in none of these lists or counts",
-			"Read at its id with --anchor, a retired one is still its row, with `retired`",
+			"An anchor out of the report is in no document, and in none of these lists or counts",
+			"Read at its id with --anchor, it is still its row, with `retired`: `by` (`retire` or `edit`)",
 		}},
 		{"show board --help", page(lensSeat, "show", "board"), []string{
-			"`answers_retired_event` is, on a closed gap, the event of the retire that left none of its answers live, null on every other gap: the closure stands, and its lens is told",
+			"`answers_retired_event` is, on a closed gap, the event of the retire or cut that left none of its answers live, null on every other gap: the closure stands, and its lens is told",
 		}},
-		{"the citation anchor's lifecycle label", label("citation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
-		{"the computation anchor's lifecycle label", label("computation"), []string{"it leaves by `retire --anchor` alone, which keeps its sentence word for word"}},
+		{"the citation anchor's lifecycle label", label("citation"), []string{"alone by `retire --anchor`, which keeps the sentence word for word"}},
+		{"the computation anchor's lifecycle label", label("computation"), []string{"alone by `retire --anchor`, which keeps the sentence word for word"}},
 		{"the generated blue-researcher definition", generated("agents", "blue-researcher.md"), []string{
 			"`source` or `computation` closes, while its subject stands in the report, only on a live answer of its kind — a citation or a computation placed as that gap's answer and still in the report — never on prose",
 			"`awaiting_evidence: true` with its `answer_kind` means that gap is waiting on evidence from YOU, a source (`citation`) or a program (`computation`)",

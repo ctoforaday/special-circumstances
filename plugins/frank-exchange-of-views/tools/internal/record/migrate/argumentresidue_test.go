@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -73,6 +72,12 @@ var argumentResidue = map[string]struct {
 	"2026-11-12_is-91-prime-1838":                 {0, 0, "", "not_owed=10"},
 	"2026-11-14_is-91-prime-1883":                 {2, 0, "", "not_owed=9"},
 	"2026-11-10_auditing-constitutions-gap-audit": {0, 0, "", "not_owed=12"},
+	// m37's and m38's duties are stated as the migrated fold reads them, which this binary can read and
+	// their native records it cannot. m37's six closings written as no event, and its duties, are the
+	// findings fold's Translations 3, 4 and 7 on its docketings (its rulings 744, 745, 971, 1196 and
+	// 1197 written as no event): the exceptions above, measured identically with the fold alone.
+	"bundle-store/2026-10-31_is-91-prime-m37": {6, 0, "blue:filed=1,blue:not_owed=5,lens:filed=1,lens:missing=1,lens:not_owed=4", "not_owed=12"},
+	"bundle-store/2026-11-04_is-91-prime-m38": {0, 0, "blue:awaited=1,blue:filed=1,lens:awaited=1,lens:filed=1", "not_owed=12"},
 }
 
 // EVERY ARCHIVED RUN'S REFUSED ARGUMENTS ARE WRITTEN AS NO EVENT, AND ONLY THEY. Per run, the
@@ -80,14 +85,10 @@ var argumentResidue = map[string]struct {
 // closing the migrated record holds is a party's, and every position the chair's; and the closing
 // and position duties read as they did before the drop.
 func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	seen := map[string]bool{}
 	for _, tb := range tarballs {
-		name := strings.TrimSuffix(filepath.Base(tb), ".tar.gz")
+		name := strings.TrimSuffix(tb, ".tar.gz")
 		seen[name] = true
 		t.Run(name, func(t *testing.T) {
 			want, stated := argumentResidue[name]

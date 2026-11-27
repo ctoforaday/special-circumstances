@@ -11,74 +11,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// gapStateSnapshot is every gap_state row, in mint order, one string each.
-func gapStateSnapshot(t *testing.T, q interface {
-	Query(string, ...any) (*sql.Rows, error)
-}) []string {
-	t.Helper()
-	rows, err := q.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	cols, _ := rows.Columns()
-	var out []string
-	for rows.Next() {
-		v := make([]any, len(cols))
-		p := make([]any, len(cols))
-		for i := range v {
-			p[i] = &v[i]
-		}
-		if err := rows.Scan(p...); err != nil {
-			t.Fatal(err)
-		}
-		out = append(out, fmt.Sprint(v))
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	return out
-}
-
-// gapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
-// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
-// they agree row for row and nothing is left named or unflushed, else what differs. The refresh
-// asked of every gap is the rules with no marker in the way, so a gap a marker failed to name stands
-// out as the row the full refresh moves.
+// gapStateRefreshDiff is GapStateRefreshDiff of db, the test failing where it cannot be asked.
 func gapStateRefreshDiff(t *testing.T, db *sql.DB) string {
 	t.Helper()
-	tx, err := db.Begin()
+	d, err := GapStateRefreshDiff(db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	var out []string
-	var pending int
-	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
-		t.Fatal(err)
-	}
-	if pending != 0 {
-		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
-	}
-	stored := gapStateSnapshot(t, tx)
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
-	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
-		t.Fatal(err)
-	}
-	refreshed := gapStateSnapshot(t, tx)
-	for i := 0; i < max(len(stored), len(refreshed)); i++ {
-		var s, f string
-		if i < len(stored) {
-			s = stored[i]
-		}
-		if i < len(refreshed) {
-			f = refreshed[i]
-		}
-		if s != f {
-			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
-		}
-	}
-	return strings.Join(out, "\n")
+	return d
 }
 
 // gapStateHolds is each of a step's truths that does not hold, or "" when all do.
@@ -241,7 +181,7 @@ func gapIs(gap, cond string) string {
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	var rClose, rRetire, rCarry, m1, k1, k2, k2Rule, dClose, yRule, f1, gClose, amEvent int64
+	var rClose, rRetire, rCarry, m1, k1, k2, k2Rule, dClose, yRule, f1, gClose, amEvent, sCut int64
 	impasse, movement, proposal := recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, recordpb.DocketingCause_DOCKETING_CAUSE_GRADE_MOVEMENT, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL
 	at := func(v *int64) string { return fmt.Sprint(*v) }
 	none := func() []string { return nil }
@@ -419,10 +359,10 @@ func gapStateSteps(r *demandRecord) []gapStep {
 			return []string{gapIs("Z", `"open" AND NOT "closed_by_bench" AND "bench_close_event" IS NULL AND "unruled_docket_motion" IS NULL
 			  AND "standing_docketing" IS NULL`)}
 		}},
-		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a retire takes its
-		// own marker out of the report with the claim it marks.
+		// THE DEMAND HOLDS WHILE ITS SUBJECT STANDS: a --quote gap's demand is met once a pure cut takes
+		// its own marker out of the report with the claim it marks.
 		{func() { r.mintQuote("DY", comp) }, func() []string { return []string{gapIs("DY", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
-		{func() { r.retire("DY") }, func() []string {
+		{func() { r.cut("DY") }, func() []string {
 			return []string{gapIs("DY", `"open" AND "evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
 		// An amend restates the gap's wording: the stored state is its result.
@@ -430,6 +370,15 @@ func gapStateSteps(r *demandRecord) []gapStep {
 		{func() { amEvent = r.amend("AM", "restated") }, func() []string {
 			return []string{gapIs("AM", `"open" AND "amend_event" = `+at(&amEvent)+` AND "current_problem" = 'restated'`)}
 		}},
+		// A pure cut of the anchor a gap is about meets its demand, as a retire of it does.
+		{func() { r.cite("C3", "") }, none},
+		{func() { r.mintOf("CZ", src, "C3") }, func() []string { return []string{gapIs("CZ", `"awaiting_evidence" AND NOT "evidence_answered"`)} }},
+		{func() { r.cut("C3") }, func() []string { return []string{gapIs("CZ", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
+		// A pure cut of a closed gap's answer anchor is its answers_retired_event.
+		{func() { r.mintOf("S", src, "") }, none},
+		{func() { r.cite("C4", "S") }, none},
+		{func() { r.close("S", "") }, func() []string { return []string{gapIs("S", `NOT "open" AND "answers_retired_event" IS NULL`)} }},
+		{func() { sCut = r.cut("C4") }, func() []string { return []string{gapIs("S", `"answers_retired_event" = `+at(&sCut))} }},
 	}
 }
 
@@ -468,7 +417,8 @@ func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 // triggers, is the refresh asked of every gap at once: the minter's re-read of its gap's anchor, an
 // upheld position's remand, a check before its anchor, a failing recheck, a carry close after the
 // answers retire, an older docket standing again under a remand, a bench closure red's later close
-// overrules, a --quote gap's demand met by the retire of its own marker, and an amend of a gap's wording.
+// overrules, a --quote gap's demand met by the pure cut of its own marker, the pure cut of an
+// about-anchor and of a closed gap's answer, and an amend of a gap's wording.
 func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	r := newDemandRecord(t)
 	for i, step := range gapStateSteps(r) {
@@ -484,7 +434,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	// bench (red's close follows it), the rest open.
 	want := map[string]string{"A": "open", "P": "open", "Q": "open", "R": "close", "D": "motion_rule", "E": "open", "U": "open",
 		"F": "close", "G": "close", "X": "open", "Y": "motion_rule", "Z": "open", "DY": "open", "AM": "open",
-		"H": "open", "HP": "open", "HR": "open", "GA": "open", "GB": "open", "GC": "open", "AX": "open", "AG": "open"}
+		"H": "open", "HP": "open", "HR": "open", "GA": "open", "GB": "open", "GC": "open", "AX": "open", "AG": "open", "CZ": "open", "S": "close"}
 	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("each gap's first closing act = %v, want %v", got, want)
 	}
@@ -500,7 +450,7 @@ func TestTheStoredGapStateIsTheRules(t *testing.T) {
 // A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
-	if len(markers) != 15 {
+	if len(markers) != 16 {
 		t.Errorf("%d marker triggers, the census below covers each: update this count with the census", len(markers))
 	}
 	for _, m := range markers {

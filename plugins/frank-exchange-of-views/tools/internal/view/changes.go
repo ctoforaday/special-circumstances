@@ -46,7 +46,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out := []string{
 		"# blue changes — RENDERED PROJECTION (source of truth: the record, records/record.db)",
 		"",
-		"Every recorded change to the report — each edit, and each evidence anchor retired from a",
+		"Every recorded change to the report — each edit, and each anchor retired from a",
 		"sentence the report keeps — in record order, grouped by the sitting that made it (`seat #N` is that",
 		"seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why a lens",
@@ -156,7 +156,7 @@ func changesForGap(sel record.ChangesJSON) []byte {
 		out = append(out,
 			"## Changes blue recorded against it: NONE",
 			"",
-			"_Blue recorded no edit and no evidence anchor's retire answering this gap. That is not proof",
+			"_Blue recorded no edit and no anchor's retire answering this gap. That is not proof",
 			"nothing changed — an edit or a retire that omitted `--answers` is invisible here — but it is",
 			"the honest state of the join, and the unscoped `show changes` lists every change including",
 			"the unattributed ones._", "")
@@ -189,7 +189,7 @@ func changesForGap(sel record.ChangesJSON) []byte {
 	return []byte(strings.Join(out, "\n"))
 }
 
-// what names a change: a retire by the evidence anchor it took off a kept sentence, named by its
+// what names a change: a retire by the anchor it took off a kept sentence, named by its
 // kind's noun, an edit by its size change.
 func what(e record.EditJSON) string {
 	if e.Retired != "" {

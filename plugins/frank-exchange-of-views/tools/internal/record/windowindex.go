@@ -30,7 +30,8 @@ type WindowIndex struct {
 	// latest is each seat's newest sitting, by the id of the event that opened it. nil on an index a
 	// narrowed read built: its slice need not hold any act of a seat's newest sitting.
 	latest map[string]int64
-	// reach is, for each retire, the gaps it reaches (reachingRetiresOf), by the retire's events.id.
+	// reach is, for each act that took an anchor out (a retire or a pure cut), the gaps it reaches
+	// (reachingRemovalsOf), by the act's events.id.
 	// The whole-record loaders fill it from the same snapshot as the events; nil on a narrowed
 	// index, and on one a test built from bare windows.
 	reach map[int64][]reaching
@@ -112,7 +113,7 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 		return nil, WindowIndex{}, err
 	}
 	x := windowIndexOf(evs, ws)
-	if x.reach, err = reachingRetiresOf(q); err != nil {
+	if x.reach, err = reachingRemovalsOf(q); err != nil {
 		return nil, WindowIndex{}, err
 	}
 	if err := x.readViews(q); err != nil {
@@ -121,40 +122,40 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	return evs, x, nil
 }
 
-// reaching is one gap a retire reaches: the gap, the retired anchor it reaches it through, and the
-// gap whose about it is (from): gap itself, or an ancestor it carries the demand from.
+// reaching is one gap a removal reaches: the gap, the removed anchor it reaches it through, and the act
+// that took the anchor out (by: anchor_removal's "by", RemovedByRetire or RemovedByEdit).
 type reaching struct {
-	gap, anchor string
+	gap, anchor, by string
 }
 
-// A REACHING RETIRE IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
-// history and L1): a retire whose anchors hold an open gap's about_ref meets that gap's demand
-// whatever gap the retire named, and without counting it as an act the lens's turn on the gap never
-// comes. It is read here, off the record's rows, and never off a retire's own `answers`: `--answers`
-// is optional, and a claim retire takes the anchor too. A gap closed before the retire is not reached
-// — a closure is history.
+// A REACHING REMOVAL IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
+// history and L1): a removal — a retire or a pure cut — whose anchors hold an open gap's about_ref
+// meets that gap's demand whatever gap the act named, and without counting it as an act the lens's
+// turn on the gap never comes. It is read here, off anchor_removal's rows, and never off the act's
+// own `answers`: `--answers` is optional on both. A gap closed before the removal is not reached — a
+// closure is history. The gap whose own marker a cut took is not reached: a marker is no about_ref,
+// and that cut is its raiser's turn (lensTurnActsOf).
 //
 // The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
 // gap is about. The three reads are joined here rather than in one statement, so a record
-// with no retire reads the first, empty, and stops.
+// with no removal reads the first, empty, and stops.
 const (
-	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
+	removedAnchorsSQL = `SELECT "event_id", "anchor_id", "by" FROM "anchor_removal" ORDER BY "event_id", "ord"`
 	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached" FROM "demand_reach" WHERE "anchor" IS NOT NULL`
 	firstClosureSQL   = `SELECT "gap_id", "closed_event" FROM "gap_state"`
 )
 
-// reachingRetiresOf is every reaching retire on the record, by the retire's events.id, each gap
-// once (the first anchor of the retire that reaches it, through the gap's own about or reading before
-// an ancestor's), in gap order.
-func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
-	type retired struct {
-		at     int64
-		anchor string
+// reachingRemovalsOf is every reaching removal on the record, by the act's events.id, each gap once
+// (the first anchor of the act that reaches it), in gap order.
+func reachingRemovalsOf(q recordsql.Querier) (map[int64][]reaching, error) {
+	type removed struct {
+		at         int64
+		anchor, by string
 	}
-	var retires []retired
-	if err := scanRows(q, retiredAnchorsSQL, func(rows *sql.Rows) error {
-		var r retired
-		err := rows.Scan(&r.at, &r.anchor)
+	var retires []removed
+	if err := scanRows(q, removedAnchorsSQL, func(rows *sql.Rows) error {
+		var r removed
+		err := rows.Scan(&r.at, &r.anchor, &r.by)
 		retires = append(retires, r)
 		return err
 	}); err != nil || len(retires) == 0 {
@@ -185,7 +186,7 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 			if t.since >= r.at || (isClosed && c < r.at) || slices.ContainsFunc(out[r.at], func(o reaching) bool { return o.gap == t.gap }) {
 				continue
 			}
-			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor})
+			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, by: r.by})
 		}
 	}
 	for at := range out {
@@ -214,7 +215,7 @@ func firstClosuresAt(q recordsql.Querier) (map[string]int64, error) {
 func scanRows(q recordsql.Querier, query string, scan func(*sql.Rows) error) error {
 	rows, err := q.Query(query)
 	if err != nil {
-		return fmt.Errorf("asking the record which gaps each retire reaches: %w", err)
+		return fmt.Errorf("asking the record which gaps each removal reaches: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -225,13 +226,20 @@ func scanRows(q recordsql.Querier, query string, scan func(*sql.Rows) error) err
 	return rows.Err()
 }
 
-// Reaches is the gaps the retire e reaches (reachingRetiresOf), in gap order; nil for any other
-// event. A narrowed index panics, as in LatestSittingOf: it was not read beside the record's rows.
+// Reaches is the gaps e reaches by the anchors it took out (reachingRemovalsOf), in gap order: a
+// retire's, or a pure cut's removed_anchors; nil for an act that took none. A narrowed index panics,
+// as in LatestSittingOf: it was not read beside the record's rows.
 func (x WindowIndex) Reaches(e *Event) []reaching {
-	if e.GetType() != recordpb.EventType_EVENT_TYPE_RETIRE {
+	switch b := mustBody(e).(type) {
+	case *recordpb.Retire:
+	case *recordpb.BlueEdit:
+		if len(b.GetRemovedAnchors()) == 0 {
+			return nil
+		}
+	default:
 		return nil
 	}
-	x.mustBeWhole("the gaps a retire reaches")
+	x.mustBeWhole("the gaps a removal reaches")
 	return x.reach[x.Of(e).ID]
 }
 

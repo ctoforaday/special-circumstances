@@ -9,7 +9,7 @@ import (
 
 // THE DEMAND HOLDS WHILE ITS SUBJECT STANDS IN THE REPORT (ruled by gblock 2026-11-20): a `source` or
 // `computation` gap's subject is the anchor it is about, or the claim its marker marks, which leaves
-// the report only with that marker. While it stands the close is refused under every disposition;
+// the report only with that marker — by a pure cut of its sentence, which takes the marker. While it stands the close is refused under every disposition;
 // once it has left, nothing more is owed and the lens's `moot` lands.
 
 // quoteGap mints gap key on sentence, by its quote, with check kind kind, from lensSeat.
@@ -25,19 +25,20 @@ func quoteGap(t *testing.T, runDir, key, kind, sentence string, extra ...string)
 	return gapID(out)
 }
 
-// retireMarkerWithClaim cuts sentence down to gap marker g, then retires the claim with the marker.
-func retireMarkerWithClaim(t *testing.T, runDir, sentence, g string) {
+// cutMarkerWithClaim cuts sentence whole, which takes gap marker g with it (removed_anchors).
+func cutMarkerWithClaim(t *testing.T, runDir, sentence, g string) {
 	t.Helper()
-	gutToAnchor(t, runDir, sentence, anchor.Token(g))
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", g, "--quote", sentence, "--reason", "the claim cannot stand"); err != nil {
-		t.Fatalf("retire --anchor %s --quote %q: %v", g, sentence, err)
+	quote := strings.TrimSuffix(sentence, ".") + anchor.Token(g) + "."
+	if _, err := cut(t, runDir, quote); err != nil {
+		t.Fatalf("the cut of %q: %v", quote, err)
 	}
 	if strings.Contains(readReport(t, runDir), anchor.Token(g)) {
-		t.Fatalf("the retire left %s's marker in the report:\n%s", g, readReport(t, runDir))
+		t.Fatalf("the cut left %s's marker in the report:\n%s", g, readReport(t, runDir))
 	}
 }
 
-// A `--quote` gap's own marker leaving the report with its claim: the demand is met, and `moot` lands
+// A `--quote` gap's own marker leaving the report with its claim by a pure cut: the demand is met, and on the lens's turn the cut
+// hands it, `moot` lands
 // where it was refused.
 func TestAQuoteGapClosesOnceItsMarkerLeaves(t *testing.T) {
 	const sentence = "Water is wet."
@@ -46,7 +47,8 @@ func TestAQuoteGapClosesOnceItsMarkerLeaves(t *testing.T) {
 			runDir := citedRun(t, "https://water/1")
 			g := quoteGap(t, runDir, "quoted", check, sentence)
 			wantDemandRefusal(t, lensClose(t, runDir, lensSeat, g, "moot"), g, check)
-			retireMarkerWithClaim(t, runDir, sentence, g)
+			cutMarkerWithClaim(t, runDir, sentence, g)
+			lensRereads(t, runDir) // the cut is the raiser's turn: its next sitting is handed the cut
 			if open, answered, awaiting := gapRow(t, runDir, g); !open || !answered || awaiting {
 				t.Errorf("after its marker left, %s reads open=%v evidence_answered=%v awaiting_evidence=%v, want open and met — nothing auto-closes", g, open, answered, awaiting)
 			}
@@ -58,35 +60,33 @@ func TestAQuoteGapClosesOnceItsMarkerLeaves(t *testing.T) {
 	}
 }
 
-// While the subject stands, nothing but the demand's own arms meets it: a `--quote` gap whose marker
-// an edit left bare (the claim's words gone, its marker standing until the retire), a gap about an
-// anchor that stands, and a gap whose neighbour's claim left the report, are each refused `moot`, and
-// the refusal says the demand holds while the subject stands.
+// While the subject stands, nothing but the demand's own arms meets it: a `--quote` gap whose claim
+// stands, a gap about an anchor that stands, and a gap whose neighbour's claim left the report, are each
+// refused `moot`, and the refusal says the demand holds while the subject stands. The cut of the first
+// gap's claim meets its demand alone.
 func TestTheDemandHoldsWhileItsSubjectStands(t *testing.T) {
 	const sentence = "Water is wet."
 	for _, c := range []struct{ check, kind string }{{"source", "citation"}, {"computation", "computation"}} {
 		t.Run(c.check, func(t *testing.T) {
 			runDir := citedRun(t, "https://water/1", "https://sky/1")
-			bare := quoteGap(t, runDir, "bare", c.check, sentence)
+			cutG := quoteGap(t, runDir, "cut", c.check, sentence)
 			id := placeAnswer(t, runDir, c.kind, "The sky is blue.", "https://sky/1", "")
 			about := demandGap(t, runDir, "about", c.check, "--about-kind", "anchor", "--about", id)
 			neighbour := quoteGap(t, runDir, "neighbour", c.check, "Fire is hot.")
 
-			gutToAnchor(t, runDir, sentence, anchor.Token(bare))
-			for _, g := range []string{bare, about, neighbour} {
+			for _, g := range []string{cutG, about, neighbour} {
 				wantDemandRefusal(t, lensClose(t, runDir, lensSeat, g, "moot"), g, c.check, "while its subject stands in the report")
 			}
-			if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", bare, "--quote", sentence, "--reason", "the claim cannot stand"); err != nil {
-				t.Fatalf("retire --anchor %s: %v", bare, err)
-			}
+			cutMarkerWithClaim(t, runDir, sentence, cutG)
+			lensRereads(t, runDir) // the cut is the raiser's turn: its next sitting is handed the cut
 			for _, g := range []string{about, neighbour} {
 				if _, answered, _ := gapRow(t, runDir, g); answered {
-					t.Errorf("the retire of %s's marker met %s's demand, whose subject stands", bare, g)
+					t.Errorf("the cut of %s's marker met %s's demand, whose subject stands", cutG, g)
 				}
 				wantDemandRefusal(t, lensClose(t, runDir, lensSeat, g, "moot"), g, c.check)
 			}
-			if err := lensClose(t, runDir, lensSeat, bare, "moot"); err != nil {
-				t.Fatalf("the moot close of %s after its marker left with its claim was refused: %v", bare, err)
+			if err := lensClose(t, runDir, lensSeat, cutG, "moot"); err != nil {
+				t.Fatalf("the moot close of %s after its marker left with its claim was refused: %v", cutG, err)
 			}
 		})
 	}

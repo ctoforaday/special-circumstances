@@ -97,6 +97,9 @@ func archiveStoreDir(name string) (string, error) {
 		archiveStore.root = root
 	}
 	dir := filepath.Join(archiveStore.root, name)
+	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil { // a bundle-store/<run> name nests
+		return "", err
+	}
 	return dir, os.MkdirAll(dir, 0o755)
 }
 

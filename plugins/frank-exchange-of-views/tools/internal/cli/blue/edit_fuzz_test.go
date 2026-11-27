@@ -48,7 +48,7 @@ func FuzzPlanEdit(f *testing.F) {
 			return // a mis-quote or a marker-spanning span → reject is always acceptable
 		}
 		// SUCCESS ⇒ the marker survives — both as a set-membership id and as a literal token.
-		if droppedMarker(report, next) != "" {
+		if droppedMarker(report, next, nil) != "" {
 			t.Fatalf("planEdit succeeded but dropped a marker\n report=%q\n old=%q\n next=%q", report, old, next)
 		}
 		if !strings.Contains(next, "<!--gap:G-005eed01-->") {

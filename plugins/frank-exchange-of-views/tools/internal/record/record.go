@@ -969,7 +969,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the report-voice refusal and a retired --about anchor judge
+		// The one-gap-per-class rule, the report-voice refusal and an --about anchor out of the report —
+		// retired, or cut with its sentence — judge
 		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
 		// place on the roster is asked of every writer.
 		if err := mintShape(q, b); err != nil {
@@ -995,7 +996,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		// That the citation is still live is the act's to answer (judgeAct): an archived computation
-		// citing a citation retired since replays as it was made.
+		// citing a citation retired or cut since replays as it was made.
 		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
@@ -1046,8 +1047,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 			// A CLOSE STANDS ON THE TEXT DELIVERED TO THE LENS: its sitting's delivery, and no change
-			// to the gap's sentence since — a gap whose anchor an edit left bare or a retire removed
-			// included, its passage being the change that did it.
+			// to the gap's sentence since — a gap whose sentence a cut took, its marker with it,
+			// included, its passage being the cut that did it.
 			if err := DeliveredTextRefusal(q, seatID, b); err != nil {
 				return err
 			}
@@ -1375,17 +1376,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				w, recordpb.Word(b.Subject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.Subject())]), " | "))
 		}
 	case *recordpb.Retire:
-		// THE CLAIM AND THE REASON ARE THE ANNOTATIONS' TO REFUSE: both carry `required: true` with
-		// their `why`, and the annotation sweep refuses before this arm runs, so a copy of either
-		// refusal here could never execute and would drift unread.
+		// THE REASON IS THE ANNOTATIONS' TO REFUSE: it carries `required: true` with its `why`, and the
+		// annotation sweep refuses before this arm runs, so a copy of that refusal here could never
+		// execute and would drift unread. The claim is the verb's stamp of the anchor's sentence.
 		//
-		// --answers is blue_edit's key on the other act that changes the report's text, and is
-		// checked against the board the same way. A claim retire takes none: the edit that cut the
-		// claim answers the gap, and a second answer from the retire would join one repair to the gap
-		// twice.
-		if b.GetAnswers() != "" && !b.GetClaimKept() {
-			return fmt.Errorf("--answers names the gap an evidence-anchor retire answers — a retire naming one citation or computation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
-		}
+		// --answers is the key blue_edit carries too, checked against the board the same way: a retire
+		// changes the report's anchors where an edit changes its text, and either may answer a gap.
 		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}

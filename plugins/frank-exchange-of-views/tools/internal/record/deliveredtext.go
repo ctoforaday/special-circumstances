@@ -76,11 +76,14 @@ func PinAt(q recordsql.Querier, seatID string) (int64, error) {
 }
 
 // changedSinceSQL is the first head move after ?1 that changed the sentence of anchor ?2: an edit
-// whose reopened lists it, which includes one that left it bare. These are the head moves (head_move)
-// that touch one anchor's sentence; a part appends and touches none. A retire is no head move: it takes
-// an anchor out and leaves the text the delivery carried, so it never stales a delivered text (gblock
-// 2026-11-20).
-const changedSinceSQL = `SELECT MIN(r."event_id") FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1`
+// whose reopened lists it, or a pure cut whose removed_anchors does — the cut took the sentence and
+// the anchor with it. These are the head moves (head_move) that touch one anchor's sentence; a part
+// appends and touches none. A retire is no head move: it takes an anchor out and leaves the text the
+// delivery carried, so it never stales a delivered text (gblock 2026-11-20).
+const changedSinceSQL = `SELECT MIN("event_id") FROM (
+  SELECT r."event_id" FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1
+  UNION ALL
+  SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?2 AND x."event_id" > ?1)`
 
 // DeliveredTextRefusal is the delivered-text rule asked of one act, as the write asks it: the refusal
 // of body under seatID, or nil where the act depends on no report text or stands on its delivery. The

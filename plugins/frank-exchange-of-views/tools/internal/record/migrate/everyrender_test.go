@@ -3,7 +3,6 @@ package migrate_test
 import (
 	"crypto/sha256"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -11,14 +10,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // EVERY ARCHIVED RUN RENDERS, and renders the bytes it rendered before. Replay re-runs placement,
 // the splice locators and the retire tidy on every read, so a change to any of them can move a
 // historical report while every unit test stays green; this pins the render of every tarball that
-// holds a base. No archived run replays a retire, so the retire tidy (reportproj.RemoveAnchorAt)
-// is pinned by its own tests and the retire verb's, not by this one.
+// holds a base, every committed archive read (bundle-store/ included). The removes of a cut's
+// removed_anchors (reportproj.RemoveAnchorAt) are pinned here on the archives whose cuts migrate fills:
+// the claim retires folded into their cuts (wave-a, m28, m37, 1883) and the cuts no retire followed
+// (b3, b6, b9). m19's, m32's and m35's cuts took only finding anchors, which the findings fold never
+// places, so they take nothing.
 //
 // One golden line per run: `<run> <rendered|no-base> <raw> <normalized> <skeleton> <markers per
 // kind>`.
@@ -35,14 +38,10 @@ import (
 //
 // The token reader here is the test's own: the readers under test must not grade themselves.
 func TestEveryArchivedRunRenders(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	var lines []string
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		run := strings.TrimSuffix(name, ".tar.gz")
 		res, dst := migrateArchive(t, name)
 		if len(res.Refusals) != 0 {

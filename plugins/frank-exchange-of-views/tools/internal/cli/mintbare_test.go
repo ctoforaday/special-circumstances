@@ -46,23 +46,20 @@ func mintRefusedBare(t *testing.T, runDir, quote, new string, want ...string) {
 	}
 }
 
-// A PRESCRIPTION THAT WOULD BARE AN ANCHOR IS REFUSED AT THE MINT. Blue's accept refuses an edit that
-// leaves an evidence anchor bare, carried or not, or another anchor bare that it does not carry; the
-// mint asks the same of the edit the accept would make, so the lens hears it while it can still change
-// --new. The evidence anchor is named by its kind.
+// A PRESCRIPTION THAT WOULD BARE AN ANCHOR IS REFUSED AT THE MINT, of every kind. Blue's accept refuses
+// an edit that leaves any anchor with no prose before it in its sentence, carried or not (no writer
+// leaves a bare anchor); the mint asks the same of the edit the accept would make, so the lens hears it
+// while it can still change --new. The refusal names the anchor's token.
 func TestAMintPrescriptionBaringEvidenceIsRefused(t *testing.T) {
 	for _, kind := range anchor.Kinds() {
-		runDir := citedRun(t, "https://water/1")
-		registerChairOnce(t, runDir)
-		registerLensOnce(t, runDir)
-		id, _ := markerOfKind(t, runDir, kind, "Water is wet.")
-		if !anchor.Backs(id) {
-			continue // the rows below
-		}
 		t.Run(kind, func(t *testing.T) {
+			runDir := citedRun(t, "https://water/1")
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			id, _ := markerOfKind(t, runDir, kind, "Water is wet.")
 			tok := anchor.Token(id)
 			for _, new := range []string{tok, tok + "."} {
-				mintRefusedBare(t, runDir, "Water is wet", new, "--new would leave "+kind+" "+id, "Keep the sentence in --new")
+				mintRefusedBare(t, runDir, "Water is wet", new, tok, "Keep words before")
 			}
 			// Kept on prose, the anchor is admitted.
 			if _, err := mintQuote(t, runDir, "K", "Water is wet", "--new", "Water is damp"+tok+".", "--class", "unsourced_claim"); err != nil {
@@ -72,12 +69,15 @@ func TestAMintPrescriptionBaringEvidenceIsRefused(t *testing.T) {
 	}
 }
 
+// AN ANCHOR THE QUOTE LEAVES OUT IS BARED ALL THE SAME: past a closing quotation mark, a token outside
+// --quote that --new leaves on no words is refused, named by its token; carried onto no words it is
+// refused too; a sentence kept before it is admitted, and the accept applies it.
 func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	const sentence = "She wrote \"water is wet.\""
 	const quote = "She wrote \"water is wet"
 	for _, kind := range anchor.Kinds() {
 		if kind == "citation" || kind == "computation" {
-			continue // evidence, carried or not: the row above
+			continue // evidence: the row above
 		}
 		t.Run(kind, func(t *testing.T) {
 			runDir := quotedRun(t)
@@ -86,18 +86,9 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 			if rep := readReport(t, runDir); !strings.Contains(rep, sentence+tok) {
 				t.Fatalf("the %s anchor does not stand past the closing quotation mark:\n%s", kind, rep)
 			}
-			mintRefusedBare(t, runDir, quote, ".", "--new would leave anchor "+tok, "--quote leaves it out", "end --quote with "+tok+" as `show report` prints it, and write "+tok+" into --new")
-
-			// Carried as the refusal says: admitted, and the accept applies it.
-			carried, err := mintQuote(t, runDir, "C", sentence+tok, "--new", tok+".", "--class", "unsourced_claim")
-			if err != nil {
-				t.Fatalf("the carry the refusal names was refused: %v", err)
-			}
-			if err := acceptEdit(t, runDir, "AC", carried, "--accept"); err != nil {
-				t.Errorf("the carried prescription was refused at accept: %v", err)
-			}
-			runDir = quotedRun(t)
-			_, _ = markerOfKind(t, runDir, kind, sentence)
+			mintRefusedBare(t, runDir, quote, ".", tok, "Keep words before")
+			// Carried onto no words: refused as well.
+			mintRefusedBare(t, runDir, sentence+tok, tok+".", tok, "Keep words before")
 
 			// A sentence kept before it: admitted, and the accept applies it.
 			gap, err := mintQuote(t, runDir, "K", quote, "--new", "She wrote \"water is damp", "--class", "unsourced_claim")
@@ -111,26 +102,19 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	}
 }
 
-// A PRESCRIPTION THAT CARRIES THE ANCHOR IS ADMITTED, bare or not: the accept moves an
-// anchor at the sentence's end with the gap's, and one carried may stand bare until blue retires the
-// claim. Evidence never stands bare (the row above).
-func TestAMintPrescriptionCarryingTheAnchorIsAdmitted(t *testing.T) {
+// A PRESCRIPTION CARRYING AN ANCHOR ONTO NO WORDS IS REFUSED: the accept moves a gap marker at the
+// sentence's end with the gap's, and a carried marker may not stand bare (P12b: no writer leaves a bare anchor).
+func TestAMintPrescriptionCarryingAnAnchorOntoNoWordsIsRefused(t *testing.T) {
 	for _, kind := range anchor.Kinds() {
 		if kind == "citation" || kind == "computation" {
-			continue // evidence never stands bare
+			continue // evidence the accept does not move: carried onto no words in the first test's rows
 		}
 		t.Run(kind, func(t *testing.T) {
 			runDir := citedRun(t, "https://water/1")
 			registerChairOnce(t, runDir)
 			registerLensOnce(t, runDir)
-			_, _ = markerOfKind(t, runDir, kind, "Water is wet.")
-			gap, err := mintQuote(t, runDir, "P", "Water is wet", "--new", ".", "--class", "unsourced_claim")
-			if err != nil {
-				t.Fatalf("a prescription carrying the %s anchor was refused: %v", kind, err)
-			}
-			if err := acceptEdit(t, runDir, "A", gap, "--accept"); err != nil {
-				t.Errorf("the admitted prescription was refused at accept: %v", err)
-			}
+			id, _ := markerOfKind(t, runDir, kind, "Water is wet.")
+			mintRefusedBare(t, runDir, "Water is wet", ".", anchor.Token(id), "Keep words before")
 		})
 	}
 }

@@ -2,7 +2,8 @@
 // blue/report.md is LEGAL — shared, because two roles now need the same answer.
 //
 // WHY IT EXISTS. `blue edit` has always validated its own old→new pair: the span must be
-// present, unique, must not split a word, and must not change which anchors exist.
+// present, unique, must not split a word, and — unless it cuts whole sentences, taking their
+// anchors — must not change which anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
 // mint time, in the lens role.
@@ -117,15 +118,16 @@ func AbuttingRun(report string, end int) (run string, punct int) {
 // settleAbuttingAnchors is where a replaced span starts and ends when anchors stand against it: THE
 // QUOTE DECIDES, anchor by anchor, and by one rule at both ends.
 //
-// An anchor the quote does not carry is OUTSIDE the span. The edit replaces the quoted text and the
-// anchor stays exactly where it stands, its bytes untouched — at the end, after the replacement and
+// An anchor the quote does not carry is OUTSIDE the span. The splice replaces the quoted text and the
+// anchor stays exactly where it stands, its bytes untouched, until a pure cut's list takes it: the
+// splice never removes a token. It stands at the end, after the replacement and
 // before the terminator, where ReopenedAnchors, which reads sentences rather than spans, records that
 // the sentence under it changed, and tidySeam takes the terminator a replacement brings against it.
 //
 // An anchor the quote carries is INSIDE it. normalizeQuote drops annotation spans from the quote as
 // well as from the report, so the located span runs from the quote's first content character to its
-// last, and a quote copied as `show report` prints it — opening with the bare anchors of a cut claim,
-// or closing on the anchors before a terminator — would otherwise name anchors outside the span it
+// last, and a quote copied as `show report` prints it — closing on the anchors before a terminator —
+// would otherwise name anchors outside the span it
 // replaces. Against each end stand the anchors and the whitespace between them (after the end, past
 // the punctuation the quote's trim left out too); the span reaches to take in the outermost anchor
 // there the quote carries, with everything between it and the text. Anchors further out stay outside.
@@ -180,13 +182,15 @@ func carriedReach(edge, quoted string) (first, last int, ok bool) {
 	return first, last, first >= 0
 }
 
-// AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
+// AnchorsTransitUnchanged enforces the one anchor invariant a rewrite's replacement must satisfy: it
 // may not change WHICH anchors exist. The multiset of anchor ids in the replaced span must
-// equal the multiset in its replacement — so an anchor may be carried across an edit (and
-// the prose around it rewritten), but never introduced, dropped or duplicated. It returns newText
+// equal the multiset in its replacement — so an anchor may be carried across a rewrite (and
+// the prose around it rewritten), but never introduced, dropped or duplicated. A pure cut never
+// reaches it: the edit decides the cut first and lists the tokens it takes. It returns newText
 // with every anchor AutoPlace put back, so the refusal of one it could not is true at every caller.
 //
-// Anchors are placed by the tool, never typed into a replacement, and leave only by retire.
+// Anchors are placed by the tool, never typed into a replacement, and leave by a retire, or with
+// their sentence when an edit cuts it.
 // Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
 func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 	newText = AutoPlace(oldSpan, newText)
@@ -204,7 +208,7 @@ func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 			sent, _ := SentenceAround(oldSpan, anchor.Token(id))
 			return "", &ErrAnchorDropped{ID: id, Sentence: sent, Near: nearestSentence(newText, sent)}
 		case got != want:
-			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", anchor.Label(id), want, got)
+			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by a rewrite; carry each one across exactly once, or cut its sentence whole", anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
@@ -235,7 +239,8 @@ func (e *ErrAnchorDropped) Error() string {
 		near = fmt.Sprintf(" — its nearest sentence there reads %q", e.Near)
 	}
 	return fmt.Sprintf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
-		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
+		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; "+
+		"to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.
@@ -283,7 +288,7 @@ const MaxProposalGrowth = 120
 // is entitled to propose. Whether blue could apply it is the accept's own judgement (blue.PlanAccept),
 // which `lens mint` asks as well.
 //
-// THE GROWTH IS MEASURED IN WORDS, NOT TOKENS. A replacement carries the anchors of the span it
+// THE GROWTH IS MEASURED IN WORDS, NOT TOKENS. A rewrite carries the anchors of the span it
 // replaces, as the accept requires, while old is the gap's location — a claim, which holds none — so
 // counting tokens charges a rewording of a sentence five citations back with 110 characters it never
 // wrote. The bound's sample was blue's edits, whose old and new carried the same tokens; both sides
@@ -299,9 +304,9 @@ func RefuseAuthoring(old, new string) error {
 // ReopenedAnchors returns the anchors whose SENTENCE this edit changed — the referents that
 // moved under their references.
 //
-// THE TWO CONCERNS ARE SEPARATE AND ONLY ONE WAS ENFORCED. An anchor is never lost:
-// AnchorsTransitUnchanged refuses a replacement that drops one, and droppedMarker backstops the
-// whole edit. That promise holds. But an anchor SURVIVING onto rewritten prose is a citation
+// THE TWO CONCERNS ARE SEPARATE AND ONLY ONE WAS ENFORCED. An anchor is never lost unrecorded: a
+// rewrite that drops one is refused, droppedMarker backstops the whole edit, and a cut records each
+// anchor it takes in removed_anchors. That promise holds. But an anchor SURVIVING onto rewritten prose is a citation
 // backing a sentence nobody read, and nothing said so — measured: a cite on "The sky is blue and
 // the grass is green" followed the text to "The sky is green and the grass is on fire".
 //
@@ -319,30 +324,14 @@ func RefuseAuthoring(old, new string) error {
 // per anchor costs the report's length times its anchors, under the write lock: on a 3,106-event
 // record with 1,274 anchors, 0.82 s of an edit's 0.85 s hold.
 func ReopenedAnchors(before, after string) []string {
-	bareAfter, bareBefore := map[string]bool{}, map[string]bool{}
-	for _, id := range claimcount.BareAnchorIDs(after) {
-		bareAfter[id] = true
-	}
-	for _, id := range claimcount.BareAnchorIDs(before) {
-		bareBefore[id] = true
-	}
 	inBefore, inAfter := splitSentences(before), splitSentences(after)
 	var out []string
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
 		b, okB := inBefore.around(anchor.Token(id))
 		a, okA := inAfter.around(anchor.Token(id))
-		// An anchor that is GONE from `after` is not reopened — it is dropped, which is a refusal
-		// the caller has already made. Saying both would report one fault as two.
+		// An anchor that is GONE from `after` is not reopened: a cut took it and lists it in
+		// removed_anchors, or a rewrite dropped it, which is a refusal the caller has already made.
 		if !okB || !okA {
-			continue
-		}
-		// AN ANCHOR THE EDIT LEFT BARE IS REOPENED: its sentence is gone, which changes its referent
-		// as surely as a rewrite, and the gap it holds is on its way out through `retire` or back
-		// onto new text. One bare before the edit as well was not bared by it.
-		if bareAfter[id] {
-			if !bareBefore[id] {
-				out = append(out, id)
-			}
 			continue
 		}
 		if b != a {

@@ -254,7 +254,7 @@ func blueRetiresCitationFor(b *stage, gap string) *stage {
 	agent := fmt.Sprintf("blue-agent-%d", b.n+1)
 	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).
 		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("the source cannot be read"),
-			Anchors: []string{"C-1"}, ClaimKept: proto.Bool(true), Answers: proto.String(gap)}).stop(agent)
+			Anchors: []string{"C-1"}, Answers: proto.String(gap)}).stop(agent)
 }
 
 // A GAP A LENS HOLDS WITH NOTHING NEW ON IT OWES NOTHING (gblock, 2026-10-18). universe-m28's

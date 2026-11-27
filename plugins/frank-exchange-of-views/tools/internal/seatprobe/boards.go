@@ -292,7 +292,7 @@ An earlier draft of this report claimed the floor was 90 days.
 
 Each claim below rests on a cited source.
 `,
-		RedNarrative: "Epoch 1. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
+		RedNarrative: "Epoch 1. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see its sentence cut, or its dead citation retired for one that holds, than argued into place.",
 		Claims:       []string{"The standard mandates a 30-day retention floor for every record class it covers."},
 		Gaps: []Gap{
 			{
@@ -313,16 +313,29 @@ Each claim below rests on a cited source.
 				Fix:      "Remove the claim through the accounted channel so the record shows it leaving.",
 				Check:    "The 90-day claim is gone AND its removal is on the record.", CheckKind: "document",
 				Severity: "medium", Likelihood: "high", Impact: "medium", Complexity: "low",
+				Baits: "edit",
+				Why: "A claim leaves only through an edit on the record, never by quietly not being there: the " +
+					"edit's reason says why it went, its cut takes the anchors that stood on the sentence, and " +
+					"the changelog lists the edit for the reader.",
+			},
+			{
+				Key: "drifted", Class: "live_source_drift",
+				Location: `The standard mandates a 30-day retention floor for every record class it covers.`,
+				Problem:  "The cited source no longer says what this sentence is cited for: the page now states a different retention rule.",
+				Fix:      "Back the sentence with a source that says it, and take the drifted citation off the sentence; the sentence stays.",
+				Check:    "The sentence carries a citation to a source that says it, and the drifted citation is out of the report.", CheckKind: "source",
+				Severity: "medium", Likelihood: "high", Impact: "medium", Complexity: "low",
 				Baits: "retire",
-				Why: "A claim leaves only through the retire verb, never by quietly not being there: the " +
-					"retire names the claim, why it went and the anchors that leave with it, and the " +
-					"changelog lists it for the reader.",
+				Why: "The sentence is right and only its evidence failed: a retire takes that one citation off the " +
+					"sentence word for word and records why, with --answers naming this gap. An edit cannot: a " +
+					"rewrite carries the citation, and a cut would take a true sentence with it.",
 			},
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
 			{Seat: "blue-respond", Verb: "question split", Because: "The question this run was asked is split into no part, so nothing states which parts of it the report answers, and the PASS is held until it is: blue's work list names the split. The title asks whether the standard requires what the report says — the retention floor and the ban on early deletion are the parts a reader would ask answered."},
-			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. An edit that cuts a cited sentence is refused for leaving its citation bare; the retire takes the citation off the sentence, keeping it word for word, and records why it went."},
+			{Seat: "blue-respond", Verb: "edit", Because: "A claim leaves the report through an edit that cuts its sentence whole: the cut takes the sentence and this gap's own marker with it, records why it went, and hands the gap to its lens, which judges the report as it stands."},
+			{Seat: "blue-respond", Verb: "retire", Because: "The 30-day sentence stands and its citation's source no longer says it. Blue cites a source that does, and the retire takes the drifted citation off the sentence, keeping it word for word, with the reason on the record; an edit cannot take a citation off a sentence it keeps."},
 		},
 	}
 }

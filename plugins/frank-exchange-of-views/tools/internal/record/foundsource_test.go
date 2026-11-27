@@ -202,7 +202,11 @@ func TestNoReadingPlacesACitation(t *testing.T) {
 	if len(srcs) != 1 || srcs[0].Label != "C-1" {
 		t.Errorf("cited sources = %+v, want blue's C-1 alone", srcs)
 	}
-	labels, err := CitationLabels(run)
+	db, err := openRunForRead(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	labels, err := citationLabelsAt(db)
 	if err != nil {
 		t.Fatal(err)
 	}

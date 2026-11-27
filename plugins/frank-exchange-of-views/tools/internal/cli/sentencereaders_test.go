@@ -11,7 +11,7 @@ import (
 
 // EVERY READER OF AN ANCHOR'S SENTENCE READS ONE WHOLE SENTENCE, through the real verbs. Each row
 // fails on a reader that splits at an internal period ("3.5%", "13. ✓") or at a soft wrap: the
-// edit's reopened set, the claim count, retire's bare set, the retire tidy, the risk matrix's lead
+// edit's reopened set, the claim count, a cut's removed set, the cut's tidy, the risk matrix's lead
 // sentence, the sentence an edit's left-out anchor is put back on, and a gap's location, backing and
 // edited_since.
 func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
@@ -44,18 +44,17 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 		}
 		return lastBody(t, runDir, &recordpb.BlueEdit{})
 	}
-	retire := func(claim string) *recordpb.Retire {
+	cutOf := func(quote string) *recordpb.BlueEdit {
 		t.Helper()
-		if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", claim, "--reason", "refuted"); err != nil {
-			t.Fatalf("retire %q: %v", claim, err)
+		if out, err := cut(t, runDir, quote); err != nil {
+			t.Fatalf("cut %q: %v\n%s", quote, err, out)
 		}
-		return lastBody(t, runDir, &recordpb.Retire{})
+		return lastBody(t, runDir, &recordpb.BlueEdit{})
 	}
 	c1 := cite("Prices rose 3.5% in 2024", "https://a/1")
 	c1w := cite("Costs rose 4.5% in 2023", "https://a/2")
 	c2 := cite("91 = 7 × 13. ✓", "https://a/3")
-	// Evidence never stands bare by an edit, so the cuts down to an anchor below are recorded as an
-	// archived record holds them (recordEdit), on computed sentences.
+	// The cuts below take computed sentences whole, with their anchors.
 	compute := func(sentence string) string {
 		t.Helper()
 		s := script(t, runDir, "p.js", "console.log('it holds');")
@@ -93,31 +92,27 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 			t.Errorf("reopened = %v, want %s: the edit changed the words its citation backs, a line above it", got, c1w)
 		}
 	})
-	t.Run("retire leaves an anchor attached after a terminator and a symbol", func(t *testing.T) {
-		edit("✓"+anchor.Token(c2)+" Verified twice", "✓"+anchor.Token(c2))
-		if got := retire("✓ Verified twice").GetAnchors(); slices.Contains(got, c2) {
-			t.Errorf("retire took %v: %s backs \"91 = 7 × 13. ✓\", a live claim", got, c2)
+	t.Run("a cut leaves an anchor attached after a terminator and a symbol", func(t *testing.T) {
+		if got := cutOf("Verified twice.").GetRemovedAnchors(); slices.Contains(got, c2) {
+			t.Errorf("the cut took %v: %s backs \"91 = 7 × 13. ✓\", a live claim", got, c2)
 		}
-		if md := readReport(t, runDir); !strings.Contains(md, "91 = 7 × 13. ✓"+anchor.Token(c2)) {
-			t.Errorf("the live claim lost its anchor:\n%s", md)
+		if md := readReport(t, runDir); !strings.Contains(md, "91 = 7 × 13. ✓"+anchor.Token(c2)) || strings.Contains(md, "Verified twice") {
+			t.Errorf("the live claim lost its anchor, or the cut sentence stayed:\n%s", md)
 		}
 	})
-	t.Run("the retire tidy keeps the closer before the emptied sentence", func(t *testing.T) {
+	t.Run("the cut tidy keeps the closer before the cut sentence", func(t *testing.T) {
 		tok := anchor.Token(c3)
-		recordEdit(t, runDir, "Gone soon"+tok+".", tok) // the cut; the splice tidy takes its period
-		edit("**One.** "+tok+" Two.", "**One.** "+tok+". Two.")
-		if got := retire("Gone soon.").GetAnchors(); !slices.Equal(got, []string{c3}) {
-			t.Errorf("retire took %v, want [%s]", got, c3)
+		if got := cutOf("Gone soon" + tok + ".").GetRemovedAnchors(); !slices.Equal(got, []string{c3}) {
+			t.Errorf("the cut took %v, want [%s]", got, c3)
 		}
 		if md := readReport(t, runDir); !strings.Contains(md, "\n**One.** Two.\n") {
-			t.Errorf("want \"**One.** Two.\" after the retire:\n%s", md)
+			t.Errorf("want \"**One.** Two.\" after the cut:\n%s", md)
 		}
 	})
-	t.Run("the retire tidy keeps an emptied ordered item's marker", func(t *testing.T) {
-		recordEdit(t, runDir, "Gone item"+anchor.Token(c4)+".", anchor.Token(c4))
-		retire("Gone item.")
+	t.Run("the cut tidy keeps an emptied ordered item's marker", func(t *testing.T) {
+		cutOf("Gone item" + anchor.Token(c4) + ".")
 		if md := readReport(t, runDir); !strings.Contains(md, "\n1.\n2. Kept item.") {
-			t.Errorf("want the emptied item to read \"1.\" after the retire:\n%s", md)
+			t.Errorf("want the emptied item to read \"1.\" after the cut:\n%s", md)
 		}
 	})
 	t.Run("the risk matrix cell is the whole first sentence", func(t *testing.T) {

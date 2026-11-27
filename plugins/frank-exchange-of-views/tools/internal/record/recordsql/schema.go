@@ -115,6 +115,10 @@ CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 -- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
 -- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
 CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
+-- The openings in record order: a seat's next opening after one of its sittings (agent_sitting's
+-- next_opening) is found among the openings, never by walking the acts between them. Without it
+-- the latest sitting of every seat walks the events from its opening to the end of the record.
+CREATE INDEX "events_opening_order" ON "events" ("id") WHERE "sitting_id" = "id";
 -- A seat's own acts of one type, where the type's body table holds nothing to narrow by: the
 -- report parts a seat filed (ReportAtPart, partStandingAt).
 CREATE INDEX "events_seat" ON "events" ("seat_id");
@@ -251,14 +255,16 @@ CREATE INDEX "docketing_gap" ON "docketing" ("gap_id", "event_id");
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
--- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads,
--- and the retirement that retired an anchor (AnchorRetiredAt).
+-- The retires naming an anchor: anchor_removal's retire arm, read per anchor (the evidence_anchor
+-- view's removal, record.AnchorRemovedAt).
 CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
--- The computations applying a citation as their method (Computation.cites): what a retire of that
--- citation is refused over (record.requireCitationUncited).
+-- The cuts naming an anchor: anchor_removal's edit arm, read per anchor as its retire arm is.
+CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("value", "event_id");
+-- The computations applying a citation as their method (Computation.cites): what a retire, or a
+-- cut, of that citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
--- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read;
+-- The gaps minted about an evidence anchor, read on the gap's side of a removal's reach — a
+-- retire, or a cut of its sentence (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read;
 -- and the gaps about the question, which the logic lens's item for a part's check and blue-respond's
 -- question item list (record.questionGapsAt).
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
@@ -295,8 +301,9 @@ CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- A gap's tombstones of one kind, in order (tombstone_standing; the readers by gap, every standing
 -- ruling row, every standing estoppel row): each read knows its kind.
 CREATE INDEX "tombstone_kind_gap" ON "tombstone" ("kind", "gap_id", "event_id");
--- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
--- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
+-- The edits whose reopened names an anchor, in order: the latest is the last edit that changed its
+-- sentence, whose stamped old paragraphs still hold it, and the first after a head is the change that
+-- touched it since; an edit that took its sentence lists it in removed_anchors instead.
 CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
 ` + evidenceCheckIndexesSQL()
 

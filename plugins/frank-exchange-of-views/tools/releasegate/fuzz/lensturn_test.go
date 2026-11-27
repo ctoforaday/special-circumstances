@@ -38,10 +38,11 @@ type gapActs map[string][]struct {
 }
 
 // actsOnGaps reads every act on a gap off evs — an act naming it — and every change to what a gap is
-// about that names no gap (changes: a reaching retire, a changed fate), each its lens's turn and no act
-// of blue's on it (F-FATE, 2026-11-24), and each gap's mint position. carried is each citation's gaps
-// that carry a reading of it (carryingOf): with the gap an anchor is about, what a retire of the anchor
-// reaches.
+// about that names no gap (changes: a reaching retire or cut, a changed fate), each its lens's turn and
+// no act of blue's on it (F-FATE, 2026-11-24), and each gap's mint position. carried is each citation's
+// gaps that carry a reading of it (carryingOf): with the gap an anchor is about, what a retire of the
+// anchor, or a cut that took it, reaches. A cut of a gap's own marker is that gap's raiser's turn too
+// (F21), whatever gap the cut names.
 func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts, changes gapActs, minted map[string]int) {
 	acts, changes, minted = gapActs{}, gapActs{}, map[string]int{}
 	answering := map[string]string{}       // evidence anchor → the gap it was placed as the answer to
@@ -85,17 +86,16 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts, changes
 		if b, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 			add(seat, i, b.GetGapId())
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
-			add(seat, i, b.GetAnswers())
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
-			if b.GetClaimKept() {
-				add(seat, i, b.GetAnswers())
-			}
-			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT: the one it
-			// names is its act, every other its lens's turn.
-			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
-			for _, a := range b.GetAnchors() {
+		// A REMOVAL REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT: the one it
+		// names is its act, every other its lens's turn. A cut also changes the gap whose own marker it
+		// took (F21, the raiser's turn), named or not.
+		reaches := func(answers string, anchors []string, ownMarker bool) {
+			add(seat, i, answers)
+			reached := map[string]bool{answers: true}
+			for _, a := range anchors {
+				if _, gap := minted[a]; gap && ownMarker {
+					addTo(changes, seat, i, a)
+				}
 				for _, g := range slices.Concat(about[a], carried[a]) {
 					if !reached[g] {
 						reached[g] = true
@@ -103,6 +103,12 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts, changes
 					}
 				}
 			}
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+			reaches(b.GetAnswers(), b.GetRemovedAnchors(), true)
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			reaches(b.GetAnswers(), b.GetAnchors(), false)
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
 			answering[b.GetComputationId()] = b.GetAnswers()

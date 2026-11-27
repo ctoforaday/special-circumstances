@@ -28,8 +28,9 @@ import (
 // the gap's sentence and of a retire that took out its anchor without naming it.
 //
 // A GAP WHOSE ANCHOR LEFT THE REPORT IS NOT UNANSWERED. Blue cutting the sentence is an act on it
-// whether or not the edit named the gap, so a `gone` gap blue was engaged on is put to its lens to
-// judge, never reported as silence.
+// whether or not the edit named the gap: the cut of its marker is its raiser's turn (ruled by gblock
+// 2026-11-26, F21), so a `gone` gap is put to its lens to judge on that turn, or once blue was engaged
+// on it, never reported as silence.
 //
 // THE NOT-MEASURED ARM IS THE POINT OF THE WHOLE FUNCTION. "Blue has not answered" and "blue is
 // still sitting and may yet answer" are the same silence on the record, and a lens handed the first
@@ -72,14 +73,14 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 	for _, g := range mine {
 		a := answers[g]
 		switch {
-		// A REACHING RETIRE FIRST (gblock, 2026-11-03): "NO edit answers it" would be false of this gap.
-		// Blue took out the anchor the gap is about, so the gap's demand
+		// A REACHING REMOVAL FIRST, by a retire or a cut (gblock, 2026-11-03): "NO edit answers it"
+		// would be false of this gap. Blue took out the anchor the gap is about, so the gap's demand
 		// is met and only its lens can act on it now.
 		case a.metAt > read[g]:
-			say(g, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s, naming no gap — a change to what the gap is about and your turn, not blue's answer: judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
-				g, a.met.anchor, a.met.how(g), a.metAt, a.met.result(demand[g])))
+			say(g, fmt.Sprintf("gap %s: %s, %s, at event %d, %s, naming no gap — a change to what the gap is about and your turn, not blue's answer: judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
+				g, a.met.took(), a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
-			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
@@ -92,7 +93,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			say(g, fmt.Sprintf("gap %s: blue %s, naming no gap — a change to what the gap is about and your turn, not blue's answer: re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g, a.partTurnWhat))
 		case a.pending:
 			say(g, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
-		case a.engaged && gone[g] && a.at > read[g]:
+		case gone[g] && (turn[g] || a.engaged && a.at > read[g]):
 			say(g, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
 		case turn[g]:
 			// THE LENS'S TURN, NOT BLUE'S ANSWER: an edit answering another gap changed this gap's
@@ -112,12 +113,11 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 // blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
 // gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
 type blueAnswer struct {
-	editedAt int64  // the latest change to the report answering it: an edit, old != new, or an evidence-anchor retire
+	editedAt int64  // the latest change to the report answering it: an edit, old != new, or a retire
 	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
 	placed   string // that anchor's id
-	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
-	// it is about, whatever gap the retire named. met is what it reached
-	// the gap through.
+	// metAt is the latest reaching removal of it (WindowIndex.Reaches): a retire or a cut that took out
+	// the anchor it is about, whatever gap the act named. met is what it reached the gap through.
 	metAt  int64
 	met    reaching
 	fateAt int64     // the latest fate naming it (Inquiry.answers), whatever its sitting was engaged on
@@ -162,12 +162,29 @@ func (a blueAnswer) placedNoun() string {
 	return row.Noun
 }
 
-// how is what a reaching retire reached gap g through, as a work list says it.
+// took is the reaching removal's act as a work list says it: a retire of the anchor, whose sentence
+// stays, or a cut of the sentence holding it.
+func (r reaching) took() string {
+	if r.by == RemovedByEdit {
+		return "blue's edit cut the sentence holding " + r.anchor
+	}
+	return "blue retired " + r.anchor
+}
+
+// news is the reaching removal as an item of news on a gap names it (gapNewsOf).
+func (r reaching) news() string {
+	if r.by == RemovedByEdit {
+		return "blue's cut of " + r.anchor + "'s sentence"
+	}
+	return "blue's retire of " + r.anchor
+}
+
+// how is what a reaching removal reached gap g through, as a work list says it.
 func (r reaching) how(g string) string {
 	return "which " + g + " is about"
 }
 
-// result is what a reaching retire leaves of the gap: its demand met, where its check kind is one an
+// result is what a reaching removal leaves of the gap: its demand met, where its check kind is one an
 // evidence anchor answers (recordpb.DemandClause), and otherwise the anchor gone from the report.
 func (r reaching) result(demand bool) string {
 	if demand {
@@ -290,7 +307,8 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 		}
 	}
-	// A REACHING RETIRE IS READ OFF THE WHOLE STREAM, not a sitting's acts: it meets the gap's demand
+	// A REACHING REMOVAL, by a retire or a cut, IS READ OFF THE WHOLE STREAM, not a sitting's acts: it
+	// meets the gap's demand
 	// whichever sitting recorded it.
 	for _, e := range evs {
 		for _, r := range win.Reaches(e) {
@@ -316,11 +334,12 @@ func placedAnswer(e *Event) (id, gap string, ok bool) {
 	return "", "", false
 }
 
-// retireAnswers is the gap an evidence-anchor retire answers — the key BlueEdit.answers is on the other act
-// that changes the report's text, and every reader of blue's answers reads both. "" for any other
-// event, and for a retire answering no gap; a claim retire carries none (validate refuses one).
+// retireAnswers is the gap a retire answers — the key BlueEdit.answers is too: a retire takes an
+// anchor off a sentence that stays, and an edit changes the text, a cut taking its sentences'
+// anchors with it; every reader of blue's answers reads both. "" for any
+// other event, and for a retire answering no gap.
 func retireAnswers(e *Event) string {
-	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && r.GetClaimKept() {
+	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
 		return r.GetAnswers()
 	}
 	return ""

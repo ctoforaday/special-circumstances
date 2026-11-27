@@ -273,9 +273,9 @@ func failedFact(b Blocker) string {
 // failedClears is what clears a failed-check blocker, stated by every wording of it.
 func failedClears(b Blocker) string {
 	if b.state == CheckUnsound {
-		return "it clears when the computation is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's edit changed the sentence, since an edit leaves it unchecked — or when blue retires it; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing. The close of the gap that carries it is refused while it stands. " + demandAfterClear
+		return "it clears when the computation is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's rewrite changed the sentence, since a rewrite leaves it unchecked — or when the computation leaves the report, by blue's retire or a cut of its sentence, which owes no fresh judgement; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing. The close of the gap that carries it is refused while it stands. " + demandAfterClear
 	}
-	return "it clears when a lens reads the source — any result but `unreachable`, of a copy that is the work — or when blue retires the citation, or edits its sentence, which leaves it unchecked; the close of the gap that carries it is refused while it stands, and no bench ruling clears it. " + demandAfterClear
+	return "it clears when a lens reads the source — any result but `unreachable`, of a copy that is the work — or when blue rewrites its sentence, which leaves it unchecked, or when the citation leaves the report, by blue's retire or a cut of its sentence, which owes no fresh check; the close of the gap that carries it is refused while it stands, and no bench ruling clears it. " + demandAfterClear
 }
 
 // failedChecker is whose check failed when the record names no seat.
@@ -284,9 +284,9 @@ const failedChecker = "a lens"
 // failedRemedy is blue's act on a failed check.
 func failedRemedy(b Blocker) string {
 	if b.state == CheckUnsound {
-		return "fixes the computation or retires it"
+		return "fixes the computation, retires it, or cuts the sentence it backs"
 	}
-	return "retires the citation or cites a source a lens can read"
+	return "retires the citation, cuts the sentence it backs, or cites a source a lens can read"
 }
 
 // failedOwed is whose act is owed on a failed-check blocker: the gap of the seat whose check failed
@@ -305,13 +305,13 @@ func blueFailedItem(b Blocker) string {
 		carried = "gap " + b.answeredBy + " states the defect and its fix"
 	}
 	if b.state == CheckUnsound {
-		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the program shows, which leaves the computation unchecked for a fresh judgement, or a new computation with this one retired — or retire the claim it backs", failedFact(b), carried)
+		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the program shows, which leaves the computation unchecked for a fresh judgement, or a new computation with this one retired — or cut the sentence it backs, which takes the computation with it", failedFact(b), carried)
 	}
 	retire := "Retire the citation"
 	if b.answeredBy != "" {
 		retire = "Retire the citation, answering gap " + b.answeredBy + ","
 	}
-	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. %s — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; an edit of its sentence leaves it unchecked, owed a fresh check", failedFact(b), carried, retire)
+	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. %s — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; a rewrite of its sentence leaves it unchecked, owed a fresh check, and a cut of the sentence takes the citation and its check out, owing nothing; a retire of the citation or a cut of its sentence is refused while a computation in the report applies the citation", failedFact(b), carried, retire)
 }
 
 // failedCheckRefusal is the gate's paragraph for the failed checks that hold it: each named, then
@@ -328,7 +328,7 @@ func failedCheckRefusal(bs []Blocker) string {
 	}
 	return fmt.Sprintf("%d citation(s) or computation(s) stand on a failed check:\n  %s\n"+
 		"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
-		"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+". "+
+		"A computation clears when it is judged sound again, a citation when a lens reads its source, and either when blue's rewrite changes its sentence, which leaves it unchecked, or when it leaves the report, by blue's retire or a cut of its sentence, which owes nothing; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+". "+
 		"`show evidence --anchor <id>` reads each check. PASS waits for that",
 		len(bs), strings.Join(named, "\n  "))
 }
@@ -425,9 +425,9 @@ var blockerKinds = []blockerKind{
 		refusal: failedCheckRefusal,
 		why: func(b Blocker) string {
 			if b.state == CheckUnsound {
-				return fmt.Sprintf("%s — %s", failedFact(b), planHold(b, "PASS is not permitted until the computation is judged sound again or retired"))
+				return fmt.Sprintf("%s — %s", failedFact(b), planHold(b, "PASS is not permitted until the computation is judged sound again or leaves the report, by a retire or a cut"))
 			}
-			return fmt.Sprintf("%s — %s", failedFact(b), planHold(b, "PASS is not permitted until a lens reads its source or blue retires the citation"))
+			return fmt.Sprintf("%s — %s", failedFact(b), planHold(b, "PASS is not permitted until a lens reads its source or the citation leaves the report, by blue's retire or a cut"))
 		},
 	},
 	// A LENS'S READING THAT FINDS A SOURCE AGAINST ITS SENTENCE IS THE LENS'S DEBT until a gap of the

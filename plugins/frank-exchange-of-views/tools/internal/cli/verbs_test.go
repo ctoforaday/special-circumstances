@@ -146,15 +146,8 @@ func TestVerbPayloads(t *testing.T) {
 			want: map[string]string{"gap_id": "G3", "basis": "§4 says otherwise"},
 			says: "filed (docket, proposing a regrade)",
 		},
-		{
-			name: "blue retire records what left and why",
-			role: "blue", seatID: "blue-respond",
-			args: []string{"--quote", "the claim as it stood", "--reason", "refuted", "--new", "the replacement claim"},
-			typ:  recordpb.EventType_EVENT_TYPE_RETIRE,
-			want: map[string]string{"claim": "the claim as it stood", "reason": "refuted",
-				"superseded_by": "the replacement claim"},
-			says: "retired: the claim as it stood",
-		},
+		// blue retire's payload (the anchor, the sentence it stood on, the reason) is asserted per kind by
+		// TestRetireIsAnchorOnlyForEveryKind, over a run holding an anchor to retire.
 		{
 			name: "blue inquiry propose records the question and its hypothesis, and no reason or method",
 			path: []string{"inquiry", "propose"}, seatID: "blue-lane-1",

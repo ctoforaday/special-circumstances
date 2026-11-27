@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -26,9 +27,11 @@ import (
 // turn (TestEveryTombstoneArmIsNeeded). An end is written only where a tombstone stands, one row per
 // standing (gap, kind); a placement is written only on a token standing after the act — the ruling
 // follows the edit that applies its winner's text, and the verbatim edit carries its gap's token in
-// the text it applies — so no act writes a row it then ends. A cut ends nothing: an edit that leaves a
-// token bare lists nothing in reopened (ReopenedAnchors), and a ruled or estopped gap whose sentence is
-// cut keeps its tombstone for the run, as one whose token was bare or gone at the ruling does.
+// the text it applies — so no act writes a row it then ends. A pure cut ends the tombstones on the
+// tokens it takes (F16): the gap's token leaves the report with its sentence, listed in the edit's
+// removed_anchors, and the subject the tombstone protected is gone; the cut is the gap's raiser's turn
+// (lensTurnActsOf). A ruled or estopped gap whose token was gone at the ruling keeps its tombstone for
+// the run.
 
 // tombstoneArm is one way an act owes tombstone rows: the kind it places or ends, and the gaps (with
 // the docketing, for a ruling placement) the act names for it.
@@ -46,11 +49,11 @@ type owedTombstone struct{ gap, docketing string }
 // are written before the placements, so a verbatim edit answering P1 whose reopened names P2 ends P2's
 // tombstone and places P1's, and a placement where one stands writes a new row.
 var tombstoneArms = []tombstoneArm{
-	{name: "a reword of a ruled gap's sentence", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: rewordedGaps},
-	{name: "a reword of the anchor a ruled gap is about", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: rewordedAnchorGaps},
+	{name: "a reword or a cut of a ruled gap's sentence", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: rewordedGaps},
+	{name: "a reword or a cut of the anchor a ruled gap is about", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: rewordedAnchorGaps},
 	{name: "a retire of the anchor a ruled gap is about", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: retiredAnchorGaps},
 	{name: "the next fate of the inquiry a ruled gap is about", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, ends: true, owed: inquiryFateGaps},
-	{name: "a reword of an estopped gap's sentence", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, ends: true, owed: rewordedUnplacedGaps},
+	{name: "a reword or a cut of an estopped gap's sentence", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, ends: true, owed: rewordedUnplacedGaps},
 	{name: "a bench ruling of a docketing", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING, owed: rulingPlacement},
 	{name: "blue's verbatim application of a gap's prescription", kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, owed: verbatimPlacement},
 }
@@ -132,17 +135,18 @@ func tombstoneStands(q recordsql.Querier, kind recordpb.TombstoneKind, gap strin
 	return queryRowAt(q, []any{&one}, `SELECT 1 FROM "tombstone_standing" WHERE "kind" = ? AND "gap_id" = ?`, recordpb.Word(kind), gap)
 }
 
-// rewordedGaps is the gaps whose token sat in a sentence the edit reworded: its reopened.
+// rewordedGaps is the gaps whose token sat in a sentence the edit reworded or cut: its reopened and
+// its removed_anchors.
 func rewordedGaps(_ recordsql.Querier, _ string, body proto.Message) ([]owedTombstone, error) {
 	ed, ok := body.(*recordpb.BlueEdit)
 	if !ok {
 		return nil, nil
 	}
-	return owedOn(ed.GetReopened()), nil
+	return owedOn(slices.Concat(ed.GetReopened(), ed.GetRemovedAnchors())), nil
 }
 
 // rewordedUnplacedGaps is rewordedGaps but the gap the edit itself places an estoppel on: the placing
-// edit's own reopened lists its gap, and is not a later reword.
+// edit's own reopened lists its gap, and is not a later reword. A cut places none.
 func rewordedUnplacedGaps(q recordsql.Querier, seatID string, body proto.Message) ([]owedTombstone, error) {
 	ed, ok := body.(*recordpb.BlueEdit)
 	if !ok {
@@ -153,7 +157,7 @@ func rewordedUnplacedGaps(q recordsql.Querier, seatID string, body proto.Message
 		return nil, err
 	}
 	var out []owedTombstone
-	for _, id := range ed.GetReopened() {
+	for _, id := range slices.Concat(ed.GetReopened(), ed.GetRemovedAnchors()) {
 		if len(placed) > 0 && placed[0].gap == id {
 			continue
 		}
@@ -162,13 +166,14 @@ func rewordedUnplacedGaps(q recordsql.Querier, seatID string, body proto.Message
 	return out, nil
 }
 
-// rewordedAnchorGaps is the gaps about a citation or computation whose sentence the edit reworded.
+// rewordedAnchorGaps is the gaps about a citation or computation whose sentence the edit reworded, or
+// that a cut took with its sentence.
 func rewordedAnchorGaps(q recordsql.Querier, _ string, body proto.Message) ([]owedTombstone, error) {
 	ed, ok := body.(*recordpb.BlueEdit)
 	if !ok {
 		return nil, nil
 	}
-	return gapsAbout(q, recordpb.AboutKind_ABOUT_KIND_ANCHOR, ed.GetReopened())
+	return gapsAbout(q, recordpb.AboutKind_ABOUT_KIND_ANCHOR, slices.Concat(ed.GetReopened(), ed.GetRemovedAnchors()))
 }
 
 // retiredAnchorGaps is the gaps about a citation or computation the retire takes.
@@ -413,9 +418,9 @@ func standingTombstonesIn(evs []*Event) map[recordpb.TombstoneKind]map[string]bo
 func tombstoneEnds(aboutKind, ref string) string {
 	switch aboutKind {
 	case "":
-		return "a reword of its sentence, not a cut,"
+		return "a reword or a cut of its sentence"
 	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR):
-		return "a reword of " + EvidenceNoun(ref) + " " + ref + "'s sentence, or its retire,"
+		return "a reword or a cut of " + EvidenceNoun(ref) + " " + ref + "'s sentence, or its retire,"
 	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_INQUIRY):
 		return "inquiry " + ref + "'s next fate"
 	}

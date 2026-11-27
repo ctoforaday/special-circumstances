@@ -61,7 +61,10 @@ var reportText = map[string][]string{"report_part": {"text"}, "base_ingest": {"t
 //
 // The plan's census (§II.4: 600 Anchors, 392 found_by links, 558 tokens) read the sqlite archives'
 // tables and missed the six JSONL-era archives of 2026-08-22/23, which hold 114 finding Anchors, 87
-// found_by links and 82 tokens in report text; the counts here are over all 36, as migrate reads them.
+// found_by links and 82 tokens in report text; the counts here are over the whole committed set, as
+// migrate reads it. bundle-store/'s m37 and m38 joined the census with P12b's merge (main #1952): +2
+// runs, +131 findings, +67 finding Anchors, +62 found_by links, +66 tokens in report text, +7 repaired
+// closes and +7 edits left bare.
 func TestALensFindingLeavesAnArchivedRun(t *testing.T) {
 	var findings, anchors, foundBy, tokens, repairedBare, reopenedBare, retireBare, runs int
 	stated := map[string]string{} // archive -> the acts written as no event because a finding's absence settled them
@@ -123,7 +126,7 @@ func TestALensFindingLeavesAnArchivedRun(t *testing.T) {
 		t.Errorf("the acts a finding's absence settled, by archive:\n%v\nwant:\n%v", stated, want)
 	}
 	got := [8]int{runs, findings, anchors, foundBy, tokens, repairedBare, reopenedBare, retireBare}
-	if want := [8]int{38, 1074, 737, 483, 646, 33, 138, 2}; got != want {
+	if want := [8]int{40, 1205, 804, 545, 712, 40, 145, 2}; got != want {
 		t.Errorf("the residue over the archives: runs, findings, finding Anchors, found_by links, tokens in report text, "+
 			"repaired closes left bare, edits left with an empty reopened, claim retires left bare = %v, want %v", got, want)
 	}
@@ -159,9 +162,11 @@ func TestNoMigratedArchiveHoldsAFindingIDOrToken(t *testing.T) {
 	// m29's three and m30's one docketing stand on gaps whose supersede link it drops or amends, so
 	// their rulings come forward (m29 +6 review flags, +5 opinions; m30 +1 opinion), with a regrade
 	// each (m29's on an ancestor that is open now; m30's written beside its amend, with the
-	// successor's reason as its basis as well as the amend's).
-	if prose != 387 {
-		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 387", prose)
+	// successor's reason as its basis as well as the amend's). 442 since P12b's merge (main #1952): m37's
+	// 40 and m38's 18 joined the census, and b9's anchorless claim retires 165 and 166, whose reasons
+	// held three, are lost acts (a retire takes anchors and nothing else).
+	if prose != 442 {
+		t.Errorf("%d finding ids stand in the migrated records' prose fields, want 442", prose)
 	}
 }
 
@@ -203,7 +208,8 @@ func stringsOf(old OldEvent) []string {
 // archived docket that comes forward — as the dispatch's Docketing (Translation 3), its basis the
 // motion's — and every ruling that comes forward holds every text the archive did, tokens and ids
 // aside, and no docket's grounds named a finding, so nothing of a docket leaves with the findings. The
-// 39 archived dockets and their 38 rulings are counted, and so are those Translations 3 and 4 and
+// 48 archived dockets and their 47 rulings are counted (bundle-store/'s m37 and m38 among them: +8
+// dockets, +8 rulings, m37's 5 ended rulings written as no event), and so are those Translations 3 and 4 and
 // actOnSupersededGap write as no event, which the fold does not touch, and the finding tokens the
 // dockets' and rulings' text held.
 func TestAnArchivedDocketIsUnchanged(t *testing.T) {
@@ -305,7 +311,7 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 			}
 		}
 	}
-	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{40, 39, 44, 5}; got != want {
+	if got, want := [4]int{dockets, rulings, leftOut, tokens}, [4]int{48, 47, 49, 5}; got != want {
 		t.Errorf("dockets, rulings, written as no event, finding tokens = %v, want %v", got, want)
 	}
 }
@@ -315,7 +321,8 @@ func TestAnArchivedDocketIsUnchanged(t *testing.T) {
 // naming the last event written before that act, so every act after the finding is news to the seat
 // as it was, and the finding, which is gone, is none. Asserted on every such read point in the
 // archives: the migrated read point is the event the source wrote just before the finding — same
-// clock, same word — and their count is the 15 the fold translates.
+// clock, same word — and their count is the 18 the fold translates (15, and 3 in bundle-store/'s m37
+// and m38 since they joined the census).
 func TestAStaleReadPointAtAFindingIsTheEventBeforeIt(t *testing.T) {
 	translated := 0
 	for _, name := range archivedRuns(t) {
@@ -387,7 +394,7 @@ func TestAStaleReadPointAtAFindingIsTheEventBeforeIt(t *testing.T) {
 			}
 		}
 	}
-	if translated != 15 {
-		t.Errorf("%d stale read points named a finding or its Anchor, want 15", translated)
+	if translated != 18 {
+		t.Errorf("%d stale read points named a finding or its Anchor, want 18", translated)
 	}
 }

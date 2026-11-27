@@ -129,7 +129,7 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	if !parties(plan)[compLens] || !says(plan, compLens+"'s check of computation K-1 judged it unsound and no gap of its carries that to blue — ready") {
 		t.Errorf("the judge is not readied to mint its gap: parties %v, why %q", plan.Parties, plan.Why)
 	}
-	if !parties(plan)[blueRespondSeat] || !says(plan, "computation K-1 stands on a failed check by "+compLens+" — ready to remedy it: blue fixes the computation or retires it") {
+	if !parties(plan)[blueRespondSeat] || !says(plan, "computation K-1 stands on a failed check by "+compLens+" — ready to remedy it: blue fixes the computation, retires it, or cuts the sentence it backs") {
 		t.Errorf("blue is not readied to fix or retire the computation: parties %v, why %q", plan.Parties, plan.Why)
 	}
 	lens := sittingOfRunT(t, run, "lens", compLens)

@@ -212,7 +212,7 @@ func newCompute() *cobra.Command {
 	seat.Require(c, flags.Quote, flags.Dir)
 	c.Use = "compute [flags] -- <command> [args...]"
 	c.Args = cobra.ArbitraryArgs
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.LiveCitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed. A retired citation is in no document, and naming one is refused")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.LiveCitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed. A citation out of the report — retired, or cut with its sentence — is in no document, and naming one is refused")
 	flags.Text(c, flags.Variance, "what holds across the two runs when they differ — the invariant the result is evidence of (\"every run reports 91 = 7 × 13; the timing line moves\"). Required when the runs differ and refused when they agree")
 	c.Flags().Bool(flags.ExpectError, false, "this computation's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another bundle or command, --quote, --cites, --answers, --reason or --variance is refused: a handle names one computation")

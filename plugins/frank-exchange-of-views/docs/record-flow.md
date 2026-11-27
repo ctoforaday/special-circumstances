@@ -76,8 +76,11 @@ step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What t
 - **A citation is a record event, and its marker is an insert op.** `cite` records the event and a
   marker insertion at the quoted sentence; the report is the lanes' parts plus the replayed ops, so
   there is no file to splice and no torn-splice window.
-- **cite events ⟺ `<!--cite:-->` anchors is a strict bijection.** `blue edit` refuses a span that
-  drops or splits an anchor of any kind, and `unbacked_citations` flags any divergence.
+- **Every `<!--cite:-->` anchor in the report is a cite event's, by construction:** the report is
+  replayed from the record and places only recorded markers. `blue edit` refuses a rewrite that drops
+  or splits an anchor of any kind; a cut of whole sentences takes their anchors and lists them on the
+  edit (`removed_anchors`), and a retire names the one it takes, so a cite event's anchor is in the
+  report until an act names it out.
 - **The claim unit is the evidence anchor, a citation or a computation** — `count-claims` counts
   one claim per distinct evidence anchor per sentence; nothing counts the assembled report.
 

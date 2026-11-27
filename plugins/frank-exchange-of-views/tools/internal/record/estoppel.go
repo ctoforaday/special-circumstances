@@ -37,8 +37,9 @@ import (
 // THE BAR IS A WRITTEN ROW (#1695 §III.B12): the verbatim edit's transaction holds an ESTOPPEL
 // tombstone on the gap whose prescription it applied, and a later edit whose reopened names that gap —
 // blue reworded the sentence the fix placed the gap's token in — ends it (tombstone.go). A later
-// verbatim application places it again. A cut ends nothing, and a fix spanning several sentences
-// carries the token in one, so a reword of another of its sentences leaves the bar standing.
+// verbatim application places it again. A pure cut taking that token ends it too (F16). A fix spanning
+// several sentences carries the token in one, so a reword of another of its sentences leaves the bar
+// standing.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
@@ -338,30 +339,63 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // Where a lowercase spelling is genuinely needed for a projection it is `recordpb.Spelling`, never
 // a literal.
 
-// RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
-// same footing as fix_basis, a computation's basis and verdict_basis.
-//
-// A retire used to record whatever it was told: nothing confirmed the claim had ever been in
-// the report, and nothing confirmed it had left. That mattered beyond tidiness — the changelog
-// lists every retirement as a claim that left the report, so a retirement of a claim that was
-// never there is a removal the reader is told of and the report never had.
+// AnchorRemoval is the act that took an anchor out of the report (anchor_removal's first row for it):
+// its event, By — "retire" for a retire, which keeps the anchor's sentence, or "edit" for a cut, which
+// took the sentence with it — the act's reason, and for a retire the sentence it kept. A cut's
+// Sentence is empty: the sentence left, and no field stores it.
+type AnchorRemoval struct {
+	Event            int64
+	By               string
+	Reason, Sentence string
+}
+
+// RemovedByRetire and RemovedByEdit are anchor_removal's "by": a retire, which keeps the anchor's
+// sentence, and a cut, whose edit took the anchor with its sentence.
 const (
-	// RemovalVerified: the claim is absent from the report now AND appears in the old span of
-	// a recorded edit, so the record can SHOW it leaving.
-	RemovalVerified = "verified"
-	// RemovalAsserted: absent now, but nothing on the record shows it was ever present. The
-	// round-0 author writes the report directly rather than through edits, so a claim it never
-	// wrote — or wrote and rewrote in the same sitting — lands here honestly.
-	RemovalAsserted = "asserted"
+	RemovedByRetire = "retire"
+	RemovedByEdit   = "edit"
 )
 
-// EditSpan is one recorded blue_edit's (old, new) pair, in record order.
-type EditSpan struct{ Old, New string }
+// AnchorRemovedAt answers where an anchor went when it is no longer in the report: the act that took
+// it out, a retire off a sentence that stays or a cut that took the sentence. found is false for an
+// anchor no act took out — then it is a stale reference or another run's id, and the caller says so.
+func AnchorRemovedAt(run Run, id string) (r AnchorRemoval, found bool, err error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return r, false, err
+	}
+	return anchorRemovedAt(db, id)
+}
 
-// editSpansAt returns every recorded blue_edit's (old, new) on q, in record order — what `blue
-// retire` reads (Landing.EditSpans) to learn which edit took a claim out and what that edit left
-// behind in its place.
-func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
+// anchorRemovedAt is AnchorRemovedAt asked of q — on the write path the writing transaction, so a
+// check that refuses an act on an anchor out of the report and the act racing it cannot both land.
+func anchorRemovedAt(q recordsql.Querier, id string) (r AnchorRemoval, found bool, err error) {
+	var why, sentence sql.NullString
+	found, err = queryRowAt(q, []any{&r.Event, &r.By, &why, &sentence},
+		`SELECT ar."event_id", ar."by", COALESCE(r."reason", b."text"), r."claim"
+		   FROM "anchor_removal" ar
+		   LEFT JOIN "retire" r ON ar."by" = 'retire' AND r."event_id" = ar."event_id"
+		   LEFT JOIN "blue_edit" b ON ar."by" = 'edit' AND b."event_id" = ar."event_id"
+		  WHERE ar."anchor_id" = ? ORDER BY ar."event_id" LIMIT 1`, id)
+	r.Reason, r.Sentence = why.String, sentence.String
+	return r, found, err
+}
+
+// Said is the removal as a refusal names it: the act, its event and its reason, and for a retire the
+// sentence it kept.
+func (r AnchorRemoval) Said() string {
+	if r.By == RemovedByEdit {
+		return fmt.Sprintf("blue's edit at event %d cut its sentence, and the anchor left with it (%s)", r.Event, reasonOf(r.Reason))
+	}
+	return fmt.Sprintf("blue retired it at event %d (%s; its sentence %s kept)", r.Event, reasonOf(r.Reason), quoted(r.Sentence))
+}
+
+// editSpan is one recorded blue_edit's (old, new) pair, in record order.
+type editSpan struct{ Old, New string }
+
+// editSpansAt returns every recorded blue_edit's (old, new) on q, in record order — what
+// redTextAppliedAt reads to learn whether an edit already applied red's pair.
+func editSpansAt(q recordsql.Querier) ([]editSpan, error) {
 	if noRecord(q) {
 		return nil, nil
 	}
@@ -370,55 +404,13 @@ func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
 		return nil, fmt.Errorf("reading the recorded edits: %w", err)
 	}
 	defer rows.Close()
-	var out []EditSpan
+	var out []editSpan
 	for rows.Next() {
 		var o, n sql.NullString
 		if err := rows.Scan(&o, &n); err != nil {
 			return nil, err
 		}
-		out = append(out, EditSpan{Old: o.String, New: n.String})
+		out = append(out, editSpan{Old: o.String, New: n.String})
 	}
 	return out, rows.Err()
-}
-
-// AnchorRetire is the retire that took an anchor out of the report: its event, the claim and reason
-// it recorded, and whether it kept that claim — kept true for an anchor retired alone off a sentence
-// that stays.
-type AnchorRetire struct {
-	Event         int64
-	Claim, Reason string
-	Kept          bool
-}
-
-// AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire
-// event that took it out — with its claim, or, kept true, off a claim that stayed. found is false
-// for an anchor no retire named — then it is a stale reference or another run's id, and the caller
-// says so.
-func AnchorRetiredAt(run Run, id string) (r AnchorRetire, found bool, err error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return r, false, err
-	}
-	return anchorRetiredAt(db, id)
-}
-
-// anchorRetiredAt is AnchorRetiredAt asked of q — on the write path the writing transaction, so a
-// check that refuses an act on a retired anchor and the retire racing it cannot both land.
-func anchorRetiredAt(q recordsql.Querier, id string) (r AnchorRetire, found bool, err error) {
-	var c, why sql.NullString
-	var k sql.NullBool
-	found, err = queryRowAt(q, []any{&r.Event, &c, &why, &k},
-		`SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
-		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
-	r.Claim, r.Reason, r.Kept = c.String, why.String, k.Bool
-	return r, found, err
-}
-
-// Said is the retire as a refusal names it: its event, its reason, and whether the sentence stayed.
-func (r AnchorRetire) Said() string {
-	kept := "it left the report with its claim " + quoted(r.Claim)
-	if r.Kept {
-		kept = "its sentence " + quoted(r.Claim) + " kept"
-	}
-	return fmt.Sprintf("blue retired it at event %d (%s; %s)", r.Event, reasonOf(r.Reason), kept)
 }

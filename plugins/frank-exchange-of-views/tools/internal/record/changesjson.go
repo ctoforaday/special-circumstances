@@ -27,8 +27,8 @@ type ChangesJSON struct {
 	// prescribed, beside the edits answering it. null on the unscoped form, which is about no one gap —
 	// NOT omitempty, so the key a seat read on the page is in every document, and null says "unscoped".
 	Gap *ChangesGapJSON `json:"gap"`
-	// Edits is every recorded change in record order — each edit, and each evidence anchor's retire, which
-	// takes a citation or a computation off a sentence the report keeps — and on the scoped form every one answering the gap. NOT omitempty: an empty list is "blue recorded
+	// Edits is every recorded change in record order — each edit, and each retire, which takes one
+	// anchor off a sentence the report keeps word for word — and on the scoped form every one answering the gap. NOT omitempty: an empty list is "blue recorded
 	// no edit", which on a run past epoch 0 is itself a defect, and an absent key would read as a
 	// projection that does not carry edits.
 	Edits  []EditJSON `json:"edits"`
@@ -52,8 +52,8 @@ type ChangesGapJSON struct {
 	FixBasis string `json:"fix_basis"`
 }
 
-// EditJSON is one recorded change, with the text on both sides: an edit, or an evidence anchor's retire
-// (Retired).
+// EditJSON is one recorded change, with the text on both sides: an edit, or a retire (Retired), whose
+// Old and New are the one sentence it kept. A cut is an edit: the anchors it took are in no field here.
 type EditJSON struct {
 	// EventID is the change's event, the id a spot-check's stamped changes name: the changes behind a
 	// pin are those with a later id.
@@ -79,8 +79,8 @@ type EditJSON struct {
 	// never on a reading's gap.
 	AppliedVerbatim bool `json:"applied_verbatim"`
 	Accepted        bool `json:"accepted"`
-	// Retired is the evidence anchor — a citation or a computation — a retire took off a sentence it
-	// kept, whose words are Old and New alike; empty on an edit.
+	// Retired is the anchor a retire took off a sentence it kept, whose words are Old and New alike;
+	// empty on an edit.
 	Retired string `json:"retired"`
 }
 

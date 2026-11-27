@@ -47,12 +47,14 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// THE ACTS THE DELIVERED-TEXT RULE REFUSES ARE WRITTEN AS NO EVENT and listed in the manifest's
-	// lost_acts, so the count is the translation's, less each of them — read off the result, never typed.
+	// THE ACTS THE DELIVERED-TEXT RULE REFUSES, AND THE CLAIM RETIRE THAT CARRIES NO ANCHOR, ARE WRITTEN
+	// AS NO EVENT and listed in the manifest's lost_acts, so the count is the translation's, less each of
+	// them — read off the result, never typed.
 	if want := 439 - len(res.LostActs); len(fam.Events) != want {
-		t.Fatalf("the migrated m23 holds %d events, want %d — 439 (the archive's 476, less its one coining, its 38 findings and the 27 anchors placing them, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items) less the %d lost acts", len(fam.Events), want, len(res.LostActs))
+		t.Fatalf("the migrated m23 holds %d events, want %d — 439 (the archive's 476, less its one coining, its 38 findings and the 27 anchors placing them, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items) less the %d lost acts (the claim retire at 224, which carries no anchor, among them)", len(fam.Events), want, len(res.LostActs))
 	}
-	// The reading is archive event 392; every lost act before it moves it one place earlier.
+	// The reading is archive event 392; every lost act before it, the claim retire at 224 among them,
+	// moves it one place earlier.
 	lostBefore := 0
 	for _, l := range res.LostActs {
 		if l.OldID < 392 {
@@ -66,7 +68,7 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 		}
 	}
 	if at != 337-lostBefore {
-		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want %d (338 less the %d lost acts before it)", at+1, 338-lostBefore, lostBefore)
+		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want %d (338 less the %d lost acts before it, the claim retire at 224 among them)", at+1, 338-lostBefore, lostBefore)
 	}
 	was, _ := recordpb.BodyAs[*recordpb.Verify](fam.Events[at])
 	if was.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES || fam.Events[at].GetSeatId() != "red-lens-evidence" || was.GetAnchor() != "" {

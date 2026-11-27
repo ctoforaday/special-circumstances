@@ -12,12 +12,12 @@ import (
 // sitting that made it: the gap it answers, blue's reason, and the span it replaced beside the text
 // that replaced it. "" when the record holds no edit.
 //
-// THE CHANGELOG IS THE REPORT'S PROVENANCE, and it listed only what left the report. Blue's reason
-// for an edit was read by `show changes` alone: across three archived runs, 62 reasons and none in
-// any document (the reach audit, 2026-10-20). A superseded wording of a sentence the report still
-// carries was nowhere either — the report prints the latest.
+// THE CHANGELOG IS THE REPORT'S PROVENANCE. Blue's reason for an edit was read by `show changes`
+// alone: across three archived runs, 62 reasons and none in any document (the reach audit,
+// 2026-10-20). A superseded wording of a sentence the report still carries was nowhere either — the
+// report prints the latest.
 //
-// THE SITTING IS THE ONE THE RECORD HOLDS THE EDIT IN (fam.At), as the retirements above it name.
+// THE SITTING IS THE ONE THE RECORD HOLDS THE EDIT IN (fam.At).
 func editHistory(fam record.Family) string {
 	var b strings.Builder
 	group, prevReason, n := "", "", 0

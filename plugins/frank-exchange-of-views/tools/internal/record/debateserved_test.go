@@ -1,6 +1,7 @@
 package record
 
 import (
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -29,5 +30,38 @@ func TestTheDebateViewListsEverySeatsDelivery(t *testing.T) {
 		if !got[seat] {
 			t.Errorf("the debate view lists no delivery to %s; it lists %v", seat, got)
 		}
+	}
+}
+
+// A DELIVERY'S LINE SAYS WHAT ITS SEAT WAS HANDED: a lens's is the whole report or the changes since
+// its pin, the chair's is its stale areas' changes, the bench's is its convened motions' passages.
+// Which of them a row is rides on report_delivery's "whole" being NULL for a seat that is no lens, so
+// a reader that takes NULL for a lens's changes-only delivery words the chair's and the bench's
+// lines as a lens's.
+func TestADeliveryLineNamesWhatItsSeatWasHanded(t *testing.T) {
+	b := retBoard(t).sit(2, evLens).served("red-chair", 2).
+		benchRegister(recordpb.Occasion_OCCASION_DOCKET).add(benchSeat, &recordpb.ReportRead{Head: proto.Int64(2)})
+	merged, err := MergedEvents(b.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		evLens:      "the whole report",
+		"red-chair": "the changes behind its stale areas' pins",
+		benchSeat:   "the passages of the gaps its convened motions are about",
+	}
+	lines := 0
+	for _, e := range merged.Events {
+		if e.GetReportRead() == nil {
+			continue
+		}
+		lines++
+		seat := e.GetSeatId()
+		if got, handed := merged.At.DeliveryLine(e), want[seat]+", delivered to "+seat+" at head 2"; !strings.Contains(got, handed) {
+			t.Errorf("the delivery to %s reads %q, want it to say %q", seat, got, handed)
+		}
+	}
+	if lines != len(want) {
+		t.Fatalf("the record holds %d deliveries, want one to each of %d seats", lines, len(want))
 	}
 }

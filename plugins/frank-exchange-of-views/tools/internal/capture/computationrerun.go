@@ -91,9 +91,10 @@ func (p recordedComputation) bases() []string {
 // never recorded invisible to this audit, and a computation recorded with no artifact on disk look
 // like no computation at all: both of those are exactly the states worth reporting.
 //
-// ONLY LIVE COMPUTATIONS ARE SAMPLED. A retired computation is in no document, so nothing a reader
-// is pointed at rests on it; its act is left out, and a bundle only retired acts recorded is not
-// listed (record.RetiredAnchors, the ledger's fold of a retire).
+// ONLY LIVE COMPUTATIONS ARE SAMPLED. A computation out of the report — retired, or cut with its
+// sentence — is in no document, so nothing a reader is pointed at rests on it; its act is left out,
+// and a bundle only such acts recorded is not listed (record.RetiredAnchors, the ledger's fold of a
+// retire and a cut).
 func recordedComputations(evs []*record.Event, retired map[string]bool) []recordedComputation {
 	// A BUNDLE A SEAT RE-RAN is one with a reproduce that RAN it; a reproduce that compared against
 	// an earlier execution ran nothing.
@@ -147,7 +148,7 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 	computations := recordedComputations(fam.Events, retired)
 	if len(computations) == 0 {
 		if len(recordedComputations(fam.Events, nil)) > 0 {
-			return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "every computation this run recorded is retired, so none is in a document to re-run"}
+			return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "every computation this run recorded has left the report, by a retire or a cut, so none is in a document to re-run"}
 		}
 		return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "this run recorded no computations"}
 	}

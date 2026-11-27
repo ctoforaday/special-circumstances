@@ -9,5 +9,7 @@ cccccccc   lost           0  —              /work/gamma
   `unknown` means liveness could not be established — a foreign pid namespace, or a platform where this is not implemented. It is not `ended`.
 
   `lost` is inferred, not measured: last active before the boot at 2026-09-09 11:40:00 UTC and not seen to end. `telepathy agents --lost` prints each with the commands that bring it back.
+
+no Antigravity conversation has a message waiting in its mailbox
 --- stderr
 telepathy: the store was rebuilt at 2026-09-01T08:30:00Z (it was stamped 2) and has not been backfilled since — sessions from before then are missing; run `telepathy backfill`

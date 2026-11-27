@@ -2,9 +2,9 @@
 //
 // THE PROBLEM THIS SOLVES. claim_count — "the number of FOOTNOTED declarative
 // claims" — sizes red's per-sitting citation dispatch (the first sitting ceil(claims/40),
-// later sittings on the delta) and arms the capture-side retire-vs-drop detector,
-// where an unaccounted FALL in the count against the retire events is the whole
-// enforcement. Until now it was hand-counted by the blue LLM against a prose rule
+// later sittings on the delta) and arms the capture-side removal detector, where a
+// FALL in the count that no anchor removal (a cut's removed_anchors or a retire)
+// accounts for is the whole enforcement. Until now it was hand-counted by the blue LLM against a prose rule
 // in two prompts and typed into the envelope; two honest merges diverged 2x on the
 // same report. A wrong count mis-scales the one audit dimension measured to work
 // and can mask a dropped claim.
@@ -14,16 +14,13 @@
 // deterministic one is no better than the divergent human one, so the rule is
 // stated precisely and pinned by tests, including MONOTONICITY — removing one
 // cited claim lowers the count by exactly the citations that left with it, the
-// property the retire-vs-drop detector rests on.
+// property the removal detector rests on.
 //
 // THE RULE. The count is the number of tool-inserted evidence anchors — a citation's
 // "<!--cite:C-<hex>-->", a computation's "<!--computation:K-<hex>-->" — ATTACHED to prose — some prose before them in their
 // sentence, since every inserter places the anchor after the sentence it backs. An
-// anchor with nothing before it — what an edit leaves when it cuts a cited sentence
-// away, because an edit may carry an anchor but never drop one — is BARE, not a
-// claim: counting it would let the sentence leave while the count stood still, so
-// a gutted claim read as no loss and a retire of it cancelled some other, real one
-// (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and for
+// anchor with nothing before it is BARE, not a claim, and no writer leaves one: a
+// rewrite that would is refused, and a cut takes its sentence's anchors (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and for
 // markdown around the terminator). The claim unit is the evidence anchor: a token whose
 // kind row `backs` its sentence (anchor.CountsAsClaim), a citation or a computation, both
 // tool-placed, so what a report BACKS is exactly what it ANCHORS, and counting the anchor
@@ -32,12 +29,12 @@
 // PER EVIDENCE ANCHOR, NOT PER SENTENCE. The count used to be the number of SEGMENTS carrying
 // an anchor, so a sentence citing two sources counted once. That made the unit the
 // detector compares against retires the wrong one twice over: merging two cited
-// sentences into one — carrying both anchors, which an edit must — lowered the count
-// and read as unrecorded loss that nothing could clear, though no citation left and
-// retire exists so prose may be merged freely; and a retire that took two cited
-// sentences out at once named two citation anchors against a drop that might be one
-// or two. Counted per attached evidence anchor, a merge moves nothing, and every evidence
-// anchor a retire takes out is exactly one unit of the fall it explains.
+// sentences into one — carrying both anchors, which a rewrite must — lowered the count
+// and read as unrecorded loss that nothing could clear, though no citation left; and a
+// cut that took two cited sentences out at once named two citation anchors against a
+// drop that might be one or two. Counted per attached evidence anchor, a merge moves
+// nothing, and every evidence anchor a retire or a cut takes out is exactly one unit of
+// the fall it explains.
 //
 // Only a kind whose row in the anchor kinds table backs its sentence counts — a citation or a
 // computation; a gap anchor never does. The claim
@@ -118,9 +115,9 @@ func StripAnchors(s string) string {
 
 // AN ANCHOR BACKS THE PROSE BEFORE IT. Every inserter places its token flush after the last
 // content character of the sentence it anchors, so an anchor with no prose ahead of it in its
-// sentence backs nothing — it is BARE. That is the shape an edit leaves when it cuts an anchored
-// sentence away (an edit may carry an anchor but never drop one), and it is NOT always alone in
-// its sentence: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
+// sentence backs nothing — it is BARE. That is the shape an archived edit left when it cut an
+// anchored sentence away and kept the anchor, which no live writer does, and it is NOT always alone
+// in its sentence: the splice tidy removes the cut sentence's orphaned terminator, so "X<c>. Y." cut
 // down to its anchor renders "<c> Y." — the bare anchor now sits at the head of the NEXT
 // sentence. Reading "the sentence has prose" would count Y as cited by the claim that just left.
 //
@@ -130,9 +127,9 @@ func StripAnchors(s string) string {
 // "One.<c> Two."), and a list marker lies outside every sentence ("1) <c>").
 
 // BareAnchorIDs returns the distinct anchor ids, of every kind in the table, that back NO prose
-// anywhere they stand: no occurrence has prose before it in its sentence. These are what
-// `blue retire` may take out with a claim — an anchor still attached to any prose is never
-// bare, and an anchor outside the claim stream (a heading, a fence) is never reported, so the
+// anywhere they stand: no occurrence has prose before it in its sentence. These are what no edit
+// may leave: a rewrite or a prescription that leaves any is refused — an anchor still attached to
+// any prose is never bare, and an anchor outside the claim stream (a heading, a fence) is never reported, so the
 // answer errs toward keeping an anchor rather than removing one.
 func BareAnchorIDs(md string) []string {
 	bare := map[string]bool{}
@@ -178,8 +175,8 @@ func segmentLabels(text string) []string {
 
 // ProtectedAnchorIDs returns the distinct ids of every anchor present in the report, walking the
 // kinds table in its order and each kind first-seen. It is the set the blue-edit lockdown, the
-// dropped-marker backstop, the reopened set and the retire tidy all read: an edit may drop no
-// anchor of any kind.
+// dropped-marker backstop, the reopened set and the retire tidy all read: a rewrite may drop no
+// anchor of any kind, and a cut lists each one it takes.
 func ProtectedAnchorIDs(md string) []string {
 	ids := anchor.IDs(md)
 	var out []string

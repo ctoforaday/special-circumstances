@@ -6,3 +6,5 @@ cccccccc   lost           0  —              /work/gamma
 aaaaaaaa   lost           7  Read 1h ago    /work/alpha
 
   `lost` is inferred, not measured: last active before the boot at 2026-09-09 11:40:00 UTC and not seen to end. `telepathy agents --lost` prints each with the commands that bring it back.
+
+no Antigravity conversation has a message waiting in its mailbox

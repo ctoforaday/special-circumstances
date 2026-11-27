@@ -45,25 +45,23 @@ genuinely IS reader-facing content that resolves to a source or a computation.
 ## One lifecycle, every kind
 
 Anchors of every kind live the same way. The tool places an anchor at the end of its quote — the
-quote's one occurrence within one paragraph, or the act is refused. Every edit carries it; the tool
-puts back one whose sentence an edit keeps word for word; an edit that drops or types one is refused.
-**Retire is the one exit.** An evidence anchor never stands bare: an edit that would leave one with no
-prose before it is refused, whether the edit carries it or not, and `blue retire --anchor` alone takes
-either off a sentence that stays; a citation a live computation names is refused, naming the
-computation. An edit that would leave a gap anchor bare without carrying it is refused too: a retire
-reads what the edit carried, so no retire could take it. A claim whose sentence is edited away leaves
-the other anchors it carries BARE (no prose before them in their segment) or on the prose that
-replaced it; `blue retire` names the anchors that stood on the claim in that edit and exit with it —
-the bare ones computed by the verb, one on surviving prose when the seat names it, each validated at
-the write — and replay removes them at that event. The question "did this leave legitimately?" is
-never asked of the anchor: it leaves only on a retire event that carries the claim and its reason. No
-kind is held back: a gap whose anchor left reads `gone` on the board, with its minted text, and its
-lens judges the report as it stands. `show report --anchor` on an anchor that left this way names the
-retire event, not a stale id.
+quote's one occurrence within one paragraph, or the act is refused. Every rewrite carries it; the
+tool puts back one whose sentence a rewrite keeps word for word; a rewrite that drops or types one is
+refused. **An anchor leaves only by an act that names it.** No anchor stands bare: a rewrite that would
+leave one with no prose before it is refused, whether the rewrite carries it or not. An edit whose
+replacement for an anchor's sentence is nothing — a pure cut — takes that sentence's anchors and
+records them with its reason (`removed_anchors`); `blue retire --anchor` takes one anchor off a
+sentence that stays. A cut or a retire that would take a citation a live computation names is refused,
+naming the computation, and a retire of an open gap's own marker is refused: a cut of its sentence is
+the gap's raiser's turn. Replay removes each at its event. The question "did this leave legitimately?"
+is never asked of the anchor: it leaves only on an event that names it and carries the reason. No kind
+is held back: a gap whose anchor left reads `gone` on the board, with its minted text, and its raiser
+judges the report as it stands. `show report --anchor` on an anchor that left this way names the
+retire or the edit, not a stale id.
 
 So the integrity check has **no "legitimately withdrawn" exception** to reason about: an anchor
-missing without a retire is a hard violation, and what is gated is every *content* transition under
-it.
+missing without the act that took it is a hard violation, and what is gated is every *content*
+transition under it.
 
 ## The handshake — the gap's lifecycle, anchored
 
@@ -75,18 +73,18 @@ Red-gated at every step:
 
 1. **open** — a lens mints the gap → the tool inserts `<!--gap:<id>-->` at the end of its quote, and
    the record holds the quote as minted with the gap's problem, fix and check.
-2. Blue **fixes** the content (edits the anchored sentence; the edit carries the anchor).
+2. Blue **fixes** the content (rewrites the anchored sentence, carrying the anchor).
 3. The lens **approves** — reads the report, compares against the gap as minted, confirms the fix is
    real: not moved to a dead corner, no offending content left behind, not a fake fix. Its `close` is
    the gap's closure.
-4. Blue **withdraws** the content by editing it out and retiring the claim, which takes its anchors
-   out; the lens **verifies**. The gap reads its own anchor: where that anchor left with a cut, the
-   gap reads `gone` and the lens judges the report as it stands.
+4. Blue **withdraws** the content by cutting its sentence, which takes its anchors out; the lens
+   **verifies**. The gap reads its own anchor: where that anchor left with a cut, the gap reads `gone`
+   and the lens judges the report as it stands.
 
-Blue never resolves unilaterally: it removes an anchor of any kind only by `retire`, and every content
-change under one is red-confirmed.
+Blue never resolves unilaterally: it removes an anchor of any kind only by a retire or a cut of its
+sentence, and every content change under one is red-confirmed.
 
-## The report is the record — no seat can drop an anchor
+## The report is the record — no anchor leaves unrecorded
 
 There is no `blue/report.md` file to write. Each lane writes its part once and **records it**
 (`report_part`); the report is a PROJECTION replayed from events — the parts in event order with every
@@ -94,12 +92,13 @@ change folded over them — and every seat changes it ONLY through the tool's ed
 **`feov-record edit --quote <exact current span> --new <replacement> --reason <why> [--answers
 <gap-id>]`** — an exact-on-stripped span replace (`anchortext.LocateSpan`, the anchor matcher) that
 appends a `blue_edit` event to an append-only diff-stack. A raw file write cannot reach the report
-because the report is not a file; an anchor cannot be dropped because dropping one is not an
-expressible operation.
+because the report is not a file; an anchor cannot leave unrecorded, because the only acts that take
+one out — a cut of its sentence and a retire — each name it on their event.
 
-**Anchors TRANSIT an edit; an edit never creates, destroys or duplicates one.** The tool checks the
-multiset of anchor ids in `--quote` against `--new`: blue may carry an anchor across verbatim, and may
-not change WHICH anchors exist. A quote may therefore span an anchor — the only context that tells a
+**Anchors TRANSIT a rewrite; a rewrite never creates, destroys or duplicates one.** In a rewrite the
+tool checks the multiset of anchor ids in `--quote` against `--new`: blue may carry an anchor across
+verbatim, and may not change WHICH anchors exist. A cut of whole sentences is the one edit that takes
+anchors, and it lists each. A quote may therefore span an anchor — the only context that tells a
 repeated word apart is often the anchor red placed on it — and an anchor typed into `--new` is refused
 as a duplicate.
 
@@ -114,8 +113,8 @@ record holds are the same bytes by construction, so no write guard exists.
 ## Integrity in depth
 
 - **Structural prevention (primary):** the report-as-record model above — a response seat has NO path
-  that drops an anchor; the report is not a file, `blue edit` refuses a span that would drop one, and a
-  raw write cannot reach the report at all. The render places only recorded anchors, so the anchors
+  that drops an anchor unrecorded; the report is not a file, `blue edit` refuses a rewrite that would
+  drop one and records each one a cut takes, and a raw write cannot reach the report at all. The render places only recorded anchors, so the anchors
   present and the anchors expected are equal by construction, and no detector compares them: a check
   that can never fire is a plausible zero.
 - **Red's semantic read (the real check):** structure cannot see an anchor dragged to a dead zone or
@@ -142,8 +141,8 @@ anchor (no source) as an explicit unresolved line. See
 ## Status
 
 - **Built:** the three kinds above, each placed by its verb (quote validated, a mis-quote refused);
-  the `anchor` event; the edit guard (carry, put back, refuse a drop or a typed token); `retire` as the
-  one exit; the final-output strip of gap anchors.
+  the `anchor` event; the edit guard (carry, put back, refuse a drop or a typed token); a retire or a
+  pure cut as the only exits; the final-output strip of gap anchors.
 - **Built (evidence axis):** `fetch` (download-once, cached, hash-verified) + `blue cite` (invisible
   `<!--cite:-->` anchor, a strict cite⟺anchor bijection) + `blue compute` + the assembly weave
   (anchors → visible `[^N]` / `[^K<n>]` + composed `## Bibliography`) + the `unbacked_citations`

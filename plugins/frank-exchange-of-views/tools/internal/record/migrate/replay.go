@@ -299,7 +299,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
 	lost := lostGaps{}                    // each gap a lost act took with it (lostacts.go)
-	for _, old := range evs {
+	for at, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
 		if old.Word == correctionWord || replaces[old.Key] {
@@ -739,8 +739,34 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				continue
 			}
+			place.at = at
 			anchorAfter, err := place.step(body)
-			if err != nil {
+			var loss placedLoss
+			switch {
+			case errors.Is(err, errNoEvent), errors.As(err, &loss):
+				// AN ACT THE RECORD HOLDS NO EVENT FOR (retirefold.go): a claim retire folded into its cuts
+				// is no act; a claim retire carrying no anchor or taking an open gap's marker, and an edit
+				// the fold leaves nothing to do, are lost acts. A pin that named it names the last event
+				// written before it — for an edit, the last report head: a pin names the report its party
+				// audited, and a lost edit changed nothing the migrated report holds, so that report is
+				// the one the head before it stands at.
+				if loss.err != nil {
+					res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: loss.Error()})
+					res.AcceptedLosses[old.Word] = loss.why
+				}
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if _, edit := body.(*recordpb.BlueEdit); edit {
+						if last, err = record.ReportHeadAt(batch.Querier()); err != nil {
+							return nil, fmt.Errorf("reading the report head before source event %d: %w", old.ID, err)
+						}
+					} else if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
+				continue
+			case err != nil:
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
@@ -848,6 +874,11 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// the same failure and each was recorded above as a refusal; none of it may stand.
 	if err := batch.Err(); err != nil {
 		return nil, err
+	}
+	if text, err := record.RenderAt(batch.Querier()); err == nil {
+		if err := bareAtEnd(text); err != nil {
+			res.Refusals = append(res.Refusals, migration.Refusal{Word: "report", Err: err.Error()})
+		}
 	}
 	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
 	res.ClassTranslations = classTranslations(classMints)
@@ -1032,8 +1063,8 @@ func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bo
 // m26:
 //   - its archived quote held a finding's token, that quote no longer locates in the report as the
 //     migrated record renders it, and its replacement already locates there;
-//   - it only deletes leading punctuation, and the punctuation its quote locates stands against an
-//     anchor the edit does not name. A stray terminator stood after a finding's token; with the token
+//   - it only deletes leading punctuation, and the punctuation its quote locates stands after, or
+//     against, an anchor the edit does not name. A stray terminator stood after a finding's token; with the token
 //     gone the quote finds the sentence's own terminator instead, and replaying it would delete that
 //     and the anchor on it.
 //
@@ -1048,15 +1079,37 @@ func settledEdit(q recordsql.Querier, src OldEvent, body proto.Message) bool {
 	if err != nil {
 		return false
 	}
-	start, end, err := bluedoc.LocateUniqueReplacing(text, b.GetOld())
-	if err == nil {
-		return strayTerminator(b.GetOld(), b.GetNew(), text[start:end])
+	if stray, located := strayAt(text, b.GetOld(), b.GetNew()); located {
+		return stray
 	}
 	if archived, _ := src.Fields["old"].(string); !strings.Contains(archived, "<!--"+findingTag+":") {
 		return false
 	}
 	_, _, err = bluedoc.LocateUniqueReplacing(text, b.GetNew())
 	return err == nil
+}
+
+// strayAt reports whether the edit from old to new is a stray terminator where old locates in text, and
+// whether old locates at all. The located span is widened leftward over the run of anchor tokens that
+// abuts it: the quote's leading punctuation stands after a token the locate skips, and that token is
+// the anchor the stop belongs to.
+func strayAt(text, old, replacement string) (stray, located bool) {
+	start, end, err := bluedoc.LocateUniqueReplacing(text, old)
+	if err != nil {
+		return false, false
+	}
+	return strayTerminator(old, replacement, text[tokenRunBefore(text, start):end]), true
+}
+
+// tokenRunBefore is the start of the run of anchor tokens that ends at i in text, or i when no token
+// ends there.
+func tokenRunBefore(text string, i int) int {
+	var spans [][2]int
+	anchor.Each(text[:i], func(start, end int, _ string) { spans = append(spans, [2]int{start, end}) })
+	for k := len(spans) - 1; k >= 0 && spans[k][1] == i; k-- {
+		i = spans[k][0]
+	}
+	return i
 }
 
 // strayTerminator reports whether an edit from old to new only deletes old's leading punctuation, and

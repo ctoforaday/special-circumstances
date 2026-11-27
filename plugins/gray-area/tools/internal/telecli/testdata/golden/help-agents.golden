@@ -22,6 +22,18 @@ capture recorded one, the last sign of life, the session's last recorded
 permission mode, and the commands that bring it back in that mode. The boot is
 /proc/stat's btime on Linux; elsewhere --lost refuses unless --boot is given.
 
+Below the sessions, 'waiting for Antigravity' lists every Antigravity conversation
+whose mailbox holds a message its client has not read — running or not, however
+old, whatever --window says: a message telepathy send QUEUED waits there until the
+conversation's next turn. Each row counts the messages, gives the oldest one's time,
+and marks those this session sent ('yours') and those sent from outside any agent
+session ('from a shell'). agy's own notices are counted apart, as '+N agy notices'.
+A message leaves the list when the client reads it: the client's own record, the
+same whether or not the recipient runs telepathy. The client records no time of
+reading, so none is shown. A message whose file is missing or does not parse is
+counted as unreadable, never dropped; a directory that cannot be listed is said to
+be unmeasured, never shown as an empty list. --lost does not print it.
+
 Usage:
   telepathy agents [flags]
 

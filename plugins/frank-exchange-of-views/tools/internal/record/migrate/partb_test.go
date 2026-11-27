@@ -12,11 +12,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// partBRuns is every archive Part B's translations read: run-archive/'s runs and the two bundle-store
-// runs the docket census reads beside them.
+// partBRuns is every archive Part B's translations read: the committed set, bundle-store/'s two runs
+// among them.
 func partBRuns(t *testing.T) []string {
 	t.Helper()
-	return append(archivedRuns(t), "bundle-store/2026-10-31_is-91-prime-m37.tar.gz", "bundle-store/2026-11-04_is-91-prime-m38.tar.gz")
+	return archivedRuns(t)
 }
 
 // migratedMinters is the seat of each migrated gap's Mint event.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -33,6 +34,9 @@ func TestTheBuiltBinary(t *testing.T) {
 
 	// A store that cannot exist, so no case below can reach the caller's real catalogue.
 	noStore := filepath.Join(t.TempDir(), "absent.db")
+	// A runtime directory of the test's own: every verb prunes the Antigravity server records under
+	// $XDG_RUNTIME_DIR, and a checkout-built binary must never prune the host's.
+	runtimeDir := t.TempDir()
 
 	for _, tc := range []struct {
 		name     string
@@ -52,6 +56,7 @@ func TestTheBuiltBinary(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(bin, tc.args...)
+			cmd.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+runtimeDir)
 			var out, errOut strings.Builder
 			cmd.Stdout, cmd.Stderr = &out, &errOut
 			err := cmd.Run()

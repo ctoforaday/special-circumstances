@@ -31,7 +31,7 @@ func TestEveryAnsweringActIsTheAuthors(t *testing.T) {
 			return &recordpb.BlueEdit{Answers: proto.String(gap), Old: proto.String(acceptS + "."), New: proto.String(acceptN + "."), Text: proto.String("r")}
 		}},
 		{"an evidence-anchor retire", func() proto.Message {
-			return &recordpb.Retire{Answers: proto.String(gap), ClaimKept: proto.Bool(true), Anchors: []string{"C1"}, Claim: proto.String(acceptS + "."), Reason: proto.String("r")}
+			return &recordpb.Retire{Answers: proto.String(gap), Anchors: []string{"C1"}, Claim: proto.String(acceptS + "."), Reason: proto.String("r")}
 		}},
 		{"a citation", func() proto.Message {
 			return &recordpb.Cite{Answers: proto.String(gap), Label: proto.String("C9"), Text: proto.String("r")}

@@ -25,8 +25,8 @@ const (
 	// ItemReaudit is a lens's own open gap that blue answered, or whose sentence an edit changed,
 	// since the lens last acted on it — or that blue was engaged on and left unanswered (blueAnswers).
 	ItemReaudit ItemKind = "reaudit"
-	// ItemNews is a closed gap of a lens's own whose answers have all been retired: the closure
-	// stands, and the item says what a mint in answer would be.
+	// ItemNews is a closed gap of a lens's own whose answers have all left the report, by a retire or a
+	// cut: the closure stands, and the item says what a mint in answer would be.
 	ItemNews ItemKind = "news"
 	// ItemLog is the open log channel.
 	ItemLog ItemKind = "log"

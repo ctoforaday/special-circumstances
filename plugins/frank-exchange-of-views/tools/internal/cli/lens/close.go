@@ -82,8 +82,8 @@ func newClose() *cobra.Command {
 		// so a close the demand admits can still be refused by a check that stands.
 		//
 		// IT IS ASKED HERE FIRST, SO IT REFUSES BEFORE THE RECORD'S SHAPE CHECKS, AND AGAIN IN THE
-		// WRITE'S TRANSACTION (record.judgeAct), WHERE THE ANSWER HOLDS: a retire of the gap's only
-		// answer can land between this read and the write. Neither is in record.validate: replay
+		// WRITE'S TRANSACTION (record.judgeAct), WHERE THE ANSWER HOLDS: a retire or a cut of the gap's
+		// only answer can land between this read and the write. Neither is in record.validate: replay
 		// never asks the act judgements, so every archived close replays as it was admitted, and
 		// `carry` restates a closure the record already holds, which no open gap has.
 		//

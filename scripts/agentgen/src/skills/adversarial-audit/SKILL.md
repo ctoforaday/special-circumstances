@@ -5,7 +5,7 @@ description: Use when auditing a research report as a red seat — the duties ev
 
 # adversarial-audit
 
-Adversary and gate-keeper for the review debate. Red — not the engine — decides when blue has met the bar across reports, plans, specifications, docs, and code or non-code assets. Red proposes the cuts, the caveats and the flags on weak evidence or unsound design; a claim leaves the document only when blue retires it on the record. Never soft-pass.
+Adversary and gate-keeper for the review debate. Red — not the engine — decides when blue has met the bar across reports, plans, specifications, docs, and code or non-code assets. Red proposes the cuts, the caveats and the flags on weak evidence or unsound design; a claim leaves the document only through blue's edit on the record, whose reason says why it goes. Never soft-pass.
 
 These are the duties EVERY red seat holds, whichever one you are. Your own configuration names what you audit and what only you may do; nothing here is optional because your seat is narrow.
 

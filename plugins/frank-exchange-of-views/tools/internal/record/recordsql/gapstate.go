@@ -156,7 +156,8 @@ type gapMarker struct {
 }
 
 // reachingSQL is the gaps whose evidence demand reaches anchor (an SQL expression over NEW): an act on
-// the anchor — placing it, retiring it, checking it — can meet or unmeet each one's demand.
+// the anchor — placing it, taking it out (a retire, or a cut of its sentence), checking it — can meet
+// or unmeet each one's demand.
 func reachingSQL(anchor string) string {
 	return `SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = ` + anchor
 }
@@ -199,9 +200,13 @@ func gapMarkers() []gapMarker {
 		{"motion_rule_docket", `SELECT dk."gap_id" FROM "docketing" dk WHERE dk."docketing_id" = NEW."docketing_id"`},
 		// An upheld position remands every gap it lists.
 		{"motion_rule_position_gap_ids", `SELECT NEW."value"`},
-		// A retire takes the anchor out: the gaps it answers, the gaps whose demand reaches it, and, for
-		// a gap's own marker, the gap (met's arm 4).
+		// A retire takes the anchor out: the gaps it answers and the gaps whose demand reaches it. It moves
+		// no gap's marker arm (met's arm 4 reads only a cut), so it names no lineage.
 		{"retire_anchors", `SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
+      UNION ` + reachingSQL(`NEW."value"`)},
+		// A cut takes the anchor out with its sentence: the gaps it answers, the gaps whose demand reaches
+		// it, and, for a gap's own marker, the gap (met's arm 4).
+		{"blue_edit_removed_anchors", `SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
       UNION ` + reachingSQL(`NEW."value"`) + `
       UNION SELECT "gap_id" FROM "mint" WHERE "gap_id" = NEW."value"`},
 	}
@@ -298,8 +303,9 @@ WITH "d" AS MATERIALIZED (
   ` + demandReachSQL(`"d" CROSS JOIN "mint" h ON h."gap_id" = "d"."gap_id"`) + `
 ),
 "answered" AS MATERIALIZED (
-  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many retired and the last
-  -- retire, and how many stand live of the gap's own check kind. The IN reaches each placing table's
+  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many are out of the report
+  -- (anchor_removal: retired, or cut with their sentence) and the last removal, and how many stand
+  -- live of the gap's own check kind. The IN reaches each placing table's
   -- answers index; the join alone materializes every anchor on the record.
   SELECT "d"."gap_id" AS "gap_id", count(*) AS "placed", count(ea."retired_event") AS "retired",
          max(ea."retired_event") AS "last_retired",
@@ -316,12 +322,13 @@ WITH "d" AS MATERIALIZED (
 "met" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. the anchor the demand reaches, the one the gap is about, is retired;
+  --   2. the anchor the demand reaches, the one the gap is about, is out of the report, by a retire
+  --      or a cut;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
   --      read it is at or after the gap's mint and holds. Another seat's check meets nothing;
-  --   4. the gap's own marker has left the report. The claim a marker marks leaves the report only
-  --      with it, and a retire is the one act that takes a marker out, so retire_anchors is the
-  --      subject's state.
+  --   4. the gap's own marker has left the report WITH ITS CLAIM. A cut takes a sentence and its
+  --      marker together, so anchor_removal's edit arm is the subject's state; a retire keeps the
+  --      sentence (and F14 admits one on a closed gap's marker), so it meets nothing here.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0
   UNION
   SELECT r."gap_id"
@@ -333,7 +340,7 @@ WITH "d" AS MATERIALIZED (
   UNION
   SELECT "d"."gap_id"
   FROM "d"
-  WHERE EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = "d"."gap_id")
+  WHERE EXISTS (SELECT 1 FROM "blue_edit_removed_anchors" er WHERE er."value" = "d"."gap_id")
 ),
 "latest_remand" AS MATERIALIZED (
   -- THE LATEST REMAND ON EACH NAMED GAP (the remand view): its direction is the live one.
@@ -360,8 +367,9 @@ SELECT
   g."complexity_cost"                                                         AS "current_complexity_cost",
   (em."gap_id" IS NOT NULL)                                                   AS "evidence_answered",
   (k."open" AND k."check_kind" IN (` + evidenceChecksSQL() + `) AND em."gap_id" IS NULL) AS "awaiting_evidence",
-  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: at least one anchor placed as its answer, every one
-  -- retired, the last of them after the last closing act that is not a carry.
+  -- THE ANSWERS TO A CLOSED GAP, ALL OUT OF THE REPORT: at least one anchor placed as its answer,
+  -- every one retired or cut with its sentence, the last removal after the last closing act that is
+  -- not a carry.
   CASE WHEN NOT k."open" AND an."placed" = an."retired" AND k."judged" < an."last_retired"
        THEN an."last_retired" END                                            AS "answers_retired_event",
   k."filed"                                                                   AS "unruled_docket_filed",
@@ -449,4 +457,80 @@ func flushGapState(tx *sql.Tx) error {
 		return fmt.Errorf("refreshing the gaps this append touched: %w", err)
 	}
 	return nil
+}
+
+// GapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
+// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
+// they agree row for row and nothing is left named or unflushed, else what differs. The refresh asked
+// of every gap is the rules with no marker in the way, so a gap a marker failed to name stands out as
+// the row the full refresh moves. db is a write handle (Open): the refresh is the flush trigger's, run
+// by inserting the rows that fire it.
+func GapStateRefreshDiff(db *sql.DB) (string, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var out []string
+	var pending int
+	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
+		return "", err
+	}
+	if pending != 0 {
+		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
+	}
+	stored, err := gapStateRows(tx)
+	if err != nil {
+		return "", err
+	}
+	// Two statements, each its own Exec: planguard plans one statement per call.
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint"`); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(`INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
+		return "", err
+	}
+	refreshed, err := gapStateRows(tx)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < max(len(stored), len(refreshed)); i++ {
+		var s, f string
+		if i < len(stored) {
+			s = stored[i]
+		}
+		if i < len(refreshed) {
+			f = refreshed[i]
+		}
+		if s != f {
+			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
+		}
+	}
+	return strings.Join(out, "\n"), nil
+}
+
+// gapStateRows is every gap_state row, in mint order, one string each.
+func gapStateRows(tx *sql.Tx) ([]string, error) {
+	rows, err := tx.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for rows.Next() {
+		v := make([]any, len(cols))
+		p := make([]any, len(cols))
+		for i := range v {
+			p[i] = &v[i]
+		}
+		if err := rows.Scan(p...); err != nil {
+			return nil, err
+		}
+		out = append(out, fmt.Sprint(v))
+	}
+	return out, rows.Err()
 }

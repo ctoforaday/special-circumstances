@@ -7,21 +7,22 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// CLOSURES ARE HISTORY (gblock, 2026-11-01). A retire moves no closure: a closed gap whose answers
-// are all retired stays closed for every reader, and what the retire adds is one hop to its assignee's
-// work list — the gap view's `answers_retired_event`, read through the WORK query. The item
+// CLOSURES ARE HISTORY (gblock, 2026-11-01). A removal — a retire or a pure cut — moves no closure: a
+// closed gap whose answers have all left the report stays closed for every reader, and what the
+// removal adds is one hop to its assignee's work list — the gap view's `answers_retired_event`, read
+// through the WORK query. The item
 // blocks nothing, so `complete` and PASS are as they were: no BlockerKind, no lensOwesOf row and no
 // gapNewsOf row reads the column (gapNewsOf holds open gaps).
 //
 // WHAT REMOVES IT, each off the record and none a new event or a seen-marker:
 //
-//   - the lens has sat through a sitting opened after the retire (satThrough, as lensOwesOf's `owe`
+//   - the lens has sat through a sitting opened after the removal (satThrough, as lensOwesOf's `owe`
 //     reads it): it is listed for the whole of that sitting, so the sitting that clears it is one that
 //     read it, and a sitting that never closed does not clear it;
-//   - a closing act other than a carry follows the retire: the column is then NULL.
+//   - a closing act other than a carry follows the removal: the column is then NULL.
 
-// answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers are all
-// retired. ids are evs's places.
+// answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers have all
+// left the report, by a retire or a cut. ids are evs's places.
 func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	var held []WorkGapState
 	for _, g := range gaps {
@@ -40,9 +41,10 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if _, sat := firstAfter(ends.through[seatID], n); sat {
 			continue
 		}
-		what := fmt.Sprintf("the answers to gap %s, which you closed, have all been retired, the last at event %d (%s) — the closure stands", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
+		took, by := retiredAnswersAt(evs, ids, g.ID, n)
+		what := fmt.Sprintf("the answers to gap %s, which you closed, have all left the report, the last by %s at event %d (%s) — the closure stands", g.ID, by, n, strings.Join(took, ", "))
 		if g.benchClosedLast {
-			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all been retired, the last at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, n, strings.Join(retiredAnswersAt(evs, ids, g.ID, n), ", "))
+			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all left the report, the last by %s at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, by, n, strings.Join(took, ", "))
 		}
 		what += "; if the defect it closed is still in the report, that is a new gap: mint it"
 		out = append(out, gapItem(ItemNews, g.ID, what))
@@ -50,21 +52,30 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 	return out
 }
 
-// retiredAnswersAt is the anchors placed as gap's answer that the retire at the place at took out.
-func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) []string {
+// retiredAnswersAt is the anchors placed as gap's answer that the act at the place at took out — a
+// retire's anchors or a pure cut's removed_anchors (anchor_removal, which gap_state's
+// answers_retired_event reads) — and that act as the news names it: "blue's retire" or "blue's cut".
+func retiredAnswersAt(evs []*Event, ids []int64, gap string, at int64) (out []string, by string) {
 	answering := map[string]bool{}
-	var out []string
 	for i, e := range evs {
 		if id, g, ok := placedAnswer(e); ok && g == gap {
 			answering[id] = true
 		}
-		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && ids[i] == at {
-			for _, a := range r.GetAnchors() {
-				if answering[a] {
-					out = append(out, a)
-				}
+		if ids[i] != at {
+			continue
+		}
+		var took []string
+		switch b := mustBody(e).(type) {
+		case *recordpb.Retire:
+			took, by = b.GetAnchors(), "blue's retire"
+		case *recordpb.BlueEdit:
+			took, by = b.GetRemovedAnchors(), "blue's cut"
+		}
+		for _, a := range took {
+			if answering[a] {
+				out = append(out, a)
 			}
 		}
 	}
-	return out
+	return out, by
 }

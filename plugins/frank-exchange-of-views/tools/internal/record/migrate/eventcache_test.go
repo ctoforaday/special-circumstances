@@ -18,13 +18,9 @@ import (
 // list have folded over the stream, it is held, event by event and window by window, to a read
 // through a handle that keeps no stream.
 func TestTheFoldsLeaveTheCachedStreamAsTheRecordHoldsIt(t *testing.T) {
-	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
-	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
-	if err != nil || len(tarballs) == 0 {
-		t.Fatalf("no archived run found under %s: %v", dir, err)
-	}
+	tarballs := migrate.ArchivedRuns(t)
 	for _, tb := range tarballs {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			_, runDir := migrate.MigratedArchive(t, name)
 			run, err := record.OpenRun(runDir)

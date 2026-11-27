@@ -217,10 +217,6 @@ var layout = []Section{
 		From:    "the record's own invariant check",
 		Path:    noSeatPath,
 		compose: func(a *assembly, _ Section) string { return recordVerification(a.fam) }},
-	{File: FileChangelog, Heading: "Claims retired", Composer: Tool,
-		From:    "the retirements on the record",
-		Path:    "Blue's `retire`, which records the claim as it stood and why it went, or the citation or computation it took off a sentence that stays.",
-		compose: func(a *assembly, _ Section) string { return withdrawnClaims(a.fam) }},
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
 		From:    "the bench's statements that a later one replaced",
 		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
@@ -304,7 +300,7 @@ var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inq
 // content is read through the record view that serves its source.
 var ReportTextNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
 	strings.Join(RefusedHeadings(), ", ") + ". A lane's `ingest` and blue's `edit` refuse report text that carries one. " +
-	"What a composed section holds is on the record, read through the view that serves its source: `show board` (the gaps and their grades), `show inquiries`, `show evidence` (the citations and computations, every reading of them, and every retire) and `show changes` (the edits)."
+	"What a composed section holds is on the record, read through the view that serves its source: `show board` (the gaps and their grades), `show inquiries`, `show evidence` (the citations and computations, every reading of them, every retire, and the act — a retire or an edit's cut — that took each anchor out) and `show changes` (the edits)."
 
 // inquiryLayoutRow is the row of the k-th inquiry section (reportheading.InquirySections): its heading
 // and the fates it holds are the leaf's, which the record reads too, and none is what it says when no

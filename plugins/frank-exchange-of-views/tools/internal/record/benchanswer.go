@@ -342,11 +342,11 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 // red's text already stands — the anchor retired, or the report holding the pair's replacement at the
 // gap's place — the answer applies no act.
 func requireRoadApplied(q recordsql.Querier, p Positions, texts []benchAct) error {
-	// A RETIRE ROAD ALREADY DONE: the anchor's retire matches red's text, and the freeze admits it, so
-	// the answer for red applies nothing more.
+	// A RETIRE ROAD ALREADY DONE: the anchor is out of the report — retired, or cut with its sentence —
+	// which matches red's text, and the freeze admits it, so the answer for red applies nothing more.
 	if len(texts) == 0 && p.Road.GetRetire() {
-		_, retired, err := anchorRetiredAt(q, p.AboutRef)
-		if err != nil || retired {
+		_, removed, err := anchorRemovedAt(q, p.AboutRef)
+		if err != nil || removed {
 			return err
 		}
 	}
@@ -367,7 +367,7 @@ func requireRoadApplied(q recordsql.Querier, p Positions, texts []benchAct) erro
 	a := texts[0]
 	if p.Road.GetRetire() {
 		rt, ok := a.body.(*recordpb.Retire)
-		if !ok || !rt.GetClaimKept() || len(rt.GetAnchors()) != 1 {
+		if !ok || len(rt.GetAnchors()) != 1 {
 			return feov.Errorf(feov.Validation, "red's closing on %s states the anchor's retire, and the bench's act at event %d is not that retire. Nothing was recorded", p.GapID, a.at)
 		}
 		if rt.GetAnchors()[0] != p.AboutRef {

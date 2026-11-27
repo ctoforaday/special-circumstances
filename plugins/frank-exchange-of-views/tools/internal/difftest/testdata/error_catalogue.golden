@@ -165,7 +165,7 @@ feov-record: verify: --as takes one of supports|supports_with_bridge|weak|refute
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it
     refutes               you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire the citation, cite a source a lens can read, or cut the sentence it backs
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -313,7 +313,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -403,7 +403,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  retire      take a claim out of the report, when it cannot stand and no edit will save it
+  retire      take one anchor out of the report, its sentence staying word for word
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -556,11 +556,11 @@ feov-record: mint: --key "K1" already names gap GAP001 on this run, stated with 
 
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
-feov-record: edit: your old span carries gap anchor <!--gap:GAP002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--gap:GAP002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
+feov-record: edit: your old span carries gap anchor <!--gap:GAP002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--gap:GAP002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: edit: your old span carries gap anchor <!--gap:GAP002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--gap:GAP002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
+feov-record: edit: your old span carries gap anchor <!--gap:GAP002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--gap:GAP002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, cut its sentence whole — a replacement holding nothing of it — and the cut takes the anchor with it; to take only the anchor off a sentence that stays, retire it with --anchor — an open gap's own marker is not retired: carry it, or cut its sentence, which hands the gap to its lens
 
 ── an edit carrying an anchor onto a heading
 exit 2
@@ -568,7 +568,7 @@ feov-record: edit: this edit puts <!--gap:GAP002--> on a section heading, and an
 
 ── an edit ending its own sentence before an anchor its quote leaves out
 exit 2
-feov-record: edit: your quote stops before gap anchor <!--gap:GAP002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
+feov-record: edit: your quote stops before gap anchor <!--gap:GAP002--> (the tool places it and every rewrite carries it; it leaves with its sentence when `edit` cuts that sentence whole, or alone by `retire --anchor`, which keeps the sentence word for word, an open gap's own marker excepted — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, quote it as `show report` prints it and write it where it goes; to take its claim out, cut its sentence whole, which takes the anchor with it
 
 ── repeat target: the lens regrades GAP001
 exit 0
@@ -582,7 +582,7 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position POSITION001 recorded
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
@@ -616,11 +616,12 @@ dispatch against head 4:
   blue-respond — GAP001
   · red-lens-evidence: never sat — audits the report at head 4
   · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
+  · GAP002: open and not material (graded low) — readies nobody
   · blue-respond: the question is split into no question part — ready, to split it
   · red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered
   · red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
@@ -746,7 +747,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
+NOTHING HERE IS YOURS TO CLEAR (8 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
@@ -758,7 +759,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, no
 ── repeat target: the chair carries the closure
 exit 0
 carried the closure of GAP003 (repaired)
-NOTHING HERE IS YOURS TO CLEAR (8 item(s) open to you).
+NOTHING HERE IS YOURS TO CLEAR (9 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is

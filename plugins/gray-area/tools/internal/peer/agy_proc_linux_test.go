@@ -3,8 +3,10 @@
 package peer
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -43,19 +45,19 @@ func TestOtherDBHolderDetectsOpenDBAndHandlesSymlinkedRoot(t *testing.T) {
 	// Any non-excluded process holding the DB open (here the Go test binary itself, whose comm is
 	// not agy/antigravity) must be detected through realRoot, symRoot, and symConvRoot.
 	for _, root := range []string{realRoot, symRoot, symConvRoot} {
-		busy, why := otherDBHolder(root, conv, myPID+1)
-		if !busy || !strings.Contains(why, fmt.Sprintf("pid %d", myPID)) {
-			t.Errorf("otherDBHolder(%q, %q, %d) = (%v, %q), want (true, naming pid %d)", root, conv, myPID+1, busy, why, myPID)
+		h := otherDBHolder(root, conv, myPID+1)
+		if h.Kind != HolderDBOpen || h.PID != myPID || !strings.Contains(h.Detail, fmt.Sprintf("pid %d", myPID)) {
+			t.Errorf("otherDBHolder(%q, %q, %d) = %+v, want the db open in pid %d", root, conv, myPID+1, h, myPID)
 		}
-		if busy, why := otherDBHolder(root, conv, myPID); busy {
-			t.Errorf("otherDBHolder excluding holder pid %d = (%v, %q), want (false, \"\")", myPID, busy, why)
+		if h := otherDBHolder(root, conv, myPID); h.Kind != HolderNone {
+			t.Errorf("otherDBHolder excluding holder pid %d = %+v, want none", myPID, h)
 		}
 	}
 
 	// Closing the file clears the busy state.
 	f.Close()
-	if busy, why := otherDBHolder(realRoot, conv, myPID+1); busy {
-		t.Errorf("after closing db, otherDBHolder = (%v, %q), want false", busy, why)
+	if h := otherDBHolder(realRoot, conv, myPID+1); h.Kind != HolderNone {
+		t.Errorf("after closing db, otherDBHolder = %+v, want none", h)
 	}
 }
 
@@ -75,10 +77,99 @@ func TestConversationBusyAllowsLockHeldOnlyByExcludedPID(t *testing.T) {
 	defer fl.Unlock()
 
 	myPID := os.Getpid()
-	if busy, why := ConversationBusy(agyRoot, conv, myPID); busy {
-		t.Errorf("ConversationBusy with holder pid %d excluded = (true, %q), want (false, \"\")", myPID, why)
+	if h := ConversationBusy(agyRoot, conv, myPID); h.Kind != HolderNone {
+		t.Errorf("ConversationBusy with holder pid %d excluded = %+v, want none", myPID, h)
 	}
-	if busy, why := ConversationBusy(agyRoot, conv, myPID+1); !busy || !strings.Contains(why, "presence/"+conv+".lock") {
-		t.Errorf("ConversationBusy with other pid excluded = (%v, %q), want (true, naming presence/%s.lock)", busy, why, conv)
+	if h := ConversationBusy(agyRoot, conv, myPID+1); h.Kind != HolderPresenceLock || h.PID != myPID {
+		t.Errorf("ConversationBusy with other pid excluded = %+v, want the presence lock held by pid %d", h, myPID)
+	}
+}
+
+// A PRESENCE-LOCK HOLDER IS NAMED BY ITS PID FROM /proc/locks, and a waiter is not a holder.
+func TestLockHoldersReadsProcLocks(t *testing.T) {
+	const locks = `1: POSIX  ADVISORY  WRITE 900 00:2a:1234 0 EOF
+2: FLOCK  ADVISORY  WRITE 4242 08:01:1234 0 EOF
+2: -> FLOCK  ADVISORY  WRITE 5151 08:01:1234 0 EOF
+3: FLOCK  ADVISORY  WRITE 777 08:01:9999 0 EOF
+4: FLOCK  ADVISORY  READ 0 08:01:1234 0 EOF
+`
+	got, err := lockHolders(locks, "1234")
+	if err != nil || fmt.Sprint(got) != "[4242 0]" {
+		t.Errorf("lockHolders = %v, %v; want [4242 0]: both holders as listed, not the waiter", got, err)
+	}
+	if got, err := lockHolders(locks, "5555"); err != nil || len(got) != 0 {
+		t.Errorf("lockHolders of an unlocked inode = %v, %v; want none", got, err)
+	}
+}
+
+// A HOLDER THIS NAMESPACE CANNOT NAME IS UNINSPECTABLE, never "pid 0".
+// WHERE /proc/locks CANNOT SHOW THE HOLDER, THE PROBE FAILS CLOSED. Here the process that took
+// the lock (flock(1)) has exited, and the shell it shared the descriptor with holds it.
+func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
+	flockBin, err := exec.LookPath("flock")
+	if err != nil {
+		t.Skip("no flock(1) on this box")
+	}
+	// PROC_PID_INIT_INO: outside the initial pid namespace /proc/locks drops a dead locker's line
+	// rather than naming it.
+	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != "pid:[4026531836]" {
+		t.Skip("outside the initial pid namespace /proc/locks drops a dead locker's line rather than naming it")
+	}
+	agyRoot := t.TempDir()
+	const conv = "conv-passed-on"
+	lockPath := filepath.Join(agyRoot, "presence", conv+".lock")
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sh := exec.Command("sh", "-c", `exec 9>>"$1"; "$2" -x 9; echo locked; exec sleep 60`, "sh", lockPath, flockBin)
+	out, err := sh.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sh.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sh.Process.Kill(); _ = sh.Wait() })
+	if line, err := bufio.NewReader(out).ReadString('\n'); err != nil || line != "locked\n" {
+		t.Fatalf("shell said %q, %v; want locked", line, err)
+	}
+	h := ConversationBusy(agyRoot, conv, 0)
+	if h.Kind != HolderUninspectable || !strings.Contains(h.Detail, "which has exited") {
+		t.Errorf("ConversationBusy = %+v, want uninspectable naming the exited locker", h)
+	}
+}
+
+// AN UNHELD LOCK IN A BLIND SPOT IS UNINSPECTABLE, not free: here the blind spot is stood in.
+func TestConversationBusyUnheldLockInABlindSpot(t *testing.T) {
+	agyRoot := t.TempDir()
+	const conv = "conv-blind"
+	if err := os.MkdirAll(filepath.Join(agyRoot, "presence"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agyRoot, "presence", conv+".lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	was := blindSpotOf
+	defer func() { blindSpotOf = was }()
+	blindSpotOf = func(string) string { return "the lock is on NFS" }
+	if h := ConversationBusy(agyRoot, conv, 0); h.Kind != HolderUninspectable || !strings.Contains(h.Detail, "the lock is on NFS") {
+		t.Errorf("ConversationBusy = %+v, want uninspectable naming the blind spot", h)
+	}
+}
+
+func TestNetworkFS(t *testing.T) {
+	for m, want := range map[uint32]string{0x6969: "NFS", 0xFF534D42: "SMB", 0xFE534D42: "SMB", 0x517B: "SMB", 0x00C36400: "Ceph",
+		0x5346414F: "AFS", 0x6B414653: "AFS", 0x01021997: "9P", 0x01161970: "GFS2", 0x7461636F: "OCFS2", 0x0BD00BD0: "Lustre",
+		0x73757245: "Coda", 0x47504653: "GPFS", 0xEF53: "", 0x01021994: "", 0x58465342: ""} {
+		if got := networkFS(m); got != want {
+			t.Errorf("networkFS(%#x) = %q, want %q", m, got, want)
+		}
+	}
+}
+
+// ON A LOCAL FILESYSTEM AN UNHELD LOCK FILE IS NOT A BLIND SPOT.
+func TestLocksBlindSpotHere(t *testing.T) {
+	if why := locksBlindSpot(filepath.Join(t.TempDir(), "f.lock")); why != "" {
+		t.Errorf("locksBlindSpot on a temporary directory = %q, want none", why)
 	}
 }

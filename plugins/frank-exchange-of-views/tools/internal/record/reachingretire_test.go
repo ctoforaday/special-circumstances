@@ -127,7 +127,7 @@ func TestAReachingRetireIsTheLensTurnOnTheGap(t *testing.T) {
 // sitting opened after the retire, or mints a gap superseding it. With one of two answers still live
 // there is no item.
 func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
-	const item = "the answers to gap G1, which you closed, have all been retired"
+	const item = "the answers to gap G1, which you closed, have all left the report"
 	closed := func(t *testing.T, answers ...string) *stage {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).mint(evLens, "G1", "high").stop("lens-mints")
@@ -192,7 +192,7 @@ func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
 // gap holds the item off, as it holds every other item on the gap. A remand leaves the gap closed and
 // the item listed again; a closing ruling is a later closing act, which clears it.
 func TestADocketedGapsAnswersRetiredItemWaitsOnTheBench(t *testing.T) {
-	const item = "the answers to gap G1, which you closed, have all been retired"
+	const item = "the answers to gap G1, which you closed, have all left the report"
 	docketed := func(t *testing.T) *stage {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).mint(evLens, "G1", "high").stop("lens-mints")
@@ -217,7 +217,7 @@ func TestADocketedGapsAnswersRetiredItemWaitsOnTheBench(t *testing.T) {
 	})
 	t.Run("closed by the bench: cleared", func(t *testing.T) {
 		run := docketed(t).dispatch(2, "judge", "G1").register("judge").add("judge", docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).seed()
-		if s := sittingOfRunT(t, run, "lens", evLens); listsItem(s, "have all been retired") {
+		if s := sittingOfRunT(t, run, "lens", evLens); listsItem(s, "have all left the report") {
 			t.Errorf("a closing ruling after the retire left the item listed: %+v", s.Open)
 		}
 	})
@@ -314,7 +314,7 @@ func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
 		computation("K-x", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, "K-x").stop("lens-mints").register("red-chair").
 		dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-retires").
 		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim K-x backs"), Reason: proto.String("it does not hold"), Anchors: []string{"K-x"},
-			ClaimKept: proto.Bool(true), Answers: proto.String("G1")}).
+			Answers: proto.String("G1")}).
 		stop("blue-retires").register("red-chair")
 	fam, err := MergedEvents(st.seed())
 	if err != nil {
@@ -324,4 +324,42 @@ func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
 	if want := []string{"blue's retire of K-x, which G1 is about"}; !slices.Equal(owes[evLens], want) {
 		t.Errorf("the lens owes %q for one retire, want %q", owes[evLens], want)
 	}
+}
+
+// blueCutsIn is the chair engaging blue on gap, and blue sitting once and cutting a sentence whose
+// anchors are removed, its edit answering no gap.
+func (b *stage) blueCutsIn(gap string, removed ...string) *stage {
+	agent := fmt.Sprintf("blue-cuts-%d", b.n)
+	return b.dispatch(2, "blue-respond", gap).registerAs("blue-respond", agent).
+		add("blue-respond", &recordpb.BlueEdit{Old: proto.String("the sentence " + removed[0] + " backs."), New: proto.String(""),
+			EditKey: proto.String(fmt.Sprintf("E-cut-%d", b.n)), RemovedAnchors: removed}).stop(agent)
+}
+
+// A REACHING CUT IS THE LENS'S TURN ON THE GAP IT REACHES, as a reaching retire is (plans/findings-fold.md
+// §III.B3, F-FATE; lensTurnActsOf's BlueEdit arm over WindowIndex.Reaches): a cut answering no gap takes out
+// the computation G1 is about, and the lens's audit after it ends an exchange in which blue did not act on
+// G1 — a turn resets no stall. A cut that reaches nothing is no turn on G1 either, and leaves the same stall.
+func TestAReachingCutIsTheLensTurnOnTheGap(t *testing.T) {
+	minted := func(t *testing.T) *stage {
+		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2)
+		st = st.computation("K-x", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, "K-x").
+			stop("lens-mints").register("red-chair")
+		st.seed()
+		return st
+	}
+	t.Run("the cut is G1's lens turn: the lens's audit ends an exchange blue did not move", func(t *testing.T) {
+		more := minted(t).more()
+		more.blueCutsIn("G1", "K-x").register("red-chair").seed()
+		if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 1 {
+			t.Errorf("the lens's audit after the reaching cut ends one exchange, stalled: %+v (%v)", x["G1"], err)
+		}
+	})
+	t.Run("a cut that reaches nothing leaves G1's exchange stalled", func(t *testing.T) {
+		more := minted(t).more()
+		more.computation("K-v", "s2").blueCutsIn("G1", "K-v").register("red-chair").seed()
+		if x, err := Exchanges(lensAuditsG1(t, more), DefaultParams); err != nil || x["G1"].Stalled != 1 {
+			t.Errorf("a cut of another computation moved G1: %+v (%v)", x["G1"], err)
+		}
+	})
 }

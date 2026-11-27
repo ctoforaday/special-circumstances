@@ -41,7 +41,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 			ComputationId: proto.String("K-00000001"), BundleSha: proto.String("abc"), Text: proto.String("the sum holds")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("A sentence C-00000001 backs."), Reason: proto.String("r"),
-			RemovalBasis: proto.String(record.RemovalAsserted), Anchors: []string{"C-00000001"}}),
+			Anchors: []string{"C-00000001"}}),
 		closeT(t, "red-lens-logic", "G2"),
 		recordtest.Event(t, "judge", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	)
@@ -51,7 +51,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 	}
 	const (
 		first = "The record at this certification, counted by the tool — gaps: 2 minted · 1 closed · 1 open; citations: 1; readings: 1; computations: 0."
-		last  = "The record at this certification, counted by the tool — gaps: 2 minted · 2 closed · 0 open; citations: 2 (1 retired); readings: 3; computations: 1."
+		last  = "The record at this certification, counted by the tool — gaps: 2 minted · 2 closed · 0 open; citations: 2 (1 out of the report); readings: 3; computations: 1."
 	)
 	d := debate(fam, nil)
 	for _, want := range []string{

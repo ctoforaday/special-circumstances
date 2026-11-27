@@ -584,7 +584,7 @@
     },
     {
       "term": "anchor",
-      "definition": "An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.",
+      "definition": "An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.",
       "seats": [
         "lens",
         "chair",
@@ -758,7 +758,26 @@
     },
     {
       "term": "retire",
-      "definition": "To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.",
+      "definition": "To retire an anchor is to take it out of the report with the retire verb, on the record, its sentence staying word for word; a retired anchor is in no document, and a claim leaves with its sentence, by a pure cut, never by a retire.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "lane",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "retired (a lens)",
+          "resolution": "a lens retires from dispatch, which is a state of the seat; an anchor is retired from the report, on the record, and its sentence stays"
+        }
+      ]
+    },
+    {
+      "term": "pure cut",
+      "definition": "A pure cut is an edit whose replacement for one or more whole sentences holds nothing of them — empty, or only whitespace and terminators; it takes every anchor of those sentences, the ones at their end included, and records each with the edit's reason, while every other edit is a rewrite, which carries every anchor of its span.",
       "seats": [
         "lens",
         "chair",
@@ -774,20 +793,11 @@
           "pattern": "claims? withdrawn"
         },
         {
-          "variant": "withdraw (retire)",
+          "variant": "withdraw (pure cut)",
           "kind": "REGISTRY-ONLY"
         }
       ],
-      "collisions": [
-        {
-          "word": "retired (a lens)",
-          "resolution": "a lens retires from dispatch, which is a state of the seat; a claim is retired from the report, on the record"
-        },
-        {
-          "word": "superseded_by (retire)",
-          "resolution": "a retired claim's replacement in the report; not a gap"
-        }
-      ]
+      "collisions": []
     },
     {
       "term": "lens retirement",
@@ -1054,7 +1064,7 @@
     },
     {
       "term": "reopened",
-      "definition": "A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.",
+      "definition": "A citation or computation is reopened when a rewrite changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the rewrite clears it, and a PASS waits until one does; a pure cut reopens nothing, since the anchors it takes leave the report with their checks.",
       "seats": [
         "lens",
         "chair",
@@ -1070,7 +1080,7 @@
         },
         {
           "word": "`reopened` (the edit's field)",
-          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened"
+          "resolution": "an edit's `reopened` lists every anchor whose sentence the edit changed and that still stands, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened. An anchor a cut took is in the edit's `removed_anchors`, never its `reopened`"
         }
       ]
     },
@@ -1114,6 +1124,7 @@
       ],
       "bans": [],
       "collisions": []
+
     }
   ]
 }

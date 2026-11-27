@@ -88,7 +88,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// The gap below anchors into the report with --quote "somewhere", so the lane's part must
 	// contain that quote or the mint is refused as a mis-quote.
 	seed(t, runDir, map[string]string{
-		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--gap:G-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
+		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
 	})
 
 	// ONE MAPPER for the setup and every row: the rows name the gap the setup mints as GAP001, and
@@ -125,6 +125,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	stage("mint", "--quote", "somewhere", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "K1",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap")
+	// And a gap on "Prices climbed", whose anchor the edit rows below carry: a part holds no token, so
+	// the tool places it, and the rows name it GAP002.
+	stage("mint", "--quote", "Prices climbed", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "K2",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
+		"--impact", "low", "--problem", "an anchored sentence")
 
 	// THE IDS THAT NAME NOTHING: noSuchGap, and a motion id of the same kind. Neither is minted, so a
 	// row that prints one prints it as written and it takes no placeholder.
@@ -219,12 +224,12 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.
 		{"an edit leaving out an anchor whose sentence it rewrites", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "Prices soared", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:GAP002-->", "--new", "Prices soared", "--reason", "r"}},
 		{"an edit leaving out an anchor whose sentence it repeats", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:GAP002-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
 		// An edit carries an anchor across, never onto a heading.
 		{"an edit carrying an anchor onto a heading", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "## Prices climbed<!--gap:G-0000beef-->", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:GAP002-->", "--new", "## Prices climbed<!--gap:GAP002-->", "--reason", "r"}},
 
 		// A run the quote leaves out stays put, and a replacement that ends its own sentence would
 		// leave it on that sentence: refused, naming the run.

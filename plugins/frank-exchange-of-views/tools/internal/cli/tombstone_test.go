@@ -183,7 +183,7 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		}
 	}
 
-	names := []string{"the bench ruled gap " + boardGap, "docketing " + d, "tombstone", "A reword of its sentence, not a cut"}
+	names := []string{"the bench ruled gap " + boardGap, "docketing " + d, "tombstone", "A reword or a cut of its sentence ends it"}
 	asSeat(t, runDir, otherLens, "register")
 	mintRefusedNaming(t, runDir, "(2) another lens's mint of the ruled class on the sentence", otherLens, class, ruledSentence, names)
 	asSeat(t, runDir, "red-lens-evidence", "register")
@@ -218,8 +218,8 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		t.Errorf("(6) the ruled class on the reworded sentence, after the end: %v %s", err, out)
 	}
 
-	// (6) A CUT ENDS IT, on a second run: the edit takes the sentence out and leaves the token bare,
-	// which lists G in its reopened, a change to G's sentence: the end row is written.
+	// (6) A CUT ENDS IT, on a second run: a pure cut takes the sentence out with G's token, which it
+	// stamps in removed_anchors (F16), a change to G's sentence: the end row is written.
 	t.Run("a cut", func(t *testing.T) {
 		runDir := newRun(t)
 		quoteImpasseBoard(t, runDir)
@@ -227,11 +227,11 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		asSeat(t, runDir, "blue-respond", "register")
 		cut := strings.TrimSuffix(ruledSentence, ".") + anchor.Token(boardGap) + ". "
 		if out, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond", "--key", "CUT", "--quote", cut,
-			"--new", anchor.Token(boardGap), "--reason", "the sentence goes"); err != nil {
+			"--new", "", "--reason", "the sentence goes"); err != nil {
 			t.Fatalf("blue's cut: %v %s", err, out)
 		}
-		if md := renders(t, runDir); strings.Contains(md, "nine points") || !strings.Contains(md, anchor.Token(boardGap)) {
-			t.Fatalf("the cut left %q, want the sentence gone and the token bare", md)
+		if md := renders(t, runDir); strings.Contains(md, "nine points") || strings.Contains(md, anchor.Token(boardGap)) {
+			t.Fatalf("the cut left %q, want the sentence gone with its token", md)
 		}
 		if rows, _ := tombstoneRows(t, runDir); len(rows) != 2 || rows[0].GetDocketingId() != d || !rows[1].GetEnds() || rows[1].GetGapId() != boardGap {
 			t.Errorf("the cut wrote tombstone rows %v, want the ruling's place on %s and its end", rows, boardGap)

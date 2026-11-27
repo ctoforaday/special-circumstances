@@ -70,13 +70,6 @@ func debateT(t *testing.T, evs []*record.Event) string {
 	return debate(f, nil)
 }
 
-// withdrawnClaimsT is withdrawnClaims over evs as the write path stores them.
-func withdrawnClaimsT(t *testing.T, evs []*record.Event) string {
-	t.Helper()
-	f := famOf(t, evs)
-	return withdrawnClaims(f)
-}
-
 // logSectionT is logSection over evs as the write path stores them.
 func logSectionT(t *testing.T, evs []*record.Event) string {
 	t.Helper()

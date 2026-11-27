@@ -23,10 +23,11 @@ import (
 
 // edit: the write path for the report's text once the lanes' parts are recorded.
 //
-// It replaces the exact current span --old with --new while PRESERVING every anchor, of every kind
-// in the anchor kinds table. An anchor the replacement leaves out is put back where its sentence
-// survives word for word, once; otherwise the edit is REJECTED, naming that sentence. Each applied
-// edit appends a `blue_edit` event, a report op the render folds after the parts.
+// It replaces the exact current span --old with --new. A rewrite preserves every anchor, of every kind
+// in the anchor kinds table: an anchor the replacement leaves out is put back where its sentence
+// survives word for word, once; otherwise it is REJECTED, naming that sentence. A pure cut takes the
+// anchors of the sentences it cuts and records them (removed_anchors). Each applied edit appends a
+// `blue_edit` event, a report op the render folds after the parts.
 //
 // PROVENANCE: --answers names the gap this edit responds to. It is validated against the
 // board like every other reference (refs.go), and it is what makes `required_fix` and the
@@ -113,7 +114,8 @@ func newEdit() *cobra.Command {
 		}
 
 		// FRESH: validated against the report the edit lands on, BEFORE the event commits, so a
-		// mis-quote or a marker-spanning edit never lands a phantom stack op. The report is the render
+		// mis-quote, or a rewrite that would drop, duplicate or invent an anchor, never lands a phantom
+		// stack op. The report is the render
 		// of the record so far — there is no file — and it is rendered inside the write's transaction:
 		// another seat's anchor or blue's own parallel edit can commit in between, and an edit planned
 		// against the report before it is an edit replay cannot apply, which fails every render of the
@@ -170,6 +172,13 @@ func newEdit() *cobra.Command {
 					return fmt.Errorf("--accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
 						"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
 				}
+			} else if cut, removed, isCut, err := planCut(peek, oldStr, newStr); isCut {
+				// A PURE CUT (ruling 2): the tool decides it and stamps the anchors it takes, so judgeAct's
+				// L6 and replay read the list the write applies.
+				if err != nil {
+					return err
+				}
+				a, body.RemovedAnchors = cut, removed
 			} else if a, err = planTyped(peek, oldStr, newStr); err != nil {
 				return err
 			}
@@ -179,8 +188,9 @@ func newEdit() *cobra.Command {
 
 			body.Old = proto.String(oldStr)
 			body.New = proto.String(applied) // with any anchor the tool put back, so replay splices the same bytes
-			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
-			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
+			// WHAT THIS EDIT REOPENED. An anchor is never lost unrecorded: a rewrite that drops one is
+			// refused, droppedMarker backstops the whole edit, and a cut records each anchor it takes in
+			// removed_anchors. But one that SURVIVES onto rewritten prose is a citation backing a
 			// sentence nobody read, and nothing said so. Text moves through this verb alone,
 			// so the no-loss computation and the requires-review mark belong on this one channel.
 			//
@@ -194,7 +204,7 @@ func newEdit() *cobra.Command {
 			oldParas, newParas := bluedoc.TouchedParagraphs(peek, planned, start, end)
 			body.OldParagraphs, body.NewParagraphs = proto.String(oldParas), proto.String(newParas)
 			body.Reopened = bluedoc.ReopenedAnchors(oldParas, newParas)
-			if err := refuseBaredAnchors(peek, planned, applied, gapID); err != nil {
+			if err := refuseBaredAnchors(peek, planned); err != nil {
 				return err
 			}
 			// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
@@ -246,14 +256,14 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		return editResult{VoiceTells: tells}, nil
+		return editResult{VoiceTells: tells, Removed: body.GetRemovedAnchors()}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another --quote, --new, --answers, --accept or --reason is refused: a handle names one edit")
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
-	flags.Text(c, flags.Quote, flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
+	flags.Text(c, flags.Quote, flags.DescQuote+". In a rewrite, an anchor standing at its end stays where it is unless the quote carries it; a cut of whole sentences takes their anchors, those at the end included")
 	seat.RequiredUnlessGiven(c, flags.Quote, flags.Accept)
 	flags.Text(c, flags.New, "the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
@@ -262,101 +272,102 @@ func newEdit() *cobra.Command {
 	return seat.SaysRequired(c, flags.Reason)
 }
 
-// refuseBaredAnchors refuses an edit that would leave an anchor BARE — no prose before it in its
-// sentence — where it stood on prose before (claimcount.BareAnchorIDs), in the two cases where no act
-// could then take it out: an evidence anchor, carried or not, and any other kind the edit does not
-// carry.
+// refuseBaredAnchors refuses a rewrite that would leave an anchor BARE — no prose before it in its
+// sentence — where it stood on prose before (claimcount.BareAnchorIDs).
 //
-// EVIDENCE THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25; every evidence kind, ruling
-// Lifecycle, 2026-10-31), and a bare anchor cannot be checked: `verify` and `reproduce` read the
-// sentence holding the anchor, and a bare anchor backs none, so the anchor would hold the PASS
-// unchecked with no act any lens could make on it. The edit is where the sentence leaves, so the edit
-// is refused, naming the anchor and the two ways out: keep a sentence before it, or retire the anchor
-// while its sentence still stands (the retire keeps the sentence word for word and takes the anchor
-// out), then edit the sentence as freely as any prose. An edit answering a gap names that gap on the
-// retire it sends blue to, because the retire is the first half of the repair and joins the gap by
-// the same key the edit does.
-//
-// A BARE ANCHOR THE EDIT DOES NOT CARRY IS AN ORPHAN (the #1677 smoke's D18; gblock, 2026-11-01). A
-// claim retire takes the anchors the edit that cut the claim holds in its replacement (heldAt), so one
-// the quote left out stands where the cut left it with no retire able to name it. applied is what the
-// edit records: carried means there, whichever way the anchor got there. A gap anchor carried may
-// stand bare until the retire.
-func refuseBaredAnchors(before, after, applied, gapID string) error {
-	evidence, leftOut := BaredAnchors(before, after, applied)
-	var refusals []string
-	if len(evidence) > 0 {
-		refusals = append(refusals, baredEvidence(evidence, gapID))
-	}
-	if len(leftOut) > 0 {
-		refusals = append(refusals, baredLeftOut(leftOut))
-	}
-	if len(refusals) == 0 {
+// NO ANCHOR STANDS BARE (gblock 2026-11-20: an anchor "can't just be floating on nothing"). A rewrite
+// that would leave a token of any kind on a sentence with no words is refused, carried or not: an
+// anchor marks a sentence, and one on nothing marks none. A cut whose replacement holds nothing of the
+// sentence takes its tokens itself (removed_anchors), so the refusal names the two routes: keep words
+// on the sentence, or cut it whole. after is the planned report with a cut's removes applied, so a
+// cut's own tokens are never read bare here.
+func refuseBaredAnchors(before, after string) error {
+	bared := BaredAnchors(before, after)
+	if len(bared) == 0 {
 		return nil
 	}
-	return feov.Errorf(feov.Validation, "%s", strings.Join(refusals, " "))
+	what, it, its := "anchor "+bared[0], "it", "its"
+	if len(bared) > 1 {
+		what, it, its = "anchors "+strings.Join(bared, ", "), "them", "their"
+	}
+	return feov.Errorf(feov.Validation,
+		"this edit would leave %s standing bare — no prose before %s in %s sentence — and an anchor marks a sentence, so one on nothing marks none. Nothing is recorded: "+
+			"keep words on that sentence in --new, or cut it whole — a replacement holding nothing of it — which takes %s with it",
+		what, it, its, it)
 }
 
-// BaredAnchors is THE judgement of which anchors an edit leaves bare where no act could then take
-// them out (refuseBaredAnchors): the evidence anchors it bares, carried or not (anchor.Backs), and the
-// tokens of the other anchors it bares without carrying them in applied. before and after are the
-// report the edit plans over and the report it plans; applied is the replacement it records. `lens
-// mint` asks it of a prescription over the report the mint lands on, so a fix the accept would refuse
-// for this is refused where red writes it.
-func BaredAnchors(before, after, applied string) (evidence, leftOut []string) {
+// BaredAnchors is THE judgement of which anchors a rewrite leaves on a sentence with no words
+// (refuseBaredAnchors): every token it leaves so, of every kind, carried or not. before and after are
+// the report the edit plans over and the report it plans. `lens mint` asks it of a prescription over
+// the report the mint lands on, so a fix the accept would refuse for this is refused where red writes
+// it.
+func BaredAnchors(before, after string) []string {
 	was := map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(before) {
 		was[id] = true
 	}
-	carried := claimcount.ProtectedAnchorIDs(applied)
+	var bared []string
 	for _, id := range claimcount.BareAnchorIDs(after) {
-		switch {
-		case was[id]:
-		case anchor.Backs(id):
-			evidence = append(evidence, id)
-		case !slices.Contains(carried, id):
-			leftOut = append(leftOut, anchor.Token(id))
+		if !was[id] {
+			bared = append(bared, anchor.Token(id))
 		}
 	}
-	return evidence, leftOut
+	return bared
 }
 
-// EvidenceNamed is evidence anchors named by their kind's noun, as a refusal lists them, with the
-// pronouns that follow: "citation C-…", "citation C-… and computation K-…".
-func EvidenceNamed(ids []string) (what, it, its string) {
-	named := make([]string, len(ids))
-	for i, id := range ids {
-		named[i] = record.EvidenceNoun(id) + " " + id
-	}
-	if len(ids) == 1 {
-		return named[0], "it", "its"
-	}
-	return strings.Join(named[:len(named)-1], ", ") + " and " + named[len(named)-1], "them", "their"
-}
+// holdsNothing is whether a replacement holds nothing of a sentence: the empty string, or only
+// whitespace and sentence terminators.
+func holdsNothing(new string) bool { return strings.Trim(new, " \t\r\n.!?;:…") == "" }
 
-// baredEvidence is the refusal of an edit that would leave these evidence anchors bare.
-func baredEvidence(bared []string, gapID string) string {
-	what, it, its := EvidenceNamed(bared)
-	retire := "`retire --anchor <its id>`"
-	if gapID != "" {
-		retire = "`retire --anchor <its id> --answers " + gapID + "`"
+// planCut is THE decision of a PURE CUT (ruling 2): the located span covers every word of one or more
+// whole sentences, and the replacement holds nothing of them (holdsNothing). Every other edit is a
+// rewrite, and isCut is false for it — a span holding no prose, a replacement with words, or a span
+// whose sentence keeps prose outside it.
+//
+// The cut widens to the cut sentences' abutting tokens, whether or not the quote carries them: it
+// takes every token the splice leaves on no words, in reading order, and lists them (removed_anchors).
+// The report it plans is replay's: the splice, which keeps every token the replacement does not carry
+// (reportproj.ApplySplice), then the list's removes (reportproj.RemoveListed). A token of the span that
+// still stands on words after the splice means the span did not cover its sentence: that edit is a
+// rewrite, refused by the dropped-token rule.
+func planCut(report, old, new string) (a Accepted, removed []string, isCut bool, err error) {
+	if !holdsNothing(new) {
+		return Accepted{}, nil, false, nil
 	}
-	return fmt.Sprintf(
-		"this edit would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against. Nothing is recorded. "+
-			"Keep the sentence in --new; or, where the sentence is to go, first retire each anchor with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
-		what, it, its, it, retire)
-}
-
-// baredLeftOut is the refusal of an edit that would leave these anchor tokens bare without carrying them.
-func baredLeftOut(tokens []string) string {
-	what, it, its, carry := "anchor "+tokens[0], "it", "its", "the anchor"
-	if len(tokens) > 1 {
-		what, it, its, carry = "anchors "+strings.Join(tokens, ", "), "them", "their", "those anchors"
+	start, end, lerr := bluedoc.LocateUniqueReplacing(report, old)
+	if lerr != nil || !claimcount.HasProse(report[start:end]) {
+		return Accepted{}, nil, false, nil
 	}
-	return fmt.Sprintf(
-		"this edit would leave %s standing bare — no prose before %s in %s sentence — and your quote leaves %s out, so no retire could take %s out with the claim. Nothing is recorded. "+
-			"Keep a sentence before %s in --new; or, where the claim is to go, carry %s: quote the claim with %s as `show report` prints it, write %s in --new, and then retire the claim",
-		what, it, its, it, it, it, carry, carry, carry)
+	spliced := reportproj.ApplySplice(report, start, end, new)
+	was := map[string]bool{}
+	for _, id := range claimcount.BareAnchorIDs(report) {
+		was[id] = true
+	}
+	for _, id := range claimcount.BareAnchorIDs(spliced) {
+		if !was[id] {
+			removed = append(removed, id)
+		}
+	}
+	for _, id := range anchor.IDs(report[start:end]) {
+		if !slices.Contains(removed, id) {
+			return Accepted{}, nil, false, nil
+		}
+	}
+	if len(removed) == 0 {
+		return Accepted{}, nil, false, nil
+	}
+	planned, err := reportproj.RemoveListed(spliced, removed)
+	if err != nil {
+		return Accepted{}, nil, true, feov.Wrap(feov.Internal, err, "internal error — the cut's plan could not take the anchors it lists (report unchanged): %v", err)
+	}
+	if dropped := droppedMarker(report, planned, removed); dropped != "" {
+		return Accepted{}, nil, true, feov.Errorf(feov.Internal, "internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+	}
+	if run := reportproj.DoubledTerminator(report, planned); run != "" {
+		return Accepted{}, nil, true, feov.Errorf(feov.Validation, "this cut would leave %q in the report — a terminator beside another, where the cut meets the text it keeps. Quote the sentences with their own terminators, exactly as `show report` prints them", run)
+	}
+	a = Accepted{Old: old, New: new, Planned: planned, Applied: new}
+	return a, removed, true, composedRefusal(report, planned)
 }
 
 // repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the
@@ -442,7 +453,7 @@ func AcceptPair(l *record.Landing, body *recordpb.BlueEdit, gapID, loc, fix stri
 	if err != nil {
 		return err
 	}
-	if err := refuseBaredAnchors(report, a.Planned, a.Applied, gapID); err != nil {
+	if err := refuseBaredAnchors(report, a.Planned); err != nil {
 		return err
 	}
 	body.Old, body.New = proto.String(a.Old), proto.String(a.Applied)
@@ -463,8 +474,8 @@ func AcceptPair(l *record.Landing, body *recordpb.BlueEdit, gapID, loc, fix stri
 }
 
 // planExact is the edit of old by new over report at old's literal span (bluedoc.LocateLiteral),
-// held to the checks every planned edit meets — anchors transit unchanged, no marker dropped, no
-// terminator doubled, a change made, a composed document — and false where old does not occur
+// held to the checks every planned edit meets — anchors transit a rewrite unchanged, no marker dropped
+// that the cut's list does not name, no terminator doubled, a change made, a composed document — and false where old does not occur
 // byte for byte exactly once.
 func planExact(report, old, new string) (Accepted, bool, error) {
 	start, end, _, ok := bluedoc.LocateLiteral(report, old)
@@ -479,7 +490,7 @@ func planExact(report, old, new string) (Accepted, bool, error) {
 	if planned == report {
 		return Accepted{}, true, &reportproj.NoChangeError{}
 	}
-	if dropped := droppedMarker(report, planned); dropped != "" {
+	if dropped := droppedMarker(report, planned, nil); dropped != "" {
 		return Accepted{}, true, feov.Errorf(feov.Internal, "internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
@@ -505,8 +516,8 @@ var errBunched = feov.Errorf(feov.Validation, "the replacement carries a run of 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
 // with `new`.
 //
-// The three LEGALITY checks — present-and-unique, no word split, and anchors transit
-// unchanged — live in internal/bluedoc, because `lens mint` now has to answer the same
+// The three LEGALITY checks — present-and-unique, no word split, and anchors transit a rewrite
+// unchanged, no marker dropped that the cut's list does not name — live in internal/bluedoc, because `lens mint` now has to answer the same
 // question about a concrete proposed fix before red may attach one. What stays here is the
 // part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
 // IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
@@ -516,7 +527,8 @@ var errBunched = feov.Errorf(feov.Validation, "the replacement carries a run of 
 // the edit took the quote AS WRITTEN rather than the trimmed span — the decision
 // reportproj.PlanSplice makes, which the caller records as exact_span.
 func planEdit(report, old, new string) (string, string, bool, error) {
-	// ANCHORS MAY TRANSIT AN EDIT — but never be created, destroyed or duplicated by one.
+	// ANCHORS TRANSIT A REWRITE — never created, destroyed or duplicated by one; a cut takes only what
+	// its list names.
 	//
 	// This guard used to REJECT any span containing an anchor ("edit around it"). Combined with
 	// the uniqueness guard that produces a DEADLOCK, demonstrated: when a word appears twice and
@@ -529,14 +541,14 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 	if err != nil {
 		return "", "", false, err
 	}
-	if dropped := droppedMarker(report, next); dropped != "" {
+	if dropped := droppedMarker(report, next, nil); dropped != "" {
 		return "", "", false, feov.Errorf(feov.Internal, "internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
 	return next, applied, exact, nil
 }
 
-// validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
-// mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
+// validateEdit rejects a mis-quote, or a rewrite that would drop, duplicate or invent an anchor,
+// against a snapshot, WITHOUT mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
 // document so the caller can record what this edit reopens, computed from the same snapshot the
 // validation used rather than from a re-read that may have moved, and whether the edit took the
 // literal span, which the caller records as exact_span.
@@ -577,7 +589,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 				}
 				return "", "", false, feov.Errorf(feov.Validation, "your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
 					"and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. "+
-					"To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes",
+					"To reword the sentence, leave its closing punctuation off --new. To move an anchor, quote it as `show report` prints it and write it where it goes; to take its claim out, cut its sentence whole, which takes the anchor with it",
 					strings.Join(labels, ", "))
 			}
 		}
@@ -709,15 +721,16 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 	return feov.Errorf(feov.Validation, "%s", b.String())
 }
 
-// droppedMarker returns an anchor id present in before but absent from after, or "" — read on the
-// report PlanSplice planned, after any anchor it put back, so no edit drops an anchor of any kind.
-func droppedMarker(before, after string) string {
+// droppedMarker returns an anchor id present in before, absent from after, and not in the edit's
+// removed_anchors, or "" — so no edit drops an anchor it does not record. after is the planned report
+// after the list's removes, the same after refuseBaredAnchors reads.
+func droppedMarker(before, after string, removed []string) string {
 	have := map[string]bool{}
 	for _, id := range claimcount.ProtectedAnchorIDs(after) {
 		have[id] = true
 	}
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
-		if !have[id] {
+		if !have[id] && !slices.Contains(removed, id) {
 			return id
 		}
 	}
@@ -726,6 +739,10 @@ func droppedMarker(before, after string) string {
 
 type editResult struct {
 	Idempotent bool `json:"idempotent,omitempty"`
+	// Removed is what a pure cut took out of the report, as the edit records it (removed_anchors):
+	// the act names what it removed, so the seat reads it here rather than by diffing the report.
+	// Empty on a rewrite, which carries every anchor of its span.
+	Removed []string `json:"removed_anchors,omitempty"`
 	// VoiceTells is ADVICE, and the edit is already recorded by the time it is rendered. The
 	// report is written for a reader of its SUBJECT, and this names where the new text sounds
 	// like the run talking about itself. It does not refuse: a pattern cannot tell a report
@@ -736,7 +753,10 @@ type editResult struct {
 }
 
 func (r editResult) Human() string {
-	head := "blue edit recorded — the edit is appended to the record with every anchor its span held, the report re-derived on read"
+	head := "blue edit recorded — a rewrite, appended to the record carrying every anchor its span held; the report is re-derived on read"
+	if len(r.Removed) > 0 {
+		head = "blue edit recorded — a cut, appended to the record: it took " + strings.Join(r.Removed, ", ") + " out of the report with the sentences it cut, under your reason; the report is re-derived on read"
+	}
 	if r.Idempotent {
 		head = seat.Repeated("blue edit")
 	}

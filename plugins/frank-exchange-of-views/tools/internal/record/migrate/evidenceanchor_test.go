@@ -29,7 +29,7 @@ import (
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 	sourceCloses, lostSourceCloses := map[string]int{}, map[string]int{}
 	for _, tb := range archiveTarballs(t) {
-		name := filepath.Base(tb)
+		name := tb
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			res, dir := migrate.MigratedArchive(t, name)
 			if len(res.Refusals) != 0 {
@@ -108,8 +108,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		})
 	}
-	// Every archived such close is lost, so the arm is held on a source whose lens was delivered the
-	// report before it closed G2, a source gap no citation answers.
+	// Every such close in run-archive/ is lost, so the arm is also held on a source whose lens was
+	// delivered the report before it closed G2, a source gap no citation answers.
 	t.Run("delivered bench", func(t *testing.T) {
 		_, _, dir := migrate.MigratedDeliveredBench(t)
 		replayed := len(column(t, openMigrated(t, dir), `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
@@ -120,8 +120,10 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 	})
 	// quadratic-formula's R1-4 and R1-7 are ancestors of supersede links Translation 7 drops (a moved
 	// check kind): each stands as its own open gap, its own lost close counted here (plans/findings-fold.md
-	// §III.B8).
-	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 3, "is-91-prime-a": 1, "-b6": 1, "-m23": 1}
+	// §III.B8). m37's three are replayed: its lens's sittings hold their deliveries, and G-1157234c
+	// is the ancestor of a link Translation 7 drops (source mint 808, a moved check kind), so it stands
+	// as its own gap with its own close.
+	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 3, "is-91-prime-a": 1, "-b6": 1, "-m23": 1, "-m37": 3}
 	got, total := map[string]int{}, 0
 	for name := range sourceCloses {
 		n := sourceCloses[name] + lostSourceCloses[name]
@@ -132,8 +134,8 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			}
 		}
 	}
-	if total != 8 || fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 8)", sourceCloses, lostSourceCloses, total, want)
+	if total != 11 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused %v and lost %v (total %d), want %v (total 11)", sourceCloses, lostSourceCloses, total, want)
 	}
 }
 

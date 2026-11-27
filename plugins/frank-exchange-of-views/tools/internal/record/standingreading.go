@@ -145,8 +145,9 @@ type standingReading struct {
 	id int64
 	// stands is whether the reading is of the subject as the report carries it. For a citation it is
 	// the ledger's rule (anchorStanding.sinceEdit): from a sitting opened after the latest edit naming
-	// the citation, the citation not retired. A located found-source reading stands by construction:
-	// its claim locates in the subject sentence now.
+	// the citation in its reopened, the citation still in the report (no retire or cut took it). A
+	// located found-source reading stands by construction: its claim locates in the subject sentence
+	// now.
 	stands bool
 }
 
@@ -367,7 +368,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 	}
 	// THE CITATIONS A STANDING READING FINDS AGAINST, by their token: the debt's cross-arm (F9) reads
 	// the gap tokens of each one's sentence.
-	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+	spans := anchor.Sentences(report)
 	for _, s := range anchorChecksOf(evs, win).order {
 		if s.computation {
 			continue
@@ -379,7 +380,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 		if !against {
 			continue
 		}
-		at, ok := gapSentenceIn(report, spans, bare, s.anchor)
+		at, ok := gapSentenceIn(report, spans, s.anchor)
 		if !ok {
 			continue
 		}
@@ -655,7 +656,7 @@ func rewordedTo(m editAt) (reworded string, removed bool, err error) {
 	for _, sp := range anchor.Sentences(after) {
 		inside := sp[0] < start && start < sp[1]
 		if (start == end && inside) || (start < end && sp[0] < end && start < sp[1]) {
-			// A run of tokens the edit left bare is no sentence: its words are gone.
+			// A run of tokens with no words is no sentence: its words are gone.
 			if w := anchortext.Visible(after[sp[0]:sp[1]]); w != "" && !carried[w] {
 				left = append(left, w)
 			}
@@ -668,13 +669,12 @@ func rewordedTo(m editAt) (reworded string, removed bool, err error) {
 }
 
 // mintSentence is where a mint with a quote lands: the report it lands on with the mint's token
-// placed, the sentence spans and bare anchors of that text, and the span of the sentence the token
+// placed, the sentence spans of that text, and the span of the sentence the token
 // sits in. ok is false where the quote places nothing — the anchor's own placement refuses it, in its
 // own words, after the act judgements that asked.
 type mintSentence struct {
 	placed string
 	spans  [][2]int
-	bare   []string
 	at     [2]int
 	ok     bool
 }
@@ -692,8 +692,8 @@ func mintSentenceAt(w writeView, m *recordpb.Mint) (mintSentence, error) {
 	if err != nil {
 		return mintSentence{placed: report}, nil
 	}
-	ms := mintSentence{placed: placed, spans: anchor.Sentences(placed), bare: claimcount.BareAnchorIDs(placed)}
-	ms.at, ms.ok = gapSentenceIn(placed, ms.spans, ms.bare, m.GetGapId())
+	ms := mintSentence{placed: placed, spans: anchor.Sentences(placed)}
+	ms.at, ms.ok = gapSentenceIn(placed, ms.spans, m.GetGapId())
 	return ms, nil
 }
 
@@ -705,7 +705,8 @@ func sentenceWords(text string, at [2]int) string {
 // requireOwnStandingReading refuses a mint of a class a reading defines (readingMintedClasses) unless
 // the minting seat holds its own standing reading of the mint's subject that admits the class: of the
 // citation the mint is about, or of a source it found for the sentence the mint quotes. Asked after
-// requireAboutAnchorLive (a mint about a retired citation is about nothing, not told to read it) and
+// requireAboutAnchorLive (a mint about a citation out of the report — retired, or cut with its
+// sentence — is about nothing, not told to read it) and
 // before the one-gap rule (a mint refused for its ground is not first told about a held subject). Any other class returns nil at the table lookup.
 func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) error {
 	row, ok := readingMintedClassOf(m.GetClass())
@@ -801,7 +802,7 @@ func readingBehind(evs []*Event, win WindowIndex, report string, found []located
 		if row.found == nil {
 			return standingReading{}, false
 		}
-		if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), gapID); ok {
+		if at, ok := gapSentenceIn(report, anchor.Sentences(report), gapID); ok {
 			r, has := standingReadingOf(evs, win, found, seat, standingSubject{sentence: at})
 			return r, has && row.found(r.v)
 		}
@@ -1046,8 +1047,8 @@ type AssemblyFailure struct {
 
 // AssemblyFailures is what the capture's assembly screen fails a run on (D11, ruled: the screen screens
 // the GAP, not the reading): an open MATERIAL gap of a class a reading defines whose subject the
-// assembled report still carries — about a citation not retired, or quoting a sentence that still
-// locates; a standing reading debt — a found-wrong reading with no gap at all, red's unfinished
+// assembled report still carries — about a citation still in the report (no retire or cut took it),
+// or quoting a sentence that still locates; a standing reading debt — a found-wrong reading with no gap at all, red's unfinished
 // promise; a computation whose ledger state is unsound. A refuted citation whose gap was graded low,
 // or closed, is in no row. Read on one snapshot, the fold's inputs included.
 func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
@@ -1095,7 +1096,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 				if err != nil {
 					return err
 				}
-				if at, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), g.id); ok {
+				if at, ok := gapSentenceIn(report, anchor.Sentences(report), g.id); ok {
 					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.assignee)})
 				}
 			}

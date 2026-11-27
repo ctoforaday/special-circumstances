@@ -203,9 +203,10 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 // (record.Landing.RaiserRulingSince).
 func applyText(s seat.Context, run record.Run, p record.Positions, ruling record.Act, opinion string) error {
 	if p.Road.GetRetire() {
-		// RED'S TEXT ALREADY STANDS: a retire of the anchor its road retires matches it, and the freeze
-		// admits it (blue.roadPlans), so the answer for red writes its ruling alone.
-		if _, retired, err := record.AnchorRetiredAt(run, p.AboutRef); err != nil || retired {
+		// RED'S TEXT ALREADY STANDS: the anchor its road retires is out of the report — retired, or cut
+		// with its sentence — which matches it, and the freeze admits it (blue.roadPlans), so the answer
+		// for red writes its ruling alone.
+		if _, removed, err := record.AnchorRemovedAt(run, p.AboutRef); err != nil || removed {
 			if err != nil {
 				return err
 			}

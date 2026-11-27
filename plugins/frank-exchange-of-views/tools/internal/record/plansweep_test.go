@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
@@ -26,10 +27,10 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ChangesOf(run, "G1")
 	_, _ = ExistingCiteByKey(run, evLens, "k")
 	_, _ = ExistingComputationByKey(run, evLens, "k")
-	_, _, _ = AnchorRetiredAt(run, "A1")
+	_, _, _ = AnchorRemovedAt(run, "A1")
 	_, _ = EvidenceDemandOf(run, "G1")
 	if db, err := openRunForRead(run); err == nil && db != nil {
-		_ = requireCitationUncited(db, []string{"C-1"})
+		_ = requireCitationUncited(db, []string{"C-1"}, "retire")
 	}
 	_, _ = ReportAtPart(run, "harness")
 	_, _ = ReportHasParts(run)
@@ -92,6 +93,11 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 		_ = requireDeliveredText(db, evLens, "a close", []string{"G1"})
 		_ = requireReportRead(db, evLens, &recordpb.ReportRead{Head: proto.Int64(1)})
 	}
+	// The release fuzz's gap-state oracle (releasegate/fuzz/anchororacle_test.go); its rows are
+	// asserted by recordsql's gap-state tests.
+	if db, err := openRun(run); err == nil && db != nil {
+		_, _ = recordsql.GapStateRefreshDiff(db)
+	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
 	// The readers of the standing rows: the proposal arm, the class arm's held set and the work list's
 	// protected gaps.
@@ -123,7 +129,6 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	admitted := &recordpb.EnvelopeAdmitted{AgentId: proto.String("agent-1")}
 	_, _ = Append(Identity{Run: run, SeatID: "harness"}, admitted, OneAdmissionASitting(admitted))
 	_, _ = Append(Identity{Run: run, SeatID: "harness"}, &recordpb.Log{Text: proto.String("t")}, Check(func(l *Landing) error {
-		_, _ = l.EditSpans()
 		_, _ = l.AboutAnchor("G1")
 		return ErrWritesNothing
 	}))

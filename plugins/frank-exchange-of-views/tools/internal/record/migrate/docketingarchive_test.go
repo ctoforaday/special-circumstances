@@ -2,7 +2,6 @@ package migrate_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"testing"
 
@@ -12,21 +11,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// The bundle-store archives the census reads beside run-archive/'s top level: m37's six impasse
-// dockets and m38's two bench regrades are Translations 3 and 4's cases too.
-var docketCensusExtras = []string{
-	"bundle-store/2026-10-31_is-91-prime-m37.tar.gz",
-	"bundle-store/2026-11-04_is-91-prime-m38.tar.gz",
-}
-
-// docketCensus is every archive Translations 3 and 4 read.
+// docketCensus is every archive Translations 3 and 4 read: the committed set, bundle-store/'s m37
+// (six impasse dockets) and m38 (two bench regrades) among them.
 func docketCensus(t *testing.T) []string {
 	t.Helper()
-	var names []string
-	for _, tb := range archiveTarballs(t) {
-		names = append(names, filepath.Base(tb))
-	}
-	return append(names, docketCensusExtras...)
+	return archiveTarballs(t)
 }
 
 // archivedDocketing is one docketing of a migrated run, as the test reads it.

@@ -6,15 +6,14 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A CLAIM REWRITTEN AWAY STILL OWNS ITS ANCHORS. Smoke m26: blue rewrote three anchored sentences
-// into one new sentence carrying both markers (ev188). Retire credited only an edit whose
-// replacement held nothing but anchors, so no retire could take those markers out — named, it was
-// refused; split onto bare lines by a later edit, it took nothing and recorded the removal as
-// asserted — and seven markers stood bare in the final report.
+// A REWRITE CARRIES ITS ANCHORS, AND A RETIRE TAKES ONE BY NAME. Smoke m26: blue rewrote three anchored
+// sentences into one new sentence carrying both markers (ev188), then split the markers onto
+// bare lines (ev192), and seven markers stood bare in the final report. A rewrite carries
+// every anchor onto prose; a retire takes one of them off the sentence, which stays word for word; and
+// an edit that would leave the carried markers on no words is refused, so none stands bare.
 
 const (
 	rwAlpha = "Alpha holds for every input"
@@ -43,38 +42,21 @@ func rewriteAway(t *testing.T) (runDir, f1, f2 string) {
 	return runDir, f1, f2
 }
 
-func TestARetireAfterARewriteSaysTheCarriedMarkerStayed(t *testing.T) {
-	runDir, f1, _ := rewriteAway(t)
-	// The marker stands before the full stop in the edit's old span, so the claim as a seat quotes
-	// it is not a substring of that span's raw text.
-	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+".", "--reason", "gone")
-	if err != nil {
-		t.Fatalf("retire: %v", err)
-	}
-	ev := lastBody(t, runDir, &recordpb.Retire{})
-	if len(ev.GetAnchors()) != 0 {
-		t.Errorf("a marker carried onto standing prose left unnamed: %v", ev.GetAnchors())
-	}
-	if ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("removal_basis = %q for a claim a recorded edit's old span held", ev.GetRemovalBasis())
-	}
-	for _, want := range []string{"anchors out with it: none", "anchor stayed: " + f1} {
-		if !strings.Contains(out, want) {
-			t.Errorf("the retire's result does not say %q:\n%s", want, out)
-		}
-	}
-}
-
+// A closed gap's marker may be retired (F14 refuses an open one's), so its lens closes it first.
 func TestARetireAfterARewriteTakesTheMarkerItNames(t *testing.T) {
 	runDir, f1, f2 := rewriteAway(t)
-	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+".", "--reason", "gone", "--anchor", f1)
+	lensRereads(t, runDir) // its next sitting is handed the rewrite, so its close stands on the text now there
+	if err := lensClose(t, runDir, lensSeat, f1, "not_a_defect"); err != nil {
+		t.Fatalf("closing %s: %v", f1, err)
+	}
+	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--reason", "gone", "--anchor", f1)
 	if err != nil {
 		t.Fatalf("retire --anchor after a rewrite: %v", err)
 	}
 	if got := lastBody(t, runDir, &recordpb.Retire{}).GetAnchors(); !slices.Equal(got, []string{f1}) {
 		t.Errorf("retire took %v, want [%s]", got, f1)
 	}
-	if !strings.Contains(out, "anchors out with it: "+f1) {
+	if !strings.Contains(out, "retired ") || !strings.Contains(out, f1) {
 		t.Errorf("the result does not name the marker that left:\n%s", out)
 	}
 	rep := readReport(t, runDir)
@@ -83,63 +65,23 @@ func TestARetireAfterARewriteTakesTheMarkerItNames(t *testing.T) {
 	}
 }
 
-// splitToBareLines rewrites, then splits the carried markers onto lines of their own (m26 ev192).
-func splitToBareLines(t *testing.T) (runDir, f1, f2 string) {
-	t.Helper()
-	runDir, f1, f2 = rewriteAway(t)
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+// AN EDIT SPLITTING THE CARRIED MARKERS ONTO LINES OF THEIR OWN IS REFUSED (m26 ev192), naming both,
+// and nothing is recorded: a marker on no words marks no sentence.
+func TestASplitLeavingCarriedMarkersBareIsRefused(t *testing.T) {
+	runDir, f1, f2 := rewriteAway(t)
+	before, edits := readReport(t, runDir), countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", rwNew[:len(rwNew)-1]+anchor.Token(f1)+anchor.Token(f2)+".",
-		"--new", rwNew+"\n\n"+anchor.Token(f1)+"\n\n"+anchor.Token(f2), "--reason", "split"); err != nil {
-		t.Fatalf("split edit: %v", err)
+		"--new", rwNew+"\n\n"+anchor.Token(f1)+"\n\n"+anchor.Token(f2), "--reason", "split")
+	if err == nil {
+		t.Fatalf("a split leaving %s and %s on lines of their own landed:\n%s", f1, f2, readReport(t, runDir))
 	}
-	return runDir, f1, f2
-}
-
-func TestARetireAfterARewriteTakesTheMarkerALaterEditLeftBare(t *testing.T) {
-	runDir, f1, f2 := splitToBareLines(t)
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+".", "--reason", "gone"); err != nil {
-		t.Fatalf("retire: %v", err)
+	for _, w := range []string{anchor.Token(f1), anchor.Token(f2), "standing bare", "keep words on", "cut it whole"} {
+		if !strings.Contains(err.Error(), w) {
+			t.Errorf("the refusal does not say %q:\n%v", w, err)
+		}
 	}
-	ev := lastBody(t, runDir, &recordpb.Retire{})
-	if !slices.Equal(ev.GetAnchors(), []string{f1}) {
-		t.Errorf("retire took %v, want [%s] — the marker that stood on the claim and stands bare now", ev.GetAnchors(), f1)
-	}
-	if ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("removal_basis = %q", ev.GetRemovalBasis())
-	}
-	if rep := readReport(t, runDir); strings.Contains(rep, anchor.Token(f1)) || !strings.Contains(rep, anchor.Token(f2)) {
-		t.Errorf("want %s out and %s standing:\n%s", f1, f2, rep)
-	}
-}
-
-// A later edit whose replacement holds prose, but leaves THIS marker bare, has not put it back into
-// prose: the check is of the marker, not of the edit.
-func TestALaterEditThatLeftTheMarkerBareDoesNotHoldIt(t *testing.T) {
-	runDir, f1, _ := splitToBareLines(t)
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+".", "--reason", "gone", "--anchor", f1); err != nil {
-		t.Fatalf("retire --anchor of a marker a later edit left bare beside prose: %v", err)
-	}
-}
-
-// An edit that did not hold the claim says nothing of it: a bare marker another cut left, waiting
-// for its own retire, neither refuses this one nor leaves with it.
-func TestAnotherClaimsBareMarkerDoesNotHoldARetire(t *testing.T) {
-	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\n"+rwAlpha+". Gamma stands alone.\n\nPlain prose here.\n")
-	registerBlue(t, runDir)
-	registerLensOnce(t, runDir)
-	tok := anchor.Token(markClaim(t, runDir, "G1", rwAlpha+".", "spec_underspecification"))
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+tok+".", "--new", tok, "--reason", "cut"); err != nil {
-		t.Fatalf("cut Alpha to its marker: %v", err)
-	}
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", "Gamma stands alone.\n\nPlain prose here.", "--new", "Plain prose here.", "--reason", "cut"); err != nil {
-		t.Fatalf("cut Gamma: %v", err)
-	}
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "Gamma stands alone.", "--reason", "gone"); err != nil {
-		t.Fatalf("a retire of an unanchored claim was held by another claim's bare marker: %v", err)
-	}
-	if got := lastBody(t, runDir, &recordpb.Retire{}).GetAnchors(); len(got) != 0 {
-		t.Errorf("the retire took %v, which never stood on its claim", got)
+	if readReport(t, runDir) != before || countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != edits {
+		t.Error("the refused split changed the report or the record")
 	}
 }

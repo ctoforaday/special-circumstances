@@ -977,17 +977,17 @@ func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "blue-respond"
 
-	t.Run("retire needs both the claim and the reason", func(t *testing.T) {
+	t.Run("retire needs both the anchor and the reason", func(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--reason", "refuted"); err == nil {
-			t.Error("a retirement with no quoted claim was accepted")
+			t.Error("a retirement naming no anchor was accepted")
 		}
-		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
+		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--anchor", "C-0000abcd"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
 		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: no lane
-		// of this run has recorded a part, so nothing can say whether the claim ever stood or has left.
+		// of this run has recorded a part, so nothing can say which sentence the anchor stands on.
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID,
-			"--quote", "the claim as it stood", "--reason", "refuted"); err == nil ||
+			"--anchor", "C-0000abcd", "--reason", "refuted"); err == nil ||
 			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), reportproj.NoPart) {
 			t.Errorf("a retirement over a run with no report was answered %v; want it refused, naming the read", err)
 		}

@@ -59,6 +59,8 @@ var notFields = map[string]string{
 	"edge_deltas":       "RETIRED at epoch 82 from TelemetryLine: the mass moved across a supersede edge, and the record holds no such edge",
 	"down_mass":         "an edge_deltas field, RETIRED at epoch 82 with it",
 	"up_mass":           "an edge_deltas field, RETIRED at epoch 82 with it",
+	"removal_basis":     "RETIRED at epoch 82 from Retire, with the claim retire: a retire takes anchors and nothing else, and the claim a cut withdrew is the cut, whose removed_anchors list what it took; migrate folds each claim retire into its cut or keeps it as an anchor-only retire, and drops the field",
+	"superseded_by":     "RETIRED at epoch 82 from Retire, with the claim retire: a claim's successor sentence was the claim retire's to name, and a cut records only the anchors it took; migrate drops the field",
 	"round":             "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events.epoch is the chair-sitting count at the row, events.sitting the seat's own; a migrated record carries neither and every reader derives them",
 	// LEGACY VOCABULARY — read only by the retired-type arms §II.6 deletes in PR3.
 	"as":       "the legacy landing key for a ruling; available.go:196 reads it beside `verdict` as a pre-collapse fallback. MotionRule.ruling replaces it",

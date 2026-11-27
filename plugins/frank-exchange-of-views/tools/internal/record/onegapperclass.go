@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -129,13 +128,13 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 			if err != nil {
 				return fmt.Errorf("the report does not render, so the sentence citation %s sits in cannot be found to ask whether an open gap of class %s quotes it: %w", about, recordpb.Word(m.GetClass()), err)
 			}
-			spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
-			if at, ok := gapSentenceIn(report, spans, bare, about); ok {
+			spans := anchor.Sentences(report)
+			if at, ok := gapSentenceIn(report, spans, about); ok {
 				for _, g := range held {
 					if g.location == "" {
 						continue
 					}
-					if sp, ok := gapSentenceIn(report, spans, bare, g.id); ok && sp == at {
+					if sp, ok := gapSentenceIn(report, spans, g.id); ok && sp == at {
 						if ok, err := obliged(); err != nil || ok {
 							return err
 						}
@@ -159,7 +158,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		if g.location == "" {
 			continue
 		}
-		if sp, ok := gapSentenceIn(ms.placed, ms.spans, ms.bare, g.id); ok && sp == ms.at {
+		if sp, ok := gapSentenceIn(ms.placed, ms.spans, g.id); ok && sp == ms.at {
 			return refuse(g, "the sentence "+sentenceWords(ms.placed, ms.at))
 		}
 	}

@@ -288,12 +288,11 @@ func validateContractCases() []validateContract {
 		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "requires --reason"},
 		{"regrade complete", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}, ""},
 
-		// `--quote`, NOT `--claim`: the field is `claim` and the flag a seat types is `--quote`,
-		// which is what the annotation now declares and what internal/cli/blue/retire.go registers.
-		// This expectation was the field name, so it passed while the message and the parser
-		// agreed with each other and disagreed with the test — a refusal naming a flag nobody can
-		// pass is the class this branch has found four times, and the test asserted it.
-		{"retire without --quote", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "requires --quote"},
+		// THE CLAIM IS TOOL-STAMPED (P12b): a retire takes one anchor and the verb reads the sentence it
+		// stood on off the report, so no seat types it and validate requires only the reason. These
+		// cases are the required-field contract alone; the anchor's own checks need the run's record
+		// and are the verb's tests (cli: TestRetireIsAnchorOnlyForEveryKind).
+		{"retire without a claim", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, ""},
 		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "requires --reason"},
 		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 

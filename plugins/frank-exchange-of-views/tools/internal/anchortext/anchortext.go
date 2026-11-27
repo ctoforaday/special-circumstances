@@ -209,9 +209,9 @@ func locateEnd(report, quote string) int {
 // skipped, whitespace runs treated as a single separator) — or (-1,-1) if the quote is not
 // present. `start` is the first matched CONTENT byte; `end` is just past the last matched
 // content byte (before any trailing annotation). A single streaming pass: the report cursor
-// IS the raw offset (no offset-map). `blue edit` replaces report[start:end], leaving the
-// invisible marker layer intact; a span that INTERNALLY contains a marker is the caller's to
-// reject (edit around it). No fuzzy/edit-distance matching.
+// IS the raw offset (no offset-map). `blue edit` replaces report[start:end]: a rewrite carries
+// every anchor of the span, and a cut of whole sentences takes their anchors, the ones at their
+// end included. No fuzzy/edit-distance matching.
 func LocateSpan(report, quote string) (int, int) {
 	return locate(report, quote, StopAtParagraph)
 }

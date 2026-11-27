@@ -24,7 +24,10 @@ import (
 // source never anchored it, and gap anchors into an edit's old and new
 // where they now stand. With gap anchors removed, every
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
-// rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
+// also carries the fold (retirefold.go): the anchors an archived cut left on no words go into its
+// removed_anchors, a token a rewrite left past its full stop is re-seated, and a later edit quoting
+// either is rewritten to match. It rewrites nothing else: an exact-span edit or a placement that no
+// longer places is refused.
 //
 // It reads the destination through q, the replay's batch (record.Replay.Querier): the batch holds the
 // record's one connection, so a render through the run would wait on it forever.
@@ -33,13 +36,20 @@ type placer struct {
 	anchored map[string]bool // ids the source stream anchors itself, as the migrated record spells them
 	placed   bool
 	census   migration.GapPlacement
+
+	at        int                   // the source event being replayed, by its place in the stream
+	retireAt  map[int]retireAt      // each archived retire, by its place in the stream
+	retiresOf map[string][]retireAt // each token's archived retires, in stream order
+	removed   map[string]bool       // each token a cut took, out of the report from that cut on
+	moved     [][2]string           // each run P12b translation 6 moved, and what it became
 }
 
 // newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
 // migrated ids, so each is keyed on what migrated — the remap's table, filled by now — spells it:
 // keyed on the source's spelling, a run that anchored its own acts would gain a second Anchor each.
 func newPlacer(q recordsql.Querier, evs []OldEvent, migrated map[string]string) *placer {
-	p := &placer{q: q, anchored: map[string]bool{}, census: migration.GapPlacement{Shapes: map[string]int{}}}
+	p := &placer{q: q, anchored: map[string]bool{}, census: migration.GapPlacement{Shapes: map[string]int{}}, removed: map[string]bool{}}
+	p.retireAt, p.retiresOf = retiresAhead(evs, migrated)
 	for _, ev := range evs {
 		if id, _ := ev.Fields["id"].(string); ev.Word == "anchor" && id != "" {
 			p.anchored[cmp.Or(migrated[id], id)] = true
@@ -69,6 +79,8 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		return &recordpb.Anchor{Id: proto.String(b.GetGapId()), Location: proto.String(b.GetLocation())}, nil
 	case *recordpb.BlueEdit:
 		return nil, p.edit(b)
+	case *recordpb.Retire:
+		return nil, p.retire(b)
 	case *recordpb.Cite:
 		return p.owed("cite", b.GetLabel(), b.GetLocation())
 	case *recordpb.Computation:
@@ -142,6 +154,13 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	if err != nil {
 		return nil
 	}
+	// A token a cut took is out of the report from that cut on, and a run P12b translation 6 moved stands
+	// where it moved to: a later edit quoting either is rewritten to the report it lands on. Its
+	// stored paragraphs keep them, as recorded history.
+	quoted := b.GetOld()
+	b.Old, b.New = proto.String(p.takenOut(b.GetOld())), proto.String(p.takenOut(b.GetNew()))
+	cutQuoted := b.GetOld() != quoted
+	b.Old, b.New = proto.String(p.movedOn(b.GetOld())), proto.String(p.movedOn(b.GetNew()))
 	old, abuts := b.GetOld(), false
 	// Before any gap is placed there is no gap anchor to carry, and the edit is only stamped.
 	if p.placed && !b.GetExactSpan() {
@@ -150,6 +169,9 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		}
 	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
+	if !ok && cutQuoted {
+		return placedLoss{fmt.Errorf("this edit quoted a token a cut took, and its quote rewritten without it (%q) does not locate in the report it lands on", b.GetOld()), editLoss}
+	}
 	// Before any gap is placed an edit that does not locate is the render's to refuse, loudly and
 	// naming any refusal before it (replayInOrder): the placer neither stamps nor judges it.
 	if !ok && !p.placed {
@@ -165,14 +187,26 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		b.Old = proto.String(old)
 		p.census.Shapes["abutting"]++ // old given the anchor run that now abuts its span
 	}
+	var unplaced []string
 	if p.placed {
-		b.New = proto.String(p.carry(text[start:end], b.GetNew()))
+		var nw string
+		nw, unplaced = p.carry(text[start:end], b.GetNew())
+		b.New = proto.String(nw)
+	}
+	nw, taken := p.bares(text, start, end, b, unplaced)
+	b.New = proto.String(nw)
+	if len(taken) > 0 {
+		b.RemovedAnchors = taken
+		for _, id := range taken {
+			p.removed[id] = true
+		}
 	}
 	after := reportproj.ApplySplice(text, start, end, b.GetNew())
 	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 80): the replay holds the report
 	// before the edit and after it, which nothing after migration can rebuild without replaying
 	// again, so the archived edit is given what a live edit stamps at its write — and its reopened
-	// anchors computed from them as a live edit's are, an anchor it left bare included.
+	// anchors computed from them as a live edit's are. The paragraphs are the splice's: a token the
+	// edit takes stands in them, as the archived edit left it, and the list's removes come after.
 	oldParas, newParas := bluedoc.TouchedParagraphs(text, after, start, end)
 	b.OldParagraphs, b.NewParagraphs = proto.String(oldParas), proto.String(newParas)
 	reopened := bluedoc.ReopenedAnchors(oldParas, newParas)
@@ -181,7 +215,10 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 			p.census.Shapes["reopened"]++ // a gap whose sentence the archived edit changed
 		}
 	}
-	b.Reopened = reopened
+	// A TOKEN THE EDIT TOOK IS NOT REOPENED BY IT. The splice keeps the token, so the re-stamp above
+	// reads its proseless sentence as changed; the edit's removed_anchors names it, and a live cut
+	// never lists a removed anchor in reopened. Run after the re-stamp, which would list it again.
+	b.Reopened = slices.DeleteFunc(reopened, func(id string) bool { return slices.Contains(taken, id) })
 	return nil
 }
 
@@ -210,10 +247,11 @@ func rewriteOld(text, old string) (string, bool) {
 
 // carry puts into new each gap anchor of span it lacks: where its sentence survives, by AutoPlace;
 // else after the last content character of new's first prose sentence (the fallback, F-c); where new
-// holds no prose, into its marker run (bare). Where new's only prose is a heading, a fence or a table
-// row, no sentence carries the anchor: the edit takes it out, and the gap reads gone, as one whose
-// quote never placed.
-func (p *placer) carry(span, new string) string {
+// holds no prose, into its marker run, which the pure cut then takes (retirefold.go). Where new's
+// only prose is a heading, a fence or a table
+// row, no sentence carries the anchor: the edit takes it out (it is returned, for the edit's
+// removed_anchors), and the gap reads gone, as one whose quote never placed.
+func (p *placer) carry(span, new string) (string, []string) {
 	var missing []string
 	for _, id := range anchor.IDs(span) {
 		if isGap(id) && !strings.Contains(new, anchor.Token(id)) {
@@ -221,8 +259,9 @@ func (p *placer) carry(span, new string) string {
 		}
 	}
 	if len(missing) == 0 {
-		return new
+		return new, nil
 	}
+	var unplaced []string
 	new = bluedoc.AutoPlace(span, new)
 	for _, id := range missing {
 		tok := anchor.Token(id)
@@ -239,12 +278,13 @@ func (p *placer) carry(span, new string) string {
 		case claimcount.HasProse(new):
 			p.census.Shapes["unplaced"]++
 			p.census.NeverPlaced = append(p.census.NeverPlaced, id)
+			unplaced = append(unplaced, id) // the splice keeps it; the edit takes it out (removed_anchors)
 		default:
 			new += tok
 			p.census.Shapes["bare"]++
 		}
 	}
-	return new
+	return new, unplaced
 }
 
 // proseEnd is the offset after the last content character of new's first sentence that says

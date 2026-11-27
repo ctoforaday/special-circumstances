@@ -35,7 +35,8 @@ exactly like a clean board. See [[facts-are-fields]].
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
 a claim, `computation:` where a program blue ran settles it, `gap:` where red
-holds a gap open — and dropping one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
+holds a gap open — and a rewrite that drops one is refused: an anchor leaves only by a retire naming
+it, or with its sentence in a cut. Write for the reader; put what the machinery depends on in a field.
 
 ## Reading the report
 
@@ -89,8 +90,8 @@ open questions, and move no line of blue's text.
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inquiries.md`
-(the inquiries and the path each took), `evidence.md` (the computations, and each citation with every reading of it), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
-retired, the asks a later certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
+(the inquiries and the path each took), `evidence.md` (the computations, and each citation with every reading of it), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the asks a later
+certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
 THE CITATION AND COMPUTATION LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
