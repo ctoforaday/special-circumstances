@@ -50,6 +50,10 @@
 //     it links, and the message queues saying so.
 //   - Anything else holds it, or the probe cannot inspect: the message queues, naming the holder.
 //
+// Stated limit: the probe sees only the processes of telepathy's own pid namespace. A process
+// outside it that holds the conversation — an agy on the host while telepathy runs in a container
+// sharing its data — is invisible, and send can then create a second writer.
+//
 // A record is a target only while RecordLiveness reads it Live. Route names which of the three
 // kinds of record carried the message.
 //

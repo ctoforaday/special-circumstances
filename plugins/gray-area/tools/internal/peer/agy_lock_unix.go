@@ -22,7 +22,11 @@ import (
 // Fails CLOSED: any unexpected error inspecting the lock file, reading /proc, or inspecting a
 // same-UID process's file descriptors is HolderUninspectable, so telepathy send queues to the
 // mailbox rather than risking a second writer. So is a lock /proc/locks may not show whole — a
-// locker that has exited, a nested pid namespace, a network filesystem (flockHolders says when).
+// locker that has exited, a network filesystem (flockHolders says when).
+//
+// Stated limit: it sees only the processes of this procfs's pid namespace. A holder outside it is
+// invisible, so a container that shares Antigravity's data with the host can create a second
+// writer.
 //
 // Check-then-send race: a second process can still open the conversation in the window between
 // this check and the HTTP SendAgentMessage call. This guard prevents sending into an already-open

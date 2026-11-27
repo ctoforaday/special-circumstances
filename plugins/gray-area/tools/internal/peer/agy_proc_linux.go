@@ -176,12 +176,12 @@ func otherDBHolder(agyRoot, conversation string, excludePID int) Holder {
 //   - a pid it names has exited. /proc/locks names the process that TOOK a flock, and the lock
 //     lives as long as any descriptor sharing that open file, so a locker that passed its
 //     descriptor on and exited is named while the process now holding the lock is not;
-//   - it names no holder while this process is outside the initial pid namespace. /proc/locks
-//     leaves out a lock whose owner its procfs's namespace cannot see, and a container that
-//     mounts its own procfs shows one pid in NSpid like the host does, so only the namespace's
-//     identity tells the two apart;
 //   - it names no holder while the file is on a network filesystem, where a lock taken on
 //     another host is not in this host's /proc/locks.
+//
+// Stated limit: /proc/locks, like the /proc/<pid>/fd scan, sees only the processes of this procfs's
+// pid namespace. A holder outside it — an agy on the host while telepathy runs in a container that
+// shares its data — is invisible, and send can then create a second writer.
 func flockHolders(path string) ([]int, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -212,61 +212,27 @@ func flockHolders(path string) ([]int, error) {
 	return pids, nil
 }
 
-// blindSpotOf is locksBlindSpot; a variable so a test can stand in a namespace or a filesystem
-// this box does not have.
+// blindSpotOf is locksBlindSpot; a variable so a test can stand in a filesystem this box does not
+// have.
 var blindSpotOf = locksBlindSpot
 
-// locksBlindSpot says why /proc/locks may leave out a lock on path, or "" when it lists every one.
+// locksBlindSpot says why /proc/locks may leave out a lock on path, or "" when it lists every lock
+// this host's kernel knows of.
 func locksBlindSpot(path string) string {
-	status, err := os.ReadFile("/proc/self/status")
-	if err != nil {
-		return "cannot read /proc/self/status to learn whether /proc/locks lists every holder: " + err.Error()
-	}
-	ns, err := os.Readlink("/proc/self/ns/pid")
-	if err != nil {
-		return "cannot read /proc/self/ns/pid to learn whether /proc/locks lists every holder: " + err.Error()
-	}
 	var sfs syscall.Statfs_t
 	if err := syscall.Statfs(filepath.Dir(path), &sfs); err != nil {
 		return "cannot learn the filesystem of " + filepath.Dir(path) + ": " + err.Error()
 	}
-	return blindSpot(string(status), ns, uint32(sfs.Type))
-}
-
-// initPidNamespace is /proc/self/ns/pid in the initial pid namespace: the kernel fixes its inode
-// (PROC_PID_INIT_INO, 0xEFFFFFFC).
-const initPidNamespace = "pid:[4026531836]"
-
-// blindSpot judges a process's /proc/self/status, its /proc/self/ns/pid link, and the lock file's
-// filesystem magic.
-func blindSpot(status, pidNamespace string, fsMagic uint32) string {
-	nested, known := nestedPidNamespace(status)
-	switch {
-	case !known:
-		return "/proc/self/status has no NSpid line, so whether /proc/locks lists every holder is unknown"
-	case nested || pidNamespace != initPidNamespace:
-		return "this process is outside the initial pid namespace, where /proc/locks leaves out a holder it cannot see"
-	}
-	if name := networkFS(fsMagic); name != "" {
+	if name := networkFS(uint32(sfs.Type)); name != "" {
 		return "the lock is on " + name + ", where a lock taken on another host is not in this host's /proc/locks"
 	}
 	return ""
 }
 
-// nestedPidNamespace reads /proc/self/status: its NSpid line lists this process's pid in each pid
-// namespace from the outermost in, so more than one means a nested namespace. known is false when
-// there is no such line.
-func nestedPidNamespace(status string) (nested, known bool) {
-	for _, line := range strings.Split(status, "\n") {
-		if rest, ok := strings.CutPrefix(line, "NSpid:"); ok {
-			return len(strings.Fields(rest)) > 1, true
-		}
-	}
-	return false, false
-}
-
-// networkFS names the network filesystem with superblock magic m, or "". The magics are
-// include/uapi/linux/magic.h's and the filesystems' own headers'.
+// networkFS names the network or cluster filesystem with superblock magic m, or "". The magics are
+// include/uapi/linux/magic.h's and the filesystems' own headers'. FUSE (0x65735546) is not here:
+// most FUSE filesystems are local, and a FUSE client of a distributed one (GlusterFS, CephFS-fuse,
+// BeeGFS) is a stated blind spot.
 func networkFS(m uint32) string {
 	switch m {
 	case 0x6969:
@@ -287,6 +253,8 @@ func networkFS(m uint32) string {
 		return "Lustre"
 	case 0x73757245:
 		return "Coda"
+	case 0x47504653:
+		return "GPFS"
 	}
 	return ""
 }

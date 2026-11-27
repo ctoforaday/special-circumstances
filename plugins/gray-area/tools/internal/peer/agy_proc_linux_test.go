@@ -95,7 +95,7 @@ func TestLockHoldersReadsProcLocks(t *testing.T) {
 `
 	got, err := lockHolders(locks, "1234")
 	if err != nil || fmt.Sprint(got) != "[4242 0]" {
-		t.Errorf("lockHolders = %v, %v; want [4242 0]: the holder and the one outside this pid namespace, not the waiter", got, err)
+		t.Errorf("lockHolders = %v, %v; want [4242 0]: both holders as listed, not the waiter", got, err)
 	}
 	if got, err := lockHolders(locks, "5555"); err != nil || len(got) != 0 {
 		t.Errorf("lockHolders of an unlocked inode = %v, %v; want none", got, err)
@@ -110,7 +110,9 @@ func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
 	if err != nil {
 		t.Skip("no flock(1) on this box")
 	}
-	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != initPidNamespace {
+	// PROC_PID_INIT_INO: outside the initial pid namespace /proc/locks drops a dead locker's line
+	// rather than naming it.
+	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != "pid:[4026531836]" {
 		t.Skip("outside the initial pid namespace /proc/locks drops a dead locker's line rather than naming it")
 	}
 	agyRoot := t.TempDir()
@@ -137,27 +139,6 @@ func TestConversationBusyLockerThatExitedIsUninspectable(t *testing.T) {
 	}
 }
 
-func TestBlindSpot(t *testing.T) {
-	const flat, nested, ext4 = "NSpid:\t4242\n", "NSpid:\t4242\t17\n", 0xEF53
-	const container = "pid:[4026532198]"
-	for _, tc := range []struct {
-		status, ns string
-		magic      uint32
-		want       string
-	}{
-		{flat, initPidNamespace, ext4, ""},
-		{nested, initPidNamespace, ext4, "this process is outside the initial pid namespace"},
-		// A container with its own procfs: one pid in NSpid, as on the host.
-		{flat, container, ext4, "this process is outside the initial pid namespace"},
-		{"Pid:\t4242\n", initPidNamespace, ext4, "/proc/self/status has no NSpid line"},
-		{flat, initPidNamespace, 0x6969, "the lock is on NFS"},
-	} {
-		if got := blindSpot(tc.status, tc.ns, tc.magic); (tc.want == "") != (got == "") || !strings.HasPrefix(got, tc.want) {
-			t.Errorf("blindSpot(%q, %q, %#x) = %q, want %q", tc.status, tc.ns, tc.magic, got, tc.want)
-		}
-	}
-}
-
 // AN UNHELD LOCK IN A BLIND SPOT IS UNINSPECTABLE, not free: here the blind spot is stood in.
 func TestConversationBusyUnheldLockInABlindSpot(t *testing.T) {
 	agyRoot := t.TempDir()
@@ -176,43 +157,18 @@ func TestConversationBusyUnheldLockInABlindSpot(t *testing.T) {
 	}
 }
 
-func TestNestedPidNamespace(t *testing.T) {
-	for _, tc := range []struct {
-		status        string
-		nested, known bool
-	}{
-		{"Name:\tx\nNSpid:\t4242\n", false, true},
-		{"Name:\tx\nNSpid:\t4242\t17\n", true, true},
-		{"Name:\tx\nPid:\t4242\n", false, false},
-	} {
-		if nested, known := nestedPidNamespace(tc.status); nested != tc.nested || known != tc.known {
-			t.Errorf("nestedPidNamespace(%q) = (%v, %v), want (%v, %v)", tc.status, nested, known, tc.nested, tc.known)
-		}
-	}
-}
-
 func TestNetworkFS(t *testing.T) {
 	for m, want := range map[uint32]string{0x6969: "NFS", 0xFF534D42: "SMB", 0xFE534D42: "SMB", 0x517B: "SMB", 0x00C36400: "Ceph",
 		0x5346414F: "AFS", 0x6B414653: "AFS", 0x01021997: "9P", 0x01161970: "GFS2", 0x7461636F: "OCFS2", 0x0BD00BD0: "Lustre",
-		0x73757245: "Coda", 0xEF53: "", 0x01021994: "", 0x58465342: ""} {
+		0x73757245: "Coda", 0x47504653: "GPFS", 0xEF53: "", 0x01021994: "", 0x58465342: ""} {
 		if got := networkFS(m); got != want {
 			t.Errorf("networkFS(%#x) = %q, want %q", m, got, want)
 		}
 	}
 }
 
-// ON A LOCAL FILESYSTEM, IN THIS NAMESPACE, AN UNHELD LOCK FILE IS NOT A BLIND SPOT.
+// ON A LOCAL FILESYSTEM AN UNHELD LOCK FILE IS NOT A BLIND SPOT.
 func TestLocksBlindSpotHere(t *testing.T) {
-	status, err := os.ReadFile("/proc/self/status")
-	if err != nil {
-		t.Skip(err)
-	}
-	if ns, _ := os.Readlink("/proc/self/ns/pid"); ns != initPidNamespace {
-		t.Skip("this test runs outside the initial pid namespace")
-	}
-	if nested, _ := nestedPidNamespace(string(status)); nested {
-		t.Skip("this test runs in a nested pid namespace")
-	}
 	if why := locksBlindSpot(filepath.Join(t.TempDir(), "f.lock")); why != "" {
 		t.Errorf("locksBlindSpot on a temporary directory = %q, want none", why)
 	}
