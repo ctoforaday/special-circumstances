@@ -115,6 +115,10 @@ CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 -- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
 -- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
 CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
+-- The openings in record order: a seat's next opening after one of its sittings (agent_sitting's
+-- next_opening) is found among the openings, never by walking the acts between them. Without it
+-- the latest sitting of every seat walks the events from its opening to the end of the record.
+CREATE INDEX "events_opening_order" ON "events" ("id") WHERE "sitting_id" = "id";
 -- A seat's own acts of one type, where the type's body table holds nothing to narrow by: the
 -- report parts a seat filed (ReportAtPart, partStandingAt).
 CREATE INDEX "events_seat" ON "events" ("seat_id");

@@ -799,10 +799,19 @@ func WholeDeliverySQL(row, seat string) string { return wholeDeliverySQL(row, se
 // whole report: report_delivery's "whole", and the statement that decides a lens's next delivery,
 // which asks it of the row it is about to write (row = the next id). One fragment, two readers, as
 // demandReachSQL is for demand_reach and gap_refresh.
+//
+// THE COUNT WALKS THE DELIVERIES AND STOPS AT THE SECOND. It is asked once per row of
+// report_delivery on every whole-record read, so what one ask costs is multiplied by the record.
+// The CROSS JOIN fixes the order (as demandReachSQL's does): from the seat's side the planner walks
+// every earlier EVENT of the seat and asks agent_sitting of each before it learns the event is no
+// delivery, which on a 900-event run is twenty-odd sitting lookups per row where two answer it. The
+// LIMIT is the question as asked — fewer than two — so a lens's hundredth delivery reads its first
+// two and no more.
 func wholeDeliverySQL(row, seat string) string {
-	return `(SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+	return `(SELECT COUNT(*) FROM (SELECT 1 FROM "report_read" p CROSS JOIN "events" pe ON pe."id" = p."event_id"
           WHERE pe."seat_id" = ` + seat + ` AND p."event_id" < ` + row + `
-            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2
+            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)
+          LIMIT 2)) < 2
      OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = ` + seat + `
                   AND u."event_id" < ` + row + `
                   AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"

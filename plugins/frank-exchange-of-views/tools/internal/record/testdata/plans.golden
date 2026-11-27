@@ -19,16 +19,16 @@
   SCAN agent_binding
 
 == view agent_sitting
-  SCAN e USING INDEX events_opening
+  SCAN e USING INDEX events_opening_order
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -45,7 +45,7 @@
       SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
       SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -72,7 +72,7 @@
         SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
-          SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+          SEARCH e USING INDEX events_opening_order (id>?)
           SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
           SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -401,24 +401,26 @@
     SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH e USING INDEX events_opening_order (id>?)
       SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
       SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
   CORRELATED SCALAR SUBQUERY
-    SEARCH pe USING INDEX events_seat (seat_id=? AND rowid<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    CO-ROUTINE (subquery)
+      SEARCH p USING INTEGER PRIMARY KEY (rowid<?)
+      SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
       CORRELATED SCALAR SUBQUERY
-        SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
         SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      CORRELATED SCALAR SUBQUERY
-        SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-    SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH e USING INDEX events_opening_order (id>?)
+          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+    SCAN (subquery)
   CORRELATED SCALAR SUBQUERY
     SEARCH u USING INTEGER PRIMARY KEY (rowid<?)
     CORRELATED SCALAR SUBQUERY
@@ -504,7 +506,7 @@
   SCAN seat_turn_span
 
 == view sittings
-  SCAN e USING INDEX events_opening
+  SCAN e USING INDEX events_opening_order
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt f082d7ed827d
@@ -1975,8 +1977,8 @@
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 366f88b156d1
--- SELECT "event_id", "seat_id", COALESCE("sitting_id", 0), "head", "sat_through", COALESCE("whole", 0), "whole" IS NOT NULL FROM "report_delivery" ORDER BY "event_id"
+== stmt 224645a7f99e
+-- SELECT "event_id", "seat_id", COALESCE("sitting_id", 0), "head", "sat_through", "whole" FROM "report_delivery" ORDER BY "event_id"
   SCAN r
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   CORRELATED SCALAR SUBQUERY
@@ -1986,43 +1988,26 @@
     SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH e USING INDEX events_opening_order (id>?)
       SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
       SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
   CORRELATED SCALAR SUBQUERY
-    SEARCH pe USING INDEX events_seat (seat_id=? AND rowid<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    CO-ROUTINE (subquery)
+      SEARCH p USING INTEGER PRIMARY KEY (rowid<?)
+      SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
       CORRELATED SCALAR SUBQUERY
-        SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
         SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      CORRELATED SCALAR SUBQUERY
-        SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-    SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
-  CORRELATED SCALAR SUBQUERY
-    SEARCH u USING INTEGER PRIMARY KEY (rowid<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH pe USING COVERING INDEX events_seat (seat_id=? AND rowid>? AND rowid<?)
-      SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
-  CORRELATED SCALAR SUBQUERY
-    SEARCH pe USING INDEX events_seat (seat_id=? AND rowid<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      CORRELATED SCALAR SUBQUERY
-        SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      CORRELATED SCALAR SUBQUERY
-        SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-    SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH e USING INDEX events_opening_order (id>?)
+          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+    SCAN (subquery)
   CORRELATED SCALAR SUBQUERY
     SEARCH u USING INTEGER PRIMARY KEY (rowid<?)
     CORRELATED SCALAR SUBQUERY
@@ -2202,7 +2187,7 @@
 
 == stmt 2aadb2015b93
 -- SELECT "seat_id" FROM "sittings" ORDER BY "id"
-  SCAN e
+  SCAN e USING INDEX events_opening_order
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt 6799aad63552
@@ -2225,16 +2210,16 @@
 
 == stmt 4b5055aa3a26
 -- SELECT "sitting_id", "seat_id", "sitting", "epoch", "agent_id", COALESCE("next_opening", 0), "over", "closed", "admitted", "sat_through" FROM "agent_sitting" ORDER BY "sitting_id"
-  SCAN e
+  SCAN e USING INDEX events_opening_order
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -2251,7 +2236,7 @@
       SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
       SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH e USING INDEX events_opening_order (id>?)
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -2260,26 +2245,27 @@
 -- SELECT "text", "failure" FROM "report_checkpoint" WHERE "one" = 1
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 9a127978073f
--- SELECT (SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2 OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = ?1 AND u."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" > u."event_id" AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events")))
+== stmt 67cc5e90d161
+-- SELECT (SELECT COUNT(*) FROM (SELECT 1 FROM "report_read" p CROSS JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1) LIMIT 2)) < 2 OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = ?1 AND u."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" > u."event_id" AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events")))
   SCAN CONSTANT ROW
   SCALAR SUBQUERY
-    SEARCH pe USING INDEX events_seat (seat_id=? AND rowid<?)
-    SCALAR SUBQUERY
-      SEARCH events
-    CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    CO-ROUTINE (subquery)
+      SEARCH p USING INTEGER PRIMARY KEY (rowid<?)
+      SCALAR SUBQUERY
+        SEARCH events
+      SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
       CORRELATED SCALAR SUBQUERY
-        SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
         SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      CORRELATED SCALAR SUBQUERY
-        SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-    SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
-    REUSE SUBQUERY
+        SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH e USING INDEX events_opening_order (id>?)
+          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+    SCAN (subquery)
   SCALAR SUBQUERY
     SEARCH u USING INTEGER PRIMARY KEY (rowid<?)
     SCALAR SUBQUERY
@@ -2411,7 +2397,7 @@
     SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH e USING INDEX events_opening_order (id>?)
       SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
       SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -2470,7 +2456,7 @@
         SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
-          SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+          SEARCH e USING INDEX events_opening_order (id>?)
           SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
         CORRELATED SCALAR SUBQUERY
           SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
@@ -2825,7 +2811,7 @@
           SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
           SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
           CORRELATED SCALAR SUBQUERY
-            SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+            SEARCH e USING INDEX events_opening_order (id>?)
             SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
           CORRELATED SCALAR SUBQUERY
             SEARCH c USING INTEGER PRIMARY KEY (rowid>?)

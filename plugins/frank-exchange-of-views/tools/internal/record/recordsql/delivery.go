@@ -1,6 +1,9 @@
 package recordsql
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+)
 
 // AgentSittingRow is one row of the agent_sitting view: a seat's sitting opened under an agent, and
 // its ends.
@@ -31,8 +34,10 @@ type DeliveryRow struct {
 const (
 	agentSittingsSQL = `SELECT "sitting_id", "seat_id", "sitting", "epoch", "agent_id", COALESCE("next_opening", 0),
   "over", "closed", "admitted", "sat_through" FROM "agent_sitting" ORDER BY "sitting_id"`
-	reportDeliveriesSQL = `SELECT "event_id", "seat_id", COALESCE("sitting_id", 0), "head", "sat_through",
-  COALESCE("whole", 0), "whole" IS NOT NULL FROM "report_delivery" ORDER BY "event_id"`
+	// "whole" is named once: the view is flattened into this statement, so each mention of the
+	// column is its whole expression again, a count over the lens's earlier deliveries.
+	reportDeliveriesSQL = `SELECT "event_id", "seat_id", COALESCE("sitting_id", 0), "head", "sat_through", "whole"
+  FROM "report_delivery" ORDER BY "event_id"`
 )
 
 // AgentSittings is the agent_sitting view, in opening order.
@@ -64,9 +69,11 @@ func ReportDeliveries(q Querier) ([]DeliveryRow, error) {
 	var out []DeliveryRow
 	for rows.Next() {
 		var r DeliveryRow
-		if err := rows.Scan(&r.EventID, &r.SeatID, &r.SittingID, &r.Head, &r.SatThrough, &r.Whole, &r.Lens); err != nil {
+		var whole sql.NullBool
+		if err := rows.Scan(&r.EventID, &r.SeatID, &r.SittingID, &r.Head, &r.SatThrough, &whole); err != nil {
 			return nil, fmt.Errorf("reading report_delivery: %w", err)
 		}
+		r.Whole, r.Lens = whole.Bool, whole.Valid
 		out = append(out, r)
 	}
 	return out, rows.Err()
