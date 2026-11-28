@@ -321,15 +321,6 @@ func verbatimPlacement(_ recordsql.Querier, seatID string, body proto.Message) (
 	return []owedTombstone{{gap: ed.GetAnswers()}}, nil
 }
 
-// owedOn is ids as owed gaps.
-func owedOn(ids []string) []owedTombstone {
-	out := make([]owedTombstone, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, owedTombstone{gap: id})
-	}
-	return out
-}
-
 // gapsAbout is the gaps about any of refs of kind, through mint_about.
 func gapsAbout(q recordsql.Querier, kind recordpb.AboutKind, refs []string) ([]owedTombstone, error) {
 	var out []owedTombstone
@@ -475,28 +466,6 @@ func estoppelsStandingAt(q recordsql.Querier) (map[string]int64, error) {
 		out[g] = at
 	}
 	return out, rows.Err()
-}
-
-// standingTombstonesIn is the tombstones standing at the end of evs, folded from its Tombstone rows:
-// per (gap, kind), the latest row's, where it places one. The folds that read a stream prefix —
-// estoppel against the report before an act, the lock — read the rows this way.
-func standingTombstonesIn(evs []*Event) map[recordpb.TombstoneKind]map[string]bool {
-	out := map[recordpb.TombstoneKind]map[string]bool{
-		recordpb.TombstoneKind_TOMBSTONE_KIND_RULING:   {},
-		recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL: {},
-	}
-	for _, e := range evs {
-		t, ok := recordpb.BodyAs[*recordpb.Tombstone](e)
-		if !ok {
-			continue
-		}
-		if t.GetEnds() {
-			delete(out[t.GetKind()], t.GetGapId())
-		} else {
-			out[t.GetKind()][t.GetGapId()] = true
-		}
-	}
-	return out
 }
 
 // tombstoneEnds is what ends a ruling tombstone on a gap about kind (its about_kind word, "" for a
