@@ -1781,3 +1781,23 @@ func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
 		t.Errorf("the oracle names %q, want the owner's re-read", got)
 	}
 }
+
+// THE LIMIT SEED'S SENTENCE IS NO DRAWN READING'S (CI run 46126830171, seed 7): once blue cites it for
+// the forced reading debt, a found-source reading draws the next sentence, and a lens's debt on it is
+// left standing, so no sibling's claim_contradicts_source gap quoting it discharges the debt the run
+// must end on.
+func TestTheLimitDebtSentenceIsReservedFromDrawnReadings(t *testing.T) {
+	r := &runner{rng: newLockedRand(1)}
+	cur := "# R\n\n" + foundSourceSentences[0] + " " + foundSourceSentences[1] + "\n"
+	limit := foundSourceSentences[0]
+	if q, _ := r.foundSourceQuote(cur, "refutes"); q != limit {
+		t.Fatalf("with nothing reserved the draw reads %q, want %q", q, limit)
+	}
+	r.forceScreenUnsound, r.limitDebtCite, r.limitDebtSentenceCited = true, "C-00000001", limit
+	if q, _ := r.foundSourceQuote(cur, "refutes"); q == limit {
+		t.Errorf("a found-source reading draws %q, the limit seed's cited sentence", q)
+	}
+	if !r.reservedDebtSubject(limit) || !r.reservedDebtSubject("C-00000001") {
+		t.Errorf("the limit seed's sentence and citation are not both reserved from a drawn answer")
+	}
+}

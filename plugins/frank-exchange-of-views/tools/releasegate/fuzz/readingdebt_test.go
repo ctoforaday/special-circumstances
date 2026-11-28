@@ -1232,7 +1232,7 @@ func (r *runner) oneURLTwoSentences(seatID string) {
 		if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(s)); len(open) > 0 {
 			continue
 		}
-		if r.citationGapHolds(cur, s) {
+		if r.citationGapHolds(cur, s) || r.reservedDebtSubject(s) {
 			continue
 		}
 		free = append(free, s)

@@ -115,7 +115,10 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	}
 	// THE LIMIT SEED'S CITATION IS READ `refutes` AT THE LIMIT PLAN AND LEFT (screenAtLimit): the run
 	// must end on that debt, so neither the owner's sitting nor blue's remedy clears it.
-	if r.forceScreenUnsound && r.limitDebtCite != "" && subject == r.limitDebtCite {
+	// AND ITS SENTENCE: another lens's claim_contradicts_source gap quoting it discharges the debt the
+	// moment it lands (F9), so a drawn lens's debt on that sentence is left standing too (CI run
+	// 46126830171, seed 7: red-lens-architecture's mint quoting it ended the run on no debt).
+	if r.forceScreenUnsound && r.limitDebtCite != "" && (subject == r.limitDebtCite || subject == r.limitDebtSentenceCited) {
 		return true
 	}
 	if !r.forceReadingRemoval || !removalDebtsStand(r.removal.stage) {

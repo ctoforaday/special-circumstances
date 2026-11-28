@@ -252,12 +252,13 @@ func sentenceMarked(report, quote string) (marked, once bool) {
 // foundSourceQuote is the sentence a found-source reading of seatID's under outcome reads a source
 // for, and whether an anchor marks it: the first of foundSourceSentences the report holds once — or,
 // for an `absent` reading on a coin, the first it holds once that is marked, since a found page
-// silent on a cited sentence owes nothing (found_absent_on_marked_no_debt). "" where none qualifies.
+// silent on a cited sentence owes nothing (found_absent_on_marked_no_debt). A sentence a forced drive
+// reserves (reservedDebtSubject) is read by none. "" where none qualifies.
 func (r *runner) foundSourceQuote(cur, outcome string) (quote string, marked bool) {
 	wantMarked := outcome == "absent" && r.coin(50)
 	for _, s := range foundSourceSentences {
 		m, once := sentenceMarked(cur, s)
-		if !once || wantMarked && !m {
+		if !once || wantMarked && !m || r.reservedDebtSubject(s) {
 			continue
 		}
 		return s, m
