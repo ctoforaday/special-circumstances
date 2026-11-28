@@ -1,0 +1,4 @@
+QUEUED for antigravity conversation a9e00000-0000-4000-8000-000000000002 in its mailbox (<BRAIN>/a9e00000-0000-4000-8000-000000000002/.system_generated/messages/<MESSAGE-ID>.json); it is read at the start of the conversation's next turn
+  not woken: the daemon token file is not used: <CONFIG>/gray-area/antigravity-daemon.env is readable or writable by group or others (mode 0640); it must be 0600
+  daemon start not measured
+  last step recorded at 2026-09-09 11:52:30 UTC

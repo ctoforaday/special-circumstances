@@ -25,10 +25,7 @@ import (
 // testhome also pins the Go caches before HOME moves: a test here builds this command with `go
 // build`, and under the sandboxed HOME that build downloaded the module graph, read-only, into the
 // sandbox, which then could not be removed — 72 directories, 18.5 GB, in /tmp on 2026-11-22.
-// TestMain stands in a Linux host's pid domain, so the link request is judged the same on every
-// platform the suite runs on; TestLinkRequestNeverAsksWithoutAPidDomain takes it away.
 func TestMain(m *testing.M) {
-	localPidDomain = func() string { return "linux:test-machine:pid:[4026531836]" }
 	os.Exit(testhome.Run(m, "gray-area-capture-test-"))
 }
 

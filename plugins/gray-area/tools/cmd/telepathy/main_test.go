@@ -34,9 +34,10 @@ func TestTheBuiltBinary(t *testing.T) {
 
 	// A store that cannot exist, so no case below can reach the caller's real catalogue.
 	noStore := filepath.Join(t.TempDir(), "absent.db")
-	// A runtime directory of the test's own: every verb prunes the Antigravity server records under
-	// $XDG_RUNTIME_DIR, and a checkout-built binary must never prune the host's.
-	runtimeDir := t.TempDir()
+	// A configuration and a runtime directory of the test's own: the daemon's token file lives under
+	// $XDG_CONFIG_HOME, and $XDG_RUNTIME_DIR names the host's systemd user bus, so a checkout-built
+	// binary never finds the host's token or asks the host's user manager.
+	configDir, runtimeDir := t.TempDir(), t.TempDir()
 
 	for _, tc := range []struct {
 		name     string
@@ -53,10 +54,14 @@ func TestTheBuiltBinary(t *testing.T) {
 		{"unknown verb", []string{"telepathise"}, 2, "", "unknown command"},
 		{"missing argument", []string{"touched"}, 2, "", "accepts 1 arg"},
 		{"a missing store is worded", []string{"--store", noStore, "touched", "x.go"}, 1, "", "no store at"},
+		// agy-provision asks agy's install whether it knows agy-wake by these two: a binary that
+		// has the verb answers its help with 0, one that lacks it refuses.
+		{"agy-wake's help", []string{"agy-wake", "--help"}, 0, "Starts a turn", ""},
+		{"a verb it lacks, asked for help", []string{"telepathise", "--help"}, 2, "", "unknown command"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(bin, tc.args...)
-			cmd.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+runtimeDir)
+			cmd.Env = append(os.Environ(), "XDG_CONFIG_HOME="+configDir, "XDG_RUNTIME_DIR="+runtimeDir)
 			var out, errOut strings.Builder
 			cmd.Stdout, cmd.Stderr = &out, &errOut
 			err := cmd.Run()

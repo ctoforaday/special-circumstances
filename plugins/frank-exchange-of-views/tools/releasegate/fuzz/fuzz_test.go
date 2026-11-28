@@ -681,6 +681,10 @@ type runner struct {
 	// and before its close is issued: a deterministic test lands there the sibling's reading that a
 	// sweep's concurrent lenses land at will. nil in the sweep.
 	betweenCloseReadAndAct func(gapID string)
+	// betweenBareMintReadAndAct is called after mintBaringKind counted the lens's mints on the record
+	// and before its mint of kind is issued: a deterministic test lands there the sibling lens's write
+	// that a sweep's concurrent lenses land at will. nil in the sweep.
+	betweenBareMintReadAndAct func(kind string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -1075,7 +1079,7 @@ func (r *runner) orderRefused(seatID string) {
 		text = "Whether the trend outlasts the sample.\n\n## TL;DR\n\nA summary at the end"
 	}
 	// WHETHER THE REFUSED EDIT WAS RECORDED IS READ OFF THE RECORD: seats sit at once, so the report can
-	// move under the edit by another seat's act (mintedFixNew).
+	// move under the edit by another seat's act (editsRecorded).
 	prior := r.editsRecorded(seatID, text)
 	out, err := r.exec("edit", "--seat-id", seatID, "--quote", "Whether the trend outlasts the sample", "--new", text, "--reason", "fuzz: a section out of order")
 	recorded := r.editsRecorded(seatID, text) > prior
@@ -4032,7 +4036,7 @@ func (r *runner) citeForBareMint(seatID string) {
 // sitting after blue's half places the kinds a lens places (a finding, and a gap of a class the
 // prescription does not mint), then on each kind's sentence prescribes that anchor's token alone as the
 // sentence's replacement. Blue's accept would leave the token on no words, so the mint must refuse it
-// naming the token, with the report unchanged (mintBareKinds, one per kind). A mint refused for anything
+// naming the token, with no mint of the lens's recorded (mintBareKinds, one per kind). A mint refused for anything
 // else leaves the kind to the next lens sitting. It draws nothing from the run's RNG.
 func (r *runner) mintBaringCitation(seatID string) {
 	r.mu.Lock()
@@ -4057,20 +4061,6 @@ func (r *runner) mintBaringCitation(seatID string) {
 			r.mintBaringKind(seatID, kind)
 		}
 	}
-}
-
-// mintedFixNew reports whether the record holds a mint of seatID's prescribing fixNew.
-func (r *runner) mintedFixNew(seatID, fixNew string) bool {
-	b, ok := r.board()
-	if !ok {
-		return false
-	}
-	for _, e := range b.Events {
-		if m, isM := recordpb.BodyAs[*recordpb.Mint](e); isM && e.GetSeatId() == seatID && m.GetFixNew() == fixNew {
-			return true
-		}
-	}
-	return false
 }
 
 // editsRecorded is how many edits of seatID the record holds that write newText.
@@ -4098,16 +4088,32 @@ func mintBareAnchor(md, kind string) string {
 	return ""
 }
 
+// mintsRecordedBy is how many mints the record holds from seatID: the count a refused mint of that
+// seat's leaves as it stood, whatever the other seats record meanwhile.
+func (r *runner) mintsRecordedBy(seatID string) (int, error) {
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range b.Events {
+		if e.GetSeatId() == seatID && e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
+			n++
+		}
+	}
+	return n, nil
+}
+
 // mintBaringKind is mintBaringCitation's drive of one kind: the lens places a finding or a gap where
 // the sentence holds none, then prescribes the kind's token alone.
 func (r *runner) mintBaringKind(seatID, kind string) {
 	claim := mintBareClaim(kind)
-	before, err := record.RenderRun(r.run())
+	md, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
 		return
 	}
-	id := mintBareAnchor(before, kind)
+	id := mintBareAnchor(md, kind)
 	if id == "" {
 		switch kind {
 		case "finding":
@@ -4126,27 +4132,40 @@ func (r *runner) mintBaringKind(seatID, kind string) {
 		default:
 			return // blue's half has not placed it
 		}
-		if before, err = record.RenderRun(r.run()); err != nil {
+		if md, err = record.RenderRun(r.run()); err != nil {
 			r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
 			return
 		}
-		if id = mintBareAnchor(before, kind); id == "" {
+		if id = mintBareAnchor(md, kind); id == "" {
 			return
 		}
+	}
+	// WHETHER THE MINT WAS RECORDED IS READ OFF THIS LENS'S OWN MINTS, counted on the record before and
+	// after it (mintsRecordedBy), never off the rendered report. The lenses of an epoch sit at once, so
+	// a sibling's mint, finding or close lands between any two reads of the report and changes it, and
+	// the report as a whole says nothing of whose act that was. A sitting is one seat's, so nothing but
+	// this mint adds to the count while the drive holds it.
+	minted, err := r.mintsRecordedBy(seatID)
+	if err != nil {
+		r.noteActErr("the record could not be read for mintBareSeed's mint: " + err.Error())
+		return
+	}
+	if r.betweenBareMintReadAndAct != nil {
+		r.betweenBareMintReadAndAct(kind)
 	}
 	out, err := r.do("mint", seatID).set("--quote", claim).set("--new", anchor.Token(id)+".").
 		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
 		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the "+kind+" anchor bare").result()
-	// WHAT A REFUSED MINT LEAVES IS READ OFF THE RECORD, NOT THE REPORT: seats sit at once, so another
-	// seat's mint or edit can move the report between the render before and one after, and that read a
-	// refused mint as recorded (seed 16 under load, a sibling's gap marker on the claim). The record holds
-	// a mint of this prescription or it does not.
-	landed := r.mintedFixNew(seatID, anchor.Token(id)+".")
+	mintedAfter, rerr := r.mintsRecordedBy(seatID)
+	if rerr != nil {
+		r.noteActErr("the record could not be read after mintBareSeed's mint: " + rerr.Error())
+		return
+	}
 	refused := false
 	r.mu.Lock()
 	switch {
-	case err == nil || landed:
+	case err == nil || mintedAfter != minted:
 		r.mintBareAdmittedErr = seatID + " minted a prescription leaving " + kind + " anchor " + id + " bare: " + firstLine(out)
 	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(id)) && strings.Contains(out, "standing bare"):
 		refused = true

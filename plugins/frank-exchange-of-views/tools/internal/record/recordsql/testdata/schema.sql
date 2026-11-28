@@ -2009,15 +2009,23 @@ CREATE VIEW "anchor_removal" AS
 --                 sitting the pin, the retirement count and a debt's lapse read as over.
 --
 -- Every term is an id comparison over the rows as they stand.
+--
+-- next_opening is the id of a JOINED ROW, "n", the seat's next opening found once in the join's ON
+-- clause. The planner flattens "opening" into the select below, where a column that is a scalar
+-- subquery is that subquery again at each mention, and next_opening is mentioned three times (itself,
+-- over, sat_through); a joined row is read once and each mention reads its id. A sitting's id is its
+-- opening event's ("sittings"), so the row is an "events" row by primary key, and a seat with no later
+-- opening joins none: next_opening is NULL.
 CREATE VIEW "agent_sitting" AS
 WITH "opening" AS (
   SELECT s."id" AS "sitting_id", s."seat_id" AS "seat_id", e."sitting" AS "sitting", e."epoch" AS "epoch",
          COALESCE(NULLIF(so."agent_id", ''), NULLIF(r."agent_id", '')) AS "agent_id",
-         (SELECT MIN(n."id") FROM "sittings" n WHERE n."seat_id" = s."seat_id" AND n."id" > s."id") AS "next_opening"
+         n."id" AS "next_opening"
   FROM "sittings" s
   JOIN "events" e ON e."id" = s."id"
   LEFT JOIN "sitting_open" so ON so."event_id" = s."id"
   LEFT JOIN "register" r ON r."event_id" = s."id"
+  LEFT JOIN "events" n ON n."id" = (SELECT MIN(x."id") FROM "sittings" x WHERE x."seat_id" = s."seat_id" AND x."id" > s."id")
 )
 SELECT o."sitting_id", o."seat_id", o."sitting", o."epoch", o."agent_id", o."next_opening",
        o."next_opening" IS NOT NULL AS "over",

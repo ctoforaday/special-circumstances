@@ -1,0 +1,2 @@
+QUEUED for antigravity conversation a9e00000-0000-4000-8000-000000000002 in its mailbox (<BRAIN>/a9e00000-0000-4000-8000-000000000002/.system_generated/messages/<MESSAGE-ID>.json); it is read at the start of the conversation's next turn
+  woken: the daemon's language server at <DAEMON-ADDR> was sent a wake, which starts that turn now

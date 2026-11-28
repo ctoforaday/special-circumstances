@@ -55,36 +55,27 @@ telepathy search <term>        search every local transcript: who, when, where, 
 telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip / v_transcript
 telepathy backfill            read the existing corpus in; safe to repeat
 telepathy send <id> <msg>     deliver a message to a Claude Code or Antigravity session
-telepathy link                from an Antigravity shell: make this conversation wakeable by send
+telepathy agy-provision       the human runs it: gives the Antigravity daemon the token send wakes it with
+telepathy agy-wake            systemd runs it at each daemon start: wakes conversations with mail waiting
 ```
 
-`send` reaches a Claude Code session through its inbox socket. On Linux it reaches an Antigravity
-conversation live through one language server, chosen by who holds the conversation
-(`presence/<id>.lock`, or `conversations/<id>.db` open): the recorded, running server that holds it;
-or, when nobody does, the running server it linked to last, then (for conversations under
-`~/.gemini/antigravity-cli`) the current remote-control daemon's server. Before each attempt it
-checks that no other process holds the conversation, and it names the route it took
-(`antigravity-daemon`, `antigravity-server-own`, `antigravity-server-holder`). It moves on to the
-daemon only when its first request could not reach the first server at all. A refusal before any
-handling, in the shapes measured on agy 1.5.18 (a 401 from the CSRF check, a 404 or 405 with no
-Connect error), did not deliver, and the message queues; a server that answers 429 gets up to 3
-requests in all before the message queues. A server that was sent the message and did not confirm
-it (no answer, a dropped connection, any other status or body) may have it, so `send` tries no
-other server, queues nothing, and exits non-zero saying the delivery is unknown. The holder check
-sees only `send`'s own pid namespace and this host's locks: from a container sharing
-Antigravity's data with the host, a holder on the host is invisible, and so is a lock taken on
-another host through a FUSE client of a distributed filesystem; either way `send` can create a
-second writer. Failing live delivery otherwise (and always off Linux, where second-writer safety
-cannot be verified) it queues to the on-disk mailbox,
-read at the conversation's next turn, and prints the cause, when the daemon started and when the
+`send` reaches a Claude Code session through its inbox socket. An Antigravity message always goes
+to the conversation's on-disk mailbox (route `antigravity-mailbox`), which the conversation reads
+at the start of its next turn; the text never travels live, so it cannot arrive twice. On Linux,
+for a conversation under `~/.gemini/antigravity-cli`, `send` then sends the remote-control daemon a
+fixed wake message ("You have queued messages.") that starts that turn now, once it finds no process
+but the daemon holding the conversation (`presence/<id>.lock`, or `conversations/<id>.db` open): a
+language server sent a message for a conversation another process holds adopts it, and the two then
+write it at once. The daemon's token reaches no hook, MCP server or agent shell, so the daemon gets
+it from `$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env`, which the human provisions with
+`telepathy agy-provision` (a systemd drop-in, and a restart that ends every running turn). The
+same drop-in runs `telepathy agy-wake` after each daemon start, which wakes every conversation with
+mail waiting. A message not woken prints the cause, when the daemon started and when the
 conversation last recorded a step; `telepathy agents` lists every conversation with mail its client
-has not read. The server's token exists only in an Antigravity agent's shell, so `telepathy link`
-(and any other verb) run from one records that server keyed by server (PID and start time, or
-address), storing port and token and each conversation's last link time in
-`$XDG_RUNTIME_DIR/gray-area/antigravity-servers` (0700, each record 0600, gone at logout). Every
-verb deletes the records of servers that are gone. On Linux, linking any one daemon-hosted
-conversation restores live wake for every idle conversation under the CLI daemon root (a standalone
-interactive `agy` does not).
+has not read. The holder check sees only `send`'s own pid namespace and this host's locks: from a
+container sharing Antigravity's data with the host, a holder on the host is invisible, and so is a
+lock taken on another host through a FUSE client of a distributed filesystem; either way a wake can
+create a second writer.
 
 Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
 `--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own

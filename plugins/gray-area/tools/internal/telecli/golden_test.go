@@ -297,7 +297,7 @@ func TestGoldenOutput(t *testing.T) {
 // leaves every verb working and every caller worse informed, and no functional test would notice.
 func TestGoldenHelp(t *testing.T) {
 	h := newHarness(t)
-	for _, name := range []string{"", "agents", "session", "touched", "search", "sql", "backfill", "send", "link"} {
+	for _, name := range []string{"", "agents", "session", "touched", "search", "sql", "backfill", "send", "agy-provision", "agy-wake"} {
 		label := "help-root"
 		args := []string{"--help"}
 		if name != "" {

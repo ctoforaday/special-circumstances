@@ -64,6 +64,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST_HOME="$HOME"
 HOST_XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOST_HOME/.cache}"
 HOST_XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
+HOST_XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOST_HOME/.config}"
 WORKDIR="${WORKDIR:-$HOST_HOME/.claude/scratch/universe}"
 MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
@@ -261,9 +262,8 @@ guard_no_live_run() {
 # THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these.
 universe_env() {
   export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
-  # A runtime directory of its own, for both harnesses: telepathy keeps Antigravity server records
-  # under $XDG_RUNTIME_DIR and every verb prunes the ones whose server is gone, so a universe run on
-  # the host's runtime directory would prune the host's records with a checkout-built binary.
+  # A runtime directory of its own, for both harnesses: Claude Code's inbox sockets live under
+  # $XDG_RUNTIME_DIR, and so does the host's systemd user bus, which a universe must not reach.
   export XDG_RUNTIME_DIR="$WORKDIR/run"
   mkdir -p "$XDG_RUNTIME_DIR"
   chmod 700 "$XDG_RUNTIME_DIR"
@@ -278,6 +278,19 @@ universe_env() {
   export CLAUDE_CONFIG_DIR="$WORKDIR/config"
   export CLAUDE_CODE_PLUGIN_CACHE_DIR="$WORKDIR/plugins"
   mkdir -p "$CLAUDE_CONFIG_DIR" "$CLAUDE_CODE_PLUGIN_CACHE_DIR"
+  # The host's configuration without the Antigravity daemon's token file (gray-area/) and the
+  # systemd units: a checkout-built telepathy in the universe never wakes the host daemon's
+  # conversations, while gh, git and the rest keep the host's configuration.
+  export XDG_CONFIG_HOME="$WORKDIR/xdg-config"
+  mkdir -p "$XDG_CONFIG_HOME"
+  find "$XDG_CONFIG_HOME" -mindepth 1 -maxdepth 1 -type l -delete
+  for entry in "$HOST_XDG_CONFIG_HOME"/* "$HOST_XDG_CONFIG_HOME"/.[!.]*; do
+    [ -e "$entry" ] || continue
+    case "${entry##*/}" in gray-area|systemd) continue ;; esac
+    # Something the universe made there itself is kept: ln -s onto a directory would link inside it.
+    { [ -e "$XDG_CONFIG_HOME/${entry##*/}" ] || [ -L "$XDG_CONFIG_HOME/${entry##*/}" ]; } && continue
+    ln -s "$entry" "$XDG_CONFIG_HOME/${entry##*/}"
+  done
   # No credential file in the universe, link or copy: one would be a refresh token it could rotate.
   rm -f "$CLAUDE_CONFIG_DIR/.credentials.json"
 }

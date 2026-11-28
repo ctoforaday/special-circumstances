@@ -140,16 +140,17 @@ func readEvents(t *testing.T, path string) []eventLine {
 	return out
 }
 
-// TestLiveAntigravityEventContract locks the agy behaviour gray-area's telepathy link rests on. Each
+// TestLiveAntigravityEventContract locks the agy behaviour gray-area's hooks rest on. Each
 // assertion is a fact a design decision depends on; when agy changes one, this fails and names it.
 //
 //   - SessionStart fires once for a new conversation and NOT when a conversation resumes on a new
-//     language server — so a stale link can only be noticed from PreInvocation.
+//     language server — so a stale hook binary can only be healed from PreInvocation.
 //   - PreInvocation fires before every model step, invocationNum counting from 0 and restarting at 0
 //     on each turn — so "the turn's first step" is invocationNum 0.
 //   - An injected ephemeralMessage is acted on — so a hook can ASK for a command.
 //   - A hook process receives no language-server address or token, while the agent's shell gets
-//     both — so only a command the agent runs can record a link.
+//     both — so no hook can wake a conversation, and the daemon's token is provisioned instead
+//     (telepathy agy-provision).
 func TestLiveAntigravityEventContract(t *testing.T) {
 	w := newAgyWorld(t)
 	probe := filepath.Join(w.home, ".gemini", "config", "plugins", "eventlog", "bin", "eventlog")
@@ -221,7 +222,7 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 		}
 		for _, secret := range []string{"ANTIGRAVITY_CSRF_TOKEN", "ANTIGRAVITY_LS_ADDRESS"} {
 			if slices.Contains(l.EnvNames, secret) {
-				t.Errorf("%s hook received %s: a hook can now record a link itself, and telepathy link's design should change", l.Event, secret)
+				t.Errorf("%s hook received %s: a hook can now reach the language server, and telepathy agy-provision's reason should be revisited", l.Event, secret)
 			}
 		}
 	}
@@ -249,7 +250,7 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	}
 	for _, name := range []string{"ANTIGRAVITY_CSRF_TOKEN", "ANTIGRAVITY_LS_ADDRESS", "ANTIGRAVITY_CONVERSATION_ID"} {
 		if !strings.Contains(tr, name) {
-			t.Errorf("the agent's shell did not list %s; telepathy link reads it there\n%s", name, out)
+			t.Errorf("the agent's shell did not list %s, which this test records as agy's behaviour\n%s", name, out)
 		}
 	}
 
@@ -262,7 +263,7 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	invs = nil
 	for _, l := range second {
 		if l.Event == "SessionStart" {
-			t.Errorf("SessionStart fired on resume; a stale link could then be caught there instead of on PreInvocation")
+			t.Errorf("SessionStart fired on resume; the hook binaries' version check could then run there instead of on PreInvocation")
 		}
 		if l.Event == "PreInvocation" && l.InvocationNum != nil {
 			invs = append(invs, *l.InvocationNum)
