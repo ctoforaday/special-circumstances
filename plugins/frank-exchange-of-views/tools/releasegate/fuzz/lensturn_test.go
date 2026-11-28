@@ -77,8 +77,13 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts, changes
 				about[m.GetAboutRef()] = append(about[m.GetAboutRef()], m.GetGapId())
 			}
 		}
+		// THE RAISER'S REGRADE AND ITS AMEND ARE ITS ACTS ON THE GAP (§III.B3: the amend is the author's
+		// turn), and the minter's naming a gap about its gap is its act there.
 		if b, ok := recordpb.BodyAs[*recordpb.Regrade](e); ok {
-			add(seat, i, b.GetGapId())
+			add(seat, i, b.GetGapId(), b.GetAnswers())
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Amend](e); ok {
+			add(seat, i, b.GetGapId(), b.GetAnswers())
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
 			add(seat, i, b.GetGapId())

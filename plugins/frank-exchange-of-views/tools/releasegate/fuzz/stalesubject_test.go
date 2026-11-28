@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"slices"
 	"strings"
 
@@ -62,7 +63,11 @@ func (r *runner) staleOnASubject(seatID string) {
 	if err != nil || g2 == "" {
 		return
 	}
-	if _, err := r.exec("amend", "--seat-id", minter, "--id", g, "--acceptance-check", "fuzz: the check for "+g+", restated beside "+g2,
+	// THE AMEND IS THE MINTER'S ANSWER ON G2 (§III.B0's gap row): it restates G's wording and names G2.
+	// A seat records one amend of a gap a sitting, so this one carries every wording flag it answers with.
+	if _, err := r.exec("amend", "--seat-id", minter, "--id", g, "--answers", g2,
+		"--acceptance-check", "fuzz: the check for "+g+", restated beside "+g2,
+		"--problem", "The sentence overstates what its source supports.", "--required-fix", "State only what the source supports.",
 		"--reason", "amend-basis-for-"+g); err != nil {
 		return
 	}
@@ -70,4 +75,30 @@ func (r *runner) staleOnASubject(seatID string) {
 	r.staleOnSubject = true
 	r.mu.Unlock()
 	r.admitFresh(g2, "regrade", "--seat-id", seatID, "--id", g2, "--complexity", "medium", "--reason", "regrade-basis-for-"+g2)
+	r.minterAnswers(minter, g, g2)
+}
+
+// minterAnswers is G's minter's regrade of G naming G2, the gap on G (plans/findings-fold.md §III.B0's
+// gap row): with the amend above, the author's answers on G2. Its outcome is the draw's, as G may have
+// been docketed or closed since.
+func (r *runner) minterAnswers(minter, g, g2 string) {
+	args := []string{"regrade", "--seat-id", minter, "--id", g, "--answers", g2, "--complexity", "medium", "--reason", "regrade-answers-" + g2}
+	noteEither(args, "the minter's regrade answering a gap on its gap, after the stale drive", r.drawnFresh(g, args...))
+}
+
+// drawnFresh is admitFresh for an act whose outcome is the draw's: a stale refusal that moved the
+// seat's read point is recorded again, as admitFresh records it; any other refusal is the record's
+// call, reported, never the run's failure.
+func (r *runner) drawnFresh(gapID string, args ...string) bool {
+	seatID := seatOfArgs(args)
+	for {
+		before := r.readPointOf(seatID, gapID)
+		out, err := r.exec(withJSON(args)...)
+		if err == nil {
+			return true
+		}
+		if env, ok := refusalEnvelopeIn(out); !ok || env.Code != string(feov.Conflict) || !r.staleMoved(seatID, gapID, before) {
+			return false
+		}
+	}
 }

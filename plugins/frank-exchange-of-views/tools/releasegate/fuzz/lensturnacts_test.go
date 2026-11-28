@@ -11,7 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE LENS-TURN ORACLE READS BLUE'S EVIDENCE ACTS ON A GAP (actsOnGaps): a citation placed as its
+// THE LENS-TURN ORACLE READS BLUE'S EVIDENCE ACTS ON A GAP, AND THE RAISER'S AMEND (actsOnGaps): a citation placed as its
 // answer, a lens's reading of that citation, and a retire or a pure cut that reaches it — through the
 // anchor the gap is about, or a reading the gap carries — naming no gap; and a cut that took the gap's
 // own marker (F21). Without them the oracle fails every plan that engages a lens a reaching retire or
@@ -32,6 +32,10 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		recordtest.At(t, lens, "", mint("G8", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "K-8")),
 		recordtest.At(t, lens, "", mint("G9", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")),
 		recordtest.At(t, blue, "", &recordpb.BlueEdit{Old: proto.String("A cut sentence."), New: proto.String(""), RemovedAnchors: []string{"K-8", "G9"}}),
+		recordtest.At(t, lens, "", &recordpb.Amend{GapId: proto.String("G1"), Problem: proto.String("restated")}),
+		recordtest.At(t, "red-lens-logic", "", mint("G4", recordpb.AboutKind_ABOUT_KIND_GAP, "G3")),
+		recordtest.At(t, lens, "", &recordpb.Amend{GapId: proto.String("G3"), Answers: proto.String("G4"), Problem: proto.String("restated")}),
+		recordtest.At(t, lens, "", &recordpb.Regrade{GapId: proto.String("G3"), Answers: proto.String("G4")}),
 	}
 	acts, changes, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
 	for _, w := range []struct {
@@ -45,6 +49,11 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		{"a retire of the anchor of a reading it carries", "G3", blue, 6, true},
 		{"a cut taking the anchor it is about", "G8", blue, 9, true},
 		{"a cut taking its own marker", "G9", blue, 9, true},
+		// THE RAISER'S AMEND IS ITS ACT ON THE GAP (§III.B3): seed 6's lens amended its gap, and the oracle,
+		// reading the mint as the lens's last act, held a plan that awaited blue's answer to the amend.
+		{"the raiser's amend", "G1", lens, 10, false},
+		{"the minter's amend naming a gap about its gap", "G4", lens, 12, false},
+		{"the minter's regrade naming a gap about its gap", "G4", lens, 13, false},
 	} {
 		in, other := acts, changes
 		if w.change {
