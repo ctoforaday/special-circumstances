@@ -683,13 +683,6 @@ func debateMD(in Input) []byte {
 				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
 			}
 		}
-		// THE REPORT TEXT DELIVERED TO A SEAT: the bench reads which seat had a delivery completed at
-		// which head. The tool cannot see a read, so the line says what it handed.
-		for _, l := range re {
-			if l.GetType() == recordpb.EventType_EVENT_TYPE_REPORT_READ {
-				parts = append(parts, in.At.DeliveryLine(l))
-			}
-		}
 		for _, l := range blueClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
