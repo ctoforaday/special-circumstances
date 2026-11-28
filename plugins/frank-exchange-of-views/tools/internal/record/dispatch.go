@@ -488,10 +488,9 @@ func foldPlan(params Params, r planReads) Plan {
 	// through after the filing — and the assignee may accept the proposal there; it is its closing
 	// sitting too, since a PROPOSAL docketing's span opens at the filing (L30), so blue is readied for its
 	// closing alongside. Once the assignee has sat through it, the proposal unaccepted, or where the
-	// assignee is no lens the cast seats and owes no closing (F6), the plan dockets it. A proposal on a
-	// closed gap (F8) takes the same window; its docketing readies the bench with no closing awaited, as
-	// a closed gap owes none (closingBlockersOf).
-	onProposal := func(gapID, assignee, motion string, filed int64, open bool) {
+	// assignee is no lens the cast seats and owes no closing (F6), the plan dockets it. A proposal stands
+	// only on an open gap: none is filed on a closed one, and the gap's close ends it (concessions).
+	onProposal := func(gapID, assignee, motion string, filed int64) {
 		m := proposals[motion]
 		_, party := closingPartiesOf(r.cast, assignee)
 		_, sat := firstAfter(ends.through[assignee], filed)
@@ -509,10 +508,6 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		docket(docketingEntry{gapID: gapID, cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, motionID: motion, basis: proposalBasis(m, gapID, assignee)},
 			fmt.Sprintf("%s: proposal %s was not accepted by its assignee %s in its window — docketed for the bench", gapID, motion, assignee))
-		if !open {
-			benchReady[gapID] = fmt.Sprintf("%s: proposal %s's docketing on a gap no longer open owes no closing — the bench is ready", gapID, motion)
-			return
-		}
 		awaited, missing := closingsOf(rows)
 		awaitClosings(gapID, awaited, missing)
 	}
@@ -553,7 +548,7 @@ func foldPlan(params Params, r planReads) Plan {
 		// A PROPOSAL IN ITS ASSIGNEE'S WINDOW OUTRANKS IMPASSE AND GRADE MOVEMENT (L28).
 		case routeProposal:
 			stated[g.unruledMotion] = true
-			onProposal(g.id, g.assignee, g.unruledMotion, g.unruledFiled, true)
+			onProposal(g.id, g.assignee, g.unruledMotion, g.unruledFiled)
 		case routeNobody:
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
 		case routeDebate:
@@ -715,25 +710,6 @@ func foldPlan(params Params, r planReads) Plan {
 	}
 	for _, b := range blockers {
 		switch {
-		// A DOCKETING OR A PROPOSAL ON A CLOSED GAP (F8: a proposed successor of a closed gap) takes the
-		// open gap's route: the proposal its assignee's window, then its docketing; the docketing the
-		// bench, once per docketing (benchSatFor). On an open gap the gap's own reason above has said it.
-		case b.Kind == BlockerDocketed:
-			if stated[b.Detail] {
-				continue
-			}
-			stated[b.Detail] = true
-			if benchSatFor(dispatches, benchOn, b.About, b.since) {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open, and the bench has sat since it was written — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Detail))
-				continue
-			}
-			benchReady[b.About] = fmt.Sprintf("%s: docketing %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Detail)
-		case b.Kind == BlockerUnruledMotion && b.motionSubject == "docket":
-			if stated[b.Subject] {
-				continue
-			}
-			stated[b.Subject] = true
-			onProposal(b.About, b.Owner, b.Subject, b.since, false)
 		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
 			if stated[b.Subject] {
 				continue
@@ -823,7 +799,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its spot-check of the stale areas). A
 	// blocker another seat must clear —
-	// an unruled petition, a docket motion on a gap that has since closed, a citation or computation
+	// an unruled petition, a citation or computation
 	// with no check of its sentence as it stands, an inquiry open or unchecked — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
 	// cannot clear (#1202).

@@ -546,8 +546,8 @@ var blockerKinds = []blockerKind{
 	},
 	// A DOCKETING IS THE BENCH'S UNTIL IT RULES IT (§III.B13). The tool wrote it — at impasse, for the
 	// board's grade movement, or for a proposal its assignee did not accept — and the bench answers it,
-	// once; a Close of the gap after it ends it unruled. The plan states the gap's readiness on its own
-	// route, so the kind has no plan line of its own beyond a docketing on a closed gap.
+	// once; a Close of the gap after it ends it unruled, so a docketing stands only on an open gap, and
+	// the plan states its readiness on the gap's own route.
 	{
 		kind:    BlockerDocketed,
 		subject: SubjectGap,

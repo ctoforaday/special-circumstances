@@ -135,8 +135,8 @@ func concessions(evs []*Event, f func(i int, c concession)) {
 // places by stream position. A ruling names its docketing by id (one per docketing: the column is
 // UNIQUE), so the first is the one that stands. An act ends a docketing when it is written after the
 // docketing's row (concessions): a Close when it is no carry (L42: a carry restates an earlier
-// epoch's closure and answers nothing), so a docketing on a gap closed before it (F8) stands; a
-// party's concession; an amend of its gap, but at grade movement, whose question is the grades.
+// epoch's closure and answers nothing); a party's concession; an amend of its gap, but at grade
+// movement, whose question is the grades.
 func docketingsAt(evs []*Event, seq []int64) []*Docketing {
 	byID := map[string]*Docketing{}
 	var order []*Docketing
