@@ -1986,6 +1986,59 @@ func (r *runner) aVerbatimGap(seatID string) (gapID, fixNew, miss string) {
 	return "", "", "every prescription that still estops has lost its words: its gap's token left with a retire, so no edit of the sentence names it reopened, and an edit since swapped the applied text away"
 }
 
+// verbatimLast is open with one gap moved to the end — the last of them blue's sitting can apply
+// verbatim, a gap of the APPLY scenario whose mint prescribes a pair — and that gap, or "" for none.
+//
+// THE ESTOPPEL RUN'S VERBATIM APPLY IS ITS SITTING'S LAST CHANGE TO THE SENTENCE. Every gap of that run
+// prescribes a swap of the one cost sentence, and any later edit of it lists the applied gap reopened,
+// which ends its estoppel (F12) before the prescribing lens sits: the next gap's apply, or its
+// counter-edit where the swap took its span. The estoppel binds that lens alone (X11), so whether the
+// sweep drove an estoppel turned on which edit the sitting made last (CI run 46094143286: seed 2,
+// estoppels=0). Every gap is still answered in the sitting: one the drive left for a later sitting is
+// one its lens can close on another gap's edit before blue answers it, which the APPLY oracle fails.
+func (r *runner) verbatimLast(open []string) ([]string, string) {
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return open, ""
+	}
+	last := ""
+	for _, id := range open {
+		if r.scenarioOf(id) == dirApply {
+			if gid, _, _ := r.proposalFor(id, cur); gid != "" {
+				last = id
+			}
+		}
+	}
+	if last == "" {
+		return open, ""
+	}
+	out := slices.DeleteFunc(slices.Clone(open), func(id string) bool { return id == last })
+	return append(out, last), last
+}
+
+// swapToProposal is blue's edit of the cost sentence to the phrasing gapID's prescription quotes, where
+// the sitting's earlier edits swapped it away: an edit answering no gap, as the drawn edit makes one, so
+// the verbatim apply that follows stands as the sitting's last change (verbatimLast).
+func (r *runner) swapToProposal(seatID, gapID string) {
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		return
+	}
+	g := fam.Gap(gapID)
+	cur, err := record.RenderRun(r.run())
+	if err != nil || g == nil || g.Mint == nil {
+		return
+	}
+	want := plainText(g.Mint.GetLocation())
+	for _, pair := range [][2]string{{"rising over time", "climbing sharply"}, {"climbing sharply", "rising over time"}} {
+		if strings.Contains(want, pair[1]) && !strings.Contains(string(cur), pair[1]) && strings.Contains(string(cur), pair[0]) {
+			r.do("edit", seatID).set("--quote", pair[0]).set("--new", pair[1]).
+				set("--reason", "fuzz: the cost sentence back to the phrasing a prescription quotes").admit()
+			return
+		}
+	}
+}
+
 // isVerbatimGap reports whether blue applied gapID's prescription verbatim in this run.
 func (r *runner) isVerbatimGap(gapID string) bool {
 	r.mu.Lock()
@@ -10136,6 +10189,10 @@ func (r *runner) scenarioOf(gapID string) string {
 // blueRespondTo carries out the scenario each open gap was minted with — one decision per gap,
 // taken from the gap rather than from a coin, which is what makes the terminal state assertable.
 func (r *runner) blueRespondTo(seatID string, open []string) {
+	last := ""
+	if r.forceEstoppel {
+		open, last = r.verbatimLast(open)
+	}
 	for _, id := range open {
 		switch r.scenarioOf(id) {
 		case dirApply:
@@ -10146,6 +10203,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// able to say whether the branch was never taken, took and found no proposal, took
 			// and found the span already edited away, or ran and was REFUSED. Four causes, one
 			// zero — the plausible-zero shape, in the instrument meant to detect it.
+			if id == last {
+				r.swapToProposal(seatID, id)
+			}
 			cur, err := record.RenderRun(r.run())
 			gid, fo, fn := r.proposalFor(id, cur)
 			switch {
