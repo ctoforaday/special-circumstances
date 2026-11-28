@@ -17,6 +17,7 @@ const (
 	engCarried = "G-0a000001" // dispatched to blue and its lens this epoch
 	engLate    = "G-0a000002" // minted by the lens after the dispatch, before blue sits
 	engOnGap   = "G-0a000003" // a gap about engCarried, minted after the dispatch: its author is the lens
+	engLate2   = "G-0a000004" // a second gap the lens mints after the dispatch
 )
 
 // more continues a seeded stage: the next events seed onto the same record, after any live write.
@@ -30,14 +31,14 @@ func (b *stage) storedPlanAt(epoch, limit int) *stage {
 }
 
 // lateGapEpoch is one epoch up to blue's first sitting: the chair stores its plan for epoch under
-// limit and dispatches the lens and blue on engCarried; the lens mints engLate and engOnGap (about
+// limit and dispatches the lens and blue on engCarried; the lens mints engLate, engOnGap (about
 // engCarried), closing engCarried where closes says; blue registers.
 func lateGapEpoch(t *testing.T, epoch, limit int, closes bool) (*stage, Run) {
 	t.Helper()
 	b := newStage(t).cast(engLens, engOther, "red-chair", blueSeatID, "judge").ingest().
 		bracket(engLens, "lens-0").mint(engLens, engCarried, "high").stop("lens-0").
 		bracket("red-chair", "chair-a").storedPlanAt(epoch, limit).dispatch(2, engLens, engCarried).dispatch(2, blueSeatID, engCarried).stop("chair-a").
-		bracket(engLens, "lens-a").mint(engLens, engLate, "high").mintOnGap(engOther, engOnGap, engCarried)
+		bracket(engLens, "lens-a").mint(engLens, engLate, "high").mintOnGap(engOther, engOnGap, engCarried).mint(engLens, engLate2, "high")
 	if closes {
 		b = b.closeGap(engLens, engCarried)
 	}
@@ -80,19 +81,22 @@ func TestBlueSitsAgainOnlyWhereNoLaterSittingAnswers(t *testing.T) {
 		t.Run(map[bool]string{false: "nothing found closed", true: "its engaged gap found closed"}[closes], func(t *testing.T) {
 			_, run := lateGapEpoch(t, 4, 6, closes)
 			w := workOfBlue(t, run)
-			if w.Engaged == nil || strings.Join(w.Engaged.Owed, ",") != engLate {
-				t.Fatalf("engaged = %+v, want owed exactly %s (not the gap about a gap, not the dispatched gap)", w.Engaged, engLate)
+			if w.Engaged == nil || strings.Join(w.Engaged.Owed, ",") != engLate+","+engLate2 {
+				t.Fatalf("engaged = %+v, want owed exactly %s,%s (not the gap about a gap, not the dispatched gap)", w.Engaged, engLate, engLate2)
 			}
 			if !blocking(w, "record `engage`") {
 				t.Errorf("the owed engagement does not block the work list: %+v", w.Sitting.Open)
 			}
-			if err := engage(t, run, engLate, engOnGap); err == nil || !strings.Contains(err.Error(), engOnGap+" is not owed") {
+			if err := engage(t, run, engLate, engLate2, engOnGap); err == nil || !strings.Contains(err.Error(), engOnGap+" is not owed") {
 				t.Errorf("engage naming a gap about a gap = %v, want refused naming it", err)
 			}
 			if err := engage(t, run, engCarried); err == nil || !strings.Contains(err.Error(), engCarried+" is not owed") {
 				t.Errorf("engage naming the dispatched gap = %v, want refused naming it", err)
 			}
-			if err := engage(t, run, engLate); err != nil {
+			if err := engage(t, run, engLate); err == nil || !strings.Contains(err.Error(), "leaves out "+engLate2) {
+				t.Errorf("engage naming part of the owed set = %v, want refused naming %s", err, engLate2)
+			}
+			if err := engage(t, run, engLate, engLate2); err != nil {
 				t.Fatalf("engage naming exactly the owed set: %v", err)
 			}
 			w = workOfBlue(t, run)

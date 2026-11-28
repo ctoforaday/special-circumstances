@@ -166,8 +166,9 @@ func requiredProbes() map[string]requiredProbe {
 	// occasion the bench alone is asked for.
 	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}
 	probes["blue register"] = requiredProbe{seat: "blue-respond", args: fixed("register")}
-	// engage runs clean only in a sitting that found an engaged gap closed with an open successor,
-	// which the act fixture does not stage; the record's tests drive it whole (successor_test.go).
+	// engage runs clean only in the last epoch blue answers in, on a gap of blue's minted after its
+	// dispatch, which the act fixture does not stage; the record's tests drive it whole
+	// (engagement_test.go).
 	// The bench rules the chair's position where the chair withheld a PASS its plan permitted.
 	probes["motion position rule"] = requiredProbe{seat: "judge",
 		setup: func(t *testing.T, runDir string) actVars { return actVars{"id": heardPosition(t, runDir)} },

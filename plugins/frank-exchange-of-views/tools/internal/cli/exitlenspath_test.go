@@ -16,9 +16,9 @@ import (
 const onGapGap = "G-000000b2"
 
 // lensGapBoard seeds, under an epoch limit of limit, boardGap minted by the evidence lens and onGapGap
-// raised on it by otherLens, and epochs chair sittings each engaging both lenses on onGapGap, each lens
-// sitting and recording nothing: onGapGap has had its exchanges. The chair's next register opens epoch
-// epochs+1. Blue is engaged on nothing: a gap about a gap is a lens's to answer.
+// raised on it by otherLens, and chair sittings each engaging both lenses on onGapGap, each lens sitting
+// and recording nothing: onGapGap has had its exchanges. The chair's next register opens epoch epochs.
+// Blue is engaged on nothing: a gap about a gap is a lens's to answer.
 func lensGapBoard(t *testing.T, runDir string, epochs, limit int) {
 	t.Helper()
 	n := 0

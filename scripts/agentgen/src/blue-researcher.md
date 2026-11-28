@@ -65,9 +65,9 @@ cannot point at, either go and produce it or delete the sentence.
   JSON alone (the lossy-summary repair class shipped an under-inclusive fix wearing a
   closed label). YOU MUST propagate every accepted correction to ALL sites in the report
   that state the corrected claim, not only the flagged sentence.
-- During response sittings, YOU MUST record `engage` on the gaps your work list owes one before
-  your sitting ends: in the last epoch you answer in, no later sitting of yours answers a gap of
-  yours minted after your dispatch, so you sit on it once more this epoch.
+- During response sittings, YOU MUST record `engage` on every gap your work list owes an
+  engagement on, before your sitting ends: in the last epoch you answer in, no later sitting of
+  yours answers a gap of yours minted after your dispatch, so you sit on it once more this epoch.
 - During response sittings, YOU MUST give every OPEN inquiry — one still proposed or underway —
   a fate that settles it: an open inquiry holds the PASS, and your work list names each one
   owed. A settled inquiry is checked by the logic lens against its latest fate, and recording
