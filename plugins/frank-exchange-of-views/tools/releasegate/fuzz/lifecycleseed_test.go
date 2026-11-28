@@ -856,12 +856,14 @@ func (r *runner) lifecycleCitedCut(blue, claim, next string) string {
 	if q == "" {
 		return why
 	}
-	before, _ := record.RenderRun(r.run())
+	// A REFUSED CUT RECORDS NOTHING, read off the record: lenses sit beside blue, so the report can move
+	// under the cut by another seat's act.
+	prior := r.editsRecorded(blue, "")
 	if !refusedNaming("edit", "--seat-id", blue, "--quote", q, "--new", "", "--reason", "fuzz: the claim cannot stand") {
 		return "the pure cut of the eleventh claim, taking " + cite + " while " + k + " on another sentence applies it, was not refused naming it"
 	}
-	if after, _ := record.RenderRun(r.run()); after != before {
-		return "the refused cut of the eleventh claim changed the report"
+	if r.editsRecorded(blue, "") > prior {
+		return "the refused cut of the eleventh claim was recorded"
 	}
 	r.countLifecycle(func(c *lifecycleCounts) { c.citedCutsRefused++ })
 	if !r.lifecycleRetire(blue, k, "") {

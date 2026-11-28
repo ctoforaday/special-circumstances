@@ -1074,12 +1074,15 @@ func (r *runner) orderRefused(seatID string) {
 	if r.coin(50) {
 		text = "Whether the trend outlasts the sample.\n\n## TL;DR\n\nA summary at the end"
 	}
+	// WHETHER THE REFUSED EDIT WAS RECORDED IS READ OFF THE RECORD: seats sit at once, so the report can
+	// move under the edit by another seat's act (mintedFixNew).
+	prior := r.editsRecorded(seatID, text)
 	out, err := r.exec("edit", "--seat-id", seatID, "--quote", "Whether the trend outlasts the sample", "--new", text, "--reason", "fuzz: a section out of order")
-	after, _ := record.RenderRun(r.run())
+	recorded := r.editsRecorded(seatID, text) > prior
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
-	case err == nil || after != before:
+	case err == nil || recorded:
 		if r.orderAdmittedErr == "" {
 			r.orderAdmittedErr = seatID + " put a section out of order and the edit was recorded: " + firstLine(out)
 		}
@@ -3774,10 +3777,11 @@ func (r *runner) cutEvidencedClaim(seatID string) {
 		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", "Whether the forced claim holds."),
 		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run),
 	} {
+		dropped := drop.args[slices.Index(drop.args, "--new")+1]
+		prior := r.editsRecorded(seatID, dropped)
 		out, err := drop.set("--reason", "fuzz: the claim is reworded").result()
-		after, _ := record.RenderRun(r.run())
 		switch {
-		case err == nil || after != before:
+		case err == nil || r.editsRecorded(seatID, dropped) > prior:
 			fail(seatID + " dropped computation " + k + "'s anchor from its sentence, or left it on no words, and the edit was recorded: " + firstLine(out))
 		case !strings.Contains(out, k):
 			fail(seatID + "'s rewrite dropping computation " + k + " was refused without naming it: " + firstLine(out))
@@ -4055,6 +4059,35 @@ func (r *runner) mintBaringCitation(seatID string) {
 	}
 }
 
+// mintedFixNew reports whether the record holds a mint of seatID's prescribing fixNew.
+func (r *runner) mintedFixNew(seatID, fixNew string) bool {
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	for _, e := range b.Events {
+		if m, isM := recordpb.BodyAs[*recordpb.Mint](e); isM && e.GetSeatId() == seatID && m.GetFixNew() == fixNew {
+			return true
+		}
+	}
+	return false
+}
+
+// editsRecorded is how many edits of seatID the record holds that write newText.
+func (r *runner) editsRecorded(seatID, newText string) int {
+	b, ok := r.board()
+	if !ok {
+		return 0
+	}
+	n := 0
+	for _, e := range b.Events {
+		if ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](e); isE && e.GetSeatId() == seatID && ed.GetNew() == newText {
+			n++
+		}
+	}
+	return n
+}
+
 // mintBareAnchor is the anchor of kind standing at the end of its mintBareClaim sentence, or "".
 func mintBareAnchor(md, kind string) string {
 	for _, id := range anchor.IDs(abuttingRun(md, mintBareClaim(kind))) {
@@ -4105,11 +4138,15 @@ func (r *runner) mintBaringKind(seatID, kind string) {
 		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
 		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the "+kind+" anchor bare").result()
-	after, _ := record.RenderRun(r.run())
+	// WHAT A REFUSED MINT LEAVES IS READ OFF THE RECORD, NOT THE REPORT: seats sit at once, so another
+	// seat's mint or edit can move the report between the render before and one after, and that read a
+	// refused mint as recorded (seed 16 under load, a sibling's gap marker on the claim). The record holds
+	// a mint of this prescription or it does not.
+	landed := r.mintedFixNew(seatID, anchor.Token(id)+".")
 	refused := false
 	r.mu.Lock()
 	switch {
-	case err == nil || after != before:
+	case err == nil || landed:
 		r.mintBareAdmittedErr = seatID + " minted a prescription leaving " + kind + " anchor " + id + " bare: " + firstLine(out)
 	case strings.Contains(out, "--new would leave anchor") && strings.Contains(out, anchor.Token(id)) && strings.Contains(out, "standing bare"):
 		refused = true
