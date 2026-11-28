@@ -107,3 +107,48 @@ func TestTheBarePrescriptionSeedCountsItsRefusal(t *testing.T) {
 		t.Errorf("the seed's gap %q: minted by %q, open %v; want %s's, closed", g, r.minter[g], slices.Contains(r.openGaps(), g), citationOwner)
 	}
 }
+
+// A SIBLING LENS'S WRITE INSIDE THE BARE PRESCRIPTION'S WINDOW IS NOT THE LENS'S MINT: the lenses of an
+// epoch sit at once, and between the drive's read of the record and its refused mint a sibling mints a
+// gap on another sentence, for every anchor kind. The report changes under the drive each time, and the
+// refusal is still counted as the refusal it is — the drive reads what its own seat recorded
+// (mintsRecordedBy), which a sibling's act leaves alone.
+func TestASiblingsWriteDuringTheBarePrescriptionLeavesItsRefusalCounted(t *testing.T) {
+	const sibling = "red-lens-voice"
+	r := stagedLifecycleRunner(t)
+	r.forceMintBare = true
+	r.citeForBareMint("blue-respond")
+	if !r.openSitting(citationOwner) || !r.openSitting(sibling) {
+		t.Fatalf("the register of %s or %s was refused", citationOwner, sibling)
+	}
+	// One sentence of the staged report per window: a gap of one class stands once on a sentence.
+	claims := []string{"A § fuzz sentence to anchor findings", "The cost is rising over time across the whole sampled corpus",
+		"Across the sampled corpus the rise holds in every year measured", "The sample closed with costs rising steeply"}
+	var windows []string
+	r.betweenBareMintReadAndAct = func(kind string) {
+		if len(windows) == len(claims) {
+			t.Fatalf("a window for the %s anchor after %v: more windows than sentences to mint on", kind, windows)
+		}
+		before, err := record.RenderRun(r.run())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, why := r.lifecycleMint(sibling, "document", claims[len(windows)], "", "low"); g == "" {
+			t.Fatalf("the sibling's mint in the %s anchor's window was refused: %s", kind, why)
+		}
+		if after, err := record.RenderRun(r.run()); err != nil || after == before {
+			t.Fatalf("the sibling's mint in the %s anchor's window left the report as it stood (%v): the window holds no change to misread", kind, err)
+		}
+		windows = append(windows, kind)
+	}
+	r.mintBaringCitation(citationOwner)
+	if !slices.Equal(windows, anchor.Kinds()) {
+		t.Fatalf("the sibling wrote in the windows of %v, want one per kind %v", windows, anchor.Kinds())
+	}
+	if r.mintBareAdmittedErr != "" || r.mintBareOther != "" || r.actErr != "" {
+		t.Fatalf("the bare prescription beside a sibling's write: admitted %q, other %q, act %q; want none", r.mintBareAdmittedErr, r.mintBareOther, r.actErr)
+	}
+	if r.mintBareRefused != len(anchor.Kinds()) {
+		t.Errorf("the bare prescription beside a sibling's write: %d refusal(s) counted, want one per kind (%d)", r.mintBareRefused, len(anchor.Kinds()))
+	}
+}
