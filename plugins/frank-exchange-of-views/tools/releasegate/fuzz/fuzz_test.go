@@ -6854,6 +6854,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// AXIS, not three of four: --complexity is spelled by its flag here.
 				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
 				// drives the move, to be refused).
+				//
+				// THE MINTER RESTATES ITS GAP'S WORDING NOW AND THEN (§III.B7): an amend of the acceptance
+				// check, the field no voice check reads, on the gap's one id — the author's turn on the
+				// amended demand.
+				r.maybe(8, func() {
+					r.admitFresh(id, "amend", "--seat-id", seatID, "--id", id, "--acceptance-check", "fuzz: the check for "+id+", restated",
+						"--reason", "amend-basis-for-"+id)
+				})
 				r.maybe(30, func() {
 					held := r.benchGrades(id)
 					keep := func(dim string) string {
@@ -9070,7 +9078,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // emitting one fails loudly. `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
-	"closing", "position", "regrade", "mint", "close",
+	"closing", "position", "regrade", "amend", "mint", "close",
 	"cite", "verify", "inquiry", "reproduce", "log", "retire",
 	"verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
@@ -9134,9 +9142,6 @@ var coverExempt = map[string]bool{
 	// NO DRIVE OF THE SWEEP WRITES A DOCKETING YET: the dispatch writes it, and the sweep's dispatch
 	// drive files the docket motion. The exemption goes when the dispatch writes docketings.
 	"docketing": true,
-	// AN AMEND IS WRITTEN BY MIGRATE replaying an archived supersede link; the verb that records one
-	// lands with R4, and the exemption goes with it.
-	"amend": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -9263,6 +9268,7 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
+	"amend":       "a version of its gap's wording, by its minter or by the bench ruling for a gap-on-gap's raiser: the report renders the gap's current version on its row, marked [amended ×N] (plans/findings-fold.md §III.B7, picked 2026-11-26), and every version with its reason reaches the reader through `show changes`, never as an entry of its own",
 	"retire":      "an anchor taken off a sentence that stays: an anchor change goes to the work lists, never a section of the set (RULINGS.md 11-20, ruling 1; plans/constitution-gaps.md §III.10c), and its claim is the tool's stamp of that sentence, which the report carries until an edit rewrites it and editHistory renders the edit — that the retire kept its sentence is held at its own event (retiresKeepSentences)",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
