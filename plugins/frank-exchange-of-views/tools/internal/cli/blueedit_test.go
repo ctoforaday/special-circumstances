@@ -519,28 +519,27 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	}
 }
 
-// THE REFUSAL NAMES WHOSE FIX IT WAS. The guard refuses any lens's mint against an applied
-// prescription — red is the party bound — and it told every lens the words were "text YOU
-// prescribed": the evidence lens on the #1565 smoke was handed the logic lens's fix as its own.
-func TestEstoppelNamesTheLensWhoseFixItWas(t *testing.T) {
+// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (#1695 X11, T-B42): another lens's mint quoting the applied
+// text is no relitigation of its own words, and lands as any gap on blue's text does — asked in a class
+// no gap on the sentence holds, so the one-gap rule does not refuse it first.
+func TestEstoppelBindsOnlyThePrescribingLens(t *testing.T) {
 	runDir := newRun(t)
-	prior := seedProposalApplied(t, runDir)
+	seedProposalApplied(t, runDir)
 	const other = "red-lens-logic"
 	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
 		t.Fatalf("register %s: %v\n%s", other, err, out)
 	}
-	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
-		"--key", "G2", "--class", "spec_underspecification", "--quote", prescribedText,
+	if out, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+		"--key", "G2", "--class", "risk_coverage_omission", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-	if err == nil {
-		t.Fatal("a lens opened a fresh gap against another lens's applied prescription")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("another lens's mint over %s's applied prescription was refused: %v\n%s", lensSeat, err, out)
 	}
-	if want := lensSeat + "'s fix for " + prior; !strings.Contains(err.Error(), want) {
-		t.Errorf("the refusal does not name the lens whose fix it was (%q): %v", want, err)
-	}
-	if strings.Contains(err.Error(), "your fix") || strings.Contains(strings.ToLower(err.Error()), "you prescribed") {
-		t.Errorf("the refusal tells %s that %s's words were its own: %v", other, lensSeat, err)
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "G3", "--class", "false_universal", "--quote", prescribedText,
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err == nil || !strings.Contains(err.Error(), "estoppel") {
+		t.Errorf("the prescribing lens's mint over its own applied text was not refused as estoppel: %v", err)
 	}
 }
 
@@ -560,24 +559,20 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 }
 
 // A REWORD ENDS ESTOPPEL AND A RE-APPLY RESTORES IT (plans/gap-is-the-one-holder.md F12), through
-// the verbs: a lens's mint quoting red's applied text is refused naming the prescribing gap; once blue
+// the verbs: the prescribing lens's mint quoting its applied text is refused naming the prescribing gap; once blue
 // rewords the sentence the same mint lands, the span being blue's; once blue puts its words back and
 // accepts red's text again, the mint is refused again. record.TestARewordEndsEstoppel pins the fold;
 // this pins the refusal the mint verb gives on the record the edits wrote.
 func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
-	const other = "red-lens-logic"
-	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
-		t.Fatalf("register %s: %v\n%s", other, err, out)
-	}
 	// 76 characters of red's text, the sentence's end left out so the reword can extend it.
 	const quote = "Five verification approaches agree, all sharing one definition of primality"
 	// Each admitted-or-refused question is asked in a class no gap on the sentence holds, so the only
 	// refusal open to it is estoppel's: one class per subject would refuse (c)'s mint on its own.
 	mint := func(key, class string) error {
 		t.Helper()
-		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", key, "--class", class, "--quote", quote,
 			"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium")

@@ -218,19 +218,15 @@ func rulingPlacement(q recordsql.Querier, seatID string, body proto.Message) ([]
 	return []owedTombstone{{gap: k.GapID, docketing: d}}, nil
 }
 
-// verbatimPlacement is the gap whose prescription blue applied verbatim, where its mint carries one.
-// The bench's application of red's closing text on a for-raiser answer places none,
-// whatever the gap's mint prescribed: the bar on what the bench decided is the ruling's own tombstone,
-// for either side (gblock 2026-11-22: "Estoppel applies to the judges ruling for either side").
-func verbatimPlacement(q recordsql.Querier, seatID string, body proto.Message) ([]owedTombstone, error) {
+// verbatimPlacement is the gap whose stated pair the author applied verbatim — the mint's
+// prescription or a pair a later closing of the raiser's stated (Statement), which the accept takes
+// alike. The bench's application of red's closing text on a for-raiser answer places none: the bar on
+// what the bench decided is the ruling's own tombstone, for either side (gblock 2026-11-22: "Estoppel
+// applies to the judges ruling for either side").
+func verbatimPlacement(_ recordsql.Querier, seatID string, body proto.Message) ([]owedTombstone, error) {
 	ed, ok := body.(*recordpb.BlueEdit)
 	if !ok || !ed.GetAppliedVerbatim() || ed.GetAnswers() == "" || seatclass.RoleOfSeat(seatID) == "bench" {
 		return nil, nil
-	}
-	var fix sql.NullString
-	found, err := queryRowAt(q, []any{&fix}, `SELECT "fix_new" FROM "mint" WHERE "gap_id" = ?`, ed.GetAnswers())
-	if err != nil || !found || fix.String == "" {
-		return nil, err
 	}
 	return []owedTombstone{{gap: ed.GetAnswers()}}, nil
 }

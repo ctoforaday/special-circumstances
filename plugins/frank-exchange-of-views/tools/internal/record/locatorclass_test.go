@@ -86,8 +86,8 @@ func TestEveryLocatorComparisonSeesThroughTheAnnotationLayer(t *testing.T) {
 // ESTOPPEL MUST SURVIVE THE ANCHOR ON ITS OWN PRESCRIPTION.
 //
 // A lens may not open a clean slate against text blue applied verbatim at its instruction. The
-// check compares the lens's new quote against the `fix_new` it prescribed — and the prescription is
-// red's own prose, written before any anchor existed, while the quote is taken from the report,
+// check compares the lens's new quote against the text the author's application wrote — red's own
+// prose, written before any anchor existed, while the quote is taken from the report,
 // which anchors the sentence the moment the fix lands. Compare those on raw bytes and estoppel
 // stops firing exactly when it is needed, reporting no conflict — the same answer as a lens that is
 // auditing something else entirely.
@@ -125,13 +125,13 @@ func TestEstoppelSurvivesTheAnchorOnItsOwnPrescription(t *testing.T) {
 	}
 	// The lens comes back and quotes the sentence AS THE REPORT NOW HOLDS IT.
 	anchored := "Six authoritative mathematical sources were consulted<!--gap:G-dbd94684-->:"
-	if est, _ := EstoppelConflict(fam, anchored); est.Gap == "" {
+	if est, _ := EstoppelConflict(fam, "red-lens-computation", anchored); est.Gap == "" {
 		t.Errorf("estoppel did not fire on a quote of red's own applied prescription.\n"+
 			"prescribed: %q\nquoted    : %q\nThey differ only by the anchor the report carries, so the one rule that stops a lens\n"+
 			"relitigating its own words is blind from the moment the words land.", prescribed, anchored)
 	}
 	// NOT VACUOUS: an unrelated quote must still be free.
-	if est, _ := EstoppelConflict(fam, otherSentence); est.Gap != "" {
+	if est, _ := EstoppelConflict(fam, "red-lens-computation", otherSentence); est.Gap != "" {
 		t.Errorf("estoppel fired on unrelated text (%q -> %s), so the assertion above would pass for the wrong reason", otherSentence, est.Gap)
 	}
 }

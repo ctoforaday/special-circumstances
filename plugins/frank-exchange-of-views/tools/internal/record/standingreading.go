@@ -465,13 +465,21 @@ func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win Window
 	}
 	// THE ESTOPPEL IS THE WRITTEN ROW: the chain's last link estops where it meets the floor and an
 	// estoppel tombstone stands on the gap it answered — the verbatim application placed it, and a
-	// reword of that sentence ended it (tombstone.go).
+	// reword of that sentence ended it (tombstone.go). It binds only the lens that prescribed the
+	// applied text (X11): another reader's debt over it is its own.
 	if last := links[len(links)-1]; last.bounded && last.m.ed.GetAnswers() != "" {
-		stands, err := tombstoneStands(q, recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, last.m.ed.GetAnswers())
-		if err != nil {
+		var minter string
+		if _, err := queryRowAt(q, []any{&minter},
+			`SELECT e."seat_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."gap_id" = ?`, last.m.ed.GetAnswers()); err != nil {
 			return l, err
 		}
-		l.estopped = stands
+		if minter == l.seat {
+			stands, err := tombstoneStands(q, recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, last.m.ed.GetAnswers())
+			if err != nil {
+				return l, err
+			}
+			l.estopped = stands
+		}
 	}
 	if !l.removed {
 		if at, ok := sentenceByWords(report, words); ok {

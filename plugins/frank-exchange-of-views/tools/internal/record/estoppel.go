@@ -22,24 +22,23 @@ import (
 // RED'S INSTRUCTION. Blue's discipline was not the problem — 19 of 26 edits named the gap
 // they answered. It did what it was told, carefully, and was penalised for it.
 //
-// The rule this file enforces: a mint whose quote is text red PRESCRIBED and blue
-// applied VERBATIM is an amendment to the gap that prescribed it, not a fresh gap. Red may
-// still be unsatisfied — but it argues that on the original gap, where its own prescription
-// is on the record next to it, rather than opening a new one with a clean slate.
+// The rule this file enforces: a mint whose quote is text a lens PRESCRIBED and the author applied
+// VERBATIM is the prescribing lens re-raising its own words, refused to that lens. It may still be
+// unsatisfied — but it argues that on the original gap, where its own prescription is on the record
+// next to it, rather than opening a new one with a clean slate. Any other lens audits the applied
+// text as blue's.
 //
 // It is bounded to VERBATIM application on purpose. If blue counter-edited, the text is
 // blue's authorship and red never proposed it, so nothing estops red from auditing it
 // normally. Estoppel attaches to red's own words, and to nothing else.
 //
 // EVERY `--quote` MINT MEETS THE GUARD, a found source's claim_contradicts_source included (gblock,
-// 2026-11-06, F4 (a)): red mints --supersedes the prescribing gap, as the refusal says.
+// 2026-11-06, F4 (a)).
 //
-// THE BAR IS A WRITTEN ROW (#1695 §III.B12): the verbatim edit's transaction holds an ESTOPPEL
-// tombstone on the gap whose prescription it applied, and a later edit whose reopened names that gap —
-// blue reworded the sentence the fix placed the gap's token in — ends it (tombstone.go). A later
-// verbatim application places it again. A pure cut taking that token ends it too (F16). A fix spanning
-// several sentences carries the token in one, so a reword of another of its sentences leaves the bar
-// standing.
+// THE BAR IS A WRITTEN ROW (#1695 §III.B6): the verbatim edit's transaction holds an ESTOPPEL
+// tombstone on the gap whose statement it applied, and the author's next change of that gap's subject
+// ends it (tombstone.go). A later verbatim application places it again. A fix spanning several
+// sentences carries the token in one, so a reword of another of its sentences leaves the bar standing.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
@@ -75,50 +74,75 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	return out
 }
 
-// Estoppel is a prescription a mint's quote relitigates: the gap whose fix it is, the acting seat of
-// that gap's mint (actingSeat) — the author of the prescription — and the prescribed text.
+// Estoppel is a prescription a mint's quote relitigates: the gap whose statement the author applied,
+// its minter — the lens that prescribed it — and the text the placing act wrote.
 type Estoppel struct{ Gap, PrescribedBy, Text string }
 
-// EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one:
-// a gap an ESTOPPEL tombstone stands on at the end of f.Events, with its mint's fix_new.
+// EstoppelConflict reports the applied prescription seat's `quote` relitigates, and whether there is
+// one: a gap seat minted that an ESTOPPEL tombstone stands on at the end of f.Events, whose placing
+// act's applied text the quote meets.
 //
-// RED IS THE PARTY BOUND, NOT THE LENS THAT WROTE IT. The guard was written when one red seat minted
-// every gap, so "red's prescription" and "the minting seat's prescription" were the same set; with the
-// lenses minting, a lens's mint against another lens's applied fix is refused too, and the refusal
-// names the author from the record rather than telling the minting lens the words were its own.
+// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (#1695 X11, picked 2026-11-23): its own words, applied by
+// the author, are what it may not re-raise. Any other lens audits that text as it audits any of
+// blue's, and mints an ordinary gap there.
+//
+// THE TEXT IS THE PLACING ACT'S: the author's application wrote it (the accepting edit's new span),
+// whether the statement it took was the mint's prescription or a pair a later closing of the raiser's
+// stated, so a closing's pair bars as a mint's does.
 //
 // Containment either way, on whitespace-collapsed text: the new mint may quote a fragment
-// of the prescribed sentence or a span that swallows it whole, and both are the same act.
-func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
-	// VISIBLE, NOT MERELY COLLAPSED. Collapsing whitespace alone leaves the anchors, and the
-	// two sides of this comparison differ by exactly that: `fix_new` is red's prose, written before
-	// any anchor existed, while `quote` is taken from the report, which anchors the sentence the
-	// moment the fix lands. On raw bytes this check goes blind at the instant it becomes relevant.
+// of the applied text or a span that swallows it whole, and both are the same act.
+func EstoppelConflict(f Family, seat, quote string) (Estoppel, bool) {
+	// VISIBLE, NOT MERELY COLLAPSED. The applied text carries the gap's token and every anchor the
+	// edit kept, while `quote` is taken from the report as a reader sees it; on raw bytes this check
+	// goes blind at the instant it becomes relevant.
 	q := anchortext.Visible(quote)
 	if len(q) == 0 {
 		return Estoppel{}, false
 	}
-	gaps := GapsByID(f.Gaps)
-	for _, id := range slices.Sorted(maps.Keys(standingTombstonesIn(f.Events)[recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL])) {
-		g, ok := gaps[id]
-		if !ok || g.Mint == nil || g.Mint.GetFixNew() == "" {
+	minters := mintersOf(f.Events)
+	applied := estoppelTextsIn(f.Events)
+	for _, id := range slices.Sorted(maps.Keys(applied)) {
+		if minters[id] != seat {
 			continue
 		}
-		fixNew := g.Mint.GetFixNew()
-		p := anchortext.Visible(fixNew)
+		text := applied[id]
+		p := anchortext.Visible(text)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
 		}
 		if strings.Contains(p, q) || strings.Contains(q, p) {
-			return Estoppel{Gap: id, PrescribedBy: minterOf(f.Events, id), Text: fixNew}, true
+			return Estoppel{Gap: id, PrescribedBy: seat, Text: p}, true
 		}
 	}
 	return Estoppel{}, false
 }
 
-// minterOf is the seat that authored gapID's prescription: its mint's seat.
-func minterOf(evs []*Event, gapID string) string {
-	return mintersOf(evs)[gapID]
+// estoppelTextsIn is each gap an estoppel tombstone stands on at the end of evs, with the text its
+// placing act wrote: the edit the placing row follows in its transaction (writeTombstones writes the
+// act, then its rows), its new span.
+func estoppelTextsIn(evs []*Event) map[string]string {
+	out := map[string]string{}
+	var act *Event
+	for _, e := range evs {
+		t, ok := recordpb.BodyAs[*recordpb.Tombstone](e)
+		if !ok {
+			act = e
+			continue
+		}
+		if t.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL {
+			continue
+		}
+		if t.GetEnds() {
+			delete(out, t.GetGapId())
+			continue
+		}
+		out[t.GetGapId()] = ""
+		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](act); ok && ed.GetAnswers() == t.GetGapId() {
+			out[t.GetGapId()] = ed.GetNew()
+		}
+	}
+	return out
 }
 
 // DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),

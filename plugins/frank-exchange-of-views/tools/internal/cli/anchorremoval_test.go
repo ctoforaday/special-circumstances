@@ -69,7 +69,7 @@ func TestAnchorRemovalIsOneView(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, ok := record.EstoppelConflict(fam, prescribedText)
+			_, ok := record.EstoppelConflict(fam, lensSeat, prescribedText)
 			return ok
 		}
 		if !estops() {

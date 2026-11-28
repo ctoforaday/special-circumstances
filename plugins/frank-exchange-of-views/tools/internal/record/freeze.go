@@ -101,16 +101,18 @@ func roadOf(c *recordpb.Closing, by, gapID, aboutRef string) (Road, bool) {
 	return Road{}, false
 }
 
-// roadEstoppel refuses a closing's road whose quote a standing estoppel would refuse a red mint of
-// (L43): the prescription it relitigates, named with its author. evs is the stream it is asked of.
+// roadEstoppel refuses a closing's road whose quote a standing estoppel would refuse its raiser's mint
+// of (L43): the raiser states the road, and estoppel binds only the lens that prescribed the applied
+// text (X11), so the road is asked as a mint of gapID's minter. evs is the stream it is asked of.
 func roadEstoppel(f Family, evs []*Event, gapID, loc string) error {
 	f.Events = evs
-	est, ok := EstoppelConflict(f, loc)
+	raiser := mintersOf(evs)[gapID]
+	est, ok := EstoppelConflict(f, raiser, loc)
 	if !ok {
 		return nil
 	}
 	return feov.Errorf(feov.Conflict,
-		"red's text on %s quotes text %s prescribed on %s and blue applied verbatim — %q — and red is bound by the fix it prescribed: a mint of that quote is refused, and so is this road. "+
+		"red's text on %s quotes text its raiser %s prescribed on %s and blue applied verbatim — %q — and a lens is bound by the fix it prescribed: its mint of that quote is refused, and so is this road. "+
 			"State a road outside that text, or file --no-text where every road you can state is refused. Nothing was recorded",
-		gapID, est.PrescribedBy, est.Gap, est.Text)
+		gapID, raiser, est.Gap, est.Text)
 }

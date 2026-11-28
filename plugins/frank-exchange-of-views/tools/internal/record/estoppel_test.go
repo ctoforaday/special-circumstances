@@ -4,6 +4,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
@@ -31,20 +33,31 @@ func board(t *testing.T, gapFix map[string]string, evs []*Event) Family {
 		gaps[id] = &Gap{ID: id, Open: true, Mint: m}
 	}
 	var ordered []*Gap
+	var mints []*Event
 	for _, id := range order {
 		ordered = append(ordered, gaps[id])
+		mints = append(mints, recordtest.Event(t, prescriber, gaps[id].Mint))
 	}
-	return NewFamily(ordered, Merged{Events: evs})
+	return NewFamily(ordered, Merged{Events: append(mints, evs...)})
 }
 
 const prescribed = "Five verification approaches agree, all sharing one definition of primality."
 
+// prescriber is the lens board's gaps are minted by.
+const prescriber = "red-lens-logic"
+
+// edit is blue's edit answering gapID whose new span is the prescribed text, verbatim or not.
 func edit(t *testing.T, gapID string, verbatim bool) *Event {
+	return editTo(t, gapID, prescribed, verbatim)
+}
+
+// editTo is blue's edit answering gapID that writes newText.
+func editTo(t *testing.T, gapID, newText string, verbatim bool) *Event {
 	t.Helper()
 	be := &recordpb.BlueEdit{
 		Answers: proto.String(gapID),
 		Old:     proto.String("x"),
-		New:     proto.String("y"),
+		New:     proto.String(newText),
 		Text:    proto.String("r"),
 	}
 	if verbatim {
@@ -58,26 +71,44 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 // The core rule: a mint located in text red prescribed and blue applied VERBATIM names
 // the gap that prescribed it, the acting seat of that gap's mint, and the text.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
-	mint := recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String("G1")})
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{mint, edit(t, "G1", true), stone(t, "G1", false)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
 
-	est, ok := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
+	est, ok := EstoppelConflict(b, prescriber, "Five verification approaches agree, all sharing one definition of primality.")
 	if !ok || est.Gap != "G1" {
 		t.Fatalf("EstoppelConflict = %+v, want G1 — red re-raising its own prescribed text went undetected", est)
 	}
-	if est.Text != prescribed {
+	if est.Text != anchortext.Visible(prescribed) {
 		t.Errorf("the conflict must return the prescribed text so the refusal can quote it, got %q", est.Text)
 	}
-	// THE AUTHOR IS THE RECORD'S, so a refusal to another lens can say whose words they were.
-	if est.PrescribedBy != "red-lens-logic" {
-		t.Errorf("the conflict names %q as the prescription's author, want the minting seat red-lens-logic", est.PrescribedBy)
+	if est.PrescribedBy != prescriber {
+		t.Errorf("the conflict names %q as the prescription's author, want the minting seat %s", est.PrescribedBy, prescriber)
+	}
+	// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (X11): another lens quoting the same applied text audits
+	// blue's text.
+	if est, ok := EstoppelConflict(b, "red-lens-evidence", prescribed); ok {
+		t.Errorf("another lens is estopped by %s's prescription (%+v): estoppel binds only the prescribing lens", prescriber, est)
+	}
+}
+
+// THE TEXT IS THE PLACING ACT'S, not the mint's fix_new: a pair a later closing stated, which the
+// author's accept applied, bars as a mint's prescription does, and a gap whose mint prescribed nothing
+// is no longer skipped.
+func TestEstoppelReadsThePlacingActsText(t *testing.T) {
+	const closingPair = "Seven of the nine sieves agree once the shared definition is set aside entirely."
+	b := board(t, map[string]string{"G1": ""}, []*Event{editTo(t, "G1", closingPair, true), stone(t, "G1", false)})
+	if est, ok := EstoppelConflict(b, prescriber, closingPair); !ok || est.Gap != "G1" || est.Text != anchortext.Visible(closingPair) {
+		t.Errorf("a closing's applied pair did not bar its prescriber: %+v, %v", est, ok)
+	}
+	b = board(t, map[string]string{"G1": prescribed}, []*Event{editTo(t, "G1", closingPair, true), stone(t, "G1", false)})
+	if est, ok := EstoppelConflict(b, prescriber, prescribed); ok {
+		t.Errorf("the mint's fix_new barred where the placing act applied other text: %+v", est)
 	}
 }
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
-	if est, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); est.Gap != "G1" {
+	if est, _ := EstoppelConflict(b, prescriber, "agree, all sharing one definition of primality"); est.Gap != "G1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", est.Gap)
 	}
 }
@@ -86,7 +117,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", false)})
-	if est, _ := EstoppelConflict(b, prescribed); est.Gap != "" {
+	if est, _ := EstoppelConflict(b, prescriber, prescribed); est.Gap != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", est.Gap)
 	}
 }
@@ -95,7 +126,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
-	if est, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); est.Gap != "" {
+	if est, _ := EstoppelConflict(b, prescriber, "An entirely different sentence about sieve performance and its costs."); est.Gap != "" {
 		t.Errorf("an unrelated mint was estopped by gap %q — the guard is over-broad", est.Gap)
 	}
 }
@@ -103,8 +134,8 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
 // real defect is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
-	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true), stone(t, "G1", false)})
-	if est, _ := EstoppelConflict(b, "7 is prime."); est.Gap != "" {
+	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{editTo(t, "G1", "7 is prime.", true), stone(t, "G1", false)})
+	if est, _ := EstoppelConflict(b, prescriber, "7 is prime."); est.Gap != "" {
 		t.Errorf("a %d-character prescription estopped a mint (gap %q); the floor is %d",
 			len("7 is prime."), est.Gap, minEstoppelOverlap)
 	}
@@ -202,7 +233,7 @@ func stone(t *testing.T, gap string, ends bool) *Event {
 func TestEstoppelReadsTheStandingRow(t *testing.T) {
 	estops := func(t *testing.T, evs ...*Event) bool {
 		t.Helper()
-		est, ok := EstoppelConflict(board(t, map[string]string{"G1": prescribed}, evs), prescribed)
+		est, ok := EstoppelConflict(board(t, map[string]string{"G1": prescribed}, evs), prescriber, prescribed)
 		return ok && est.Gap == "G1"
 	}
 	if !estops(t, edit(t, "G1", true), stone(t, "G1", false)) {

@@ -98,8 +98,8 @@ func TestAReadingOfARepeatedSentenceIsKeyedOnTheAnchor(t *testing.T) {
 
 // 26. A READING OVER AN APPLIED PRESCRIPTION RECORDS, AND THE GAP ON IT MEETS THE ESTOPPEL GUARD LIKE
 // ANY GAP (F4 (a), ruled): a cited source's gap names the citation and no quote, so the guard never
-// asks of it; a found source's claim_contradicts_source is a quote mint, refused naming the
-// prescribing gap.
+// asks of it; a found source's claim_contradicts_source is a quote mint, refused to the prescribing
+// lens naming the prescribing gap.
 func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testing.T) {
 	cc := "claim_contradicts_source"
 	applied := func(t *testing.T) (readingBoard, string, string) {
@@ -113,8 +113,10 @@ func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testi
 			t.Fatalf("blue's accept: %v", err)
 		}
 		const primeText = "Costs rose modestly in the first quarter."
-		_, err = b.plainMint(lensL, primeText, cc)
-		mustRefuse(t, err, "", g0)
+		// THE CONTROL: the prescribing lens's own plain mint over its applied text is refused as estoppel
+		// (estoppel binds only the prescriber, X11).
+		_, err = b.plainMint(lensP, primeText, "false_universal")
+		mustRefuse(t, err, "", "estoppel", g0)
 		return b, g0, primeText
 	}
 	estoppels := func(t *testing.T, runDir string) int {

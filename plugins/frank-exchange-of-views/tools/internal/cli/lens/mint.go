@@ -368,17 +368,17 @@ type familyReader interface {
 	Family() (record.Family, error)
 }
 
-// requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
-// verbatim — and refuses any mint whose record could not be
-// read to ask: a gap opened because the estoppel question could not be asked is one the tool
-// admitted on nothing. Every `--quote` mint meets it, a found source's claim_contradicts_source
-// included (gblock, 2026-11-06, F4 (a)).
-func requireNotEstopped(l familyReader, quote string) error {
+// requireNotEstopped refuses seat's mint whose location is text seat prescribed and blue applied
+// verbatim — and refuses any mint whose record could not be read to ask: a gap opened because the
+// estoppel question could not be asked is one the tool admitted on nothing. Every `--quote` mint meets
+// it, a found source's claim_contradicts_source included (gblock, 2026-11-06, F4 (a)). Estoppel binds
+// only the prescribing lens (#1695 X11).
+func requireNotEstopped(l familyReader, seat, quote string) error {
 	fam, err := l.Family()
 	if err != nil {
-		return unreadableRefusal("whether this location is text red prescribed", err)
+		return unreadableRefusal("whether this location is text you prescribed", err)
 	}
-	if est, ok := record.EstoppelConflict(fam, quote); ok {
+	if est, ok := record.EstoppelConflict(fam, seat, quote); ok {
 		return estopped{est}
 	}
 	return nil
@@ -454,22 +454,15 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 	// (a)): red argues it on the prescribing gap, as the refusal says. A reword of the applied
 	// text by blue writes the row that ends the estoppel (record.writeTombstones).
 	guards = append(guards, record.Check(func(l *record.Landing) error {
-		return requireNotEstopped(l, quote)
+		return requireNotEstopped(l, s.SeatID, quote)
 	}))
 
 	var est estopped
 	switch _, err := record.AppendActs(s.Identity(), append(before, seat.PlacedActs(p, gapID, p.GetLocation(), mintPlacementRefusal, guards...)...)...); {
 	case errors.As(err, &est):
 		prior := est.Gap
-		// WHOSE FIX IT WAS IS READ OFF THE RECORD, because the guard refuses a mint against ANY red
-		// seat's applied prescription: told "text YOU prescribed", the evidence lens on the #1565
-		// smoke was handed the logic lens's words as its own.
-		author := est.PrescribedBy + "'s"
-		if est.PrescribedBy == s.SeatID {
-			author = "your"
-		}
-		msg := fmt.Sprintf("estoppel — this gap's location is text red prescribed and blue applied verbatim: %s fix for %s. A prescription blue applied binds every red seat, whichever lens wrote it, so it is not a fresh gap: raise it as an amendment to %s and argue it there. Prescribed text: %q",
-			author, prior, prior, est.Text)
+		msg := fmt.Sprintf("estoppel — this gap's location is text you prescribed and blue applied verbatim: your fix for %s. Your own applied prescription binds you, so it is not a fresh gap: raise it as an amendment to %s and argue it there, where your prescription sits beside the complaint. Another lens audits that text as it audits any of blue's. Applied text: %q",
+			prior, prior, est.Text)
 		// The KIND is a field, not something a reader infers from the wording. The
 		// prose above is aimed at a seat and must stay editable; the count an
 		// operator reads must not move when it is edited (#283).

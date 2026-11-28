@@ -1935,21 +1935,32 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 	r.verbatimGaps[gapID] = fixNew
 }
 
-// aVerbatimGap returns one gap/text pair blue applied verbatim whose prescription STILL ESTOPS red
-// (stillEstops) and whose applied text is ON THE PAGE, or "" with why none is — none has landed yet,
-// every one was since reworded, or every one that still estops has lost its words.
+// aVerbatimGap returns one gap/text pair blue applied verbatim, of a gap seatID minted, whose
+// prescription STILL ESTOPS its lens (stillEstops) and whose applied text is ON THE PAGE, or "" with why
+// none is — none of seatID's has landed yet, every one was since reworded, or every one that still
+// estops has lost its words. Estoppel binds only the prescribing lens (record.EstoppelConflict, X11), so
+// another lens's prescription is no probe of this one's.
 //
 // THE WORDS, NOT ONLY THE STANDING. A gap whose token a retire took out is never reopened, so it
 // estops as long as the run lasts (a cut ends no tombstone) while blue's edits of the
 // sentence, which can no longer name it, swap its words away; taken first by id, it held the drive
 // on one gap whose text was gone for 36 sittings of the estoppel seed's run (CI run 42935559070), the
 // run's four later verbatim applications behind it, and the seed drove no estoppel at all.
-func (r *runner) aVerbatimGap() (gapID, fixNew, miss string) {
+func (r *runner) aVerbatimGap(seatID string) (gapID, fixNew, miss string) {
 	r.mu.Lock()
-	ids := slices.Sorted(maps.Keys(r.verbatimGaps))
+	all := slices.Sorted(maps.Keys(r.verbatimGaps))
 	r.mu.Unlock()
-	if len(ids) == 0 {
+	if len(all) == 0 {
 		return "", "", "nothing applied verbatim yet when the drive fired"
+	}
+	var ids []string
+	for _, id := range all {
+		if r.minterOf(id) == seatID {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return "", "", "nothing this lens prescribed was applied verbatim yet when the drive fired"
 	}
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
@@ -1985,7 +1996,7 @@ func (r *runner) isVerbatimGap(gapID string) bool {
 
 // stillEstops reports whether gapID's applied prescription still estops red, by the rule the record's
 // estoppel tombstone rows follow (record.tombstoneArms), folded here from the edits alone: the latest
-// blue edit naming gapID — in `answers` with applied_verbatim, or in `reopened` — is a verbatim
+// blue edit naming gapID — in `answers` with applied_verbatim, or in `reopened` or `removed_anchors` — is a verbatim
 // application of gapID. A later edit that rewords the sentence the fix placed the gap's token in lists
 // the gap reopened and ends the bar, a verbatim application answering another gap included (L24),
 // whether or not the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
@@ -1999,14 +2010,16 @@ func (r *runner) stillEstops(gapID string) bool {
 	estops := false
 	for i := range b.Events {
 		ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
-		if !isE {
+		// THE BENCH'S APPLICATION places no estoppel and ends none: only the author's change of the
+		// subject ends a tombstone (record.tombstoneArms).
+		if !isE || seatclass.RoleOfSeat(b.Events[i].GetSeatId()) == "bench" {
 			continue
 		}
 		if ed.GetAppliedVerbatim() && ed.GetAnswers() == gapID {
 			estops = true
 			continue
 		}
-		if slices.Contains(ed.GetReopened(), gapID) {
+		if slices.Contains(ed.GetReopened(), gapID) || slices.Contains(ed.GetRemovedAnchors(), gapID) {
 			estops = false
 		}
 	}
@@ -5219,18 +5232,18 @@ func (r *runner) mintOverOpen(seatID string) {
 	}
 }
 
-// mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from red's
+// mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from seatID's
 // own --fix-new. That is exactly the shape
 // lens/mint.go refuses, and the refusal is what writes the tool's `log --type estoppel` entry. The
-// guard keys on the TEXT, not the seat (record.EstoppelConflict), so any lens's mint against the
-// prescription is refused, not only the prescribing lens's.
+// guard binds only the prescribing lens (record.EstoppelConflict, X11), so the drive probes with the
+// lens whose prescription blue applied.
 //
 // IT EXPECTS TO FAIL, and the failure is the drive. `exec` records the refusal through noteExec
 // either way, so a run where the guard STOPPED firing shows up as estoppels=0 with the applies
 // still counted — the two numbers together say whether the guard is quiet or gone. A drive that
 // merely called `log --type estoppel` would have satisfied the gate while proving neither.
 func (r *runner) mintEstopped(seatID string) {
-	gapID, fixNew, miss := r.aVerbatimGap()
+	gapID, fixNew, miss := r.aVerbatimGap(seatID)
 	if gapID == "" {
 		// The precondition genuinely does not hold: nothing has been applied verbatim YET, blue
 		// has since reworded every applied sentence, which ends the estoppel (F12), or every
