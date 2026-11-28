@@ -118,7 +118,7 @@ func stepTexts(doc map[string]any, kind string) []string {
 }
 
 // EVERY REPLY SHAPE hookcore can give an Antigravity SessionStart or PreInvocation, against the
-// documented schema. telepathy link's request rides on PreInvocation + AdditionalContext.
+// documented schema. A request to the model rides on PreInvocation + AdditionalContext.
 func TestRespondAntigravityInvocationReplyShapes(t *testing.T) {
 	for _, c := range []struct {
 		name      string
@@ -130,8 +130,8 @@ func TestRespondAntigravityInvocationReplyShapes(t *testing.T) {
 		terminate bool
 	}{
 		{name: "PreInvocation, nothing to say", event: "PreInvocation", resp: Response{}},
-		{name: "PreInvocation, a request", event: "PreInvocation", resp: Response{AdditionalContext: "run telepathy link"},
-			ephemeral: []string{"run telepathy link"}},
+		{name: "PreInvocation, a request", event: "PreInvocation", resp: Response{AdditionalContext: "an injected request"},
+			ephemeral: []string{"an injected request"}},
 		{name: "PreInvocation, a failure line", event: "PreInvocation", resp: Response{Say: "hook failed"},
 			system: []string{"hook failed"}},
 		{name: "PreInvocation, feedback then request then failure", event: "PreInvocation",
@@ -178,7 +178,7 @@ func TestRespondAntigravityInvocationReplyShapes(t *testing.T) {
 }
 
 // A queued line from an earlier PostTool reaches the NEXT PreInvocation, ahead of the reply's own
-// request, and the queue is then empty: telepathy link's request must not displace a queued hook
+// request, and the queue is then empty: a hook's own request must not displace a queued hook
 // failure, nor be repeated by a stale queue.
 func TestPreInvocationDeliversTheQueueBeforeItsOwnRequest(t *testing.T) {
 	dir := t.TempDir()
@@ -188,12 +188,12 @@ func TestPreInvocationDeliversTheQueueBeforeItsOwnRequest(t *testing.T) {
 
 	pre := Request{Engine: EngineAntigravity, Event: "PreInvocation", SessionID: "conv-q", PluginDataDir: dir}
 	var out bytes.Buffer
-	Respond(pre, Response{AdditionalContext: "run telepathy link"}, &out, &sink, nil)
+	Respond(pre, Response{AdditionalContext: "an injected request"}, &out, &sink, nil)
 	doc := checkAgyInvocationReply(t, "flush", strings.TrimSpace(out.String()))
 	if got := stepTexts(doc, "systemMessage"); len(got) != 1 || got[0] != "queued failure" {
 		t.Errorf("queued line not delivered: %v", got)
 	}
-	if got := stepTexts(doc, "ephemeralMessage"); len(got) != 1 || got[0] != "run telepathy link" {
+	if got := stepTexts(doc, "ephemeralMessage"); len(got) != 1 || got[0] != "an injected request" {
 		t.Errorf("own request not delivered: %v", got)
 	}
 	out.Reset()

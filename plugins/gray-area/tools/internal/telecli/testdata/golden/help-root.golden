@@ -40,16 +40,17 @@ Examples:
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"
 
 Available Commands:
-  agents      who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting
-  backfill    read the existing corpus into the store
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  link        make this Antigravity conversation wakeable by telepathy send
-  search      search every local transcript (ripgrep, no index)
-  send        deliver a message to another agent session, Claude Code or Antigravity
-  session     one session's shape: calls and errors by tool
-  sql         read-only SQL over the published views
-  touched     which sessions acted on a path, and when
+  agents        who is running, in which worktree, doing what — after a restart, what it cut off — and which Antigravity conversations have mail waiting
+  agy-provision give Antigravity's daemon a token telepathy send can wake it with (the human runs it)
+  agy-wake      wake every Antigravity daemon conversation with mail waiting (systemd runs it at each daemon start)
+  backfill      read the existing corpus into the store
+  completion    Generate the autocompletion script for the specified shell
+  help          Help about any command
+  search        search every local transcript (ripgrep, no index)
+  send          deliver a message to another agent session, Claude Code or Antigravity
+  session       one session's shape: calls and errors by tool
+  sql           read-only SQL over the published views
+  touched       which sessions acted on a path, and when
 
 Flags:
   -h, --help              help for telepathy

@@ -11,17 +11,18 @@ import (
 	"testing"
 )
 
-// NO CHECKOUT-BUILT TELEPATHY RUNS AGAINST THE HOST'S RUNTIME DIRECTORY.
+// NO CHECKOUT-BUILT TELEPATHY RUNS AGAINST THE HOST'S CONFIGURATION OR RUNTIME DIRECTORY.
 //
-// Every verb prunes the Antigravity server records under $XDG_RUNTIME_DIR, and a test that execs
-// the built binary with the inherited environment prunes the host's records with an unreleased
-// build. This reads every test file in the module that is not a live test (those carry
-// HOOKCORE_LIVE and build their own environment through testhome) and fails any exec that may run
-// the built telepathy whose command's Env has no XDG_RUNTIME_DIR entry. An exec may run it when its
+// The daemon's token file lives under $XDG_CONFIG_HOME, and $XDG_RUNTIME_DIR names the host's
+// systemd user bus, which CurrentDaemon asks; a test that execs the built binary with the inherited
+// environment could wake the host's daemon's conversations with an unreleased build. This reads
+// every test file in the module that is not a live test (those carry HOOKCORE_LIVE and build their
+// own environment through testhome) and fails any exec that may run the built telepathy whose
+// command's Env lacks an XDG_CONFIG_HOME or an XDG_RUNTIME_DIR entry. An exec may run it when its
 // program names telepathy in any form, or when the file does not show the program to be another
 // one (a helper's parameter, a field, a call's result). A sweep that finds no exec at all fails
 // too: a pattern that stopped matching would otherwise read as a clean module.
-func TestBuiltBinaryNeverSeesHostRuntimeDir(t *testing.T) {
+func TestBuiltBinaryNeverSeesHostConfigOrRuntimeDir(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +76,7 @@ func sweepFile(f *ast.File) (int, []string) {
 		if !ok || fn.Body == nil {
 			continue
 		}
-		n, b := execsWithoutRuntimeDir(fn.Body, names, others)
+		n, b := execsWithoutIsolation(fn.Body, names, others)
 		sites += n
 		for _, d := range b {
 			bad = append(bad, fn.Name.Name+" execs what may be the built telepathy "+d)
@@ -218,10 +219,10 @@ func isExecCommand(call *ast.CallExpr) bool {
 	return ok && pkg.Name == "exec" && (sel.Sel.Name == "Command" || sel.Sel.Name == "CommandContext")
 }
 
-// execsWithoutRuntimeDir counts the execs in body that may run the built telepathy and describes
+// execsWithoutIsolation counts the execs in body that may run the built telepathy and describes
 // each one whose command is not assigned an Env holding an XDG_RUNTIME_DIR entry in the same
 // function.
-func execsWithoutRuntimeDir(body *ast.BlockStmt, names, others map[string]bool) (int, []string) {
+func execsWithoutIsolation(body *ast.BlockStmt, names, others map[string]bool) (int, []string) {
 	envSet := map[string]bool{}
 	ast.Inspect(body, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
@@ -234,7 +235,7 @@ func execsWithoutRuntimeDir(body *ast.BlockStmt, names, others map[string]bool) 
 				continue
 			}
 			x, ok := sel.X.(*ast.Ident)
-			if ok && holdsRuntimeDirEntry(as.Rhs[i]) {
+			if ok && holdsEntry(as.Rhs[i], "XDG_CONFIG_HOME=") && holdsEntry(as.Rhs[i], "XDG_RUNTIME_DIR=") {
 				envSet[x.Name] = true
 			}
 		}
@@ -273,18 +274,19 @@ func execsWithoutRuntimeDir(body *ast.BlockStmt, names, others map[string]bool) 
 		case !ok:
 			bad = append(bad, "through a command that is never assigned, so it has no Env")
 		case !envSet[v]:
-			bad = append(bad, "as "+v+", whose Env sets no XDG_RUNTIME_DIR")
+			bad = append(bad, "as "+v+", whose Env does not set both XDG_CONFIG_HOME and XDG_RUNTIME_DIR")
 		}
 		return true
 	})
 	return count, bad
 }
 
-func holdsRuntimeDirEntry(e ast.Expr) bool {
+// holdsEntry reports whether e holds a string literal starting with prefix (an environment entry).
+func holdsEntry(e ast.Expr, prefix string) bool {
 	found := false
 	ast.Inspect(e, func(n ast.Node) bool {
 		if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-			if s, err := strconv.Unquote(lit.Value); err == nil && strings.HasPrefix(s, "XDG_RUNTIME_DIR=") {
+			if s, err := strconv.Unquote(lit.Value); err == nil && strings.HasPrefix(s, prefix) {
 				found = true
 			}
 		}
@@ -294,7 +296,7 @@ func holdsRuntimeDirEntry(e ast.Expr) bool {
 }
 
 // THE SWEEP SEES EVERY SHAPE OF EXEC, and passes only the ones that cannot run telepathy or that
-// give it a runtime directory of its own.
+// give it a configuration and a runtime directory of its own.
 func TestTheSweepRecognisesEveryShape(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -302,12 +304,14 @@ func TestTheSweepRecognisesEveryShape(t *testing.T) {
 		sites int
 		bad   int
 	}{
-		{"a named binary with an env", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_RUNTIME_DIR=" + rt}`, 1, 0},
+		{"a named binary with an env", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_CONFIG_HOME=" + cf, "XDG_RUNTIME_DIR=" + rt}`, 1, 0},
+		{"a named binary with a runtime directory only", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_RUNTIME_DIR=" + rt}`, 1, 1},
+		{"a named binary with a configuration directory only", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); c.Env = []string{"XDG_CONFIG_HOME=" + cf}`, 1, 1},
 		{"a named binary without one", `bin := filepath.Join(dir, "telepathy"); c := exec.Command(bin); _ = c`, 1, 1},
 		{"a bare literal", `c := exec.Command("telepathy", "agents"); _ = c`, 1, 1},
 		{"an inline path", `c := exec.Command(filepath.Join(dir, "telepathy"), "agents"); _ = c`, 1, 1},
 		{"a parameter", `c := exec.CommandContext(ctx, prog, "agents"); _ = c`, 1, 1},
-		{"a parameter with an env", `c := exec.Command(prog); c.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+rt)`, 1, 0},
+		{"a parameter with an env", `c := exec.Command(prog); c.Env = append(os.Environ(), "XDG_CONFIG_HOME="+cf, "XDG_RUNTIME_DIR="+rt)`, 1, 0},
 		{"a never-assigned command", `_ = exec.Command(prog).Run()`, 1, 1},
 		{"another program by literal", `c := exec.Command("go", "build"); _ = c`, 0, 0},
 		{"another program found on PATH", `rg, _ := exec.LookPath("rg"); c := exec.Command(rg); _ = c`, 0, 0},

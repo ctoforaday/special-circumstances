@@ -60,7 +60,8 @@ whose mailbox holds a message its client has not read — running or not, howeve
 old, whatever --window says: a message telepathy send QUEUED waits there until the
 conversation's next turn. Each row counts the messages, gives the oldest one's time,
 and marks those this session sent ('yours') and those sent from outside any agent
-session ('from a shell'). agy's own notices are counted apart, as '+N agy notices'.
+session ('from a shell'). agy's own notices are counted apart, as '+N agy notices',
+and so are the wake messages telepathy sends, as '+N wakes': neither is mail.
 A message leaves the list when the client reads it: the client's own record, the
 same whether or not the recipient runs telepathy. The client records no time of
 reading, so none is shown. A message whose file is missing or does not parse is
@@ -249,11 +250,15 @@ func printWaiting(out io.Writer, env *Env) {
 			if w.Notices == 1 {
 				notices = "+%d agy notice"
 			}
+			wakes := "+%d wakes"
+			if w.Wakes == 1 {
+				wakes = "+%d wake"
+			}
 			var note []string
 			for _, n := range []struct {
 				count int
 				label string
-			}{{w.Yours, "%d yours"}, {w.FromShell, "%d from a shell"}, {w.Unreadable, "%d unreadable"}, {w.Notices, notices}} {
+			}{{w.Yours, "%d yours"}, {w.FromShell, "%d from a shell"}, {w.Unreadable, "%d unreadable"}, {w.Notices, notices}, {w.Wakes, wakes}} {
 				if n.count > 0 {
 					note = append(note, fmt.Sprintf(n.label, n.count))
 				}

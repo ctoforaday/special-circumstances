@@ -1,4 +1,0 @@
-QUEUED for antigravity conversation a9e00000-0000-4000-8000-000000000002 in its mailbox (<BRAIN>/a9e00000-0000-4000-8000-000000000002/.system_generated/messages/<MESSAGE-ID>.json); it is read at the conversation's next turn and nothing wakes it
-  not delivered live: the language server recorded at <S1-ADDR> refused the message before acting on it, HTTP 401: {"code":"unauthenticated","message":"unauthenticated: invalid CSRF token"}
-  daemon started 2026-09-09 11:45:00 UTC
-  last step recorded at 2026-09-09 11:52:30 UTC

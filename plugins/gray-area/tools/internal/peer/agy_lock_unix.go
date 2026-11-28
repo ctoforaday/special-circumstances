@@ -3,10 +3,10 @@
 package peer
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -51,4 +51,7 @@ func ConversationBusy(agyRoot, conversation string, excludePID int) Holder {
 	return otherDBHolder(agyRoot, conversation, excludePID)
 }
 
-func renameRecord(src, dst string) error { return os.Rename(src, dst) }
+// safeName refuses an id that could name a path outside the directory it is joined to.
+func safeName(id string) bool {
+	return id != "" && id != "." && id != ".." && filepath.Base(id) == id && !bytes.ContainsAny([]byte(id), `/\`)
+}

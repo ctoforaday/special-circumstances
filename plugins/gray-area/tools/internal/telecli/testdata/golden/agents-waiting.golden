@@ -10,6 +10,7 @@ cccccccc   lost           0  —              /work/gamma
 
 waiting for Antigravity — messages in a conversation's mailbox that its client has not read:
 SESSION    WAITING  OLDEST                   NOTE
-aaaa1111         2  2026-09-08 22:15:00 UTC  1 yours, 1 from a shell, +1 agy notice
+aaaa1111         2  2026-09-08 22:15:00 UTC  1 yours, 1 from a shell, +1 agy notice, +1 wake
 bbbb2222         3  2026-09-09 11:00:00 UTC  2 unreadable
 cccc3333         0  —                        +2 agy notices
+eeee5555         0  —                        +1 wake

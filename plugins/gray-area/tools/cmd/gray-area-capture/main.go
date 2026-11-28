@@ -57,7 +57,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
 	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -509,9 +508,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	req := hookcore.Read(*event, stdin)
-	// PREINVOCATION asks for a link when needed AND runs the version check on every turn start
-	// (invocationNum == 0, never mid-turn) so resumed conversations and mid-conversation plugin
-	// updates both heal stale hook binaries.
+	// PREINVOCATION runs the version check on every turn start (invocationNum == 0, never mid-turn)
+	// so resumed conversations and mid-conversation plugin updates both heal stale hook binaries.
 	if *event == "PreInvocation" {
 		var healed string
 		if req.Engine == hookcore.EngineAntigravity && hookcore.IsTurnStartPreInvocation(req.Raw) {
@@ -524,10 +522,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 			}
 			healed = hookfailures.JoinMessages(msg, r.Settle())
 		}
-		return hookcore.Respond(req, hookcore.Response{
-			AdditionalContext: linkRequest(req, os.Getenv("XDG_RUNTIME_DIR"), findTelepathy(), peer.RecordLiveness),
-			Say:               healed,
-		}, stdout, stderr, nil)
+		return hookcore.Respond(req, hookcore.Response{Say: healed}, stdout, stderr, nil)
 	}
 	var in hookInput
 	_ = json.Unmarshal(req.Raw, &in)

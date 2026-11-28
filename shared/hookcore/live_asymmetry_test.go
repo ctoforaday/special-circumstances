@@ -545,7 +545,7 @@ func asymHookWakeCredentialsAgy(t *testing.T) {
 		}
 		for _, forbidden := range []string{"ANTIGRAVITY_LS_ADDRESS", "ANTIGRAVITY_CSRF_TOKEN"} {
 			if slices.Contains(ev.EnvNames, forbidden) {
-				t.Fatalf("ASSUMPTION CHANGED: Antigravity %s hook now receives %s (env=%v); telepathy link can move into the hook", ev.Event, forbidden, ev.EnvNames)
+				t.Fatalf("ASSUMPTION CHANGED: Antigravity %s hook now receives %s (env=%v); a hook can now reach the language server, and telepathy agy-provision's reason should be revisited", ev.Event, forbidden, ev.EnvNames)
 			}
 		}
 	}
