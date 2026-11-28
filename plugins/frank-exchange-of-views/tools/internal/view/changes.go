@@ -102,7 +102,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out = append(out, "## Measurements", "",
 		fmt.Sprintf("- **Concrete proposals**: %d offered · %d applied verbatim · %d declined (blue counter-edited or disputed) · %d unanswered",
 			offered, applied, declined, offered-applied-declined),
-		fmt.Sprintf("- **Estoppel rejections**: %d — mints refused because their location was text red prescribed and blue applied verbatim", estoppel),
+		fmt.Sprintf("- **Estoppel rejections**: %d — mints refused because their location was text the minting lens prescribed and blue applied verbatim", estoppel),
 		"")
 	if offered > 0 && declined == 0 {
 		out = append(out, "> Blue declined NONE of red's concrete proposals this run. Applying is the cheapest path,",

@@ -36,7 +36,7 @@ const (
 const (
 	standingReadingWords = "no standing reading of yours"
 	citedDefectWords     = "is a cited source's defect"
-	estoppelWords        = "estoppel — this gap's location is text red prescribed"
+	estoppelWords        = "estoppel — this gap's location is text you prescribed"
 )
 
 // readingCounts are the reading-and-debt paths' counts, each a tally gate over the sweep
