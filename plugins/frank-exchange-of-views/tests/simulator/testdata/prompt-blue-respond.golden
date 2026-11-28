@@ -1,4 +1,4 @@
-prompt sha256: 27f9ac501d73453a986e8c2b888ce8d6c359881915451e22580ad3b586ffc448
+prompt sha256: ee902d41ab248dc01fe0d16546c36272a55c3fa68ea86612294d7f6280adb777
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G-00000002.
@@ -59,5 +59,5 @@ PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only
 A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
 AUDIT YOUR OWN REPAIRS BEFORE YOU SUBMIT THEM (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide.
 Each edit names the gap it answers, and the gap's lens re-audits the repair.
-A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no answer: your work list names each one, with the seat that closed it, its fate and its open successors, and you name it in found_closed from that list.
-Engage your next sitting on each successor it owes, and name it in successors.
+A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no answer: your work list names each one, with the seat that closed it and its fate, and you name it in found_closed from that list.
+Engage your next sitting on each gap your work list owes, and name it in engage.

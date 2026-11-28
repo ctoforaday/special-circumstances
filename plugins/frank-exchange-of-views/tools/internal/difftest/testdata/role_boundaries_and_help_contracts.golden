@@ -34,7 +34,7 @@ Available Commands:
   closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
-  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  engage      in the last epoch you answer in, engage your next sitting on the gaps of yours minted after your dispatch
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -79,7 +79,7 @@ Available Commands:
   closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
-  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  engage      in the last epoch you answer in, engage your next sitting on the gaps of yours minted after your dispatch
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -249,7 +249,7 @@ Available Commands:
   closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
-  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  engage      in the last epoch you answer in, engage your next sitting on the gaps of yours minted after your dispatch
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
