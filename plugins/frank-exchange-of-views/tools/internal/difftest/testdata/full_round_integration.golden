@@ -37,7 +37,7 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: trace the inference
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -65,7 +65,7 @@ exit 0
 stdout:
 minted GAP002
   acceptance check RECORDED as: refetch and diff
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 

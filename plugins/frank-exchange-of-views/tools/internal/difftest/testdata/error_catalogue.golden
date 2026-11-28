@@ -727,7 +727,7 @@ feov-record: close: proposal MOTION001 stands on gap GAP001: its author offers y
 exit 0
 minted GAP003
   acceptance check RECORDED as: x
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
@@ -777,7 +777,7 @@ feov-record: carry: red-chair has already recorded a close on "GAP003" this sitt
 exit 0
 minted GAP004
   acceptance check RECORDED as: x
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
@@ -786,7 +786,7 @@ minted GAP004
 exit 0
 minted GAP005
   acceptance check RECORDED as: x
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
   · you were dispatched against report head 4 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules

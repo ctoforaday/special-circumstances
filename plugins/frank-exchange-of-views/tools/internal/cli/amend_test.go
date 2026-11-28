@@ -57,6 +57,13 @@ func TestTheMinterAmendsItsOwnOpenGap(t *testing.T) {
 	if b := lastBody(t, runDir, &recordpb.BlueEdit{}); !b.GetAppliedVerbatim() || !strings.Contains(b.GetNew(), acceptN) {
 		t.Errorf("the accept applied %q (verbatim %v), want the amended prescription", b.GetNew(), b.GetAppliedVerbatim())
 	}
+	// THE ACCEPT OF THE AMENDED PRESCRIPTION PLACES THE ESTOPPEL (RULINGS 11-28): the lens's mint over the
+	// text it applied is refused, naming its amend of the gap as the road.
+	if ts := lastBody(t, runDir, &recordpb.Tombstone{}); ts.GetGapId() != gap || ts.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL {
+		t.Errorf("the tombstone after the accept = %v, want %s's estoppel", ts, gap)
+	}
+	out, err := mintQuote(t, runDir, "again", acceptN)
+	heldRefusal(t, "a mint over the applied amended prescription", out, err, "estoppel", "amend --id "+gap)
 	refused := func(name, seat, gap string, args []string, want ...string) {
 		t.Helper()
 		amends := countType(t, runDir, recordpb.EventType_EVENT_TYPE_AMEND)

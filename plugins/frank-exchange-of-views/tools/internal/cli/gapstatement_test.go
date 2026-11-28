@@ -170,3 +170,49 @@ func TestTheAuthorTakesTheStatementOnAGapAboutItsGap(t *testing.T) {
 		})
 	}
 }
+
+// T-B54 (from the CLI): AN AMEND OF G ENDS THE DOCKETING STANDING ON G. With D(G2) first and D(G)
+// behind it, the bench's amend from D(G2)'s for-raiser ruling ends D(G) unruled, and so does A's
+// accept of G2's statement; a statement of grades alone writes no amend and ends nothing.
+func TestAnAmendOfAGapEndsItsDocketing(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		statement []string
+		act       func(t *testing.T, runDir, g2, d string)
+		ends      bool
+	}{
+		{"the bench's amend", []string{"--problem", "restated"}, func(t *testing.T, runDir, g2, d string) {
+			conveneBench(t, runDir, g2)
+			if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+				t.Fatalf("--for-raiser: %v\n%s", err, out)
+			}
+		}, true},
+		{"the author's accept", []string{"--problem", "restated"}, func(t *testing.T, runDir, g2, _ string) {
+			if out, err := runAt(t, "amend", "--run", runDir, "--seat-id", lensSeat, "--accept", g2, "--reason", "r"); err != nil {
+				t.Fatalf("amend --accept: %v\n%s", err, out)
+			}
+		}, true},
+		{"the bench's regrade alone", []string{"--severity", "low"}, func(t *testing.T, runDir, g2, d string) {
+			conveneBench(t, runDir, g2)
+			if out, err := answerDocketing(t, runDir, d, "for-raiser", "--final"); err != nil {
+				t.Fatalf("--for-raiser: %v\n%s", err, out)
+			}
+		}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir, g, g2, d2 := gapOnGapDocketed(t)
+			dg := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+			if out, err := closingOn(t, runDir, otherLens, g2, c.statement...); err != nil {
+				t.Fatalf("the raiser's statement: %v\n%s", err, out)
+			}
+			c.act(t, runDir, g2, d2)
+			_, standing, err := record.StandingOnGap(runtest.Open(t, runDir), g)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ended := standing != dg; ended != c.ends {
+				t.Errorf("D(G) %s standing %q after %s; want ended %v", dg, standing, c.name, c.ends)
+			}
+		})
+	}
+}

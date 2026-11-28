@@ -30,7 +30,7 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: the first check
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class unsourced_claim --check-kind document --check the second check --severity medium --likelihood medium --impact medium --problem the second wording, amended then closed
@@ -38,7 +38,7 @@ exit 0
 stdout:
 minted GAP002
   acceptance check RECORDED as: the second check
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class false_universal --check-kind document --check the third check --severity medium --likelihood medium --impact medium --problem the third wording, never amended
@@ -46,7 +46,7 @@ exit 0
 stdout:
 minted GAP003
   acceptance check RECORDED as: the third check
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ amend --run {RUN} --seat-id red-lens-evidence --id GAP001 --problem the first gap restated once --reason the defect is narrower

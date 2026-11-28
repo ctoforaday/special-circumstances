@@ -52,6 +52,18 @@ func GapOpen(q recordsql.Querier, id string) (bool, error) {
 	return open, nil
 }
 
+// GapOpenOf is GapOpen asked of run's record.
+func GapOpenOf(run Run, id string) (open bool, err error) {
+	err = readSnapshot(run, func(q recordsql.Querier) error {
+		if noRecord(q) {
+			return nil
+		}
+		open, err = GapOpen(q, id)
+		return err
+	})
+	return open, err
+}
+
 // OpenMaterialGapsAboutInquiry is the open material gaps about inquiry id on q, in mint order: what
 // holds its check wanting (requireInquiryCheck refuses a check while one stands).
 func OpenMaterialGapsAboutInquiry(q recordsql.Querier, id string) ([]string, error) {

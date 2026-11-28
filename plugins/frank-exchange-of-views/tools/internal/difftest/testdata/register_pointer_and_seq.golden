@@ -42,7 +42,7 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: x
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══

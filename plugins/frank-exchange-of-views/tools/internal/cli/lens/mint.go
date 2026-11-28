@@ -204,12 +204,12 @@ type mintResult struct {
 	// mint succeeded, printed only the new id, and echoed nothing — the corruption surfaced only
 	// when someone read the board afterwards. The tool cannot prevent a shell from rewriting its
 	// own argv; what it can do is show what it stored, which is the one thing that makes the
-	// difference visible while the seat is still there to fix it. No verb amends a check after
-	// mint, so the moment of the write is the only moment.
+	// difference visible while the seat is still there to fix it: an amend at the seat's next
+	// sitting restates the check, and this echo is what tells it one is owed.
 	Check string `json:"acceptance_check,omitempty"`
 	// VoiceTells is ADVICE on the problem, the fix and a --new replacement, and the gap is already on the board by the
-	// time it renders. The fix for a tell that turns out to be real is the next mint's wording, or
-	// a supersession; nothing here asks the seat to undo the write.
+	// time it renders. The fix for a tell that turns out to be real is the seat's amend of the gap;
+	// nothing here asks the seat to undo the write.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
@@ -230,7 +230,7 @@ func mintEcho(check string, tells []string) string {
 		return note
 	}
 	return "\n  acceptance check RECORDED as: " + check +
-		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
+		"\n  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)" + note
 }
 
 // mintPlacementRefusal is the placement refusal, worded for a gap: one whose quote repeats
@@ -449,8 +449,14 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 	switch _, err := record.AppendActs(s.Identity(), append(before, seat.PlacedActs(p, gapID, p.GetLocation(), mintPlacementRefusal, guards...)...)...); {
 	case errors.As(err, &est):
 		prior := est.Gap
-		msg := fmt.Sprintf("estoppel — this gap's location is text you prescribed and blue applied verbatim: your fix for %s. Your own applied prescription binds you, so it is not a fresh gap: raise it as an amendment to %s and argue it there, where your prescription sits beside the complaint. Another lens audits that text as it audits any of blue's. Applied text: %q",
-			prior, prior, est.Text)
+		road := fmt.Sprintf("restate it on %s with your amend of it (`amend --id %s`), where your prescription sits beside the complaint", prior, prior)
+		if run, err := s.Run(); err == nil {
+			if open, err := record.GapOpenOf(run, prior); err == nil && !open {
+				road = fmt.Sprintf("%s is closed, so no act of yours restates it: the text stands as you prescribed it", prior)
+			}
+		}
+		msg := fmt.Sprintf("estoppel — this gap's location is text you prescribed and blue applied verbatim: your fix for %s. Your own applied prescription binds you, so it is not a fresh gap: %s. Another lens audits that text as it audits any of blue's. Applied text: %q",
+			prior, road, est.Text)
 		// The KIND is a field, not something a reader infers from the wording. The
 		// prose above is aimed at a seat and must stay editable; the count an
 		// operator reads must not move when it is edited (#283).

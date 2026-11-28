@@ -505,7 +505,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
 	}
-	for _, want := range []string{"estoppel", prior, "an amendment to " + prior, "your fix for " + prior} {
+	for _, want := range []string{"estoppel", prior, "`amend --id " + prior + "`", "your fix for " + prior} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
