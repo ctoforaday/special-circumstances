@@ -49,6 +49,7 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 	minted := assigneeOf(evs)
 	turns := lensTurnActsOf(evs, ids, win, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
 	authorOf := authorsOn(evs)
+	opens := benchAmendPlaces(evs, ids)
 	var out []EarlyLensDispatch
 	for i, e := range evs {
 		d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
@@ -62,7 +63,7 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 			if minted[g] != d.GetSeatId() {
 				continue
 			}
-			if !lensTurnOn(turns[g], d.GetSeatId(), authorOf(g), mintedAt[g], latestBefore(remandPlaces(remands[g]), at), at) {
+			if !lensTurnOn(turns[g], d.GetSeatId(), authorOf(g), mintedAt[g], latestBefore(roundOpeners(remandPlaces(remands[g]), opens[g]), at), at) {
 				out = append(out, EarlyLensDispatch{At: at, SeatID: d.GetSeatId(), GapID: g})
 			}
 		}

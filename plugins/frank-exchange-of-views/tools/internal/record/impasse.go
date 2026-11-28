@@ -285,7 +285,6 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
 	wording := map[string][4]string{} // gap -> current problem, required fix, acceptance check, fix_new
 	movement := map[string][]int64{}  // gap -> ids of movement events
-	opens := map[string][]int64{}     // gap -> places of the bench's amends of it, each opening a round
 	fates := fateActsOf(evs)
 	acts := gapActsOf(evs, ids)
 
@@ -316,7 +315,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			// regrade is; one naming a gap about this gap is that gap's author's answer, and movement there.
 			switch {
 			case seatclass.RoleOfSeat(e.GetSeatId()) == "bench":
-				opens[g] = append(opens[g], id)
+				// benchAmendPlaces reads it as the round it opens.
 			case moved:
 				movement[g] = append(movement[g], id)
 				if g2 := b.GetAnswers(); g2 != "" {
@@ -388,6 +387,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	sittings := gapSittingsOf(evs, ids, win, when, minted)
 	turns := lensTurnActsOf(evs, ids, win, acts, sittings, minted)
 	authorOf := authorsOn(evs)
+	opens := benchAmendPlaces(evs, ids)
 
 	out := map[string]*GapExchanges{}
 	for g := range minted {
@@ -399,7 +399,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			return slices.ContainsFunc(moves, func(m int64) bool { return m > from && m <= to })
 		}
 		rulings := remandPlaces(remands[g])
-		openers := slices.Sorted(slices.Values(slices.Concat(rulings, opens[g])))
+		openers := roundOpeners(rulings, opens[g])
 		start, next := mintedAt[g], 0
 		end := func(at int64, audited bool) {
 			x.Exchanges++
@@ -455,6 +455,25 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: authorActed(acts[g], author, start, math.MaxInt64), audited: true}
 	}
 	return out
+}
+
+// benchAmendPlaces is the place of each bench's amend of each gap, in record order: the application of
+// a for-raiser ruling on a gap about it, which opens a round on the gap with its author's turn
+// (§III.B3). ids are evs's places.
+func benchAmendPlaces(evs []*Event, ids []int64) map[string][]int64 {
+	out := map[string][]int64{}
+	for i, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok && seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
+			out[a.GetGapId()] = append(out[a.GetGapId()], ids[i])
+		}
+	}
+	return out
+}
+
+// roundOpeners is the places a gap's round opens at besides its mint, sorted: its remand rulings and
+// the bench's amends of it. The lens reads the author's acts from the latest one (lensTurnOn's floor).
+func roundOpeners(rulings, amends []int64) []int64 {
+	return slices.Sorted(slices.Values(slices.Concat(rulings, amends)))
 }
 
 // remandPlaces is the place of each of a gap's remand rulings, in record order.

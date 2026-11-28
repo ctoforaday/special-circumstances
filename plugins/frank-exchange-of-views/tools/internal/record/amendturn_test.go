@@ -118,6 +118,35 @@ func TestAnAmendIsTheAuthorsTurn(t *testing.T) {
 		if plan := planOfT(t, benched().register("red-chair").seed()); !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 			t.Errorf("after the bench's amend of G1 blue is not readied on it: %+v", plan.Parties)
 		}
+		// THE ROUND IT OPENS READS FROM THE AMEND: blue's null sitting after it ends a stalled round, and
+		// the lens sitting before blue answers ends none, blue's act before the amend being no answer.
+		x := exchanges(t, benched().blueSitsOn("G1", false))["G1"]
+		if x == nil || x.Exchanges != before.Exchanges+1 || x.Stalled != before.Stalled+1 {
+			t.Errorf("blue's null sitting after the bench's amend does not end a stalled round: before %+v, after %+v", before, x)
+		}
+		x = exchanges(t, lensSits(benched(), nil))["G1"]
+		if x == nil || x.Exchanges != before.Exchanges {
+			t.Errorf("the lens's sitting after the bench's amend, before blue answers, ended a round: before %+v, after %+v", before, x)
+		}
+		// A DISPATCH OF THE LENS THERE IS EARLY: capture reads the lens's turn from the same floor.
+		early, err := EarlyLensDispatches(benched().register("red-chair").dispatch(2, evLens, "G1").seed())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.ContainsFunc(early, func(d EarlyLensDispatch) bool { return d.GapID == "G1" }) {
+			t.Errorf("a dispatch of the lens on G1 after the bench's amend, before blue answers it, is not named early: %+v", early)
+		}
+	})
+
+	// THE BENCH'S AMEND IS NO MOVEMENT even inside a party's sitting: blue's sitting that spans it and
+	// records nothing on G1 ends a stalled round.
+	t.Run("the bench's amend inside blue's sitting moves nothing", func(t *testing.T) {
+		st := mintedOn(t).dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-spans")
+		st.register("judge").add("judge", amend("G1", "")).stop("blue-spans")
+		g := exchanges(t, st)["G1"]
+		if g == nil || g.Exchanges != 1 || g.Stalled != 1 {
+			t.Errorf("blue's null sitting spanning the bench's amend is read as moving G1: %+v", g)
+		}
 	})
 
 	t.Run("A's amend naming G2 is G2's raiser's turn, and moves G2", func(t *testing.T) {
