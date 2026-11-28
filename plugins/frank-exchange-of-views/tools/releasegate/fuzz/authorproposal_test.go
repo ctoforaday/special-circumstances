@@ -252,6 +252,11 @@ func (r *runner) concedeByAccept(seatID string) {
 			if st.AboutRef == "" || !strings.Contains(cur, st.AboutRef) {
 				continue
 			}
+			// A CITATION A COMPUTATION STILL IN THE REPORT APPLIES IS NOT RETIRED (L6), by the raiser's
+			// statement any more than by blue's own retire: the accept is refused naming the computation.
+			if len(computationsCiting(r.run(), st.AboutRef)) > 0 {
+				continue
+			}
 			verb, key = "retire", "concession:author:retire"
 		} else {
 			gid, fo, pairNew := r.proposalFor(d.GapID, cur)

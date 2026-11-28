@@ -288,31 +288,8 @@ func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref st
 // `compute --cites` racing it cannot both land. The tool refuses and never cascades.
 func requireCitationUncited(q recordsql.Querier, taken []string, act string) error {
 	for _, id := range taken {
-		if anchor.Kind(id) != "citation" {
-			continue
-		}
-		// Live is what the evidence_anchor view says: no act took it out (anchor_removal, a retire or a
-		// cut). Asked by index on both sides, never by materialising every anchor.
-		rows, err := q.Query(`SELECT DISTINCT c."computation_id" FROM "computation" c
-		  WHERE c."cites" = ? AND c."computation_id" IS NOT NULL
-		    AND NOT EXISTS (SELECT 1 FROM "anchor_removal" ar WHERE ar."anchor_id" = c."computation_id")
-		  ORDER BY c."computation_id"`, id)
+		live, err := computationsApplying(q, id, taken)
 		if err != nil {
-			return fmt.Errorf("asking the record which computations cite %s: %w", id, err)
-		}
-		var live []string
-		for rows.Next() {
-			var k string
-			if err := rows.Scan(&k); err != nil {
-				rows.Close()
-				return err
-			}
-			if !slices.Contains(taken, k) {
-				live = append(live, k)
-			}
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
 			return err
 		}
 		if len(live) > 0 {
@@ -328,6 +305,36 @@ func requireCitationUncited(q recordsql.Querier, taken []string, act string) err
 		}
 	}
 	return nil
+}
+
+// computationsApplying is each computation still in the report that applies citation id's method
+// (Computation.cites), outside taken — the anchors the act asking takes with it. Any other anchor kind
+// is applied by none.
+func computationsApplying(q recordsql.Querier, id string, taken []string) ([]string, error) {
+	if anchor.Kind(id) != "citation" {
+		return nil, nil
+	}
+	// Live is what the evidence_anchor view says: no act took it out (anchor_removal, a retire or a
+	// cut). Asked by index on both sides, never by materialising every anchor.
+	rows, err := q.Query(`SELECT DISTINCT c."computation_id" FROM "computation" c
+	  WHERE c."cites" = ? AND c."computation_id" IS NOT NULL
+	    AND NOT EXISTS (SELECT 1 FROM "anchor_removal" ar WHERE ar."anchor_id" = c."computation_id")
+	  ORDER BY c."computation_id"`, id)
+	if err != nil {
+		return nil, fmt.Errorf("asking the record which computations cite %s: %w", id, err)
+	}
+	defer rows.Close()
+	var live []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, err
+		}
+		if !slices.Contains(taken, k) {
+			live = append(live, k)
+		}
+	}
+	return live, rows.Err()
 }
 
 // requireInquiry refuses a fate recorded against an inquiry nobody proposed.

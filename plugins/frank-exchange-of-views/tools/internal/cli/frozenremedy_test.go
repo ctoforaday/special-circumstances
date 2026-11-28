@@ -173,3 +173,37 @@ func TestBluesOwnRewordOfRedsSpanIsHeld(t *testing.T) {
 		heldRefusal(t, "blue's own reword of red's span to "+own, out, err, "holds until its ruling", words)
 	}
 }
+
+// A RETIRE ROAD L6 WOULD REFUSE IS REFUSED WHEN STATED. Red's statement is checked as its application
+// would be: while a computation still in the report applies the citation's method, the bench's retire
+// for red and blue's `retire --accept` are both refused, so red's closing stating that retire is refused
+// naming the computation, and nothing is recorded (seed 5, CI run 46094143286).
+func TestARetireRoadL6WouldRefuseIsRefusedWhenStated(t *testing.T) {
+	runDir, cite, gap, _ := frozenRemedyRun(t, true)
+	s := script(t, runDir, "k.js", "console.log('k');")
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later", "--dir", s,
+		"--reason", "the method applied", "--cites", cite, "--", "node", "k.js"); err != nil {
+		t.Fatalf("compute --cites %s: %v %s", cite, err, out)
+	}
+	k := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+	closings := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING)
+	out, err := redStates(t, runDir, gap, "--retire")
+	if err == nil {
+		t.Fatalf("red's retire of %s while %s applies it was admitted: %s", cite, k, out)
+	}
+	for _, want := range []string{k, cite, "L6", "--no-text"} {
+		if !strings.Contains(err.Error()+out, want) {
+			t.Errorf("the refusal does not name %q: %v %s", want, err, out)
+		}
+	}
+	if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING); got != closings {
+		t.Errorf("closings on the record %d, want %d: the refused statement recorded one", got, closings)
+	}
+	// THE COMPUTATION RETIRED, THE SAME STATEMENT STANDS.
+	if out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", k, "--reason", "the method leaves"); err != nil {
+		t.Fatalf("blue's retire of %s: %v %s", k, err, out)
+	}
+	if out, err := redStates(t, runDir, gap, "--retire"); err != nil {
+		t.Errorf("red's retire of %s once no computation applies it: %v %s", cite, err, out)
+	}
+}

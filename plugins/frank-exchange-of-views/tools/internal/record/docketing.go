@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -570,6 +571,23 @@ func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Clo
 		return feov.Errorf(feov.Validation, "red's closing on %s states its text: exactly one of a road — --quote with --new, or --retire on a gap about a citation or a computation — and --no-text, where every road red can state is refused. Nothing was recorded", c.GetGapId())
 	case c.GetRetire() && about != recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR):
 		return feov.Errorf(feov.Validation, "--retire retires the citation or computation a gap is about, and %s is about none. Nothing was recorded", c.GetGapId())
+	}
+	// A RETIRE ROAD IS HELD TO L6 AS ITS APPLICATION IS: the bench's retire for red, or blue's
+	// `retire --accept`, of a citation a computation still in the report applies is refused, so a
+	// statement of it would be a road no ruling and no concession can take.
+	if c.GetRetire() {
+		var kind, ref sql.NullString
+		if _, err := queryRowAt(q, []any{&kind, &ref}, `SELECT "about_kind", "about_ref" FROM "mint" WHERE "gap_id" = ?`, c.GetGapId()); err != nil {
+			return err
+		}
+		live, err := computationsApplying(q, ref.String, nil)
+		if err != nil {
+			return err
+		}
+		if len(live) > 0 {
+			return feov.Errorf(feov.Conflict, "red's closing on %s states the retire of citation %s, and computation %s, still in the report, applies its method: that retire is refused while it does (L6), so neither the bench's answer for red nor blue's accept could take this road. "+
+				"State a pair over the citation's sentence, or file --no-text where every road you can state is refused. Nothing was recorded", c.GetGapId(), ref.String, strings.Join(live, ", "))
+		}
 	}
 	// THE ROAD IS ESTOPPED AS A RED MINT IS (L43): text red could not mint is never applied through the
 	// bench.
