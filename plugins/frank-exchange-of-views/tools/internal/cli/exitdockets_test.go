@@ -21,24 +21,45 @@ func proposalActs(gap string) map[string][]string {
 // nothing (the chair files no proposal: only a gap's author does, T-B39). Fails if a filing the record knows no plan follows lands, or the exit's proposal has
 // no answer that lands.
 func TestTheExitDocketsAStandingProposal(t *testing.T) {
-	t.Run("standing at the final sitting: the terminal register dockets it", func(t *testing.T) {
-		runDir := newRun(t)
-		stageRetiredLens(t, runDir, true)
-		setEpochLimit(t, runDir, 5)
-		m := proposeClose(t, runDir, blueSeat, limitGap, "not_a_defect", "not converging, and the bench's to settle")
-		asSeat(t, runDir, "red-chair", "register")
-		if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); !plan.FinalSitting || !plan.EpochLimitReached {
-			t.Fatalf("plan = %+v, want the final sitting at the epoch limit", plan)
-		}
-		argue(t, runDir)
-		if ds, _ := docketingsOn(t, runDir, limitGap); len(ds) != 0 {
-			t.Fatalf("docketed before the exit: %+v", ds)
-		}
-		asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
-		ruleProposalDocketing(t, runDir, m)
-		asSeat(t, runDir, "judge", "register", "--occasion", "assemble")
-		asSeat(t, runDir, "judge", "outcome", "--as", "CEILING", "--reason", "the run's term ran out")
-	})
+	// THE LIVE PATH (L29): a lens author files its proposal on a gap about its gap in the last epoch a
+	// lens is dispatched, after the gap's raiser sat there; the raiser sits again for its closings only.
+	// The final plan dockets nothing while the proposal stands — with no closing filed, and with both
+	// parties' closings filed at the final sitting — and the terminal register dockets it.
+	for _, closings := range []bool{false, true} {
+		t.Run(map[bool]string{false: "standing at the final sitting: the terminal register dockets it", true: "both closings at the final sitting, nothing docketed: the terminal register dockets it"}[closings], func(t *testing.T) {
+			runDir := newRun(t)
+			lensGapBoard(t, runDir, 4, 5)
+			asSeat(t, runDir, "red-chair", "register")
+			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.Epoch != 4 || plan.FinalSitting {
+				t.Fatalf("plan = %+v, want epoch 4 of 5, the last that dispatches a lens", plan)
+			}
+			asSeat(t, runDir, otherLens, "register")
+			asSeat(t, runDir, lensSeat, "register")
+			m := proposeClose(t, runDir, lensSeat, onGapGap, "not_a_defect", "the check names its outcome already")
+			asSeat(t, runDir, "red-chair", "register")
+			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); !plan.FinalSitting || !plan.EpochLimitReached {
+				t.Fatalf("plan = %+v, want the final sitting at the epoch limit", plan)
+			}
+			if closings {
+				asSeat(t, runDir, otherLens, "register")
+				asSeat(t, runDir, otherLens, "closing", "--id", onGapGap, "--reason", "the raiser's case", "--no-text")
+				asSeat(t, runDir, lensSeat, "register")
+				asSeat(t, runDir, lensSeat, "closing", "--id", onGapGap, "--reason", "the author's case: the proposal states it")
+			}
+			if ds, _ := docketingsOn(t, runDir, onGapGap); len(ds) != 0 {
+				t.Fatalf("docketed before the exit: %+v", ds)
+			}
+			asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
+			if d := lastDocketing(t, runDir, onGapGap); d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL || d.GetMotionId() != m {
+				t.Fatalf("the terminal register wrote %+v, want PROPOSAL holding %s", d, m)
+			}
+			if err := benchRules(t, runDir, onGapGap, recordpb.SidedWith_SIDED_WITH_AUTHOR, recordpb.Disposition_DISPOSITION_NOT_A_DEFECT); err != nil {
+				t.Fatalf("the bench's ruling for the author: %v", err)
+			}
+			asSeat(t, runDir, "judge", "register", "--occasion", "assemble")
+			asSeat(t, runDir, "judge", "outcome", "--as", "CEILING", "--reason", "the run's term ran out")
+		})
+	}
 
 	t.Run("an engine stop: the assemble register dockets it", func(t *testing.T) {
 		runDir := newRun(t)
