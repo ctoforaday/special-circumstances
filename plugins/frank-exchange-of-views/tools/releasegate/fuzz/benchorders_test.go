@@ -164,7 +164,8 @@ func (r *runner) benchGrades(gapID string) map[string]string {
 }
 
 // inheritBenchGrades is a successor minted superseding ancestor carrying the bench's axes: the lock
-// follows the lineage, so the successor's are the bench's too.
+// follows the lineage, so the successor's are the bench's too, beside those of any other ancestor it
+// names.
 func (r *runner) inheritBenchGrades(successor, ancestor string) {
 	held := r.benchGrades(ancestor)
 	if len(held) == 0 || successor == "" {
@@ -172,7 +173,44 @@ func (r *runner) inheritBenchGrades(successor, ancestor string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.benchSet[successor] = held
+	if r.benchSet[successor] == nil {
+		r.benchSet[successor] = map[string]string{}
+	}
+	for dim, g := range held {
+		r.benchSet[successor][dim] = g
+	}
+}
+
+// successorInherits is the drive's model following the lineage at every mint the record admits: where
+// args is a mint naming --supersedes, the gap its answer names carries each named ancestor's bench-held
+// axes (inheritBenchGrades). THE RECORD HOLDS A SUCCESSOR TO ITS ANCESTOR'S BENCH GRADES WHICHEVER DRIVE
+// MINTED IT, and the model holds what the record holds: a successor the model takes for free has an
+// axis the lens's next drawn regrade moves, and the lock refuses the move. So the model inherits where
+// every call of the binary passes (execCall), and no drive that lands a superseding mint carries the
+// lineage by hand. A superseding mint admitted with no gap id in its answer is the run's failure: the
+// model cannot follow a successor it cannot name.
+func (r *runner) successorInherits(args []string, out string) {
+	// THE COMMAND PATH CARRIES ITS ROLE (commandPathOf), and a gap is a lens's to mint.
+	if commandPathOf(args) != "lens mint" {
+		return
+	}
+	var ancestors []string
+	for i, a := range args {
+		if a == "--supersedes" && i+1 < len(args) {
+			ancestors = append(ancestors, args[i+1])
+		}
+	}
+	if len(ancestors) == 0 {
+		return
+	}
+	successor := gapIDOf(out)
+	if successor == "" {
+		r.noteActErr("an admitted mint --supersedes " + strings.Join(ancestors, ", ") + " names no gap id in its answer, so the drive cannot carry the bench's grades to the successor: " + firstLine(out))
+		return
+	}
+	for _, a := range ancestors {
+		r.inheritBenchGrades(successor, a)
+	}
 }
 
 // keepingBenchGrades is args with every axis the bench set on any gap it supersedes stated at the

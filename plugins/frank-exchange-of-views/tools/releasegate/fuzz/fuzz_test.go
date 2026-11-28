@@ -2412,6 +2412,9 @@ func (r *runner) execCall(agent string, owed bool, args ...string) (string, erro
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 		return string(out), err
 	}
+	// A SUCCESSOR CARRIES ITS ANCESTOR'S BENCH GRADES IN THE DRIVE'S MODEL, as on the record
+	// (successorInherits): every superseding mint the record admits passes here.
+	r.successorInherits(args, string(out))
 	// THE WRITER HANDS THE SEAT ITS NEXT ITEM AFTER A CALL THAT SUCCEEDED, as the PostToolUse hook does;
 	// a refused call reaches PostToolUseFailure, which hands nothing.
 	if seat != "" {
@@ -4826,7 +4829,6 @@ func (r *runner) mintWith(seatID, class string) string {
 	if env.Result.GapID != "" {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
-		r.inheritBenchGrades(env.Result.GapID, ancestor)
 		r.supersessionClosed(ancestor, env.Result.GapID, carries[ancestor])
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
@@ -6632,22 +6634,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
 				// regrade is movement, so sample one — by the minter, which this seat is. EVERY
 				// AXIS, not three of four: --complexity is spelled by its flag here.
-				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
-				// drives the move, to be refused).
 				r.maybe(30, func() {
 					if regraded[id] {
 						return
 					}
-					held := r.benchGrades(id)
-					keep := func(dim string) string {
-						if g, ok := held[dim]; ok {
-							return g
-						}
-						return r.gradeOn(dim)
-					}
-					dim := pick(r.rng, regradeDims)
-					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, keep(dim), "--complexity", keep("complexity"))
+					r.drawnRegrade(seatID, id)
 				})
 			}
 		}
@@ -7286,6 +7277,22 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		}()
 		return vm.ToValue(p)
 	})
+}
+
+// drawnRegrade is the minting lens's regrade of its gap id on a drawn axis and on complexity, which the
+// drive expects admitted. An axis the bench holds locked is the lens's to keep, never to move
+// (lensMovesBenchAxis drives the move, to be refused): the regrade names it at the bench's grade.
+func (r *runner) drawnRegrade(seatID, id string) {
+	held := r.benchGrades(id)
+	keep := func(dim string) string {
+		if g, ok := held[dim]; ok {
+			return g
+		}
+		return r.gradeOn(dim)
+	}
+	dim := pick(r.rng, regradeDims)
+	r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
+		"--"+dim, keep(dim), "--complexity", keep("complexity"))
 }
 
 // stallAfter is how long a run may go without one of its commands finishing before driveDebate
