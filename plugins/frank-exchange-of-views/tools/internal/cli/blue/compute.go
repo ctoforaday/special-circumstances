@@ -191,7 +191,7 @@ func newCompute() *cobra.Command {
 		if err := compute.WriteAct(run.Dir(), res.Bundle, label, []byte(res.Output), res.Out); err != nil {
 			return nil, err
 		}
-		if _, err := seat.AppendPlaced(s, body, label, location, placementRefusal(record.EvidenceNoun(label))); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, location, placementRefusal(record.EvidenceNoun(label)), roadsHold(evidenceRemedy)...); err != nil {
 			if rerr := compute.RemoveAct(run.Dir(), res.Bundle, label); rerr != nil {
 				return nil, errors.Join(err, rerr)
 			}

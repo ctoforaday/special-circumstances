@@ -32,6 +32,12 @@ type Road struct {
 // gap a docketing or a proposal stands on, from the closing until the answer.
 func (l *Landing) StandingRoads() ([]Road, error) { return standingRoadsAt(l.w.q) }
 
+// ComputationsApplying is each computation in the report l renders that applies citation id's method
+// (L6's query): a retire road of id is refused while one does.
+func (l *Landing) ComputationsApplying(id string) ([]string, error) {
+	return computationsApplying(l.w.q, id, nil)
+}
+
 // standingRoadsAt is StandingRoads asked of q.
 func standingRoadsAt(q recordsql.Querier) ([]Road, error) {
 	evs, win, err := eventsAt(q)

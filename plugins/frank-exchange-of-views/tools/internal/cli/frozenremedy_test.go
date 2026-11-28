@@ -234,3 +234,45 @@ func TestARetireRoadL6WouldRefuseIsRefusedWhenStated(t *testing.T) {
 		}
 	})
 }
+
+// EVERY ACT OF BLUE'S THAT CAN BREAK A STANDING STATEMENT IS HELD BY THE SAME GUARD (the freeze's
+// roadsHold): a computation applying a citation's method makes red's stated retire of that citation one
+// L6 refuses, so `compute --cites C` after the statement is refused naming the docketing that holds it,
+// and nothing is recorded; a computation citing nothing lands.
+func TestAComputationThatBreaksAStandingRetireIsRefused(t *testing.T) {
+	runDir, cite, gap, d := frozenRemedyRun(t, true)
+	if out, err := redStates(t, runDir, gap, "--retire"); err != nil {
+		t.Fatalf("red's statement, the citation's retire: %v %s", err, out)
+	}
+	s := script(t, runDir, "k.js", "console.log('k');")
+	computations := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION)
+	out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later", "--dir", s,
+		"--reason", "the method applied", "--cites", cite, "--", "node", "k.js")
+	heldRefusal(t, "compute --cites "+cite+" under red's retire of it", out, err, d, gap, cite, "L6", "holds until its ruling")
+	if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); got != computations {
+		t.Errorf("computations on the record %d, want %d: the refused act recorded one", got, computations)
+	}
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later", "--dir", s,
+		"--reason", "a computation of its own", "--", "node", "k.js"); err != nil {
+		t.Errorf("a computation citing no method under the same statement: %v %s", err, out)
+	}
+}
+
+// A CITATION THAT BREAKS A STANDING PAIR IS REFUSED by the same guard: its token lands inside the span
+// red's stated pair quotes, so the pair no longer plans on the report it leaves; a citation elsewhere
+// lands.
+func TestACitationThatBreaksAStandingPairIsRefused(t *testing.T) {
+	runDir, gap, d := positionsRun(t)
+	if out, err := redStates(t, runDir, gap); err != nil {
+		t.Fatalf("red's pair: %v %s", err, out)
+	}
+	cites := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE)
+	out, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".", "--url", "https://costs/1", "--title", "Source")
+	heldRefusal(t, "a cite inside red's quoted span", out, err, d, gap, "holds until its ruling")
+	if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); got != cites {
+		t.Errorf("citations on the record %d, want %d: the refused act recorded one", got, cites)
+	}
+	if out, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later.", "--url", "https://costs/1", "--title", "Source"); err != nil {
+		t.Errorf("a cite outside red's span: %v %s", err, out)
+	}
+}

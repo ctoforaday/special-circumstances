@@ -97,7 +97,7 @@ func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.R
 		return nil, feov.Errorf(feov.Validation, "--anchor retires one anchor and keeps its sentence, and this names %d: %s. Retire each in its own retire, or cut the sentence they stand on with `edit`", len(named), strings.Join(named, ", "))
 	}
 	id := named[0]
-	if _, err := record.Append(s.Identity(), body, append([]record.Guard{record.Check(RetireAnchor(body, id))}, roadsHold()...)...); err != nil {
+	if _, err := record.Append(s.Identity(), body, append([]record.Guard{record.Check(RetireAnchor(body, id))}, roadsHold(editRemedy)...)...); err != nil {
 		return nil, err
 	}
 	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, Noun: record.EvidenceNoun(id), Answers: body.GetAnswers()}, nil

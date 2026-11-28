@@ -249,7 +249,7 @@ func newEdit() *cobra.Command {
 				}
 			}
 			return nil
-		})}, roadsHold()...)...)
+		})}, roadsHold(editRemedy)...)...)
 		if errors.Is(err, errBunched) {
 			return nil, bunchedRefusal(run, bunched.report, bunched.old, bunched.applied, bunched.exact)
 		}

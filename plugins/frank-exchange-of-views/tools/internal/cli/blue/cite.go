@@ -172,7 +172,7 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(at.loc.ReadingSha)
 		}
 		citeFields(cmd, body, why)
-		if _, err := seat.AppendPlaced(s, body, label, quote, placementRefusal(record.EvidenceNoun(label))); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, quote, placementRefusal(record.EvidenceNoun(label)), roadsHold(evidenceRemedy)...); err != nil {
 			return nil, err
 		}
 		// WHOSE BYTES WERE CITED, as the record holds them: read back from the stored row, so blue
