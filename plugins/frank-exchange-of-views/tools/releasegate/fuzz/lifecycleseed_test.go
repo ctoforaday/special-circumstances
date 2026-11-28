@@ -1705,6 +1705,34 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 		if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
 			t.Errorf("the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
 		}
+
+		// AND NO DRAWN DRIVE OF A LATER SITTING TAKES EITHER (limitArmAnchor; seed 7's two failures):
+		// the computation owner's re-judgement of the failed check its gap carries, sitting after
+		// sitting, and another lens's cross-arm chain on the citation, each arm.
+		for range 8 {
+			if r.openSitting(computationOwner) {
+				r.answerFailed(computationOwner)
+				r.envelopeEnds(computationOwner)
+			}
+		}
+		const other = "red-lens-dark-side"
+		for arm := range 3 {
+			if !r.openSitting(other) {
+				t.Fatalf("the other lens's sitting: %s", r.actErr)
+			}
+			if why := r.crossArmChain(other, r.limitDebtCite, arm); why == "" {
+				t.Errorf("the cross-arm chain's arm %d ran on the limit seed's citation %s", arm, r.limitDebtCite)
+			}
+		}
+		if r.actErr != "" {
+			t.Fatalf("the later sittings: %s", r.actErr)
+		}
+		if n, msg := screen(t, r); n != 1 || msg != "" {
+			t.Errorf("after the later sittings the screen of %s counted %d (%s), want 1", r.screenUnsoundComputation, n, msg)
+		}
+		if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
+			t.Errorf("after the later sittings the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
+		}
 	})
 	t.Run("a plan that does not hold blue out", func(t *testing.T) {
 		r := stage(t)

@@ -4303,6 +4303,11 @@ func (r *runner) answerFailed(seatID string) {
 		open[g] = true
 	}
 	for _, b := range bs {
+		// THE LIMIT SEED'S ANCHORS ARE JUDGED ONCE AND LEFT (limitArmAnchor): a drawn re-judgement of its
+		// unsound computation `sound` ended seed 7's run on no unsound computation for the screen to fail.
+		if r.limitArmAnchor(b.Subject) {
+			continue
+		}
 		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckUnread && b.Owner == seatID && b.AnsweredBy() != "" && open[b.AnsweredBy()] &&
 			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
 			// A READING THAT READS NOTHING AGAIN, while the gap carrying the first is open, is refused.
@@ -9956,6 +9961,24 @@ func (r *runner) drawnRetireAnchor() string {
 	return ids[r.rng.Intn(len(ids))]
 }
 
+// limitArmAnchor is whether id is one of the limit seed's subjects the run must end on as screenAtLimit
+// judged them — blue's unsound computation, its refuted citation, or that citation's sentence — so no
+// drawn drive judges, reads or mints on it. The seats run concurrently on one generator (lockedRand),
+// so which drawn drive reaches one is the interleaving's: on seed 7 a drawn re-judgement of the
+// computation `sound` (answerFailed) and another lens's cross-arm mint about the citation
+// (crossArmMints) each ended a run on nothing for the screen to fail. limitAnchorLocked is it with r.mu
+// held, the one definition reservedDebtSubject and forcedArmAnchor read too.
+func (r *runner) limitArmAnchor(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.limitAnchorLocked(id)
+}
+
+func (r *runner) limitAnchorLocked(id string) bool {
+	return r.forceScreenUnsound && id != "" &&
+		(id == r.screenUnsoundComputation || id == r.limitDebtCite || id == r.limitDebtSentenceCited)
+}
+
 // forcedArmAnchor is whether id, an anchor of report cur, is one a forced arm placed and acts on, or
 // needs standing, at a later sitting or at the run's end. NO DRAWN RETIRE TAKES ONE: it would leave
 // the arm nothing to act on — a seam with nothing to forge, a chain with no computation to judge, a
@@ -9972,14 +9995,11 @@ func (r *runner) forcedArmAnchor(cur, id string) bool {
 		return true
 	}
 	r.mu.Lock()
-	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, []string{}
-	if r.forceScreenUnsound {
-		limit = append(limit, r.screenUnsoundComputation, r.limitDebtCite)
-	}
+	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, r.limitAnchorLocked(id)
 	mintBare := r.forceMintBare
 	r.mu.Unlock()
 	switch {
-	case id == staleness, slices.Contains(limit, id):
+	case id == staleness, limit:
 		return true
 	case owed && anchor.Kind(id) == "computation":
 		return true

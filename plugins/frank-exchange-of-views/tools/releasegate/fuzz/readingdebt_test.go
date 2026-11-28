@@ -1139,6 +1139,12 @@ func (r *runner) crossArmChain(seatID, cite string, arm int) string {
 	if sentence == "" {
 		return "citation " + cite + " stands in no one sentence the report holds once"
 	}
+	// THE LIMIT SEED'S SENTENCE IS LEFT ON ITS DEBT (limitArmAnchor): a cross-arm mint about a citation
+	// in it, or quoting it, discharged the debt seed 7's run must end on, on whichever lens's sitting
+	// drew it.
+	if r.limitArmAnchor(sentence) {
+		return "citation " + cite + "'s sentence is the limit seed's, left on its debt"
+	}
 	if r.readThisSitting(seatID, cite) {
 		return "the lens read " + cite + " this sitting already"
 	}

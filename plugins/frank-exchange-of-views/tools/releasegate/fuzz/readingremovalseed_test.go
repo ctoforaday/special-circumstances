@@ -118,7 +118,7 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	// AND ITS SENTENCE: another lens's claim_contradicts_source gap quoting it discharges the debt the
 	// moment it lands (F9), so a drawn lens's debt on that sentence is left standing too (CI run
 	// 46126830171, seed 7: red-lens-architecture's mint quoting it ended the run on no debt).
-	if r.forceScreenUnsound && r.limitDebtCite != "" && (subject == r.limitDebtCite || subject == r.limitDebtSentenceCited) {
+	if r.limitDebtCite != "" && r.limitAnchorLocked(subject) {
 		return true
 	}
 	if !r.forceReadingRemoval || !removalDebtsStand(r.removal.stage) {
