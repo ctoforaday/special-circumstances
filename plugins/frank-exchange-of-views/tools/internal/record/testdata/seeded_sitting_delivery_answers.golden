@@ -1,0 +1,790 @@
+== a failed sitting: blue's sitting on G1 closes with no envelope admitted ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5; agent red-lens-evidence-agent-5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: envelope_admitted by harness, in no sitting; agent red-lens-evidence-agent-5
+act 8: sitting_close by harness, in no sitting; agent red-lens-evidence-agent-5
+act 9: mint by red-lens-evidence, in sitting 5; G1
+act 10: register by red-chair, in sitting 10
+act 11: dispatch by red-chair, in sitting 10; red-lens-evidence at pin 2 on [G1]
+act 12: dispatch by red-chair, in sitting 10; blue-respond at pin 2 on [G1]
+act 13: register by blue-respond, in sitting 13; agent blue-agent
+act 14: sitting_close by harness, in no sitting; agent blue-agent
+act 15: register by red-lens-evidence, in sitting 15; agent red-lens-evidence-agent-15
+act 16: report_read by red-lens-evidence, in sitting 15; head 2
+act 17: envelope_admitted by harness, in no sitting; agent red-lens-evidence-agent-15
+act 18: sitting_close by harness, in no sitting; agent red-lens-evidence-agent-15
+act 19: register by red-chair, in sitting 19
+act 20: question_part by harness, in no sitting
+act 21: question_part by harness, in no sitting
+act 22: question_part_check by harness, in no sitting
+--
+failed sitting: blue-respond sitting 1, epoch 2, opened at 13, agent blue-agent
+sittings red-lens-evidence: 1:CAO 2:CA-
+sittings blue-respond: 1:C--
+blocker material_gap: subject "G1", owner "red-lens-evidence", detail "", about "", since 0
+blocker lens_ready: subject "red-lens-logic", owner "red-lens-logic", detail "", about "", since 0
+plan head: 2
+plan parties: {"seat_id":"red-lens-logic","gap_ids":[]}
+plan parties: {"seat_id":"blue-respond","gap_ids":["G1"]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: {"gap_id":"G1","count":0,"unresolved":0}
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 2, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-logic: never sat — audits the report at head 2"
+plan why: "G1: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there"
+plan key: "6f1ed8d07f8135c2"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+last_read red-lens-logic: undispatched, pin 0, head 0; complete true
+  item log, about nothing, blocks false: the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 2, red-lens-evidence at head 2, whole true
+exchanges G1: 0, stalled 0, unresolved 0, impasse false
+early lens dispatch: at 11, red-lens-evidence on G1
+
+== the same exchange, blue's envelope admitted ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5; agent red-lens-evidence-agent-5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: envelope_admitted by harness, in no sitting; agent red-lens-evidence-agent-5
+act 8: sitting_close by harness, in no sitting; agent red-lens-evidence-agent-5
+act 9: mint by red-lens-evidence, in sitting 5; G1
+act 10: register by red-chair, in sitting 10
+act 11: dispatch by red-chair, in sitting 10; red-lens-evidence at pin 2 on [G1]
+act 12: dispatch by red-chair, in sitting 10; blue-respond at pin 2 on [G1]
+act 13: register by blue-respond, in sitting 13; agent blue-agent
+act 14: envelope_admitted by harness, in no sitting; agent blue-agent
+act 15: sitting_close by harness, in no sitting; agent blue-agent
+act 16: register by red-lens-evidence, in sitting 16; agent red-lens-evidence-agent-16
+act 17: report_read by red-lens-evidence, in sitting 16; head 2
+act 18: envelope_admitted by harness, in no sitting; agent red-lens-evidence-agent-16
+act 19: sitting_close by harness, in no sitting; agent red-lens-evidence-agent-16
+act 20: register by red-chair, in sitting 20
+act 21: question_part by harness, in no sitting
+act 22: question_part by harness, in no sitting
+act 23: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 1:CAO 2:CA-
+sittings blue-respond: 1:CA-
+blocker material_gap: subject "G1", owner "red-lens-evidence", detail "", about "", since 0
+blocker lens_ready: subject "red-lens-logic", owner "red-lens-logic", detail "", about "", since 0
+plan head: 2
+plan parties: {"seat_id":"red-lens-logic","gap_ids":[]}
+plan parties: {"seat_id":"blue-respond","gap_ids":["G1"]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: {"gap_id":"G1","count":1,"unresolved":0}
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 2, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-logic: never sat — audits the report at head 2"
+plan why: "G1: open, material, 1 exchange(s) (1 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there"
+plan key: "e0c9d386d3632c2d"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+last_read red-lens-logic: undispatched, pin 0, head 0; complete true
+  item log, about nothing, blocks false: the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 2, red-lens-evidence at head 2, whole true
+exchanges G1: 1, stalled 1, unresolved 0, impasse false
+early lens dispatch: at 11, red-lens-evidence on G1
+
+== a delivery in a sitting that never closed, and the sitting after it still open ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: sitting_open by harness, in sitting 5; agent a1 opens red-lens-evidence's
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: envelope_admitted by harness, in no sitting; agent a1
+act 8: sitting_close by harness, in no sitting; agent a1
+act 9: report_part by harness, in no sitting
+act 10: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 9 on []
+act 11: sitting_open by harness, in sitting 11; agent a2 opens red-lens-evidence's
+act 12: report_read by red-lens-evidence, in sitting 11; head 9
+act 13: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 9 on []
+act 14: sitting_open by harness, in sitting 14; agent a3 opens red-lens-evidence's
+act 15: register by red-chair, in sitting 15
+act 16: question_part by harness, in no sitting
+act 17: question_part by harness, in no sitting
+act 18: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 1:CAO 2:--O 3:---
+blocker lens_ready: subject "red-lens-evidence", owner "red-lens-evidence", detail "", about "", since 0
+blocker whole_report_owed: subject "red-lens-evidence", owner "red-lens-evidence", detail "re-read", about "", since 0
+plan head: 9
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 2, each as its kind, subject and owner
+plan why: "red-lens-evidence: its latest complete delivery of report text was cut at its pin 2, behind head 9 — audits the report (1 sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; it retires at 3 owing nothing, and it owes whole_report_owed red-lens-evidence); its sitting opened at 14 has not closed yet, so it counts neither as sat nor toward retirement"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered"
+plan key: "a03e407cebdf4e8d"
+last_read red-lens-evidence: behind, pin 2, head 9; complete true
+  item report_text, about report 9, blocks true: the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  item audit, about report 9, blocks false: before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is 2, and you are dispatched against head 9: this sitting's audit is the report text your work list delivers you, the whole report where it owes you that and otherwise each edit since your pin, as the paragraphs it touched before and after, with your own gaps' passages. Your pin moves when the report text owed to you this sitting has all been delivered on your work list, in a sitting you sit through; a read through `show report` records nothing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 9
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 9, whole true
+
+== a stop that lands after the seat's next opening ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: sitting_open by harness, in sitting 5; agent a1 opens red-lens-evidence's
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: sitting_open by harness, in sitting 8; agent a2 opens red-lens-evidence's
+act 9: envelope_admitted by harness, in no sitting; agent a1
+act 10: sitting_close by harness, in no sitting; agent a1
+act 11: register by red-chair, in sitting 11
+act 12: question_part by harness, in no sitting
+act 13: question_part by harness, in no sitting
+act 14: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 1:CAO 2:---
+blocker lens_ready: subject "red-lens-evidence", owner "red-lens-evidence", detail "", about "", since 0
+blocker whole_report_owed: subject "red-lens-evidence", owner "red-lens-evidence", detail "first", about "", since 0
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 2, each as its kind, subject and owner
+plan why: "red-lens-evidence: has sat through no sitting — its sitting opened at 8 has not closed yet, so it counts neither as sat nor toward retirement — audits the report at head 2"
+plan why: "red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered"
+plan why: "red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered"
+plan key: "33c06953e2f6cae3"
+last_read red-lens-evidence: first, pin 0, head 2; complete true
+  item report_text, about report 2, blocks true: the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  item audit, about report 2, blocks false: audit the report in full — no sitting of yours before this one had it delivered to you, so the whole report arrives on your work list this sitting. Your pin moves when the report text owed to you this sitting has all been delivered on your work list, in a sitting you sit through; a read through `show report` records nothing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+
+== a debt outlives a sitting that never closed ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: mint by red-lens-evidence, in no sitting; G1
+act 5: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 6: register by red-lens-evidence, in sitting 6
+act 7: report_read by red-lens-evidence, in sitting 6; head 2
+act 8: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 9: register by red-lens-evidence, in sitting 9
+act 10: report_read by red-lens-evidence, in sitting 9; head 2
+act 11: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 12: register by red-lens-evidence, in sitting 12
+act 13: report_read by red-lens-evidence, in sitting 12; head 2
+act 14: dispatch by red-chair, in sitting 3; blue-respond at pin 13 on [G1]
+act 15: register by blue-respond, in sitting 15; agent blue-agent-14
+act 16: blue_edit by blue-respond, in sitting 15
+act 17: envelope_admitted by harness, in no sitting; agent blue-agent-14
+act 18: sitting_close by harness, in no sitting; agent blue-agent-14
+act 19: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on [G1]
+act 20: sitting_open by harness, in sitting 20; agent a9 opens red-lens-evidence's
+act 21: sitting_open by harness, in sitting 21; agent a10 opens red-lens-evidence's
+act 22: report_part by harness, in no sitting
+act 23: register by red-chair, in sitting 23
+act 24: question_part by harness, in no sitting
+act 25: question_part by harness, in no sitting
+act 26: question_part_check by harness, in no sitting
+--
+sittings blue-respond: 1:CA-
+sittings red-lens-evidence: 4:--O 5:---
+blocker lens_ready: subject "red-lens-evidence", owner "red-lens-evidence", detail "", about "", since 0
+plan head: 22
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its latest complete delivery of report text was cut at its pin 2, behind head 22 — audits the report (3 sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; it does not retire while it owes blue's answer to G1); its sitting opened at 20 never closed — its agent's stop is not on the record, so it counts neither as sat nor toward retirement"
+plan why: "G1: open and not material (its class is never material) — readies nobody"
+plan key: "c87f9d79317f161d"
+last_read red-lens-evidence: unchanged, pin 2, head 2; complete true
+  item report_text, about report 22, blocks true: the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads
+  item nothing_owed, about nothing, blocks false: nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the changes since head 2 and its own gaps' passages, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole false
+exchanges G1: 1, stalled 0, unresolved 0, impasse false
+
+== an upheld position naming the lens: its sitting after the ruling, the report not yet delivered ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: register by red-chair, in sitting 10
+act 11: plan by red-chair, in sitting 10
+act 12: position by red-chair, in sitting 10; A-0000000a
+act 13: register by judge, in sitting 13
+act 14: motion_rule by judge, in sitting 13; A-0000000a upheld, naming "red-lens-evidence"
+act 15: register by red-chair, in sitting 15
+act 16: dispatch by red-chair, in sitting 15; red-lens-evidence at pin 2 on []
+act 17: register by red-lens-evidence, in sitting 17; agent lens-audits
+act 18: question_part by harness, in no sitting
+act 19: question_part by harness, in no sitting
+act 20: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:---
+blocker upheld_position: subject "A-0000000a", owner "red-lens-evidence", detail "find a second, independent source for the core claim, or state that none exists", about "", since 14
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-evidence: the bench upheld the chair's position A-0000000a and named its area — ready, to audit it on the ruling's direction: find a second, independent source for the core claim, or state that none exists"
+plan why: "A-0000000a: the bench upheld the chair's position, naming red-lens-evidence to audit its area on \"find a second, independent source for the core claim, or state that none exists\" — PASS is not permitted until it has"
+plan key: "7a4cfdc6b73ddf7c"
+last_read red-lens-evidence: unchanged, pin 2, head 2; complete false
+  item report_text, about report 2, blocks true: the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  item upheld_position, about motion A-0000000a, blocks true: the bench upheld the chair's position A-0000000a on the PASS it withheld and named your area: audit it on the ruling's direction — "find a second, independent source for the core claim, or state that none exists". The whole report arrives on your work list this sitting, one item at a time; a defect you find there is a finding and a gap. The PASS is refused until all of it has been delivered to you
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+
+== an upheld position naming the lens: the whole report delivered in a sitting still open ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: register by red-chair, in sitting 10
+act 11: plan by red-chair, in sitting 10
+act 12: position by red-chair, in sitting 10; A-0000000a
+act 13: register by judge, in sitting 13
+act 14: motion_rule by judge, in sitting 13; A-0000000a upheld, naming "red-lens-evidence"
+act 15: register by red-chair, in sitting 15
+act 16: dispatch by red-chair, in sitting 15; red-lens-evidence at pin 2 on []
+act 17: register by red-lens-evidence, in sitting 17; agent lens-audits
+act 18: report_read by red-lens-evidence, in sitting 17; head 2
+act 19: question_part by harness, in no sitting
+act 20: question_part by harness, in no sitting
+act 21: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:---
+blocker upheld_position: subject "A-0000000a", owner "red-lens-evidence", detail "find a second, independent source for the core claim, or state that none exists", about "", since 14
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-evidence: the bench upheld the chair's position A-0000000a and named its area — ready, to audit it on the ruling's direction: find a second, independent source for the core claim, or state that none exists"
+plan why: "A-0000000a: the bench upheld the chair's position, naming red-lens-evidence to audit its area on \"find a second, independent source for the core claim, or state that none exists\" — PASS is not permitted until it has"
+plan key: "7a4cfdc6b73ddf7c"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+  item upheld_position, about motion A-0000000a, blocks false: the bench upheld the chair's position A-0000000a on the PASS it withheld and named your area: audit it on the ruling's direction — "find a second, independent source for the core claim, or state that none exists". This sitting has delivered you the whole report; a defect you find there is a finding and a gap. The PASS is refused until you sit through this sitting
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 3, red-lens-evidence at head 2, whole true
+
+== an upheld position naming the lens: the sitting that had the whole report sat through ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: register by red-chair, in sitting 10
+act 11: plan by red-chair, in sitting 10
+act 12: position by red-chair, in sitting 10; A-0000000a
+act 13: register by judge, in sitting 13
+act 14: motion_rule by judge, in sitting 13; A-0000000a upheld, naming "red-lens-evidence"
+act 15: register by red-chair, in sitting 15
+act 16: dispatch by red-chair, in sitting 15; red-lens-evidence at pin 2 on []
+act 17: register by red-lens-evidence, in sitting 17; agent lens-audits
+act 18: report_read by red-lens-evidence, in sitting 17; head 2
+act 19: envelope_admitted by harness, in no sitting; agent lens-audits
+act 20: sitting_close by harness, in no sitting; agent lens-audits
+act 21: register by red-chair, in sitting 21
+act 22: question_part by harness, in no sitting
+act 23: question_part by harness, in no sitting
+act 24: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:CA-
+plan head: 2
+plan parties: []
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: true
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 4
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: []
+plan why: "red-lens-evidence: retired (pin 2) — its last 3 sittings minted no fresh material, closed nothing, recorded no reading and checked no computation or inquiry; not ready"
+plan key: "079d88abe255b359"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 3, red-lens-evidence at head 2, whole true
+
+== an upheld position naming the lens: its sitting opened before the ruling, its delivery after it ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: register by red-chair, in sitting 10
+act 11: plan by red-chair, in sitting 10
+act 12: position by red-chair, in sitting 10; A-0000000a
+act 13: dispatch by red-chair, in sitting 10; red-lens-evidence at pin 2 on []
+act 14: sitting_open by harness, in sitting 14; agent opened-before opens red-lens-evidence's
+act 15: register by judge, in sitting 15
+act 16: motion_rule by judge, in sitting 15; A-0000000a upheld, naming "red-lens-evidence"
+act 17: report_read by red-lens-evidence, in sitting 14; head 2
+act 18: envelope_admitted by harness, in no sitting; agent opened-before
+act 19: sitting_close by harness, in no sitting; agent opened-before
+act 20: register by red-chair, in sitting 20
+act 21: question_part by harness, in no sitting
+act 22: question_part by harness, in no sitting
+act 23: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:CA-
+blocker upheld_position: subject "A-0000000a", owner "red-lens-evidence", detail "find a second, independent source for the core claim, or state that none exists", about "", since 16
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves; it does not retire while it owes upheld_position A-0000000a"
+plan why: "red-lens-evidence: the bench upheld the chair's position A-0000000a and named its area — ready, to audit it on the ruling's direction: find a second, independent source for the core claim, or state that none exists"
+plan why: "A-0000000a: the bench upheld the chair's position, naming red-lens-evidence to audit its area on \"find a second, independent source for the core claim, or state that none exists\" — PASS is not permitted until it has"
+plan key: "c1980eb1a21ff996"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 2, red-lens-evidence at head 2, whole true
+
+== a delivery that lands after the next dispatch, in the sitting opened before it ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: sitting_open by harness, in sitting 5; agent a1 opens red-lens-evidence's
+act 6: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 7: report_read by red-lens-evidence, in sitting 5; head 2
+act 8: envelope_admitted by harness, in no sitting; agent a1
+act 9: sitting_close by harness, in no sitting; agent a1
+act 10: register by red-chair, in sitting 10
+act 11: question_part by harness, in no sitting
+act 12: question_part by harness, in no sitting
+act 13: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 1:CA-
+blocker whole_report_owed: subject "red-lens-evidence", owner "red-lens-evidence", detail "re-read", about "", since 0
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — it owes its full re-read, the whole report once more, which readies it at this head"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered"
+plan key: "d65d451ff9b5795d"
+last_read red-lens-evidence: unchanged, pin 2, head 2; complete false
+  item log, about nothing, blocks false: the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing
+  item register_owed, about nothing, blocks true: you were dispatched against report head 2 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+
+== a delivery in no sitting ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: report_part by harness, in no sitting
+act 5: question_part by harness, in no sitting
+act 6: question_part by harness, in no sitting
+act 7: question_part_check by harness, in no sitting
+act 8: report_read by red-lens-evidence, in no sitting; head 4
+act 9: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 4 on []
+act 10: register by red-lens-evidence, in sitting 10
+act 11: register by red-chair, in sitting 11
+--
+blocker lens_ready: subject "red-lens-evidence", owner "red-lens-evidence", detail "", about "", since 0
+blocker whole_report_owed: subject "red-lens-evidence", owner "red-lens-evidence", detail "re-read", about "", since 0
+plan head: 4
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 2, each as its kind, subject and owner
+plan why: "red-lens-evidence: no sitting it sat through holds a complete delivery of report text, behind head 4 — audits the report (1 sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; it retires at 3 owing nothing, and it owes whole_report_owed red-lens-evidence)"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered"
+plan why: "red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered"
+plan key: "29cdf09975e0a707"
+last_read red-lens-evidence: first, pin 0, head 4; complete true
+  item report_text, about report 4, blocks true: the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  item audit, about report 4, blocks false: audit the report in full — no sitting of yours before this one had it delivered to you, so the whole report arrives on your work list this sitting. Your pin moves when the report text owed to you this sitting has all been delivered on your work list, in a sitting you sit through; a read through `show report` records nothing
+delivery line: the whole report, delivered to red-lens-evidence at head 4
+delivery row: epoch 1, red-lens-evidence at head 4, whole true
+
+== a docketed gap: the lens's sitting since never closed, blue sat through one and filed no closing ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: dispatch by red-chair, in sitting 3; red-lens-logic at pin 2 on []
+act 6: register by red-lens-evidence, in sitting 6
+act 7: register by red-lens-logic, in sitting 7
+act 8: report_read by red-lens-evidence, in sitting 6; head 2
+act 9: report_read by red-lens-logic, in sitting 7; head 2
+act 10: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 11: dispatch by red-chair, in sitting 3; red-lens-logic at pin 2 on []
+act 12: register by red-lens-evidence, in sitting 12
+act 13: register by red-lens-logic, in sitting 13
+act 14: report_read by red-lens-evidence, in sitting 12; head 2
+act 15: report_read by red-lens-logic, in sitting 13; head 2
+act 16: mint by red-lens-evidence, in sitting 12; G1
+act 17: register by red-chair, in sitting 17
+act 18: motion by blue-respond, in no sitting; M1
+act 19: dispatch by red-chair, in sitting 17; red-lens-evidence at pin 2 on []
+act 20: sitting_open by harness, in sitting 20; agent a1 opens red-lens-evidence's
+act 21: dispatch by red-chair, in sitting 17; red-lens-evidence at pin 2 on []
+act 22: sitting_open by harness, in sitting 22; agent a2 opens red-lens-evidence's
+act 23: register by blue-respond, in sitting 23; agent blue-respond-agent-23
+act 24: envelope_admitted by harness, in no sitting; agent blue-respond-agent-23
+act 25: sitting_close by harness, in no sitting; agent blue-respond-agent-23
+act 26: register by red-chair, in sitting 26
+act 27: question_part by harness, in no sitting
+act 28: question_part by harness, in no sitting
+act 29: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:--O 4:---
+sittings blue-respond: 1:CA-
+blocker material_gap: subject "G1", owner "red-lens-evidence", detail "", about "", since 0
+blocker closing_owed: subject "G1", owner "red-lens-evidence", detail "M1", about "G1", since 18
+blocker closing_owed: subject "G1", owner "blue-respond", detail "M1", about "G1", since 18
+blocker unruled_motion: subject "M1", owner "judge", detail "docket, ruled by the bench seat", about "G1", since 18
+plan head: 2
+plan parties: {"seat_id":"red-lens-evidence","gap_ids":[]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 3
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 4, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-logic: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "G1: docketed — the closing of red-lens-evidence is owed on it, and each is readied to file it; the bench sits on the gap once no party's closing is awaited"
+plan key: "e2251567db37532f"
+last_read red-lens-evidence: unchanged, pin 2, head 2; complete false
+  item report_text, about report 2, blocks true: the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads
+  item closing_owed, about gap G1, blocks true: gap G1 is docketed for the bench (motion M1) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+last_read red-lens-logic: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+closing duty: gap G1, motion M1 (ruled false), party red-lens-evidence: awaited
+closing duty: gap G1, motion M1 (ruled false), party blue-respond: missing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-logic at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-logic at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-logic at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-logic at head 2, whole true
+exchanges G1: 0, stalled 0, unresolved 0, impasse false
+
+== the same docketing ruled: the lens sits through a sitting opened after the ruling ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: dispatch by red-chair, in sitting 3; red-lens-logic at pin 2 on []
+act 6: register by red-lens-evidence, in sitting 6
+act 7: register by red-lens-logic, in sitting 7
+act 8: report_read by red-lens-evidence, in sitting 6; head 2
+act 9: report_read by red-lens-logic, in sitting 7; head 2
+act 10: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 11: dispatch by red-chair, in sitting 3; red-lens-logic at pin 2 on []
+act 12: register by red-lens-evidence, in sitting 12
+act 13: register by red-lens-logic, in sitting 13
+act 14: report_read by red-lens-evidence, in sitting 12; head 2
+act 15: report_read by red-lens-logic, in sitting 13; head 2
+act 16: mint by red-lens-evidence, in sitting 12; G1
+act 17: register by red-chair, in sitting 17
+act 18: motion by blue-respond, in no sitting; M1
+act 19: dispatch by red-chair, in sitting 17; red-lens-evidence at pin 2 on []
+act 20: sitting_open by harness, in sitting 20; agent a1 opens red-lens-evidence's
+act 21: dispatch by red-chair, in sitting 17; red-lens-evidence at pin 2 on []
+act 22: sitting_open by harness, in sitting 22; agent a2 opens red-lens-evidence's
+act 23: register by blue-respond, in sitting 23; agent blue-respond-agent-23
+act 24: envelope_admitted by harness, in no sitting; agent blue-respond-agent-23
+act 25: sitting_close by harness, in no sitting; agent blue-respond-agent-23
+act 26: register by red-chair, in sitting 26
+act 27: register by judge, in sitting 27
+act 28: motion_rule by judge, in sitting 27; M1
+act 29: register by red-chair, in sitting 29
+act 30: dispatch by red-chair, in sitting 29; red-lens-evidence at pin 2 on []
+act 31: register by red-lens-evidence, in sitting 31; agent red-lens-evidence-agent-31
+act 32: report_read by red-lens-evidence, in sitting 31; head 2
+act 33: envelope_admitted by harness, in no sitting; agent red-lens-evidence-agent-31
+act 34: sitting_close by harness, in no sitting; agent red-lens-evidence-agent-31
+act 35: register by red-chair, in sitting 35
+act 36: question_part by harness, in no sitting
+act 37: question_part by harness, in no sitting
+act 38: question_part_check by harness, in no sitting
+--
+sittings red-lens-evidence: 3:--O 4:--O 5:CA-
+sittings blue-respond: 1:CA-
+blocker material_gap: subject "G1", owner "red-lens-evidence", detail "", about "", since 0
+plan head: 2
+plan parties: {"seat_id":"blue-respond","gap_ids":["G1"]}
+plan docket: []
+plan remand_owed: []
+plan exchanges: {"gap_id":"G1","count":0,"unresolved":0}
+plan pass_permitted: false
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 5
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "red-lens-logic: its delivery is at the head (pin 2) — ready when the head moves"
+plan why: "G1: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there"
+plan key: "0b6f49578b388e1f"
+last_read red-lens-evidence: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+last_read red-lens-logic: served, pin 2, head 2; complete true
+  item audit, about report 2, blocks false: this sitting delivered you its report text, cut at head 2, and you are dispatched against head 2: the text delivered to you is this sitting's audit.
+closing duty: gap G1, motion M1 (ruled true), party red-lens-evidence: awaited
+closing duty: gap G1, motion M1 (ruled true), party blue-respond: missing
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-logic at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-logic at head 2
+delivery line: the changes since head 2 and its own gaps' passages, delivered to red-lens-evidence at head 2
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-logic at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-logic at head 2, whole true
+delivery row: epoch 4, red-lens-evidence at head 2, whole false
+exchanges G1: 0, stalled 0, unresolved 0, impasse false
+
+== a stale area: a retired lens behind the head, before the chair's spot-check ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: report_part by harness, in no sitting
+act 11: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 10 on []
+act 12: register by red-lens-evidence, in sitting 12
+act 13: report_read by red-lens-evidence, in sitting 12; head 10
+act 14: report_part by harness, in no sitting
+act 15: register by red-chair, in sitting 15
+act 16: question_part by harness, in no sitting
+act 17: question_part by harness, in no sitting
+act 18: question_part_check by harness, in no sitting
+--
+blocker stale_area: subject "red-lens-evidence", owner "red-chair", detail "10", about "", since 0
+plan head: 14
+plan parties: []
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: true
+plan stale_areas: {"seat_id":"red-lens-evidence","pin":10}
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: the gate's 1, each as its kind, subject and owner
+plan why: "red-lens-evidence: retired (pin 10) — its last 3 sittings minted no fresh material, closed nothing, recorded no reading and checked no computation or inquiry; not ready"
+plan key: "a4f232dcde5650e6"
+last_read red-lens-evidence: served, pin 10, head 10; complete true
+  item audit, about report 10, blocks false: this sitting delivered you its report text, cut at head 10, and you are dispatched against head 10: the text delivered to you is this sitting's audit.
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the changes since head 2 and its own gaps' passages, delivered to red-lens-evidence at head 10
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 10, whole false
+
+== the chair's spot-check of that area, stamped by the write ==
+act 1: cast by harness, in no sitting
+act 2: report_part by harness, in no sitting
+act 3: register by red-chair, in sitting 3
+act 4: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 5: register by red-lens-evidence, in sitting 5
+act 6: report_read by red-lens-evidence, in sitting 5; head 2
+act 7: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 2 on []
+act 8: register by red-lens-evidence, in sitting 8
+act 9: report_read by red-lens-evidence, in sitting 8; head 2
+act 10: report_part by harness, in no sitting
+act 11: dispatch by red-chair, in sitting 3; red-lens-evidence at pin 10 on []
+act 12: register by red-lens-evidence, in sitting 12
+act 13: report_read by red-lens-evidence, in sitting 12; head 10
+act 14: report_part by harness, in no sitting
+act 15: register by red-chair, in sitting 15
+act 16: question_part by harness, in no sitting
+act 17: question_part by harness, in no sitting
+act 18: question_part_check by harness, in no sitting
+act 19: report_read by red-chair, in sitting 15; head 14
+act 20: spot_check by red-chair, in sitting 15; areas [red-lens-evidence], pins [10], changes [14]
+--
+plan head: 14
+plan parties: []
+plan docket: []
+plan remand_owed: []
+plan exchanges: []
+plan pass_permitted: true
+plan stale_areas: []
+plan ceiling: false
+plan max_epochs: 0
+plan epoch: 2
+plan final_sitting: false
+plan epoch_limit_reached: false
+plan blockers: []
+plan why: "red-lens-evidence: retired (pin 10) — its last 3 sittings minted no fresh material, closed nothing, recorded no reading and checked no computation or inquiry; not ready"
+plan key: "84f5229bb7f28c66"
+last_read red-lens-evidence: served, pin 10, head 10; complete true
+  item audit, about report 10, blocks false: this sitting delivered you its report text, cut at head 10, and you are dispatched against head 10: the text delivered to you is this sitting's audit.
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the whole report, delivered to red-lens-evidence at head 2
+delivery line: the changes since head 2 and its own gaps' passages, delivered to red-lens-evidence at head 10
+delivery line: the changes behind its stale areas' pins, delivered to red-chair at head 14
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 2, whole true
+delivery row: epoch 1, red-lens-evidence at head 10, whole false
+delivery row: epoch 2, red-chair at head 14, whole false
+spot-check, red-chair sitting 2, epoch 2: red-lens-evidence (pin 10: 1 change(s) to the report since — events 14)
+
