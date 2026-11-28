@@ -6128,6 +6128,16 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// hands it the changes behind the areas stale then, and the plan's own docketings can leave
 			// none stale by the time it is printed. The spot-check stands on that delivery, so the
 			// refusal is driven only where the sitting holds none.
+			//
+			// THE CHAIR FINISHES ITS DELIVERY FIRST, as a live chair does: its items arrive one after
+			// each of its calls, and an area the plan made stale after the register, or a delivery of
+			// more items than the chair's calls so far have handed, leaves the sitting owed text the
+			// spot-check stands on (seed 21, CI run 46094143286: a spot-check naming an area refused
+			// for no complete delivery).
+			r.mu.Lock()
+			agent := r.sittingAgent[seatID]
+			r.mu.Unlock()
+			r.readDelivery(seatID, agent)
 			if len(stale) > 0 || r.chairHoldsDelivery(seatID) {
 				sc.admit()
 			} else {
