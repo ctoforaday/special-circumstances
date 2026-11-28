@@ -81,10 +81,10 @@ func (r *runner) lockedByRuling(args []string, refusal string) bool {
 	return true
 }
 
-// heldUntilItsRuling reports whether a refusal of blue's edit or retire is the freeze on a statement
-// standing before the bench: red's text in its closing on a docketed gap holds until the bench rules,
-// and an edit or retire that would leave it unable to apply is refused as a conflict. Blue's drives
-// edit the report at will, so that refusal is the draw's, and noteEither tallies it.
+// heldUntilItsRuling reports whether a refusal of blue's edit, retire, cite or compute is the freeze on
+// a statement standing before the bench: red's text in its closing on a docketed gap holds until the
+// bench rules, and an act that would leave it unable to apply is refused as a conflict. Blue's drives
+// edit, cite and compute at will, so that refusal is the draw's, and noteEither tallies it.
 func heldUntilItsRuling(args []string, refusal string) bool {
 	if len(args) == 0 {
 		return false
@@ -94,6 +94,8 @@ func heldUntilItsRuling(args []string, refusal string) bool {
 	switch {
 	case (args[0] == "edit" || args[0] == "retire") && role == "blue":
 		what = "blue's edit or retire of text a statement before the bench holds until its ruling"
+	case (args[0] == "cite" || args[0] == "compute") && role == "blue":
+		what = "blue's cite or compute breaking a statement before the bench, which holds until its ruling"
 	default:
 		return false
 	}

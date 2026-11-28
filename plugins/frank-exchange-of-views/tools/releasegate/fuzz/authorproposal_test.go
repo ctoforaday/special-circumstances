@@ -2,6 +2,7 @@ package fuzz
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -252,10 +253,12 @@ func (r *runner) concedeByAccept(seatID string) {
 			if st.AboutRef == "" || !strings.Contains(cur, st.AboutRef) {
 				continue
 			}
-			// A CITATION A COMPUTATION STILL IN THE REPORT APPLIES IS NOT RETIRED (L6), by the raiser's
-			// statement any more than by blue's own retire: the accept is refused naming the computation.
-			if len(computationsCiting(r.run(), st.AboutRef)) > 0 {
-				continue
+			// A RETIRE STATEMENT AND A COMPUTATION APPLYING ITS CITATION NEVER STAND TOGETHER: the closing
+			// stating it is refused while one applies (L6), and a `compute --cites` after it is refused by
+			// the freeze while it stands. One here is the record admitting what both refuse.
+			if live := computationsCiting(r.run(), st.AboutRef); len(live) > 0 {
+				r.noteActErr(fmt.Sprintf("the raiser's retire of %s stands on %s while computation %v applies it: the freeze admitted a compute --cites over a standing retire statement", st.AboutRef, d.GapID, live))
+				return
 			}
 			verb, key = "retire", "concession:author:retire"
 		} else {

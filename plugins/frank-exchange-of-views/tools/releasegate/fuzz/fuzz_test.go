@@ -3614,7 +3614,7 @@ func (r *runner) computeOwed(seatID string) {
 		r.mu.Unlock()
 		if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
 			if _, err := r.execCall("", true, append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
-				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil {
+				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil && !heldUntilItsRuling([]string{"compute", "--seat-id", seatID}, err.Error()) {
 				r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 			}
 		}
