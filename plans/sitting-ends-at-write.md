@@ -1,24 +1,26 @@
 # Sitting ends stored at the write
 
-Issue #1955. Written 2026-11-28 against main eb994eb27; the `next_opening` rewrite (EventSchema 84) is treated as landed. The measurements, the archaeology and the census cited as "#1955" are in that issue's comments. Paths are under `plugins/frank-exchange-of-views/tools/internal/`; `views.go` lines are as of eb994eb27 and moving. UNVERIFIED marks what was not read or measured.
+Issue #1955. Written 2026-11-28 against main eb994eb27, revised the same day after audit round 1. The `next_opening` compute-once rewrite is in flight on its own branch and unlanded; this plan's schema change takes **the next epoch** after whatever main then holds. The measurements, the archaeology and the census cited as "#1955" are in that issue's comments. Paths are under `plugins/frank-exchange-of-views/tools/internal/`; `views.go` lines are as of eb994eb27 and moving. UNVERIFIED marks what was not read or measured.
 
 ## I. Summary & Goals
 
 **Objective.** Every whole-record read computes `agent_sitting` and `report_delivery` row by row (`record/recordsql/views.go:654-661`), loads both into `WindowIndex` (`record/windowindex.go:48-58`) and folds them in Go. Rulings of 2026-11-28: store the ends at the write; each reader asks its own statement; lens pin/head numbers leave the work list; the view's rule for no-sitting deliveries survives.
 
 **Success criteria.**
-- Each §III.3 statement ≤ 0.2 ms on eiffel 11-11 / mersenne 10-30 (modernc). Today (#1955): failed 1.28 / 1.15 ms, not-sat-through 0.94 / 0.86, one pin 1.36 / 0.94, all lens pins 10.0 / 9.4, full loads 5.2 / 4.5.
-- An append to a marked body table costs ≤ 0.3 ms more; any other append, nothing.
+- Each §III.3 statement ≤ 0.2 ms on eiffel 11-11 / mersenne 10-30 (modernc). Measured against stored tables, §III.2: the slowest is 0.17 ms; today's are 0.9–9.9 ms.
+- An append to a marked body table costs ≤ 0.3 ms more; any other append, nothing. Measured in S1's first commit (§V 1).
 - Race-nightly `record/migrate`: the views' 356 s of 1,742 s (#1955) falls below 60 s.
 - Stored state equals today's views on all 41 archives before any view body changes.
-- `readViews`, `mustViews`, `viewsRead`, `sittings`, `deliveries`: zero hits.
+- `readViews`, `mustViews`, `viewsRead`, `AgentSittingRow`, `ReportDeliveries`: zero hits; `WindowIndex` has no `sittings` or `deliveries` field.
+- No lens work-list surface carries a pin or head number (§III.4).
 
 **Value case.** Filtering the view still computes every row's ends, and the plan path gets slower (#1955). Storing makes each read an index seek and removes the panic-on-unloaded-index class (`windowindex.go:73-77`). The price is one trigger-kept table, paid for by a permanent oracle of `gap_state`'s kind.
 
 ## II. Technical Context
 
-- Go 1.27, modernc SQLite; the record is written only through `recordsql.InsertTx` (`record/recordsql/store.go:896`; sole non-test caller `record/record.go:824`).
+- Go 1.27, modernc SQLite; the record is written only through `recordsql.InsertTx` (`record/recordsql/store.go:896`; sole non-test caller `record/record.go:824`, which the replay writer reaches too).
 - `InsertTx` writes the `events` row (`store.go:902`) before the body (`:919`): the agent and a bracket's seat are body columns, so a trigger on `events` cannot see them.
+- **Ids are minted `max + 1` inside the writing transaction (`store.go:801-804`).** Every new row's id exceeds every existing one. This invariant is what makes the trigger table in §III.1 complete: a new opening exceeds every existing close and admission, so it never lies "between" an earlier opening and its close (`views.go:654-659`), and an earlier sitting's `closed` / `admitted` cannot change at an opening. The oracle (§V 3) is its gate.
 - An opening is a `register`, or a seat-naming `sitting_open`, whose `sitting_id` is its own id (`store.go:806-834`, `record/recordpb/sitting.go:61-80`). **No repair arm exists**: `repairs_sitting` is reserved in `Register` (`record.proto`); `recordsql/schema.go:105` is stale.
 - A non-opening joins the seat's latest sitting or none (`store.go:836-843`), so a `report_read` can sit in no sitting.
 - House pattern: `gap_state`, `gap_dirty`, `gap_flush`, `gap_refresh` (`recordsql/gapstate.go:33-82, :174-200`), oracle `GapStateRefreshDiff` (`:395`); `demand_lineage` writes directly (`demandlineage.go:42-53`).
@@ -41,28 +43,28 @@ Names grepped across the plugin (Go tree, `debate.js`, `agents/`, `skills/`) and
 
 | Object | Shape |
 |---|---|
-| `sitting_state` | `sitting_id` PK (the opening's id), `seat_id`, `sitting`, `epoch`, `agent_id` (NULL: agentless), `next_opening`, `over`, `closed`, `admitted`, `sat_through`. One row per OPENING, agentless included. Indexes: `(agent_id)`; `(seat_id) WHERE next_opening IS NULL`; partial `WHERE NOT sat_through`; partial `WHERE closed AND NOT admitted`. |
+| `sitting_state` | `sitting_id` PK (the opening's id), `seat_id`, `sitting`, `epoch`, `agent_id` (NULL: agentless), `next_opening`, `over`, `closed`, `admitted`, `sat_through`. One row per OPENING, agentless included. Indexes: `(agent_id)`; `(seat_id) WHERE next_opening IS NULL`; `(sitting_id) WHERE NOT sat_through`; `(sitting_id) WHERE closed AND NOT admitted`. |
 | `sitting_dirty` | `sitting_id` PK; empty between appends. |
 | `sitting_refresh` (view) | Today's `agent_sitting` rules (`views.go:642-663`) asked of `sitting_dirty` only, each read driven from the named sitting through an index, as `gap_refresh` is (`gapstate.go:27-31`): the closes by the two body indexes below, and "an opening of that agent between" by `sitting_open_agent` and `register_agent` (`schema.go:262, :265`), never by the view's COALESCE'd `opening` CTE, which no index reaches. Plus `sat_through = 1` for a NULL agent — the rule three readers COALESCE today (`views.go:676, :699, :813`). The rules' one home. |
 | `seat_delivery` | `event_id` PK, `seat_id`, `sitting_id` (NULL: none), `head`, `whole` (NULL: not a lens). Append-only by refusal. Index `(seat_id, event_id)`. |
 | body indexes | `sitting_close(agent_id, event_id)`, `envelope_admitted(agent_id, event_id)` in `QueryIndexDDL`. |
 
-Triggers come from one Go table, as `gapMarkers` does. Each names sittings, runs `INSERT OR REPLACE INTO sitting_state SELECT * FROM sitting_refresh`, and clears `sitting_dirty`. One stage: an append writes one row to one of these tables and every such insert changes sitting state, so neither reason for `gap_flush` (`gapstate.go:20-25`) applies.
+**Decided: the triggers refresh through `sitting_dirty`**, not by point updates. The rule stays one SQL text and the stored state has an oracle; point updates would restate the rule imperatively with nothing to hold them to it. Triggers come from one Go table, as `gapMarkers` does. Each names sittings, runs `INSERT OR REPLACE INTO sitting_state SELECT * FROM sitting_refresh`, and clears `sitting_dirty`. One stage: an append writes one row to one of these tables and every such insert changes sitting state, so neither reason for `gap_flush` (`gapstate.go:20-25`) applies.
 
 | AFTER INSERT ON | Names | Rule reproduced |
 |---|---|---|
-| `register`, `sitting_open`, WHEN the event's `sitting_id` is its own id | the new opening; the seat's row with `next_opening IS NULL` (seat from `sittings`) | `next_opening`, `over` (`views.go:646, :653`). Fires for an agentless opening, which ends the seat's previous sitting. A latest sitting keeps NULL. |
-| `sitting_close` | every row with the close's `agent_id` | `closed`: no opening of that agent between (`:654-656`), so only the agent's highest row turns. `sat_through`: the agent's FIRST close precedes the seat's next opening (`:660-661`). Holds for one agent carrying two openings (`store.go:826-830`). |
+| `register`, `sitting_open`, WHEN the event's `sitting_id` is its own id | the new opening; the seat's row with `next_opening IS NULL` (seat from `sittings`) | `next_opening`, `over` (`views.go:646, :653`). Fires for an agentless opening, which ends the seat's previous sitting. A latest sitting keeps NULL. By the id invariant (§II) no other row can change. |
+| `sitting_close` | every row with the close's `agent_id`, on whichever seat | `closed`: no opening of that agent between (`:654-656`), so only the agent's highest row turns. `sat_through`: the agent's FIRST close precedes the seat's next opening (`:660-661`), per row and per seat. Holds for one agent carrying two openings, on one seat or two (`store.go:826-830`). |
 | `envelope_admitted` | the same | `admitted` (`:657-659`). |
 | `report_read` | none; inserts the `seat_delivery` row | `seat_id`, `sitting_id` off `events`; `whole` = `wholeDeliverySQL(NEW.event_id, seat)` over the stored tables. |
 
 A register that joins its agent's bracket is no opening and changes nothing: the view reads the opening's own body (`views.go:649-650`).
 
-**`whole` is stored at the insert.** It equals the view's as-the-rows-stand value: `requireReportRead` refuses a second report read in a sitting (`record/deliveredtext.go:165-168`), an earlier sitting's `sat_through` is final once the seat opens a later one, and a no-sitting row is always sat through. Its reader after the trims is `served[].whole` (`record/viewjson.go:2105`); `NextDeliveryWhole` (`deliveredtext.go:51`) asks the same fragment of the next id.
+**Decided: `whole` is stored by the trigger at the insert.** It equals the view's as-the-rows-stand value: `requireReportRead` refuses a second report read in a sitting (`record/deliveredtext.go:165-168`, called at `record.go:1508` for every writer, the replay included), an earlier sitting's `sat_through` is final once the seat opens a later one, and a no-sitting row is always sat through. Its reader after the trims is `served[].whole` (`record/viewjson.go:2105`); `NextDeliveryWhole` (`deliveredtext.go:51`) asks the same fragment of the next id.
 
 **Views `[MODIFY]`.** `agent_sitting`, `report_delivery`, `area_change` keep names and columns as thin views: `sitting_state WHERE agent_id IS NOT NULL`; `seat_delivery LEFT JOIN sitting_state` with `COALESCE(sat_through, 1)`; `area_change`'s bound renders the pin fragment. The old bodies go in the same PR: no second definition.
 
-### 2. Do we need the pins?
+### 2. The pin: measured, and not stored
 
 `Dispatch.pin` (`record/dispatchnext.go:134`) is the dispatch's head — a homonym, outside this sweep.
 
@@ -74,112 +76,170 @@ A register that joins its agent's bracket is no opening and changes nothing: the
 | lens readiness; stale area | `record/retirement.go:104`, `:362` | a comparison with the head |
 | `last_read` kind | `retirement.go:517-531` | comparisons |
 | whole-report owed | `record/passblockers.go:885-897` | not the pin: a count of sat-through deliveries |
-| upheld position heard | `record/positionheard.go:227` | not the pin: a sat-through delivery after the ruling |
+| upheld position heard | `record/positionheard.go:227` | not the pin: a sat-through delivery in a sitting opened after the ruling |
 | stale-text refusal | `deliveredtext.go:137-151` | this sitting's delivery head |
 | print only | `retirement.go:99, :105`; `passblockers.go:479-493, :836`; `spotcheck.go:260`; `record/sitting.go:194-198`; `viewjson.go:1978`; `StaleArea.Pin` → `debate.js:428` | nothing |
 
-**Recommendation (a): no stored pin.** Three uses need the number as a bound, so the concept stays as ONE fragment — `MAX(head)` over the seat's `seat_delivery` rows whose sitting is sat through, an index range plus rowid seeks — rendered into `pinSQL` and `area_change`. A stored pin adds two writers (the close that turns `sat_through`; a report read into an already-sat sitting) to save a handful of seeks. Its cost is UNVERIFIED: §V step 1 measures it, and above 0.5 ms for all lenses the plan falls back to (b).
+**Measured 2026-11-28** (modernc, eb994eb27, best of 25, the two arms adjacent in one process). `sitting_state` and `seat_delivery` were built as TEMP tables from today's views plus agentless openings, with this plan's indexes; `EXCEPT` both ways against `agent_sitting`, `report_delivery` and `area_change` returned zero rows on both records. One-minute load was 15–16 on 16 cores, and the "today" arm reproduces #1955's figures within 10%. Milliseconds, eiffel 11-11 / mersenne 10-30:
+
+| Question | Today's view | Stored tables |
+|---|---|---|
+| failed sittings | 1.17 / 1.05 | 0.021 / 0.012 |
+| sittings not sat through | 0.92 / 0.85 | 0.007 / 0.007 |
+| every agent sitting | 3.04 / 2.75 | 0.080 / 0.075 |
+| one lens's pin | 1.35 / 0.91 | 0.024 / 0.022 |
+| all seats' pins, grouped | 9.87 / 9.47 | 0.051 / 0.046 |
+| a pin before this sitting (by event id) | — | 0.034 / 0.033 |
+| this sitting's delivery | 0.081 / 0.091 | 0.019 / 0.019 |
+| a lens's sat-through deliveries, capped at two | — | 0.017 / 0.016 |
+| upheld position heard | — | 0.019 / 0.019 |
+| every `report_delivery` row | 1.95 / 1.61 | 0.052 / 0.044 |
+| every `area_change` row | 3.95 / 3.92 | 0.163 / 0.171 |
+
+Plans: the one-lens pin is `SEARCH seat_delivery USING INDEX (seat_id=?)` plus a rowid seek. The failed statement reads the partial index `WHERE closed AND NOT admitted` once it carries no `agent_id IS NOT NULL` term — with the term the planner searched `(agent_id)` over every agent sitting (0.034 / 0.033 ms); the term is redundant, since an agentless row is never closed (zero such rows on both records). That one figure is from a second run at load 76. The grouped pin is a `SCAN … USING INDEX`, so the plan path asks one pin per cast lens (0.02 ms each) instead. Limits of this data: both records hold no agentless opening, no delivery in no sitting, no sitting not sat through and no upheld position, so those arms were timed on empty results. Raw output and the SQL are in scratch `issue-1955/plan-rev/` and go on #1955.
+
+**Decided (Q1): no stored pin.** Three uses need the number as a bound, so the concept stays as ONE fragment — `MAX(head)` over the seat's `seat_delivery` rows whose sitting is sat through — rendered into `pinSQL` and `area_change`. At 0.02 ms a stored copy would save nothing and add two writers. The fallback is deleted.
 
 ### 3. Readers `[MODIFY]` / `[DELETE]`
 
-Census (run 2026-11-28; every hit is a row below or `windowindex.go`): `grep -rn 'satThroughOf\|servedOf\|pinOf\|deliveriesUpTo\|FailedSittingsOf\|AgentSittingsOf\|noTurnSittingsOf\|deliveredIn\|DeliveryLine\|mustViews\|readViews\|viewsRead' --include=*.go . | grep -v _test.go`
+Census (run 2026-11-28; the audit's re-run found no omission): `grep -rn 'satThroughOf\|servedOf\|pinOf\|deliveriesUpTo\|FailedSittingsOf\|AgentSittingsOf\|noTurnSittingsOf\|deliveredIn\|DeliveryLine\|mustViews\|readViews\|viewsRead' --include=*.go . | grep -v _test.go`
 
 | Fold deleted | Callers | Statement | Runs |
 |---|---|---|---|
-| `FailedSittingsOf(win)` `failedsitting.go:71` | `failedsitting.go:60, :119` (`noTurnSittingsOf` ← `impasse.go:233`), `capture/capture.go:200`, `capture/failedsittings.go:28` | `agent_sitting WHERE closed AND NOT admitted`; `WorkArrivesAsItems` stays Go | loader's read transaction, a `failed` field beside `remands`; capture through `readSnapshot` (`narrowedview.go:111`) |
+| `FailedSittingsOf(win)` `failedsitting.go:71` | `failedsitting.go:60, :119` (`noTurnSittingsOf` ← `impasse.go:233`), `capture/capture.go:200`, `capture/failedsittings.go:28` | `sitting_state WHERE closed AND NOT admitted` (no agent term: an agentless row is never closed); `WorkArrivesAsItems` stays Go | loader's read transaction, a `failed` field beside `remands`; capture through `readSnapshot` (`narrowedview.go:111`) |
 | `AgentSittingsOf` `:164` | `:149` ← `capture/sittingcloses.go:26` | `agent_sitting`, by run | `readSnapshot` |
 | `satThroughOf` `dispatch.go:968` | `dispatch.go:315`, `retirement.go:176, :278`, `closingowed.go:135`, `composedsource.go:137`, `answersretired.go:39` | `SELECT sitting_id, over FROM sitting_state WHERE NOT sat_through`; absent = sat through | reads structs; `ClosingDuties` takes the run |
-| `pinOf` | `retirement.go:289`, `spotcheck.go:102` | `pinSQL`; the stamp adds `head_move WHERE event_id > ?` | reads structs; the write's querier, dropping `eventsAt` (`spotcheck.go:94`) |
-| `lastReadOf`'s pin; `deliveredIn` `reportread.go:38`; `servedOf` | `retirement.go:516-517`, `sitting.go:481`, `positionheard.go:227` | pin bounded by `event_id <` this sitting's opening, never by `sitting_id` (which drops NULL rows); `deliveryThisSittingSQL`; EXISTS a sat-through delivery after the ruling | loader derives the bound, asks in-transaction |
+| `pinOf` | `retirement.go:289`, `spotcheck.go:102` | `pinSQL`, once per cast lens; the stamp adds `head_move WHERE event_id > ?` | reads structs; the write's querier, dropping `eventsAt` (`spotcheck.go:94`) |
+| `lastReadOf`'s pin; `deliveredIn` `reportread.go:38` | `retirement.go:516-517`, `sitting.go:481` | pin bounded by `event_id <` this sitting's opening, never by `sitting_id` (which drops NULL rows); `deliveryThisSittingSQL` | loader derives the bound, asks in-transaction |
+| `servedOf` in `upheldPositionBlockers` | `positionheard.go:227` | the fold's predicate, unchanged: `EXISTS (seat_delivery d JOIN sitting_state s ON s.sitting_id = d.sitting_id WHERE d.seat_id = ?lens AND d.sitting_id > ?ruled AND s.sat_through)` — a sat-through delivery in a sitting OPENED after the ruling. A delivery completing after the ruling in a sitting opened before it does not clear the blocker; a no-sitting row never does | loader passes each upheld ruling's place |
 | `deliveriesUpTo` `windowindex.go:61` | `passblockers.go:892` | sat-through deliveries per lens, `LIMIT 2` | reads structs |
 | `delivery`, `DeliveryLine` `viewjson.go:1951, :1970` | `view/view.go:690`, `report/assemble.go:1307` | line deleted; `served` reads `report_delivery` | `debateView`'s querier |
 
 `WindowIndex` keeps `of`, `latest`, `reach`. The report-read arm at `queries.go:163-167` and the loads at `replay.go:99, :110` go.
 
-**Stated behaviour change (ruling 3).** A report read in no sitting counts as sat through and can set a pin for every reader; `servedOf` drops it today (`reportread.go:28-30`).
+**Stated behaviour change (ruling 3).** A report read in no sitting counts as sat through and can set a pin for every reader; `servedOf` drops it today (`reportread.go:28-30`). The upheld-position predicate is the one reader it does not reach.
 
 ### 4. Agent-facing text
 
-Census: `grep -rcE 'your pin|last_read|SINCE YOUR PIN|since the pin|its pin|pin [0-9%]|\(pin '` over the plugin and `scripts/agentgen/src`.
+**Property.** No lens work-list surface carries a pin or head number: not the `last_read` object, not an item's subject id, not an item's sentence, not a delivered piece. Survivors outside the work list are rows below with their reason. `TestALensWorkListCarriesNoPinOrHeadNumber` (§V 5) holds it.
 
-| Carrier (hits) | Change |
+Census, re-run after audit round 1 over the plugin and the generators' sources, the generated copies, tests and goldens apart — 145 hits, every one in a row below (`views.go` hits renumbered to eb994eb27, eight lines above the working tree the grep ran in):
+
+```
+grep -rnE 'your pin|last_read|SINCE YOUR PIN|since the pin|its pin|pin [0-9%]|\(pin |head [0-9%$]|head %d|at head|report head|SubjectReport' \
+  plugins/frank-exchange-of-views scripts/agentgen/src \
+  --include='*.go' --include='*.md' --include='*.js' --include='*.mjs' --include='*.sh' --include='*.proto' --include='*.json' \
+| grep -vE '_test\.go:|/testdata/|_gen\.go:|\.pb\.go:|/agents(-claude)?/|frank-exchange-of-views/skills/(adversarial-audit|research-protocol)/SKILL\.md:|debate\.test\.mjs:'
+```
+
+| Carrier | Change, or reason to survive |
 |---|---|
-| `record/sitting.go:194-198` (2); `LastReadJSON` `retirement.go:490-494` | drop `pin`, `head`; keep `kind` |
-| `record/deliverycut.go:68-72, :88` (4); `deliveredtext.go:250, :283` (3) | the whole re-read marks inline what changed since the last delivery |
-| `cli/seat/verbs.go:330, :331, :369` (3); `cli/seat/help/{register,dispatch,spot-check}.md` → `help_gen.go` (`cmdtreegen`) | reword; regenerate |
-| `scripts/agentgen/src/{red-lens-voice.md, red-chair.md, fragments/lens-duties.md, skills/*/SKILL.md}` (5) → `agents/`, `agents-claude/` (12 files each; `scripts/agentgen/main.go:70`), `skills/` | reword; `agentgen` |
-| `skills/research-protocol/scripts/debate.js:886, :900` authored; `:409, :428` generated, the chair's | reword `lastReadClause`; chair lines per Q3 |
-| goldens: `difftest/testdata` (15 files), `tests/simulator/testdata` (4), `record/migrate/testdata` (1); `tests/simulator/debate.test.mjs` (8) | regenerate; read every line |
-| `dispatch next`: plan `record/dispatch.go:651`, plan hold `passblockers.go:615`, standing item `:602` | print once: the plan's readiness line survives |
-| `### REPORT DELIVERED` `viewjson.go:1984`, `report/reportread_test.go` | delete |
-| `record/migrate/planids.go:36` | unchanged: its phrases describe archived bytes; the trimmed lines carry no id |
-| `sittingwrite/delivery.go:75` | carries `LastReadJSON`: changes with it; the inline mark renders here |
-| the word, no number: `record/queue.go:48-49`, `itemkind.go:22, :65`, `view/changes.go:21, :55`, `hooks/README.md:115`, `docs/seat-command-triggers.md:75`, `references/report_template.md:8`, `docs/vocabulary.md:517` (`vocabdoc`) | unchanged: ruling 2 removes the lens's numbers, not the word |
-| the chair's: `cli/chair/dispatch.go:90`, `cli/chair/spot_check.go:51`, `record/passblockers.go:479-493`, `record/dispatch.go:21`, `retirement.go:99, :105` | Q3 |
-| another sense (a cite's git pin, a hash pin): `setup/setup.go:222`, `setup/run.go:202`, `skills/research/SKILL.md:29`, `native/build.sh:107, :167` | not carriers |
+| `record/sitting.go:105, :194, :197`; `LastReadJSON` `retirement.go:490-494`; `sittingwrite/delivery.go:75` | T2: `last_read` drops `pin` and `head`, keeps `kind`; the two sentences lose their numbers |
+| `record/sitting.go:178`; `record/deliveredtext.go:248, :250`; `record/itemkind.go:92, :93, :115` | T2: a report item's subject is `{kind: report}` with no id (`about` allows it, `itemkind.go:114-118`); the comment "its id is the report head" goes |
+| `record/sitting.go:276, :278` | T2: "dispatched against report head %d" loses the number, for every seat it reaches |
+| `debate.js:886` (`lastReadClause`, authored: "at head H") | T2: reworded to the kinds alone |
+| `record/deliverycut.go:17, :25, :27, :88, :256`; `record/deliveredtext.go:215, :283, :285`; `cli/seat/help/register.md:11`; `scripts/agentgen/src/skills/adversarial-audit/SKILL.md:26`, `skills/research-protocol/SKILL.md:46` | T2: each describes what a lens is delivered and gains the marked re-read, below |
+| `recordpb/record.proto:313` (`EVENT_TYPE_REPORT_READ`'s `means`), `terms/terms.json:862` ("report read"), `record/reportread.go:7`, `recordsql/views.go:672` | S4 (the view's comment in S1): each defines the pin as "in a sitting it sat through", which ruling 3 widens to "or in no sitting". Regenerate: `protogen`, `vocabgen`, `vocabdoc` (`docs/vocabulary.md:511, :517, :523`) |
+| `### REPORT DELIVERED` `record/viewjson.go:1978, :1984` | T1: delete, with `report/reportread_test.go` |
+| the word, no number, on a seat-facing surface: `cli/seat/verbs.go:330, :331, :369`; `cli/seat/help/{dispatch.md:13, spot-check.md:7, engage.md:7}`; `scripts/agentgen/src/{fragments/lens-duties.md:5, red-lens-voice.md:15, red-chair.md:12, :14}`; `debate.js:899, :900, :902`; `record/queue.go:48, :49`; `record/itemkind.go:22, :65`; `view/changes.go:21, :55`; `terms/terms.json:852, :873`; `hooks/README.md:115`; `docs/seat-command-triggers.md:75`; `docs/citations-and-bibliography.md:162`; `skills/research-protocol/references/report_template.md:8` | survive: ruling 2 removes the lens's numbers, not the word |
+| `cli/seat/verbs.go:362` (`show report --json` `head`) | survives: a selector read's own stamp, outside the work list; it falls under Q3's wider rule if that is taken |
+| the plan's `head`: `record/dispatch.go:71`; `debate.js:403, :968, :988, :1118` | survives: ruled; the engine reads it |
+| the chair's numbers: `cli/chair/dispatch.go:77, :90`; `cli/chair/spot_check.go:51`; `record/passblockers.go:479, :488, :493`; `record/dispatch.go:21, :105, :1329`; `record/retirement.go:99, :101, :103, :105, :127, :129, :138`; `record/spotcheck.go:260`; `debate.js:394, :409, :920` (and `:428`, `tests/simulator/testdata/{m3-chair3,o3-chair5}-relays.json`, outside the grep) | Q3 |
+| another sense — a dispatch's pin, a cite's git pin, a hash pin, a false match on "that heading" — or a report subject with no id: `record/record.go:1478`; `cli/blue/engage.go:56`; `cli/chair/dispatch.go:46`; `recordpb/record.proto:306, :2527, :2531`; `record/successor.go:256`; `record/migrate/replay.go:235, :566`; `setup/setup.go:222`; `setup/run.go:202`; `skills/research/SKILL.md:29`; `native/build.sh:107, :167`; `record/passage.go:58`; `report/layout.go:27`; `record/passblockers.go:460` | not carriers |
+| reaches no seat — code comments on the report head or the pin, the tool's own refusals and test helpers: `cli/chair/dispatch.go:15`; `cli/seat/selector.go:261`; `record/anchorchecks.go:77`; `record/cast.go:21`; `record/dispatch.go:17, :201, :543, :957`; `record/passblockers.go:83`; `record/reportjson.go:10, :52`; `record/retirement.go:92, :111, :134, :264, :273, :355, :356, :420`; `record/sitting.go:111`; `record/spotcheck.go:45, :84, :236`; `record/viewjson.go:821, :1944, :1967`; `recordsql/views.go:682, :734, :737, :738, :744`; `recordpb/record.proto:1168, :2600`; `record/migrate/planids.go:20-25, :39`; `record/migrate/replay.go:577`; `record/deliveredtext.go:22, :179`; `record/deliverytest/deliverytest.go:41`; `seatprobe/boards.go:959` | survive; comments that restate a changed rule are reworded with it |
+
+Generated copies follow their sources: `agents/` and `agents-claude/` (12 files each; `scripts/agentgen/main.go:70`) and the two preloaded skills by `agentgen`; `cli/seat/help_gen.go` by `cmdtreegen`. Goldens — `difftest/testdata` (15 files), `tests/simulator/testdata` (4), `record/migrate/testdata` (1) — and `tests/simulator/debate.test.mjs` (8 hits) are regenerated or edited, every changed line read.
+
+**T1, "print once".** Golden lines :123 and :124 of `difftest/testdata/docket_ruling_requires_each_unconditional_field.golden` are both why-lines of the STORED plan (`dispatch.go:651`, `passblockers.go:615`); :131 is the gate item of the standing printed under it (`passblockers.go:602`). So the debt prints three times, and "once" means one why arm goes and the standing does not restate it. T1 keeps the blocker's own why (`:615`: it carries both the readiness and the hold), deletes the append at `dispatch.go:651` while keeping its `engage`, and leaves the item out of the standing `dispatch next` prints. Deleting a why arm changes the bytes, and so the key, of plans stored from then on — what #1955's caution warned of. It is safe here: archived plans keep both lines, `migrate/planids.go:36` matches id phrases and these lines carry no id, and no non-test reader matches either phrase. The same three-line shape holds for the question-split debt (golden :122, :125, :132); whether T1 trims the class is Q7.
+
+**T2, the marked re-read.** Read from `record/deliverycut.go` and `sittingwrite/reporttext.go`.
+
+- *Source.* In `CutDelivery`'s whole branch (`deliverycut.go:66-72`), where the lens has a pin above zero — its full re-read, or a whole delivery an upheld position owes — the cut reads `changesAfterSQL(pin, head, "")`: the rows, and the visible-difference filter, that `changeItemsAfter` reads for "the changes since" items (`:246-253, :258-278`). A first whole delivery has no last delivery and carries no mark.
+- *Placement, by blocks of visible text.* The report as cut is split into `anchor.Blocks`, the unit `new_paragraphs` is stamped in (`record.proto:1787-1792`). A change is PLACED when its new side's blocks, each reduced by `anchortext.Visible` — the reduction the cut already compares a change's two sides with (`:271`) — equal exactly one run of consecutive report blocks under the same reduction. Raw text will not do: a cite or a retire puts or takes an anchor token in a paragraph without moving the head (`HeadMoves`, `recordsql/views.go:739-742`), after which the stamped new side no longer occurs verbatim; `headingOf`'s raw lookup (`:281-283`) already fails silently that way. Overlapping or abutting runs merge. The report is the report now, so nothing is rebuilt at a past event; the header's "never located in the report" (`:19-21`) is reworded to say so.
+- *What the lens sees.* Two tool lines, each its own paragraph, around a placed passage, with no number and no event id:
+
+  ```
+  [CHANGED SINCE YOUR LAST DELIVERY — the text from here to the closing mark is new or edited]
+  …the passage as it stands…
+  [END OF CHANGED TEXT]
+  ```
+
+  Pieces are packed from the marked text; a piece that begins inside a marked passage opens with `[CHANGED TEXT CONTINUES]`. The marks, that line and the counted label are all inside what `fits` is asked of: the packer carries "inside a marked passage" as state and prepends the line to a candidate piece BEFORE asking (`packWhole` asks `fits(label, cur+u)`, `:134-147`; `itemFits` renders the label into the preamble, `reporttext.go:74-76`), so nothing is added after the budget check `handReportText` repeats (`:98-100`). Every whole-report piece is labelled `THE WHOLE REPORT — N change(s) since your last delivery: M marked in the text, K after it as items`, which `reportItemPreamble` prints on each item (`reporttext.go:57-65`). The invariant at `:112-113` becomes: the pieces' text with mark lines removed, concatenated, is the report.
+- *A change that cannot be placed* — a pure removal, a new side a later edit changed again, a new side whose blocks match two runs — follows the last whole-report piece as a change piece in today's form (`changePiece`, `:299-317`: section, BEFORE / AFTER / REMOVED). It is never dropped.
+- *The miss is loud.* The cut refuses itself when M + K differs from the changes it read; the writer turns that into a stuck delivery and a tool-defect log (`reporttext.go:83-85, :114-121`).
+
+Lost with the numbers: a lens can no longer copy a head into `close --verified-against` (25 of 63 behind sittings did, unprompted — #1955).
 
 ### 5. Pull requests
 
 | PR | Concept | Deletes | Epoch |
 |---|---|---|---|
-| T1 | `dispatch next` states the whole-report debt once; `REPORT DELIVERED` goes | two line arms, `DeliveryLine` | — |
-| T2 | the lens work list names no pin or head; the re-read is marked inline | `LastReadJSON.Pin`, `.Head` | — |
+| T1 | `dispatch next` states the whole-report debt once; `REPORT DELIVERED` goes | one why arm (Q7), `DeliveryLine` | — |
+| T2 | the lens work list names no pin or head; the re-read is marked | `LastReadJSON.Pin`, `.Head`; report-item subject ids | — |
 | S1 | sitting ends and deliveries are stored; the views read them | the three computing view bodies | the next |
 | S2 | failed and agent sittings are statements | `FailedSittingsOf(win)`, `AgentSittingsOf` | — |
-| S3 | sat-through is a statement | `sittings`, `AgentSittingRow`, `recordsql.AgentSittings` | — |
-| S4 | deliveries and the pin are statements; ruling 3 | `servedOf`, `pinOf`, `deliveriesUpTo`, `delivery`, `deliveries`, `viewsRead`, `mustViews`, `readViews`, `ReportDeliveries` | — |
+| S3 | sat-through is a statement | the `sittings` field, `AgentSittingRow`, `recordsql.AgentSittings` | — |
+| S4 | deliveries and the pin are statements; ruling 3 | `servedOf`, `pinOf`, `deliveriesUpTo`, `delivery`, the `deliveries` field, `viewsRead`, `mustViews`, `readViews`, `ReportDeliveries` | — |
 
-T1 and T2 do not depend on the table and ship first. S1's epoch carriers: `requirements.json`, `recordpb/schema_gen.go`, `recordsql/testdata/schema.epoch.json`, `schema.sql`, `cmd/feov-migrate/testdata/help.golden`.
+T1 and T2 do not depend on the table and ship first. S1's carriers: `requirements.json`, `recordpb/schema_gen.go`, `recordsql/testdata/schema.epoch.json`, `schema.sql`, `cmd/feov-migrate/testdata/help.golden`, `record/testdata/plans.golden`, `record/testdata/shapes.golden`. No pull request leaves a dual rule: S1 deletes the view bodies with the tables' arrival, and each of S2–S4 deletes the fold it replaces.
 
-**Migration.** The replay writes every event through `InsertTx`, so the triggers fill the tables (`migrate/sqlitesource.go:267-272` says so of `gap_state`); that file gains an arm skipping the three new tables. Residue: a migrated spot-check's pins are restamped by the live rule (`migrate/entries.go:54-61`), so after S4 one can differ from its source where a no-sitting delivery exists.
+**Migration.** The replay writes every event through `InsertTx` (`record/replaywriter.go:84` → `record.go:824`), so the triggers fill the tables; `migrate/sqlitesource.go:262-272` gains an arm skipping the three stored tables, without which a source holding their rows is refused (`:284-293`). Residue: a migrated spot-check's pins are restamped by the live rule (`migrate/entries.go:54-61`), so after S4 one can differ from its source where a no-sitting delivery exists.
 
-**Safety net (a174f37df).** Land the seeded fixtures (790 lines, 15 records) with S2; ruling 3 then shows as a reviewed golden diff in S4. Keep the 6,140-line archive golden on the working branch through S4, then delete it: ~77 s under the race detector in a package over its nightly bound, and prose that churns on other streams' wording. On main the archive check is the oracle (§V 3), facts only.
+**Safety net (a174f37df).** The seeded fixtures (790 lines, 15 records) land with S1, so they stand under the rule while S1 replaces its definition; ruling 3 then shows as a reviewed golden diff in S4. The 6,140-line archive golden stays on the working branch through S4 and is then deleted (Q5): ~77 s under the race detector in a package over its nightly bound, and prose that churns on other streams' wording. On main the archive check is the oracle (§V 3), facts only.
 
 ## IV. Risk & Mitigation
 
 | Risk | L × I × cost | Mitigation |
 |---|---|---|
-| A trigger fails to name a sitting an append changes | M × H × L | the refresh-diff oracle on archives, fuzz and seeded cases (§V 2-4) |
+| A trigger fails to name a sitting an append changes | M × H × L | the oracle after every append, on archives and in the fuzz; the narrowing mutations (§V 3-4) |
 | An opening of a third type (the write path makes none) | L × H × L | CHECK on `events`: an own-id `sitting_id` only on `register` / `sitting_open` |
-| Stored `whole` drifts from the rule | L × M × L | the pre-change equivalence includes `whole`; a seeded second-read-refused case |
+| Stored `whole` drifts from the rule | L × M × L | the oracle recomputes it (§V 3); the pre-change equivalence includes it |
 | planguard does not plan a trigger's statements | M × M × L | a test issues `SELECT * FROM sitting_refresh` over seeded dirty rows |
-| An inline mark misses a change, which reads as "unchanged" | M × H × M | the delivery states its change count and appends any change it could not place as a BEFORE/AFTER item (Q6) |
+| A mark misses a change, which reads as "unchanged" | M × H × L | the cut's own M + K check; the labelled counts; the drop-a-mark test (§V 5) |
+| Many changes cannot be placed at a real re-read | M × M × L | they arrive as items, as today; §V 6 is a gate on T2, not a report |
 | Capture reads outside one snapshot (`replay.go:97-112`) | M × M × L | capture moves to `readSnapshot` in S2 |
-| T2 removes the head a lens copies into `close --verified-against` (25 of 63 behind sittings, #1955) | H × L × L | stated loss: the close's own event id places it; no replacement number |
 | Golden conflicts across ~8 streams | H × L × L | rebase on golden or schema change; regenerate at `-count=1` |
+
+### Decided in this plan
+
+- Q1: no stored pin (§III.2, measured).
+- Q2: the triggers refresh through `sitting_dirty` (§III.1).
+- Q4: `whole` is stored by the trigger at the insert (§III.1).
 
 ### Open questions for the owner
 
 | # | Decision | Recommendation |
 |---|---|---|
-| Q1 | A stored per-seat pin? | (a) none: one fragment over the stored rows; (b) only if §V 1 measures over 0.5 ms |
-| Q2 | Trigger form: refresh through `sitting_dirty` (the rule stays one SQL text, with an oracle) or point updates (cheaper writes, the rule restated imperatively) | refresh |
-| Q3 | Do the chair's pin numbers go too (plan why-lines, `stale_areas[].pin`, the spot-check echo)? | not here: plan bytes are stored and keyed, and `spot_check.pins` is a record field; rule it separately |
-| Q4 | `whole`: trigger-stored by the rule, stamped by the writer on `ReportRead`, or dropped | trigger-stored |
-| Q5 | The archive golden | working branch only, then delete |
-| Q6 | A change the re-read cannot mark inline | append it as an item and state the counts |
-| Q7 | Which `dispatch next` line survives | the plan's readiness line |
+| Q3 | The chair's pin and head numbers (plan why-lines, `stale_areas[].pin`, the spot-check echo; the row in §III.4): trim them under "seat-facing text names no event id", or keep them with a tracking issue (none exists) | keep, and file the issue: plan bytes are stored and keyed, `spot_check.pins` is a record field, and the plan's `head` is ruled to stay |
+| Q5 | The archive golden | working branch only, deleted after S4 |
+| Q6 | A change the re-read cannot place: the default appends it as an item. Should a placed change also carry its BEFORE side as an item? | no: the mark locates, and the re-read is of the text as it stands |
+| Q7 | "Print once" is specified literally in T1: one why-line (`passblockers.go:615`), no restatement in the standing under it. (a) Is losing the whole-report item from that standing acceptable, when every other blocker kind is still restated there? (b) Does T1 trim the class — the question-split debt prints the same three lines — or the instance? | (a) yes, as ruled; (b) the instance in T1, the class as its own issue: it changes more stored-plan bytes than the ruling named |
 
 ### UNVERIFIED
 
 - That no agent index exists on `sitting_close` / `envelope_admitted` (a grep of `recordsql/*.go` found none).
-- Whether planguard plans trigger-body statements (`plans.golden:131, :875` hold the `gap_refresh` view and the flush insert).
-- Stored-state timings and the per-append trigger cost: targets, not measurements.
-- Which of golden lines :123 / :124 sit inside the stored plan block; whether any reader matches the trimmed phrases.
-- What migrate does with an unknown non-body table, and how it registers an epoch step with no body translation.
-- How many archived deliveries sit in no sitting.
-- Whether inline marking can place every change in the current text.
-- Whether "pin" is a registered term (`terms/terms.json` holds no `"pin"` key by grep; `docs/vocabulary.md:517` uses the word); test file line numbers in §V 4 are the #1955 design pass's, not re-read.
+- Whether planguard plans trigger-body statements, and whether it accepts a `SCAN … USING INDEX` (`plans.golden:131, :875` hold the `gap_refresh` view and the flush insert).
+- The trigger's per-append cost: a target until S1's first commit measures it.
+- The stored-state timings on a record with agentless openings, no-sitting deliveries, unsat sittings or an upheld position (neither measured record has one).
+- How many re-read changes place exactly once on real records.
+- Whether dropping a report item's subject id changes `changed_since_delivered`: `itemID` marshals the whole item (`sittingwrite/delivery.go:393-396`) and is read at `:379-383`; where `changed` is computed was not found.
+- That `anchortext.Visible` is the right reduction for whole-block equality (`anchortext/anchortext.go:82-86` says it is not right for every reader).
+- Whether the standing under `dispatch next`'s plan shares its renderer with the standing after other acts, where the whole-report item would stay.
+- That `Motion.ruled` (`record/motion.go:243-245`) is the ruling's event id in every loader; whether a `means` annotation edit moves the epoch.
+- How migrate registers an epoch step with no body translation.
+- Test file line numbers in §V 4's existing list are the #1955 design pass's, not re-read.
 
 ## V. Verification Plan
 
 First: `unset $(env | grep -o '^FEOV_[A-Z_]*')`. `FEOV_RELEASE_GATE` is never set locally.
 
-1. **Timing, before code.** Scratch copies of the eiffel and mersenne archives with the tables built by replay; time each §III.3 statement, the all-lens pin, and an append to each marked table with and without its trigger, arms interleaved, setup outside the timer. Decides §III.2 and Q2.
-2. **Equivalence before the views change (real data).** S1's first commit carries `TestStoredSittingStateEqualsTheViewsOnEveryArchivedRun` over `archiveNames` (`record/backingarm_test.go:304`): `EXCEPT` both ways for `agent_sitting`, `report_delivery` (`whole` included) and `area_change`, with non-vacuity counts (130 still open, 423 deliveries, 154 whole — #1955). It is CI-green as the PR head before the commit that repoints the views; the PR body names that run.
-3. **Permanent oracle.** `SittingStateRefreshDiff` names every sitting from the `sittings` view — never from `sitting_state`, where a missing row would hide itself — and compares. Asserted after EACH append in the seeded tests (an end-state check misses a row stale mid-run), on the archive sweep, in `record/plansweep_test.go:52`, and in the release fuzz beside the gap-state oracle.
-4. **Seeded trigger tests `[NEW]`**: an agentless opening ends the previous sitting; a latest sitting keeps a NULL next opening; closed then admitted after a nudge; one agent with two openings; a close after the next opening is not sat through; a report read in no sitting. Mutation: delete each marker row, expect red. Existing (files confirmed, lines per the #1955 design pass): `satthrough_test.go`, `lensturn_test.go`, `deliveryviews_test.go`, `upheldwhole_test.go`, `behinddelivery_test.go`, `spotcheckborne_test.go`, `debateserved_test.go`.
-5. `go -C scripts run ./check`; `TestEveryDDLChangeBumpsTheEpoch` with the restamped epoch golden; `shapes.golden` gains one line, `sitting_refresh`, under `PLANGUARD_ACCEPT_VIEW_COST=1` (reason for the commit: it walks `sitting_dirty`, which holds one append's sittings), and loses the three computing views' cost.
-6. After text changes: `agentgen`, `enginegen`, `cmdtreegen`, each with `-check`; read every changed golden line and each affected `--help` before and after.
-7. CI on the final head: the four `release-fuzz` parts and `release-fuzz-tally`; race-nightly's `record/migrate` time against 1,742 s.
-8. Auditor gate: `/prosthetic-conscience:plan-audit`.
+1. **Timing.** The read side is measured (§III.2). S1's first commit measures the write side: an append to each marked table with and without its trigger, arms interleaved, setup outside the timer, against the 0.3 ms criterion; and repeats the read table against the real tables.
+2. **Equivalence before the views change (real data).** S1's first commit carries `TestStoredSittingStateEqualsTheViewsOnEveryArchivedRun` over `archiveNames` (`record/backingarm_test.go:304`): `EXCEPT` both ways for `agent_sitting`, `report_delivery` (`whole` included) and `area_change`, with non-vacuity counts (130 still open, 423 deliveries, 154 whole — #1955). It is CI-green as the PR head before the commit that repoints the views; the PR body names that run. The repointing commit deletes the test — once the views read the tables it compares them with themselves — and the oracle (3) takes over.
+3. **Permanent oracle.** `SittingStateRefreshDiff` names every sitting from the `sittings` view — never from `sitting_state`, where a missing row would hide itself — refreshes, and compares; and it recomputes every `seat_delivery` row from `report_read` and `events`, `whole` by the fragment asked of the row's own id. Asserted after EACH append in the seeded tests (an end-state check misses a row stale mid-run), on the archive sweep, in `record/plansweep_test.go:52`, and in the release fuzz beside the gap-state oracle.
+4. **Seeded trigger tests `[NEW]`** (`recordsql/sittingstate_test.go`): an agentless opening ends the previous sitting; a latest sitting keeps a NULL next opening; closed then admitted after a nudge; one agent with two openings on one seat; **one agent opening on TWO seats** (the case that separates "every row of the agent" from "the agent's highest row"); a close after the next opening is not sat through; a report read in no sitting; a second report read in a sitting is refused. Mutations, each expected red: delete each marker row; **narrow each naming set** (the close's to the agent's highest row; the opening's to the new row alone). In package `record`, with S4: **an upheld position whose lens has a delivery complete after the ruling in a sitting opened before it — the blocker stands — then a sat-through delivery in a sitting opened after it — the blocker clears**; mutation: bound the statement by the delivery's id instead of its sitting's, expect red. Existing (files confirmed): `satthrough_test.go`, `lensturn_test.go`, `deliveryviews_test.go`, `upheldwhole_test.go`, `behinddelivery_test.go`, `spotcheckborne_test.go`, `debateserved_test.go`.
+5. **T2's tests `[NEW]`.** `TestALensWorkListCarriesNoPinOrHeadNumber` (`sittingwrite`): renders a lens's work list — the JSON and each rendered item — for every `last_read` kind, an owed register and a delivery of each sort, and asserts that `last_read` has no `pin` or `head` key, that no report item has a subject id, and that no head-move event id of the seeded record appears as a token anywhere in it. The fixture pads the record so every head move's id is above 1,000 and asserts first that no count the list prints reaches that, so the check cannot pass or fail on "item 3 of 23". `TestTheReReadMarksOrAppendsEveryChangeSinceTheLastDelivery` (`record`): a lens with one sat-through whole delivery, then an edit that stands, a pure cut, an edit re-edited later, and an edit whose new side occurs twice; asserts the pieces with marks removed concatenate to the report, each placed passage sits inside a mark pair, the label's M and K equal an independent count from `changesAfterSQL`, and each unplaced change is a trailing change piece. Mutation: drop one mark → red, by the label's count and by the cut's own check.
+6. **Real data for T2, a gate.** Over `archiveNames`, at each lens's second whole delivery, cut the marked re-read: the cut's M + K check holds at every one, and the PR body carries placed and unplaced counts per run. If fewer than half the changes place across the archives, T2 stops and the counts go to the owner as Q6's evidence.
+7. `go -C scripts run ./check`; `TestEveryDDLChangeBumpsTheEpoch` with the restamped epoch golden; `shapes.golden` gains one line, `sitting_refresh`, under `PLANGUARD_ACCEPT_VIEW_COST=1` (reason for the commit: it walks `sitting_dirty`, which holds one append's sittings), and loses the three computing views' cost.
+8. After text changes: `agentgen`, `enginegen`, `cmdtreegen`, `protogen`, `vocabgen`, `vocabdoc`, each gate's `-check`; read every changed golden line and each affected `--help` before and after.
+9. CI on the final head: the four `release-fuzz` parts and `release-fuzz-tally`; race-nightly's `record/migrate` time against 1,742 s.
+10. Auditor gate: `/prosthetic-conscience:plan-audit`.
