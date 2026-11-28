@@ -4,59 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
-
-// aboutGapWords is the clause `mint --about-kind gap`'s refusal opens its reason with
-// (cli/lens/mint.go aboutGapRefusal).
-const aboutGapWords = "a gap is not the subject of another gap"
-
-// aboutGapRoad is the road the same refusal names: what a lens sees wrong in another lens's gap is
-// that gap's raiser's to answer.
-const aboutGapRoad = "is its raiser's to answer"
-
-// aboutGapRefusedDrive is a lens's one `mint --about-kind gap` of the run, naming an open gap: the
-// word is refused before any validate, naming the road a point about another lens's gap takes — its
-// raiser's to answer, a gap having two parties (plans/findings-fold.md §III.A3). No draw types the word,
-// so this drive is the gate's (about_gap_refused). An admission, another code, or a refusal naming no
-// road fails the run.
-func (r *runner) aboutGapRefusedDrive(seatID string) {
-	gaps := r.openGaps()
-	if len(gaps) == 0 {
-		return
-	}
-	r.mu.Lock()
-	if r.aboutGapDriven {
-		r.mu.Unlock()
-		return
-	}
-	r.aboutGapDriven = true
-	r.mu.Unlock()
-	gap := gaps[r.rng.Intn(len(gaps))]
-	args := []string{"--json", "mint", "--seat-id", seatID, "--about-kind", "gap", "--about", gap,
-		"--class", pick(r.rng, mintPoolClasses), "--problem", "fuzz: a point about " + gap,
-		"--check-kind", "document", "--check", "acc", "--fix", dirApply,
-		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: about another gap"}
-	out, err := r.exec(args...)
-	if err == nil {
-		r.noteActErr("mint --about-kind gap was admitted: " + firstLine(out))
-		return
-	}
-	env, ok := refusalEnvelopeIn(out)
-	switch {
-	case !ok:
-		r.noteActErr("mint --about-kind gap was refused with no refusal envelope: " + firstLine(out))
-	case env.Code != string(feov.Validation):
-		r.noteActErr("mint --about-kind gap was refused with code " + env.Code + ", not validation: " + firstLine(env.Error))
-	case !strings.Contains(env.Error, aboutGapWords) || !strings.Contains(env.Error, aboutGapRoad):
-		r.noteActErr("mint --about-kind gap was refused without naming the raiser's road: " + firstLine(env.Error))
-	default:
-		r.mu.Lock()
-		r.aboutGapRefused++
-		r.mu.Unlock()
-	}
-}
 
 // disputeMovedGap is the author's dispute of a gap its raiser regraded while the author sat: the close
 // it proposes is filed on the gap as the author read it when its sitting opened, so the record refuses
@@ -189,21 +138,6 @@ func TestADisputeOfAGapItsMinterKeepsRegradingLandsOnceItStops(t *testing.T) {
 	r.dispatchReturns(author, false)
 	if r.movedDisputes != 1 {
 		t.Errorf("a second sitting's drive landed another dispute: %d", r.movedDisputes)
-	}
-}
-
-// THE ONE `--about-kind gap` OF A RUN IS REFUSED NAMING THE RAISER'S ROAD, and a second call drives none.
-func TestTheAboutGapDriveIsRefusedNamingTheRaisersRoad(t *testing.T) {
-	r, _ := staleRun(t)
-	r.dispatchSits("lens", staleFiler)
-	r.aboutGapRefusedDrive(staleFiler)
-	r.aboutGapRefusedDrive(staleFiler)
-	r.dispatchReturns(staleFiler, false)
-	if r.actErr != "" {
-		t.Fatalf("the drive: %s", r.actErr)
-	}
-	if r.aboutGapRefused != 1 {
-		t.Errorf("the drive counted %d refusal(s), want 1", r.aboutGapRefused)
 	}
 }
 

@@ -271,9 +271,10 @@ func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.
 }
 
 // oneGapRefusal names the open gap g that holds the subject, and the refused seat's road from there.
-// The road turns on whose gap g is: the seat's own gap is reweighed by regrading it; another seat's gap
-// already carries a point that agrees with it, and what the seat sees wrong in it is g's raiser's to
-// answer — a gap has two parties, its raiser and its subject's author, and only they act on it.
+// The road turns on whose gap g is: the seat's own gap is restated by amending it and reweighed by
+// regrading it; another seat's gap already carries a point that agrees with it, and what the seat sees
+// wrong in it — its printed wording or its grades — is the seat's gap on g, which g's raiser answers
+// (plans/findings-fold.md §III.A2).
 func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subject string) error {
 	if t := g.ruling; t != nil {
 		return feov.Errorf(feov.Conflict,
@@ -284,13 +285,13 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 	if g.assignee == seatID {
 		return feov.Errorf(feov.Conflict,
 			"gap %s is yours and is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
-				"To reweigh it, regrade it (`regrade --id %s`). Nothing was written",
-			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id)
+				"To restate it, amend it (`amend --id %s`); to reweigh it, regrade it (`regrade --id %s`). Nothing was written",
+			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id)
 	}
 	return feov.Errorf(feov.Conflict,
 		"gap %s, raised by %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
 			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
-			"What you see wrong in %s — its problem, fix, check or weight — is %s's to answer: a gap has two parties, the lens that raised it and its subject's author, and only they act on it. "+
+			"What you see wrong in %s — its problem, fix, check or weight — is a gap of yours about %s, which %s answers. "+
 			"A defect that stands in the report after %s closes is a new gap of yours. Nothing was written",
-		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.assignee, g.id)
+		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, g.id)
 }

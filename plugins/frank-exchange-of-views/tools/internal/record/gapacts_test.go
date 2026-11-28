@@ -85,6 +85,9 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		// THE MINTER'S REGRADE NAMING A GAP ABOUT ITS GAP is its act on its gap and its answer on the
 		// other (Regrade.answers).
 		{"a regrade of the gap it is about, naming it", lens, "G6", &recordpb.Regrade{GapId: proto.String("G1"), Answers: proto.String("G6"), Basis: proto.String("b")}},
+		{"an amend of the gap it is about, naming it", lens, "G6", &recordpb.Amend{GapId: proto.String("G1"), Answers: proto.String("G6"), Problem: proto.String("p2"), Basis: proto.String("b")}},
+		{"the bench's amend of the gap it is about, naming it", "bench", "G6", &recordpb.Amend{GapId: proto.String("G1"), Answers: proto.String("G6"), Problem: proto.String("p6"), Basis: proto.String("b")}},
+		{"an amend of its own gap", lens, "G1", &recordpb.Amend{GapId: proto.String("G1"), Problem: proto.String("p3"), Basis: proto.String("b")}},
 	}
 	turns := []row{
 		{"a fate changed on the inquiry it is anchored on", blue, "G2", fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, "r2", "")},
@@ -96,6 +99,13 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		// THE BENCH'S APPLICATION IS A CHANGE OF THE SUBJECT: the raiser's turn on every other gap on
 		// it, entered under the subject's author. It names G9, the gap its ruling applies.
 		{"the bench's edit changing the gap's sentence", "bench", "G1", &recordpb.BlueEdit{Answers: proto.String("G9"), Old: proto.String("a"), New: proto.String("b"), Reopened: []string{"G1"}}},
+		// A CHANGE TO THE GAP IT IS ABOUT THAT NAMES IT NOT is its raiser's turn, entered under its
+		// author — that gap's minter — whoever wrote it: an amend, a regrade, a close, and the bench's
+		// application.
+		{"an amend of the gap it is about, naming nothing", lens, "G6", &recordpb.Amend{GapId: proto.String("G1"), Problem: proto.String("p4"), Basis: proto.String("b")}},
+		{"a regrade of the gap it is about, naming nothing", lens, "G6", &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("b")}},
+		{"the bench's amend of the gap it is about, naming another", "bench", "G6", &recordpb.Amend{GapId: proto.String("G1"), Answers: proto.String("G9"), Problem: proto.String("p5"), Basis: proto.String("b")}},
+		{"a close of the gap it is about", lens, "G6", &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 	}
 	var evs []*Event
 	var ids []int64
@@ -141,8 +151,15 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 			t.Errorf("%s by %s is not read as an act on %s: %+v", r.name, r.seat, r.gap, got[r.gap])
 		}
 	}
-	if !has(got["G1"], actAt[len(acts)-1], lens) {
+	if !has(got["G1"], actAt[slices.IndexFunc(acts, func(r row) bool { return r.name == "a regrade of the gap it is about, naming it" })], lens) {
 		t.Errorf("the minter's regrade naming G6 is not read as its act on its own gap G1: %+v", got["G1"])
+	}
+	// THE ACT THAT NAMES A GAP ANSWERS IT AND IS NO TURN ON IT: the bench's amend naming G6 is no turn
+	// of G6's raiser's entered under G6's author.
+	for i, r := range acts {
+		if r.seat == "bench" && has(turned[r.gap], actAt[i], lens) {
+			t.Errorf("%s is read as %s's raiser's turn as well as its answer: %+v", r.name, r.gap, turned[r.gap])
+		}
 	}
 	// A FATE THAT MOVES ITS INQUIRY CHANGES BOTH SECTIONS: the one it leaves and the one it enters.
 	for i, r := range turns {
@@ -151,11 +168,16 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		}
 	}
 	for i, r := range turns {
-		if !has(turned[r.gap], turnAt[i], blue) {
-			t.Errorf("%s by %s is not read as %s's raiser's turn under its author %s: %+v", r.name, r.seat, r.gap, blue, turned[r.gap])
+		author := blue
+		if r.gap == "G6" {
+			author = lens // G6 is about G1, whose minter is its author
+		}
+		if !has(turned[r.gap], turnAt[i], author) {
+			t.Errorf("%s by %s is not read as %s's raiser's turn under its author %s: %+v", r.name, r.seat, r.gap, author, turned[r.gap])
 		}
 		for g, as := range got {
-			if g != "G9" && slices.ContainsFunc(as, func(a gapAct) bool { return a.at == turnAt[i] }) {
+			// the act on G1 itself is G1's: an amend, a regrade or a close of the gap G6 is about
+			if g != "G9" && g != actedOnGap(r.body) && slices.ContainsFunc(as, func(a gapAct) bool { return a.at == turnAt[i] }) {
 				t.Errorf("%s names no gap and is read as an act on %s — a change to the subject is the raiser's turn, never the author's answer", r.name, g)
 			}
 		}

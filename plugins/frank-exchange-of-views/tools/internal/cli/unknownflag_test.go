@@ -98,7 +98,7 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 			args: []string{"regrade", "--id", "G-00000001", "--severity", "low", "--reason", "r", "--problem", "p"},
 			verb: "regrade", role: "lens", writes: "regrade",
 			says: []string{"unknown flag: --problem", "On this surface `mint` takes it.",
-				"This verb's flags: --accept, --complexity, --id, --impact, --likelihood, --reason, --severity.", "`" + InvokedAs() + " regrade --help`"}},
+				"This verb's flags: --accept, --answers, --complexity, --id, --impact, --likelihood, --reason, --severity.", "`" + InvokedAs() + " regrade --help`"}},
 		{name: "a flag nothing takes", seat: "red-lens-evidence",
 			args: []string{"close", "--nonesuch", "x"},
 			verb: "close", role: "lens", writes: "close",

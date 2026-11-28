@@ -311,8 +311,8 @@ func requireFiledByAuthor(q recordsql.Querier, seatID, g string) error {
 			g)
 	}
 	return feov.Errorf(feov.RoleViolation,
-		"gap %s has two parties, its raiser %s and its author %s, and only its author proposes an act on it; you are %s. A defect you see in it is its raiser's to answer, and one that stands after it closes is a new gap of yours. Nothing was recorded",
-		g, raiser, author, seatID)
+		"gap %s has two parties, its raiser %s and its author %s, and only its author proposes an act on it; you are %s. A defect a lens sees in its wording or grades is that lens's gap about %s, and one that stands in the report after it closes is a new gap. Nothing was recorded",
+		g, raiser, author, seatID, g)
 }
 
 // requireRaiserActOnGap is the raiser's own act on its gap — a close or a regrade, act names which —

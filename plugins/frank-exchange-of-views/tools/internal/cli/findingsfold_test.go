@@ -32,8 +32,8 @@ func TestNoSurfaceMountsAFinding(t *testing.T) {
 // The roads, in the words each case's refusal states them; none names a finding, a no-act docket
 // motion or reconsideration grounds.
 const (
-	roadParties = "a gap has two parties"
-	roadOnBoard = "nothing more is recorded"
+	roadGapOnGap = "is a gap of yours about"
+	roadOnBoard  = "nothing more is recorded"
 )
 
 var roadNever = []string{"finding", "--grounds", "--about-kind gap"}
@@ -58,8 +58,9 @@ func roadRefusal(t *testing.T, err error, out string, want, never []string) {
 }
 
 // THE ONE-GAP REFUSAL NAMES THE REFUSED SEAT'S ROAD, per case, on every arm of the rule (plan
-// §III.A2, T-A3). The refused seat's own gap is reweighed by regrading it; another seat's gap already carries a point that agrees with it, and a dispute of it is a
-// proposed act, with the exchange sentence while the gap has had none.
+// §III.A2, T-A3). The refused seat's own gap is restated by amending it and reweighed by regrading it;
+// another seat's gap already carries a point that agrees with it, and what the seat sees wrong in it is
+// its gap on that gap.
 func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 	const plain = "spec_underspecification"
 	mint := func(b readingBoard, seat string, subject ...string) (string, string, error) {
@@ -95,8 +96,8 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 			}
 			_, out, err = mint(b, lensL, a.second(b, q)...)
 			roadRefusal(t, err, out,
-				[]string{held, "is yours", "`regrade --id " + held + "`", "Nothing was written"},
-				[]string{"motion docket", roadOnBoard, roadParties})
+				[]string{held, "is yours", "`amend --id " + held + "`", "`regrade --id " + held + "`", "Nothing was written"},
+				[]string{"motion docket", roadOnBoard, roadGapOnGap})
 		})
 		t.Run(a.name+", another seat's gap", func(t *testing.T) {
 			b := readingRun(t)
@@ -107,33 +108,9 @@ func TestTheOneGapRefusalNamesTheSeatsRoad(t *testing.T) {
 			}
 			_, out, err = mint(b, lensL, a.second(b, q)...)
 			roadRefusal(t, err, out,
-				[]string{held, "raised by " + lensM, roadOnBoard, roadParties, "Nothing was written"},
-				[]string{"is yours", "`regrade --id"})
+				[]string{held, "raised by " + lensM, roadOnBoard, roadGapOnGap + " " + held + ", which " + lensM + " answers", "Nothing was written"},
+				[]string{"is yours", "`regrade --id", "`amend --id"})
 		})
 	}
 
-	// A gap is not the subject of another gap: `--about-kind gap` is refused naming the parties.
-	t.Run("about-kind gap", func(t *testing.T) {
-		b := readingRun(t)
-		held, out, err := mint(b, lensM, "--quote", rdFree1)
-		if err != nil {
-			t.Fatalf("the first mint: %v\n%s", err, out)
-		}
-		_, out, err = mint(b, lensL, "--about-kind", "gap", "--about", held)
-		if err == nil {
-			t.Fatalf("--about-kind gap was admitted: %s", out)
-		}
-		// The whole first line, so a prefix the flag frame adds and the refusal repeats is caught.
-		want := `--about-kind takes no "gap": a gap is not the subject of another gap. ` +
-			"A gap has two parties — the lens that raised it and its subject's author — and only they act on it: " +
-			"what you see wrong in another lens's open gap is its raiser's to answer, and a defect that stands in the report after it closes is a new gap of yours. Nothing was written"
-		if got, _, _ := strings.Cut(err.Error(), "\n"); got != want {
-			t.Errorf("the refusal reads:\n%s\nwant:\n%s", got, want)
-		}
-		for _, n := range []string{"finding", "--grounds"} {
-			if strings.Contains(err.Error(), n) {
-				t.Errorf("the refusal says %q:\n%v", n, err)
-			}
-		}
-	})
 }

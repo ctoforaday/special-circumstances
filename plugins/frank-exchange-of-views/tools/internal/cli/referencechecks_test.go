@@ -48,6 +48,8 @@ var referenceChecks = []struct {
 		extra: []string{"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--severity", "high", "--reason", "r"}},
+	{verb: []string{"regrade"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--severity", "high", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "G2",

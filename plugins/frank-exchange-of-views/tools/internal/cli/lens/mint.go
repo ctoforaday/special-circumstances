@@ -398,18 +398,6 @@ func placementRefusal(noun string, err error) error {
 	return anchortext.Refusal(err)
 }
 
-// aboutGapRefusal refuses `--about-kind gap`: no write here mints a gap on another lens's gap. A gap
-// has two parties, its raiser and its subject's author, and only they act on it.
-func aboutGapRefusal(v string) error {
-	if v != "gap" {
-		return nil
-	}
-	return feov.Errorf(feov.Validation,
-		`takes no "gap": a gap is not the subject of another gap. `+
-			"A gap has two parties — the lens that raised it and its subject's author — and only they act on it: "+
-			"what you see wrong in another lens's open gap is its raiser's to answer, and a defect that stands in the report after it closes is a new gap of yours. Nothing was written")
-}
-
 // WriteMint is the mint's write. before is what the same transaction writes ahead of the mint. Its
 // effects ride with the mint: --new verified against the report the
 // mint lands on (verifiedFix), the estoppel guard and its TOOL log, and the Places guard with the
@@ -503,9 +491,9 @@ func (st *Statement) Register(c *cobra.Command) {
 	st.g.register(c)
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
-	enumhelp.FlagRefusing(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, or a computation whose sentence you judged unsound; use instead of --quote", aboutGapRefusal)
-	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
+	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, a computation whose sentence you judged unsound, or another lens's open gap whose printed wording or grades are the defect; use instead of --quote")
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole, or another lens's open gap id. It is CHECKED against the record")
 }
 
 // Fill is the Mint the statement's flags state, with text as its argument and key as its --key, its

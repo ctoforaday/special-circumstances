@@ -1,8 +1,6 @@
 package record
 
 import (
-	"slices"
-
 	"fmt"
 	"strings"
 
@@ -282,11 +280,8 @@ var EnumFields = map[string][]EnumField{
 		// AN OMISSION'S SUBJECT IS A REFERENCE, never a borrowed quote of the sentence where it SHOULD
 		// be.
 		{
-			// A gap about a gap is the record's word and no mint's (requireMintSubject refuses it), so the
-			// menu offers what the write admits.
-			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: slices.DeleteFunc(evsOf(recordpb.AboutKind(0).Descriptor()),
-				func(v EnumValue) bool { return v.Name == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP) }),
-			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
+			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
+			Why: "a gap about what is not report text has no sentence to quote, and borrowing one sends a reader to prose the gap calls fine. These targets are references the record CHECKS",
 		},
 	},
 	// `position`, and its class is the mint's set: the same KIND-of-defect question asked of the

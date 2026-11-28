@@ -60,6 +60,9 @@ func Regrade(key string) *cobra.Command {
 			body.Likelihood = GradeOrNil(&likelihood)
 			body.Impact = GradeOrNil(&impact)
 			body.ComplexityCost = GradeOrNil(&cx)
+			if g := Str(cmd, flags.Answers); g != "" {
+				body.Answers = proto.String(g)
+			}
 		}
 		body.Basis = proto.String(basis)
 		// A GRADE SET AGAINST A GAP THAT MOVED SINCE THIS SITTING OPENED grades what the gap was
@@ -75,6 +78,7 @@ func Regrade(key string) *cobra.Command {
 	// refuses a regrade with neither.
 	RequiredUnlessGiven(c, flags.ID, flags.Accept)
 	c.Flags().Var(accept, flags.Accept, "take the author's proposed regrade on your gap EXACTLY as filed: the M- id its filing returned. The tool supplies the grades and the act answers the proposal; under a docketing it is your concession, ending the docketing and the proposal with no ruling. --reason is still your own argument")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap about this gap that your regrade answers — another lens's gap on your gap's grades; omit for a regrade that answers no gap")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
 	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))

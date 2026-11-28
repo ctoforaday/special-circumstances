@@ -17,6 +17,7 @@ var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
 	recordpb.AboutKind_ABOUT_KIND_INQUIRY:  flags.InquiryID,
 	recordpb.AboutKind_ABOUT_KIND_QUESTION: flags.QuestionPartID,
 	recordpb.AboutKind_ABOUT_KIND_ANCHOR:   flags.AboutAnchor,
+	recordpb.AboutKind_ABOUT_KIND_GAP:      flags.GapID,
 }
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that

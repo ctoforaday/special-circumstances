@@ -12,6 +12,8 @@ AN AXIS A RULING DECIDED IS NOT YOURS TO MOVE BACK. A bench ruling on your gap's
 
 THE AUTHOR'S PROPOSED REGRADE IS YOURS TO TAKE, BY THIS VERB: you name the proposal, and the tool supplies the gap and the grades it states, so you pass neither; your argument is still yours. The act answers the proposal, once. While the author's proposal stands, your own regrade is refused: you answer it by taking it, or leave it to be docketed when your sitting ends. While your gap is docketed, a regrade of it — keeping a grade or moving one — is refused, naming the docketing: you concede by closing the gap, or by taking the proposal the docketing holds, which ends the docketing with no ruling.
 
+A GAP ANOTHER LENS RAISES ON YOUR GAP — on its printed wording or its grades — is yours to answer: your regrade of your gap that names it as the gap it answers is your answer, and spends an exchange on it as an author's answer does. A regrade of your gap that names no gap is that lens's turn to re-audit, not an answer. The gap it answers is an open gap about the gap you regrade; any other is refused.
+
 {{.StaleRule}}
 
 {{.GradeMovementRule}}.

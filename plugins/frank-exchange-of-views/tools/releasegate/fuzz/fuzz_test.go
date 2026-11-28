@@ -604,15 +604,11 @@ type runner struct {
 	// their sentence or inquiry. The sweep gates it at zero.
 	oneGapRefused int
 	// oneGapRedirects counts those refusals by the road they state — "own" for the refused seat's own
-	// gap, "another" for another seat's — and oneGapNamingFinding the ones whose road names a finding,
-	// a reconsideration's grounds or an about-kind gap (plans/findings-fold.md §III.A2, §III.A6). The
+	// gap, "another" for another seat's — and oneGapNamingFinding the ones whose road names a finding
+	// or a reconsideration's grounds (plans/findings-fold.md §III.A2, §III.A6). The
 	// sweep gates each road at zero and the finding count above it.
 	oneGapRedirects     map[string]int
 	oneGapNamingFinding int
-	// aboutGapDriven is whether this run drove its one `mint --about-kind gap`, and aboutGapRefused
-	// how many the record refused naming the raiser's road (aboutGapRefusedDrive). The sweep gates it at zero.
-	aboutGapDriven  bool
-	aboutGapRefused int
 	// movedDisputed is whether this run drove its one dispute of a gap its raiser regraded while
 	// blue sat (disputeMovedGap), and movedDisputes how many met the stale refusal and
 	// landed on the retry.
@@ -1897,7 +1893,7 @@ func (r *runner) noteInquiryRecord() {
 // composed id would drive the refusal forever and the success path would read as covered. `section`
 // is deliberately unchecked by the tool — blue may rename a heading mid-run, and refusing on a stale
 // one would refuse the gap rather than the staleness — so the seeded heading is honest there. A gap
-// is no kind here: it is not the subject of another gap (aboutGapRefusedDrive drives the refusal).
+// is no kind here: a gap on a gap is the release drive's to add (§III.B10).
 func (r *runner) aboutAnchor() (kind, ref string) {
 	r.mu.Lock()
 	inq := append([]string{}, r.inquiryIDs...)
@@ -5195,7 +5191,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 
 // oneGapRoad is the road a one-gap refusal states (plans/findings-fold.md §III.A2): "own" where the
 // refused seat holds the gap, "another" where another seat does, "" for neither; and whether the road
-// names a finding or an about-kind gap. The gap's problem and its subject's
+// names a finding. The gap's problem and its subject's
 // sentence are quoted in the refusal and are the seat's words, never its road, so quoted text is not
 // read for the second answer.
 func oneGapRoad(out string) (road string, namesFinding bool) {
@@ -5210,11 +5206,7 @@ func oneGapRoad(out string) (road string, namesFinding bool) {
 		road = "another"
 	}
 	unquoted := outsideQuotes(env.Error)
-	for _, w := range []string{"finding", "--about-kind gap"} {
-		if strings.Contains(unquoted, w) {
-			namesFinding = true
-		}
-	}
+	namesFinding = strings.Contains(unquoted, "finding")
 	return road, namesFinding
 }
 
@@ -7146,12 +7138,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.extras("lens", seatID, nil)
 			}
 		}
-		// A POINT ABOUT A GAP ANOTHER SEAT HOLDS is no gap about it (aboutGapRefusedDrive); the author's
-		// proposals on this lens's gaps are its to take (takeProposals) — before dischargeOwed, which
-		// files the closings the sitting owes. A lens's acts: this tail is the frontier's and the lanes'
+		// The author's proposals on this lens's gaps are its to take (takeProposals) — before
+		// dischargeOwed, which files the closings the sitting owes. A lens's acts: this tail is the frontier's and the lanes'
 		// too.
 		if strings.HasPrefix(seatID, "red-lens") {
-			r.aboutGapRefusedDrive(seatID)
 			r.takeProposals(seatID)
 		}
 		r.dischargeOwed(seatID)
@@ -7359,10 +7349,9 @@ type outcome struct {
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
-	// oneGapRefused, oneGapRedirects, oneGapNamingFinding, aboutGapRefused and movedDisputes are the
-	// runner's.
-	oneGapRefused, oneGapNamingFinding, aboutGapRefused, movedDisputes int
-	oneGapRedirects                                                    map[string]int
+	// oneGapRefused, oneGapRedirects, oneGapNamingFinding and movedDisputes are the runner's.
+	oneGapRefused, oneGapNamingFinding, movedDisputes int
+	oneGapRedirects                                   map[string]int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
@@ -8878,7 +8867,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
 	res.oneGapRefused = r.oneGapRefused
 	res.oneGapRedirects, res.oneGapNamingFinding = maps.Clone(r.oneGapRedirects), r.oneGapNamingFinding
-	res.aboutGapRefused, res.movedDisputes = r.aboutGapRefused, r.movedDisputes
+	res.movedDisputes = r.movedDisputes
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused

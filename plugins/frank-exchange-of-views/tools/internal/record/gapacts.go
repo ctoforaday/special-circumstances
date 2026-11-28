@@ -1,6 +1,7 @@
 package record
 
 import (
+	"google.golang.org/protobuf/proto"
 	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -53,6 +54,8 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 		var on []string
 		switch b := mustBody(e).(type) {
 		case *recordpb.Regrade:
+			on = []string{b.GetGapId(), b.GetAnswers()}
+		case *recordpb.Amend:
 			on = []string{b.GetGapId(), b.GetAnswers()}
 		case *recordpb.Close:
 			on = []string{b.GetGapId()}
@@ -242,8 +245,22 @@ func lensTurnActsOf(evs []*Event, ids []int64, win WindowIndex, acts map[string]
 		out[g] = append(out[g], gapAct{seat: author(g), at: at})
 	}
 	fates := fateActsOf(evs)
+	onGap := map[string][]string{} // a gap → the gaps about it minted so far
 	for i, e := range evs {
 		switch b := mustBody(e).(type) {
+		case *recordpb.Mint:
+			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP {
+				onGap[b.GetAboutRef()] = append(onGap[b.GetAboutRef()], b.GetGapId())
+			}
+		// A CHANGE TO A GAP'S WORDING, GRADES OR STANDING — its minter's amend, regrade or close, or the
+		// bench's application — changes what each gap about it is about: their raisers' turn, but the
+		// gap the act names, which it answers.
+		case *recordpb.Amend, *recordpb.Regrade, *recordpb.Close:
+			for _, g := range onGap[actedOnGap(b)] {
+				if g != gapAnswers(b) {
+					changed(g, ids[i])
+				}
+			}
 		case *recordpb.BlueEdit:
 			if b.GetOld() != b.GetNew() {
 				for _, g := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
@@ -283,6 +300,17 @@ func lensTurnActsOf(evs []*Event, ids []int64, win WindowIndex, acts map[string]
 		}
 	}
 	return out
+}
+
+// gapAnswers is the gap an amend or a regrade names as its answer; "" for any other act.
+func gapAnswers(body proto.Message) string {
+	switch b := body.(type) {
+	case *recordpb.Amend:
+		return b.GetAnswers()
+	case *recordpb.Regrade:
+		return b.GetAnswers()
+	}
+	return ""
 }
 
 // mintPlaces is the place of each gap's mint — its first, as assignee reads the minter. ids are

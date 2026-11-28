@@ -101,6 +101,13 @@ func tombstoneDrive() []struct {
 		mint("Q1", aboutQuestion("S-00000001")),
 		mint("Q0", aboutQuestion("")),
 		mint("N1", quote("November holds.", "")),
+		mint("G9", quote("India holds.", "")),
+		{otherLens, func() proto.Message {
+			m := rawMint("H1")
+			m.ClassMaterial = nil
+			m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("G9")
+			return m
+		}()},
 		// a ruling on each, then the act that ends it
 		docket("K1", "G1"), forBlue("K1"),
 		edit("", false, "G5"), // a reword of another sentence ends nothing
@@ -143,6 +150,11 @@ func tombstoneDrive() []struct {
 		docket("K9", "G8"), forBlue("K9"),
 		{benchSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String("n"), Text: proto.String("red's text"), Reopened: []string{"G8"}}},
 		edit("", false, "G8"),
+		// a gap on a gap: blue's edit of G9's sentence ends nothing on H1, and G9's minter's amend of G9
+		// ends the ruling on H1
+		docket("K14", "H1"), forBlue("K14"),
+		edit("", false, "G9"),
+		{evLens, &recordpb.Amend{GapId: proto.String("G9"), Problem: proto.String("the sentence overstates the holding"), Basis: proto.String("H1 is right about the wording")}},
 		// a section: an edit reopening the section gap's token ends its ruling; a composed section's
 		// stands for the run, a fate moving an inquiry in or out of it included
 		docket("K10", "S1"), forBlue("K10"),
@@ -304,8 +316,8 @@ func runTombstoneDrive(t *testing.T) string {
 	if err := b.Querier().QueryRow(`SELECT count(*) FILTER (WHERE "ends" IS NULL), count(*) FILTER (WHERE "ends") FROM "tombstone"`).Scan(&places, &ends); err != nil {
 		t.Fatal(err)
 	}
-	if places != 18 || ends != 11 {
-		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 18 and 11", places, ends)
+	if places != 19 || ends != 12 {
+		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 19 and 12", places, ends)
 	}
 	return ""
 }
@@ -322,8 +334,7 @@ func TestTheStoredTombstonesAreTheRule(t *testing.T) {
 
 // EVERY TOMBSTONE ARM IS NEEDED: the drive, with each placing arm of tombstoneArms and each row of the
 // end arm's subjectEnds removed in turn, disagrees with the rule over the stream. An arm no step needs
-// is untested. The gap row is driven by no step: no write mints a gap on a gap (requireMintSubject)
-// until R4 builds it, so its row is held by TestTheGapRowEndsAtItsMintersAct instead.
+// is untested.
 func TestEveryTombstoneArmIsNeeded(t *testing.T) {
 	arms, rows := tombstoneArms, subjectEnds
 	t.Cleanup(func() { tombstoneArms, subjectEnds = arms, rows })
@@ -341,9 +352,6 @@ func TestEveryTombstoneArmIsNeeded(t *testing.T) {
 	}
 	for i, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
-			if strings.HasPrefix(r.name, "a gap:") {
-				t.Skip("R4: no write mints a gap on a gap yet; TestTheGapRowEndsAtItsMintersAct holds the row")
-			}
 			subjectEnds = slices.Delete(slices.Clone(rows), i, i+1)
 			defer func() { subjectEnds = rows }()
 			if runTombstoneDrive(t) == "" {
@@ -365,8 +373,7 @@ func TestEveryTombstoneArmIsNeeded(t *testing.T) {
 
 // THE GAP ROW ENDS AT ITS MINTER'S ACT (§III.B6's last row): an amend, a regrade and a close of G′
 // name G′ for the gaps about it, and no other act does. The arm's author filter (authorOf: G′'s minter)
-// is the one every row passes through, held by TestEveryTombstoneArmIsNeeded's author case; the drive
-// through the write path waits on R4's gap on a gap.
+// is the one every row passes through, held by TestEveryTombstoneArmIsNeeded's author case and gap row.
 func TestTheGapRowEndsAtItsMintersAct(t *testing.T) {
 	for _, c := range []struct {
 		body proto.Message

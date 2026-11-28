@@ -979,6 +979,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
 		}
+		if err := requireAboutGap(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Computation:
 		// A COMPUTATION NAMES ITS BUNDLE AND ITS COMMAND. The sha is the bundle's address in the store
 		// and the key every re-run and verdict joins on, and argv is what a re-run executes; a
@@ -1210,6 +1213,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireRegradeWithinBenchLock(w, seatID, b); err != nil {
 			return err
 		}
+		if err := requireGapAnswers(q, seatID, b.GetGapId(), b.GetAnswers()); err != nil {
+			return err
+		}
 		if err := requireNoRegradeResult(b); err != nil {
 			return err
 		}
@@ -1228,6 +1234,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 		if err := requireOpenGap(q, b.GetGapId(), "--id",
 			"a gap's wording is what the next act on it answers, so restating it on a finished gap changes a demand nobody owes"); err != nil {
+			return err
+		}
+		if err := requireGapAnswers(q, seatID, b.GetGapId(), b.GetAnswers()); err != nil {
 			return err
 		}
 		if err := requireNoAmendResult(b); err != nil {
@@ -1886,10 +1895,6 @@ func requireMintSubject(m *recordpb.Mint) error {
 	switch {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
-	// A GAP ABOUT A GAP IS REFUSED at every write: no write records its parties' acts on it — its
-	// author's answer, the raiser's statement of the wording and grades, the lock.
-	case m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP:
-		return feov.Errorf(feov.Validation, "--about-kind gap is refused: a defect in a gap's own wording or grades is its minter's to answer, and no write here mints a gap on another lens's gap")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
 		return feov.Errorf(feov.MissingField, "a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, the question or one of its question parts, or a citation or computation whose check failed")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's

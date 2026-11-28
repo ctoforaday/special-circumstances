@@ -177,7 +177,6 @@ type runTally struct {
 	OneGapRefused              int                       `json:"one_gap_refused"`
 	OneGapRedirects            map[string]int            `json:"one_gap_redirects"`
 	OneGapNamingFinding        int                       `json:"one_gap_naming_finding"`
-	AboutGapRefused            int                       `json:"about_gap_refused"`
 	MovedDisputes              int                       `json:"moved_disputes"`
 	UnclassifiedMinted         int                       `json:"unclassified_minted"`
 	UnclassifiedRefused        int                       `json:"unclassified_refused"`
@@ -254,7 +253,7 @@ func tallyOf(o outcome) runTally {
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused,
 		OneGapRefused: o.oneGapRefused, OneGapRedirects: o.oneGapRedirects, OneGapNamingFinding: o.oneGapNamingFinding,
-		AboutGapRefused: o.aboutGapRefused, MovedDisputes: o.movedDisputes,
+		MovedDisputes:      o.movedDisputes,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
 		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
@@ -656,10 +655,10 @@ type sweepFold struct {
 	// and closed in each epoch, over every run.
 	finalBlockers, finalParties map[string]map[string]int
 	// oneGapRedirects is the one-gap refusals by the road they state, and oneGapNamingFinding,
-	// aboutGapRefused and movedDisputes the runs' counts (outcome's).
-	oneGapRedirects                                     map[string]int
-	oneGapNamingFinding, aboutGapRefused, movedDisputes int
-	mintsByEpoch, closesByEpoch                         map[int]int
+	// and movedDisputes the runs' counts (outcome's).
+	oneGapRedirects                    map[string]int
+	oneGapNamingFinding, movedDisputes int
+	mintsByEpoch, closesByEpoch        map[int]int
 	// nonMaterialMints is the runs' gaps minted below material (outcome.nonMaterialMints).
 	nonMaterialMints int
 }
@@ -812,7 +811,6 @@ func foldRuns(runs []runTally) sweepFold {
 			f.oneGapRedirects[road] += n
 		}
 		f.oneGapNamingFinding += r.OneGapNamingFinding
-		f.aboutGapRefused += r.AboutGapRefused
 		f.movedDisputes += r.MovedDisputes
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
@@ -1178,13 +1176,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			}
 		}
 		if f.oneGapNamingFinding > 0 {
-			t.Errorf("%d one-gap refusal(s) named a finding, a reconsideration's grounds or an about-kind gap as the road — a lens reports a defect one way, as a gap", f.oneGapNamingFinding)
-		}
-		// ABOUT_GAP_REFUSED (§III.A3, §III.A6): `mint --about-kind gap` is refused naming the proposal
-		// road. No draw types the word; aboutGapRefusedDrive does, once a run.
-		t.Logf("about-kind gap: %d mint(s) refused naming the raiser's road", f.aboutGapRefused)
-		if f.aboutGapRefused == 0 {
-			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's raiser's road is unexercised (false green)", f.completed)
+			t.Errorf("%d one-gap refusal(s) named a finding or a reconsideration's grounds as the road — a lens reports a defect one way, as a gap", f.oneGapNamingFinding)
 		}
 		// NON_MATERIAL_MINTS (§III.A6): a small defect is a gap minted in a by_grade class below medium.
 		t.Logf("non-material mints: %d gap(s) minted in a by_grade class below medium", f.nonMaterialMints)

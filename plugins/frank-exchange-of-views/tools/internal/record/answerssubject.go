@@ -76,6 +76,56 @@ func requireQuestionPartAnswers(q recordsql.Querier, seatID string, b *recordpb.
 	return feov.Errorf(feov.Validation, "--answers names %s, which is about %s — %s; it changes nothing %s is about", g, subjectWords(kind, ref), what, g)
 }
 
+// requireGapAnswers is an amend's or a regrade's `answers` (validate): an open gap on the record whose
+// author is seatID, about gap — the gap the act changes (§III.B0's last row). G's minter answers a gap
+// on its gap by changing G's wording or grades and naming it; a name about anything else answers a gap
+// the act never touched.
+func requireGapAnswers(q recordsql.Querier, seatID, gap, g string) error {
+	if g == "" {
+		return nil
+	}
+	kind, ref, err := answeredSubject(q, seatID, g)
+	if err != nil {
+		return err
+	}
+	if kind != recordpb.AboutKind_ABOUT_KIND_GAP || ref != gap {
+		return feov.Errorf(feov.Validation, "--answers names %s, which is about %s — a change to gap %s's wording or grades answers a gap about %s; it changes nothing %s is about", g, subjectWords(kind, ref), gap, gap, g)
+	}
+	return requireOpenGap(q, g, "--answers", "an answer is owed only to an open gap")
+}
+
+// requireAboutGap is a mint's subject where it is a gap (validate): ref is an open gap on the record,
+// not itself about a gap, and not the minting seat's own. A gap on a gap is a defect in that gap's
+// printed wording or its grades, which its minter answers; the minter changes its own gap by amending or
+// regrading it.
+func requireAboutGap(q recordsql.Querier, seatID string, m *recordpb.Mint) error {
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_GAP {
+		return nil
+	}
+	ref := m.GetAboutRef()
+	if err := requireGap(q, ref, "--about"); err != nil {
+		return err
+	}
+	if err := requireOpenGap(q, ref, "--about",
+		"a closed gap's wording answers nothing more, and a defect that stands in the report after its close is a new gap of yours about the report"); err != nil {
+		return err
+	}
+	var kind, under, minter string
+	if _, err := queryRowAt(q, []any{&kind, &under, &minter},
+		`SELECT COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), e."seat_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."gap_id" = ?`, ref); err != nil {
+		return err
+	}
+	if kind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP) {
+		return feov.Errorf(feov.Validation,
+			"--about names %s, which is itself a gap about gap %s: a gap on a gap on a gap is refused. What you see wrong in %s's wording or grades is argued in the dispute over %s, and a defect in %s's is a gap about %s. Nothing was recorded", ref, under, ref, under, under, under)
+	}
+	if minter == seatID {
+		return feov.Errorf(feov.Validation,
+			"--about names %s, which is your own gap: a gap's minter changes its wording with `amend --id %s` and its grades with `regrade --id %s`, and raises no gap on it. Nothing was recorded", ref, ref, ref)
+	}
+	return nil
+}
+
 // requireAnswersAuthor is an edit's, an evidence-anchor retire's, a citation's or a computation's
 // `answers` (validate): a gap on the record whose author is seatID — the bench's application in its
 // ruling's transaction aside. Which gaps' subjects such an act changes is not asked here.
