@@ -893,7 +893,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
-	t.Logf("BLUESTAT blue-respond sittings=%d (on an engaged successor %d) over %d runs", f.blueSits, f.blueAgains, f.completed)
+	t.Logf("BLUESTAT blue-respond sittings=%d (on gaps it engaged %d) over %d runs", f.blueSits, f.blueAgains, f.completed)
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		f.completed, f.failed, f.verdicts, f.epochHist, f.whyHist, f.dcov, f.citeAnchors, f.cacheFiles, f.editAnswers, f.dcov["blue_edit"], f.verifiedBasis, f.dcov["mint"], f.verbatimApplied, f.typedVerbatim, f.estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", f.limitExits, f.completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)

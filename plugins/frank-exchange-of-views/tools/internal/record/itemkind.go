@@ -39,9 +39,9 @@ const (
 	// ItemAwaitingEvidence is a gap owed a citation or computation placed as its answer
 	// (WorkGapJSON.AwaitingEvidence).
 	ItemAwaitingEvidence ItemKind = "awaiting_evidence"
-	// ItemSuccessorOwed is blue-respond's engage on the open successors of gaps it found closed
-	// (EngagedJSON.SuccessorsOwed).
-	ItemSuccessorOwed ItemKind = "successor_owed"
+	// ItemEngagementOwed is blue-respond's engage on the gaps its sitting owes one more sitting on
+	// (EngagedJSON.Owed).
+	ItemEngagementOwed ItemKind = "engagement_owed"
 	// ItemNotMaterial is an open gap that does not hold the PASS, on the chair's list.
 	ItemNotMaterial ItemKind = "not_material"
 	// ItemStaleInquiry is an inquiry no fate has revisited since it was declared.
@@ -71,7 +71,7 @@ func ItemKinds() []ItemKind {
 		out = append(out, ItemKind(r.kind))
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemNews, ItemLog,
-		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
+		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemEngagementOwed,
 		ItemNotMaterial, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
 }
 

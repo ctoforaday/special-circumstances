@@ -400,13 +400,13 @@ type runner struct {
 	registered map[string]bool
 	// lensSittings is each lens's sittings this run, by seat: the cost the retirement rule bounds.
 	lensSittings map[string]int
-	// blueSittings is blue-respond's sittings this run, and blueAgain those it sat on successors it
-	// engaged (gblock's ruling R2): the cost the second sitting adds, and how often it is driven.
+	// blueSittings is blue-respond's sittings this run, and blueAgain those it sat on the gaps it
+	// engaged (X22a): the cost the second sitting adds, and how often it is driven.
 	blueSittings, blueAgain int
-	// againOn is the successors blue engaged its next sitting on, which the engine sits it on next:
+	// againOn is the gaps blue engaged its next sitting on, which the engine sits it on next:
 	// the plan's party names the chair's gaps, so the second sitting reads its own here. It is set
 	// from an envelope the ENGINE RECEIVED (envelopeReceived): one the harness gave up on names
-	// nothing debate.js reads, so the engine sits blue on no successor.
+	// nothing debate.js reads, so the engine sits blue on nothing more.
 	againOn []string
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
@@ -6540,7 +6540,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.againOn = nil
 		r.mu.Unlock()
 		if again != nil {
-			engaged = again // the engine sits blue again on the successors it engaged, not the plan's gaps
+			engaged = again // the engine sits blue again on the gaps it engaged, not the plan's gaps
 			r.mu.Lock()
 			r.blueAgain++
 			r.mu.Unlock()
@@ -6633,7 +6633,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.dischargeOwed(seatID)
 		env := map[string]any{}
 		if again == nil {
-			r.engageSuccessors(seatID, env)
+			r.engageOwed(seatID, env)
 		}
 		return env
 
@@ -11403,59 +11403,50 @@ func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
 	}
 }
 
-// engageSuccessors is blue's R2 act (gblock, 2026-10-23): where its work list names an engaged gap it
-// found closed with an open successor, it records `engage` on exactly those and relays them in its
-// envelope, and the engine sits it once more this epoch. Before the owed set, once per sweep, it
-// asks with a gap the record names as no successor — the refusal the ruling requires.
-func (r *runner) engageSuccessors(seatID string, env map[string]any) {
+// engageOwed is blue's engagement (plans/findings-fold.md X22a): where its work list owes `engage` —
+// in the last epoch blue answers in, on the gaps of blue's minted after its dispatch — it records
+// `engage` on exactly those and relays them in its envelope, and the engine sits it once more this
+// epoch. It relays the gaps it found closed either way. Before the owed set, once per sweep, it asks
+// with an open gap the sitting does not owe — the refusal the write path holds it to.
+func (r *runner) engageOwed(seatID string, env map[string]any) {
 	w, err := record.WorkOfSeat(r.run(), "blue", seatID)
 	if err != nil || w.Engaged == nil {
 		return
 	}
-	var closed, lineage []string
-	for _, f := range w.Engaged.FoundClosed {
-		closed = append(closed, f.ID)
-		lineage = append(lineage, f.Successors...)
+	if len(w.Engaged.FoundClosed) > 0 {
+		found := []any{}
+		for _, f := range w.Engaged.FoundClosed {
+			found = append(found, f.ID)
+		}
+		env["found_closed"] = found
 	}
-	succ := w.Engaged.SuccessorsOwed
-	if len(closed) == 0 {
-		return
-	}
-	found := []any{}
-	for _, id := range closed {
-		found = append(found, id)
-	}
-	env["found_closed"] = found
-	if len(succ) == 0 {
+	owed := w.Engaged.Owed
+	if len(owed) == 0 {
 		return
 	}
 	if engageRefusalPending.CompareAndSwap(true, false) {
-		named := map[string]bool{}
-		for _, g := range lineage {
-			named[g] = true
-		}
 		for _, other := range r.openGaps() {
-			if !named[other] {
+			if !slices.Contains(owed, other) {
 				r.refuse(feov.Validation, "engage", "--seat-id", seatID, "--ids", other)
 				break
 			}
 		}
 	}
-	if _, err := r.exec("engage", "--seat-id", seatID, "--ids", strings.Join(succ, ",")); err != nil {
+	if _, err := r.exec("engage", "--seat-id", seatID, "--ids", strings.Join(owed, ",")); err != nil {
 		return
 	}
 	out := []any{}
-	for _, g := range succ {
+	for _, g := range owed {
 		out = append(out, g)
 	}
-	env["successors"] = out
+	env["engage"] = out
 }
 
-// envelopeReceived is what the harness expects of the engine once debate.js receives env: blue's
-// successors are the gaps the engine sits it on next (againOn). Called only for an envelope the
+// envelopeReceived is what the harness expects of the engine once debate.js receives env: the gaps
+// blue engaged are the gaps the engine sits it on next (againOn). Called only for an envelope the
 // engine is handed, never for one the harness gave up on (envelopeOutcome).
 func (r *runner) envelopeReceived(env map[string]any) {
-	named, _ := env["successors"].([]any)
+	named, _ := env["engage"].([]any)
 	if len(named) == 0 {
 		return
 	}

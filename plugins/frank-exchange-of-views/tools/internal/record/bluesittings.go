@@ -20,6 +20,7 @@ type BlueSitting struct {
 	// is. Read after the run, the end of the record closes it and it is never Unresolved.
 	Unresolved bool
 	opened     int64 // the place, in record order, of the register that opened it
+	dispatched int64 // the place, in record order, of the dispatch row it sits for
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
@@ -71,7 +72,7 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 // the work list's `engaged` reads it up to the end of the record for a row not yet sat for
 // (engagedOf), so the block blue reads before it registers is the one its sitting then holds.
 func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
-	s := BlueSitting{Engaged: d.gaps}
+	s := BlueSitting{Engaged: d.gaps, dispatched: d.at}
 	closedFirst := map[string]*Event{}
 	for _, e := range evs[d.at+1 : end] {
 		if b, ok := mustBody(e).(*recordpb.Close); ok {

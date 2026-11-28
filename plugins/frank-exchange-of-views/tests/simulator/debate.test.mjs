@@ -1101,8 +1101,8 @@ test('blue\'s filing is heard after its sitting and before the docket bench; a h
   assert.ok(!labels(halted).includes('judge #1'), 'the docket bench sat past the halt')
 })
 
-test('a halt on the hearing after blue stops its second sitting on a successor', async () => {
-  const blueRespond = [blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] })]
+test('a halt on the hearing after blue stops its second sitting', async () => {
+  const blueRespond = [blueEnv({ engage: ['G-1ac85c33'] })]
   const world = makeWorld(readsAt(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')]) })], blueRespond, petition: [{ record_read: read({ halted: true }) }] }), { 'blue-respond': read({ bench_owed: ['petition'] }) }))
   assert.equal((await world.run(script, ARGS)).verdict, 'HALTED')
   assert.equal(world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).length, 1, 'blue sat again past the halt')
@@ -1398,52 +1398,52 @@ test('a respond envelope takes gap ids in found_closed, and refuses prose there'
   assert.ok(!schemaAccepts(schema, { found_closed: ['the evidence gap'] }), 'a prose found_closed entry is accepted')
 })
 
-// R2 (gblock, 2026-10-23): BLUE SITS AGAIN ON THE SUCCESSOR OF A GAP IT FOUND CLOSED. universe-m31 epoch
-// 10: the chair engaged logic and blue on G-77cc033b, logic closed it and minted G-1ac85c33 superseding
-// it, and blue sat on a closed gap and recorded nothing — the successor waited for an epoch that never
-// came. Blue engages its next sitting on the successor and relays it; the engine sits it once more, and
-// no more: a second sitting's successors, and a successor already engaged this epoch, are not sat.
-test('R2: blue sits a second time on the successor it engaged, once per successor, and never a third time', async () => {
-  const blueRespond = [
-    blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }),
-    blueEnv({ found_closed: ['G-1ac85c33'], successors: ['G-00000003'] }),
-  ]
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-logic', 'G-77cc033b'), party('blue-respond', 'G-77cc033b')]) }), passChair()], blueRespond }))
-  assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
-  const blues = world.calls.filter((c) => /^blue-respond /.test(c.opts.label))
-  assert.equal(blues.length, 2, `blue sat ${blues.length} time(s) in the epoch: ${world.logs.join(' | ')}`)
-  assert.ok(blues[0].prompt.includes('You are engaged on: G-77cc033b.'), blues[0].prompt.slice(0, 200))
-  assert.ok(blues[1].prompt.includes('You are engaged on: G-1ac85c33.'), blues[1].prompt.slice(0, 200))
-  assert.ok(world.logs.some((l) => l.includes('engaged its next sitting on the successor(s) G-1ac85c33 — blue sits again this epoch')), world.logs.join(' | '))
-  assert.ok(world.logs.some((l) => l.includes('G-00000003 it does not sit again on — this was its second sitting this epoch')), world.logs.join(' | '))
+// T-B55 (plans/findings-fold.md X22a): BLUE SITS AGAIN WHERE THE RECORD OWES IT. In the last epoch blue
+// answers in, a gap of blue's minted after its dispatch has no later sitting to answer it; blue engages its
+// next sitting on it and relays the ids, and the engine sits it once more, with or without a gap found
+// closed, and no more: a second sitting's engage, and a gap already engaged this epoch, are not sat.
+test('T-B55: blue sits a second time on the gaps it engaged, with or without a gap found closed, and never a third time', async () => {
+  for (const found of [[], ['G-77cc033b']]) {
+    const blueRespond = [
+      blueEnv({ found_closed: found, engage: ['G-1ac85c33'] }),
+      blueEnv({ engage: ['G-00000003'] }),
+    ]
+    const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-logic', 'G-77cc033b'), party('blue-respond', 'G-77cc033b')]) }), passChair()], blueRespond }))
+    assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
+    const blues = world.calls.filter((c) => /^blue-respond /.test(c.opts.label))
+    assert.equal(blues.length, 2, `blue sat ${blues.length} time(s) in the epoch: ${world.logs.join(' | ')}`)
+    assert.ok(blues[0].prompt.includes('You are engaged on: G-77cc033b.'), blues[0].prompt.slice(0, 200))
+    assert.ok(blues[1].prompt.includes('You are engaged on: G-1ac85c33.'), blues[1].prompt.slice(0, 200))
+    assert.ok(world.logs.some((l) => l.includes('engaged its next sitting on G-1ac85c33 — blue sits again this epoch')), world.logs.join(' | '))
+    assert.ok(world.logs.some((l) => l.includes('G-00000003 it does not sit again on — this was its second sitting this epoch')), world.logs.join(' | '))
+  }
 })
 // THE CLOSING DUTY IS STATED ONCE AN EPOCH, at the sitting the plan dispatched, and not to blue's second
-// sitting on a successor: that sitting is engaged on the successor alone.
-test('R2: the closing duty is stated to the sitting the plan dispatched, and not to the second sitting', async () => {
+// sitting: that sitting is engaged on the gaps it engaged alone.
+test('T-B55: the closing duty is stated to the sitting the plan dispatched, and not to the second sitting', async () => {
   const blockers = [{ kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' }]
-  const blueRespond = [blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }), blueEnv()]
+  const blueRespond = [blueEnv({ engage: ['G-1ac85c33'] }), blueEnv()]
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')], { blockers }) }), passChair()], blueRespond }))
   await world.run(script, ARGS)
   const [first, second] = world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).map((c) => c.prompt)
   assert.ok(first.includes('WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU'), 'the dispatched sitting is not sent to its list for its closing')
   assert.ok(second && !second.includes('A CLOSING ARGUMENT IS OWED'), 'the second sitting is told of a closing')
 })
-test('R2: no second sitting without a gap found closed, or on a successor this epoch already engaged blue on', async () => {
+test('T-B55: no second sitting without an engage, or on a gap this epoch already engaged blue on', async () => {
   const sittings = async (env, ...gaps) => {
     const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', ...gaps)]) }), passChair()], blueRespond: [env] }))
     await w.run(script, ARGS)
     return w.calls.filter((c) => /^blue-respond /.test(c.opts.label)).length
   }
-  assert.equal(await sittings(blueEnv({ successors: ['G-00000002'] }), 'G-00000001'), 1, 'a successor relayed with no gap found closed was sat')
-  assert.equal(await sittings(blueEnv({ found_closed: ['G-00000001'], successors: ['G-00000002'] }), 'G-00000001', 'G-00000002'), 1, 'a successor the plan already engaged blue on was sat twice')
-  assert.equal(await sittings(blueEnv({ found_closed: ['G-00000001'] }), 'G-00000001'), 1, 'a gap closed with no successor sat blue again')
+  assert.equal(await sittings(blueEnv({ engage: ['G-00000002'] }), 'G-00000001', 'G-00000002'), 1, 'a gap the plan already engaged blue on was sat twice')
+  assert.equal(await sittings(blueEnv({ found_closed: ['G-00000001'] }), 'G-00000001'), 1, 'a gap found closed with no engage sat blue again')
 })
-test('a respond envelope takes gap ids in successors, and refuses prose there', async () => {
+test('a respond envelope takes gap ids in engage, and refuses prose there', async () => {
   const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
   await w.run(script, ARGS)
   const schema = w.calls.find((c) => /^blue-respond /.test(c.opts.label)).opts.schema
-  assert.ok(schemaAccepts(schema, { successors: ['G-0a1b2c3d'] }), 'a gap id is refused')
-  assert.ok(!schemaAccepts(schema, { successors: ['the successor'] }), 'a prose successor is accepted')
+  assert.ok(schemaAccepts(schema, { engage: ['G-0a1b2c3d'] }), 'a gap id is refused')
+  assert.ok(!schemaAccepts(schema, { engage: ['the gap'] }), 'a prose engage entry is accepted')
 })
 
 test('W2b: a found_closed id blue was not engaged on is ignored', async () => {

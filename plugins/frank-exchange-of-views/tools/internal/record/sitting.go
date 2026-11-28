@@ -353,17 +353,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if castOfEvents(evs) != nil {
 			s.Open = append(s.Open, blueQuestionItemsOf(seatID, reads.parts, reads.wholeQuestion)...)
 		}
-		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
-		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
-		// time this epoch.
+		// IN THE LAST EPOCH BLUE ANSWERS IN, A GAP OF ITS MINTED AFTER ITS DISPATCH OWES AN `engage`
+		// (engagementsOwedOnTheWorkList): no later sitting of blue's answers it, so blue sits on it a
+		// second time this epoch.
 		if seatID == blueRespondSeat {
-			if owed := successorsOwedOnTheWorkList(evs, win, openOf(gaps)); len(owed) > 0 {
+			if owed := engagementsOwedOnTheWorkList(evs, win, openOf(gaps)); len(owed) > 0 {
 				var named []string
 				for _, o := range owed {
-					named = append(named, o.GapID+" (successor of "+o.Of+")")
+					named = append(named, o.GapID)
 				}
-				add(ItemSuccessorOwed, nil, "this sitting found a gap closed whose successor is open and not yet engaged this epoch — "+strings.Join(named, ", ")+
-					" — record `engage` on them, then name them in your envelope's successors: you sit on them again this epoch")
+				add(ItemEngagementOwed, nil, "gaps of yours were minted after your dispatch, and no later sitting of yours answers them — "+strings.Join(named, ", ")+
+					" — record `engage` on them, then name them in your envelope's engage: you sit on them again this epoch")
 			}
 		}
 		// BLUE-RESPOND OWES ITS CLOSING ON EACH DOCKETED GAP (closingowed.go): the PASS gate's
@@ -675,25 +675,20 @@ type EngagedJSON struct {
 	// before this read. It is what the sitting's envelope names as found closed. Never omitted: an empty list
 	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
-	// SuccessorsOwed is the successors this sitting owes an `engage` on (successorsOwedOnTheWorkList),
-	// before its register as well as after: each open
-	// successor of a gap it found closed that no dispatch row of this epoch engages blue on, in
-	// found-closed order, once each. It is exactly the set the act must name, and it is empty when
-	// none is owed and once the act is recorded. Never omitted.
-	SuccessorsOwed []string `json:"successors_owed"`
+	// Owed is the gaps this sitting owes an `engage` on (engagementsOwedOnTheWorkList), before its
+	// register as well as after: in the last epoch blue answers in, each open gap blue authors minted
+	// after this sitting's dispatch that no dispatch row of this epoch engages blue on, in mint
+	// order. It is exactly the set the act must name, and it is empty when none is owed and once the
+	// act is recorded. Never omitted.
+	Owed []string `json:"owed"`
 }
 
-// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, the fate
-// that close gave it (the Disposition vocabulary, as `estopped` carries it), and the open gaps the
-// record names as its successors (successorsOf).
+// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, and the fate
+// that close gave it (the Disposition vocabulary, as `estopped` carries it).
 type FoundClosedJSON struct {
 	ID           string `json:"id"`
 	ClosedBySeat string `json:"closed_by_seat"`
 	Fate         string `json:"fate"`
-	// Successors is each open gap the record names as carrying this one forward — its close's
-	// `superseded_by`, or a mint naming it in `supersedes` — in record order. Never omitted: an
-	// empty list is "the record names no open successor", and blue sits on nothing more for it.
-	Successors []string `json:"successors"`
 }
 
 // engagedOf is the engaged block of the dispatch blue-respond is to sit for, or nil where no
@@ -719,19 +714,12 @@ func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string
 	if !sat {
 		return nil
 	}
-	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}, SuccessorsOwed: []string{}}
-	succ, open := successorsOf(live), openOf(gaps)
-	for _, o := range successorsOwedOnTheWorkList(live, win, open) {
-		e.SuccessorsOwed = append(e.SuccessorsOwed, o.GapID)
+	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}, Owed: []string{}}
+	for _, o := range engagementsOwedOnTheWorkList(live, win, openOf(gaps)) {
+		e.Owed = append(e.Owed, o.GapID)
 	}
 	for _, fc := range s.FoundClosed {
-		f := FoundClosedJSON{ID: fc.GapID, ClosedBySeat: fc.Act.GetSeatId(), Fate: fc.Fate(), Successors: []string{}}
-		for _, g := range succ[fc.GapID] {
-			if open(g) {
-				f.Successors = append(f.Successors, g)
-			}
-		}
-		e.FoundClosed = append(e.FoundClosed, f)
+		e.FoundClosed = append(e.FoundClosed, FoundClosedJSON{ID: fc.GapID, ClosedBySeat: fc.Act.GetSeatId(), Fate: fc.Fate()})
 	}
 	return e
 }

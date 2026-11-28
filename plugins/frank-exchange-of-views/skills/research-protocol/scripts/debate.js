@@ -528,16 +528,14 @@ const BLUE_ENVELOPE = {
     // so a lens can close a gap blue was dispatched onto; blue then has nothing to answer on it.
     // This engine reads no record, and a lens's envelope carries nothing, so blue's reading of its
     // work list (engaged.found_closed) is the only word of it that reaches here. It is trusted for
-    // what this engine does with it — the log line naming the gaps, and whether blue sits again on
-    // a successor — and for nothing that scores.
+    // what this engine does with it — the log line naming the gaps — and for nothing that scores.
     found_closed: { type: 'array', items: GAP_ID, description: 'the id of each gap you were engaged on that was already closed when you sat — ids only' },
-    // THE SUCCESSORS BLUE ENGAGED ITS NEXT SITTING ON (gblock's ruling R2). A gap blue found closed
-    // can have a successor its lens minted in the same sitting; blue's work list names it off the
-    // record's lineage, blue records the engagement (a dispatch row the write path holds to exactly
-    // the successors the record names), and relays the ids here. The engine sits blue once more
-    // this epoch on them, at most once per successor; the record, not this list, is what capture and
-    // the next plan read.
-    successors: { type: 'array', items: GAP_ID, description: 'the id of each successor you engaged your next sitting on this sitting — ids only; empty when you engaged none' },
+    // THE GAPS BLUE ENGAGED ITS NEXT SITTING ON (plans/findings-fold.md X22a). In the last epoch blue
+    // answers in, a gap of blue's minted after its dispatch has no later sitting to answer it; blue's
+    // work list names it off the record, blue records the engagement (a dispatch row the write path
+    // holds to exactly the set the sitting owes), and relays the ids here. The engine sits blue once
+    // more this epoch on them; the record, not this list, is what capture and the next plan read.
+    engage: { type: 'array', items: GAP_ID, description: 'the id of each gap you engaged your next sitting on this sitting — ids only; empty when you engaged none' },
     record_read: RECORD_READ,
   },
 }
@@ -926,7 +924,7 @@ AN OPEN INQUIRY HOLDS THE PASS. Every inquiry still proposed or underway owes a 
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS the lens that prescribed it from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender; another lens audits that text as it audits any of yours.
 OWNERSHIP BINDS, AS IT DID AT SYNTHESIS: you write ONLY your own surfaces — TL;DR, Catechism, the report's own sections, open questions, your citations. THEIR ORDER BINDS TOO: \`## TL;DR\` first, \`## The Catechism\` second, the report's own sections after them, \`## Open questions\` last. The report ships in the order it is written, so an edit that puts one of them out of place — a section added after the open questions, say — is refused. You MUST NOT introduce a \`**Outcome:**\` line, a \`**Not answered here:**\` line or any tool-owned section (${TOOL_COMPOSED}, a \`## Blue team report\` wrapper): assembly composes those from the record, and an edit that would leave one in the report is refused; the refusal says how content reaches that section and lists every section assembly composes.${NO_LIST_OF_APPROACHES} AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied; if your argument turns on the models used, say that the record's measurement decides it. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}): likelihood and impact are CONSEQUENCE axes — how likely the harm lands and how much it costs when it does — and severity is red's overall grade; they multiply into mass, and materiality is the class's default: always, never, or by grade from medium.
 ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact — or, where the gap changes no reader decision or asks for complexity that does not pay, argue \`defect_accepted\` with that reason. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT, once the gap has had an exchange, by proposing the regrade you hold right, with your evidence: the gap's lens may accept it in its window, and otherwise the record dockets it for the bench, where your closing argues it. Compact and reorganize prose as clarity demands — but a CLAIM leaves only through an edit on the record, whose reason says why it goes and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
-AUDIT YOUR OWN REPAIRS BEFORE YOU SUBMIT THEM (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide. Each edit names the gap it answers, and the gap's lens re-audits the repair. A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no answer: your work list names each one, with the seat that closed it, its fate and its open successors, and you name it in found_closed from that list. Engage your next sitting on each successor it owes, and name it in successors.`
+AUDIT YOUR OWN REPAIRS BEFORE YOU SUBMIT THEM (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide. Each edit names the gap it answers, and the gap's lens re-audits the repair. A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no answer: your work list names each one, with the seat that closed it and its fate, and you name it in found_closed from that list. Engage your next sitting on each gap your work list owes, and name it in engage.`
 const benchPrompt = () => `Adjudication, topic "${topic}". YOUR WORK LIST NAMES THE DOCKETINGS BEFORE YOU: the record wrote each, and its cause and basis say why.${oneItemClause} THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two parties' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them.${lawClause}${declareClause}${inspectionClause}
 Every docketing gets a written ruling — the docket ruling: your side, the principle you applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), what a human should look at again (where nothing needs a human, what on the record already settles it), your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and, for a ruling that closes the gap, what would reopen it or that nothing would (final). EACH SIDE STATES WHAT IT HOLDS, AND YOU CHOOSE: red's closing the text the gap's sentence should carry, blue's the word its text stands under; a held proposal is its filer's statement, and at grade movement the moved grades face the recorded ones. The record applies the side you choose, writing nothing of yours; a side that stated nothing cannot win. A REMAND closes nothing and is never final — it goes back to the debate for ONE more exchange between its assignee and blue, on the research direction you state, which the record refuses blank — if that exchange leaves it at impasse it comes back to you, for a side: a second remand at impasse is refused, and grade movement takes none. Rule every docketing and motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${speedClause}${recordClause('judge', OCCASION.docket)} Return your envelope.`
@@ -1014,11 +1012,11 @@ while (!stopped() && !seatStop) {
       { ...dispatchAs(p.seat_id), label: labelFor(p.seat_id), phase: 'Red', schema: LENS_ENVELOPE })))
     if (await hearOwed(lensEnvs.flatMap((env, i) => (env ? [readOf(lenses[i].seat_id, env)] : [])))) break
   }
-  // BLUE SITS AGAIN ON A SUCCESSOR (gblock's ruling R2): a gap blue found closed whose successor the
-  // record names engages blue's next sitting on it, and blue relays the ids. THE BOUND: one more
-  // sitting this epoch, on successors no sitting of blue's this epoch was engaged on — each at most
-  // once. The record refuses an engagement on a gap it does not name as a successor, or on one
-  // already engaged this epoch, so a relayed id the record does not hold reaches no dispatch row.
+  // BLUE SITS AGAIN WHERE THE RECORD OWES IT (plans/findings-fold.md X22a): in the last epoch blue
+  // answers in, a gap of blue's minted after its dispatch engages blue's next sitting, and blue
+  // relays the ids. THE BOUND: one more sitting this epoch, on gaps no sitting of blue's this epoch
+  // was engaged on. The record refuses an engagement on a gap the sitting does not owe, so a relayed
+  // id the record does not hold reaches no dispatch row.
   const blueSittings = blues.map((p) => ({ gap_ids: p.gap_ids, again: false }))
   const blueEngaged = new Set(blues.flatMap((p) => p.gap_ids))
   for (const p of blueSittings) {
@@ -1040,15 +1038,15 @@ while (!stopped() && !seatStop) {
     blueFailures = 0
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
-    const successors = [...new Set(Array.isArray(blueEnv2.successors) ? blueEnv2.successors : [])]
-    const again = foundClosed.size > 0 && !p.again ? successors.filter((g) => !blueEngaged.has(g)) : []
+    const engaged = [...new Set(Array.isArray(blueEnv2.engage) ? blueEnv2.engage : [])]
+    const again = !p.again ? engaged.filter((g) => !blueEngaged.has(g)) : []
     if (again.length) {
       again.forEach((g) => blueEngaged.add(g))
       blueSittings.push({ gap_ids: again, again: true })
-      log(`epoch ${epoch}: blue found ${[...foundClosed].join(', ')} closed and engaged its next sitting on the successor(s) ${again.join(', ')} — blue sits again this epoch`)
+      log(`epoch ${epoch}: blue engaged its next sitting on ${again.join(', ')} — blue sits again this epoch`)
     }
-    const unsat = successors.filter((g) => !again.includes(g))
-    if (unsat.length) log(`epoch ${epoch}: blue named successor(s) ${unsat.join(', ')} it does not sit again on — ${p.again ? 'this was its second sitting this epoch' : foundClosed.size ? 'already engaged this epoch' : 'it found no engaged gap closed'}`)
+    const unsat = engaged.filter((g) => !again.includes(g))
+    if (unsat.length) log(`epoch ${epoch}: blue named ${unsat.join(', ')} it does not sit again on — ${p.again ? 'this was its second sitting this epoch' : 'already engaged this epoch'}`)
     // A SITTING THAT FOUND EVERY ENGAGED GAP CLOSED HAD NOTHING TO ANSWER. This engine reads no
     // record and re-prompts no seat: the seat's own work list blocks on what it owes — its closings
     // among them (record.closingBlockersOf) — and capture's record-parity audit reads the record.

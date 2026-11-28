@@ -229,19 +229,19 @@ func TestAnAssemblySatAgainAfterAGiveUpAssemblesOnTheStampedOutcome(t *testing.T
 	requireEveryDispatchReturned(t, r)
 }
 
-// A RECEIVED ENVELOPE'S SUCCESSORS ARE WHAT THE HARNESS EXPECTS THE ENGINE TO SIT BLUE ON NEXT, read
+// THE GAPS A RECEIVED ENVELOPE ENGAGES ARE WHAT THE HARNESS EXPECTS THE ENGINE TO SIT BLUE ON NEXT, read
 // off the envelope debate.js was handed (envelopeReceived). The binding calls it for no envelope it
-// gave up on; the sweep holds that call, since a blue-respond sitting engaged on a successor needs a
+// gave up on; the sweep holds that call, since a blue-respond sitting that owes an engagement needs a
 // whole debate behind it.
-func TestAReceivedEnvelopeReadiesItsSuccessorSitting(t *testing.T) {
+func TestAReceivedEnvelopeReadiesItsEngagedSitting(t *testing.T) {
 	r := &runner{}
 	r.envelopeReceived(map[string]any{})
 	if r.againOn != nil {
-		t.Fatalf("an envelope naming no successor readied %v", r.againOn)
+		t.Fatalf("an envelope engaging nothing readied %v", r.againOn)
 	}
-	r.envelopeReceived(map[string]any{"successors": []any{"G-00000001"}})
+	r.envelopeReceived(map[string]any{"engage": []any{"G-00000001"}})
 	if len(r.againOn) != 1 || r.againOn[0] != "G-00000001" {
-		t.Fatalf("a received envelope's successors readied %v, want G-00000001", r.againOn)
+		t.Fatalf("a received envelope's engage readied %v, want G-00000001", r.againOn)
 	}
 }
 
