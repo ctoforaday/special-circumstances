@@ -9449,7 +9449,16 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
 		// space, and as a reader reads them (asRead). A token the weave turns into a note is read as
 		// the note reference it ships as (wovenAsNotes, shipsWoven).
-		prose := flat(asRead(reportdoc.StripTokens(wovenAsNotes(fieldStr(t, e, key)))))
+		text := fieldStr(t, e, key)
+		// A MINT'S WORDING IS THE GAP'S CURRENT VERSION: the report renders an amended gap's latest
+		// wording on its row, and the versions before it reach the reader through `show changes`
+		// (§III.B7), so a mint's own problem is owed only while no amend restated it.
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
+			if g := board.Gap(m.GetGapId()); g != nil {
+				text = g.Current().GetProblem()
+			}
+		}
+		prose := flat(asRead(reportdoc.StripTokens(wovenAsNotes(text))))
 		if prose == "" || shipsWoven(flatRpt, prose) {
 			continue
 		}
