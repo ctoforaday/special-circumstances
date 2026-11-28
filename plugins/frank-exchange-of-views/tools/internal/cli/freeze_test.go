@@ -227,6 +227,26 @@ func TestTheDocketsFirstIsRuledAndALaterBrokenStatementLosesNamingTheRuling(t *t
 		}
 	})
 
+	// A ROAD THE BENCH'S APPLICATION BROKE FREEZES NOTHING (seed 28 of the release fuzz): blue's act
+	// cannot make inapplicable a statement that no longer applies before it, so an edit elsewhere lands
+	// while H's docketing stands, as it would with no road on H at all.
+	t.Run("a road an earlier ruling broke does not freeze blue's edit elsewhere", func(t *testing.T) {
+		runDir, g, h, dg, _ := setup(t)
+		if out, err := redStates(t, runDir, g); err != nil {
+			t.Fatalf("red's closing on G: %v\n%s", err, out)
+		}
+		if out, err := redStates(t, runDir, h, "--quote", acceptS+".", "--new", steep); err != nil {
+			t.Fatalf("red's closing on H: %v\n%s", err, out)
+		}
+		conveneBench(t, runDir, g, h)
+		if out, err := answerDocketing(t, runDir, dg, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser on G, the docket's first: %v\n%s", err, out)
+		}
+		if out, err := blueEditOf(t, runDir, "elsewhere", "", freezeElse, "The year opened well."); err != nil {
+			t.Fatalf("blue's edit elsewhere, H's road already broken by G's ruling: %v\n%s", err, out)
+		}
+	})
+
 	t.Run("the head's text leaves the later road planning: both ruled for red in one sitting, in order", func(t *testing.T) {
 		runDir, g, h, dg, dh := setup(t)
 		if out, err := redStates(t, runDir, g); err != nil {
