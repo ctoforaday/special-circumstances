@@ -1449,11 +1449,11 @@ func (r *runner) fileClosing(seatID, id string) bool {
 		// then had no text of red's to side with.
 		if words := wordsBefore(cur, id); words != "" {
 			run := abuttingRun(cur, words)
-			roads = append(roads, []string{"--quote", words + run, "--new", "fuzz: red's text for " + id + run})
+			roads = append(roads, []string{"--quote", words + run, "--new", redRoadText(id, words) + run})
 		}
 	}
 	if sentence := r.markedSentence(id); sentence != "" {
-		roads = append(roads, []string{"--quote", sentence, "--new", "fuzz: red's text for " + id + "."})
+		roads = append(roads, []string{"--quote", sentence, "--new", redRoadText(id, sentence) + "."})
 	}
 	for _, road := range roads {
 		if _, err := r.exec(withJSON(append(slices.Clone(args), road...))...); err == nil {
@@ -1465,6 +1465,22 @@ func (r *runner) fileClosing(seatID, id string) bool {
 		r.countGate("closing_no_text")
 	}
 	return ok
+}
+
+// redRoadText is the replacement red's closing on gap id states for words: its own text, keeping the
+// phrasing of the cost sentence the edit drives swap where words hold one. A ruling for red applies the
+// text over the sentence, and a sentence that lost both phrasings leaves every later gap's proposal and
+// counter-edit nothing to quote for the rest of the run: an APPLY gap minted with no proposal then has no
+// edit of blue's answering it (seed 21, after the bench applied red's text on a disputed gap).
+func redRoadText(id, words string) string {
+	text := "fuzz: red's text for " + id
+	shown := plainText(words)
+	for _, phrase := range []string{"rising over time", "climbing sharply"} {
+		if strings.Contains(shown, phrase) {
+			return text + ", the cost " + phrase
+		}
+	}
+	return text
 }
 
 // blueClosingWords is each closing word blue's closing may state at an impasse docketing; blueRefusedWords
