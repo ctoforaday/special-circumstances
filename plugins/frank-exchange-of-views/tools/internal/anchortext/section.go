@@ -62,9 +62,16 @@ func HeadingsKeyed(doc, ref string) []Heading {
 	return out
 }
 
-// End is where h's section ends in doc: the next heading at h's level or above, or the end of doc
-// (reportheading.SectionEnd, the bound a gap's passage is read in).
-func (h Heading) End(doc string) int { return reportheading.SectionEnd(doc, h.Start, h.Level) }
+// End is where h's section ends in doc: the start of the next heading (Headings) at h's level or
+// above, or the end of doc. A `#` line in a fence is no heading and ends nothing.
+func (h Heading) End(doc string) int {
+	for _, n := range Headings(doc) {
+		if n.Start > h.Start && n.Level <= h.Level {
+			return n.Start
+		}
+	}
+	return len(doc)
+}
 
 // HeadingLocation is where a section gap about ref places its token in doc: the one heading keyed to
 // ref, as the location replay places it at — the heading's line, its anchors stripped. It refuses

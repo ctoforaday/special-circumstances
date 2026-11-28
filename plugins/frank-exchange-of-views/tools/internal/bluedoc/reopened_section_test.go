@@ -63,3 +63,14 @@ func TestAHeadingRewriteKeepsItsSectionsToken(t *testing.T) {
 		t.Errorf("a prose token was placed on a heading: %q", got)
 	}
 }
+
+// A `#` LINE IN A CODE FENCE IS NO HEADING: it neither ends a section nor holds a section's token, so
+// an edit past a fenced `# comment` still meets the section the fence stands in.
+func TestAFencedHashLineEndsNoSection(t *testing.T) {
+	tok := anchor.Token("G-0000000a")
+	doc := "## A" + tok + "\n\n```\n# not a heading\n```\n\nAfter the fence.\n\n## B\n\nBeta.\n"
+	at := strings.Index(doc, "After")
+	if got := Reopened(doc, strings.Replace(doc, "After", "Past", 1), at, at+len("After")); !slices.Contains(got, "G-0000000a") {
+		t.Errorf("an edit after a fenced # line did not meet its section: %v", got)
+	}
+}
