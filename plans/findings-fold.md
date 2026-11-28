@@ -982,7 +982,8 @@ Owed by this spec, each one translation with a test on an archived run:
     and the regrade guard have no archived population (0 of 0, R0's NOT MEASURED list).
   - (5) 2 tokens, not 3 (Translation 6 above).
   - (8) accepted as the intended effect: 12 of 14 archived `engage` rows refused and dropped (each at an epoch where
-    `blueSitsAfter` holds), 12 epochs losing a second blue sitting, 4 gaining one at epoch 10. The 2 epochs gaining one
+    `blueSitsAfter` holds) as R0 read them, off each run's config; the build reads each archive's stored plan, and
+    migrate drops **13** (`UnowedEngagements`; measured at R4a, the lead's acceptance 2026-11-28), 12 epochs losing a second blue sitting, 4 gaining one at epoch 10. The 2 epochs gaining one
     at epoch 11, the held-out epoch (m37, m38), were a defect in the engagement's definition, fixed in §III.B4: blue
     never sits again in its held-out epoch (T-B55's held-out row).
   P12b had not reached `main` when R1 merged it (2026-11-26); R1 merges `main` without it, and P12b's later merge
