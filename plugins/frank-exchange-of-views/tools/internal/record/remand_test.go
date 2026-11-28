@@ -857,3 +857,43 @@ func TestARemandOfAnOpenGapIsAdmitted(t *testing.T) {
 		}
 	}
 }
+
+// A GAP ON A GAP: THE REMAND'S ITEM BLOCKS ITS AUTHOR, the minter of the gap it is about (X17). H1,
+// the other lens's gap on G1, stalls at impasse and is remanded: the remand's exchange begins with
+// G1's minter's act, so its item blocks that lens's sitting and names the acts that answer H1 (an
+// amend or a regrade of G1 naming it); blue's list carries none, and H1's raiser's item does not
+// block.
+func TestARemandOfAGapOnAGapHoldsItsAuthor(t *testing.T) {
+	m := rawMint("H1")
+	m.ClassMaterial = nil
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("G1")
+	st := newStage(t).cast(evLens, otherLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").add(otherLens, m)
+	st.register("red-chair").dispatch(2, otherLens, "H1").dispatch(2, evLens, "H1").sitClosed(otherLens).sitClosed(evLens)
+	st.register("red-chair").dispatch(2, otherLens, "H1").dispatch(2, evLens, "H1").sitClosed(otherLens).sitClosed(evLens)
+	run := st.docketAndRemandWith("M1", "H1", remandDirection).register("red-chair").dispatch(2, evLens, "H1").register(evLens).seed()
+	item := func(role, seat string) *Item {
+		w, err := WorkOfSeat(run, role, seat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, it := range w.Sitting.Open {
+			if strings.Contains(it.What, "gap H1") && strings.Contains(it.What, remandDirection) {
+				return &w.Sitting.Open[i]
+			}
+		}
+		return nil
+	}
+	switch a := item("lens", evLens); {
+	case a == nil:
+		t.Fatalf("G1's minter, H1's author, carries no remand item on H1")
+	case !a.Blocks || !strings.Contains(a.What, "an amend or a regrade of G1 naming it"):
+		t.Errorf("H1's author's remand item blocks %v and reads %q; want blocking, naming the amend or regrade of G1", a.Blocks, a.What)
+	}
+	if r := item("lens", otherLens); r == nil || r.Blocks {
+		t.Errorf("H1's raiser's remand item = %+v, want one that does not block", r)
+	}
+	if b := item("blue", "blue-respond"); b != nil {
+		t.Errorf("blue carries a remand item on H1, a gap blue does not author: %q", b.What)
+	}
+}

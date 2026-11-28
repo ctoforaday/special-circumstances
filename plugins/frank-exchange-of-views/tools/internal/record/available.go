@@ -77,7 +77,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with
 		// the mint's reason and every regrade that moved a grade (gblock, 2026-10-18). It stays here
 		// until blue answers the gap again.
-		out = append(out, keptGradeItems(evs, win, gaps)...)
+		out = append(out, keptGradeItems(evs, win, gaps, seatID)...)
 	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
@@ -153,6 +153,9 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		//
 		// ON THE ORIGINATOR'S LIST: only the minting seat re-audits and closes its gap, so this is news for that seat and noise for any other.
 		out = append(out, blueAnswers(evs, win, gaps, seatID)...)
+		// A LENS THAT MINTED A GAP ANOTHER LENS RAISED A GAP ON IS THAT GAP'S AUTHOR: its raiser's kept
+		// grade is the author's work, as it is blue's on a gap about the report.
+		out = append(out, keptGradeItems(evs, win, gaps, seatID)...)
 	}
 	return out
 }
@@ -216,17 +219,21 @@ func anchorOwnerOf(computation bool) string {
 // It stands while the plan's own route (routeOf) owes the remand's exchange, so it goes when the gap
 // closes, when a docket motion on it puts it back before the bench, and when an exchange in which
 // blue acted on the gap has been had.
-func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
+func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	minted := assigneeOf(evs)
+	author := authorsOn(evs)
 	var acts map[string][]gapAct
-	var dispatched int64 // blue's latest dispatch row, read with acts
+	var dispatched int64 // the author's latest dispatch row, read with acts
 	var out []Item
 	for _, g := range gaps {
-		if !g.Open || g.route != routeRemandOwed || (!blue && minted[g.ID] != seatID) {
+		// THE AUTHOR'S ITEM, OR THE RAISER'S: blue authors a gap about the report, a lens a gap about
+		// its own gap (authorOf).
+		isAuthor := author(g.ID) == seatID
+		if !g.Open || g.route != routeRemandOwed || (!isAuthor && minted[g.ID] != seatID) {
 			continue
 		}
-		what := remandItem(g, blue)
-		if !blue {
+		what := remandItem(g, isAuthor, seatID == blueRespondSeat)
+		if !isAuthor {
 			out = append(out, gapItem(ItemKind(BlockerRemandOwed), g.ID, what))
 			continue
 		}
@@ -262,9 +269,13 @@ func latestDispatchOf(evs []*Event, win WindowIndex, seatID string) int64 {
 
 // remandItem is the remand's sentence for blue or for the gap's assignee: the direction, the act
 // that discharges it, and where the gap goes next.
-func remandItem(g WorkGapState, blue bool) string {
+func remandItem(g WorkGapState, author, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
-	if blue {
+	if author && !blue {
+		return "gap " + g.ID + ", about your gap " + g.AboutRef + ", was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the direction the ruling states: " + g.DocketDirection +
+			". Your sitting cannot end until you record an act that names " + g.ID + " as its answer: an amend or a regrade of " + g.AboutRef + " naming it — a change that names no gap does not answer it. Its raiser audits your answer after you have acted" + next
+	}
+	if author {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the research direction the ruling states: " + g.DocketDirection +
 			". Your sitting cannot end until you record an act that names " + g.ID + " as its answer: an edit, a retire of an evidence anchor, a citation or computation placed as its answer, or a fate or question part record — a change that names no gap does not answer it. Its assignee audits your answer after you have acted" + next
 	}

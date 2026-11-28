@@ -338,7 +338,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		// A REMAND'S EXCHANGE HOLDS BLUE'S SITTING UNTIL BLUE ACTS ON THE GAP (remandItemsOf).
 		if seatID == blueRespondSeat {
-			s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, true)...)
+			s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID)...)
 		}
 		// AN OPEN INQUIRY OWES BLUE-RESPOND A FATE EACH SITTING (inquirycheck.go): it holds the PASS
 		// while it is open, so dispatch readies blue-respond for it, and the sitting cannot end with
@@ -461,7 +461,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	case "lens":
 		// A REMAND'S EXCHANGE HOLDS ITS ASSIGNEE'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
-		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
+		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID)...)
 		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS HAVE ALL LEFT THE REPORT — retired, or cut with their
 		// sentences (ruling Closures are history): news, never a blocker — the closure stands, and the
 		// item says what a mint in answer would be. It reads the undocketed gaps: a docketing or a

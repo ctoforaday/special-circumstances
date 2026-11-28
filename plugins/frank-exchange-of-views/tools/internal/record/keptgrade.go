@@ -79,18 +79,36 @@ func KeptGradeHeading(e *Event) string {
 // keptGradeItems is blue's item for each open gap of gaps whose assignee kept its grade after
 // blue last answered it (blueAnswersOf): the lens's reason, which is what its check still finds
 // failing. A keep blue has answered since is answered, and drops off.
-func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []Item {
+func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
+	author := authorsOn(evs)
 	open := map[string]bool{}
 	for _, g := range gaps {
-		if g.Open {
+		if g.Open && author(g.ID) == seatID {
 			open[g.ID] = true
 		}
 	}
-	answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
+	// THE AUTHOR'S LATEST ANSWER: blue's, read off its sittings (blueAnswersOf); a lens author's, its
+	// latest act naming the gap (gapActsOf: its amend or regrade naming it).
+	answered := func(g string) int64 { return 0 }
+	if seatID == blueRespondSeat {
+		answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
+		answered = func(g string) int64 { return answers[g].at }
+	} else {
+		acts := gapActsOf(evs, win.IDs(evs))
+		answered = func(g string) int64 {
+			var at int64
+			for _, a := range acts[g] {
+				if a.seat == seatID {
+					at = max(at, a.at)
+				}
+			}
+			return at
+		}
+	}
 	latest := map[string]gradeKeep{}
 	var order []string
 	for _, k := range gradeKeepsOf(evs, win) {
-		if !open[k.gap] || k.at <= answers[k.gap].at {
+		if !open[k.gap] || k.at <= answered(k.gap) {
 			continue
 		}
 		if _, seen := latest[k.gap]; !seen {
